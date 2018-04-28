@@ -1,0 +1,13 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ignore configuration files, except defaults
+*.ini
+*.cfg
+!default.ini
+!system.cfg
+
+# Ignore DM script control files:
+DMcom.*
