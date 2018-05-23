@@ -18,6 +18,9 @@
 //
 // INSTRUCTIONS FOR USERS:
 //
+// If your SBEMimage installation is not in C:\pytools\SBEMimage, you must
+// change the install_path variable in line 599 before using this script.
+//
 // After opening this script (SBEMimage_DMcom_GMS2.s), click "Execute". 
 // Then start SBEMimage.
 // The script's activity is recorded in DM's output window.
