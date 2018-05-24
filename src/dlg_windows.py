@@ -544,10 +544,12 @@ class ImportImageDlg(QDialog):
             if selection_success:
                 new_img_number = self.ovm.get_number_imported()
                 self.ovm.add_imported_img()
-                self.cs.set_imported_img_origin_s(
+                self.cs.set_imported_img_centre_s(
                     new_img_number,
                     [self.doubleSpinBox_posX.value(),
                      self.doubleSpinBox_posY.value()])
+                self.ovm.set_imported_img_rotation(
+                    new_img_number, self.spinBox_rotation.value())
                 self.ovm.set_imported_img_file(
                     new_img_number, target_path)
                 self.ovm.set_imported_img_name(new_img_number,

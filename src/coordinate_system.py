@@ -37,8 +37,8 @@ class CoordinateSystem():
             self.cfg['overviews']['stub_ov_centre_sx_sy'])
         self.stub_ov_origin_sx_sy = json.loads(
             self.cfg['overviews']['stub_ov_origin_sx_sy'])
-        self.imported_img_origin_sx_sy = json.loads(
-            self.cfg['overviews']['imported_origin_sx_sy'])
+        self.imported_img_centre_sx_sy = json.loads(
+            self.cfg['overviews']['imported_centre_sx_sy'])
         # Mosaic viewer (mv): visible window position and scaling:
         self.mv_centre_dx_dy = json.loads(
             self.cfg['viewport']['mv_centre_dx_dy'])
@@ -164,27 +164,27 @@ class CoordinateSystem():
         return (self.stub_ov_origin_sx_sy[0] + s_coordinates[0],
                 self.stub_ov_origin_sx_sy[1] + s_coordinates[1])
 
-    def get_imported_img_origin_s(self, img_number):
-        return self.imported_img_origin_sx_sy[img_number]
+    def get_imported_img_centre_s(self, img_number):
+        return self.imported_img_centre_sx_sy[img_number]
 
-    def get_imported_img_origin_d(self, img_number):
+    def get_imported_img_centre_d(self, img_number):
         return self.convert_to_d(
-            self.imported_img_origin_sx_sy[img_number])
+            self.imported_img_centre_sx_sy[img_number])
 
-    def set_imported_img_origin_s(self, img_number, s_coordinates):
-        if img_number < len(self.imported_img_origin_sx_sy):
-            self.imported_img_origin_sx_sy[img_number] = list(
+    def set_imported_img_centre_s(self, img_number, s_coordinates):
+        if img_number < len(self.imported_img_centre_sx_sy):
+            self.imported_img_centre_sx_sy[img_number] = list(
                 s_coordinates)
         else:
-            self.imported_img_origin_sx_sy.append(list(s_coordinates))
-        self.cfg['overviews']['imported_origin_sx_sy'] = str(
-            self.imported_img_origin_sx_sy)
+            self.imported_img_centre_sx_sy.append(list(s_coordinates))
+        self.cfg['overviews']['imported_centre_sx_sy'] = str(
+            self.imported_img_centre_sx_sy)
 
-    def delete_imported_img_origin(self, img_number):
-        if img_number < len(self.imported_img_origin_sx_sy):
-            del self.imported_img_origin_sx_sy[img_number]
-            self.cfg['overviews']['imported_origin_sx_sy'] = str(
-                self.imported_img_origin_sx_sy)
+    def delete_imported_img_centre(self, img_number):
+        if img_number < len(self.imported_img_centre_sx_sy):
+            del self.imported_img_centre_sx_sy[img_number]
+            self.cfg['overviews']['imported_centre_sx_sy'] = str(
+                self.imported_img_centre_sx_sy)
 
     def get_mv_centre_d(self):
         return self.mv_centre_dx_dy

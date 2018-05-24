@@ -25,7 +25,8 @@ from statistics import mean
 
 from PyQt5.uic import loadUi
 from PyQt5.QtWidgets import QWidget, QApplication, QMessageBox, QMenu
-from PyQt5.QtGui import QPixmap, QPainter, QColor, QFont, QIcon, QPen, QBrush
+from PyQt5.QtGui import QPixmap, QPainter, QColor, QFont, QIcon, QPen, \
+                        QBrush, QTransform
 from PyQt5.QtCore import Qt, QRect, QPoint, QSize
 
 import utils
@@ -246,7 +247,7 @@ class Viewport(QWidget):
                     self.imported_img_drag_active = True
                     self.drag_origin = (px, py)
                     # Save coordinates in case user wants to undo:
-                    self.stage_pos_backup = self.cs.get_imported_img_origin_s(
+                    self.stage_pos_backup = self.cs.get_imported_img_centre_s(
                         self.selected_imported)
 
             # No key pressed? -> Pan:
@@ -370,7 +371,7 @@ class Viewport(QWidget):
                     QMessageBox.Ok | QMessageBox.Cancel)
                 if user_reply == QMessageBox.Cancel:
                     # Restore origin coordinates:
-                    self.cs.set_imported_img_origin_s(
+                    self.cs.set_imported_img_centre_s(
                         self.selected_imported, self.stage_pos_backup)
             # Update viewport:
             self.ovm.update_all_ov_debris_detections_areas(self.gm)
@@ -596,11 +597,9 @@ class Viewport(QWidget):
         stub_ov_file = self.ovm.get_stub_ov_file()
         if os.path.isfile(stub_ov_file):
             self.stub_ov_img = QPixmap(stub_ov_file)
-            #print("found stub file")
             self.stub_ov_exists = True
         else:
             self.stub_ov_exists = False
-            #print("didnt find stub file")
 
     def mv_load_all_imported_images(self):
         """Load imported images into memory"""
@@ -610,22 +609,33 @@ class Viewport(QWidget):
         imported_file_list = self.ovm.get_imported_img_file_list()
         for i in range(self.number_imported):
             if os.path.isfile(imported_file_list[i]):
-                self.imported_img.append(QPixmap(imported_file_list[i]))
+                angle = self.ovm.get_imported_img_rotation(i)
+                img = QPixmap(imported_file_list[i])
+                if angle != 0:
+                    trans = QTransform()
+                    trans.rotate(angle)
+                    img = img.transformed(trans)
+                self.imported_img.append(img)
                 self.imported_img_opacity.append(
                     1 - self.ovm.get_imported_img_transparency(i)/100)
 
     def mv_load_last_imported_image(self):
         self.number_imported = self.ovm.get_number_imported()
         new_image_number = self.number_imported - 1
+        file_name = self.ovm.get_imported_img_file(new_image_number)
+        img = QPixmap(file_name)
+        angle = self.ovm.get_imported_img_rotation(new_image_number)
+        if angle != 0:
+            trans = QTransform()
+            trans.rotate(angle)
+            img = img.transformed(trans)
         if new_image_number >= 0:
             if new_image_number > len(self.imported_img) - 1:
-                self.imported_img.append(QPixmap(
-                    self.ovm.get_imported_img_file(new_image_number)))
+                self.imported_img.append(img)
                 self.imported_img_opacity.append(
                     1 - self.ovm.get_imported_img_transparency(new_image_number)/100)
             else:
-                self.imported_img[new_image_number] = (QPixmap(
-                    self.ovm.get_imported_img_file(new_image_number)))
+                self.imported_img[new_image_number] = img
                 self.imported_img_opacity[new_image_number] = (
                     1 - self.ovm.get_imported_img_transparency(new_image_number)/100)
 
@@ -853,21 +863,22 @@ class Viewport(QWidget):
         resize_ratio = img_pixel_size / viewport_pixel_size
 
         # Compute position of image in viewport:
-        dx, dy = self.cs.get_imported_img_origin_d(img_number)
+        dx, dy = self.cs.get_imported_img_centre_d(img_number)
+        # Get width and height of the imported QPixmap:
+        width = self.imported_img[img_number].width()
+        height = self.imported_img[img_number].height()
+        pixel_size = self.ovm.get_imported_img_pixel_size(img_number)
+        dx -= (width * pixel_size / 1000)/2
+        dy -= (height * pixel_size / 1000)/2
         vx, vy = self.cs.convert_to_v((dx, dy))
-        width_px = self.ovm.get_imported_img_width_p(img_number)
-        height_px = self.ovm.get_imported_img_height_p(img_number)
-
-        # Crop and resize OV before placing it into viewport:
+        # Crop and resize image before placing it into viewport:
         visible, crop_area, vx_rel, vy_rel = self.mv_calculate_visible_area(
-            vx, vy, width_px, height_px, resize_ratio)
-
+            vx, vy, width, height, resize_ratio)
         if visible:
             cropped_img = self.imported_img[img_number].copy(crop_area)
             v_width = cropped_img.size().width()
             cropped_resized_img = cropped_img.scaledToWidth(
                 v_width * resize_ratio)
-            # Draw
             self.mv_qp.setOpacity(self.imported_img_opacity[img_number])
             self.mv_qp.drawPixmap(vx_rel, vy_rel, cropped_resized_img)
             self.mv_qp.setOpacity(1)
@@ -1222,7 +1233,6 @@ class Viewport(QWidget):
         current_centre_dx, current_centre_dy = self.cs.get_mv_centre_d()
         x_shift = px - 500
         y_shift = py - 400
-        #print(x_shift, y_shift)
         scale_diff = 1 / new_mv_scale - 1 / old_mv_scale
         new_centre_dx = current_centre_dx - x_shift * scale_diff
         new_centre_dy = current_centre_dy - y_shift * scale_diff
@@ -1276,13 +1286,13 @@ class Viewport(QWidget):
         dx, dy = shift_vector
         # current position:
         (old_origin_dx, old_origin_dy) = \
-            self.cs.get_imported_img_origin_d(self.selected_imported)
+            self.cs.get_imported_img_centre_d(self.selected_imported)
         mv_scale = self.cs.get_mv_scale()
         # Move tiling along shift vector:
         new_origin_dx = old_origin_dx + dx / mv_scale
         new_origin_dy = old_origin_dy + dy / mv_scale
         # Set new origin:
-        self.cs.set_imported_img_origin_s(self.selected_imported,
+        self.cs.set_imported_img_centre_s(self.selected_imported,
             self.cs.convert_to_s((new_origin_dx, new_origin_dy)))
 
     def mv_reposition_grid(self, shift_vector):
@@ -1415,9 +1425,11 @@ class Viewport(QWidget):
     def mv_get_imported_mouse_selection(self, px, py):
         selected_imported = None
         if self.show_imported:
-            for img_number in reversed(range(0, self.number_imported)):
-                # Calculate origin of the overview with respect to mosaic viewer
-                dx, dy = self.cs.get_imported_img_origin_d(img_number)
+            for img_number in reversed(range(self.number_imported)):
+                # Calculate origin of the image with respect to mosaic viewer
+                dx, dy = self.cs.get_imported_img_centre_d(img_number)
+                dx -= self.ovm.get_imported_img_width_d(img_number)/2
+                dy -= self.ovm.get_imported_img_height_d(img_number)/2
                 pixel_offset_x, pixel_offset_y = self.cs.convert_to_v((dx, dy))
                 mv_scale = self.cs.get_mv_scale()
                 p_width = self.ovm.get_imported_img_width_d(img_number) * mv_scale
@@ -1899,7 +1911,6 @@ class Viewport(QWidget):
                             + offset_x)
                     p1_y = (self.measure_p1[1] * 1000 / viewport_pixel_size
                             + offset_y)
-                    #print(p1_x, p1_y)
                     self.sv_qp.drawEllipse(QPoint(p1_x, p1_y), 4, 4)
                     self.sv_qp.drawLine(p1_x, p1_y-10, p1_x, p1_y+10)
                     self.sv_qp.drawLine(p1_x-10, p1_y, p1_x+10, p1_y)
@@ -1908,7 +1919,6 @@ class Viewport(QWidget):
                             + offset_x)
                     p2_y = (self.measure_p2[1] * 1000 / viewport_pixel_size
                             + offset_y)
-                    #print("2: ", p2_x, p2_y)
                     self.sv_qp.drawEllipse(QPoint(p2_x, p2_y), 4, 4)
                     self.sv_qp.drawLine(p2_x, p2_y-10, p2_x, p2_y+10)
                     self.sv_qp.drawLine(p2_x-10, p2_y, p2_x+10, p2_y)
@@ -1918,7 +1928,6 @@ class Viewport(QWidget):
                     self.sv_qp.drawLine(p1_x, p1_y, p2_x, p2_y)
                     d = sqrt((self.measure_p1[0] - self.measure_p2[0])**2
                               + (self.measure_p1[1] - self.measure_p2[1])**2)
-                    # print(distance, ' microns')
                     self.sv_qp.setPen(QPen(QColor(0, 0, 0), 1, Qt.SolidLine))
                     self.sv_qp.setBrush(QColor(0, 0, 0, 255))
                     self.sv_qp.drawRect(920, 780, 80, 20)

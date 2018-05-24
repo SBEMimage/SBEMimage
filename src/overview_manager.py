@@ -78,6 +78,8 @@ class OverviewManager(object):
             self.cfg['overviews']['imported_images'])
         self.imported_names = json.loads(
             self.cfg['overviews']['imported_names'])
+        self.imported_rotation = json.loads(
+            self.cfg['overviews']['imported_rotation'])
         self.imported_pixel_size = json.loads(
             self.cfg['overviews']['imported_pixel_size'])
         self.imported_size_px_py = json.loads(
@@ -370,7 +372,8 @@ class OverviewManager(object):
 
     def add_imported_img(self):
         new_img_number = self.number_imported
-        self.cs.set_imported_img_origin_s(new_img_number, [0, 0])
+        self.cs.set_imported_img_centre_s(new_img_number, [0, 0])
+        self.set_imported_img_rotation(new_img_number, 0)
         self.set_imported_img_file(new_img_number, '')
         self.set_imported_img_size_px_py(new_img_number, 0, 0)
         self.set_imported_img_pixel_size(new_img_number, 10)
@@ -381,7 +384,7 @@ class OverviewManager(object):
 
     def delete_imported_img(self, img_number):
         if img_number < self.number_imported:
-            self.cs.delete_imported_img_origin(img_number)
+            self.cs.delete_imported_img_centre(img_number)
             del self.imported_file_list[img_number]
             self.cfg['overviews']['imported_images'] = json.dumps(
                 self.imported_file_list)
@@ -397,6 +400,9 @@ class OverviewManager(object):
             del self.imported_transparency[img_number]
             self.cfg['overviews']['imported_transparency'] = str(
                 self.imported_transparency)
+            del self.imported_rotation[img_number]
+            self.cfg['overviews']['imported_rotation'] = str(
+                self.imported_rotation)
             # Number of imported images:
             self.number_imported -= 1
             self.cfg['overviews']['number_imported'] = str(
@@ -415,6 +421,17 @@ class OverviewManager(object):
             self.imported_names.append(name)
         self.cfg['overviews']['imported_names'] = json.dumps(
             self.imported_names)
+
+    def get_imported_img_rotation(self, img_number):
+        return self.imported_rotation[img_number]
+
+    def set_imported_img_rotation(self, img_number, angle):
+        if img_number < len(self.imported_rotation):
+            self.imported_rotation[img_number] = angle
+        else:
+            self.imported_rotation.append(angle)
+        self.cfg['overviews']['imported_rotation'] = str(
+            self.imported_rotation)
 
     def get_imported_img_pixel_size(self, img_number):
         return self.imported_pixel_size[img_number]
