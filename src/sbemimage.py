@@ -23,7 +23,7 @@ import colorama # needed to suppress TIFFReadDirectory warnings in the console
 from dlg_windows import ConfigDlg
 from main_controls import MainControls
 
-VERSION = '2.0 (R2018-04-28)'
+VERSION = '2.0 (R2018-05-25)'
 
 def main():
     """Load configuration and run QApplication.
