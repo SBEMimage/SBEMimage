@@ -607,7 +607,17 @@ class Stack():
                             'CTRL: Skip OV %d (intervallic acquisition)'
                             % ov_number)
 
-            # ==================== Grid acquistion ============================
+            if (self.acq_interrupted
+                    and self.acq_interrupted_at[0] >= number_grids):
+                # Grid in which interruption occured has been deleted.
+                self.acq_interrupted = False
+                self.cfg['acq']['interrupted'] = 'False'
+                self.interrupted_at = []
+                self.cfg['acq']['interrupted_at'] = '[]'
+                self.tiles_acquired = []
+                self.cfg['acq']['tiles_acquired'] = '[]'
+
+            # =================== Grid acquistion loop ========================
             for grid_number in range(number_grids):
                 if self.error_state > 0 or self.pause_state == 1:
                         break
@@ -631,8 +641,20 @@ class Stack():
                     self.add_to_main_log(
                         'CTRL: Skip grid %d (intervallic acquisition)'
                         % grid_number)
+            # ================ Grid acquistion loop end =======================
 
-            if self.error_state == 0 and not (self.pause_state == 1):
+            # Reset interruption info if affected grid acquired:
+            if (self.pause_state != 1
+                    and self.acq_interrupted
+                    and self.acq_interrupted_at[0] in self.grids_acquired):
+                # Reset interruption info:
+                self.cfg['acq']['interrupted_at'] = '[]'
+                self.interrupted_at = []
+                self.cfg['acq']['interrupted'] = 'False'
+                self.acq_interrupted = False
+
+            if ((len(self.grids_acquired) == number_grids)
+                    and not self.acq_interrupted):
                 self.grids_acquired = []
                 self.cfg['acq']['grids_acquired'] = '[]'
 
@@ -1382,6 +1404,13 @@ class Stack():
         self.use_adaptive_focus = self.gm.is_adaptive_focus_active(grid_number)
         # Get size and active tiles  (using list() to get a copy)
         active_tiles = list(self.gm.get_active_tiles(grid_number))
+        if self.acq_interrupted:
+            # Remove tiles that are no longer active from acquired_tiles list
+            acq_tmp = list(self.tiles_acquired)
+            for tile in acq_tmp:
+                if not (tile in active_tiles):
+                    self.tiles_acquired.remove(tile)
+
         tile_width, tile_height = self.gm.get_tile_size_px_py(grid_number)
 
         # Set WD and stig settings:
@@ -1454,28 +1483,19 @@ class Stack():
             if self.pause_state == 1:
                 self.acq_interrupted = True
                 self.cfg['acq']['interrupted'] = 'True'
-                self.acq_interrupted = True
-                self.cfg['acq']['interrupted_at'] = str(
-                    [grid_number, tile_number])
                 self.acq_interrupted_at = [grid_number, tile_number]
+                self.cfg['acq']['interrupted_at'] = str(self.acq_interrupted_at)
                 break
         # ================== End of grid acquisition loop =====================
 
-        if self.error_state == 0 and not self.acq_interrupted:
-            # Grid is complete, add it to the acquired list:
+        if len(active_tiles) == len(self.tiles_acquired):
+            # Grid is complete, add it to the grids_acquired list:
             self.grids_acquired.append(grid_number)
             self.cfg['acq']['grids_acquired'] = str(self.grids_acquired)
-            # Empty the tile list since all tiles were acquired without error:
+            # Empty the tile list since all tiles were acquired:
             self.tiles_acquired = []
             self.cfg['acq']['tiles_acquired'] = '[]'
-        # Reset interruption info if affected grid acquired:
-        if (not self.pause_state == 1) and (self.acq_interrupted
-            and self.acq_interrupted_at[0] == grid_number):
-            # Reset interruption info:
-            self.cfg['acq']['interrupted_at'] = '[]'
-            self.interrupted_at = []
-            self.cfg['acq']['interrupted'] = 'False'
-            self.acq_interrupted = False
+
 
     def register_accepted_tile(self, save_path, grid_number, tile_number,
                                tile_width, tile_height):
