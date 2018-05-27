@@ -52,7 +52,7 @@ from dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                         ApproachDlg, MirrorDriveDlg, ExportDlg, MotorTestDlg, \
                         CalibrationDlg, PreStackDlg, PauseDlg, StubOVDlg, \
                         EHTDlg, GrabFrameDlg, FTSetParamsDlg, AskUserDlg, \
-                        ImportImageDlg, DeleteImageDlg, AboutBox
+                        ImportImageDlg, AdjustImageDlg, DeleteImageDlg, AboutBox
 
 
 class Trigger(QObject):
@@ -629,6 +629,11 @@ class MainControls(QMainWindow):
             self.viewport.mv_load_last_imported_image()
             self.viewport.mv_draw()
 
+    def open_adjust_image_dlg(self, selected_img):
+        dialog = AdjustImageDlg(self.ovm, selected_img,
+                                self.acq_queue, self.acq_trigger)
+        dialog.exec_()
+
     def open_delete_image_dlg(self):
         dialog = DeleteImageDlg(self.ovm)
         if dialog.exec_():
@@ -892,6 +897,9 @@ class MainControls(QMainWindow):
             self.viewport.mv_draw()
         elif msg[:18] == 'GRAB VP SCREENSHOT':
             self.viewport.grab_viewport_screenshot(msg[18:])
+        elif msg[:15] == 'RELOAD IMPORTED':
+            self.viewport.mv_load_imported_image(int(msg[15:]))
+            self.viewport.mv_draw()
         elif msg == 'DRAW MV':
             self.viewport.mv_draw()
         elif msg[:6] == 'VP LOG':
@@ -918,6 +926,9 @@ class MainControls(QMainWindow):
             self.add_tile_folder()
         elif msg == 'IMPORT IMG':
             self.open_import_image_dlg()
+        elif msg[:19] == 'ADJUST IMPORTED IMG':
+            selected_img = int(msg[19:])
+            self.open_adjust_image_dlg(selected_img)
         elif msg == 'DELETE IMPORTED IMG':
             self.open_delete_image_dlg()
         else:

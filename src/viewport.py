@@ -643,6 +643,19 @@ class Viewport(QWidget):
             self.cfg['viewport']['show_imported'] = 'True'
             self.checkBox_showImported.setChecked(True)
 
+    def mv_load_imported_image(self, img_number):
+        file_name = self.ovm.get_imported_img_file(img_number)
+        if os.path.isfile(file_name):
+            angle = self.ovm.get_imported_img_rotation(img_number)
+            img = QPixmap(file_name)
+            if angle != 0:
+                trans = QTransform()
+                trans.rotate(angle)
+                img = img.transformed(trans)
+            self.imported_img[img_number] = img
+            self.imported_img_opacity[img_number] = (
+                1 - self.ovm.get_imported_img_transparency(img_number)/100)
+
     def mv_update_after_tile_selection(self):
         # Update tile selectors:
         if self.sv_current_grid == self.selected_grid:
@@ -662,6 +675,8 @@ class Viewport(QWidget):
             self.selected_grid, self.selected_tile = \
                 self.mv_get_grid_tile_mouse_selection(px, py)
             self.selected_ov = self.mv_get_ov_mouse_selection(px, py)
+            self.selected_imported = (
+                self.mv_get_imported_mouse_selection(px, py))
             sx, sy = self.mv_get_stage_coordinates_from_mouse_position(px, py)
             current_pos_str = ('Move stage to X: {0:.3f}, '.format(sx)
                                + 'Y: {0:.3f}'.format(sy))
@@ -687,8 +702,10 @@ class Viewport(QWidget):
             menu.addSeparator()
             action8 = menu.addAction('Import and place image')
             action8.triggered.connect(self.mv_import_image)
-            action9 = menu.addAction('Delete imported image')
-            action9.triggered.connect(self.mv_delete_imported_image)
+            action9 = menu.addAction('Adjust imported image')
+            action9.triggered.connect(self.mv_adjust_imported_image)
+            action10 = menu.addAction('Delete imported image')
+            action10.triggered.connect(self.mv_delete_imported_image)
 
             if (self.selected_tile is None) and (self.selected_ov is None):
                 action1.setEnabled(False)
@@ -697,8 +714,10 @@ class Viewport(QWidget):
             if self.selected_grid is None:
                 action4.setEnabled(False)
                 action5.setEnabled(False)
-            if self.ovm.get_number_imported == 0:
+            if self.selected_imported is None:
                 action9.setEnabled(False)
+            if self.ovm.get_number_imported == 0:
+                action10.setEnabled(False)
 
             menu.exec_(self.mapToGlobal(p))
 
@@ -1328,7 +1347,7 @@ class Viewport(QWidget):
             grid_range = []
             selected_grid, selected_tile = None, None
         elif self.mv_current_grid == -1:
-            grid_range = reversed(range(0, self.number_grids))
+            grid_range = reversed(range(self.number_grids))
             selected_grid, selected_tile = None, None
         elif self.mv_current_grid >= 0:
             grid_range = range(self.mv_current_grid, self.mv_current_grid + 1)
@@ -1391,7 +1410,7 @@ class Viewport(QWidget):
             selected_ov = None
         elif self.mv_current_ov == -1:
             selected_ov = None
-            for ov_number in reversed(range(0, self.number_ov)):
+            for ov_number in reversed(range(self.number_ov)):
                 # Calculate origin of the overview with respect to mosaic viewer
                 dx, dy = self.cs.get_ov_centre_d(ov_number)
                 dx -= self.ovm.get_ov_width_d(ov_number)/2
@@ -1428,12 +1447,14 @@ class Viewport(QWidget):
             for img_number in reversed(range(self.number_imported)):
                 # Calculate origin of the image with respect to mosaic viewer
                 dx, dy = self.cs.get_imported_img_centre_d(img_number)
-                dx -= self.ovm.get_imported_img_width_d(img_number)/2
-                dy -= self.ovm.get_imported_img_height_d(img_number)/2
+                width_d = self.ovm.get_imported_img_width_d(img_number)
+                height_d = self.ovm.get_imported_img_height_d(img_number)
+                dx -= width_d/2
+                dy -= height_d/2
                 pixel_offset_x, pixel_offset_y = self.cs.convert_to_v((dx, dy))
                 mv_scale = self.cs.get_mv_scale()
-                p_width = self.ovm.get_imported_img_width_d(img_number) * mv_scale
-                p_height = self.ovm.get_imported_img_height_d(img_number) * mv_scale
+                p_width = width_d * mv_scale
+                p_height = height_d * mv_scale
                 x, y = px - pixel_offset_x, py - pixel_offset_y
                 if x >= 0 and y >= 0:
                     if x < p_width and y < p_height:
@@ -1467,6 +1488,9 @@ class Viewport(QWidget):
 
     def mv_import_image(self):
         self.transmit_cmd('IMPORT IMG')
+
+    def mv_adjust_imported_image(self):
+        self.transmit_cmd('ADJUST IMPORTED IMG' + str(self.selected_imported))
 
     def mv_delete_imported_image(self):
         self.transmit_cmd('DELETE IMPORTED IMG')

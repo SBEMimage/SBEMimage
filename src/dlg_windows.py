@@ -31,7 +31,7 @@ from PyQt5.uic import loadUi
 from PyQt5.QtCore import Qt, QObject, QSize, pyqtSignal
 from PyQt5.QtGui import QPixmap, QIcon, QPalette, QColor, QFont
 from PyQt5.QtWidgets import QApplication, QDialog, QMessageBox, \
-                            QFileDialog, QLineEdit
+                            QFileDialog, QLineEdit, QDialogButtonBox
 
 import utils
 import acq_func
@@ -569,6 +569,53 @@ class ImportImageDlg(QDialog):
 
         if selection_success:
             super(ImportImageDlg, self).accept()
+
+#------------------------------------------------------------------------------
+
+class AdjustImageDlg(QDialog):
+    """Adjust an imported image (size, rotation, transparency)"""
+
+    def __init__(self, ovm, selected_img,
+                 main_window_queue, main_window_trigger):
+        self.ovm = ovm
+        self.main_window_queue = main_window_queue
+        self.main_window_trigger = main_window_trigger
+        self.selected_img = selected_img
+        super(AdjustImageDlg, self).__init__()
+        loadUi('..\\gui\\adjust_imported_image_dlg.ui', self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setFixedSize(self.size())
+        self.show()
+
+        self.lineEdit_selectedImage.setText(
+            self.ovm.get_imported_img_name(self.selected_img))
+        self.doubleSpinBox_pixelSize.setValue(
+            self.ovm.get_imported_img_pixel_size(self.selected_img))
+        self.spinBox_rotation.setValue(
+            self.ovm.get_imported_img_rotation(self.selected_img))
+        self.spinBox_transparency.setValue(
+            self.ovm.get_imported_img_transparency(self.selected_img))
+        # Use "Apply" button to show changes in viewport
+        apply_button = self.buttonBox.button(QDialogButtonBox.Apply)
+        cancel_button = self.buttonBox.button(QDialogButtonBox.Cancel)
+        cancel_button.setAutoDefault(False)
+        cancel_button.setDefault(False)
+        apply_button.setDefault(True)
+        apply_button.setAutoDefault(True)
+        apply_button.clicked.connect(self.apply_changes)
+
+    def apply_changes(self):
+        """Apply the current settings and redraw the image in the viewport."""
+        self.ovm.set_imported_img_pixel_size(
+            self.selected_img, self.doubleSpinBox_pixelSize.value())
+        self.ovm.set_imported_img_rotation(
+            self.selected_img, self.spinBox_rotation.value())
+        self.ovm.set_imported_img_transparency(
+            self.selected_img, self.spinBox_transparency.value())
+        # Emit signals to reload and redraw:
+        self.main_window_queue.put('RELOAD IMPORTED' + str(self.selected_img))
+        self.main_window_trigger.s.emit()
 
 #------------------------------------------------------------------------------
 
