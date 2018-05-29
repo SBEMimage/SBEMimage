@@ -1446,9 +1446,14 @@ class Viewport(QWidget):
         if self.show_imported:
             for img_number in reversed(range(self.number_imported)):
                 # Calculate origin of the image with respect to mosaic viewer
+                # Use width and heigh of loaded image (may be rotated
+                # and therefore larger than original image)
                 dx, dy = self.cs.get_imported_img_centre_d(img_number)
-                width_d = self.ovm.get_imported_img_width_d(img_number)
-                height_d = self.ovm.get_imported_img_height_d(img_number)
+                pixel_size = self.ovm.get_imported_img_pixel_size(img_number)
+                width_d = (self.imported_img[img_number].size().width()
+                           * pixel_size / 1000)
+                height_d = (self.imported_img[img_number].size().height()
+                            * pixel_size / 1000)
                 dx -= width_d/2
                 dy -= height_d/2
                 pixel_offset_x, pixel_offset_y = self.cs.convert_to_v((dx, dy))
