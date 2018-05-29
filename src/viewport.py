@@ -2371,8 +2371,11 @@ class Viewport(QWidget):
 
             # Selected slice:
             if self.selected_plot_slice is not None:
-                self.selected_slice_number = slice_number_list[
-                    self.selected_plot_slice]
+                if self.selected_plot_slice >= len(slice_number_list):
+                    self.selected_slice_number = slice_number_list[-1]
+                else:
+                    self.selected_slice_number = slice_number_list[
+                        self.selected_plot_slice]
                 pen = QPen(QColor(105, 105, 105))
                 pen.setWidth(1)
                 pen.setStyle(Qt.DashLine)
