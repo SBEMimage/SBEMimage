@@ -1105,8 +1105,12 @@ class Stack():
                 # if no load error:
                 if not load_error:
                     self.add_to_main_log(
-                        'CTRL: OV: M:' + '{0:.2f}'.format(mean) +
-                        ', SD:' + '{0:.2f}'.format(stddev))
+                        'CTRL: OV (OV ROI): M:'
+                        + '{0:.2f}'.format(mean[5])
+                        + ' ({0:.2f})'.format(mean[4])
+                        + ', SD:' + '{0:.2f}'.format(stddev[5])
+                        + ' ({0:.2f})'.format(stddev[4])
+                        )
                     workspace_save_path = (self.base_dir + '\\workspace\\OV'
                                            + str(ov_number).zfill(3) + '.bmp')
                     imsave(workspace_save_path, img)

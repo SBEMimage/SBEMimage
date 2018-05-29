@@ -251,12 +251,14 @@ class ImageInspector(object):
                     np.mean(quadrant2),
                     np.mean(quadrant3),
                     np.mean(quadrant4),
+                    np.mean(full_roi),
                     np.mean(img)]
 
             stddev = [np.std(quadrant1),
                       np.std(quadrant2),
                       np.std(quadrant3),
                       np.std(quadrant4),
+                      np.std(full_roi),
                       np.std(img)]
 
             # Save mean and stddev in ov list:
@@ -284,7 +286,7 @@ class ImageInspector(object):
                 (self.mean_lower_limit <= mean[4] <= self.mean_upper_limit) and
                 (self.stddev_lower_limit <= stddev[4] <= self.stddev_upper_limit))
 
-        return (img, mean[4], stddev[4], range_test_passed,
+        return (img, mean, stddev, range_test_passed,
                 load_error, grab_incomplete)
 
     def save_ov_reslice_and_stats(self, ov_number, slice_number):
@@ -293,8 +295,8 @@ class ImageInspector(object):
                           + str(ov_number).zfill(utils.OV_DIGITS) + '.dat')
         with open(stats_filename, 'a') as file:
             file.write(str(slice_number) + ';'
-                       + str(self.ov_means[ov_number][-1][4]) + ';'
-                       + str(self.ov_stddevs[ov_number][-1][4]) + '\n')
+                       + str(self.ov_means[ov_number][-1][5]) + ';'
+                       + str(self.ov_stddevs[ov_number][-1][5]) + '\n')
 
         # Reslice:
         # Open reslice file if it exists:
@@ -323,10 +325,10 @@ class ImageInspector(object):
             debris_roi_area = ((debris_bb[2] - debris_bb[0])
                                * (debris_bb[3] - debris_bb[1]))
             if debris_roi_area < self.debris_roi_quadrant_threshold:
-                # use full image if roi too smoll:
+                # Use only full ROI if ROI too small for quadrant detection:
                 start_i = 4
             else:
-                # use four quadrants and roi:
+                # Use four quadrants and ROI for comparisons:
                 start_i = 0
             for i in range(start_i, 5):
                 mean_i = abs(self.ov_means[ov_number][-1][i]
