@@ -1365,14 +1365,14 @@ class MainControls(QMainWindow):
 
     def reset_acquisition(self):
         """Reset the acquisition status."""
-        if self.acq_paused:
-            result = QMessageBox.question(
-                        self, 'Abort and reset stack',
-				        'Are you sure you want to abort the current '
-                        'acquisition and reset the slice counter?',
-				        QMessageBox.Yes| QMessageBox.No)
-        else:
-            result = False
+        result = QMessageBox.question(
+                    self, 'Reset stack',
+			        'Are you sure you want to reset the stack? The slice '
+                    'counter and ∆z will be set to zero. If the '
+                    'current acquisition is paused or interrupted, the '
+                    'status information of the current slice will be '
+                    'deleted.',
+			        QMessageBox.Yes| QMessageBox.No)
         if result == QMessageBox.Yes:
             self.add_to_log('CTRL: RESET command received.')
             self.stack.reset_acquisition()
