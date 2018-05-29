@@ -575,9 +575,10 @@ class ImportImageDlg(QDialog):
 class AdjustImageDlg(QDialog):
     """Adjust an imported image (size, rotation, transparency)"""
 
-    def __init__(self, ovm, selected_img,
+    def __init__(self, ovm, cs, selected_img,
                  main_window_queue, main_window_trigger):
         self.ovm = ovm
+        self.cs = cs
         self.main_window_queue = main_window_queue
         self.main_window_trigger = main_window_trigger
         self.selected_img = selected_img
@@ -587,9 +588,11 @@ class AdjustImageDlg(QDialog):
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
-
         self.lineEdit_selectedImage.setText(
             self.ovm.get_imported_img_name(self.selected_img))
+        pos_x, pos_y = self.cs.get_imported_img_centre_s(self.selected_img)
+        self.doubleSpinBox_posX.setValue(pos_x)
+        self.doubleSpinBox_posY.setValue(pos_y)
         self.doubleSpinBox_pixelSize.setValue(
             self.ovm.get_imported_img_pixel_size(self.selected_img))
         self.spinBox_rotation.setValue(
@@ -607,6 +610,10 @@ class AdjustImageDlg(QDialog):
 
     def apply_changes(self):
         """Apply the current settings and redraw the image in the viewport."""
+        self.cs.set_imported_img_centre_s(
+            self.selected_img,
+            [self.doubleSpinBox_posX.value(),
+             self.doubleSpinBox_posY.value()])
         self.ovm.set_imported_img_pixel_size(
             self.selected_img, self.doubleSpinBox_pixelSize.value())
         self.ovm.set_imported_img_rotation(

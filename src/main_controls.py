@@ -630,7 +630,7 @@ class MainControls(QMainWindow):
             self.viewport.mv_draw()
 
     def open_adjust_image_dlg(self, selected_img):
-        dialog = AdjustImageDlg(self.ovm, selected_img,
+        dialog = AdjustImageDlg(self.ovm, self.cs, selected_img,
                                 self.acq_queue, self.acq_trigger)
         dialog.exec_()
 
