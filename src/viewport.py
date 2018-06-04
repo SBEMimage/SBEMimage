@@ -27,7 +27,7 @@ from PyQt5.uic import loadUi
 from PyQt5.QtWidgets import QWidget, QApplication, QMessageBox, QMenu
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QFont, QIcon, QPen, \
                         QBrush, QTransform
-from PyQt5.QtCore import Qt, QRect, QPoint, QSize
+from PyQt5.QtCore import Qt, QObject, QRect, QPoint, QSize
 
 import utils
 
@@ -71,6 +71,7 @@ class Viewport(QWidget):
         self.mv_initialize()  # Mosaic viewer
         self.sv_initialize()  # Slice viewer
         self.m_initialize()   # Monitoring tab
+        self.setMouseTracking(True)
 
     def load_gui(self):
         loadUi('..\\gui\\viewport.ui', self)
@@ -171,6 +172,18 @@ class Viewport(QWidget):
             event.accept()
 
 # ========================= Below: mouse functions ============================
+
+    def setMouseTracking(self, flag):
+        """Recursively activate or deactive mouse tracking in a widget"""
+        def recursive_set(parent):
+            for child in parent.findChildren(QObject):
+                try:
+                    child.setMouseTracking(flag)
+                except:
+                    pass
+                recursive_set(child)
+        QWidget.setMouseTracking(self, flag)
+        recursive_set(self)
 
     def mousePressEvent(self, event):
         p = event.pos()
@@ -304,27 +317,47 @@ class Viewport(QWidget):
     def mouseMoveEvent(self, event):
         p = event.pos()
         px, py = p.x() - self.WINDOW_MARGIN_X, p.y() - self.WINDOW_MARGIN_Y
+        # Show current stage and SEM coordinates at mouse position
+        mouse_pos_within_viewer = (
+            px in range(self.VIEWER_WIDTH) and py in range(self.VIEWER_HEIGHT))
+        if ((self.tabWidget.currentIndex() == 0)
+                and mouse_pos_within_viewer):
+            sx, sy = self.mv_get_stage_coordinates_from_mouse_position(px, py)
+            dx, dy = self.cs.convert_to_d((sx, sy))
+            self.label_mousePos.setText(
+                'Stage: {0:.1f}, '.format(sx)
+                + '{0:.1f}; '.format(sy)
+                + 'SEM: {0:.1f}, '.format(dx)
+                + '{0:.1f}'.format(dy))
+        else:
+            self.label_mousePos.setText('-')
+
         # Move tiling or FOV:
         if self.grid_drag_active:
+            # Change cursor appearence:
+            self.setCursor(Qt.SizeAllCursor)
             drag_vector = (px - self.drag_origin[0],
                            py - self.drag_origin[1])
             # Update drag origin
             self.drag_origin = (px, py)
             self.mv_reposition_grid(drag_vector)
             self.mv_draw()
-        if self.ov_drag_active:
+        elif self.ov_drag_active:
+            self.setCursor(Qt.SizeAllCursor)
             drag_vector = (px - self.drag_origin[0],
                            py - self.drag_origin[1])
             self.drag_origin = (px, py)
             self.mv_reposition_ov(drag_vector)
             self.mv_draw()
-        if self.imported_img_drag_active:
+        elif self.imported_img_drag_active:
+            self.setCursor(Qt.SizeAllCursor)
             drag_vector = (px - self.drag_origin[0],
                            py - self.drag_origin[1])
             self.drag_origin = (px, py)
             self.mv_reposition_imported_img(drag_vector)
             self.mv_draw()
-        if self.fov_drag_active:
+        elif self.fov_drag_active:
+            self.setCursor(Qt.SizeAllCursor)
             # Make sure tile previews are hidden, otherwise dragging too slow
             if self.mv_tile_preview_mode != 0:
                 self.mv_hide_tile_previews()
@@ -336,8 +369,17 @@ class Viewport(QWidget):
             if self.tabWidget.currentIndex() == 1:
                 self.sv_shift_fov(drag_vector)
                 self.sv_draw()
+        elif ((self.tabWidget.currentIndex() < 2)
+            and mouse_pos_within_viewer):
+            if self.mv_measure_active:
+                # Change cursor appearence:
+                self.setCursor(Qt.CrossCursor)
+        else:
+            self.setCursor(Qt.ArrowCursor)
 
     def mouseReleaseEvent(self, event):
+        if not self.mv_measure_active:
+            self.setCursor(Qt.ArrowCursor)
         if (event.button() == Qt.LeftButton):
             self.fov_drag_active = False
             if self.grid_drag_active:
@@ -668,16 +710,14 @@ class Viewport(QWidget):
 
     def mv_show_context_menu(self, p):
         px, py = p.x() - self.WINDOW_MARGIN_X, p.y() - self.WINDOW_MARGIN_Y
-        mouse_pos_within_viewer = (
-            px in range(self.VIEWER_WIDTH) and py in range(self.VIEWER_HEIGHT))
-        if ((self.tabWidget.currentIndex() < 2) and mouse_pos_within_viewer):
-
+        if px in range(self.VIEWER_WIDTH) and py in range(self.VIEWER_HEIGHT):
             self.selected_grid, self.selected_tile = \
                 self.mv_get_grid_tile_mouse_selection(px, py)
             self.selected_ov = self.mv_get_ov_mouse_selection(px, py)
             self.selected_imported = (
                 self.mv_get_imported_mouse_selection(px, py))
             sx, sy = self.mv_get_stage_coordinates_from_mouse_position(px, py)
+            dx, dy = self.cs.convert_to_d((sx, sy))
             current_pos_str = ('Move stage to X: {0:.3f}, '.format(sx)
                                + 'Y: {0:.3f}'.format(sy))
             self.selected_stage_pos = (sx, sy)
