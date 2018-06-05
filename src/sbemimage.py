@@ -16,6 +16,7 @@
 
 import os
 import sys
+import ctypes
 from configparser import ConfigParser
 from PyQt5.QtWidgets import QApplication
 import colorama # needed to suppress TIFFReadDirectory warnings in the console
@@ -23,7 +24,7 @@ import colorama # needed to suppress TIFFReadDirectory warnings in the console
 from dlg_windows import ConfigDlg
 from main_controls import MainControls
 
-VERSION = '2.0 (R2018-05-25)'
+VERSION = '2.0 (R2018-06-05)'
 
 def main():
     """Load configuration and run QApplication.
@@ -34,6 +35,8 @@ def main():
     current version of SBEMimage. If not, quit.
     """
     SBEMimage = QApplication(sys.argv)
+    app_id = 'SBEMimage ' + VERSION
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(app_id)
     colorama.init()
     os.system('cls')
     os.system('title SBEMimage - Console')
