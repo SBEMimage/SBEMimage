@@ -718,6 +718,28 @@
    </property>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>doubleSpinBox_stageScaleFactorX</tabstop>
+  <tabstop>doubleSpinBox_stageScaleFactorY</tabstop>
+  <tabstop>doubleSpinBox_stageRotationX</tabstop>
+  <tabstop>doubleSpinBox_stageRotationY</tabstop>
+  <tabstop>pushButton_startImageAcq</tabstop>
+  <tabstop>spinBox_x1x</tabstop>
+  <tabstop>spinBox_x1y</tabstop>
+  <tabstop>spinBox_x2x</tabstop>
+  <tabstop>spinBox_x2y</tabstop>
+  <tabstop>spinBox_y2x</tabstop>
+  <tabstop>spinBox_y2y</tabstop>
+  <tabstop>spinBox_pixelsize</tabstop>
+  <tabstop>spinBox_shift</tabstop>
+  <tabstop>pushButton_calcStage</tabstop>
+  <tabstop>doubleSpinBox_motorSpeedX</tabstop>
+  <tabstop>doubleSpinBox_motorSpeedY</tabstop>
+  <tabstop>doubleSpinBox_durationX</tabstop>
+  <tabstop>doubleSpinBox_durationY</tabstop>
+  <tabstop>pushButton_calcMotor</tabstop>
+  <tabstop>lineEdit_EHT</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>

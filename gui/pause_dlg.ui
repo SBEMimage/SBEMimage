@@ -151,6 +151,10 @@
    </property>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>pushButton_pauseNow</tabstop>
+  <tabstop>pushButton_pauseAfterSlice</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>

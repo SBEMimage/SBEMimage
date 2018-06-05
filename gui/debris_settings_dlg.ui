@@ -54,7 +54,7 @@
      </rect>
     </property>
     <property name="text">
-     <string>Show detection region(s)  in Mosaic Viewer</string>
+     <string>Show detection region(s) in Viewport</string>
     </property>
     <property name="checked">
      <bool>true</bool>
@@ -302,15 +302,6 @@
      <number>0</number>
     </property>
    </widget>
-   <zorder>label_8</zorder>
-   <zorder>label_9</zorder>
-   <zorder>doubleSpinBox_diffMean</zorder>
-   <zorder>doubleSpinBox_diffSD</zorder>
-   <zorder>label_10</zorder>
-   <zorder>label_11</zorder>
-   <zorder>spinBox_diffHistogram</zorder>
-   <zorder>spinBox_diffPixels</zorder>
-   <zorder>spinBox_debrisMargin</zorder>
   </widget>
   <widget class="QGroupBox" name="groupBox_4">
    <property name="geometry">
@@ -373,6 +364,21 @@
   <zorder>groupBox_2</zorder>
   <zorder>groupBox_4</zorder>
  </widget>
+ <tabstops>
+  <tabstop>radioButton_autoSelection</tabstop>
+  <tabstop>radioButton_fullSelection</tabstop>
+  <tabstop>spinBox_debrisMargin</tabstop>
+  <tabstop>checkBox_showDebrisArea</tabstop>
+  <tabstop>radioButton_methodQuadrant</tabstop>
+  <tabstop>radioButton_methodHistogram</tabstop>
+  <tabstop>radioButton_methodPixel</tabstop>
+  <tabstop>doubleSpinBox_diffMean</tabstop>
+  <tabstop>doubleSpinBox_diffSD</tabstop>
+  <tabstop>spinBox_diffHistogram</tabstop>
+  <tabstop>spinBox_diffPixels</tabstop>
+  <tabstop>spinBox_maxSweeps</tabstop>
+  <tabstop>checkBox_continueAcq</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>

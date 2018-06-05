@@ -525,6 +525,24 @@
    </widget>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>lineEdit_notificationEmail</tabstop>
+  <tabstop>lineEdit_secondaryNotificationEmail</tabstop>
+  <tabstop>spinBox_reportInterval</tabstop>
+  <tabstop>lineEdit_selectedOV</tabstop>
+  <tabstop>lineEdit_selectedTiles</tabstop>
+  <tabstop>checkBox_sendLogFile</tabstop>
+  <tabstop>checkBox_sendDebrisErrorLogFiles</tabstop>
+  <tabstop>checkBox_sendViewport</tabstop>
+  <tabstop>checkBox_sendOverviews</tabstop>
+  <tabstop>checkBox_sendTiles</tabstop>
+  <tabstop>checkBox_sendOVReslices</tabstop>
+  <tabstop>checkBox_sendTileReslices</tabstop>
+  <tabstop>checkBox_allowEmailControl</tabstop>
+  <tabstop>spinBox_remoteCheckInterval</tabstop>
+  <tabstop>lineEdit_account</tabstop>
+  <tabstop>lineEdit_password</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>

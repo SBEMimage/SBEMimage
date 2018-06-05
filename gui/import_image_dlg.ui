@@ -264,6 +264,16 @@
    </property>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>lineEdit_fileName</tabstop>
+  <tabstop>pushButton_selectFile</tabstop>
+  <tabstop>lineEdit_name</tabstop>
+  <tabstop>doubleSpinBox_pixelSize</tabstop>
+  <tabstop>doubleSpinBox_posX</tabstop>
+  <tabstop>doubleSpinBox_posY</tabstop>
+  <tabstop>spinBox_rotation</tabstop>
+  <tabstop>spinBox_transparency</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>

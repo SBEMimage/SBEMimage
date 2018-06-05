@@ -190,6 +190,15 @@
    </property>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>lineEdit_currentPower</tabstop>
+  <tabstop>spinBox_targetPower</tabstop>
+  <tabstop>lineEdit_currentDuration</tabstop>
+  <tabstop>spinBox_targetDuration</tabstop>
+  <tabstop>pushButton_setTargets</tabstop>
+  <tabstop>pushButton_startCleaning</tabstop>
+  <tabstop>pushButton_abortCleaning</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>

@@ -199,6 +199,13 @@
    </property>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>checkBox_forwardSlash</tabstop>
+  <tabstop>checkBox_forwardSlash_3</tabstop>
+  <tabstop>checkBox_forwardSlash_2</tabstop>
+  <tabstop>checkBox_forwardSlash_4</tabstop>
+  <tabstop>checkBox_forwardSlash_5</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>

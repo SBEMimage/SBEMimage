@@ -301,6 +301,17 @@
    </property>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>comboBox_OVSelector</tabstop>
+  <tabstop>comboBox_frameSize</tabstop>
+  <tabstop>spinBox_magnification</tabstop>
+  <tabstop>comboBox_dwellTime</tabstop>
+  <tabstop>spinBox_acqInterval</tabstop>
+  <tabstop>spinBox_acqIntervalOffset</tabstop>
+  <tabstop>pushButton_save</tabstop>
+  <tabstop>pushButton_addOV</tabstop>
+  <tabstop>pushButton_deleteOV</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>

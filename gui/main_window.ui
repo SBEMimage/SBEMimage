@@ -2108,6 +2108,74 @@
    </property>
   </action>
  </widget>
+ <tabstops>
+  <tabstop>tabWidget</tabstop>
+  <tabstop>pushButton_SEMSettings</tabstop>
+  <tabstop>pushButton_microtomeSettings</tabstop>
+  <tabstop>comboBox_OVSelector</tabstop>
+  <tabstop>pushButton_OVSettings</tabstop>
+  <tabstop>comboBox_gridSelector</tabstop>
+  <tabstop>pushButton_gridSettings</tabstop>
+  <tabstop>pushButton_doApproach</tabstop>
+  <tabstop>pushButton_doSweep</tabstop>
+  <tabstop>pushButton_grabFrame</tabstop>
+  <tabstop>pushButton_saveViewport</tabstop>
+  <tabstop>pushButton_EHTToggle</tabstop>
+  <tabstop>lineEdit_baseDir</tabstop>
+  <tabstop>pushButton_acqSettings</tabstop>
+  <tabstop>checkBox_useMonitoring</tabstop>
+  <tabstop>toolButton_monitoringSettings</tabstop>
+  <tabstop>checkBox_takeOV</tabstop>
+  <tabstop>toolButton_OVSettings</tabstop>
+  <tabstop>checkBox_useDebrisDetection</tabstop>
+  <tabstop>toolButton_debrisDetection</tabstop>
+  <tabstop>checkBox_askUser</tabstop>
+  <tabstop>toolButton_askUserMode</tabstop>
+  <tabstop>checkBox_mirrorDrive</tabstop>
+  <tabstop>toolButton_mirrorDrive</tabstop>
+  <tabstop>checkBox_monitorTiles</tabstop>
+  <tabstop>toolButton_monitorTiles</tabstop>
+  <tabstop>checkBox_useAutofocus</tabstop>
+  <tabstop>toolButton_autofocus</tabstop>
+  <tabstop>checkBox_plasmaCleaner</tabstop>
+  <tabstop>toolButton_plasmaCleaner</tabstop>
+  <tabstop>pushButton_startAcq</tabstop>
+  <tabstop>pushButton_pauseAcq</tabstop>
+  <tabstop>pushButton_resetAcq</tabstop>
+  <tabstop>textarea_log</tabstop>
+  <tabstop>pushButton_focusToolStart</tabstop>
+  <tabstop>comboBox_selectGridFT</tabstop>
+  <tabstop>comboBox_selectTileFT</tabstop>
+  <tabstop>comboBox_selectOVFT</tabstop>
+  <tabstop>radioButton_focus</tabstop>
+  <tabstop>lineEdit_currentFocus</tabstop>
+  <tabstop>radioButton_stigX</tabstop>
+  <tabstop>lineEdit_currentStigX</tabstop>
+  <tabstop>radioButton_stigY</tabstop>
+  <tabstop>lineEdit_currentStigY</tabstop>
+  <tabstop>pushButton_focusToolSet</tabstop>
+  <tabstop>verticalSlider_ftDelta</tabstop>
+  <tabstop>checkBox_zoom</tabstop>
+  <tabstop>spinBox_ftPixelSize</tabstop>
+  <tabstop>pushButton_testGetMag</tabstop>
+  <tabstop>pushButton_testSetMag</tabstop>
+  <tabstop>pushButton_testGetFocus</tabstop>
+  <tabstop>pushButton_testSetFocus</tabstop>
+  <tabstop>pushButton_testRunAutofocus</tabstop>
+  <tabstop>pushButton_testRunAutostig</tabstop>
+  <tabstop>pushButton_testRunAutofocusStig</tabstop>
+  <tabstop>pushButton_testZeissAPIVersion</tabstop>
+  <tabstop>pushButton_testGetStage</tabstop>
+  <tabstop>pushButton_testSetStage</tabstop>
+  <tabstop>pushButton_testNearKnife</tabstop>
+  <tabstop>pushButton_testClearKnife</tabstop>
+  <tabstop>pushButton_testMotors</tabstop>
+  <tabstop>pushButton_testStopDMScript</tabstop>
+  <tabstop>pushButton_testSendEMail</tabstop>
+  <tabstop>pushButton_testPlasmaCleaner</tabstop>
+  <tabstop>pushButton_testServerRequest</tabstop>
+  <tabstop>pushButton_testCustom</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>

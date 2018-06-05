@@ -518,6 +518,24 @@
    </widget>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>comboBox_gridSelector</tabstop>
+  <tabstop>comboBox_colourSelector</tabstop>
+  <tabstop>spinBox_rows</tabstop>
+  <tabstop>spinBox_cols</tabstop>
+  <tabstop>comboBox_tileSize</tabstop>
+  <tabstop>spinBox_overlap</tabstop>
+  <tabstop>spinBox_shift</tabstop>
+  <tabstop>doubleSpinBox_pixelSize</tabstop>
+  <tabstop>comboBox_dwellTime</tabstop>
+  <tabstop>spinBox_acqInterval</tabstop>
+  <tabstop>spinBox_acqIntervalOffset</tabstop>
+  <tabstop>checkBox_adaptiveFocus</tabstop>
+  <tabstop>toolButton_adaptiveFocus</tabstop>
+  <tabstop>pushButton_save</tabstop>
+  <tabstop>pushButton_addGrid</tabstop>
+  <tabstop>pushButton_deleteGrid</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>

@@ -208,6 +208,12 @@
    </property>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>spinBox_numberSlices</tabstop>
+  <tabstop>spinBox_thickness</tabstop>
+  <tabstop>pushButton_startApproach</tabstop>
+  <tabstop>pushButton_abortApproach</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>

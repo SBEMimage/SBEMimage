@@ -221,6 +221,14 @@
    </property>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>lineEdit_selectedImage</tabstop>
+  <tabstop>doubleSpinBox_posX</tabstop>
+  <tabstop>doubleSpinBox_posY</tabstop>
+  <tabstop>doubleSpinBox_pixelSize</tabstop>
+  <tabstop>spinBox_rotation</tabstop>
+  <tabstop>spinBox_transparency</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>

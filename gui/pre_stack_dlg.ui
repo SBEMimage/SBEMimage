@@ -339,11 +339,17 @@
      <height>211</height>
     </rect>
    </property>
+   <property name="font">
+    <font>
+     <weight>50</weight>
+     <bold>false</bold>
+    </font>
+   </property>
    <property name="layoutDirection">
     <enum>Qt::LeftToRight</enum>
    </property>
    <property name="title">
-    <string>Double-check main settings</string>
+    <string>Review main settings</string>
    </property>
    <widget class="QLabel" name="label">
     <property name="geometry">

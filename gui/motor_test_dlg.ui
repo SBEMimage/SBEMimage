@@ -245,6 +245,11 @@
    </property>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>spinBox_duration</tabstop>
+  <tabstop>pushButton_startTest</tabstop>
+  <tabstop>pushButton_abortTest</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>

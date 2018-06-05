@@ -253,6 +253,13 @@
    </property>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>spinBox_X</tabstop>
+  <tabstop>spinBox_Y</tabstop>
+  <tabstop>comboBox_sizeSelector</tabstop>
+  <tabstop>pushButton_acquire</tabstop>
+  <tabstop>pushButton_abort</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>

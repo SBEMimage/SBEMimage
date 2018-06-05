@@ -216,6 +216,12 @@
    </property>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>spinBox_fromSlice</tabstop>
+  <tabstop>spinBox_untilSlice</tabstop>
+  <tabstop>checkBox_forwardSlash</tabstop>
+  <tabstop>pushButton_export</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>

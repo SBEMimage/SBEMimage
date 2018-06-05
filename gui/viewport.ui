@@ -695,6 +695,36 @@
    </widget>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>tabWidget</tabstop>
+  <tabstop>comboBox_gridSelectorMV</tabstop>
+  <tabstop>comboBox_tilePreviewSelectorMV</tabstop>
+  <tabstop>comboBox_OVSelectorMV</tabstop>
+  <tabstop>pushButton_refreshOVs</tabstop>
+  <tabstop>pushButton_acquireStubOV</tabstop>
+  <tabstop>pushButton_measureMosaic</tabstop>
+  <tabstop>checkBox_showImported</tabstop>
+  <tabstop>checkBox_showStubOV</tabstop>
+  <tabstop>checkBox_showAxes</tabstop>
+  <tabstop>checkBox_showLabels</tabstop>
+  <tabstop>horizontalSlider_MV</tabstop>
+  <tabstop>comboBox_gridSelectorSV</tabstop>
+  <tabstop>comboBox_tileSelectorSV</tabstop>
+  <tabstop>comboBox_OVSelectorSV</tabstop>
+  <tabstop>pushButton_reloadSV</tabstop>
+  <tabstop>spinBox_maxSlices</tabstop>
+  <tabstop>pushButton_sliceBWD</tabstop>
+  <tabstop>pushButton_sliceFWD</tabstop>
+  <tabstop>pushButton_measureSlice</tabstop>
+  <tabstop>checkBox_setNativeRes</tabstop>
+  <tabstop>checkBox_showSaturated</tabstop>
+  <tabstop>horizontalSlider_SV</tabstop>
+  <tabstop>comboBox_gridSelectorM</tabstop>
+  <tabstop>comboBox_tileSelectorM</tabstop>
+  <tabstop>comboBox_OVSelectorM</tabstop>
+  <tabstop>pushButton_reloadM</tabstop>
+  <tabstop>textarea_incidentLog</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>

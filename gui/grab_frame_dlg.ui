@@ -269,6 +269,14 @@
    </property>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>lineEdit_filename</tabstop>
+  <tabstop>comboBox_dwellTime</tabstop>
+  <tabstop>doubleSpinBox_pixelSize</tabstop>
+  <tabstop>comboBox_frameSize</tabstop>
+  <tabstop>pushButton_scan</tabstop>
+  <tabstop>pushButton_save</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>

@@ -597,6 +597,8 @@ class MainControls(QMainWindow):
             if self.cfg['microtome']['use_stage_calibration'] == 'True':
                 self.microtome.update_stage_calibration(self.sem.get_eht())
             self.show_current_settings()
+            # Electron dose may have changed:
+            self.show_estimates()
             self.viewport.mv_draw()
 
     def open_microtome_dlg(self):
@@ -1124,7 +1126,8 @@ class MainControls(QMainWindow):
                         self, 'Sweep surface',
                         'This will perform a sweep cycle.\n\n' +
                         'Do you wish to proceed?',
-                        QMessageBox.Ok | QMessageBox.Cancel)
+                        QMessageBox.Ok | QMessageBox.Cancel,
+                        QMessageBox.Cancel)
         if user_reply == QMessageBox.Ok:
             # Perform sweep: do a cut slightly above current surface:
             self.add_to_log('CTRL: Performing user-requested sweep')

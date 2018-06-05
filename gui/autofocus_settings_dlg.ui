@@ -457,6 +457,22 @@
    </property>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>radioButton_useSmartSEM</tabstop>
+  <tabstop>radioButton_useHeuristic</tabstop>
+  <tabstop>lineEdit_refTiles</tabstop>
+  <tabstop>spinBox_interval</tabstop>
+  <tabstop>spinBox_autostigDelay</tabstop>
+  <tabstop>doubleSpinBox_pixelSize</tabstop>
+  <tabstop>doubleSpinBox_wdDiff</tabstop>
+  <tabstop>doubleSpinBox_stigXDiff</tabstop>
+  <tabstop>doubleSpinBox_stigYDiff</tabstop>
+  <tabstop>doubleSpinBox_focusCalib</tabstop>
+  <tabstop>doubleSpinBox_stigXCalib</tabstop>
+  <tabstop>doubleSpinBox_stigYCalib</tabstop>
+  <tabstop>doubleSpinBox_stigRot</tabstop>
+  <tabstop>doubleSpinBox_stigScale</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>
