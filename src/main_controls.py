@@ -147,7 +147,10 @@ class MainControls(QMainWindow):
         """Load and set up the GUI."""
         loadUi('..\\gui\\main_window.ui', self)
         self.setWindowTitle('SBEMimage - Main Controls')
-        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        app_icon = QIcon()
+        app_icon.addFile('..\\img\\icon_16px.ico', QSize(16, 16))
+        app_icon.addFile('..\\img\\icon_48px.ico', QSize(48, 48))
+        self.setWindowIcon(app_icon)
         self.setFixedSize(self.size())
         self.move(1120, 20)
         self.hide() # hide window until fully initialized
