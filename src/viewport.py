@@ -230,10 +230,10 @@ class Viewport(QWidget):
                         self.mv_update_after_tile_selection()
 
             # Check if ctrl key is pressed -> Move OV:
-            if ((self.tabWidget.currentIndex() == 0)
-               and (QApplication.keyboardModifiers() == Qt.ControlModifier)
-               and self.mv_current_ov >= -2
-               and not self.acq_in_progress):
+            elif ((self.tabWidget.currentIndex() == 0)
+                and (QApplication.keyboardModifiers() == Qt.ControlModifier)
+                and self.mv_current_ov >= -2
+                and not self.acq_in_progress):
                 if self.selected_ov is not None and self.selected_ov >= 0:
                     self.ov_drag_active = True
                     self.drag_origin = (px, py)
@@ -241,10 +241,10 @@ class Viewport(QWidget):
                         self.selected_ov)
 
             # Check if alt key is pressed -> Move grid:
-            if ((self.tabWidget.currentIndex() == 0)
-               and (QApplication.keyboardModifiers() == Qt.AltModifier)
-               and self.mv_current_grid >= -2
-               and not self.acq_in_progress):
+            elif ((self.tabWidget.currentIndex() == 0)
+                and (QApplication.keyboardModifiers() == Qt.AltModifier)
+                and self.mv_current_grid >= -2
+                and not self.acq_in_progress):
                 if self.selected_grid is not None and self.selected_grid >= 0:
                     self.grid_drag_active = True
                     self.drag_origin = (px, py)
@@ -253,8 +253,8 @@ class Viewport(QWidget):
                         self.selected_grid)
 
             # Check if ctrl+alt keys are pressed -> Move imported image:
-            if ((self.tabWidget.currentIndex() == 0)
-               and (QApplication.keyboardModifiers()
+            elif ((self.tabWidget.currentIndex() == 0)
+                and (QApplication.keyboardModifiers()
                     == (Qt.ControlModifier | Qt.AltModifier))):
                 if self.selected_imported is not None:
                     self.imported_img_drag_active = True
@@ -264,7 +264,7 @@ class Viewport(QWidget):
                         self.selected_imported)
 
             # No key pressed? -> Pan:
-            if (QApplication.keyboardModifiers() == Qt.NoModifier):
+            elif (QApplication.keyboardModifiers() == Qt.NoModifier):
                 # Move the viewport's FOV
                 self.fov_drag_active = True
                 # For now, disable showing saturated pixels (too slow)
@@ -758,7 +758,11 @@ class Viewport(QWidget):
                 action9.setEnabled(False)
             if self.ovm.get_number_imported == 0:
                 action10.setEnabled(False)
-
+            if self.acq_in_progress:
+                action4.setEnabled(False)
+                action5.setEnabled(False)
+                action6.setEnabled(False)
+                action7.setEnabled(False)
             menu.exec_(self.mapToGlobal(p))
 
     def mv_get_selected_stage_pos(self):
@@ -1621,6 +1625,7 @@ class Viewport(QWidget):
                          'Select tile or overview from controls below '
                          'and click "(Re)load" to display the images from the '
                          'most recent slices.')
+        self.sv_instructions_displayed = True
         self.sv_qp.end()
         self.slice_viewer.setPixmap(self.sv_canvas)
 
@@ -1797,8 +1802,14 @@ class Viewport(QWidget):
         # are suppressed in the code below.
         # First show a "waiting" info, since loading the image may take a while:
         self.sv_qp.begin(self.sv_canvas)
-        self.sv_qp.setPen(QColor(255, 255, 255))
         self.sv_qp.setBrush(QColor(0, 0, 0))
+        if self.sv_instructions_displayed:
+            position_rect = QRect(150, 380, 700, 40)
+            self.sv_qp.setPen(QColor(0, 0, 0))
+            self.sv_qp.drawRect(position_rect)
+            self.sv_instructions_displayed = False
+
+        self.sv_qp.setPen(QColor(255, 255, 255))
         position_rect = QRect(350, 380, 300, 40)
         self.sv_qp.drawRect(position_rect)
         self.sv_qp.drawText(position_rect,
