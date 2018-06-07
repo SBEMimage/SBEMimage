@@ -251,6 +251,8 @@ class CalibrationDlg(QDialog):
         self.doubleSpinBox_motorSpeedY.setValue(speed_y)
         self.pushButton_startImageAcq.clicked.connect(
             self.acquire_calibration_images)
+        if config['sys']['simulation_mode'] == 'True':
+            self.pushButton_startImageAcq.setEnabled(False)
         self.pushButton_calcStage.clicked.connect(
             self.calculate_stage_parameters)
         self.pushButton_calcMotor.clicked.connect(

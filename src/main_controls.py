@@ -107,6 +107,7 @@ class MainControls(QMainWindow):
             self.pushButton_EHTToggle.setEnabled(False)
             self.actionSEMSettings.setEnabled(False)
             self.actionStageCalibration.setEnabled(False)
+            self.actionPlasmaCleanerSettings.setEnabled(False)
             # Disable the communication tests and the focus tool:
             self.tabWidget.setTabEnabled(1, False)
             self.tabWidget.setTabEnabled(2, False)
@@ -404,6 +405,7 @@ class MainControls(QMainWindow):
         # Enable plasma cleaner tool button if plasma cleaner installed:
         self.toolButton_plasmaCleaner.setEnabled(self.plc_installed)
         self.checkBox_plasmaCleaner.setEnabled(self.plc_installed)
+        self.actionPlasmaCleanerSettings.setEnabled(self.plc_installed)
 
         # Set up Image Inspector instance:
         self.img_inspector = ImageInspector(self.cfg, self.ovm)
