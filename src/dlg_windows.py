@@ -327,10 +327,10 @@ class CalibrationDlg(QDialog):
         shift = self.spinBox_shift.value()
         pixel_size = self.spinBox_pixelsize.value()
         # Distances in pixels
-        delta_xx = abs(x1x - x2x)
-        delta_xy = abs(x1y - x2y)
-        delta_yx = abs(y1x - y2x)
-        delta_yy = abs(y1y - y2y)
+        delta_xx = x1x - x2x
+        delta_xy = x2y - x1y
+        delta_yx = y1x - y2x
+        delta_yy = y2y - y1y
         # Rotation angles:
         rot_x = atan(delta_xy/delta_xx)
         rot_y = atan(delta_yx/delta_yy)
