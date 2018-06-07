@@ -294,10 +294,10 @@ class Viewport(QWidget):
             and (self.tabWidget.currentIndex() == 2)
             and mouse_pos_within_plot_area
             and self.m_tab_populated):
-            self.selected_plot_slice = utils.fit_in_range(
+            self.m_selected_plot_slice = utils.fit_in_range(
                 int((px - 445)/3), 0, 164)
             self.m_draw_plots()
-            if self.selected_slice_number is not None:
+            if self.m_selected_slice_number is not None:
                 self.m_draw_histogram()
                 self.m_draw_reslice()
 
@@ -761,6 +761,9 @@ class Viewport(QWidget):
             if self.acq_in_progress:
                 action4.setEnabled(False)
                 action5.setEnabled(False)
+                action6.setEnabled(False)
+                action7.setEnabled(False)
+            if self.cfg['sys']['simulation_mode'] == 'True':
                 action6.setEnabled(False)
                 action7.setEnabled(False)
             menu.exec_(self.mapToGlobal(p))
@@ -2095,13 +2098,17 @@ class Viewport(QWidget):
         self.m_current_grid = int(self.cfg['viewport']['m_current_grid'])
         self.m_current_tile = int(self.cfg['viewport']['m_current_tile'])
         self.m_current_ov = int(self.cfg['viewport']['m_current_ov'])
+        self.m_from_stack = True
 
         self.histogram_canvas_template = QPixmap(400, 170)
         self.reslice_canvas_template = QPixmap(400, 560)
         self.plots_canvas_template = QPixmap(550, 560)
         self.m_tab_populated = False
         self.m_qp = QPainter()
+        if self.cfg['sys']['simulation_mode'] == 'True':
+            self.radioButton_fromSEM.setEnabled(False)
 
+        self.radioButton_fromStack.toggled.connect(self.m_source_update)
         self.pushButton_reloadM.clicked.connect(self.m_show_statistics)
         self.comboBox_gridSelectorM.currentIndexChanged.connect(
             self.m_change_grid_selection)
@@ -2118,10 +2125,12 @@ class Viewport(QWidget):
         self.m_qp.begin(self.histogram_canvas_template)
         self.m_qp.setPen(QColor(0, 0, 0))
         self.m_qp.drawRect(10, 9, 257, 151)
-        self.m_qp.drawText(280, 30, 'Mean: ')
-        self.m_qp.drawText(280, 50, 'SD: ')
-        self.m_qp.drawText(280, 70, 'Peak at: ')
-        self.m_qp.drawText(280, 90, 'Peak count: ')
+
+        self.m_qp.drawText(280, 30, 'Data source:')
+        self.m_qp.drawText(280, 90, 'Mean: ')
+        self.m_qp.drawText(280, 110, 'SD: ')
+        self.m_qp.drawText(280, 130, 'Peak at: ')
+        self.m_qp.drawText(280, 150, 'Peak count: ')
         self.m_qp.end()
         self.histogram_view.setPixmap(self.histogram_canvas_template)
 
@@ -2130,12 +2139,11 @@ class Viewport(QWidget):
         self.m_qp.begin(self.reslice_canvas_template)
         pen = QPen(QColor(255, 255, 255))
         self.m_qp.setPen(pen)
-        position_rect = QRect(30, 260, 340, 40)
+        position_rect = QRect(50, 260, 300, 40)
         self.m_qp.drawRect(position_rect)
         self.m_qp.drawText(position_rect,
                          Qt.AlignVCenter | Qt.AlignHCenter,
-                         'Select tile or overview from controls below '
-                         'and click "(Re)load".')
+                         'Select image source from controls below.')
         pen.setWidth(2)
         self.m_qp.setPen(pen)
         # Two arrows to show x and z direction
@@ -2150,7 +2158,7 @@ class Viewport(QWidget):
         self.m_qp.end()
         self.reslice_view.setPixmap(self.reslice_canvas_template)
         # Plots:
-        self.selected_plot_slice = None
+        self.m_selected_plot_slice = None
         # Empty plots canvas:
         self.plots_canvas_template.fill(QColor(255, 255, 255))
         self.m_qp.begin(self.plots_canvas_template)
@@ -2183,6 +2191,10 @@ class Viewport(QWidget):
         self.m_qp.drawText(523, 502, '0.00')
         self.m_qp.end()
         self.plots_view.setPixmap(self.plots_canvas_template)
+
+    def m_source_update(self):
+        self.m_from_stack = self.radioButton_fromStack.isChecked()
+        self.m_show_statistics()
 
     def m_update_grid_selector(self, current_grid=0):
         if current_grid >= self.number_grids:
@@ -2241,19 +2253,32 @@ class Viewport(QWidget):
             self.m_show_statistics()
 
     def m_show_statistics(self):
-        self.selected_plot_slice = None
-        self.selected_slice_number = None
-        self.m_draw_reslice()
-        self.m_draw_plots()
+        self.m_selected_plot_slice = None
+        self.m_selected_slice_number = None
+        if self.m_from_stack:
+            self.m_tab_populated = True
+            self.m_draw_reslice()
+            self.m_draw_plots()
         self.m_draw_histogram()
-        self.m_tab_populated = True
 
     def m_reset_view(self):
-        self.reslice_view.setPixmap(self.reslice_canvas_template)
-        self.histogram_view.setPixmap(self.histogram_canvas_template)
+        canvas = self.reslice_canvas_template.copy()
+        self.m_qp.begin(canvas)
+        self.m_qp.setBrush(QColor(0, 0, 0))
+        self.m_qp.setPen(QColor(255, 255, 255))
+        position_rect = QRect(50, 260, 300, 40)
+        self.m_qp.drawRect(position_rect)
+        self.m_qp.drawText(position_rect,
+                         Qt.AlignVCenter | Qt.AlignHCenter,
+                         'No reslice image available.')
+        self.m_qp.end()
+        self.reslice_view.setPixmap(canvas)
         self.plots_view.setPixmap(self.plots_canvas_template)
+        self.histogram_view.setPixmap(self.histogram_canvas_template)
 
     def m_load_selected(self):
+        self.m_from_stack = True
+        self.radioButton_fromStack.setChecked(True)
         active_tiles = self.gm.get_active_tiles(self.selected_grid)
         if self.selected_tile in active_tiles:
             self.selected_tile = active_tiles.index(self.selected_tile)
@@ -2319,10 +2344,10 @@ class Viewport(QWidget):
                 h = 500
             self.m_qp.drawPixmap(0, 0, current_reslice)
             # Draw red line on currently selected slice:
-            if self.selected_slice_number is not None:
+            if self.m_selected_slice_number is not None:
                 most_recent_slice = int(self.cfg['acq']['slice_counter'])
                 self.m_qp.setPen(QColor(255, 0, 0))
-                slice_y = most_recent_slice - self.selected_slice_number
+                slice_y = most_recent_slice - self.m_selected_slice_number
                 self.m_qp.drawLine(0, h - slice_y,
                                    400, h - slice_y)
 
@@ -2340,9 +2365,15 @@ class Viewport(QWidget):
             # Clear reslice canvas:
             self.m_qp.begin(canvas)
             self.m_qp.setBrush(QColor(0, 0, 0))
-            self.m_qp.drawRect(QRect(30, 260, 340, 40))
+            self.m_qp.setPen(QColor(255, 255, 255))
+            position_rect = QRect(50, 260, 300, 40)
+            self.m_qp.drawRect(position_rect)
+            self.m_qp.drawText(position_rect,
+                               Qt.AlignVCenter | Qt.AlignHCenter,
+                               'No reslice image available.')
             self.m_qp.end()
             self.reslice_view.setPixmap(canvas)
+            self.m_tab_populated = False
 
     def m_draw_plots(self):
         x_delta = 3
@@ -2421,40 +2452,42 @@ class Viewport(QWidget):
             self.m_qp.begin(canvas)
 
             # Selected slice:
-            if self.selected_plot_slice is not None:
-                if self.selected_plot_slice >= len(slice_number_list):
-                    self.selected_slice_number = slice_number_list[-1]
+            if self.m_selected_plot_slice is not None:
+                max_slices = len(slice_number_list)
+                if self.m_selected_plot_slice >= max_slices:
+                    self.m_selected_slice_number = slice_number_list[-1]
+                    self.m_selected_plot_slice = max_slices - 1
                 else:
-                    self.selected_slice_number = slice_number_list[
-                        self.selected_plot_slice]
+                    self.m_selected_slice_number = slice_number_list[
+                        self.m_selected_plot_slice]
                 pen = QPen(QColor(105, 105, 105))
                 pen.setWidth(1)
                 pen.setStyle(Qt.DashLine)
                 self.m_qp.setPen(pen)
-                self.m_qp.drawLine(4 + self.selected_plot_slice * 3, 0,
-                                   4 + self.selected_plot_slice * 3, 558)
+                self.m_qp.drawLine(4 + self.m_selected_plot_slice * 3, 0,
+                                   4 + self.m_selected_plot_slice * 3, 558)
                 # Slice:
                 self.m_qp.drawText(500, 550, 'Slice '
-                    + str(self.selected_slice_number))
+                    + str(self.m_selected_slice_number))
                 # Data for selected slice:
-                if self.selected_plot_slice < len(mean_list):
+                if self.m_selected_plot_slice < len(mean_list):
                     sel_mean = '{0:.2f}'.format(
-                        mean_list[self.selected_plot_slice])
+                        mean_list[self.m_selected_plot_slice])
                 else:
                     sel_mean = '-'
-                if self.selected_plot_slice < len(mean_diff_list):
+                if self.m_selected_plot_slice < len(mean_diff_list):
                     sel_mean_diff = '{0:.2f}'.format(
-                        mean_diff_list[self.selected_plot_slice])
+                        mean_diff_list[self.m_selected_plot_slice])
                 else:
                     sel_mean_diff = '-'
-                if self.selected_plot_slice < len(stddev_list):
+                if self.m_selected_plot_slice < len(stddev_list):
                     sel_stddev = '{0:.2f}'.format(
-                        stddev_list[self.selected_plot_slice])
+                        stddev_list[self.m_selected_plot_slice])
                 else:
                     sel_stddev = '-'
-                if self.selected_plot_slice < len(stddev_diff_list):
+                if self.m_selected_plot_slice < len(stddev_diff_list):
                     sel_stddev_diff = '{0:.2f}'.format(
-                        stddev_diff_list[self.selected_plot_slice])
+                        stddev_diff_list[self.m_selected_plot_slice])
                 else:
                     sel_stddev_diff = '-'
 
@@ -2531,39 +2564,52 @@ class Viewport(QWidget):
             self.plots_view.setPixmap(canvas)
         else:
             self.plots_view.setPixmap(self.plots_canvas_template)
+            self.m_tab_populated = False
 
     def m_draw_histogram(self):
         base_dir = self.cfg['acq']['base_dir']
-        success = False
-        if self.m_current_ov >= 0:
-            path = (base_dir + '\\overviews\\ov'
-                    + str(self.m_current_ov).zfill(utils.OV_DIGITS))
+        selected_file = ''
+        slice_number = None
+        if self.m_from_stack:
+            success = False
+            path = ''
+            if self.m_current_ov >= 0:
+                path = (base_dir + '\\overviews\\ov'
+                        + str(self.m_current_ov).zfill(utils.OV_DIGITS))
 
-        elif self.m_current_tile >= 0:
-            tile_number = self.gm.get_active_tiles(
-                self.m_current_grid)[self.m_current_tile]
-            path = (base_dir + '\\tiles\\g'
-                    + str(self.m_current_grid).zfill(utils.GRID_DIGITS)
-                    + '\\t' + str(tile_number).zfill(utils.TILE_DIGITS))
+            elif self.m_current_tile >= 0:
+                tile_number = self.gm.get_active_tiles(
+                    self.m_current_grid)[self.m_current_tile]
+                path = (base_dir + '\\tiles\\g'
+                        + str(self.m_current_grid).zfill(utils.GRID_DIGITS)
+                        + '\\t' + str(tile_number).zfill(utils.TILE_DIGITS))
 
-        if os.path.exists(path):
-            filenames = next(os.walk(path))[2]
-            if len(filenames) > 165:
-                filenames = filenames[-165:]
-            if filenames:
-                if self.selected_slice_number is None:
-                    selected_file = path + '\\' + filenames[-1]
-                else:
-                    slice_number_str = (
-                        's' + str(self.selected_slice_number).zfill(
-                            utils.SLICE_DIGITS))
-                    for filename in filenames:
-                        if slice_number_str in filename:
-                            selected_file = path + '\\' + filename
-                            break
-                if os.path.isfile(selected_file):
-                    img = np.array(Image.open(selected_file))
-                    success = True
+            if os.path.exists(path):
+                filenames = next(os.walk(path))[2]
+                if len(filenames) > 165:
+                    filenames = filenames[-165:]
+                if filenames:
+                    if self.m_selected_slice_number is None:
+                        selected_file = path + '\\' + filenames[-1]
+                    else:
+                        slice_number_str = (
+                            's' + str(self.m_selected_slice_number).zfill(
+                                utils.SLICE_DIGITS))
+                        for filename in filenames:
+                            if slice_number_str in filename:
+                                selected_file = path + '\\' + filename
+                                break
+
+        else:
+            # Use current image in SmartSEM
+            selected_file = base_dir + '\\workspace\\current_frame.tif'
+            self.sem.save_frame(selected_file)
+            self.m_reset_view()
+            self.m_tab_populated = False
+
+        if os.path.isfile(selected_file):
+            img = np.array(Image.open(selected_file))
+            success = True
 
         canvas = self.histogram_canvas_template.copy()
         if success:
@@ -2585,17 +2631,36 @@ class Viewport(QWidget):
                     peak = x
                 self.m_qp.drawLine(x + 11, 160,
                                    x + 11, 160 - gv_normalized * 147)
+            if self.m_from_stack:
+                try:
+                    idx = selected_file.rfind('s')
+                    slice_number = int(selected_file[idx+1:idx+6])
+                except:
+                    slice_number = -1
+                if self.m_current_ov >= 0:
+                    self.m_qp.drawText(
+                        280, 50,
+                        'OV ' + str(self.m_current_ov)
+                        + ', slice ' + str(slice_number))
+                elif self.m_current_grid >= 0:
+                    self.m_qp.drawText(
+                        280, 50,
+                        'Tile ' + str(self.m_current_grid)
+                        + '.' + str(tile_number)
+                        + ', slice ' + str(slice_number))
 
-            self.m_qp.drawText(345, 30, '{0:.2f}'.format(mean))
-            self.m_qp.drawText(345, 50, '{0:.2f}'.format(stddev))
-            self.m_qp.drawText(345, 70, str(peak))
-            self.m_qp.drawText(345, 90, str(hist_max))
+            else:
+                self.m_qp.drawText(280, 50, 'Current SmartSEM image')
+            self.m_qp.drawText(345, 90, '{0:.2f}'.format(mean))
+            self.m_qp.drawText(345, 110, '{0:.2f}'.format(stddev))
+            self.m_qp.drawText(345, 130, str(peak))
+            self.m_qp.drawText(345, 150, str(hist_max))
 
             self.m_qp.end()
             self.histogram_view.setPixmap(canvas)
         else:
             self.m_qp.begin(canvas)
             self.m_qp.setPen(QColor(25, 25, 112))
-            self.m_qp.drawText(50, 90, 'No image found for selected tile/OV  ')
+            self.m_qp.drawText(50, 90, 'No image found for selected source   ')
             self.m_qp.end()
             self.histogram_view.setPixmap(canvas)

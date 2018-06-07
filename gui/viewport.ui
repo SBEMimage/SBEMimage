@@ -537,13 +537,13 @@
       </rect>
      </property>
      <property name="title">
-      <string>Select tile or overview:</string>
+      <string>Select image source</string>
      </property>
      <widget class="QPushButton" name="pushButton_reloadM">
       <property name="geometry">
        <rect>
-        <x>340</x>
-        <y>30</y>
+        <x>350</x>
+        <y>31</y>
         <width>61</width>
         <height>23</height>
        </rect>
@@ -555,8 +555,8 @@
      <widget class="QComboBox" name="comboBox_OVSelectorM">
       <property name="geometry">
        <rect>
-        <x>190</x>
-        <y>30</y>
+        <x>260</x>
+        <y>31</y>
         <width>69</width>
         <height>22</height>
        </rect>
@@ -565,9 +565,9 @@
      <widget class="QComboBox" name="comboBox_tileSelectorM">
       <property name="geometry">
        <rect>
-        <x>100</x>
-        <y>30</y>
-        <width>81</width>
+        <x>180</x>
+        <y>31</y>
+        <width>71</width>
         <height>22</height>
        </rect>
       </property>
@@ -575,11 +575,40 @@
      <widget class="QComboBox" name="comboBox_gridSelectorM">
       <property name="geometry">
        <rect>
-        <x>20</x>
-        <y>30</y>
-        <width>81</width>
+        <x>110</x>
+        <y>31</y>
+        <width>71</width>
         <height>22</height>
        </rect>
+      </property>
+     </widget>
+     <widget class="QRadioButton" name="radioButton_fromStack">
+      <property name="geometry">
+       <rect>
+        <x>20</x>
+        <y>22</y>
+        <width>82</width>
+        <height>17</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>from stack</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QRadioButton" name="radioButton_fromSEM">
+      <property name="geometry">
+       <rect>
+        <x>20</x>
+        <y>42</y>
+        <width>82</width>
+        <height>17</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>from SEM</string>
       </property>
      </widget>
     </widget>
