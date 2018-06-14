@@ -446,10 +446,9 @@ class GridManager(object):
     def update_active_tiles_to_new_grid_size(self, grid_number, new_size):
         current_rows, current_cols = self.size[grid_number]
         new_rows, new_cols = new_size
-        current_active_tiles = self.active_tiles[grid_number]
         new_active_tiles = []
         # Calculate new active tiles or delete active tiles if no longer in grid:
-        for tile_number in current_active_tiles:
+        for tile_number in self.active_tiles[grid_number]:
             # Calculate coordinate in grid of current size:
             x_pos = tile_number % current_cols
             y_pos = tile_number // current_cols
@@ -459,7 +458,10 @@ class GridManager(object):
                 new_active_tiles.append(new_tile_number)
         # Save new active tiles:
         self.active_tiles[grid_number] = new_active_tiles
+        self.cfg['grids']['active_tiles'] = str(self.active_tiles)
         self.number_active_tiles[grid_number] = len(new_active_tiles)
+        self.cfg['grids']['number_active_tiles'] = str(
+            self.number_active_tiles)
 
     def calculate_grid_map(self, grid_number):
         # Calculating tile positions in SEM coordinates, unit: micrometres

@@ -1473,7 +1473,9 @@ class Stack():
                         self.add_to_main_log('CTRL: No estimates computed. ')
                     #self.apply_heuristic_corrections()
 
-            elif not tile_selected and not tile_skipped:
+            elif (not tile_selected
+                  and not tile_skipped
+                  and self.error_state == 0):
                 self.add_to_main_log(
                     'CTRL: Tile ' + str(tile_number)
                     + ' was discarded by image inspector.')

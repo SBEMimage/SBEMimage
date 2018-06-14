@@ -369,10 +369,14 @@ class Viewport(QWidget):
             if self.tabWidget.currentIndex() == 1:
                 self.sv_shift_fov(drag_vector)
                 self.sv_draw()
-        elif ((self.tabWidget.currentIndex() < 2)
-            and mouse_pos_within_viewer):
-            if self.mv_measure_active:
+        elif ((self.tabWidget.currentIndex() == 0)
+            and mouse_pos_within_viewer
+            and self.mv_measure_active):
                 # Change cursor appearence:
+                self.setCursor(Qt.CrossCursor)
+        elif ((self.tabWidget.currentIndex() == 1)
+            and mouse_pos_within_viewer
+            and self.sv_measure_active):
                 self.setCursor(Qt.CrossCursor)
         else:
             self.setCursor(Qt.ArrowCursor)
