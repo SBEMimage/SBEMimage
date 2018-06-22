@@ -358,9 +358,6 @@ class Viewport(QWidget):
             self.mv_draw()
         elif self.fov_drag_active:
             self.setCursor(Qt.SizeAllCursor)
-            # Make sure tile previews are hidden, otherwise dragging too slow
-            if self.mv_tile_preview_mode != 0:
-                self.mv_hide_tile_previews()
             drag_vector = (self.drag_origin[0] - px, self.drag_origin[1] - py)
             self.drag_origin = (px, py)
             if self.tabWidget.currentIndex() == 0:
@@ -1062,7 +1059,12 @@ class Viewport(QWidget):
             font_size2 = int(tile_width_v/11)
             font_size2 = utils.fit_in_range(font_size2, 1, 40)
 
-            if show_previews:
+            if (show_previews
+                    and not self.fov_drag_active
+                    and not self.grid_drag_active
+                    and self.cs.get_mv_scale() > 2):
+                # Previews are disabled when FOV or grid is being dragged or
+                # when sufficiently zoomed out.
                 width_px = self.gm.get_tile_width_p(grid_number)
                 height_px = self.gm.get_tile_height_p(grid_number)
 
@@ -1272,20 +1274,10 @@ class Viewport(QWidget):
             self.measure_complete = True
             self.mv_draw()
 
-    def mv_hide_tile_previews(self):
-        self.mv_tile_preview_mode = 0
-        self.cfg['viewport']['mv_tile_preview_mode'] = '0'
-        self.comboBox_tilePreviewSelectorMV.blockSignals(True)
-        self.comboBox_tilePreviewSelectorMV.setCurrentIndex(0)
-        self.comboBox_tilePreviewSelectorMV.blockSignals(False)
-
     def mv_adjust_scale(self):
         # Recalculate scaling factor:
         new_mv_scale = 0.2 * (1.05)**self.horizontalSlider_MV.value()
         self.cs.set_mv_scale(new_mv_scale)
-        # Make sure tile previews are hidden, otherwise too slow
-        if self.mv_tile_preview_mode != 0:
-            self.mv_hide_tile_previews()
         # Redraw viewport:
         self.mv_draw()
 
@@ -1311,9 +1303,6 @@ class Viewport(QWidget):
         new_centre_dy = utils.fit_in_range(new_centre_dy, -2000, 2000)
         # Set new mv_centre coordinates:
         self.cs.set_mv_centre_d((new_centre_dx, new_centre_dy))
-        # Make sure tile previews are hidden, otherwise too slow
-        if self.mv_tile_preview_mode != 0:
-            self.mv_hide_tile_previews()
         # Redraw viewport:
         self.mv_draw()
 
