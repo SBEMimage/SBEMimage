@@ -1343,11 +1343,21 @@ class EmailMonitoringSettingsDlg(QDialog):
             error_str = 'Secondary e-mail address badly formatted.'
         self.cfg['monitoring']['report_interval'] = str(
             self.spinBox_reportInterval.value())
-        ov_list = [int(i) for i in self.lineEdit_selectedOV.text().split(',')]
-        self.cfg['monitoring']['watch_ov'] = str(ov_list)
-        tile_list = [
-            s.strip() for s in self.lineEdit_selectedTiles.text().split(',')]
-        self.cfg['monitoring']['watch_tiles'] = json.dumps(tile_list)
+
+        success, ov_list = utils.validate_ov_list(
+            self.lineEdit_selectedOV.text())
+        if success:
+            self.cfg['monitoring']['watch_ov'] = str(ov_list)
+        else:
+            error_str = 'List of selected overviews badly formatted.'
+
+        success, tile_list = utils.validate_tile_list(
+            self.lineEdit_selectedTiles.text())
+        if success:
+            self.cfg['monitoring']['watch_tiles'] = json.dumps(tile_list)
+        else:
+            error_str = 'List of selected tiles badly formatted.'
+
         self.cfg['monitoring']['send_logfile'] = str(
             self.checkBox_sendLogFile.isChecked())
         self.cfg['monitoring']['send_additional_logs'] = str(
@@ -1560,6 +1570,7 @@ class ImageMonitoringSettingsDlg(QDialog):
             float(self.cfg['monitoring']['tile_stddev_threshold']))
 
     def accept(self):
+        error_str = ''
         self.cfg['monitoring']['mean_lower_limit'] = str(
             self.spinBox_meanMin.value())
         self.cfg['monitoring']['mean_upper_limit'] = str(
@@ -1568,14 +1579,25 @@ class ImageMonitoringSettingsDlg(QDialog):
             self.spinBox_stddevMin.value())
         self.cfg['monitoring']['stddev_upper_limit'] = str(
             self.spinBox_stddevMax.value())
-        tile_list = [
-            s.strip() for s in self.lineEdit_monitorTiles.text().split(',')]
-        self.cfg['monitoring']['monitor_tiles'] = json.dumps(tile_list)
+
+        tile_str = self.lineEdit_monitorTiles.text().strip()
+        if tile_str == 'all':
+            self.cfg['monitoring']['monitor_tiles'] = '["all"]'
+        else:
+            success, tile_list = utils.validate_tile_list(tile_str)
+            if success:
+                self.cfg['monitoring']['monitor_tiles'] = json.dumps(tile_list)
+            else:
+                error_str = 'List of selected tiles badly formatted.'
+
         self.cfg['monitoring']['tile_mean_threshold'] = str(
             self.doubleSpinBox_meanThreshold.value())
         self.cfg['monitoring']['tile_stddev_threshold'] = str(
             self.doubleSpinBox_stdDevThreshold.value())
-        super(ImageMonitoringSettingsDlg, self).accept()
+        if not error_str:
+            super(ImageMonitoringSettingsDlg, self).accept()
+        else:
+            QMessageBox.warning(self, 'Error', error_str, QMessageBox.Ok)
 
 #------------------------------------------------------------------------------
 
@@ -1620,11 +1642,19 @@ class AutofocusSettingsDlg(QDialog):
         self.groupBox_heuristic_af.setEnabled(not status)
 
     def accept(self):
+        error_str = ''
         if self.radioButton_useSmartSEM.isChecked():
             self.af.set_method(0)
         else:
             self.af.set_method(1)
-        self.af.set_ref_tiles(self.lineEdit_refTiles.text())
+
+        success, tile_list = utils.validate_tile_list(
+            self.lineEdit_refTiles.text())
+        if success:
+            self.af.set_ref_tiles(tile_list)
+        else:
+            error_str = 'List of selected tiles badly formatted.'
+
         self.af.set_interval(self.spinBox_interval.value())
         self.af.set_autostig_delay(self.spinBox_autostigDelay.value())
         self.af.set_pixel_size(self.doubleSpinBox_pixelSize.value())
@@ -1639,7 +1669,10 @@ class AutofocusSettingsDlg(QDialog):
         self.af.set_heuristic_rot_scale(
             [self.doubleSpinBox_stigRot.value(),
              self.doubleSpinBox_stigScale.value()])
-        super(AutofocusSettingsDlg, self).accept()
+        if not error_str:
+            super(AutofocusSettingsDlg, self).accept()
+        else:
+            QMessageBox.warning(self, 'Error', error_str, QMessageBox.Ok)
 
 #------------------------------------------------------------------------------
 

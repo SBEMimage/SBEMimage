@@ -68,9 +68,9 @@ class Autofocus():
     def get_ref_tiles(self):
         return self.ref_tiles
 
-    def set_ref_tiles(self, input_str):
-        self.ref_tiles = [s.strip() for s in input_str.split(',')]
-        self.cfg['autofocus']['ref_tiles'] = json.dumps(self.ref_tiles)
+    def set_ref_tiles(self, ref_tile_list):
+        self.ref_tiles = ref_tile_list
+        self.cfg['autofocus']['ref_tiles'] = json.dumps(ref_tile_list)
 
     def get_interval(self):
         return self.interval

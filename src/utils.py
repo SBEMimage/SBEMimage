@@ -14,6 +14,7 @@
 import os
 import datetime
 import json
+import re
 import imaplib
 import smtplib
 import requests
@@ -33,6 +34,10 @@ GRID_DIGITS = 4       # up to 9999 grids
 TILE_DIGITS = 4       # up to 9999 tiles per grid
 SLICE_DIGITS = 5      # up to 99999 slices per stack
 
+# Regular expressions for checking user input of tiles and overviews
+RE_TILE_LIST = re.compile('^((0|[1-9][0-9]*)[.](0|[1-9][0-9]*))'
+                          '([ ]*,[ ]*(0|[1-9][0-9]*)[.](0|[1-9][0-9]*))*$')
+RE_OV_LIST = re.compile('^([0-9]+)([ ]*,[ ]*[0-9]+)*$')
 
 # Set of selectable colours for grids:
 COLOUR_SELECTOR = [
@@ -132,6 +137,32 @@ def get_tile_id(grid_number, tile_number, slice_number):
     return (str(grid_number).zfill(GRID_DIGITS)
             + '.' + str(tile_number).zfill(TILE_DIGITS)
             + '.' + str(slice_number).zfill(SLICE_DIGITS))
+
+def validate_tile_list(input_str):
+    input_str = input_str.strip()
+    success = True
+    if not input_str:
+        tile_list = []
+    else:
+        if RE_TILE_LIST.match(input_str):
+            tile_list = [s.strip() for s in input_str.split(',')]
+        else:
+            tile_list = []
+            success = False
+    return success, tile_list
+
+def validate_ov_list(input_str):
+    input_str = input_str.strip()
+    success = True
+    if not input_str:
+        ov_list = []
+    else:
+        if RE_OV_LIST.match(input_str):
+            ov_list = [int(s) for s in input_str.split(',')]
+        else:
+            ov_list = []
+            success = False
+    return success, ov_list
 
 def send_email(smtp_server, sender, recipients, subject, main_text, files=[]):
     try:
