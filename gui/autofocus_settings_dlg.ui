@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>281</width>
-    <height>449</height>
+    <height>539</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -23,7 +23,7 @@
    <property name="geometry">
     <rect>
      <x>80</x>
-     <y>410</y>
+     <y>500</y>
      <width>191</width>
      <height>32</height>
     </rect>
@@ -84,7 +84,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>230</y>
+     <y>320</y>
      <width>261</width>
      <height>171</height>
     </rect>
@@ -102,7 +102,7 @@
      </rect>
     </property>
     <property name="decimals">
-     <number>3</number>
+     <number>2</number>
     </property>
     <property name="maximum">
      <double>2.000000000000000</double>
@@ -111,7 +111,7 @@
      <double>0.010000000000000</double>
     </property>
     <property name="value">
-     <double>0.010000000000000</double>
+     <double>0.100000000000000</double>
     </property>
    </widget>
    <widget class="QDoubleSpinBox" name="doubleSpinBox_wdDiff">
@@ -124,13 +124,16 @@
      </rect>
     </property>
     <property name="decimals">
-     <number>3</number>
+     <number>2</number>
     </property>
     <property name="minimum">
      <double>0.100000000000000</double>
     </property>
     <property name="maximum">
      <double>5.000000000000000</double>
+    </property>
+    <property name="singleStep">
+     <double>0.100000000000000</double>
     </property>
     <property name="value">
      <double>1.000000000000000</double>
@@ -146,7 +149,7 @@
      </rect>
     </property>
     <property name="text">
-     <string>Astig X/Y ∆ (%):</string>
+     <string>Astig X/Y ±∆ (%):</string>
     </property>
    </widget>
    <widget class="QLabel" name="label_fdp">
@@ -159,7 +162,7 @@
      </rect>
     </property>
     <property name="text">
-     <string>Working distance ∆ (μm):</string>
+     <string>Working distance ±∆ (μm):</string>
     </property>
    </widget>
    <widget class="QDoubleSpinBox" name="doubleSpinBox_stigYDiff">
@@ -172,7 +175,7 @@
      </rect>
     </property>
     <property name="decimals">
-     <number>3</number>
+     <number>2</number>
     </property>
     <property name="maximum">
      <double>2.000000000000000</double>
@@ -181,7 +184,7 @@
      <double>0.010000000000000</double>
     </property>
     <property name="value">
-     <double>0.010000000000000</double>
+     <double>0.100000000000000</double>
     </property>
    </widget>
    <widget class="QDoubleSpinBox" name="doubleSpinBox_focusCalib">
@@ -197,13 +200,16 @@
      <number>3</number>
     </property>
     <property name="minimum">
-     <double>0.100000000000000</double>
+     <double>0.001000000000000</double>
     </property>
     <property name="maximum">
-     <double>5.000000000000000</double>
+     <double>1.000000000000000</double>
+    </property>
+    <property name="singleStep">
+     <double>0.010000000000000</double>
     </property>
     <property name="value">
-     <double>1.000000000000000</double>
+     <double>0.050000000000000</double>
     </property>
    </widget>
    <widget class="QLabel" name="label_fdp_5">
@@ -231,8 +237,11 @@
     <property name="decimals">
      <number>3</number>
     </property>
+    <property name="minimum">
+     <double>0.000000000000000</double>
+    </property>
     <property name="maximum">
-     <double>2.000000000000000</double>
+     <double>1.000000000000000</double>
     </property>
     <property name="singleStep">
      <double>0.010000000000000</double>
@@ -266,8 +275,11 @@
     <property name="decimals">
      <number>3</number>
     </property>
+    <property name="minimum">
+     <double>0.000000000000000</double>
+    </property>
     <property name="maximum">
-     <double>2.000000000000000</double>
+     <double>1.000000000000000</double>
     </property>
     <property name="singleStep">
      <double>0.010000000000000</double>
@@ -289,13 +301,13 @@
      <number>3</number>
     </property>
     <property name="maximum">
-     <double>2.000000000000000</double>
+     <double>6.283000000000000</double>
     </property>
     <property name="singleStep">
      <double>0.010000000000000</double>
     </property>
     <property name="value">
-     <double>0.010000000000000</double>
+     <double>0.700000000000000</double>
     </property>
    </widget>
    <widget class="QLabel" name="label_axp_3">
@@ -323,6 +335,9 @@
     <property name="decimals">
      <number>3</number>
     </property>
+    <property name="minimum">
+     <double>0.100000000000000</double>
+    </property>
     <property name="maximum">
      <double>2.000000000000000</double>
     </property>
@@ -330,7 +345,7 @@
      <double>0.010000000000000</double>
     </property>
     <property name="value">
-     <double>0.010000000000000</double>
+     <double>1.000000000000000</double>
     </property>
    </widget>
   </widget>
@@ -338,9 +353,9 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>110</y>
+     <y>180</y>
      <width>261</width>
-     <height>111</height>
+     <height>131</height>
     </rect>
    </property>
    <property name="title">
@@ -350,7 +365,7 @@
     <property name="geometry">
      <rect>
       <x>190</x>
-      <y>80</y>
+      <y>100</y>
       <width>61</width>
       <height>22</height>
      </rect>
@@ -372,7 +387,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>80</y>
+      <y>100</y>
       <width>111</width>
       <height>20</height>
      </rect>
@@ -426,7 +441,7 @@
      </rect>
     </property>
     <property name="minimum">
-     <number>0</number>
+     <number>-1</number>
     </property>
     <property name="maximum">
      <number>100</number>
@@ -445,6 +460,19 @@
      <string>Autostig delay (slices):</string>
     </property>
    </widget>
+   <widget class="QLabel" name="label_fdp_6">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>70</y>
+      <width>241</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>(Select -1 to disable autostigmator)</string>
+    </property>
+   </widget>
   </widget>
   <widget class="QLineEdit" name="lineEdit_refTiles">
    <property name="geometry">
@@ -456,11 +484,112 @@
     </rect>
    </property>
   </widget>
+  <widget class="QDoubleSpinBox" name="doubleSpinBox_maxStigXDiff">
+   <property name="geometry">
+    <rect>
+     <x>140</x>
+     <y>140</y>
+     <width>61</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="decimals">
+    <number>1</number>
+   </property>
+   <property name="minimum">
+    <double>0.100000000000000</double>
+   </property>
+   <property name="maximum">
+    <double>9.900000000000000</double>
+   </property>
+   <property name="singleStep">
+    <double>0.100000000000000</double>
+   </property>
+   <property name="value">
+    <double>1.000000000000000</double>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_fdp_7">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>110</y>
+     <width>181</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Max. permitted WD difference (μm):</string>
+   </property>
+  </widget>
+  <widget class="QDoubleSpinBox" name="doubleSpinBox_maxStigYDiff">
+   <property name="geometry">
+    <rect>
+     <x>200</x>
+     <y>140</y>
+     <width>61</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="decimals">
+    <number>1</number>
+   </property>
+   <property name="minimum">
+    <double>0.100000000000000</double>
+   </property>
+   <property name="maximum">
+    <double>9.900000000000000</double>
+   </property>
+   <property name="singleStep">
+    <double>0.100000000000000</double>
+   </property>
+   <property name="value">
+    <double>1.000000000000000</double>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_axp_4">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>140</y>
+     <width>131</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Max. Astig X/Y difference:</string>
+   </property>
+  </widget>
+  <widget class="QDoubleSpinBox" name="doubleSpinBox_maxWDDiff">
+   <property name="geometry">
+    <rect>
+     <x>200</x>
+     <y>110</y>
+     <width>61</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="decimals">
+    <number>0</number>
+   </property>
+   <property name="minimum">
+    <double>1.000000000000000</double>
+   </property>
+   <property name="maximum">
+    <double>999.000000000000000</double>
+   </property>
+   <property name="value">
+    <double>10.000000000000000</double>
+   </property>
+  </widget>
  </widget>
  <tabstops>
   <tabstop>radioButton_useSmartSEM</tabstop>
   <tabstop>radioButton_useHeuristic</tabstop>
   <tabstop>lineEdit_refTiles</tabstop>
+  <tabstop>doubleSpinBox_maxWDDiff</tabstop>
+  <tabstop>doubleSpinBox_maxStigXDiff</tabstop>
+  <tabstop>doubleSpinBox_maxStigYDiff</tabstop>
   <tabstop>spinBox_interval</tabstop>
   <tabstop>spinBox_autostigDelay</tabstop>
   <tabstop>doubleSpinBox_pixelSize</tabstop>

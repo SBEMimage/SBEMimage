@@ -1620,6 +1620,10 @@ class AutofocusSettingsDlg(QDialog):
         self.group_box_update()
         self.lineEdit_refTiles.setText(
             str(self.af.get_ref_tiles())[1:-1].replace('\'', ''))
+        max_diff = self.af.get_max_wd_stig_diff()
+        self.doubleSpinBox_maxWDDiff.setValue(max_diff[0] * 1000000)
+        self.doubleSpinBox_maxStigXDiff.setValue(max_diff[1])
+        self.doubleSpinBox_maxStigYDiff.setValue(max_diff[2])
         self.spinBox_interval.setValue(self.af.get_interval())
         self.spinBox_autostigDelay.setValue(self.af.get_autostig_delay())
         self.doubleSpinBox_pixelSize.setValue(self.af.get_pixel_size())
@@ -1654,7 +1658,10 @@ class AutofocusSettingsDlg(QDialog):
             self.af.set_ref_tiles(tile_list)
         else:
             error_str = 'List of selected tiles badly formatted.'
-
+        max_diffs = [self.doubleSpinBox_maxWDDiff.value() / 1000000,
+                     self.doubleSpinBox_maxStigXDiff.value(),
+                     self.doubleSpinBox_maxStigYDiff.value()]
+        self.af.set_max_wd_stig_diff(max_diffs)
         self.af.set_interval(self.spinBox_interval.value())
         self.af.set_autostig_delay(self.spinBox_autostigDelay.value())
         self.af.set_pixel_size(self.doubleSpinBox_pixelSize.value())

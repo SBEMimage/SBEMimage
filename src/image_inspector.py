@@ -46,8 +46,6 @@ class ImageInspector(object):
         self.base_dir = self.cfg['acq']['base_dir']
 
     def update_debris_settings(self):
-        self.debris_roi_min_area = int(
-            self.cfg['debris']['minimum_detection_area'])
         self.debris_roi_quadrant_threshold = int(
             self.cfg['debris']['quadrant_threshold'])
         self.mean_diff_threshold = float(
@@ -340,8 +338,14 @@ class ImageInspector(object):
                 if stddev_i > diff_stddev:
                     diff_stddev = stddev_i
 
-            msg = ('CTRL: OV: max. diff_mean: {0:.2f}'.format(diff_mean)
-                   + '; max. diff_stddev: {0:.2f}'.format(diff_stddev))
+            if debris_roi_area < self.debris_roi_quadrant_threshold:
+                msg = ('CTRL: OV ROI (no quadrants): '
+                       'diff_mean: {0:.2f}'.format(diff_mean)
+                       + '; diff_stddev: {0:.2f}'.format(diff_stddev))
+            else:
+                msg = ('CTRL: OV quadrants: '
+                       'max. diff_mean: {0:.2f}'.format(diff_mean)
+                       + '; max. diff_stddev: {0:.2f}'.format(diff_stddev))
 
             debris_detected = ((diff_mean > self.mean_diff_threshold) or
                                (diff_stddev > self.stddev_diff_threshold))
@@ -349,11 +353,11 @@ class ImageInspector(object):
         if method == 1:
             # Histogram analysis
             # Histogram from previous OV:
-            hist1 = ndimage.histogram(
-                self.ov_images[ov_number][-2][1], 0, 255, 256)
+            hist1, bin_edges = np.histogram(
+                self.ov_images[ov_number][-2][1], 256, [0, 256])
             # Histrogram from current OV
-            hist2 = ndimage.histogram(
-                self.ov_images[ov_number][-1][1], 0, 255, 256)
+            hist2, bin_edges = np.histogram(
+                self.ov_images[ov_number][-1][1], 256, [0, 256])
             hist_diff_sum = 0
             for i in range(0, 256):
                 hist_diff_sum += abs(hist1[i] - hist2[i])

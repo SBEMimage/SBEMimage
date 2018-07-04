@@ -88,7 +88,8 @@ class Stack():
             504: 'Tile image error (slice-by-slice comparison)',
             505: 'Autofocus error (SmartSEM)' ,
             506: 'Autofocus error (heuristic)',
-            507: 'metadata server error',
+            507: 'WD/STIG difference error',
+            508: 'metadata server error',
 
             # First digit 6: reserved for user-defined errors
             601: 'Test case error'
@@ -147,6 +148,7 @@ class Stack():
         # detection and monitoring can be enabled/disabled during a run
         self.use_mirror_drive = (self.cfg['sys']['use_mirror_drive'] == 'True')
         self.take_overviews = (self.cfg['acq']['take_overviews'] == 'True')
+        self.use_adaptive_focus = False
 
         # autofocus and autostig interval status:
         self.autofocus_stig_current_slice = (False, False)
@@ -451,7 +453,7 @@ class Stack():
             url = self.metadata_server + '/session/metadata'
             response = utils.meta_server_put_request(url, session_metadata)
             if response == 100:
-                self.error_state = 507
+                self.error_state = 508
                 self.pause_acquisition(1)
                 self.add_to_main_log('CTRL: Error sending session metadata '
                                      'to server.')
@@ -506,17 +508,17 @@ class Stack():
 
             # For autofocus method 1, focus slightly up or down depending
             # on slice number:
-            if (self.cfg['acq']['use_autofocus'] == 'True' and
-                self.af.get_method() == 1):
-                if self.slice_counter % 2:
-                    sign = 1
-                else:
-                    sign = -1
+            if self.af.is_active() and self.af.get_method() == 1:
+                sign = 1 if self.slice_counter % 2 else -1
                 deltas = self.af.get_heuristic_deltas()
                 self.wd_delta = sign * deltas[0]
                 self.stig_x_delta = sign * deltas[1]
                 self.stig_y_delta = sign * deltas[2]
-                self.add_to_main_log('CTRL: Heuristic autofocus active')
+                self.add_to_main_log('CTRL: Heuristic autofocus active.')
+                self.add_to_main_log(
+                    'CTRL: DIFF_WD: {0:+.4f}'.format(self.wd_delta * 1000)
+                    + ', DIFF_STIG_X: {0:+.2f}'.format(self.stig_x_delta)
+                    + ', DIFF_STIG_Y: {0:+.2f}'.format(self.stig_x_delta))
 
             # ============= Overview (OV) image acquisition ===================
             if self.take_overviews:
@@ -545,7 +547,10 @@ class Stack():
                                 self.acquire_overview(ov_number))
 
                             if self.error_state in [303, 404]:
+                                # Image incomplete or cannot be loaded,
                                 # try again:
+                                self.add_to_main_log(
+                                    'CTRL: OV problem detected. Trying again.')
                                 fail_counter += 1
                                 self.img_inspector.discard_last_ov(ov_number)
                                 sleep(1)
@@ -653,8 +658,7 @@ class Stack():
                 self.cfg['acq']['interrupted'] = 'False'
                 self.acq_interrupted = False
 
-            if ((len(self.grids_acquired) == number_grids)
-                    and not self.acq_interrupted):
+            if not self.acq_interrupted:
                 self.grids_acquired = []
                 self.cfg['acq']['grids_acquired'] = '[]'
 
@@ -682,7 +686,7 @@ class Stack():
                 response = utils.meta_server_put_request(
                     url, slice_complete_metadata)
                 if response == 100:
-                    self.error_state = 507
+                    self.error_state = 508
                     self.pause_acquisition(1)
                     self.add_to_main_log('CTRL: Error sending slice complete '
                                          'signal to server.')
@@ -691,7 +695,7 @@ class Stack():
                 url = self.metadata_server + '/signal/read'
                 (status, command, msg) = utils.meta_server_get_request(url)
                 if status == 100:
-                    self.error_state = 507
+                    self.error_state = 508
                     self.pause_acquisition(1)
                     self.add_to_main_log('CTRL: Error during get request '
                                          'to server.')
@@ -751,9 +755,12 @@ class Stack():
                 self.pause_acquisition(1)
 
             # ========================== CUTTING ==============================
-            if not (self.pause_state == 1) and (self.error_state == 0):
+            if (self.pause_state != 1) and (self.error_state == 0):
                 self.perform_cutting_sequence()
             # Imaging and cutting for current slice completed.
+
+            # Save current cfg to disk:
+            self.transmit_cmd('SAVE CFG')
 
             self.transmit_cmd('UPDATE PROGRESS')
             if self.slice_counter == self.number_slices:
@@ -767,6 +774,11 @@ class Stack():
             sleep(0.1)
 
         # ===================== END OF ACQUISITION LOOP =======================
+
+        if self.af.is_active() and self.af.get_method() == 1:
+            self.wd_delta, self.stig_x_delta, self.stig_y_delta = 0, 0, 0
+            self.set_target_wd_stig()
+
         if self.error_state > 0:
             self.process_error_state()
 
@@ -1024,8 +1036,6 @@ class Stack():
             self.cfg['acq']['slice_counter'] = str(self.slice_counter)
             self.total_z_diff += self.slice_thickness/1000
             self.cfg['acq']['total_z_diff'] = str(self.total_z_diff)
-            # Save current cfg to disk:
-            self.transmit_cmd('SAVE CFG')
         sleep(1)
 
     def acquire_overview(self, ov_number, move_required=True):
@@ -1211,13 +1221,14 @@ class Stack():
     def acquire_tile(self, grid_number, tile_number):
         """Acquire the specified tile with error handling and inspection."""
 
+        raw_img = None
         relative_save_path = utils.get_tile_save_path(
             self.stack_name, grid_number, tile_number, self.slice_counter)
         save_path = (self.base_dir + '\\' + relative_save_path)
         tile_id = str(grid_number) + '.' + str(tile_number)
-        tile_accepted = False  # meaning: tile quality is ok
-        tile_selected = False  # meaning: tile discarded for other reason
-        tile_skipped = False
+        tile_accepted = False  # meaning if True: tile quality is ok
+        tile_selected = False  # meaning if False: tile discarded
+        tile_skipped = False   # meaning if True: tile already acquired
 
         # Criterion whether to retake image:
         retake_img = (
@@ -1230,7 +1241,7 @@ class Stack():
                 grid_number, tile_number)
             # Move to that position:
             self.add_to_main_log('3VIEW: Moving stage to position '
-                          'of tile ' + tile_id)
+                          'of tile %s' % tile_id)
             self.microtome.move_stage_to_xy((stage_x, stage_y))
             # The move function waits for the specified stage move wait interval
             # Check if there were microtome problems:
@@ -1263,17 +1274,16 @@ class Stack():
             if tile_number in self.tiles_acquired:
                 tile_skipped = True
                 tile_accepted = True
-                self.add_to_main_log('CTRL: Tile ' + str(tile_number)
-                                    + ' already acquired. Skipping. ')
+                self.add_to_main_log(
+                    'CTRL: Tile %s already acquired. Skipping.' % tile_id)
             else:
                 # If tile already exists without being listed as acquired
                 # and no indication of previous interruption:
                 # pause because risk of overwriting data!
                 self.error_state = 403
                 self.add_to_main_log('CTRL: Problem detected. ')
-                self.add_to_main_log('CTRL: Tile ' + str(grid_number)
-                              + '.' + str(tile_number)
-                              + ': Image file already exists!')
+                self.add_to_main_log(
+                    'CTRL: Tile %s: Image file already exists!' %tile_id)
 
         # Proceed if no error has ocurred and tile not skipped:
         if self.error_state == 0 and not tile_skipped:
@@ -1281,51 +1291,34 @@ class Stack():
             # Show updated stage coordinates in main window:
             self.transmit_cmd('UPDATE XY')
 
-            # Perform autofocus (method 0, SmartSEM)?
-            if (self.cfg['acq']['use_autofocus'] == 'True'
-                and self.af.get_method() == 0
-                and self.af.is_tile_selected(grid_number, tile_number)
-                and (self.autofocus_stig_current_slice[0] or
-                     self.autofocus_stig_current_slice[1])):
-                # Run SmartSEM autofocus:
-                self.add_to_main_log('CTRL: Running SmartSEM AF procedure '
-                                     'for tile ' + tile_id)
-                return_msg = self.af.run_zeiss_af(
-                    *self.autofocus_stig_current_slice)
-                self.add_to_main_log(return_msg)
-                if 'ERROR' in return_msg:
-                    self.error_state = 505
-                else:
-                    # Now restore grid settings for tile acquisition:
-                    self.sem.apply_frame_settings(
-                        self.gm.get_tile_size_selector(grid_number),
-                        self.gm.get_pixel_size(grid_number),
-                        self.gm.get_dwell_time(grid_number))
-                    # If adaptive focus active, adjust focus for grid(s):
-                    if self.use_adaptive_focus:
-                        diff = (self.sem.get_wd()
-                                - self.gm.get_tile_wd(grid_number, tile_number))
-                        # Adjust:
-                        for g in range(self.gm.get_number_grids()):
-                            self.gm.adjust_focus_map(g, diff)
-                    self.lock_wd_stig()
-            # End of ZEISS autofocus
+            # Perform autofocus (method 0, SmartSEM) on current tile?
+            if (self.af.is_active() and self.af.get_method() == 0
+                    and self.af.is_tile_selected(grid_number, tile_number)
+                    and (self.autofocus_stig_current_slice[0] or
+                         self.autofocus_stig_current_slice[1])):
+                do_move = False  # already at tile stage position
+                self.perform_zeiss_autofocus(
+                    *self.autofocus_stig_current_slice,
+                    do_move, grid_number, tile_number)
+
+            # Check mag if locked:
+            if self.mag_locked and not self.error_state in [505, 506, 507]:
+                self.check_locked_mag()
+            # Check focus if locked:
+            if (self.wd_locked
+                and not self.use_adaptive_focus
+                and not self.error_state in [505, 506, 507]):
+                self.check_locked_wd_stig()
+            # Adjust wd if necessary:
+            if self.use_adaptive_focus:
+                self.sem.set_wd(
+                    self.gm.get_tile_wd(grid_number, tile_number))
 
             # Now acquire the frame:
             # (even if failure detected. May be helpful.)
             self.add_to_main_log('SEM: Acquiring tile at X:'
                           + '{0:.3f}'.format(stage_x)
                           + ', Y:' + '{0:.3f}'.format(stage_y))
-            # Check mag if locked:
-            if self.mag_locked:
-                self.check_locked_mag()
-            # Check focus if locked:
-            if self.wd_locked and not self.use_adaptive_focus:
-                self.check_locked_wd_stig()
-            # Adjust wd if necessary:
-            if self.use_adaptive_focus:
-                self.sem.set_wd(
-                    self.gm.get_tile_wd(grid_number, tile_number))
             # Indicate current tile in Viewport:
             self.transmit_cmd('ACQ IND TILE'
                               + str(grid_number) + '.' + str(tile_number))
@@ -1350,7 +1343,7 @@ class Stack():
                         self.slice_counter))
 
                 if not load_error:
-                    self.add_to_main_log('CTRL: Tile ' + str(tile_number)
+                    self.add_to_main_log('CTRL: Tile ' + tile_id
                                   + ': M:' + '{0:.2f}'.format(mean)
                                   + ', SD:' + '{0:.2f}'.format(stddev))
                     # New thumbnail available, show it:
@@ -1363,24 +1356,26 @@ class Stack():
                             tile_accepted = False
                             self.error_state = 503
                             self.add_to_main_log(
-                                'CTRL: Tile ' + str(tile_number)
-                                + ' outside of permitted mean/stddev range!')
+                                'CTRL: Tile outside of permitted mean/SD '
+                                'range!')
 
                         if (slice_by_slice_test_passed is not None
                             and not slice_by_slice_test_passed):
                             tile_accepted = False
                             self.error_state = 504
                             self.add_to_main_log(
-                                'CTRL: Tile ' + str(tile_number)
-                               + ' above mean/stddev slice-by-slice '
-                               ' thresholds.')
+                                'CTRL: Tile above mean/SD slice-by-slice '
+                                'thresholds.')
 
                     if frozen_frame_error:
                         self.error_state = 304
-                        self.add_to_main_log('CTRL: Tile ' + str(tile_number)
+                        self.add_to_main_log('CTRL: Tile ' + tile_id
                             + ': SmartSEM frozen frame error!')
                     elif grab_incomplete:
                         self.error_state = 303
+                    if self.error_state in [505, 506, 507]:
+                        # Don't accept tile if autofocus error has ocurred:
+                        tile_accepted = False
                 else:
                     tile_accepted = False
                     self.error_state = 404 # load error
@@ -1389,118 +1384,133 @@ class Stack():
                 self.add_to_main_log('CTRL: Tile image acquisition failure. ')
                 self.error_state = 302
 
-        return (relative_save_path, save_path,
+        return (raw_img, relative_save_path, save_path,
                 tile_accepted, tile_skipped, tile_selected)
 
     def acquire_grid(self, grid_number):
         """Acquire all active tiles of grid specified by grid_number"""
 
-        self.add_to_main_log(
-            'CTRL: Starting acquisition of active '
-            'tiles in grid %d' % grid_number)
-        # Switch to specified settings of the current grid
-        self.sem.apply_frame_settings(
-            self.gm.get_tile_size_selector(grid_number),
-            self.gm.get_pixel_size(grid_number),
-            self.gm.get_dwell_time(grid_number))
-        # Lock magnification:
-        self.lock_mag()
         self.use_adaptive_focus = self.gm.is_adaptive_focus_active(grid_number)
         # Get size and active tiles  (using list() to get a copy)
         active_tiles = list(self.gm.get_active_tiles(grid_number))
-        if self.acq_interrupted:
-            # Remove tiles that are no longer active from acquired_tiles list
-            acq_tmp = list(self.tiles_acquired)
-            for tile in acq_tmp:
-                if not (tile in active_tiles):
-                    self.tiles_acquired.remove(tile)
 
-        tile_width, tile_height = self.gm.get_tile_size_px_py(grid_number)
-
-        # Set WD and stig settings:
-        if not self.use_adaptive_focus:
-            self.set_target_wd_stig()
-
-        self.add_to_main_log(
-            'SEM: Current WD/STIG_XY: {0:.6f}'.format(self.sem.get_wd() * 1000)
-            + ', {0:.6f}'.format(self.sem.get_stig_x())
-            + ', {0:.6f}'.format(self.sem.get_stig_y()))
-        # ===================== Grid acquisition loop =========================
-        for tile_number in active_tiles:
-            fail_counter = 0
-            tile_accepted = False
-            # Acquire the current tile, up to three attempts:
-            while not tile_accepted and fail_counter < 3:
-                (relative_save_path, save_path,
-                 tile_accepted, tile_skipped, tile_selected) = (
-                    self.acquire_tile(grid_number, tile_number))
-
-                if self.error_state in [302, 303, 304, 404]:
-                    # Try again in this case, problem may disappear:
-                    fail_counter += 1
-                    # Reset error state:
-                    self.error_state = 0
-
-                elif self.error_state > 0:
-                    self.pause_acquisition(1)
+        if (self.af.is_active() and self.af.get_method() == 0
+            and (self.autofocus_stig_current_slice[0] or
+                 self.autofocus_stig_current_slice[1])):
+            # Check if non-active tile selected for Zeiss autofocus:
+            all_autofocus_tiles = self.af.get_ref_tiles()
+            autofocus_tiles = []
+            for tile in all_autofocus_tiles:
+                g = int(tile.split('.')[0])
+                t = int(tile.split('.')[1])
+                if g == grid_number and not t in active_tiles:
+                    autofocus_tiles.append(str(g) + '.' + str(t))
+            # Perform Zeiss autofocus for non_active_autofocus_tiles:
+            for tile in autofocus_tiles:
+                t = int(tile.split('.')[1])
+                do_move = True
+                self.perform_zeiss_autofocus(
+                    *self.autofocus_stig_current_slice, do_move, grid_number, t)
+                if self.error_state != 0 or self.pause_state == 1:
+                    # Immediately pause and save interruption info
+                    if not self.acq_paused:
+                        self.pause_acquisition(1)
+                    self.save_interruption_point(grid_number, t)
                     break
-            # end of tile aquisition while loop
 
-            if tile_accepted and tile_selected and not tile_skipped:
-                # Write tile's name and position into imagelist:
-                self.register_accepted_tile(relative_save_path,
-                                            grid_number, tile_number,
-                                            tile_width, tile_height)
-                # Save stats and reslice:
-                self.img_inspector.save_tile_reslice_and_stats(
-                    grid_number, tile_number, self.slice_counter)
-                # If heuristic autofocus enabled and tile selected as
-                # reference tile, process tile:
-                if (self.cfg['acq']['use_autofocus'] == 'True'
-                    and self.af.get_method() == 1
-                    and self.af.is_tile_selected(grid_number, tile_number)):
-                    self.add_to_main_log('CTRL: Processing tile %s for '
-                        'heuristic autofocus ' %tile_id)
-                    self.af.process_heuristic_new_image(
-                        raw_img, tile_id, self.slice_counter)
-                    f, a1, a2 = self.af.get_heuristic_corrections(tile_id)
-                    if f is not None:
-                        self.add_to_main_log('CTRL: New corrections: '
-                        + '{0:.6f}, '.format(f)
-                        + '{0:.6f}, '.format(a1)
-                        + '{0:.6f}'.format(a2))
-                    else:
-                        self.add_to_main_log('CTRL: No estimates computed. ')
-                    #self.apply_heuristic_corrections()
+        if self.pause_state != 1:
+            self.add_to_main_log(
+                'CTRL: Starting acquisition of active '
+                'tiles in grid %d' % grid_number)
+            # Switch to specified settings of the current grid
+            self.sem.apply_frame_settings(
+                self.gm.get_tile_size_selector(grid_number),
+                self.gm.get_pixel_size(grid_number),
+                self.gm.get_dwell_time(grid_number))
+            # Lock magnification:
+            self.lock_mag()
 
-            elif (not tile_selected
-                  and not tile_skipped
-                  and self.error_state == 0):
-                self.add_to_main_log(
-                    'CTRL: Tile ' + str(tile_number)
-                    + ' was discarded by image inspector.')
-                # Delete file:
-                try:
-                    os.remove(save_path)
-                except:
+            if self.acq_interrupted:
+                # Remove tiles that are no longer active from acquired_tiles list
+                acq_tmp = list(self.tiles_acquired)
+                for tile in acq_tmp:
+                    if not (tile in active_tiles):
+                        self.tiles_acquired.remove(tile)
+
+            tile_width, tile_height = self.gm.get_tile_size_px_py(grid_number)
+
+            # Set WD and stig settings:
+            if not self.use_adaptive_focus:
+                self.set_target_wd_stig()
+
+            self.add_to_main_log(
+                'SEM: Current WD/STIG_XY: {0:.6f}'.format(self.sem.get_wd() * 1000)
+                + ', {0:.6f}'.format(self.sem.get_stig_x())
+                + ', {0:.6f}'.format(self.sem.get_stig_y()))
+
+            # ===================== Grid acquisition loop =========================
+            for tile_number in active_tiles:
+                fail_counter = 0
+                tile_accepted = False
+                tile_id = str(tile_number) + '.' + str(grid_number)
+                # Acquire the current tile, up to three attempts:
+                while not tile_accepted and fail_counter < 3:
+                    (raw_img, relative_save_path, save_path,
+                     tile_accepted, tile_skipped, tile_selected) = (
+                        self.acquire_tile(grid_number, tile_number))
+
+                    if self.error_state in [302, 303, 304, 404]:
+                        self.add_to_main_log(
+                            'CTRL: Problem with tile detected. Trying again.')
+                        # Try again in this case, problem may disappear:
+                        fail_counter += 1
+                        # Reset error state:
+                        self.error_state = 0
+
+                    elif self.error_state > 0:
+                        self.pause_acquisition(1)
+                        break
+                # end of tile aquisition while loop
+
+                if tile_accepted and tile_selected and not tile_skipped:
+                    # Write tile's name and position into imagelist:
+                    self.register_accepted_tile(relative_save_path,
+                                                grid_number, tile_number,
+                                                tile_width, tile_height)
+                    # Save stats and reslice:
+                    self.img_inspector.save_tile_reslice_and_stats(
+                        grid_number, tile_number, self.slice_counter)
+                    # If heuristic autofocus enabled and tile selected as
+                    # reference tile, process tile:
+                    if (self.af.is_active() and self.af.get_method() == 1
+                            and self.af.is_tile_selected(grid_number, tile_number)):
+                        self.perform_heuristic_autofocus(
+                            raw_img, grid_number, tile_number)
+
+                elif (not tile_selected
+                      and not tile_skipped
+                      and self.error_state == 0):
                     self.add_to_main_log(
-                        'CTRL: Tile image file could not be deleted.')
-            # Was acq paused by user or interrupted by error? Save current pos:
-            if self.pause_state == 1:
-                self.acq_interrupted = True
-                self.cfg['acq']['interrupted'] = 'True'
-                self.acq_interrupted_at = [grid_number, tile_number]
-                self.cfg['acq']['interrupted_at'] = str(self.acq_interrupted_at)
-                break
-        # ================== End of grid acquisition loop =====================
+                        'CTRL: Tile %s was discarded by image inspector.' %tile_id)
+                    # Delete file:
+                    try:
+                        os.remove(save_path)
+                    except:
+                        self.add_to_main_log(
+                            'CTRL: Tile image file could not be deleted.')
+                # Was acq paused by user or interrupted by error? Save current pos:
+                if self.pause_state == 1:
+                    self.save_interruption_point(grid_number, tile_number)
+                    break
+            # ================== End of grid acquisition loop =====================
 
-        if len(active_tiles) == len(self.tiles_acquired):
-            # Grid is complete, add it to the grids_acquired list:
-            self.grids_acquired.append(grid_number)
-            self.cfg['acq']['grids_acquired'] = str(self.grids_acquired)
-            # Empty the tile list since all tiles were acquired:
-            self.tiles_acquired = []
-            self.cfg['acq']['tiles_acquired'] = '[]'
+            if len(active_tiles) == len(self.tiles_acquired):
+                # Grid is complete, add it to the grids_acquired list:
+                self.grids_acquired.append(grid_number)
+                self.cfg['acq']['grids_acquired'] = str(self.grids_acquired)
+                # Empty the tile list since all tiles were acquired:
+                self.tiles_acquired = []
+                self.cfg['acq']['tiles_acquired'] = '[]'
 
 
     def register_accepted_tile(self, save_path, grid_number, tile_number,
@@ -1539,10 +1549,125 @@ class Stack():
             url = self.metadata_server + '/tile/metadata/update'
             response = utils.meta_server_post_request(url, tile_metadata)
             if response == 100:
-                self.error_state = 507
+                self.error_state = 508
                 self.pause_acquisition(1)
                 self.add_to_main_log('CTRL: Error sending tile metadata '
                                      'to server.')
+
+    def perform_zeiss_autofocus(self, do_focus, do_stig, do_move,
+                                grid_number, tile_number):
+        """Run SmartSEM autofocus at current stage position if do_move == False,
+           otherwise move to grid_number.tile_number position beforehand.
+        """
+        if do_move:
+            # Read target coordinates for current tile:
+            stage_x, stage_y = self.gm.get_tile_coordinates_s(
+                grid_number, tile_number)
+            # Move to that position:
+            self.add_to_main_log(
+                '3VIEW: Moving stage to position of tile '
+                + str(grid_number) + '.' + str(tile_number) + ' for autofocus')
+            self.microtome.move_stage_to_xy((stage_x, stage_y))
+            # The move function waits for the specified stage move wait interval
+            # Check if there were microtome problems:
+            # If yes, try one more time before pausing acquisition.
+            if self.microtome.get_error_state() > 0:
+                self.microtome.reset_error_state()
+                self.add_to_main_log('CTRL: Problem detected (XY '
+                              'stage move). Trying again.')
+                # Error_log in viewport window:
+                error_log_str = (str(self.slice_counter)
+                    + ': WARNING (Problem with XY stage move)')
+                self.error_log_file.write(error_log_str + '\n')
+                # Signal to main window to update log in viewport:
+                self.transmit_cmd('VP LOG' + error_log_str)
+                sleep(2)
+                # Try to move to tile position again:
+                self.add_to_main_log(
+                    '3VIEW: Moving stage to position of tile '
+                    + str(grid_number) + '.' + str(tile_number))
+                self.microtome.move_stage_to_xy((stage_x, stage_y))
+                # Check again if there is a failure:
+                self.error_state = self.microtome.get_error_state()
+                self.microtome.reset_error_state()
+                # If yes, pause stack:
+                if self.error_state > 0:
+                    self.add_to_main_log(
+                        'CTRL: Problem detected (XY stage move failed).')
+        if self.error_state == 0 and (do_focus or do_stig):
+            if do_focus and do_stig:
+                af_type = '(focus+stig)'
+            elif do_focus:
+                af_type = '(focus only)'
+            elif do_stig:
+                af_type = '(stig only)'
+            self.add_to_main_log('CTRL: Running SmartSEM AF procedure '
+                                 + af_type + ' for tile '
+                                 + str(grid_number) + '.' + str(tile_number))
+            return_msg = self.af.run_zeiss_af(do_focus, do_stig)
+            self.add_to_main_log(return_msg)
+            if 'ERROR' in return_msg:
+                self.error_state = 505
+            elif self.af.check_wd_stig_diff(self.target_wd,
+                                            self.target_stig_x,
+                                            self.target_stig_y):
+                # If adaptive focus active, adjust focus for grid(s):
+                if self.use_adaptive_focus:
+                    grid_number = int(tile_id.split('.')[0])
+                    tile_number = int(tile_id.split('.')[1])
+                    diff = (self.sem.get_wd()
+                            - self.gm.get_tile_wd(grid_number, tile_number))
+                    # Adjust:
+                    for g in range(self.gm.get_number_grids()):
+                        self.gm.adjust_focus_map(g, diff)
+                # Set new WD/stig parameters:
+                self.lock_wd_stig()
+            else:
+                # The different in WD/STIG was too large. Pause the
+                # acquisition
+                self.error_state = 507
+            # Restore grid settings for tile acquisition:
+            self.sem.apply_frame_settings(
+                self.gm.get_tile_size_selector(grid_number),
+                self.gm.get_pixel_size(grid_number),
+                self.gm.get_dwell_time(grid_number))
+
+    def perform_heuristic_autofocus(self, raw_img, grid_number, tile_number):
+        tile_key = str(grid_number) + '.' + str(tile_number)
+        self.add_to_main_log('CTRL: Processing tile %s for '
+            'heuristic autofocus ' %tile_key)
+        self.af.process_heuristic_new_image(
+            raw_img, tile_key, self.slice_counter)
+        wd_corr, sx_corr, sy_corr = self.af.get_heuristic_corrections(tile_key)
+        if wd_corr is not None:
+            self.add_to_main_log('CTRL: New corrections: '
+                                 + '{0:.6f}, '.format(wd_corr)
+                                 + '{0:.6f}, '.format(sx_corr)
+                                 + '{0:.6f}'.format(sy_corr))
+            max_diffs = self.af.get_max_wd_stig_diff()
+            if (abs(wd_corr/1000) > max_diffs[0]
+                    or abs(sx_corr) > max_diffs[1]
+                    or abs(sy_corr) > max_diffs[2]):
+                # The difference in WD/STIG was too large.
+                self.error_state = 507
+                self.pause_acquisition(1)
+            elif (abs(wd_corr/1000) < 3 * abs(self.wd_delta)
+                    and abs(sx_corr) < 3 * abs(self.stig_x_delta)
+                    and abs(sy_corr) < 3 * abs(self.stig_y_delta)):
+                # Apply corrections:
+                self.target_wd += wd_corr/1000
+                self.target_stig_x += sx_corr
+                self.target_stig_y += sy_corr
+                self.add_to_main_log(
+                    'SEM: New WD/STIG_XY: {0:.6f}'.format(self.target_wd * 1000)
+                    + ', {0:.6f}'.format(self.target_stig_x)
+                    + ', {0:.6f}'.format(self.target_stig_y))
+            else:
+                self.add_to_main_log('CTRL: Warning: estimates out of '
+                                     'range, not applied.')
+        else:
+            self.add_to_main_log('CTRL: No estimates computed. ')
+
     def lock_wd_stig(self):
         self.target_wd = self.sem.get_wd()
         self.target_stig_x = self.sem.get_stig_x()
@@ -1569,18 +1694,20 @@ class Stack():
     def check_locked_wd_stig(self):
         """Check if wd/stig was accidentally changed and restore targets."""
         change_detected = False
-        current_wd = self.sem.get_wd()
-        current_stig_x = self.sem.get_stig_x()
-        current_stig_y = self.sem.get_stig_y()
-        if abs(current_wd - (self.target_wd + self.wd_delta)) > 0.000001:
+        diff_wd = abs(self.sem.get_wd() - (self.target_wd + self.wd_delta))
+        diff_stig_x = abs(
+            self.sem.get_stig_x() - (self.target_stig_x + self.stig_x_delta))
+        diff_stig_y = abs(
+            self.sem.get_stig_y() - (self.target_stig_y + self.stig_y_delta))
+
+        if diff_wd > 0.000001:
             change_detected = True
             self.add_to_main_log(
                 'CTRL: Warning: Change in working distance detected.')
             #Fix it:
             self.add_to_main_log('CTRL: Resetting working distance.')
             self.sem.set_wd(self.target_wd + self.wd_delta)
-        if ((current_stig_x != self.target_stig_x + self.stig_x_delta)
-            or (current_stig_y != self.target_stig_y + self.stig_y_delta)):
+        if (diff_stig_x > 0.000001 or diff_stig_y > 0.000001):
             change_detected = True
             self.add_to_main_log(
                 'CTRL: Warning: Change in stigmation settings detected.')
@@ -1667,12 +1794,19 @@ class Stack():
         self.trigger.s.emit()
 
     def pause_acquisition(self, pause_state):
-        """Pause the current acquisition"""
+        """Pause the current acquisition."""
         if pause_state == 1:   # Pause immediately after the current image
             self.pause_state = 1
             self.acq_paused = True
             self.cfg['acq']['paused'] = 'True'
-        if pause_state == 2:   # Pause after finishing current slice and cutting
+        elif pause_state == 2:   # Pause after finishing current slice and cutting
             self.pause_state = 2
             self.acq_paused = True
             self.cfg['acq']['paused'] = 'True'
+
+    def save_interruption_point(self, grid_number, tile_number):
+        """Save grid/tile position where interruption occured."""
+        self.acq_interrupted = True
+        self.cfg['acq']['interrupted'] = 'True'
+        self.acq_interrupted_at = [grid_number, tile_number]
+        self.cfg['acq']['interrupted_at'] = str(self.acq_interrupted_at)

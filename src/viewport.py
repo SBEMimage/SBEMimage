@@ -2610,10 +2610,9 @@ class Viewport(QWidget):
             mean = np.mean(img)
             stddev = np.std(img)
             #Full histogram:
-            #hist = ndimage.histogram(img, 0, 255, 256)
-            hist, bins = np.histogram(img, 256, [0, 256])
+            hist, bin_edges = np.histogram(img, 256, [0, 256])
 
-            hist_max = ndimage.maximum(hist)
+            hist_max = hist.max()
             peak = -1
             self.m_qp.begin(canvas)
             self.m_qp.setPen(QColor(25, 25, 112))

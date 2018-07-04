@@ -295,17 +295,16 @@ class MainControls(QMainWindow):
         if not self.cfg['microtome']['device'] in ['Gatan 3View']:
             self.cfg['microtome']['device'] = 'NOT RECOGNIZED'
         # Update calibration of stage:
-        if self.cfg['microtome']['use_stage_calibration'] == 'True':
-            calibration_data = json.loads(
-                self.syscfg['stage']['calibration_data'])
-            try:
-                params = calibration_data[self.cfg['sem']['eht']]
-            except:
-                params = calibration_data['1.5']
-            self.cfg['microtome']['stage_scale_factor_x'] = str(params[0])
-            self.cfg['microtome']['stage_scale_factor_y'] = str(params[1])
-            self.cfg['microtome']['stage_rotation_angle_x'] = str(params[2])
-            self.cfg['microtome']['stage_rotation_angle_y'] = str(params[3])
+        calibration_data = json.loads(
+            self.syscfg['stage']['calibration_data'])
+        try:
+            params = calibration_data[self.cfg['sem']['eht']]
+        except:
+            params = calibration_data['1.5']
+        self.cfg['microtome']['stage_scale_factor_x'] = str(params[0])
+        self.cfg['microtome']['stage_scale_factor_y'] = str(params[1])
+        self.cfg['microtome']['stage_rotation_angle_x'] = str(params[2])
+        self.cfg['microtome']['stage_rotation_angle_y'] = str(params[3])
         # Get motor limits from system cfg file:
         motor_limits = json.loads(self.syscfg['stage']['motor_limits'])
         self.cfg['microtome']['stage_min_x'] = str(motor_limits[0])
@@ -596,8 +595,7 @@ class MainControls(QMainWindow):
         dialog = SEMSettingsDlg(self.sem)
         if dialog.exec_():
             # Update stage calibration (EHT may have changed):
-            if self.cfg['microtome']['use_stage_calibration'] == 'True':
-                self.microtome.update_stage_calibration(self.sem.get_eht())
+            self.microtome.update_stage_calibration(self.sem.get_eht())
             self.show_current_settings()
             # Electron dose may have changed:
             self.show_estimates()

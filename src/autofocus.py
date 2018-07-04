@@ -38,7 +38,9 @@ class Autofocus():
         self.interval = int(self.cfg['autofocus']['interval'])
         self.autostig_delay = int(self.cfg['autofocus']['autostig_delay'])
         self.pixel_size = float(self.cfg['autofocus']['pixel_size'])
-
+        # Maximum allowed change in focus/stigmation:
+        self.max_wd_diff, self.max_sx_diff, self.max_sy_diff = json.loads(
+            self.cfg['autofocus']['max_wd_stig_diff'])
         # For heuristic autofocus:
         self.wd_delta, self.stig_x_delta, self.stig_y_delta = json.loads(
             self.cfg['autofocus']['heuristic_deltas'])
@@ -57,6 +59,9 @@ class Autofocus():
         self.foc_est = {}
         self.astgx_est = {}
         self.astgy_est = {}
+
+    def is_active(self):
+        return (self.cfg['acq']['use_autofocus'] == 'True')
 
     def get_method(self):
         return self.method
@@ -93,11 +98,26 @@ class Autofocus():
         self.pixel_size = pixel_size
         self.cfg['autofocus']['pixel_size'] = str(pixel_size)
 
+    def get_max_wd_stig_diff(self):
+        return [self.max_wd_diff, self.max_sx_diff, self.max_sy_diff]
+
+    def set_max_wd_stig_diff(self, max_diffs):
+        self.max_wd_diff, self.max_sx_diff, self.max_sy_diff = max_diffs
+        self.cfg['autofocus']['max_wd_stig_diff'] = str(max_diffs)
+
+    def check_wd_stig_diff(self, prev_wd, prev_sx, prev_sy):
+        diff_wd = abs(self.sem.get_wd() - prev_wd)
+        diff_sx = abs(self.sem.get_stig_x() - prev_sx)
+        diff_sy = abs(self.sem.get_stig_y() - prev_sy)
+        return (diff_wd <= self.max_wd_diff
+                and diff_sx <= self.max_sx_diff
+                and diff_sy <= self.max_sy_diff)
+
     def is_active_current_slice(self, slice_counter):
         autofocus_current_slice, autostig_current_slice = False, False
         if slice_counter > 0:
             autofocus_current_slice = (slice_counter % self.interval == 0)
-        if slice_counter > self.autostig_delay:
+        if -1 < self.autostig_delay < slice_counter:
             autostig_current_slice = ((
                 (slice_counter - self.autostig_delay) % self.interval) == 0)
         return (autofocus_current_slice, autostig_current_slice)
@@ -198,7 +218,7 @@ class Autofocus():
             and len(self.astgx_est[tile_key]) > 1
             and len(self.astgy_est[tile_key]) > 1):
 
-            wd = (self.heuristic_calibration[0]
+            wd_corr = (self.heuristic_calibration[0]
                   * (self.foc_est[tile_key][0] - self.foc_est[tile_key][1]))
             a1 = (self.heuristic_calibration[1]
                   * (self.astgx_est[tile_key][0] - self.astgx_est[tile_key][1]))
@@ -209,7 +229,7 @@ class Autofocus():
             ay_corr = a1 * sin(self.rot_angle) + a2 * cos(self.rot_angle)
             ax_corr *= self.scale_factor
             ay_corr *= self.scale_factor
-            return wd, ax_corr, ay_corr
+            return wd_corr, ax_corr, ay_corr
         else:
             return None, None, None
 
@@ -221,8 +241,8 @@ class Autofocus():
         δ = 0.5
         ε = 9
 
-        for i in range(0, self.ACORR_WIDTH):
-            for j in range(0, self.ACORR_WIDTH):
+        for i in range(self.ACORR_WIDTH):
+            for j in range(self.ACORR_WIDTH):
                 x, y = i - self.ACORR_WIDTH/2, j - self.ACORR_WIDTH/2
                 r = sqrt(x**2 + y**2)
                 if r == 0:
@@ -244,8 +264,8 @@ class Autofocus():
     def muliply_with_mask(self, autocorr, mask):
         numerator_sum = 0
         norm = 0
-        for i in range(0, self.ACORR_WIDTH):
-            for j in range(0, self.ACORR_WIDTH):
+        for i in range(self.ACORR_WIDTH):
+            for j in range(self.ACORR_WIDTH):
                 numerator_sum += autocorr[i, j] * mask[i, j]
                 norm += mask[i, j]
         return numerator_sum / norm
