@@ -57,8 +57,11 @@ class SEM():
             # Dispatch Merlin API (CZ EM API OLE Control):
             # CZEMApi.ocx must be registered in the Windows registry!
             # 'CZ.EMApiCtrl.1'  {71BD42C4-EBD3-11D0-AB3A-444553540000}
-            self.sem_api = win32com.client.Dispatch('CZ.EMApiCtrl.1')
-            ret_val = self.sem_api.InitialiseRemoting()
+            try:
+                self.sem_api = win32com.client.Dispatch('CZ.EMApiCtrl.1')
+                ret_val = self.sem_api.InitialiseRemoting()
+            except:
+                ret_val = 1
             if ret_val != 0:    # In ZEISS API, response of '0' means success
                 self.error_state = 301
                 self.error_cause = (

@@ -17,7 +17,6 @@ import os
 import json
 import numpy as np
 
-from scipy import ndimage
 from scipy.misc import imresize, imsave
 from scipy.signal import medfilt2d
 from PIL import Image
@@ -202,6 +201,8 @@ class ImageInspector(object):
 
     def process_ov(self, filename, ov_number, slice_number):
         """Load overview image from disk and perform standard tests."""
+        ov_img = None
+        mean, stddev = 0, 0
         load_error = False
         grab_incomplete = False
         range_test_passed = False
@@ -388,11 +389,13 @@ class ImageInspector(object):
         return debris_detected, msg
 
     def discard_last_ov(self, ov_number):
-        # Delete last entries in means/stddevs list:
-        self.ov_means[ov_number].pop()
-        self.ov_stddevs[ov_number].pop()
-        # Delete last image:
-        self.ov_images[ov_number].pop()
+        if self.ov_means and self.ov_stddevs:
+            # Delete last entries in means/stddevs list:
+            self.ov_means[ov_number].pop()
+            self.ov_stddevs[ov_number].pop()
+        if self.ov_images:
+            # Delete last image:
+            self.ov_images[ov_number].pop()
 
     def reset_tile_stats(self):
         self.tile_means = {}

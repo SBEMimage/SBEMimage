@@ -549,9 +549,11 @@ class Stack():
                             if self.error_state in [303, 404]:
                                 # Image incomplete or cannot be loaded,
                                 # try again:
-                                self.add_to_main_log(
-                                    'CTRL: OV problem detected. Trying again.')
                                 fail_counter += 1
+                                if fail_counter < 3:
+                                    self.add_to_main_log(
+                                        'CTRL: OV problem detected. '
+                                        'Trying again.')
                                 self.img_inspector.discard_last_ov(ov_number)
                                 sleep(1)
                                 if fail_counter == 3:
