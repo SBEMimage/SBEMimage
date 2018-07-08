@@ -19,6 +19,7 @@ import numpy as np
 
 from scipy import ndimage
 from scipy.misc import imresize, imsave
+from scipy.signal import medfilt2d
 from PIL import Image
 
 import utils
@@ -46,16 +47,20 @@ class ImageInspector(object):
         self.base_dir = self.cfg['acq']['base_dir']
 
     def update_debris_settings(self):
-        self.debris_roi_quadrant_threshold = int(
-            self.cfg['debris']['quadrant_threshold'])
+        self.debris_roi_min_quadrant_area = int(
+            self.cfg['debris']['min_quadrant_area'])
         self.mean_diff_threshold = float(
             self.cfg['debris']['mean_diff_threshold'])
         self.stddev_diff_threshold = float(
             self.cfg['debris']['stddev_diff_threshold'])
+        self.image_diff_threshold = int(
+            self.cfg['debris']['image_diff_threshold'])
+        self.median_filter_kernel_size = int(
+            self.cfg['debris']['median_filter_kernel_size'])
+        self.image_diff_hist_lower_limit = int(
+            self.cfg['debris']['image_diff_hist_lower_limit'])
         self.histogram_diff_threshold = int(
             self.cfg['debris']['histogram_diff_threshold'])
-        self.pixel_diff_threshold = int(
-            self.cfg['debris']['pixel_diff_threshold'])
 
     def update_monitoring_settings(self):
         # read params for monitoring image stats of tiles and OVs:
@@ -196,96 +201,61 @@ class ImageInspector(object):
             imsave(reslice_filename, self.tile_reslice_line[tile_key])
 
     def process_ov(self, filename, ov_number, slice_number):
-        mean = [0, 0, 0, 0, 0]
-        stddev = [0, 0, 0, 0, 0]
-        range_test_passed = False
-        grab_incomplete = False
+        """Load overview image from disk and perform standard tests."""
         load_error = False
-
+        grab_incomplete = False
+        range_test_passed = False
         # Try to load OV from disk:
         try:
-            img = Image.open(filename)
-            load_error = False
+            ov_img = Image.open(filename)
         except:
             load_error = True
 
         if not load_error:
-            img = np.array(img)
-            height, width = img.shape[0], img.shape[1]
+            ov_img = np.array(ov_img)
+            height, width = ov_img.shape[0], ov_img.shape[1]
 
-            # Was complete image grabbed? Test final line of image is black:
-            final_line = img[height-1:height,:]
-            if np.min(final_line) == np.max(final_line):
-                grab_incomplete = True
-            else:
-                grab_incomplete = False
+            # Was complete image grabbed? Test if final line of image is black:
+            final_line = ov_img[height-1:height,:]
+            grab_incomplete = (np.min(final_line) == np.max(final_line))
 
-            # Compute mean and stddev for four quadrants
-            # and for full OV image
-            (top_left_px, top_left_py, bottom_right_px, bottom_right_py) = (
-                self.ovm.get_ov_debris_detection_area(ov_number))
-            area_height = bottom_right_py - top_left_py
-            area_width = bottom_right_px - top_left_px
-
-            # Crop:
-            full_roi = img[top_left_py:bottom_right_py,
-                           top_left_px:bottom_right_px]
             if not ov_number in self.ov_images:
                 self.ov_images[ov_number] = []
             if len(self.ov_images[ov_number]) > 1:
+                # Only keep the current and the previous OV
                 self.ov_images[ov_number].pop(0)
-            self.ov_images[ov_number].append((slice_number, full_roi))
+            self.ov_images[ov_number].append((slice_number, ov_img))
 
-            quadrant1 = full_roi[0:int(area_height/2),
-                                 0:int(area_width/2)]
-            quadrant2 = full_roi[0:int(area_height/2),
-                                 int(area_width/2):area_width]
-            quadrant3 = full_roi[int(area_height/2):area_height,
-                                 0:int(area_width/2)]
-            quadrant4 = full_roi[int(area_height/2):area_height,
-                                 int(area_width/2):int(area_width)]
+            # Calculate mean and standard deviation:
+            mean = np.mean(ov_img)
+            stddev = np.std(ov_img)
 
-            mean = [np.mean(quadrant1),
-                    np.mean(quadrant2),
-                    np.mean(quadrant3),
-                    np.mean(quadrant4),
-                    np.mean(full_roi),
-                    np.mean(img)]
-
-            stddev = [np.std(quadrant1),
-                      np.std(quadrant2),
-                      np.std(quadrant3),
-                      np.std(quadrant4),
-                      np.std(full_roi),
-                      np.std(img)]
-
-            # Save mean and stddev in ov list:
+            # Save mean and stddev in lists:
             if not ov_number in self.ov_means:
                 self.ov_means[ov_number] = []
             if len(self.ov_means[ov_number]) > 1:
                 self.ov_means[ov_number].pop(0)
-            # Add the newest:
             self.ov_means[ov_number].append(mean)
 
             if not ov_number in self.ov_stddevs:
                 self.ov_stddevs[ov_number] = []
             if len(self.ov_stddevs[ov_number]) > 1:
                 self.ov_stddevs[ov_number].pop(0)
-            # Add the newest:
             self.ov_stddevs[ov_number].append(stddev)
 
-            # Save line for reslice in memory. Only saved to disk if OV accepted:
+            # Keep central 400px line in memory for reslice.
+            # Only saved to disk later (in statistics file) if OV accepted.
             self.ov_reslice_line[ov_number] = (
-                img[int(height/2):int(height/2)+1,
-                    int(width/2)-200:int(width/2)+200])
+                ov_img[int(height/2):int(height/2)+1,
+                       int(width/2)-200:int(width/2)+200])
 
             # Perform range check:
             range_test_passed = (
-                (self.mean_lower_limit <= mean[4] <= self.mean_upper_limit) and
-                (self.stddev_lower_limit <= stddev[4] <= self.stddev_upper_limit))
+                (self.mean_lower_limit <= mean <= self.mean_upper_limit) and
+                (self.stddev_lower_limit <= stddev <= self.stddev_upper_limit))
 
-        return (img, mean, stddev, range_test_passed,
-                load_error, grab_incomplete)
+        return (ov_img, mean, stddev,
+                range_test_passed, load_error, grab_incomplete)
 
     def save_ov_reslice_and_stats(self, ov_number, slice_number):
         # Write mean, stddev to file:
@@ -293,8 +263,8 @@ class ImageInspector(object):
                           + str(ov_number).zfill(utils.OV_DIGITS) + '.dat')
         with open(stats_filename, 'a') as file:
             file.write(str(slice_number) + ';'
-                       + str(self.ov_means[ov_number][-1][5]) + ';'
-                       + str(self.ov_stddevs[ov_number][-1][5]) + '\n')
+                       + str(self.ov_means[ov_number][-1]) + ';'
+                       + str(self.ov_stddevs[ov_number][-1]) + '\n')
 
         # Reslice:
         # Open reslice file if it exists:
@@ -313,65 +283,107 @@ class ImageInspector(object):
     def detect_debris(self, ov_number, method):
         debris_detected = False
         msg = 'CTRL: No debris detection method selected.'
+        ov_roi = [None, None]
+        # Crop to current debris detection area:
+        top_left_px, top_left_py, bottom_right_px, bottom_right_py = (
+            self.ovm.get_ov_debris_detection_area(ov_number))
+        for i in range(2):
+            ov_img = self.ov_images[ov_number][i][1]
+            ov_roi[i] = ov_img[top_left_py:bottom_right_py,
+                               top_left_px:bottom_right_px]
+        height, width = ov_roi[0].shape
 
         if method == 0:
-            # calculate the maximum difference in mean and stddev across
-            # four quadrants and full image:
-            diff_mean = 0
-            diff_stddev = 0
-            debris_bb = self.ovm.get_ov_debris_detection_area(ov_number)
-            debris_roi_area = ((debris_bb[2] - debris_bb[0])
-                               * (debris_bb[3] - debris_bb[1]))
-            if debris_roi_area < self.debris_roi_quadrant_threshold:
-                # Use only full ROI if ROI too small for quadrant detection:
+            # Calculate the maximum difference in mean and stddev across
+            # four quadrants and full ROI:
+            means = {}
+            stddevs = {}
+            max_diff_mean = 0
+            max_diff_stddev = 0
+            # Compute mean and stddev for four quadrants
+            # and for full ROI
+            area_height = bottom_right_py - top_left_py
+            area_width = bottom_right_px - top_left_px
+            quadrant_area = (area_height * area_width)/4
+
+            for i in range(2):
+                quadrant1 = ov_roi[i][0:int(area_height/2),
+                                      0:int(area_width/2)]
+                quadrant2 = ov_roi[i][0:int(area_height/2),
+                                      int(area_width/2):area_width]
+                quadrant3 = ov_roi[i][int(area_height/2):area_height,
+                                      0:int(area_width/2)]
+                quadrant4 = ov_roi[i][int(area_height/2):area_height,
+                                      int(area_width/2):int(area_width)]
+                means[i] = [np.mean(quadrant1), np.mean(quadrant2),
+                            np.mean(quadrant3), np.mean(quadrant4),
+                            np.mean(ov_roi[i])]
+                stddevs[i] = [np.std(quadrant1), np.std(quadrant2),
+                              np.std(quadrant3), np.std(quadrant4),
+                              np.std(ov_roi[i])]
+
+            if quadrant_area < self.debris_roi_min_quadrant_area:
+                # Use only full ROI if ROI too small for quadrants:
                 start_i = 4
+                var_str = 'OV ROI (no quadrants)'
             else:
                 # Use four quadrants and ROI for comparisons:
                 start_i = 0
+                var_str = 'OV quadrants'
             for i in range(start_i, 5):
-                mean_i = abs(self.ov_means[ov_number][-1][i]
-                             - self.ov_means[ov_number][-2][i])
-                if mean_i > diff_mean:
-                    diff_mean = mean_i
-                stddev_i = abs(self.ov_stddevs[ov_number][-1][i]
-                               - self.ov_stddevs[ov_number][-2][i])
-                if stddev_i > diff_stddev:
-                    diff_stddev = stddev_i
+                diff_mean_i = abs(means[1][i] - means[0][i])
+                if diff_mean_i > max_diff_mean:
+                    max_diff_mean = diff_mean_i
+                diff_stddev_i = abs(stddevs[1][i] - stddevs[0][i])
+                if diff_stddev_i > max_diff_stddev:
+                    max_diff_stddev = diff_stddev_i
 
-            if debris_roi_area < self.debris_roi_quadrant_threshold:
-                msg = ('CTRL: OV ROI (no quadrants): '
-                       'diff_mean: {0:.2f}'.format(diff_mean)
-                       + '; diff_stddev: {0:.2f}'.format(diff_stddev))
-            else:
-                msg = ('CTRL: OV quadrants: '
-                       'max. diff_mean: {0:.2f}'.format(diff_mean)
-                       + '; max. diff_stddev: {0:.2f}'.format(diff_stddev))
+            msg = ('CTRL: ' + var_str
+                   + ': max. diff_M: {0:.2f}'.format(max_diff_mean)
+                   + '; max. diff_SD: {0:.2f}'.format(max_diff_stddev))
 
-            debris_detected = ((diff_mean > self.mean_diff_threshold) or
-                               (diff_stddev > self.stddev_diff_threshold))
+            debris_detected = ((max_diff_mean > self.mean_diff_threshold) or
+                               (max_diff_stddev > self.stddev_diff_threshold))
 
         if method == 1:
-            # Histogram analysis
-            # Histogram from previous OV:
-            hist1, bin_edges = np.histogram(
-                self.ov_images[ov_number][-2][1], 256, [0, 256])
-            # Histrogram from current OV
-            hist2, bin_edges = np.histogram(
-                self.ov_images[ov_number][-1][1], 256, [0, 256])
-            hist_diff_sum = 0
-            for i in range(0, 256):
-                hist_diff_sum += abs(hist1[i] - hist2[i])
-            msg = 'CTRL: OV: hist_diff_sum: ' + str(hist_diff_sum)
-            debris_detected = (hist_diff_sum > self.histogram_diff_threshold)
+            # Compare the histogram count from the difference image to user-
+            # specified threshold.
+
+            # Apply median filter to denoise images:
+            ov_curr = medfilt2d(ov_roi[1], self.median_filter_kernel_size)
+            ov_prev = medfilt2d(ov_roi[0], self.median_filter_kernel_size)
+
+            # Pixel difference
+            # Recast as int16 before subtraction:
+            ov_curr = ov_curr.astype(np.int16)
+            ov_prev = ov_prev.astype(np.int16)
+            ov_diff_img = np.absolute(np.subtract(ov_curr, ov_prev))
+            # Histogram of difference image:
+            diff_histogram, bin_edges = np.histogram(ov_diff_img, 256, [0, 256])
+            # Compute sum for counts above lower limit:
+            diff_sum = 0
+            for i in range(self.image_diff_hist_lower_limit, 256):
+                diff_sum += diff_histogram[i]
+            threshold = self.image_diff_threshold * height * width / 1e6
+            msg = ('CTRL: OV: image_diff_hist_sum: ' + str(diff_sum)
+                   + ' (curr. threshold: ' + str(int(threshold)) + ')')
+            debris_detected = (diff_sum > threshold)
 
         if method == 2:
-            # Pixel difference analysis
-            ov_diff_img = np.substract(
-                self.ov_images[ov_number][-2][1],
-                self.ov_images[ov_number][-1][1])
-            pixel_diff_sum = np.sum(ov_diff_img)
-            msg = 'CTRL: OV: pixel_diff_sum: ' + str(pixel_diff_sum)
-            debris_detected = (pixel_diff_sum > self.pixel_diff_threshold)
+            # Compare histograms directly (this is not very effective,
+            # for testing purposes.)
+            hist_diff_sum = 0
+            # Histogram from previous OV:
+            hist1, bin_edges = np.histogram(ov_roi[0], 256, [0, 256])
+            # Histogram from current OV
+            hist2, bin_edges = np.histogram(ov_roi[1], 256, [0, 256])
+            for i in range(256):
+                hist_diff_sum += abs(hist1[i] - hist2[i])
+            threshold = self.histogram_diff_threshold * height * width / 1e6
+
+            msg = ('CTRL: OV: hist_diff_sum: ' + str(hist_diff_sum)
+                   + ' (curr. threshold: ' + str(int(threshold)) + ')')
+            debris_detected = (hist_diff_sum > threshold)
 
         return debris_detected, msg
 

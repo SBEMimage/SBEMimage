@@ -757,6 +757,8 @@ class Stack():
             # ========================== CUTTING ==============================
             if (self.pause_state != 1) and (self.error_state == 0):
                 self.perform_cutting_sequence()
+                self.reset_interruption_info()
+
             # Imaging and cutting for current slice completed.
 
             # Save current cfg to disk:
@@ -1105,7 +1107,7 @@ class Stack():
             if os.path.isfile(ov_save_path):
 
                 # Inspect the acquired image:
-                (img, mean, stddev,
+                (ov_img, mean, stddev,
                  range_test_passed,
                  load_error, grab_incomplete) = (
                     self.img_inspector.process_ov(ov_save_path,
@@ -1115,15 +1117,12 @@ class Stack():
                 # if no load error:
                 if not load_error:
                     self.add_to_main_log(
-                        'CTRL: OV (OV ROI): M:'
-                        + '{0:.2f}'.format(mean[5])
-                        + ' ({0:.2f})'.format(mean[4])
-                        + ', SD:' + '{0:.2f}'.format(stddev[5])
-                        + ' ({0:.2f})'.format(stddev[4])
-                        )
+                        'CTRL: OV: M:'
+                        + '{0:.2f}'.format(mean)
+                        + ', SD:' + '{0:.2f}'.format(stddev))
                     workspace_save_path = (self.base_dir + '\\workspace\\OV'
                                            + str(ov_number).zfill(3) + '.bmp')
-                    imsave(workspace_save_path, img)
+                    imsave(workspace_save_path, ov_img)
                     self.ovm.update_ov_file_list(ov_number, workspace_save_path)
                     # Signal to update viewport:
                     self.transmit_cmd('MV UPDATE OV' + str(ov_number))
@@ -1221,7 +1220,7 @@ class Stack():
     def acquire_tile(self, grid_number, tile_number):
         """Acquire the specified tile with error handling and inspection."""
 
-        raw_img = None
+        tile_img = None
         relative_save_path = utils.get_tile_save_path(
             self.stack_name, grid_number, tile_number, self.slice_counter)
         save_path = (self.base_dir + '\\' + relative_save_path)
@@ -1332,7 +1331,7 @@ class Stack():
                 self.mirror_files([save_path])
             # Check if image was saved and process it:
             if os.path.isfile(save_path):
-                (raw_img, mean, stddev,
+                (tile_img, mean, stddev,
                  range_test_passed, slice_by_slice_test_passed,
                  tile_selected,
                  load_error, grab_incomplete, frozen_frame_error) = (
@@ -1384,7 +1383,7 @@ class Stack():
                 self.add_to_main_log('CTRL: Tile image acquisition failure. ')
                 self.error_state = 302
 
-        return (raw_img, relative_save_path, save_path,
+        return (tile_img, relative_save_path, save_path,
                 tile_accepted, tile_skipped, tile_selected)
 
     def acquire_grid(self, grid_number):
@@ -1455,7 +1454,7 @@ class Stack():
                 tile_id = str(tile_number) + '.' + str(grid_number)
                 # Acquire the current tile, up to three attempts:
                 while not tile_accepted and fail_counter < 3:
-                    (raw_img, relative_save_path, save_path,
+                    (tile_img, relative_save_path, save_path,
                      tile_accepted, tile_skipped, tile_selected) = (
                         self.acquire_tile(grid_number, tile_number))
 
@@ -1485,7 +1484,7 @@ class Stack():
                     if (self.af.is_active() and self.af.get_method() == 1
                             and self.af.is_tile_selected(grid_number, tile_number)):
                         self.perform_heuristic_autofocus(
-                            raw_img, grid_number, tile_number)
+                            tile_img, grid_number, tile_number)
 
                 elif (not tile_selected
                       and not tile_skipped
@@ -1632,12 +1631,12 @@ class Stack():
                 self.gm.get_pixel_size(grid_number),
                 self.gm.get_dwell_time(grid_number))
 
-    def perform_heuristic_autofocus(self, raw_img, grid_number, tile_number):
+    def perform_heuristic_autofocus(self, tile_img, grid_number, tile_number):
         tile_key = str(grid_number) + '.' + str(tile_number)
         self.add_to_main_log('CTRL: Processing tile %s for '
             'heuristic autofocus ' %tile_key)
         self.af.process_heuristic_new_image(
-            raw_img, tile_key, self.slice_counter)
+            tile_img, tile_key, self.slice_counter)
         wd_corr, sx_corr, sy_corr = self.af.get_heuristic_corrections(tile_key)
         if wd_corr is not None:
             self.add_to_main_log('CTRL: New corrections: '
@@ -1810,3 +1809,13 @@ class Stack():
         self.cfg['acq']['interrupted'] = 'True'
         self.acq_interrupted_at = [grid_number, tile_number]
         self.cfg['acq']['interrupted_at'] = str(self.acq_interrupted_at)
+
+    def reset_interruption_info(self):
+        self.acq_interrupted = False
+        self.cfg['acq']['interrupted'] = 'False'
+        self.acq_interrupted_at = []
+        self.cfg['acq']['interrupted_at'] = '[]'
+        self.acquired_tiles = []
+        self.cfg['acq']['tiles_acquired'] = '[]'
+        self.acquired_grids = []
+        self.cfg['acq']['grids_acquired'] = '[]'

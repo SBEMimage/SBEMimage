@@ -1406,7 +1406,7 @@ class DebrisSettingsDlg(QDialog):
             self.radioButton_fullSelection.setChecked(True)
         # Extra margin around detection area in pixels:
         self.spinBox_debrisMargin.setValue(
-            self.ovm.get_ov_debris_detection_area_margin())
+            self.ovm.get_ov_auto_debris_detection_area_margin())
         self.spinBox_maxSweeps.setValue(
             int(self.cfg['debris']['max_number_sweeps']))
         self.doubleSpinBox_diffMean.setValue(
@@ -1414,9 +1414,9 @@ class DebrisSettingsDlg(QDialog):
         self.doubleSpinBox_diffSD.setValue(
             float(self.cfg['debris']['stddev_diff_threshold']))
         self.spinBox_diffHistogram.setValue(
-            int(self.cfg['debris']['histogram_diff_threshold']) // 1000)
+            int(self.cfg['debris']['histogram_diff_threshold']))
         self.spinBox_diffPixels.setValue(
-            int(self.cfg['debris']['pixel_diff_threshold']) // 1000)
+            int(self.cfg['debris']['image_diff_threshold']))
         self.checkBox_showDebrisArea.setChecked(
             self.cfg['debris']['show_detection_area'] == 'True')
         self.checkBox_continueAcq.setChecked(
@@ -1424,9 +1424,9 @@ class DebrisSettingsDlg(QDialog):
         # Detection methods:
         self.radioButton_methodQuadrant.setChecked(
             self.cfg['debris']['detection_method'] == '0')
-        self.radioButton_methodHistogram.setChecked(
-            self.cfg['debris']['detection_method'] == '1')
         self.radioButton_methodPixel.setChecked(
+            self.cfg['debris']['detection_method'] == '1')
+        self.radioButton_methodHistogram.setChecked(
             self.cfg['debris']['detection_method'] == '2')
         self.radioButton_methodQuadrant.toggled.connect(
             self.update_option_selection)
@@ -1441,21 +1441,21 @@ class DebrisSettingsDlg(QDialog):
         if self.radioButton_methodQuadrant.isChecked():
             self.doubleSpinBox_diffMean.setEnabled(True)
             self.doubleSpinBox_diffSD.setEnabled(True)
-            self.spinBox_diffHistogram.setEnabled(False)
             self.spinBox_diffPixels.setEnabled(False)
-        if self.radioButton_methodHistogram.isChecked():
-            self.doubleSpinBox_diffMean.setEnabled(False)
-            self.doubleSpinBox_diffSD.setEnabled(False)
-            self.spinBox_diffHistogram.setEnabled(True)
-            self.spinBox_diffPixels.setEnabled(False)
-        if self.radioButton_methodPixel.isChecked():
-            self.doubleSpinBox_diffMean.setEnabled(False)
-            self.doubleSpinBox_diffSD.setEnabled(False)
             self.spinBox_diffHistogram.setEnabled(False)
-            self.spinBox_diffPixels.setEnabled(True)
+        elif self.radioButton_methodPixel.isChecked():
+             self.doubleSpinBox_diffMean.setEnabled(False)
+             self.doubleSpinBox_diffSD.setEnabled(False)
+             self.spinBox_diffPixels.setEnabled(True)
+             self.spinBox_diffHistogram.setEnabled(False)
+        elif self.radioButton_methodHistogram.isChecked():
+             self.doubleSpinBox_diffMean.setEnabled(False)
+             self.doubleSpinBox_diffSD.setEnabled(False)
+             self.spinBox_diffPixels.setEnabled(False)
+             self.spinBox_diffHistogram.setEnabled(True)
 
     def accept(self):
-        self.ovm.set_ov_debris_detection_area_margin(
+        self.ovm.set_ov_auto_debris_detection_area_margin(
             self.spinBox_debrisMargin.value())
         self.cfg['debris']['max_number_sweeps'] = str(
             self.spinBox_maxSweeps.value())
@@ -1464,9 +1464,9 @@ class DebrisSettingsDlg(QDialog):
         self.cfg['debris']['stddev_diff_threshold'] = str(
             self.doubleSpinBox_diffSD.value())
         self.cfg['debris']['histogram_diff_threshold'] = str(
-            self.spinBox_diffHistogram.value() * 1000)
-        self.cfg['debris']['pixel_diff_threshold'] = str(
-            self.spinBox_diffPixels.value() * 1000)
+            self.spinBox_diffHistogram.value())
+        self.cfg['debris']['image_diff_threshold'] = str(
+            self.spinBox_diffPixels.value())
         self.cfg['debris']['auto_detection_area'] = str(
             self.radioButton_autoSelection.isChecked())
         self.cfg['debris']['show_detection_area'] = str(
@@ -1475,9 +1475,9 @@ class DebrisSettingsDlg(QDialog):
             self.checkBox_continueAcq.isChecked())
         if self.radioButton_methodQuadrant.isChecked():
             self.cfg['debris']['detection_method'] = '0'
-        elif self.radioButton_methodHistogram.isChecked():
-            self.cfg['debris']['detection_method'] = '1'
         elif self.radioButton_methodPixel.isChecked():
+            self.cfg['debris']['detection_method'] = '1'
+        elif self.radioButton_methodHistogram.isChecked():
             self.cfg['debris']['detection_method'] = '2'
         super(DebrisSettingsDlg, self).accept()
 
@@ -1510,32 +1510,41 @@ class MirrorDriveDlg(QDialog):
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
+        self.available_drives = []
         self.label_text.setText('Please wait. Searching for drives...')
         QApplication.processEvents()
+        # Search for drives in thread. If it gets stuck because drives are
+        # not accessible, user can still cancel dialog.
+        t = threading.Thread(target=self.search_drives)
+        t.start()
+
+    def search_drives(self):
         # Search for all available drives:
-        available_drives = [
+        self.available_drives = [
             '%s:' % d for d in string.ascii_uppercase
             if os.path.exists('%s:' % d)]
-        self.comboBox_allDrives.addItems(available_drives)
-        current_index = self.comboBox_allDrives.findText(
-            self.cfg['sys']['mirror_drive'])
-        if current_index == -1:
-            current_index = 0
-        self.comboBox_allDrives.setCurrentIndex(current_index)
-        # Restore label after searching for available drives:
-        self.label_text.setText('Select drive for mirroring acquired data:')
+        if self.available_drives:
+            self.comboBox_allDrives.addItems(self.available_drives)
+            current_index = self.comboBox_allDrives.findText(
+                self.cfg['sys']['mirror_drive'])
+            if current_index == -1:
+                current_index = 0
+            self.comboBox_allDrives.setCurrentIndex(current_index)
+            # Restore label after searching for available drives:
+            self.label_text.setText('Select drive for mirroring acquired data:')
 
     def accept(self):
-        if (self.comboBox_allDrives.currentText()[0]
-            == self.cfg['acq']['base_dir'][0]):
-            QMessageBox.warning(
-                self, 'Error',
-                'The mirror drive must be different from the '
-                'base directory drive!', QMessageBox.Ok)
-        else:
-            self.cfg['sys']['mirror_drive'] = (
-                self.comboBox_allDrives.currentText())
-            super(MirrorDriveDlg, self).accept()
+        if self.available_drives:
+            if (self.comboBox_allDrives.currentText()[0]
+                == self.cfg['acq']['base_dir'][0]):
+                QMessageBox.warning(
+                    self, 'Error',
+                    'The mirror drive must be different from the '
+                    'base directory drive!', QMessageBox.Ok)
+            else:
+                self.cfg['sys']['mirror_drive'] = (
+                    self.comboBox_allDrives.currentText())
+                super(MirrorDriveDlg, self).accept()
 
 #------------------------------------------------------------------------------
 
@@ -2306,7 +2315,7 @@ class MotorTestDlg(QDialog):
         self.pushButton_abortTest.setEnabled(False)
 
     def closeEvent(self, event):
-        if not self.approach_in_progress:
+        if not self.test_in_progress:
             event.accept()
         else:
             event.ignore()

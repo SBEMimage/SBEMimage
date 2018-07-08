@@ -45,7 +45,8 @@ class OverviewManager(object):
             self.cfg['overviews']['ov_acq_interval_offset'])
         self.debris_detection_area = json.loads(
             self.cfg['debris']['detection_area'])
-        self.debris_area_margin = int(self.cfg['debris']['area_margin'])
+        self.auto_debris_area_margin = int(
+            self.cfg['debris']['auto_area_margin'])
         # Stub OV settings:
         # The acq parameters (frame size, dwell time, magnification) can only
         # be changed manually in the config file, are therefore loaded as
@@ -494,12 +495,12 @@ class OverviewManager(object):
         self.cfg['overviews']['imported_transparency'] = str(
             self.imported_transparency)
 
-    def get_ov_debris_detection_area_margin(self):
-        return self.debris_area_margin
+    def get_ov_auto_debris_detection_area_margin(self):
+        return self.auto_debris_area_margin
 
-    def set_ov_debris_detection_area_margin(self, margin):
-        self.debris_area_margin = margin
-        self.cfg['debris']['area_margin'] = str(self.debris_area_margin)
+    def set_ov_auto_debris_detection_area_margin(self, margin):
+        self.auto_debris_area_margin = margin
+        self.cfg['debris']['auto_area_margin'] = str(self.auto_debris_area_margin)
 
     def get_ov_debris_detection_area(self, ov_number):
         return self.debris_detection_area[ov_number]
@@ -576,16 +577,16 @@ class OverviewManager(object):
                     bottom_right_dy_max * 1000 / ov_pixel_size)
                 # Add/subract margin and must fit in OV image:
                 top_left_px = utils.fit_in_range(
-                    top_left_px - self.debris_area_margin,
+                    top_left_px - self.auto_debris_area_margin,
                     0, self.get_ov_width_p(ov_number))
                 top_left_py = utils.fit_in_range(
-                    top_left_py - self.debris_area_margin,
+                    top_left_py - self.auto_debris_area_margin,
                     0, self.get_ov_height_p(ov_number))
                 bottom_right_px = utils.fit_in_range(
-                    bottom_right_px + self.debris_area_margin,
+                    bottom_right_px + self.auto_debris_area_margin,
                     0, self.get_ov_width_p(ov_number))
                 bottom_right_py = utils.fit_in_range(
-                    bottom_right_py + self.debris_area_margin,
+                    bottom_right_py + self.auto_debris_area_margin,
                     0, self.get_ov_height_p(ov_number))
 
             # set detection area:

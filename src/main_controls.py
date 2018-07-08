@@ -247,6 +247,8 @@ class MainControls(QMainWindow):
         self.pushButton_testServerRequest.clicked.connect(
             self.test_server_request)
         self.pushButton_testMotors.clicked.connect(self.open_motor_test_dlg)
+        self.pushButton_testDebrisDetection.clicked.connect(
+            self.debris_detection_test)
         self.pushButton_testCustom.clicked.connect(self.custom_test)
         # Checkboxes:
         self.checkBox_useMonitoring.setChecked(
@@ -1266,6 +1268,38 @@ class MainControls(QMainWindow):
             QMessageBox.information(self, 'Server test',
                                     'Server message: ' + str(msg),
                                     QMessageBox.Ok)
+
+    def debris_detection_test(self):
+        # Uses overview images t1.tif and t2.tif in current base directory
+        # to run the debris detection in the current detection area.
+        test_image1 = self.cfg['acq']['base_dir'] + '\\t1.tif'
+        test_image2 = self.cfg['acq']['base_dir'] + '\\t2.tif'
+
+        if os.path.isfile(test_image1) and os.path.isfile(test_image2):
+            self.img_inspector.process_ov(test_image1, 0, 0)
+            self.img_inspector.process_ov(test_image2, 0, 1)
+            # Run the tests:
+            debris_detected0, msg0 = self.img_inspector.detect_debris(0, 0)
+            debris_detected1, msg1 = self.img_inspector.detect_debris(0, 1)
+            debris_detected2, msg2 = self.img_inspector.detect_debris(0, 2)
+            QMessageBox.information(
+                self, 'Debris detection test results',
+                'Method 0:\n' + str(debris_detected0) + '; ' + msg0
+                + '\nThresholds were (mean/stddev): '
+                + self.cfg['debris']['mean_diff_threshold']
+                + ', ' + self.cfg['debris']['stddev_diff_threshold']
+                + '\n\nMethod 1: ' + str(debris_detected1) + '; ' + msg1
+                + '\n\nMethod 2: ' + str(debris_detected2) + '; ' + msg2,
+                QMessageBox.Ok)
+            # Clean up:
+            self.img_inspector.discard_last_ov(0)
+            self.img_inspector.discard_last_ov(0)
+        else:
+            QMessageBox.warning(
+                self, 'Debris detection test',
+                'This test expects two test overview images (t1.tif and '
+                't2.tif) in the current base directory.',
+                QMessageBox.Ok)
 
     def custom_test(self):
         # Used for custom tests...

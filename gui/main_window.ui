@@ -1899,13 +1899,26 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>150</y>
+         <y>180</y>
          <width>121</width>
          <height>23</height>
         </rect>
        </property>
        <property name="text">
         <string>Custom test</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="pushButton_testDebrisDetection">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>120</y>
+         <width>121</width>
+         <height>23</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Debris detection test</string>
        </property>
       </widget>
      </widget>
