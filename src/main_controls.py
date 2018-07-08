@@ -84,16 +84,14 @@ class MainControls(QMainWindow):
         # Now show main window:
         self.show()
         QApplication.processEvents()
-
-        if not self.API_error:
-            # Initialize viewport window:
-            self.viewport = Viewport(self.cfg, self.sem, self.microtome,
-                                     self.ovm, self.gm, self.cs,
-                                     self.viewport_trigger,
-                                     self.viewport_queue)
-            self.viewport.show()
-            # Draw the workspace
-            self.viewport.mv_draw()
+        # Initialize viewport window:
+        self.viewport = Viewport(self.cfg, self.sem, self.microtome,
+                                 self.ovm, self.gm, self.cs,
+                                 self.viewport_trigger,
+                                 self.viewport_queue)
+        self.viewport.show()
+        # Draw the workspace
+        self.viewport.mv_draw()
 
         # Initialize focus tool:
         self.ft_initialize()
@@ -111,6 +109,8 @@ class MainControls(QMainWindow):
             # Disable the communication tests and the focus tool:
             self.tabWidget.setTabEnabled(1, False)
             self.tabWidget.setTabEnabled(2, False)
+        else:
+            self.actionLeaveSimulationMode.setEnabled(False)
 
         utils.show_progress_in_console(100)
 
@@ -122,27 +122,19 @@ class MainControls(QMainWindow):
             self.pushButton_startAcq.setText('CONTINUE')
             self.pushButton_resetAcq.setEnabled(True)
 
-        if self.API_error:
-            print('\n\nERROR connecting to SBEM system.\n')
-            self.set_statusbar('Connection error! Please restart '
-                               'SBEMimage.')
-            status_file = open('..\\cfg\\status.dat', 'w+')
-            status_file.write(self.cfg_file)
-            status_file.close()
-            QMessageBox.warning(self, 'Connection error',
-                                'Error connecting to SBEM system.\n\n' +
-                                'Make sure that remote connection to SmartSEM '
-                                'is available and that DMcom.s script is '
-                                'running in DigitalMicrograph (Click '
-                                '"Execute" button below the script if not). '
-                                'Also make sure that the current Z coordinate '
-                                'is not negative.'
-                                '\nRestart of SBEMcontrol required.',
-                                QMessageBox.Ok)
-            self.deleteLater()
-        else:
-            print('\n\nReady.\n')
-            self.set_statusbar('Ready. Active configuration: ' + self.cfg_file)
+        print('\n\nReady.\n')
+        self.set_statusbar('Ready. Active configuration: ' + self.cfg_file)
+        if self.simulation_mode:
+            self.add_to_log('CTRL: Simulation mode active.')
+            QMessageBox.information(
+                self, 'Simulation mode active',
+                'SBEMimage is running in simulation mode. You can change most '
+                'settings and use the Viewport, but no commands can be sent '
+                'to the SEM and the microtome. Stack acquisition is '
+                'deactivated.'
+                '\n\nTo leave simulation mode, select: '
+                '\nMenu  →  Configuration  →  Leave simulation mode',
+                QMessageBox.Ok)
 
     def load_gui(self):
         """Load and set up the GUI."""
@@ -220,6 +212,8 @@ class MainControls(QMainWindow):
         self.actionSaveConfig.triggered.connect(self.save_settings)
         self.actionSaveNewConfig.triggered.connect(
             self.open_save_settings_new_file_dlg)
+        self.actionLeaveSimulationMode.triggered.connect(
+            self.leave_simulation_mode)
         self.actionAboutBox.triggered.connect(self.open_about_box)
         self.actionStageCalibration.triggered.connect(
             self.open_calibration_dlg)
@@ -343,7 +337,6 @@ class MainControls(QMainWindow):
         """
         self.acq_in_progress = False
         self.acq_paused = False
-        self.API_error = False
         self.simulation_mode = self.cfg['sys']['simulation_mode'] == 'True'
         self.plc_installed = self.cfg['sys']['plc_installed'] == 'True'
         self.plc_initialized = False
@@ -380,9 +373,15 @@ class MainControls(QMainWindow):
         # Initialize SEM instance to control SmartSEM API:
         self.sem = SEM(self.cfg, self.syscfg)
         if self.sem.get_error_state() > 0:
-            self.add_to_log('SEM: Error initializing SmartSEM API.')
+            self.add_to_log('SEM: Error initializing SmartSEM Remote API.')
             self.add_to_log('SEM: ' + self.sem.get_error_cause())
-            self.API_error = True
+            QMessageBox.warning(
+                self, 'Error initializing SmartSEM Remote API',
+                'SBEMimage will be run in simulation mode.',
+                QMessageBox.Ok)
+            self.simulation_mode = True
+            self.cfg['sys']['simulation_mode'] = 'True'
+
 
         # Set up overviews:
         self.ovm = OverviewManager(self.cfg, self.sem, self.cs)
@@ -399,7 +398,32 @@ class MainControls(QMainWindow):
         if self.microtome.get_error_state() > 0:
             self.add_to_log('3VIEW: Error initializing DigitalMicrograph API.')
             self.add_to_log('3VIEW: ' + self.microtome.get_error_cause())
-            self.API_error = True
+            QMessageBox.warning(
+                self, 'Error initializing DigitalMicrograph API',
+                'Have you forgotten to start the communication '
+                'script in DM? \nIf yes, please load the '
+                'script and click "Execute".'
+                '\n\nIs the Z coordinate negative? \nIf yes, '
+                'please set it to zero or a positive value.',
+                QMessageBox.Retry)
+            # Try again:
+            self.microtome = Microtome(self.cfg, self.syscfg)
+            if self.microtome.get_error_state() > 0:
+                self.add_to_log(
+                    '3VIEW: Error initializing DigitalMicrograph API '
+                    '(second attempt).')
+                self.add_to_log('3VIEW: ' + self.microtome.get_error_cause())
+                QMessageBox.warning(
+                    self, 'Error initializing DigitalMicrograph API',
+                    'The second attempt to initalize the DigitalMicrograph '
+                    'API failed.\nSBEMimage will be run in simulation mode.',
+                    QMessageBox.Ok)
+                self.simulation_mode = True
+                self.cfg['sys']['simulation_mode'] = 'True'
+            else:
+                self.add_to_log('3VIEW: Second attempt to initialize '
+                                'DigitalMicrograph API successful.')
+
 
         utils.show_progress_in_console(70)
 
@@ -420,7 +444,6 @@ class MainControls(QMainWindow):
                            self.ovm, self.gm, self.cs,
                            self.img_inspector, self.autofocus,
                            self.acq_queue, self.acq_trigger)
-
 
     def try_to_create_directory(self, new_directory):
         """Create directory. If not possible: error message"""
@@ -1473,6 +1496,18 @@ class MainControls(QMainWindow):
         self.pushButton_pauseAcq.setEnabled(False)
         if self.acq_paused == True:
             self.pushButton_resetAcq.setEnabled(True)
+
+    def leave_simulation_mode(self):
+        reply = QMessageBox.information(
+            self, 'Deactivate simulation mode',
+            'Click OK to deactivate simulation mode and save the current '
+            'settings. \nPlease note that you have to restart SBEMimage '
+            'for the change to take effect.',
+            QMessageBox.Ok | QMessageBox.Cancel)
+        if reply == QMessageBox.Ok:
+            self.cfg['sys']['simulation_mode'] = 'False'
+            self.actionLeaveSimulationMode.setEnabled(False)
+            self.save_settings()
 
     def save_settings(self):
         if self.cfg_file != 'default.ini':

@@ -2002,6 +2002,8 @@
     </property>
     <addaction name="actionSaveConfig"/>
     <addaction name="actionSaveNewConfig"/>
+    <addaction name="separator"/>
+    <addaction name="actionLeaveSimulationMode"/>
    </widget>
    <widget class="QMenu" name="menuCalibration">
     <property name="title">
@@ -2118,6 +2120,11 @@
   <action name="actionAcquisitionSettings">
    <property name="text">
     <string>Acquisition</string>
+   </property>
+  </action>
+  <action name="actionLeaveSimulationMode">
+   <property name="text">
+    <string>Leave simulation mode</string>
    </property>
   </action>
  </widget>
