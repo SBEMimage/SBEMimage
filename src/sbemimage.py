@@ -22,9 +22,10 @@ from PyQt5.QtWidgets import QApplication
 import colorama # needed to suppress TIFFReadDirectory warnings in the console
 
 from dlg_windows import ConfigDlg
+from config_template import process_cfg
 from main_controls import MainControls
 
-VERSION = '2.0 (R2018-06-05)'
+VERSION = '2.0 (R2018-07-07)'
 
 def main():
     """Load configuration and run QApplication.
@@ -46,9 +47,10 @@ def main():
           '***********************************\n' % VERSION)
 
     configuration_loaded = False
-    compatible = False
+    default_configuration = False
 
-    if os.path.isfile('..\\cfg\\default.ini'):
+    if (os.path.isfile('..\\cfg\\default.ini')
+            and os.path.isfile('..\\cfg\\system.cfg')):
         # Ask user to select .ini file:
         startup_dialog = ConfigDlg(VERSION)
         startup_dialog.exec_()
@@ -60,6 +62,8 @@ def main():
         else:
             try:
                 config_file = dlg_response
+                if config_file == 'default.ini':
+                    default_configuration = True
                 print('Loading configuration file %s ...'
                       % config_file, end='')
                 config = ConfigParser()
@@ -68,6 +72,9 @@ def main():
                 print(' Done.\n')
                 # Load corresponding system settings file
                 sysconfig_file = config['sys']['sys_config_file']
+                if default_configuration and sysconfig_file != 'system.cfg':
+                    sysconfig_file = 'system.cfg'
+                    config['sys']['sys_config_file'] = 'system.cfg'
                 print('Loading system settings file %s ...'
                       % sysconfig_file, end='')
                 sysconfig = ConfigParser()
@@ -84,17 +91,34 @@ def main():
     else:
         # Quit if default.ini doesn't exist
         configuration_loaded = False
-        print('Error: No default configuration found. Program aborted.\n')
+        print('Error: default.ini and/or system.cfg not found. '
+              'Program aborted.\n')
         os.system('cmd /k')
         sys.exit()
 
     if configuration_loaded:
-        # Check compatibility of .ini file and SBEMimage version
-        try:
-            compatible = config['sys']['compatible_version'] == VERSION[:3]
-        except:
-            compatible = False
-        if compatible:
+        # Check selected .ini file and ensure there are no missing entries.
+        # Configuration must match template configuration in default.ini.
+        if default_configuration:
+            # Check only if number of entries correct
+            success, _, _, _ = process_cfg(config, sysconfig, True)
+        else:
+            # Check and update if necessary
+            success, changes, config, sysconfig = process_cfg(config, sysconfig)
+
+        if success:
+            if default_configuration:
+                print('Default configuration loaded.\n')
+            else:
+                if changes[0] and changes[1]:
+                    ch_str = 'config and sysconfig updated'
+                elif changes[0]:
+                    ch_str = 'config updated'
+                elif changes[1]:
+                    ch_str = "sysconfig updated"
+                else:
+                    ch_str = 'complete, no updates'
+                print('Configuration loaded and checked: ' + ch_str + '\n')
             # Remove status file. It will be recreated when program terminates
             # normally.
             if os.path.isfile('..\\cfg\\status.dat'):
@@ -107,8 +131,8 @@ def main():
                                                  VERSION)
             sys.exit(SBEMimage.exec_())
         else:
-            print('Selected configuration file is incomplete or incompatible '
-                  'with version %s.\n' % VERSION[:3])
+            print('Error while validating configuration file(s). '
+                  'Program aborted.\n')
             os.system('cmd /k')
             sys.exit()
 

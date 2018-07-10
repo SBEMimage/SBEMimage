@@ -283,12 +283,17 @@ class MainControls(QMainWindow):
 
     def import_system_settings(self):
         """Import settings from the system configuration file."""
-        # Devices, currently only ZEISS and Gatan 3View
-        self.cfg['sem']['device'] = self.syscfg['device']['sem']
-        self.cfg['microtome']['device'] = self.syscfg['device']['microtome']
-        if not self.cfg['sem']['device'] in ['ZEISS Merlin', 'ZEISS Sigma']:
+        # Device names
+        recognized_devices = json.loads(self.syscfg['device']['recognized'])
+        try:
+            self.cfg['sem']['device'] = (
+                recognized_devices[int(self.syscfg['device']['sem'])])
+        except:
             self.cfg['sem']['device'] = 'NOT RECOGNIZED'
-        if not self.cfg['microtome']['device'] in ['Gatan 3View']:
+        try:
+            self.cfg['microtome']['device'] = (
+                recognized_devices[int(self.syscfg['device']['microtome'])])
+        except:
             self.cfg['microtome']['device'] = 'NOT RECOGNIZED'
         # Update calibration of stage:
         calibration_data = json.loads(
@@ -377,7 +382,10 @@ class MainControls(QMainWindow):
             self.add_to_log('SEM: ' + self.sem.get_error_cause())
             QMessageBox.warning(
                 self, 'Error initializing SmartSEM Remote API',
-                'SBEMimage will be run in simulation mode.',
+                'Initalization of the SmartSEM Remote API failed. Please '
+                'verify that the Remote API is installed and configured '
+                'correctly.'
+                '\nSBEMimage will be run in simulation mode.',
                 QMessageBox.Ok)
             self.simulation_mode = True
             self.cfg['sys']['simulation_mode'] = 'True'
@@ -602,6 +610,8 @@ class MainControls(QMainWindow):
     def open_save_settings_new_file_dlg(self):
         dialog = SaveConfigDlg()
         if dialog.exec_():
+            if self.cfg['sys']['sys_config_file'] == 'system.cfg':
+                self.cfg['sys']['sys_config_file'] = 'this_system.cfg'
             self.cfg_file = dialog.get_file_name()
             # Write all settings to disk
             file = open('..\\cfg\\' + self.cfg_file, 'w')
@@ -1511,6 +1521,9 @@ class MainControls(QMainWindow):
 
     def save_settings(self):
         if self.cfg_file != 'default.ini':
+            if self.cfg['sys']['sys_config_file'] == 'system.cfg':
+                # Preserve system.cfg as template, rename:
+                self.cfg['sys']['sys_config_file'] = 'this_system.cfg'
             cfgfile = open('..\\cfg\\' + self.cfg_file, 'w')
             self.cfg.write(cfgfile)
             cfgfile.close()

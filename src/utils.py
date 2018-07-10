@@ -251,5 +251,5 @@ def meta_server_get_request(url):
 
 def suppress_console_warning():
     # Suppress TIFFReadDirectory warnings that otherwise flood console window
-    print('\x1b[17;1H' + 80*' ' + '\x1b[17;1H', end='')
-    print('\x1b[16;1H' + 80*' ' + '\x1b[16;1H', end='')
+    print('\x1b[19;1H' + 80*' ' + '\x1b[19;1H', end='')
+    print('\x1b[18;1H' + 80*' ' + '\x1b[18;1H', end='')
