@@ -612,25 +612,29 @@ void wait_for_command()
 
 // ===== Script execution starts here =====
 
-install_path = "C:\\pytools\\sbem-image"
+install_path = "C:\\pytools\\SBEMimage\\dm\\"
 // This (empty) file triggers the communication:
-trigger_file = install_path + "\\dm\\DMcom.trg"
+trigger_file = install_path + "DMcom.trg"
 // This file contains commands from SBEMimage:
-command_file = install_path + "\\dm\\DMcom.in"
+command_file = install_path + "DMcom.in"
 // This (empty) file is created to indicate that a command was executed:
-acknowledge_file = install_path + "\\dm\\DMcom.ack"
+acknowledge_file = install_path + "DMcom.ack"
 // This (empty) file is created to indicate a critical failure:
-error_file = install_path + "\\dm\\DMcom.err"
+error_file = install_path + "DMcom.err"
 // This file contains return value(s) to be read by SBEMimage:
-return_file = install_path + "\\dm\\DMcom.out"
+return_file = install_path + "DMcom.out"
 // This file signals a warning:
-warning_file = install_path + "\\dm\\DMcom.wng"
+warning_file = install_path + "DMcom.wng"
 
 number wait_interval = 0.1
 remote_control = 1 
 // Default settings for motor speeds (slow), can be updated from SBEMimage:
 motor_speed_x = 40
 motor_speed_y = 40
+
+if (!DoesFileExist(install_path + "SBEMimage_DMcom_GMS3.s")) {
+	Throw("Wrong install path. Please check and update the variable 'install_path' in this script.")
+}
 
 result("\n" + DateStamp() + ": *******************************************.\n")
 result(DateStamp() + ": SBEMimage DMcom script started...\n")

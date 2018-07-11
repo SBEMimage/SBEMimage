@@ -616,6 +616,10 @@ remote_control = 1
 motor_speed_x = 40
 motor_speed_y = 40
 
+if (!DoesFileExist(install_path + "SBEMimage_DMcom_GMS2.s")) {
+	Throw("Wrong install path. Please check and update the variable 'install_path' in this script.")
+}
+
 result("\n" + DateStamp() + ": *******************************************.\n")
 result(DateStamp() + ": SBEMimage DMcom script started...\n")
 
