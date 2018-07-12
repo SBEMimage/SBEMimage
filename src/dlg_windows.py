@@ -374,12 +374,14 @@ class CalibrationDlg(QDialog):
 class OVSettingsDlg(QDialog):
     """Let the user change all settings for each overview image."""
 
-    def __init__(self, ovm, sem, current_ov):
+    def __init__(self, ovm, sem, current_ov,
+                 main_window_queue, main_window_trigger):
         super(OVSettingsDlg, self).__init__()
         self.ovm = ovm
         self.sem = sem
         self.current_ov = current_ov
-        self.settings_changed = False
+        self.main_window_queue = main_window_queue
+        self.main_window_trigger = main_window_trigger
         loadUi('..\\gui\\overview_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -445,6 +447,7 @@ class OVSettingsDlg(QDialog):
         self.pushButton_deleteOV.setText('Delete OV %d' % self.current_ov)
 
     def save_current_settings(self):
+        self.prev_frame_size = self.ovm.get_ov_size_selector(self.current_ov)
         self.ovm.set_ov_size_selector(self.current_ov,
             self.comboBox_frameSize.currentIndex())
         self.ovm.set_ov_magnification(self.current_ov,
@@ -455,13 +458,14 @@ class OVSettingsDlg(QDialog):
             self.spinBox_acqInterval.value())
         self.ovm.set_ov_acq_interval_offset(self.current_ov,
             self.spinBox_acqIntervalOffset.value())
-        # Delete current preview image:
-        self.ovm.update_ov_file_list(self.current_ov, '')
-        self.settings_changed = True
+        if self.comboBox_frameSize.currentIndex() != self.prev_frame_size:
+            # Delete current preview image:
+            self.ovm.update_ov_file_list(self.current_ov, '')
+        self.main_window_queue.put('OV SETTINGS CHANGED')
+        self.main_window_trigger.s.emit()
 
     def add_ov(self):
         self.ovm.add_new_ov()
-        self.settings_changed = True
         self.current_ov = self.ovm.get_number_ov() - 1
         # Update OV selector:
         self.comboBox_OVSelector.blockSignals(True)
@@ -472,10 +476,11 @@ class OVSettingsDlg(QDialog):
         self.update_buttons()
         self.show_current_settings()
         self.show_frame_size()
+        self.main_window_queue.put('OV SETTINGS CHANGED')
+        self.main_window_trigger.s.emit()
 
     def delete_ov(self):
         self.ovm.delete_ov()
-        self.settings_changed = True
         self.current_ov = self.ovm.get_number_ov() - 1
         # Update OV selector:
         self.comboBox_OVSelector.blockSignals(True)
@@ -486,6 +491,8 @@ class OVSettingsDlg(QDialog):
         self.update_buttons()
         self.show_current_settings()
         self.show_frame_size()
+        self.main_window_queue.put('OV SETTINGS CHANGED')
+        self.main_window_trigger.s.emit()
 
 #------------------------------------------------------------------------------
 
@@ -656,12 +663,14 @@ class DeleteImageDlg(QDialog):
 class GridSettingsDlg(QDialog):
     """Let the user change all settings for each grid."""
 
-    def __init__(self, grid_manager, sem, current_grid):
+    def __init__(self, grid_manager, sem, current_grid,
+                 main_window_queue, main_window_trigger):
         super(GridSettingsDlg, self).__init__()
         self.gm = grid_manager
         self.sem = sem
         self.current_grid = current_grid
-        self.settings_changed = False
+        self.main_window_queue = main_window_queue
+        self.main_window_trigger = main_window_trigger
         loadUi('..\\gui\\grid_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -764,7 +773,6 @@ class GridSettingsDlg(QDialog):
 
     def add_grid(self):
         self.gm.add_new_grid()
-        self.settings_changed = True
         self.current_grid = self.gm.get_number_grids() - 1
         # Update grid selector:
         self.comboBox_gridSelector.blockSignals(True)
@@ -775,6 +783,8 @@ class GridSettingsDlg(QDialog):
         self.update_buttons()
         self.show_current_settings()
         self.show_tile_size_and_dose()
+        self.main_window_queue.put('GRID SETTINGS CHANGED')
+        self.main_window_trigger.s.emit()
 
     def delete_grid(self):
         user_reply = QMessageBox.question(
@@ -784,7 +794,6 @@ class GridSettingsDlg(QDialog):
                         QMessageBox.Ok | QMessageBox.Cancel)
         if user_reply == QMessageBox.Ok:
             self.gm.delete_grid()
-            self.settings_changed = True
             self.current_grid = self.gm.get_number_grids() - 1
             # Update grid selector:
             self.comboBox_gridSelector.blockSignals(True)
@@ -795,10 +804,11 @@ class GridSettingsDlg(QDialog):
             self.update_buttons()
             self.show_current_settings()
             self.show_tile_size_and_dose()
+            self.main_window_queue.put('GRID SETTINGS CHANGED')
+            self.main_window_trigger.s.emit()
 
     def save_current_settings(self):
         error_msg = ''
-        self.settings_changed = True
         self.gm.set_grid_size(self.current_grid,
                               (self.spinBox_rows.value(),
                               self.spinBox_cols.value()))
@@ -832,9 +842,11 @@ class GridSettingsDlg(QDialog):
             self.current_grid, self.spinBox_acqIntervalOffset.value())
         # Recalculate grid:
         self.gm.calculate_grid_map(self.current_grid)
-
         if error_msg:
             QMessageBox.warning(self, 'Error', error_msg, QMessageBox.Ok)
+        else:
+            self.main_window_queue.put('GRID SETTINGS CHANGED')
+            self.main_window_trigger.s.emit()
 
     def open_adaptive_focus_dlg(self):
         sub_dialog = AdaptiveFocusSettingsDlg(self.gm, self.current_grid)

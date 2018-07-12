@@ -672,17 +672,21 @@ class MainControls(QMainWindow):
             self.viewport.mv_draw()
 
     def open_ov_dlg(self):
-        dialog = OVSettingsDlg(self.ovm, self.sem, self.current_ov)
+        dialog = OVSettingsDlg(self.ovm, self.sem, self.current_ov,
+                               self.acq_queue, self.acq_trigger)
+        # self.update_from_ov_dlg() is called when user saves settings
+        # or adds/deletes OVs.
         dialog.exec_()
-        if dialog.settings_changed:
-            self.update_main_controls_ov_selector(self.current_ov)
-            self.ft_update_ov_selector(self.ft_selected_ov)
-            self.viewport.update_ov()
-            if bool(self.cfg['debris']['auto_detection_area']):
-                self.ovm.update_all_ov_debris_detections_areas(self.gm)
-            self.viewport.mv_draw()
-            self.show_current_settings()
-            self.show_estimates()
+
+    def update_from_ov_dlg(self):
+        self.update_main_controls_ov_selector(self.current_ov)
+        self.ft_update_ov_selector(self.ft_selected_ov)
+        self.viewport.update_ov()
+        if bool(self.cfg['debris']['auto_detection_area']):
+            self.ovm.update_all_ov_debris_detections_areas(self.gm)
+        self.show_current_settings()
+        self.show_estimates()
+        self.viewport.mv_draw()
 
     def open_import_image_dlg(self):
         target_dir = self.cfg['acq']['base_dir'] + '\\overviews\\imported'
@@ -705,21 +709,25 @@ class MainControls(QMainWindow):
             self.viewport.mv_draw()
 
     def open_grid_dlg(self):
-        dialog = GridSettingsDlg(self.gm, self.sem, self.current_grid)
+        dialog = GridSettingsDlg(self.gm, self.sem, self.current_grid,
+                                 self.acq_queue, self.acq_trigger)
+        # self.update_from_grid_dlg() is called when user saves settings
+        # or adds/deletes grids.
         dialog.exec_()
-        if dialog.settings_changed:
-            # Update selectors:
-            self.update_main_controls_grid_selector(self.current_grid)
-            self.ft_update_grid_selector(self.ft_selected_grid)
-            self.ft_update_tile_selector()
-            if self.ft_selected_ov == -1:
-                self.ft_clear_wd_stig_display()
-            self.viewport.update_grids()
-            if (self.cfg['debris']['auto_detection_area'] == 'True'):
-                self.ovm.update_all_ov_debris_detections_areas(self.gm)
-            self.viewport.mv_draw()
-            self.show_current_settings()
-            self.show_estimates()
+
+    def update_from_grid_dlg(self):
+        # Update selectors:
+        self.update_main_controls_grid_selector(self.current_grid)
+        self.ft_update_grid_selector(self.ft_selected_grid)
+        self.ft_update_tile_selector()
+        if self.ft_selected_ov == -1:
+            self.ft_clear_wd_stig_display()
+        self.viewport.update_grids()
+        if (self.cfg['debris']['auto_detection_area'] == 'True'):
+            self.ovm.update_all_ov_debris_detections_areas(self.gm)
+        self.show_current_settings()
+        self.show_estimates()
+        self.viewport.mv_draw()
 
     def open_acq_settings_dlg(self):
         dialog = AcqSettingsDlg(self.cfg, self.stack)
@@ -861,8 +869,9 @@ class MainControls(QMainWindow):
         return super().event(e)
 
     def process_acq_signal(self):
-        """Process signals from acquisition thread. This trigger/queue approach
-           is required to pass information between threads.
+        """Process signals from acquisition thread or from dialog windows.
+           The trigger/queue approach is required to pass information
+           between threads.
         """
         msg = self.acq_queue.get()
         if msg == 'OV SUCCESS':
@@ -956,6 +965,10 @@ class MainControls(QMainWindow):
                 'Message received from remote server',
                 'Message text: ' + msg[8:],
                  QMessageBox.Ok)
+        elif msg == 'GRID SETTINGS CHANGED':
+            self.update_from_grid_dlg()
+        elif msg == 'OV SETTINGS CHANGED':
+            self.update_from_ov_dlg()
         elif msg[:12] == 'MV UPDATE OV':
             self.viewport.mv_load_overview(int(msg[12:]))
             self.viewport.mv_draw()

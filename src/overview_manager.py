@@ -90,8 +90,9 @@ class OverviewManager(object):
 
     def add_new_ov(self):
         new_ov_number = self.number_ov
-        y_pos = utils.fit_in_range(new_ov_number * 40, 0, 400)
-        self.cs.set_ov_centre_s(new_ov_number, [0, y_pos])
+        # Position new OV next to previous OV
+        x_pos, y_pos = self.cs.get_ov_centre_s(new_ov_number-1)
+        self.cs.set_ov_centre_s(new_ov_number, [x_pos, y_pos+50])
         self.set_ov_size_selector(new_ov_number, 2)
         self.set_ov_rotation(new_ov_number, 0)
         self.set_ov_magnification(new_ov_number, 360)

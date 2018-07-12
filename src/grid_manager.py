@@ -54,9 +54,10 @@ class GridManager(object):
 
     def add_new_grid(self):
         new_grid_number = self.number_grids
+        # Position new grid next to the previous grid
+        x_pos, y_pos = self.cs.get_grid_origin_s(new_grid_number-1)
+        self.cs.set_grid_origin_s(new_grid_number, [x_pos, y_pos+50])
         self.set_grid_size(new_grid_number, [5, 5])
-        x_pos = utils.fit_in_range(new_grid_number * 40, 0, 400)
-        self.cs.set_grid_origin_s(new_grid_number, [x_pos, 0])
         self.set_rotation(new_grid_number, 0)
         self.set_overlap(new_grid_number, 200)
         self.set_row_shift(new_grid_number, 0)
