@@ -459,21 +459,44 @@ class Microtome():
         self.cfg['microtome']['stage_rotation_angle_y'] = str(params[3])
         # Save data in sysconfig:
         calibration_data = json.loads(self.syscfg['stage']['calibration_data'])
+        eht = int(eht * 1000)  # Dict keys in system config use volts, not kV
         calibration_data[str(eht)] = params
         self.syscfg['stage']['calibration_data'] = json.dumps(calibration_data)
 
     def update_stage_calibration(self, eht):
-        calibration_data = json.loads(self.syscfg['stage']['calibration_data'])
+        eht = int(eht * 1000)  # Dict keys in system config use volts, not kV
+        success = True
         try:
-            params = calibration_data[str(eht)]
+            calibration_data = json.loads(
+                self.syscfg['stage']['calibration_data'])
+            available_eht = [int(s) for s in calibration_data.keys()]
         except:
-            # Fallback to 1.5kV if no entry for target EHT
-            params = calibration_data["1.5"]
-        self.cfg['microtome']['stage_scale_factor_x'] = str(params[0])
-        self.cfg['microtome']['stage_scale_factor_y'] = str(params[1])
-        self.cfg['microtome']['stage_rotation_angle_x'] = str(params[2])
-        self.cfg['microtome']['stage_rotation_angle_y'] = str(params[3])
-        self.stage_calibration = params
+            available_eht = []
+            success = False
+
+        if success:
+            if eht in available_eht:
+                params = calibration_data[str(eht)]
+            else:
+                success = False
+                # Fallback option: nearest among the available EHT calibrations
+                new_eht = 1500
+                min_diff = abs(eht - 1500)
+                for eht_choice in available_eht:
+                    diff = abs(eht - eht_choice)
+                    if diff < min_diff:
+                        min_diff = diff
+                        new_eht = eht_choice
+                params = calibration_data[str(new_eht)]
+
+            self.cfg['microtome']['stage_scale_factor_x'] = str(params[0])
+            self.cfg['microtome']['stage_scale_factor_y'] = str(params[1])
+            self.cfg['microtome']['stage_rotation_angle_x'] = str(params[2])
+            self.cfg['microtome']['stage_rotation_angle_y'] = str(params[3])
+            self.stage_calibration = params
+
+        return success
+
 
     def get_full_cut_duration(self):
         return self.full_cut_duration

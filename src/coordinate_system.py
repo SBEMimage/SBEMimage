@@ -48,6 +48,7 @@ class CoordinateSystem():
                          self.mv_centre_dx_dy[1] - 400 / self.mv_scale)
         # Load current stage parameters and calculate transformation factors:
         self.load_stage_calibration()
+        self.load_stage_limits()
 
     def load_stage_calibration(self):
         """(Re)load rotation and scale parameters and compute
@@ -63,6 +64,7 @@ class CoordinateSystem():
         self.C = (-1) * sin(rot_y) / cos(angle_diff)
         self.D = cos(rot_x) / cos(angle_diff)
 
+    def load_stage_limits(self):
         self.stage_limits = [
             int(self.cfg['microtome']['stage_min_x']),
             int(self.cfg['microtome']['stage_max_x']),

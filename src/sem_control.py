@@ -119,7 +119,7 @@ class SEM():
            to this target value.
         """
         self.eht = target_eht
-        self.cfg['sem']['eht'] = str(target_eht)
+        self.cfg['sem']['eht'] = '{0:.2f}'.format(target_eht)
         # target_eht given in kV
         variant = VARIANT(pythoncom.VT_R4, target_eht * 1000)
         ret_val = self.sem_api.Set('AP_MANUALKV', variant)[0]

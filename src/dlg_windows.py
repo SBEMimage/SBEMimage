@@ -240,7 +240,7 @@ class CalibrationDlg(QDialog):
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
-        self.lineEdit_EHT.setText(str(self.current_eht))
+        self.lineEdit_EHT.setText('{0:.2f}'.format(self.current_eht))
         params = self.microtome.get_stage_calibration()
         self.doubleSpinBox_stageScaleFactorX.setValue(params[0])
         self.doubleSpinBox_stageScaleFactorY.setValue(params[1])

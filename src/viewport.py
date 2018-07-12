@@ -475,8 +475,7 @@ class Viewport(QWidget):
         self.imported_img_drag_active = False
         self.mv_measure_active = False
 
-        (self.min_sx, self.max_sx,
-            self.min_sy, self.max_sy) = self.cs.get_stage_limits()
+        self.mv_load_stage_limits()
 
         # Canvas:
         self.mv_canvas = QPixmap(self.VIEWER_WIDTH, self.VIEWER_HEIGHT)
@@ -605,6 +604,10 @@ class Viewport(QWidget):
         self.ov_indicator_on ^= True
         self.ov_indicator_pos = ov_number
         self.mv_draw()
+
+    def mv_load_stage_limits(self):
+        (self.min_sx, self.max_sx,
+            self.min_sy, self.max_sy) = self.cs.get_stage_limits()
 
     def mv_load_all_overviews(self):
         """Load the images specified in the OV file list into memory """

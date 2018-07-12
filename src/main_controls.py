@@ -69,6 +69,8 @@ class MainControls(QMainWindow):
         self.syscfg = sysconfig
         self.cfg_file = config_file # the file name
         self.VERSION = VERSION
+        self.calibration_found = None
+
         # Show progress of initialization in console window:
         utils.show_progress_in_console(0)
         self.load_gui()
@@ -134,6 +136,13 @@ class MainControls(QMainWindow):
                 'deactivated.'
                 '\n\nTo leave simulation mode, select: '
                 '\nMenu  →  Configuration  →  Leave simulation mode',
+                QMessageBox.Ok)
+        elif not self.calibration_found:
+            QMessageBox.warning(
+                self, 'Missing stage calibration',
+                'No stage calibration settings were found for the currently '
+                'selected EHT. Please calibrate the stage:'
+                '\nMenu  →  Calibration  →  Stage calibration',
                 QMessageBox.Ok)
 
     def load_gui(self):
@@ -295,17 +304,7 @@ class MainControls(QMainWindow):
                 recognized_devices[int(self.syscfg['device']['microtome'])])
         except:
             self.cfg['microtome']['device'] = 'NOT RECOGNIZED'
-        # Update calibration of stage:
-        calibration_data = json.loads(
-            self.syscfg['stage']['calibration_data'])
-        try:
-            params = calibration_data[self.cfg['sem']['eht']]
-        except:
-            params = calibration_data['1.5']
-        self.cfg['microtome']['stage_scale_factor_x'] = str(params[0])
-        self.cfg['microtome']['stage_scale_factor_y'] = str(params[1])
-        self.cfg['microtome']['stage_rotation_angle_x'] = str(params[2])
-        self.cfg['microtome']['stage_rotation_angle_y'] = str(params[3])
+
         # Get motor limits from system cfg file:
         motor_limits = json.loads(self.syscfg['stage']['motor_limits'])
         self.cfg['microtome']['stage_min_x'] = str(motor_limits[0])
@@ -432,6 +431,12 @@ class MainControls(QMainWindow):
                 self.add_to_log('3VIEW: Second attempt to initialize '
                                 'DigitalMicrograph API successful.')
 
+        # Update calibration of stage:
+        self.calibration_found = (
+            self.microtome.update_stage_calibration(self.sem.get_eht()))
+        if not self.calibration_found:
+            self.add_to_log(
+                'CTRL: Warning - No stage calibration found for current EHT.')
 
         utils.show_progress_in_console(70)
 
@@ -512,7 +517,7 @@ class MainControls(QMainWindow):
         self.label_microtome.setText(self.microtome.device_name)
         # SEM beam settings:
         self.label_beamSettings.setText(
-            str(self.sem.get_eht()) + ' kV / '
+            '{0:.2f}'.format(self.sem.get_eht()) + ' kV / '
             + str(self.sem.get_beam_current()) + ' pA')
         # Show dwell time, pixel size, and frame size for current grid:
         self.label_tileDwellTime.setText(
@@ -630,22 +635,41 @@ class MainControls(QMainWindow):
         dialog = SEMSettingsDlg(self.sem)
         if dialog.exec_():
             # Update stage calibration (EHT may have changed):
-            self.microtome.update_stage_calibration(self.sem.get_eht())
+            self.calibration_found = (
+                self.microtome.update_stage_calibration(self.sem.get_eht()))
+            self.cs.load_stage_calibration() # update coordinate transformations
             self.show_current_settings()
             # Electron dose may have changed:
             self.show_estimates()
+            if (self.cfg['debris']['auto_detection_area'] == 'True'):
+                self.ovm.update_all_ov_debris_detections_areas(self.gm)
             self.viewport.mv_draw()
+            if not self.calibration_found:
+                self.add_to_log(
+                    'CTRL: Warning - No stage calibration found for current EHT.')
+                QMessageBox.warning(
+                    self, 'Missing stage calibration',
+                    'No stage calibration settings were found for the currently '
+                    'selected EHT. Please calibrate the stage:'
+                    '\nMenu  →  Calibration  →  Stage calibration',
+                    QMessageBox.Ok)
 
     def open_microtome_dlg(self):
         dialog = MicrotomeSettingsDlg(self.microtome)
         if dialog.exec_():
+            self.cs.load_stage_limits()
+            self.viewport.mv_load_stage_limits()
             self.show_current_settings()
             self.show_estimates()
             self.viewport.mv_draw()
 
     def open_calibration_dlg(self):
         dialog = CalibrationDlg(self.cfg, self.microtome, self.sem)
-        dialog.exec_()
+        if dialog.exec_():
+            self.cs.load_stage_calibration() # update coordinate transformations
+            if (self.cfg['debris']['auto_detection_area'] == 'True'):
+                self.ovm.update_all_ov_debris_detections_areas(self.gm)
+            self.viewport.mv_draw()
 
     def open_ov_dlg(self):
         dialog = OVSettingsDlg(self.ovm, self.sem, self.current_ov)
