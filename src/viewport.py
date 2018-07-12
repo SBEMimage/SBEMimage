@@ -93,6 +93,9 @@ class Viewport(QWidget):
         self.acq_in_progress ^= True
         self.pushButton_refreshOVs.setEnabled(b)
         self.pushButton_acquireStubOV.setEnabled(b)
+        if not b:
+            self.radioButton_fromStack.setChecked(not b)
+        self.radioButton_fromSEM.setEnabled(b)
 
     def update_grids(self):
         self.number_grids = self.gm.get_number_grids()
