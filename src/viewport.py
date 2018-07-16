@@ -408,6 +408,20 @@ class Viewport(QWidget):
                     # Restore origin coordinates:
                     self.cs.set_ov_centre_s(
                         self.selected_ov, self.stage_pos_backup)
+                else:
+                    # Remove current preview image from file list:
+                    self.ovm.update_ov_file_list(self.selected_ov, '')
+                    # Show blue transparent ROI:
+                    self.ov_img[self.selected_ov].fill(QColor(255, 255, 255, 0))
+                    self.mv_qp.begin(self.ov_img[self.selected_ov])
+                    self.mv_qp.setPen(QColor(0, 0, 255, 0))
+                    self.mv_qp.setBrush(QColor(0, 0, 255, 70))
+                    self.mv_qp.drawRect(
+                        0, 0,
+                        self.ovm.get_ov_width_p(self.selected_ov),
+                        self.ovm.get_ov_height_p(self.selected_ov))
+                    self.mv_qp.end()
+
             if self.imported_img_drag_active:
                 self.imported_img_drag_active = False
                 user_reply = QMessageBox.question(
@@ -621,13 +635,14 @@ class Viewport(QWidget):
             if os.path.isfile(ov_file_list[i]):
                 self.ov_img.append(QPixmap(ov_file_list[i]))
             else:
+                # Show blue transparent ROI when no OV image found
                 blank = QPixmap(self.ovm.get_ov_width_p(i),
                                 self.ovm.get_ov_height_p(i))
-                blank.fill(Qt.black)
+                blank.fill(QColor(255, 255, 255, 0))
                 self.ov_img.append(blank)
                 self.mv_qp.begin(self.ov_img[i])
                 self.mv_qp.setPen(QColor(0, 0, 255, 0))
-                self.mv_qp.setBrush(QColor(0, 0, 255, 40))
+                self.mv_qp.setBrush(QColor(0, 0, 255, 70))
                 self.mv_qp.drawRect(0, 0,
                          self.ovm.get_ov_width_p(i),
                          self.ovm.get_ov_height_p(i))
@@ -806,6 +821,8 @@ class Viewport(QWidget):
     def mv_draw(self):
         """Draw all elements on mosaic viewer canvas"""
         show_debris_area = self.cfg['debris']['show_detection_area'] == 'True'
+        if self.ov_drag_active or self.grid_drag_active:
+            show_debris_area = False
         # Start with empty black canvas, size fixed (1000 x 800):
         self.mv_canvas.fill(Qt.black)
         # Begin painting on canvas:
@@ -982,12 +999,13 @@ class Viewport(QWidget):
             v_width = cropped_img.size().width()
             cropped_resized_img = cropped_img.scaledToWidth(
                 v_width * resize_ratio)
-            # Draw OV:
-            self.mv_qp.drawPixmap(vx_rel, vy_rel, cropped_resized_img)
+            if not (self.ov_drag_active and ov_number == self.selected_ov):
+                # Draw OV:
+                self.mv_qp.drawPixmap(vx_rel, vy_rel, cropped_resized_img)
             # draw blue rectangle around OV:
             self.mv_qp.setPen(QPen(QColor(0, 0, 255), 2, Qt.SolidLine))
             if (self.ov_indicator_pos == ov_number) and self.ov_indicator_on:
-                indicator_colour = QColor(128, 00, 128, 80)
+                indicator_colour = QColor(128, 0, 128, 80)
                 self.mv_qp.setBrush(indicator_colour)
             else:
                 self.mv_qp.setBrush(QColor(0, 0, 255, 0))
@@ -1335,16 +1353,6 @@ class Viewport(QWidget):
         # Set new origin:
         self.cs.set_ov_centre_s(self.selected_ov,
             self.cs.convert_to_s((new_ov_dx, new_ov_dy)))
-
-        # Show empty roi:
-        self.ov_img[self.selected_ov].fill(Qt.black)
-        self.mv_qp.begin(self.ov_img[self.selected_ov])
-        self.mv_qp.setPen(QColor(0, 0, 255, 0))
-        self.mv_qp.setBrush(QColor(0, 0, 255, 70))
-        self.mv_qp.drawRect(0, 0,
-                         self.ovm.get_ov_width_p(self.selected_ov),
-                         self.ovm.get_ov_height_p(self.selected_ov))
-        self.mv_qp.end()
         self.mv_draw()
 
     def mv_reposition_imported_img(self, shift_vector):
