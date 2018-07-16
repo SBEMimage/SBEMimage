@@ -21,7 +21,7 @@ CFG_NUMBER_KEYS = 176
 
 SYSCFG_TEMPLATE_FILE = '..\\cfg\\system.cfg'
 SYSCFG_NUMBER_SECTIONS = 7
-SYSCFG_NUMBER_KEYS = 19
+SYSCFG_NUMBER_KEYS = 20
 
 import os
 from configparser import ConfigParser

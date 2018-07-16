@@ -77,6 +77,7 @@ class SEM():
         cycle_time = json.loads(self.syscfg['sem']['cycle_time'])
         # Convert string keys to int:
         self.CYCLE_TIME = {int(k): v for k, v in cycle_time.items()}
+        self.DEFAULT_DELAY = float(self.syscfg['sem']['delay_after_cycle_time'])
         # self.MAG_PX_SIZE_FACTOR is needed to calculate the magnification
         # as a function of frame resolution and pixel size (in nm):
         # M = MAG_PX_SIZE_FACTOR / (STORE_RES_X * PX_SIZE)
@@ -245,13 +246,23 @@ class SEM():
         """
         return self.set_scan_rate(self.DWELL_TIME.index(dwell_time))
 
-    def acquire_frame(self, save_path_filename):
-        """Acquire a full frame and saves it to save_path_filename.
+    def acquire_frame(self, save_path_filename, extra_delay=0):
+        """Acquire a full frame and save it to save_path_filename.
            All imaging parameters must be applied BEFORE calling this function.
+           To avoid grabbing the image before it is acquired completely, an
+           additional waiting period after the cycle time may be necessary.
+           The delay specified in syscfg is added by default for
+           cycle times > 0.5 s.
         """
         self.sem_api.Execute('CMD_UNFREEZE_ALL')
-        self.sem_api.Execute('CMD_FREEZE_ALL')  # Assumes 'freeze on end of frame'
-        sleep(self.current_cycle_time)
+        self.sem_api.Execute('CMD_FREEZE_ALL') # Assume 'freeze on end of frame'
+        if self.current_cycle_time > 0.5:
+            delay_after_cycle_time = self.DEFAULT_DELAY
+        else:
+            delay_after_cycle_time = 0
+        sleep(self.current_cycle_time + delay_after_cycle_time + extra_delay)
+        # This sleep interval could be used to carry out other operations in
+        # parallel while waiting for the new image.
         ret_val = self.sem_api.Grab(0, 0, 1024, 768, 0,
                                     save_path_filename)
         if ret_val == 0:
