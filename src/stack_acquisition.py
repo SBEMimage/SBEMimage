@@ -1075,7 +1075,6 @@ class Stack():
                     # Show new stage coordinates in GUI:
                     self.transmit_cmd('UPDATE XY')
         if move_success:
-            self.set_target_wd_stig()
             self.add_to_main_log(
                 'SEM: Acquiring OV at X:'
                 + '{0:.3f}'.format(ov_stage_position[0])
@@ -1088,10 +1087,12 @@ class Stack():
             ov_wd = self.ovm.get_ov_wd(ov_number)
             # Use specified OV working distance if available (unavailable = 0)
             if ov_wd > 0:
-                self.sem.set_wd(ov_wd + self.wd_delta)
+                self.sem.set_wd(ov_wd)
                 self.add_to_main_log(
-                    'SEM: Using user-specified WD: {0:.6f}'.format(
-                        (ov_wd + self.wd_delta) * 1000))
+                    'SEM: Using user-specified WD: '
+                    '{0:.6f}'.format(ov_wd * 1000))
+            else:
+                self.set_target_wd_stig()
             # Path and filename of overview image to be acquired:
             ov_save_path = (self.base_dir
                             + '\\'
@@ -1614,13 +1615,10 @@ class Stack():
                                             self.target_stig_y):
                 # If adaptive focus active, adjust focus for grid(s):
                 if self.use_adaptive_focus:
-                    grid_number = int(tile_id.split('.')[0])
-                    tile_number = int(tile_id.split('.')[1])
                     diff = (self.sem.get_wd()
                             - self.gm.get_tile_wd(grid_number, tile_number))
                     # Adjust:
-                    for g in range(self.gm.get_number_grids()):
-                        self.gm.adjust_focus_map(g, diff)
+                    self.gm.adjust_focus_gradient(grid_number, diff)
                 # Set new WD/stig parameters:
                 self.lock_wd_stig()
             else:

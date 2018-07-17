@@ -37,6 +37,7 @@ class OverviewManager(object):
         self.ov_dwell_time_selector = json.loads(
             self.cfg['overviews']['ov_dwell_time_selector'])
         self.ov_wd = json.loads(self.cfg['overviews']['ov_wd'])
+        self.ov_stig_xy = json.loads(self.cfg['overviews']['ov_stig_xy'])
         self.ov_file_list = json.loads(
             self.cfg['overviews']['ov_viewport_images'])
         self.ov_acq_interval = json.loads(
@@ -98,6 +99,7 @@ class OverviewManager(object):
         self.set_ov_magnification(new_ov_number, 360)
         self.set_ov_dwell_time_selector(new_ov_number, 4)
         self.set_ov_wd(new_ov_number, 0)
+        self.set_ov_stig_xy(new_ov_number, 0, 0)
         self.set_ov_acq_interval(new_ov_number, 1)
         self.set_ov_acq_interval_offset(new_ov_number, 0)
         self.update_ov_file_list(new_ov_number, '')
@@ -123,6 +125,8 @@ class OverviewManager(object):
             self.ov_dwell_time_selector)
         del self.ov_wd[-1]
         self.cfg['overviews']['ov_wd'] = str(self.ov_wd)
+        del self.ov_stig_xy[-1]
+        self.cfg['overviews']['ov_stig_xy'] = str(self.ov_stig_xy)
         del self.debris_detection_area[-1]
         self.cfg['debris']['detection_area'] = str(self.debris_detection_area)
         del self.ov_file_list[-1]
@@ -241,10 +245,25 @@ class OverviewManager(object):
 
     def set_ov_wd(self, ov_number, wd):
         if ov_number < len(self.ov_wd):
-            self.ov_wd[ov_number] = wd
+            self.ov_wd[ov_number] = round(wd, 9)
         else:
-            self.ov_wd.append(wd)
+            self.ov_wd.append(round(wd, 9))
         self.cfg['overviews']['ov_wd'] = str(self.ov_wd)
+
+    def get_ov_stig_xy(self, ov_number):
+        return self.ov_stig_xy[ov_number]
+
+    def set_ov_stig_xy(self, ov_number, stig_x, stig_y):
+        if ov_number < len(self.ov_stig_xy):
+            self.ov_stig_xy[ov_number] = [
+                round(stig_x, 6),
+                round(stig_y, 6)]
+        else:
+            self.ov_stig_xy.append([
+                round(stig_x, 6),
+                round(stig_y, 6)])
+        self.cfg['overviews']['ov_stig_xy'] = json.dumps(
+            self.ov_stig_xy)
 
     def get_ov_acq_settings(self, ov_number):
         return [self.ov_size_selector[ov_number],

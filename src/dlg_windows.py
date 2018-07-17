@@ -831,6 +831,8 @@ class GridSettingsDlg(QDialog):
             self.current_grid, self.comboBox_colourSelector.currentIndex())
         self.gm.set_adaptive_focus_enabled(self.current_grid,
             self.checkBox_adaptiveFocus.isChecked())
+        if self.checkBox_adaptiveFocus.isChecked():
+            self.gm.calculate_focus_gradient(self.current_grid)
         # Acquisition parameters:
         self.gm.set_pixel_size(self.current_grid,
             self.doubleSpinBox_pixelSize.value())
@@ -842,6 +844,8 @@ class GridSettingsDlg(QDialog):
             self.current_grid, self.spinBox_acqIntervalOffset.value())
         # Recalculate grid:
         self.gm.calculate_grid_map(self.current_grid)
+        # Update wd/stig map:
+        self.gm.initialize_wd_stig_map(self.current_grid)
         if error_msg:
             QMessageBox.warning(self, 'Error', error_msg, QMessageBox.Ok)
         else:
@@ -874,7 +878,7 @@ class AdaptiveFocusSettingsDlg(QDialog):
         # Set up tile selectors for adaptive focus tiles:
         number_of_tiles = self.gm.get_number_tiles(self.current_grid)
         tile_list_str = ['-']
-        for tile in range(0, number_of_tiles):
+        for tile in range(number_of_tiles):
             tile_list_str.append(str(tile))
         for i in range(3):
             if self.af_tiles[i] >= number_of_tiles:
@@ -914,8 +918,6 @@ class AdaptiveFocusSettingsDlg(QDialog):
         if self.af_tiles[0] >= 0:
             self.label_t1.setText('Tile ' + str(self.af_tiles[0]) + ':')
             wd = self.gm.get_tile_wd(self.current_grid, self.af_tiles[0])
-            if wd == 0:
-                wd = self.sem.get_wd()
             self.doubleSpinBox_t1.setValue(wd * 1000)
         else:
             self.label_t1.setText('Tile (-) :')
@@ -923,8 +925,6 @@ class AdaptiveFocusSettingsDlg(QDialog):
         if self.af_tiles[1] >= 0:
             self.label_t2.setText('Tile ' + str(self.af_tiles[1]) + ':')
             wd = self.gm.get_tile_wd(self.current_grid, self.af_tiles[1])
-            if wd == 0:
-                wd = self.sem.get_wd()
             self.doubleSpinBox_t2.setValue(wd * 1000)
         else:
             self.label_t2.setText('Tile (-) :')
@@ -932,8 +932,6 @@ class AdaptiveFocusSettingsDlg(QDialog):
         if self.af_tiles[2] >= 0:
             self.label_t3.setText('Tile ' + str(self.af_tiles[2]) + ':')
             wd = self.gm.get_tile_wd(self.current_grid, self.af_tiles[2])
-            if wd == 0:
-                wd = self.sem.get_wd()
             self.doubleSpinBox_t3.setValue(wd * 1000)
         else:
             self.label_t3.setText('Tile (-) :')
@@ -941,7 +939,7 @@ class AdaptiveFocusSettingsDlg(QDialog):
 
         self.gm.set_adaptive_focus_tiles(self.current_grid, self.af_tiles)
         # Try to calculate focus map:
-        self.af_success = self.gm.calculate_focus_map(self.current_grid)
+        self.af_success = self.gm.calculate_focus_gradient(self.current_grid)
         if self.af_success:
             grad = self.gm.get_adaptive_focus_gradient(self.current_grid)
             wd = self.gm.get_tile_wd(self.current_grid, 0)
@@ -969,7 +967,7 @@ class AdaptiveFocusSettingsDlg(QDialog):
         # Restore previous selection:
         self.gm.set_adaptive_focus_tiles(self.current_grid, self.prev_af_tiles)
         # Recalculate with previous setting:
-        self.gm.calculate_focus_map(self.current_grid)
+        self.gm.calculate_focus_gradient(self.current_grid)
         super(AdaptiveFocusSettingsDlg, self).reject()
 
 #------------------------------------------------------------------------------
@@ -2127,7 +2125,8 @@ class FTSetParamsDlg(QDialog):
        focus tool.
     """
 
-    def __init__(self, sem, current_wd, current_stig_x, current_stig_y):
+    def __init__(self, sem, current_wd, current_stig_x, current_stig_y,
+                 simulation_mode=False):
         super(FTSetParamsDlg, self).__init__()
         self.sem = sem
         loadUi('..\\gui\\focus_tool_set_params_dlg.ui', self)
@@ -2135,19 +2134,21 @@ class FTSetParamsDlg(QDialog):
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
+        if simulation_mode:
+            self.pushButton_getFromSmartSEM.setEnabled(False)
         self.pushButton_getFromSmartSEM.clicked.connect(self.get_from_sem)
         if current_wd is not None:
             self.doubleSpinBox_currentFocus.setValue(1000 * current_wd)
         else:
-            self.doubleSpinBox_currentFocus.setValue(1000 * self.sem.get_wd())
+            self.doubleSpinBox_currentFocus.setValue(0)
         if current_stig_x is not None:
             self.doubleSpinBox_currentStigX.setValue(current_stig_x)
         else:
-            self.doubleSpinBox_currentStigX.setValue(self.sem.get_stig_x())
+            self.doubleSpinBox_currentStigX.setValue(0)
         if current_stig_y is not None:
             self.doubleSpinBox_currentStigY.setValue(current_stig_y)
         else:
-            self.doubleSpinBox_currentStigY.setValue(self.sem.get_stig_y())
+            self.doubleSpinBox_currentStigY.setValue(0)
 
     def get_from_sem(self):
         self.doubleSpinBox_currentFocus.setValue(1000 * self.sem.get_wd())
@@ -2161,8 +2162,6 @@ class FTSetParamsDlg(QDialog):
         self.new_wd = self.doubleSpinBox_currentFocus.value() / 1000
         self.new_stig_x = self.doubleSpinBox_currentStigX.value()
         self.new_stig_y = self.doubleSpinBox_currentStigY.value()
-        self.sem.set_wd(self.new_wd)
-        self.sem.set_stig_xy(self.new_stig_x, self.new_stig_y)
         super(FTSetParamsDlg, self).accept()
 
 #------------------------------------------------------------------------------

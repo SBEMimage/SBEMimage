@@ -97,20 +97,10 @@ class MainControls(QMainWindow):
 
         # Initialize focus tool:
         self.ft_initialize()
+
         # When simulation mode active, disable all acquisition-related functions
         if self.simulation_mode:
-            self.pushButton_SEMSettings.setEnabled(False)
-            self.pushButton_startAcq.setEnabled(False)
-            self.pushButton_doApproach.setEnabled(False)
-            self.pushButton_doSweep.setEnabled(False)
-            self.pushButton_grabFrame.setEnabled(False)
-            self.pushButton_EHTToggle.setEnabled(False)
-            self.actionSEMSettings.setEnabled(False)
-            self.actionStageCalibration.setEnabled(False)
-            self.actionPlasmaCleanerSettings.setEnabled(False)
-            # Disable the communication tests and the focus tool:
-            self.tabWidget.setTabEnabled(1, False)
-            self.tabWidget.setTabEnabled(2, False)
+            self.restrict_gui_for_simulation_mode()
         else:
             self.actionLeaveSimulationMode.setEnabled(False)
 
@@ -617,6 +607,7 @@ class MainControls(QMainWindow):
         if dialog.exec_():
             if self.cfg['sys']['sys_config_file'] == 'system.cfg':
                 self.cfg['sys']['sys_config_file'] = 'this_system.cfg'
+            self.gm.save_wd_stig_data_to_cfg()
             self.cfg_file = dialog.get_file_name()
             # Write all settings to disk
             file = open('..\\cfg\\' + self.cfg_file, 'w')
@@ -1059,6 +1050,35 @@ class MainControls(QMainWindow):
         self.tabWidget.setTabEnabled(2, b)
         # Disable/enable menu
         self.menubar.setEnabled(b)
+
+    def restrict_gui_for_simulation_mode(self):
+        self.pushButton_SEMSettings.setEnabled(False)
+        self.pushButton_startAcq.setEnabled(False)
+        self.pushButton_doApproach.setEnabled(False)
+        self.pushButton_doSweep.setEnabled(False)
+        self.pushButton_grabFrame.setEnabled(False)
+        self.pushButton_EHTToggle.setEnabled(False)
+        self.actionSEMSettings.setEnabled(False)
+        self.actionStageCalibration.setEnabled(False)
+        self.actionPlasmaCleanerSettings.setEnabled(False)
+        # Tests and focus tool:
+        self.pushButton_focusToolStart.setEnabled(False)
+        self.checkBox_zoom.setEnabled(False)
+        self.pushButton_testGetMag.setEnabled(False)
+        self.pushButton_testSetMag.setEnabled(False)
+        self.pushButton_testGetFocus.setEnabled(False)
+        self.pushButton_testSetFocus.setEnabled(False)
+        self.pushButton_testRunAutofocus.setEnabled(False)
+        self.pushButton_testRunAutostig.setEnabled(False)
+        self.pushButton_testRunAutofocusStig.setEnabled(False)
+        self.pushButton_testZeissAPIVersion.setEnabled(False)
+        self.pushButton_testGetStage.setEnabled(False)
+        self.pushButton_testSetStage.setEnabled(False)
+        self.pushButton_testNearKnife.setEnabled(False)
+        self.pushButton_testClearKnife.setEnabled(False)
+        self.pushButton_testStopDMScript.setEnabled(False)
+        self.pushButton_testPlasmaCleaner.setEnabled(False)
+        self.pushButton_testMotors.setEnabled(False)
 
     def add_to_log(self, text):
         """Update the log from the main thread."""
@@ -1561,6 +1581,9 @@ class MainControls(QMainWindow):
             if self.cfg['sys']['sys_config_file'] == 'system.cfg':
                 # Preserve system.cfg as template, rename:
                 self.cfg['sys']['sys_config_file'] = 'this_system.cfg'
+            # Save current WD/STIG data to config:
+            self.gm.save_wd_stig_data_to_cfg()
+            # Write config to disk:
             cfgfile = open('..\\cfg\\' + self.cfg_file, 'w')
             self.cfg.write(cfgfile)
             cfgfile.close()
@@ -1705,7 +1728,7 @@ class MainControls(QMainWindow):
                                     self.ft_selected_tile,
                                     self.ft_selected_wd)
                 # Recalculate with new wd:
-                self.gm.calculate_focus_map(self.ft_selected_grid)
+                self.gm.calculate_focus_gradient(self.ft_selected_grid)
                 self.viewport.mv_draw()
             self.ft_reset()
 
@@ -1725,7 +1748,8 @@ class MainControls(QMainWindow):
         if (self.ft_selected_tile >=0) or (self.ft_selected_ov >= 0):
             dialog = FTSetParamsDlg(self.sem, self.ft_selected_wd,
                                     self.ft_selected_stig_x,
-                                    self.ft_selected_stig_y)
+                                    self.ft_selected_stig_y,
+                                    self.simulation_mode)
             if dialog.exec_():
                 new_params = dialog.return_params()
                 self.ft_selected_wd = new_params[0]
@@ -1736,19 +1760,27 @@ class MainControls(QMainWindow):
                 if self.ft_selected_ov >= 0:
                     self.ovm.set_ov_wd(self.ft_selected_ov,
                                        self.ft_selected_wd)
+                    self.ovm.set_ov_stig_xy(self.ft_selected_ov,
+                                            self.ft_selected_stig_x,
+                                            self.ft_selected_stig_y)
                 elif ((self.ft_selected_tile >= 0)
                       and self.gm.is_adaptive_focus_active(
                           self.ft_selected_grid)):
                     self.gm.set_tile_wd(self.ft_selected_grid,
                                         self.ft_selected_tile,
                                         self.ft_selected_wd)
+                    self.gm.set_tile_stig_xy(
+                        self.ft_selected_grid,
+                        self.ft_selected_tile,
+                        self.ft_selected_stig_x,
+                        self.ft_selected_stig_y)
                     # Recalculate with new wd:
-                    self.gm.calculate_focus_map(self.ft_selected_grid)
+                    self.gm.calculate_focus_gradient(self.ft_selected_grid)
                     self.viewport.mv_draw()
         else:
             QMessageBox.information(
                 self, 'Select target tile/OV',
-                'To set specific focus/astig values, you have to select '
+                'To set specific WD/stigmation values, you have to select '
                 'a tile or an overview image.',
                 QMessageBox.Ok)
 
@@ -1771,6 +1803,10 @@ class MainControls(QMainWindow):
         self.tabWidget.setTabEnabled(2, False)
         # Restrict viewport:
         self.viewport.restrict_gui(True)
+        # Use current WD/Stig if selected working distance == 0:
+        if self.ft_selected_wd == 0:
+            self.ft_selected_wd = self.sem.get_wd()
+            self.ft_selected_stig_x, self.ft_selected_stig_y = self.sem.get_stig_xy()
 
         self.ft_pixel_size = self.spinBox_ftPixelSize.value()
         self.ft_slider_delta = self.verticalSlider_ftDelta.value() + 1
@@ -1797,7 +1833,6 @@ class MainControls(QMainWindow):
 
         if self.radioButton_focus.isChecked():
             self.ft_mode = 1
-            #print(current_focus)
             self.ft_delta = (
                 0.00000004 * self.ft_slider_delta * self.ft_pixel_size)
             self.ft_acquire_focus_series()
@@ -1851,7 +1886,7 @@ class MainControls(QMainWindow):
         self.ft_series_wd_values = []
         deltas = [-4, -3, -2, -1, 0, 1, 2, 3, 4]
         self.ft_fdeltas = [self.ft_delta * x for x in deltas]
-        for i in range(0, 9):
+        for i in range(9):
             self.sem.set_wd(self.ft_selected_wd + self.ft_fdeltas[i])
             self.ft_series_wd_values.append(
                 self.ft_selected_wd + self.ft_fdeltas[i])
@@ -1873,7 +1908,7 @@ class MainControls(QMainWindow):
         self.ft_series_stig_y_values = []
         deltas = [-4, -3, -2, -1, 0, 1, 2, 3, 4]
         self.ft_sdeltas = [self.ft_delta * x for x in deltas]
-        for i in range(0, 9):
+        for i in range(9):
             if xy_choice == 0:
                 self.sem.set_stig_x(
                     self.ft_selected_stig_x + self.ft_sdeltas[i])
@@ -2006,15 +2041,14 @@ class MainControls(QMainWindow):
             self.ft_selected_tile = current_selection
         # show current focus and stig:
         if self.ft_selected_tile >= 0:
-            self.ft_selected_wd = self.sem.get_wd()
+            #self.ft_selected_wd = self.sem.get_wd()
             self.ft_update_ov_selector(-1)
-            if self.gm.is_adaptive_focus_active(self.ft_selected_grid):
-                stored_wd = self.gm.get_tile_wd(
-                    self.ft_selected_grid, self.ft_selected_tile)
-                if not (stored_wd == 0):
-                    self.ft_selected_wd = stored_wd
-            self.ft_selected_stig_x = self.sem.get_stig_x()
-            self.ft_selected_stig_y = self.sem.get_stig_y()
+            #if self.gm.is_adaptive_focus_active(self.ft_selected_grid):
+            self.ft_selected_wd = self.gm.get_tile_wd(
+                self.ft_selected_grid, self.ft_selected_tile)
+            self.ft_selected_stig_x, self.ft_selected_stig_y = (
+                self.gm.get_tile_stig_xy(
+                    self.ft_selected_grid, self.ft_selected_tile))
             self.ft_update_wd_display()
             self.ft_update_stig_display()
         elif self.ft_selected_ov == -1:
@@ -2022,14 +2056,11 @@ class MainControls(QMainWindow):
 
     def ft_load_selected_ov(self):
         self.ft_selected_ov = self.comboBox_selectOVFT.currentIndex() - 1
-        self.ft_selected_wd = self.sem.get_wd()
         if self.ft_selected_ov >= 0:
             self.ft_update_tile_selector(-1)
-            stored_wd = self.ovm.get_ov_wd(self.ft_selected_ov)
-            if not (stored_wd == 0):
-                self.ft_selected_wd = stored_wd
-            self.ft_selected_stig_x = self.sem.get_stig_x()
-            self.ft_selected_stig_y = self.sem.get_stig_y()
+            self.ft_selected_wd = self.ovm.get_ov_wd(self.ft_selected_ov)
+            self.ft_selected_stig_x, self.ft_selected_stig_y = (
+                self.ovm.get_ov_stig_xy(self.ft_selected_ov))
             self.ft_update_wd_display()
             self.ft_update_stig_display()
         elif self.ft_selected_tile == -1:

@@ -1160,14 +1160,16 @@ class Viewport(QWidget):
                         font = QFont()
                         font.setPixelSize(int(font_size2))
                         self.mv_qp.setFont(font)
-                        position_rect = QRect(pos_x - tile_width_v,
-                                              pos_y - tile_width_v
-                                              + tile_height_v/4,
-                                              2 * tile_width_v, 2 * tile_width_v)
-                        self.mv_qp.drawText(position_rect,
-                                            Qt.AlignVCenter | Qt.AlignHCenter,
-                                            'WD: {0:.6f}'.format(
-                                            self.gm.get_tile_wd(0, tile) * 1000))
+                        position_rect = QRect(
+                            pos_x - tile_width_v,
+                            pos_y - tile_width_v
+                            + tile_height_v/4,
+                            2 * tile_width_v, 2 * tile_width_v)
+                        self.mv_qp.drawText(
+                            position_rect,
+                            Qt.AlignVCenter | Qt.AlignHCenter,
+                            'WD: {0:.6f}'.format(
+                            self.gm.get_tile_wd(grid_number, tile) * 1000))
             if self.show_labels:
                 fontsize = int(self.cs.get_mv_scale() * 8)
                 if fontsize < 12:

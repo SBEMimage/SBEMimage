@@ -24,8 +24,9 @@ class GridManager(object):
         self.cfg = config
         self.sem = sem
         self.cs = coordinate_system
-        self.grid_map_d = []
-        self.grid_map_p = []
+        self.grid_map_p = []  # tile X/Y coordinates in pixels
+        self.grid_map_d = []  # tile X/Y coordinates in micrometres
+        self.grid_map_wd_stig = []  # working distance and stigmation parameters
         self.number_grids = int(self.cfg['grids']['number_grids'])
         self.size = json.loads(self.cfg['grids']['size'])
         self.rotation = json.loads(self.cfg['grids']['rotation'])
@@ -82,8 +83,9 @@ class GridManager(object):
         self.set_adaptive_focus_gradient(new_grid_number, [0, 0])
         self.grid_map_p.append({})
         self.grid_map_d.append({})
-        self.grid_map_p_gaps.append({})
+        self.grid_map_wd_stig.append({})
         self.calculate_grid_map(new_grid_number)
+        self.initialize_wd_stig_map(new_grid_number)
         self.number_grids += 1
         self.cfg['grids']['number_grids'] = str(self.number_grids)
 
@@ -128,6 +130,9 @@ class GridManager(object):
         self.cfg['grids']['adaptive_focus_gradient'] = str(self.af_gradient)
         del self.af_active[-1]
         self.cfg['grids']['use_adaptive_focus'] = str(self.af_active)
+        del self.grid_map_p[-1]
+        del self.grid_map_d[-1]
+        del self.grid_map_wd_stig[-1]
         # Number of grids:
         self.number_grids -= 1
         self.cfg['grids']['number_grids'] = str(self.number_grids)
@@ -307,12 +312,22 @@ class GridManager(object):
             self.origin_wd.append(origin_wd)
         self.cfg['grids']['origin_wd'] = str(self.origin_wd)
 
-    def get_tile_wd(self, grid_number, tilenumber):
-        return(self.grid_map_d[grid_number][tilenumber][3])
+    def get_tile_wd(self, grid_number, tile_number):
+        return self.grid_map_wd_stig[grid_number][tile_number][0]
 
     def set_tile_wd(self, grid_number, tile_number, wd):
-        if grid_number < len(self.grid_map_d):
-            self.grid_map_d[grid_number][tile_number][3] = wd
+        if grid_number < len(self.grid_map_wd_stig):
+            self.grid_map_wd_stig[grid_number][tile_number][0] = wd
+
+    def get_tile_stig_xy(self, grid_number, tile_number):
+        return (self.grid_map_wd_stig[grid_number][tile_number][1],
+                self.grid_map_wd_stig[grid_number][tile_number][2])
+
+    def set_tile_stig_xy(self, grid_number, tile_number,
+                         stig_x, stig_y):
+        if grid_number < len(self.grid_map_wd_stig):
+            self.grid_map_wd_stig[grid_number][tile_number][1] = stig_x
+            self.grid_map_wd_stig[grid_number][tile_number][2] = stig_y
 
     def get_active_tiles(self, grid_number):
         if grid_number is not None and grid_number < self.number_grids:
@@ -488,32 +503,41 @@ class GridManager(object):
                     y_coord]
                 # Format of SEM coordinate grid map:
                 # 0: X-coord, 1: Y-coord,
-                # 2: active/inactive (True/False), 3: working distance
-                wd_delta_x, wd_delta_y = self.af_gradient[grid_number]
+                # 2: active/inactive (True/False)
                 self.grid_map_d[grid_number][tile_number] = [
                     (x_coord + x_shift) * pixel_size / 1000,       # x
                     y_coord * pixel_size / 1000,                   # y
-                    tile_number in self.active_tiles[grid_number], # tile active?
-                    self.origin_wd[grid_number]
-                    + x_pos * wd_delta_x
-                    + y_pos * wd_delta_y]                          # wd
+                    tile_number in self.active_tiles[grid_number]] # tile active?
 
     def initialize_all_grid_maps(self):
         # Inititalize data structures:
         self.grid_map_d = [{} for i in range(self.number_grids)]
         self.grid_map_p = [{} for i in range(self.number_grids)]
-        self.grid_map_p_gaps = [{} for i in range(self.number_grids)]
+        self.grid_map_wd_stig = [{} for i in range(self.number_grids)]
+        # Calculate the tile positions
         for grid_number in range(self.number_grids):
             self.calculate_grid_map(grid_number)
+            self.initialize_wd_stig_map(grid_number)
+        # Initalize working distances and stig parameters and load available
+        # parameters from config:
+        self.load_wd_stig_data_from_config()
+        # If adaptive focus active, calculate gradient:
+        for grid_number in range(self.number_grids):
+            if self.is_adaptive_focus_active(grid_number):
+                self.calculate_focus_gradient(grid_number)
 
-    def adjust_focus_map(self, grid_number, diff):
-        self.af_tiles[grid_number][0] += diff
-        self.af_tiles[grid_number][1] += diff
-        self.af_tiles[grid_number][2] += diff
-        self.cfg['grids']['adaptive_focus_tiles'] = str(self.af_tiles)
-        self.calculate_focus_map(grid_number)
+    def initialize_wd_stig_map(self, grid_number):
+        for t in range(self.size[grid_number][0] * self.size[grid_number][1]):
+            self.grid_map_wd_stig[grid_number][t] = [0, 0, 0]
 
-    def calculate_focus_map(self, grid_number):
+    def adjust_focus_gradient(self, grid_number, diff):
+        t1, t2, t3 = self.af_tiles[grid_number]
+        self.grid_map_wd_stig[grid_number][t1][0] += diff
+        self.grid_map_wd_stig[grid_number][t2][0] += diff
+        self.grid_map_wd_stig[grid_number][t3][0] += diff
+        self.calculate_focus_gradient(grid_number)
+
+    def calculate_focus_gradient(self, grid_number):
         success = True
         af_tiles = self.af_tiles[grid_number]
         if af_tiles[0] >= 0:
@@ -524,8 +548,8 @@ class GridManager(object):
             if (af_tiles[1] > af_tiles[0]) and (row0 == row1):
                 x_diff = af_tiles[1] - af_tiles[0]
                 wd_delta_x = (
-                    self.grid_map_d[grid_number][af_tiles[1]][3]
-                    - self.grid_map_d[grid_number][af_tiles[0]][3])/x_diff
+                    self.grid_map_wd_stig[grid_number][af_tiles[1]][0]
+                    - self.grid_map_wd_stig[grid_number][af_tiles[0]][0])/x_diff
             else:
                 success = False
             # Tile3 must be below Tile0 and in the same column:
@@ -534,29 +558,31 @@ class GridManager(object):
             if (af_tiles[2] > af_tiles[0]) and (col0 == col2):
                 y_diff = (af_tiles[2] - af_tiles[0]) // row_length
                 wd_delta_y = (
-                    self.grid_map_d[grid_number][af_tiles[2]][3]
-                    - self.grid_map_d[grid_number][af_tiles[0]][3])/y_diff
+                    self.grid_map_wd_stig[grid_number][af_tiles[2]][0]
+                    - self.grid_map_wd_stig[grid_number][af_tiles[0]][0])/y_diff
             else:
                 success = False
 
             if success:
-                self.af_gradient[grid_number] = [wd_delta_x, wd_delta_y]
+                self.af_gradient[grid_number] = [
+                    round(wd_delta_x, 12),
+                    round(wd_delta_y, 12)]
                 self.cfg['grids']['adaptive_focus_gradient'] = str(
                     self.af_gradient)
                 # Calculate wd at the origin of the tiling:
                 x_diff_origin = af_tiles[0] % row_length
                 y_diff_origin = af_tiles[0] // row_length
-                self.origin_wd[grid_number] = (
-                      self.grid_map_d[grid_number][af_tiles[0]][3]
+                self.origin_wd[grid_number] = round(
+                      self.grid_map_wd_stig[grid_number][af_tiles[0]][0]
                       - (x_diff_origin * wd_delta_x)
-                      - (y_diff_origin * wd_delta_y))
+                      - (y_diff_origin * wd_delta_y), 9)
                 self.cfg['grids']['origin_wd'] = str(self.origin_wd)
 
                 # Update wd for full grid:
                 for y_pos in range(0, self.size[grid_number][0]):
                     for x_pos in range(0, self.size[grid_number][1]):
                         tile_number = y_pos * row_length + x_pos
-                        self.grid_map_d[grid_number][tile_number][3] = (
+                        self.grid_map_wd_stig[grid_number][tile_number][0] = (
                                 self.origin_wd[grid_number]
                                 + x_pos * wd_delta_x
                                 + y_pos * wd_delta_y)
@@ -565,35 +591,57 @@ class GridManager(object):
         return success
 
     def get_gapped_grid_map(self, grid_number):
-        for y_pos in range(0, self.size[grid_number][0]):
-            for x_pos in range(0, self.size[grid_number][1]):
+        gapped_tile_map = {}
+        for y_pos in range(self.size[grid_number][0]):
+            for x_pos in range(self.size[grid_number][1]):
                 tile_number = x_pos + y_pos * self.size[grid_number][1]
                 x_coord = x_pos * 1.05 * self.tile_size_px_py[grid_number][0]
                 y_coord = y_pos * 1.05 * self.tile_size_px_py[grid_number][1]
-                # Introduce alternating shift in x direction
-                # to avoid quadruple beam exposure:
                 x_shift = self.row_shift[grid_number] * (y_pos % 2)
-                # Save position in tile map
-                # Format of each entry: X-coord, Y-coord, bool (active: 1, inactive: 0)
-                self.grid_map_p_gaps[grid_number][tile_number] = [
+                gapped_tile_map[tile_number] = [
                     (x_coord + x_shift) * self.pixel_size[grid_number] / 1000,
                     y_coord * self.pixel_size[grid_number] / 1000]
-        return self.grid_map_p_gaps[grid_number]
+        return gapped_tile_map
 
     def save_grid_setup(self, timestamp):
         # This assumes that base directory and logs subdirectory have already been created
         file_name = self.cfg['acq']['base_dir'] + '\\meta\\logs\\' + \
                     'gridmap_' + timestamp + '.txt'
         grid_map_file = open(file_name, 'w')
-        for i in range(0, self.number_grids):
-            for t in range(0, self.size[i][0] * self.size[i][1]):
+        for i in range(self.number_grids):
+            for t in range(self.size[i][0] * self.size[i][1]):
                 grid_map_file.write(str(i) + '.' + str(t) + ';' +
                                     str(self.grid_map_p[i][t][0]) + ';' +
                                     str(self.grid_map_p[i][t][1]) + ';' +
-                                    str(self.grid_map_d[i][t][2]) + ';' +
-                                    str(self.grid_map_d[i][t][3]) + '\n')
+                                    str(self.grid_map_d[i][t][2]) + '\n')
         grid_map_file.close()
         return file_name
+
+    def load_wd_stig_data_from_config(self):
+        # Load data from config. grid_map_wd_stig must be initialized beforehand.
+        wd_stig_dict = json.loads(self.cfg['grids']['wd_stig_data'])
+        for tile_key in wd_stig_dict:
+            g_str, t_str = tile_key.split('.')
+            g, t = int(g_str), int(t_str)
+            self.grid_map_wd_stig[g][t] = wd_stig_dict[tile_key]
+
+    def save_wd_stig_data_to_cfg(self):
+        wd_stig_dict = {}
+        for g in range(self.number_grids):
+            for t in range(self.size[g][0] * self.size[g][1]):
+                if (t in self.af_tiles[g]
+                    or (self.grid_map_d[g][t][2]
+                    and self.grid_map_wd_stig[g][t][0] != 0)):
+                    # Save tiles selected for adaptive focus and all other
+                    # tiles that are active and have WD != 0
+                    tile_key = str(g) + '.' + str(t)
+                    wd_stig_dict[tile_key] = [
+                        round(self.grid_map_wd_stig[g][t][0], 9),  # WD
+                        round(self.grid_map_wd_stig[g][t][1], 6),  # Stig X
+                        round(self.grid_map_wd_stig[g][t][2], 6)   # Stig Y
+                    ]
+        # Save as JSON string in config:
+        self.cfg['grids']['wd_stig_data'] = json.dumps(wd_stig_dict)
 
     def sort_acq_order(self, grid_number):
         # Use snake pattern to minimize number of long motor moves:
