@@ -265,6 +265,24 @@ class OverviewManager(object):
         self.cfg['overviews']['ov_stig_xy'] = json.dumps(
             self.ov_stig_xy)
 
+    def get_ov_stig_x(self, ov_number):
+        return self.ov_stig_xy[ov_number][0]
+
+    def set_ov_stig_x(self, ov_number, stig_x):
+        if ov_number < len(self.ov_stig_xy):
+            self.ov_stig_xy[ov_number][0] = round(stig_x, 6)
+        self.cfg['overviews']['ov_stig_xy'] = json.dumps(
+            self.ov_stig_xy)
+
+    def get_ov_stig_y(self, ov_number):
+        return self.ov_stig_xy[ov_number][1]
+
+    def set_ov_stig_y(self, ov_number, stig_y):
+        if ov_number < len(self.ov_stig_xy):
+            self.ov_stig_xy[ov_number][1] = round(stig_y, 6)
+        self.cfg['overviews']['ov_stig_xy'] = json.dumps(
+            self.ov_stig_xy)
+
     def get_ov_acq_settings(self, ov_number):
         return [self.ov_size_selector[ov_number],
                 self.ov_magnification[ov_number],

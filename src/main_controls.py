@@ -1125,13 +1125,13 @@ class MainControls(QMainWindow):
     def acquire_ov_success(self, success):
         if success:
             self.add_to_log(
-                'CTRL: User-requested acquisition of overview completed.')
+                'CTRL: User-requested acquisition of overview(s) completed.')
         else:
             self.add_to_log('CTRL: ERROR ocurred during overview acquisition.')
             QMessageBox.warning(
                 self, 'Error during overview acquisition',
-                'An error occurred during the acquisition of the overview '
-                'at the current location. The most likely cause are incorrect '
+                'An error occurred during the acquisition of the overview(s) '
+                'at the current location(s). The most likely cause are incorrect '
                 'settings of the stage X/Y motor ranges or speeds. Home the '
                 'stage and check whether the range limits specified in '
                 'SBEMimage are correct.', QMessageBox.Ok)
@@ -1140,9 +1140,6 @@ class MainControls(QMainWindow):
         self.label_acqIndicator.setText('')
         self.set_statusbar(
             'Ready. Active configuration: %s' % self.cfg_file)
-        # Load and show new OV images:
-        self.viewport.mv_load_all_overviews()
-        self.viewport.mv_draw()
 
     def acquire_stub_ov_success(self, success):
         if success:
@@ -1692,6 +1689,8 @@ class MainControls(QMainWindow):
         self.pushButton_focusToolStart.clicked.connect(self.ft_start)
         self.pushButton_focusToolSet.clicked.connect(
             self.ft_open_set_params_dlg)
+        # Default pixel size:
+        self.spinBox_ftPixelSize.setValue(6)
         # Selectors
         self.ft_update_grid_selector()
         self.ft_update_tile_selector()
@@ -1705,7 +1704,7 @@ class MainControls(QMainWindow):
         """ Run the tool: (1) Move to selected tile or OV. (2) Acquire image
         series at specified settings. (3) Let user select the best image
         """
-        if self.ft_mode == 0:
+        if self.ft_mode == 0: # User has clicked on "Start"
             if (self.ft_selected_tile >=0) or (self.ft_selected_ov >= 0):
                 self.ft_run_cycle()
             else:
@@ -1715,33 +1714,49 @@ class MainControls(QMainWindow):
                     'an overview image.',
                     QMessageBox.Ok)
 
-        elif self.ft_mode == 1:
+        elif self.ft_mode == 1: # User has selected best focus
             # Set WD as selected by user:
             self.ft_selected_wd += self.ft_fdeltas[self.ft_index]
             self.sem.set_wd(self.ft_selected_wd)
             # Save wd for OV or in tile grid:
             if self.ft_selected_ov >= 0:
                 self.ovm.set_ov_wd(self.ft_selected_ov, self.ft_selected_wd)
-            elif ((self.ft_selected_tile >= 0)
-                  and self.gm.is_adaptive_focus_active(self.ft_selected_grid)):
+            elif self.ft_selected_tile >= 0:
                 self.gm.set_tile_wd(self.ft_selected_grid,
                                     self.ft_selected_tile,
                                     self.ft_selected_wd)
-                # Recalculate with new wd:
-                self.gm.calculate_focus_gradient(self.ft_selected_grid)
-                self.viewport.mv_draw()
+                if self.gm.is_adaptive_focus_active(self.ft_selected_grid):
+                    # Recalculate with new wd:
+                    self.gm.calculate_focus_gradient(self.ft_selected_grid)
+                    self.viewport.mv_draw()
             self.ft_reset()
 
-        elif self.ft_mode == 2:
+        elif self.ft_mode == 2: # User has selected best stigmation in X
             # Set StigX as selected by user:
             self.ft_selected_stig_x += self.ft_sdeltas[self.ft_index]
             self.sem.set_stig_x(self.ft_selected_stig_x)
+            # Save StigX for OV or in tile grid:
+            if self.ft_selected_ov >= 0:
+                self.ovm.set_ov_stig_x(
+                    self.ft_selected_ov, self.ft_selected_stig_x)
+            elif self.ft_selected_tile >= 0:
+                self.gm.set_tile_stig_x(self.ft_selected_grid,
+                                        self.ft_selected_tile,
+                                        self.ft_selected_stig_x)
             self.ft_reset()
 
-        elif self.ft_mode == 3:
+        elif self.ft_mode == 3: # User has selected best stigmation in Y
             # Set StigY as selected by user:
             self.ft_selected_stig_y += self.ft_sdeltas[self.ft_index]
             self.sem.set_stig_y(self.ft_selected_stig_y)
+            # Save StigX for OV or in tile grid:
+            if self.ft_selected_ov >= 0:
+                self.ovm.set_ov_stig_y(
+                    self.ft_selected_ov, self.ft_selected_stig_y)
+            elif self.ft_selected_tile >= 0:
+                self.gm.set_tile_stig_y(self.ft_selected_grid,
+                                        self.ft_selected_tile,
+                                        self.ft_selected_stig_y)
             self.ft_reset()
 
     def ft_open_set_params_dlg(self):

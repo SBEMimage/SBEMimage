@@ -329,6 +329,20 @@ class GridManager(object):
             self.grid_map_wd_stig[grid_number][tile_number][1] = stig_x
             self.grid_map_wd_stig[grid_number][tile_number][2] = stig_y
 
+    def get_tile_stig_x(self, grid_number, tile_number):
+        return self.grid_map_wd_stig[grid_number][tile_number][1]
+
+    def set_tile_stig_x(self, grid_number, tile_number, stig_x):
+        if grid_number < len(self.grid_map_wd_stig):
+            self.grid_map_wd_stig[grid_number][tile_number][1] = stig_x
+
+    def get_tile_stig_y(self, grid_number, tile_number):
+        return self.grid_map_wd_stig[grid_number][tile_number][2]
+
+    def set_tile_stig_y(self, grid_number, tile_number, stig_y):
+        if grid_number < len(self.grid_map_wd_stig):
+            self.grid_map_wd_stig[grid_number][tile_number][2] = stig_y
+
     def get_active_tiles(self, grid_number):
         if grid_number is not None and grid_number < self.number_grids:
             return self.active_tiles[grid_number]
@@ -629,11 +643,10 @@ class GridManager(object):
         wd_stig_dict = {}
         for g in range(self.number_grids):
             for t in range(self.size[g][0] * self.size[g][1]):
-                if (t in self.af_tiles[g]
-                    or (self.grid_map_d[g][t][2]
-                    and self.grid_map_wd_stig[g][t][0] != 0)):
-                    # Save tiles selected for adaptive focus and all other
-                    # tiles that are active and have WD != 0
+                if (self.grid_map_wd_stig[g][t][0] != 0
+                    and (t in self.af_tiles[g] or self.grid_map_d[g][t][2])):
+                    # Only save tiles with WD != 0 which are active or
+                    # selected for focus gradient calculation
                     tile_key = str(g) + '.' + str(t)
                     wd_stig_dict[tile_key] = [
                         round(self.grid_map_wd_stig[g][t][0], 9),  # WD
