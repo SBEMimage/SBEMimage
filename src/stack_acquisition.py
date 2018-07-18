@@ -1012,6 +1012,7 @@ class Stack():
         self.report_requested = False
 
     def perform_cutting_sequence(self):
+        old_stage_z_position = self.stage_z_position
         # Move to new z position:
         self.stage_z_position = (self.stage_z_position
                                  + (self.slice_thickness / 1000))
@@ -1033,6 +1034,13 @@ class Stack():
             self.microtome.reset_error_state()
         if self.error_state > 0:
             self.add_to_main_log('CTRL: Problem detected.')
+            # Try to move back to previous Z position:
+            self.add_to_main_log('3VIEW: Attempt to move back to old Z: '
+                                 + '{0:.3f}'.format(old_stage_z_position))
+            self.microtome.move_stage_to_z(old_stage_z_position)
+            # Show new Z position in main window:
+            self.transmit_cmd('UPDATE Z')
+            self.microtome.reset_error_state()
             self.pause_acquisition(1)
         else:
             self.add_to_main_log('3VIEW: Cut completed.')
