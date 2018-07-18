@@ -20,6 +20,7 @@ import datetime
 from time import sleep
 from PIL import Image
 
+import utils
 
 def acquire_ov(base_dir, selection, sem, microtome, ovm, cs, queue, trigger):
     # Update current xy position:
@@ -33,6 +34,9 @@ def acquire_ov(base_dir, selection, sem, microtome, ovm, cs, queue, trigger):
         start, end = selection, selection + 1 # acquire only one OV
     # Acquisition loop:
     for i in range(start, end):
+        queue.put(utils.format_log_entry(
+            '3VIEW: Moving stage to OV %d position.' % i))
+        trigger.s.emit()
         # Move to OV stage coordinates:
         microtome.move_stage_to_xy(cs.get_ov_centre_s(i))
         # Check to see if error ocurred:
@@ -48,7 +52,19 @@ def acquire_ov(base_dir, selection, sem, microtome, ovm, cs, queue, trigger):
                                      ovm.get_ov_pixel_size(i),
                                      ovm.get_ov_dwell_time(i))
             save_path = base_dir + '\\workspace\\OV' + str(i).zfill(3) + '.bmp'
+            queue.put(utils.format_log_entry(
+                'SEM: Acquiring OV %d.' % i))
+            trigger.s.emit()
+            # Indicate the overview being acquired in the viewport
+            queue.put('ACQ IND OV' + str(i))
+            trigger.s.emit()
             success = sem.acquire_frame(save_path)
+            # Remove indicator colour
+            queue.put('ACQ IND OV' + str(i))
+            trigger.s.emit()
+            # Show updated OV:
+            queue.put('MV UPDATE OV' + str(i))
+            trigger.s.emit()
             if success:
                 ovm.update_ov_file_list(i, save_path)
         if not success:
