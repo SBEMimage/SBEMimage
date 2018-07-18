@@ -88,7 +88,7 @@ class MainControls(QMainWindow):
         QApplication.processEvents()
         # Initialize viewport window:
         self.viewport = Viewport(self.cfg, self.sem, self.microtome,
-                                 self.ovm, self.gm, self.cs,
+                                 self.ovm, self.gm, self.cs, self.autofocus,
                                  self.viewport_trigger,
                                  self.viewport_queue)
         self.viewport.show()
@@ -599,6 +599,7 @@ class MainControls(QMainWindow):
             self.checkBox_monitorTiles.isChecked())
         self.cfg['acq']['use_autofocus'] = str(
             self.checkBox_useAutofocus.isChecked())
+        self.viewport.mv_draw()
 
 # ============== Below: all methods that open dialog windows ==================
 
@@ -772,7 +773,8 @@ class MainControls(QMainWindow):
 
     def open_autofocus_dlg(self):
         dialog = AutofocusSettingsDlg(self.autofocus)
-        dialog.exec_()
+        if dialog.exec_():
+            self.viewport.mv_draw()
 
     def open_plasma_cleaner_dlg(self):
         dialog = PlasmaCleanerDlg(self.plasma_cleaner)
@@ -1728,7 +1730,7 @@ class MainControls(QMainWindow):
                 if self.gm.is_adaptive_focus_active(self.ft_selected_grid):
                     # Recalculate with new wd:
                     self.gm.calculate_focus_gradient(self.ft_selected_grid)
-                    self.viewport.mv_draw()
+                self.viewport.mv_draw()
             self.ft_reset()
 
         elif self.ft_mode == 2: # User has selected best stigmation in X
@@ -1778,9 +1780,7 @@ class MainControls(QMainWindow):
                     self.ovm.set_ov_stig_xy(self.ft_selected_ov,
                                             self.ft_selected_stig_x,
                                             self.ft_selected_stig_y)
-                elif ((self.ft_selected_tile >= 0)
-                      and self.gm.is_adaptive_focus_active(
-                          self.ft_selected_grid)):
+                elif self.ft_selected_tile >= 0:
                     self.gm.set_tile_wd(self.ft_selected_grid,
                                         self.ft_selected_tile,
                                         self.ft_selected_wd)
@@ -1789,8 +1789,9 @@ class MainControls(QMainWindow):
                         self.ft_selected_tile,
                         self.ft_selected_stig_x,
                         self.ft_selected_stig_y)
-                    # Recalculate with new wd:
-                    self.gm.calculate_focus_gradient(self.ft_selected_grid)
+                    if self.gm.is_adaptive_focus_active(self.ft_selected_grid):
+                        # Recalculate with new wd:
+                        self.gm.calculate_focus_gradient(self.ft_selected_grid)
                     self.viewport.mv_draw()
         else:
             QMessageBox.information(

@@ -42,7 +42,7 @@ class Viewport(QWidget):
 
     def __init__(self, config, sem, microtome,
                  ov_manager, grid_manager, coordinate_system,
-                 trigger, queue):
+                 autofocus, trigger, queue):
         super(Viewport, self).__init__()
         self.cfg = config
         self.sem = sem
@@ -50,6 +50,7 @@ class Viewport(QWidget):
         self.gm = grid_manager
         self.ovm = ov_manager
         self.cs = coordinate_system
+        self.af = autofocus
         self.trigger = trigger
         self.queue = queue
         # Shared control variables:
@@ -1122,7 +1123,7 @@ class Viewport(QWidget):
             grid_brush_transparent = QBrush(QColor(255, 255, 255, 0),
                                             Qt.SolidPattern)
             font = QFont()
-            for tile in range(0, rows * cols):
+            for tile in range(rows * cols):
                 self.mv_qp.setPen(grid_pen)
                 if tile in active_tiles:
                     self.mv_qp.setBrush(grid_brush_active_tile)
@@ -1147,29 +1148,58 @@ class Viewport(QWidget):
                             + tile_width_v/2)
                     pos_y = (origin_vy + tile_map[tile][1] * mv_scale
                             + tile_height_v/2)
-                    position_rect = QRect(pos_x - tile_width_v,
-                                          pos_y - tile_width_v,
-                                          2 * tile_width_v, 2 * tile_width_v)
-
+                    position_rect = QRect(pos_x - tile_width_v/2,
+                                          pos_y - tile_height_v/2,
+                                          tile_width_v, tile_height_v)
+                    # Show tile number
                     font.setPixelSize(int(font_size1))
                     self.mv_qp.setFont(font)
                     self.mv_qp.drawText(position_rect,
                                      Qt.AlignVCenter | Qt.AlignHCenter,
                                      str(tile))
-                    if self.gm.is_adaptive_focus_active(grid_number):
-                        font = QFont()
-                        font.setPixelSize(int(font_size2))
-                        self.mv_qp.setFont(font)
+                    # Show autofocus/gradient marker and working distance
+                    font = QFont()
+                    font.setPixelSize(int(font_size2))
+                    font.setBold(True)
+                    self.mv_qp.setFont(font)
+                    position_rect = QRect(
+                        pos_x - tile_width_v,
+                        pos_y - tile_height_v
+                        - tile_height_v/4,
+                        2 * tile_width_v, 2 * tile_height_v)
+
+                    grad_label = (
+                        self.gm.is_adaptive_focus_tile(grid_number, tile)
+                        and self.gm.is_adaptive_focus_active(grid_number))
+                    af_label = (
+                        self.af.is_ref_tile(grid_number, tile)
+                        and self.af.is_active())
+                    if grad_label and af_label:
+                        self.mv_qp.drawText(position_rect,
+                                            Qt.AlignVCenter | Qt.AlignHCenter,
+                                            'GRAD + AF')
+                    elif grad_label:
+                        self.mv_qp.drawText(position_rect,
+                                            Qt.AlignVCenter | Qt.AlignHCenter,
+                                            'GRADIENT')
+                    elif af_label:
+                        self.mv_qp.drawText(position_rect,
+                                            Qt.AlignVCenter | Qt.AlignHCenter,
+                                            'AUTOFOCUS')
+                    font.setBold(False)
+                    self.mv_qp.setFont(font)
+                    if self.gm.get_tile_wd(grid_number, tile) != 0:
                         position_rect = QRect(
                             pos_x - tile_width_v,
-                            pos_y - tile_width_v
+                            pos_y - tile_height_v
                             + tile_height_v/4,
-                            2 * tile_width_v, 2 * tile_width_v)
+                            2 * tile_width_v, 2 * tile_height_v)
                         self.mv_qp.drawText(
                             position_rect,
                             Qt.AlignVCenter | Qt.AlignHCenter,
                             'WD: {0:.6f}'.format(
                             self.gm.get_tile_wd(grid_number, tile) * 1000))
+
             if self.show_labels:
                 fontsize = int(self.cs.get_mv_scale() * 8)
                 if fontsize < 12:
