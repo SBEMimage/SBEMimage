@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>281</width>
-    <height>539</height>
+    <height>587</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -23,7 +23,7 @@
    <property name="geometry">
     <rect>
      <x>80</x>
-     <y>500</y>
+     <y>550</y>
      <width>191</width>
      <height>32</height>
     </rect>
@@ -33,19 +33,6 @@
    </property>
    <property name="standardButtons">
     <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
-   </property>
-  </widget>
-  <widget class="QLabel" name="label_rt">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>57</y>
-     <width>191</width>
-     <height>20</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Reference tile(s), in format 0.3, 1.15...:</string>
    </property>
   </widget>
   <widget class="QRadioButton" name="radioButton_useSmartSEM">
@@ -84,7 +71,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>320</y>
+     <y>370</y>
      <width>261</width>
      <height>171</height>
     </rect>
@@ -353,7 +340,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>180</y>
+     <y>230</y>
      <width>261</width>
      <height>131</height>
     </rect>
@@ -474,119 +461,169 @@
     </property>
    </widget>
   </widget>
-  <widget class="QLineEdit" name="lineEdit_refTiles">
+  <widget class="QGroupBox" name="groupBox">
    <property name="geometry">
     <rect>
-     <x>10</x>
-     <y>80</y>
-     <width>231</width>
-     <height>20</height>
+     <x>9</x>
+     <y>60</y>
+     <width>261</width>
+     <height>161</height>
     </rect>
    </property>
-  </widget>
-  <widget class="QDoubleSpinBox" name="doubleSpinBox_maxStigXDiff">
-   <property name="geometry">
-    <rect>
-     <x>140</x>
-     <y>140</y>
-     <width>61</width>
-     <height>22</height>
-    </rect>
+   <property name="title">
+    <string>General settings</string>
    </property>
-   <property name="decimals">
-    <number>1</number>
-   </property>
-   <property name="minimum">
-    <double>0.100000000000000</double>
-   </property>
-   <property name="maximum">
-    <double>9.900000000000000</double>
-   </property>
-   <property name="singleStep">
-    <double>0.100000000000000</double>
-   </property>
-   <property name="value">
-    <double>1.000000000000000</double>
-   </property>
-  </widget>
-  <widget class="QLabel" name="label_fdp_7">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>110</y>
-     <width>181</width>
-     <height>20</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Max. permitted WD difference (μm):</string>
-   </property>
-  </widget>
-  <widget class="QDoubleSpinBox" name="doubleSpinBox_maxStigYDiff">
-   <property name="geometry">
-    <rect>
-     <x>200</x>
-     <y>140</y>
-     <width>61</width>
-     <height>22</height>
-    </rect>
-   </property>
-   <property name="decimals">
-    <number>1</number>
-   </property>
-   <property name="minimum">
-    <double>0.100000000000000</double>
-   </property>
-   <property name="maximum">
-    <double>9.900000000000000</double>
-   </property>
-   <property name="singleStep">
-    <double>0.100000000000000</double>
-   </property>
-   <property name="value">
-    <double>1.000000000000000</double>
-   </property>
-  </widget>
-  <widget class="QLabel" name="label_axp_4">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>140</y>
-     <width>131</width>
-     <height>20</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Max. Astig X/Y difference:</string>
-   </property>
-  </widget>
-  <widget class="QDoubleSpinBox" name="doubleSpinBox_maxWDDiff">
-   <property name="geometry">
-    <rect>
-     <x>200</x>
-     <y>110</y>
-     <width>61</width>
-     <height>22</height>
-    </rect>
-   </property>
-   <property name="decimals">
-    <number>0</number>
-   </property>
-   <property name="minimum">
-    <double>1.000000000000000</double>
-   </property>
-   <property name="maximum">
-    <double>999.000000000000000</double>
-   </property>
-   <property name="value">
-    <double>10.000000000000000</double>
-   </property>
+   <widget class="QLabel" name="label_rt">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>17</y>
+      <width>201</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Reference tile(s), in format 0.3, 1.15...:</string>
+    </property>
+   </widget>
+   <widget class="QLineEdit" name="lineEdit_refTiles">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>40</y>
+      <width>241</width>
+      <height>20</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QComboBox" name="comboBox_trackingMode">
+    <property name="geometry">
+     <rect>
+      <x>98</x>
+      <y>70</y>
+      <width>151</width>
+      <height>22</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_fdp_8">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>70</y>
+      <width>81</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Tracking mode:</string>
+    </property>
+   </widget>
+   <widget class="QDoubleSpinBox" name="doubleSpinBox_maxWDDiff">
+    <property name="geometry">
+     <rect>
+      <x>190</x>
+      <y>100</y>
+      <width>61</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="decimals">
+     <number>0</number>
+    </property>
+    <property name="minimum">
+     <double>1.000000000000000</double>
+    </property>
+    <property name="maximum">
+     <double>999.000000000000000</double>
+    </property>
+    <property name="value">
+     <double>10.000000000000000</double>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_fdp_7">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>100</y>
+      <width>181</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Max. permitted WD difference (μm):</string>
+    </property>
+   </widget>
+   <widget class="QDoubleSpinBox" name="doubleSpinBox_maxStigXDiff">
+    <property name="geometry">
+     <rect>
+      <x>130</x>
+      <y>130</y>
+      <width>61</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="decimals">
+     <number>1</number>
+    </property>
+    <property name="minimum">
+     <double>0.100000000000000</double>
+    </property>
+    <property name="maximum">
+     <double>9.900000000000000</double>
+    </property>
+    <property name="singleStep">
+     <double>0.100000000000000</double>
+    </property>
+    <property name="value">
+     <double>1.000000000000000</double>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_axp_4">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>130</y>
+      <width>131</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Max. Astig X/Y diff.:</string>
+    </property>
+   </widget>
+   <widget class="QDoubleSpinBox" name="doubleSpinBox_maxStigYDiff">
+    <property name="geometry">
+     <rect>
+      <x>190</x>
+      <y>130</y>
+      <width>61</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="decimals">
+     <number>1</number>
+    </property>
+    <property name="minimum">
+     <double>0.100000000000000</double>
+    </property>
+    <property name="maximum">
+     <double>9.900000000000000</double>
+    </property>
+    <property name="singleStep">
+     <double>0.100000000000000</double>
+    </property>
+    <property name="value">
+     <double>1.000000000000000</double>
+    </property>
+   </widget>
   </widget>
  </widget>
  <tabstops>
   <tabstop>radioButton_useSmartSEM</tabstop>
   <tabstop>radioButton_useHeuristic</tabstop>
   <tabstop>lineEdit_refTiles</tabstop>
+  <tabstop>comboBox_trackingMode</tabstop>
   <tabstop>doubleSpinBox_maxWDDiff</tabstop>
   <tabstop>doubleSpinBox_maxStigXDiff</tabstop>
   <tabstop>doubleSpinBox_maxStigYDiff</tabstop>

@@ -1637,12 +1637,22 @@ class AutofocusSettingsDlg(QDialog):
             self.radioButton_useHeuristic.setChecked(True)
         self.radioButton_useSmartSEM.toggled.connect(self.group_box_update)
         self.group_box_update()
+        # General settings
         self.lineEdit_refTiles.setText(
             str(self.af.get_ref_tiles())[1:-1].replace('\'', ''))
         max_diff = self.af.get_max_wd_stig_diff()
         self.doubleSpinBox_maxWDDiff.setValue(max_diff[0] * 1000000)
         self.doubleSpinBox_maxStigXDiff.setValue(max_diff[1])
         self.doubleSpinBox_maxStigYDiff.setValue(max_diff[2])
+        self.comboBox_trackingMode.addItems(['Average',
+                                             'Track all',
+                                             'Individual + Best Fit'])
+        # Disable second and third option for now (under development)
+        self.comboBox_trackingMode.model().item(1).setEnabled(False)
+        self.comboBox_trackingMode.model().item(2).setEnabled(False)
+        self.comboBox_trackingMode.setCurrentIndex(
+            self.af.get_tracking_mode())
+        # SmartSEM autofocus
         self.spinBox_interval.setValue(self.af.get_interval())
         self.spinBox_autostigDelay.setValue(self.af.get_autostig_delay())
         self.doubleSpinBox_pixelSize.setValue(self.af.get_pixel_size())
@@ -1677,6 +1687,8 @@ class AutofocusSettingsDlg(QDialog):
             self.af.set_ref_tiles(tile_list)
         else:
             error_str = 'List of selected tiles badly formatted.'
+        self.af.set_tracking_mode(
+            self.comboBox_trackingMode.currentIndex())
         max_diffs = [self.doubleSpinBox_maxWDDiff.value() / 1000000,
                      self.doubleSpinBox_maxStigXDiff.value(),
                      self.doubleSpinBox_maxStigYDiff.value()]

@@ -35,6 +35,7 @@ class Autofocus():
         self.trigger = acq_trigger
         self.method = int(self.cfg['autofocus']['method'])
         self.ref_tiles = json.loads(self.cfg['autofocus']['ref_tiles'])
+        self.tracking_mode = int(self.cfg['autofocus']['tracking_mode'])
         self.interval = int(self.cfg['autofocus']['interval'])
         self.autostig_delay = int(self.cfg['autofocus']['autostig_delay'])
         self.pixel_size = float(self.cfg['autofocus']['pixel_size'])
@@ -76,6 +77,13 @@ class Autofocus():
     def set_ref_tiles(self, ref_tile_list):
         self.ref_tiles = ref_tile_list
         self.cfg['autofocus']['ref_tiles'] = json.dumps(ref_tile_list)
+
+    def get_tracking_mode(self):
+        return self.tracking_mode
+
+    def set_tracking_mode(self, mode):
+        self.tracking_mode = mode
+        self.cfg['autofocus']['tracking_mode'] = str(self.tracking_mode)
 
     def get_interval(self):
         return self.interval
