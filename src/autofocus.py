@@ -21,6 +21,7 @@ progress.
 import json
 import numpy as np
 from math import sqrt, exp, sin, cos
+from statistics import mean
 from time import sleep, time
 from scipy.misc import imsave
 from scipy.signal import correlate2d, fftconvolve
@@ -57,9 +58,12 @@ class Autofocus():
         self.apy_mask = np.empty((self.ACORR_WIDTH, self.ACORR_WIDTH))
         self.amy_mask = np.empty((self.ACORR_WIDTH, self.ACORR_WIDTH))
         self.make_heuristic_weight_function_masks()
+        # Estimators (dicts with tile keys):
         self.foc_est = {}
         self.astgx_est = {}
         self.astgy_est = {}
+        # Computed corrections:
+        self.wd_stig_corr = {}
 
     def is_active(self):
         return (self.cfg['acq']['use_autofocus'] == 'True')
@@ -77,6 +81,10 @@ class Autofocus():
     def set_ref_tiles(self, ref_tile_list):
         self.ref_tiles = ref_tile_list
         self.cfg['autofocus']['ref_tiles'] = json.dumps(ref_tile_list)
+
+    def is_ref_tile(self, grid_number, tile_number):
+        tile_key = str(grid_number) + '.' + str(tile_number)
+        return (tile_key in self.ref_tiles)
 
     def get_tracking_mode(self):
         return self.tracking_mode
@@ -237,9 +245,34 @@ class Autofocus():
             ay_corr = a1 * sin(self.rot_angle) + a2 * cos(self.rot_angle)
             ax_corr *= self.scale_factor
             ay_corr *= self.scale_factor
-            return wd_corr, ax_corr, ay_corr
+            # Are results within permissible range?
+            within_range = (abs(wd_corr/1000) <= self.max_wd_diff
+                            and abs(ax_corr) <= self.max_sx_diff
+                            and abs(ay_corr) <= self.max_sy_diff)
+            if within_range:
+                # Store corrections for this tile:
+                self.wd_stig_corr[tile_key] = [wd_corr/1000, ax_corr, ay_corr]
+            else:
+                self.wd_stig_corr[tile_key] = [0, 0, 0]
+
+            return wd_corr, ax_corr, ay_corr, within_range
         else:
-            return None, None, None
+            return None, None, None, False
+
+    def get_heuristic_average_grid_correction(self, grid_number):
+        wd_corr = []
+        stig_x_corr = []
+        stig_y_corr = []
+        for tile_key in self.wd_stig_corr:
+            g = int(tile_key.split('.')[0])
+            if g == grid_number:
+                wd_corr.append(self.wd_stig_corr[tile_key][0])
+                stig_x_corr.append(self.wd_stig_corr[tile_key][1])
+                stig_y_corr.append(self.wd_stig_corr[tile_key][2])
+        if wd_corr:
+            return (mean(wd_corr), mean(stig_x_corr), mean(stig_y_corr))
+        else:
+            return (None, None, None)
 
     def make_heuristic_weight_function_masks(self):
         # Parameters as given in Binding et al. 2013:

@@ -466,6 +466,14 @@ class Stack():
         self.sem.set_beam_blanking(1)
         sleep(1)
 
+        # Clear WD/STIG info for all grids in which no focus gradient is used:
+        for grid_number in range(number_grids):
+            if not self.gm.is_adaptive_focus_active(grid_number):
+                self.gm.initialize_wd_stig_map(grid_number)
+        for ov_number in range(number_ov):
+            self.ovm.set_ov_wd(ov_number, 0)
+            self.ovm.set_ov_stig_xy(ov_number, 0, 0)
+
         # Lock the current working distance & stigmation settings:
         self.lock_wd_stig()
 
@@ -1449,6 +1457,61 @@ class Stack():
 
             tile_width, tile_height = self.gm.get_tile_size_px_py(grid_number)
 
+            # For ZEISS autofocus: Apply average WD/STIG from reference tiles:
+            if self.af.is_active() and self.af.get_method() == 0:
+                average_grid_wd = self.gm.get_average_grid_wd(grid_number)
+                average_grid_stig = self.gm.get_average_grid_stig_xy(grid_number)
+                if (average_grid_wd is not None
+                        and average_grid_stig[0] is not None
+                        and average_grid_stig[1] is not None):
+                    self.add_to_main_log(
+                        'CTRL: Applying average WD/STIG parameters '
+                        '(SmartSEM autofocus).')
+                    # Check if difference within acceptable range:
+                    if self.af.check_wd_stig_diff(average_grid_wd,
+                                                  average_grid_stig[0],
+                                                  average_grid_stig[1]):
+                        # Apply:
+                        self.target_wd = average_grid_wd
+                        self.target_stig_x, self.target_stig_y = average_grid_stig
+                    else:
+                        self.add_to_main_log(
+                            'CTRL: Error: Difference in WD/STIG too large.')
+                        self.error_state = 507
+                        self.pause_acquisition(1)
+
+            # For heuristic autofocus: Apply average corrections to
+            # WD/STIG targets:
+            if self.af.is_active() and self.af.get_method() == 1:
+                average_grid_corr = (
+                    self.af.get_heuristic_average_grid_correction(grid_number))
+                if average_grid_corr[0]:
+                    if (abs(average_grid_corr[0]/1000) < 3 * abs(self.wd_delta)
+                        and abs(average_grid_corr[1]) < 3 * abs(self.stig_x_delta)
+                        and abs(average_grid_corr[2]) < 3 * abs(self.stig_y_delta)):
+                        # Apply corrections:
+                        self.target_wd += average_grid_corr[0]/1000
+                        self.target_stig_x += average_grid_corr[1]
+                        self.target_stig_y += average_grid_corr[2]
+                        self.add_to_main_log('CTRL: Applying average heuristic '
+                                             'corrections for current grid.')
+                        #self.add_to_main_log(
+                        #    'SEM: New WD/STIG_XY: '
+                        #    '{0:.6f}'.format(self.target_wd * 1000)
+                        #    + ', {0:.6f}'.format(self.target_stig_x)
+                        #    + ', {0:.6f}'.format(self.target_stig_y))
+                    else:
+                        self.add_to_main_log('CTRL: Average heuristic '
+                                             'corrections too large. Discarded')
+
+            # If adaptive focus active, adjust focus for grid(s):
+            #if self.use_adaptive_focus:
+            #    diff = (self.sem.get_wd()
+            #            - self.gm.get_tile_wd(grid_number, tile_number))
+            #    # Adjust:
+            #    self.gm.adjust_focus_gradient(grid_number, diff)
+
+
             # Set WD and stig settings:
             if not self.use_adaptive_focus:
                 self.set_target_wd_stig()
@@ -1618,21 +1681,16 @@ class Stack():
             self.add_to_main_log(return_msg)
             if 'ERROR' in return_msg:
                 self.error_state = 505
-            elif self.af.check_wd_stig_diff(self.target_wd,
-                                            self.target_stig_x,
-                                            self.target_stig_y):
-                # If adaptive focus active, adjust focus for grid(s):
-                if self.use_adaptive_focus:
-                    diff = (self.sem.get_wd()
-                            - self.gm.get_tile_wd(grid_number, tile_number))
-                    # Adjust:
-                    self.gm.adjust_focus_gradient(grid_number, diff)
+            else:
                 # Set new WD/stig parameters:
                 self.lock_wd_stig()
-            else:
-                # The different in WD/STIG was too large. Pause the
-                # acquisition
-                self.error_state = 507
+                # Save settings for current tile:
+                self.gm.set_tile_wd(grid_number, tile_number, self.target_wd)
+                self.gm.set_tile_stig_xy(grid_number, tile_number,
+                                          self.target_stig_x, self.target_stig_y)
+                # Show updated WD in viewport:
+                self.transmit_cmd('DRAW MV')
+
             # Restore grid settings for tile acquisition:
             self.sem.apply_frame_settings(
                 self.gm.get_tile_size_selector(grid_number),
@@ -1645,33 +1703,17 @@ class Stack():
             'heuristic autofocus ' %tile_key)
         self.af.process_heuristic_new_image(
             tile_img, tile_key, self.slice_counter)
-        wd_corr, sx_corr, sy_corr = self.af.get_heuristic_corrections(tile_key)
+        wd_corr, sx_corr, sy_corr, within_range = (
+            self.af.get_heuristic_corrections(tile_key))
         if wd_corr is not None:
             self.add_to_main_log('CTRL: New corrections: '
                                  + '{0:.6f}, '.format(wd_corr)
                                  + '{0:.6f}, '.format(sx_corr)
                                  + '{0:.6f}'.format(sy_corr))
-            max_diffs = self.af.get_max_wd_stig_diff()
-            if (abs(wd_corr/1000) > max_diffs[0]
-                    or abs(sx_corr) > max_diffs[1]
-                    or abs(sy_corr) > max_diffs[2]):
+            if not within_range:
                 # The difference in WD/STIG was too large.
                 self.error_state = 507
                 self.pause_acquisition(1)
-            elif (abs(wd_corr/1000) < 3 * abs(self.wd_delta)
-                    and abs(sx_corr) < 3 * abs(self.stig_x_delta)
-                    and abs(sy_corr) < 3 * abs(self.stig_y_delta)):
-                # Apply corrections:
-                self.target_wd += wd_corr/1000
-                self.target_stig_x += sx_corr
-                self.target_stig_y += sy_corr
-                self.add_to_main_log(
-                    'SEM: New WD/STIG_XY: {0:.6f}'.format(self.target_wd * 1000)
-                    + ', {0:.6f}'.format(self.target_stig_x)
-                    + ', {0:.6f}'.format(self.target_stig_y))
-            else:
-                self.add_to_main_log('CTRL: Warning: estimates out of '
-                                     'range, not applied.')
         else:
             self.add_to_main_log('CTRL: No estimates computed. ')
 

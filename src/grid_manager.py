@@ -14,8 +14,10 @@
    calculates position and focus maps.
 """
 
+from statistics import mean
 import json
 import utils
+
 
 
 class GridManager(object):
@@ -319,6 +321,17 @@ class GridManager(object):
         if grid_number < len(self.grid_map_wd_stig):
             self.grid_map_wd_stig[grid_number][tile_number][0] = wd
 
+    def get_average_grid_wd(self, grid_number):
+        wd_list = []
+        for tile_entry in self.grid_map_wd_stig[grid_number]:
+            wd = self.grid_map_wd_stig[grid_number][tile_entry][0]
+            if wd > 0:
+                wd_list.append(wd)
+        if wd_list:
+            return mean(wd_list)
+        else:
+            return None
+
     def get_tile_stig_xy(self, grid_number, tile_number):
         return (self.grid_map_wd_stig[grid_number][tile_number][1],
                 self.grid_map_wd_stig[grid_number][tile_number][2])
@@ -328,6 +341,20 @@ class GridManager(object):
         if grid_number < len(self.grid_map_wd_stig):
             self.grid_map_wd_stig[grid_number][tile_number][1] = stig_x
             self.grid_map_wd_stig[grid_number][tile_number][2] = stig_y
+
+    def get_average_grid_stig_xy(self, grid_number):
+        stig_x_list = []
+        stig_y_list = []
+        for tile_entry in self.grid_map_wd_stig[grid_number]:
+            stig_x = self.grid_map_wd_stig[grid_number][tile_entry][1]
+            stig_y = self.grid_map_wd_stig[grid_number][tile_entry][2]
+            if (stig_x != 0) or (stig_y != 0):
+                stig_x_list.append(stig_x)
+                stig_y_list.append(stig_y)
+        if stig_x_list:
+            return mean(stig_x_list), mean(stig_y_list)
+        else:
+            return None, None
 
     def get_tile_stig_x(self, grid_number, tile_number):
         return self.grid_map_wd_stig[grid_number][tile_number][1]
@@ -438,6 +465,9 @@ class GridManager(object):
         else:
             self.af_tiles.append(af_tiles)
         self.cfg['grids']['adaptive_focus_tiles'] = str(self.af_tiles)
+
+    def is_adaptive_focus_tile(self, grid_number, tile_number):
+        return (tile_number in self.af_tiles[grid_number])
 
     def get_adaptive_focus_gradient(self, grid_number):
         return self.af_gradient[grid_number]
