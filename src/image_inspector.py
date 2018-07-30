@@ -119,8 +119,8 @@ class ImageInspector(object):
             preview = imresize(img, (384, 512))
             imsave(self.base_dir + '\\workspace\\' + tile_key + '.png', preview)
 
-            # Save reslice line in memory:
-            # Take a 400-px line from centre of the image:
+            # Save reslice line in memory. Take a 400-px line from the centre
+            # of the image. This works for all frame resolutions.
             self.tile_reslice_line[tile_key] = (
                 img[int(height/2):int(height/2)+1,
                     int(width/2)-200:int(width/2)+200])
@@ -176,27 +176,53 @@ class ImageInspector(object):
                 tile_selected,
                 load_error, grab_incomplete, frozen_frame_error)
 
-    def save_tile_reslice_and_stats(self, grid_number, tile_number,
-                                    slice_number):
+    def save_tile_stats(self, grid_number, tile_number, slice_number):
+        """Write mean and SD of specified tile to disk."""
+        success = True
         tile_key = ('g' + str(grid_number).zfill(utils.GRID_DIGITS)
                     + '_' + 't' + str(tile_number).zfill(utils.TILE_DIGITS))
-        # Write mean, stddev to file:
-        stat_filename = self.base_dir + '\\meta\\stats\\' + tile_key + '.dat'
-        with open(stat_filename, 'a') as file:
-            file.write(str(slice_number).zfill(utils.SLICE_DIGITS)
-                       + ';' + str(self.tile_means[tile_key][-1][1])
-                       + ';' + str(self.tile_stddevs[tile_key][-1][1]) + '\n')
-
-        # Open reslice file if it exists:
-        reslice_filename = (self.base_dir + '\\workspace\\reslices\\r_'
-                            + tile_key + '.png')
-        if os.path.isfile(reslice_filename):
-            reslice_img = np.array(Image.open(reslice_filename))
-            new_reslice_img = np.concatenate(
-                (reslice_img, self.tile_reslice_line[tile_key]))
-            imsave(reslice_filename, new_reslice_img)
+        if tile_key in self.tile_means and tile_key in self.tile_stddevs:
+            stats_filename = os.path.join(
+                self.base_dir, 'meta', 'stats', tile_key + '.dat')
+            # Append to existing file or create new file
+            try:
+                with open(stats_filename, 'a') as file:
+                    file.write(str(slice_number).zfill(utils.SLICE_DIGITS)
+                               + ';' + str(self.tile_means[tile_key][-1][1])
+                               + ';' + str(self.tile_stddevs[tile_key][-1][1])
+                               + '\n')
+            except:
+                success = False # writing to disk failed
         else:
-            imsave(reslice_filename, self.tile_reslice_line[tile_key])
+            success = False # mean/SD not available
+        return success
+
+    def save_tile_reslice(self, grid_number, tile_number):
+        """Write reslice line of specified tile to disk."""
+        tile_key = ('g' + str(grid_number).zfill(utils.GRID_DIGITS)
+                    + '_' + 't' + str(tile_number).zfill(utils.TILE_DIGITS))
+        success = True
+        if (tile_key in self.tile_reslice_line
+            and self.tile_reslice_line[tile_key].shape[1] == 400):
+            reslice_filename = os.path.join(
+                self.base_dir, 'workspace', 'reslices',
+                'r_' + tile_key + '.png')
+            reslice_img = None
+            # Open reslice file if it exists and save updated reslice:
+            try:
+                if os.path.isfile(reslice_filename):
+                    reslice_img = np.array(Image.open(reslice_filename))
+                if reslice_img is not None and reslice_img.shape[1] == 400:
+                    new_reslice_img = np.concatenate(
+                        (reslice_img, self.tile_reslice_line[tile_key]))
+                    imsave(reslice_filename, new_reslice_img)
+                else:
+                    imsave(reslice_filename, self.tile_reslice_line[tile_key])
+            except:
+                success = False # couldn't write to disk
+        else:
+            success = False # no new reslice line available
+        return success
 
     def process_ov(self, filename, ov_number, slice_number):
         """Load overview image from disk and perform standard tests."""
@@ -243,8 +269,9 @@ class ImageInspector(object):
                 self.ov_stddevs[ov_number].pop(0)
             self.ov_stddevs[ov_number].append(stddev)
 
-            # Keep central 400px line in memory for reslice.
-            # Only saved to disk later (in statistics file) if OV accepted.
+            # Save reslice line in memory. Take a 400-px line from the centre
+            # of the image. This works for all frame resolutions.
+            # Only saved to disk later if OV accepted.
             self.ov_reslice_line[ov_number] = (
                 ov_img[int(height/2):int(height/2)+1,
                        int(width/2)-200:int(width/2)+200])
@@ -257,28 +284,49 @@ class ImageInspector(object):
         return (ov_img, mean, stddev,
                 range_test_passed, load_error, grab_incomplete)
 
-    def save_ov_reslice_and_stats(self, ov_number, slice_number):
-        # Write mean, stddev to file:
-        stats_filename = (self.base_dir + '\\meta\\stats\\OV'
-                          + str(ov_number).zfill(utils.OV_DIGITS) + '.dat')
-        with open(stats_filename, 'a') as file:
-            file.write(str(slice_number) + ';'
-                       + str(self.ov_means[ov_number][-1]) + ';'
-                       + str(self.ov_stddevs[ov_number][-1]) + '\n')
-
-        # Reslice:
-        # Open reslice file if it exists:
-        reslice_filename = (self.base_dir
-                            + '\\workspace\\reslices\\r_OV'
-                            + str(ov_number).zfill(utils.OV_DIGITS)
-                            + '.png')
-        if os.path.isfile(reslice_filename):
-            reslice_img = np.array(Image.open(reslice_filename))
-            new_reslice_img = np.concatenate(
-                (reslice_img, self.ov_reslice_line[ov_number]))
-            imsave(reslice_filename, new_reslice_img)
+    def save_ov_stats(self, ov_number, slice_number):
+        """Write mean and SD of specified overview image to disk."""
+        success = True
+        if ov_number in self.ov_means and ov_number in self.ov_stddevs:
+            stats_filename = os.path.join(
+                self.base_dir, 'meta', 'stats',
+                'OV' + str(ov_number).zfill(utils.OV_DIGITS) + '.dat')
+            # Append to existing file or create new file
+            try:
+                with open(stats_filename, 'a') as file:
+                    file.write(str(slice_number) + ';'
+                               + str(self.ov_means[ov_number][-1]) + ';'
+                               + str(self.ov_stddevs[ov_number][-1]) + '\n')
+            except:
+                success = False # couldn't write to disk
         else:
-            imsave(reslice_filename, self.ov_reslice_line[ov_number])
+            success = False # No stats available for this OV
+        return success
+
+    def save_ov_reslice(self, ov_number):
+        """Write new reslice line of specified overview image to disk."""
+        success = True
+        if (ov_number in self.ov_reslice_line
+            and self.ov_reslice_line[ov_number].shape[1] == 400):
+            reslice_filename = os.path.join(
+                self.base_dir, 'workspace', 'reslices',
+                'r_OV' + str(ov_number).zfill(utils.OV_DIGITS) + '.png')
+            reslice_img = None
+            # Open reslice file if it exists and save updated reslice:
+            try:
+                if os.path.isfile(reslice_filename):
+                    reslice_img = np.array(Image.open(reslice_filename))
+                if reslice_img is not None and reslice_img.shape[1] == 400:
+                    new_reslice_img = np.concatenate(
+                        (reslice_img, self.ov_reslice_line[ov_number]))
+                    imsave(reslice_filename, new_reslice_img)
+                else:
+                    imsave(reslice_filename, self.ov_reslice_line[ov_number])
+            except:
+                success = False
+        else:
+            success = False
+        return success
 
     def detect_debris(self, ov_number, method):
         debris_detected = False

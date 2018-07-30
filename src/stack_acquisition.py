@@ -54,11 +54,12 @@ class Stack():
             104: 'DM communication error (return values could not be read)',
 
             # First digit 2: 3View/SBEM hardware
-            201: 'Motor error (XY target position not reached)',
-            202: 'Motor error (Z target position not reached)',
-            203: 'Motor error (Z move too large)',
+            201: 'Stage error (XY target position not reached)',
+            202: 'Stage error (Z target position not reached)',
+            203: 'Stage error (Z move too large)',
             204: 'Cutting error',
             205: 'Sweeping error',
+            206: 'Z mismatch error',
 
             # First digit 3: SmartSEM/SEM
             301: 'SmartSEM API initialization error',
@@ -605,8 +606,16 @@ class Stack():
 
                         if ov_accepted:
                             # Write stats to disk:
-                            self.img_inspector.save_ov_reslice_and_stats(
+                            success = self.img_inspector.save_ov_stats(
                                 ov_number, self.slice_counter)
+                            if not success:
+                                self.add_to_main_log(
+                                    'CTRL: Error saving OV mean/SD to disk.')
+                            success = self.img_inspector.save_ov_reslice(
+                                ov_number)
+                            if not success:
+                                self.add_to_main_log(
+                                    'CTRL: Error saving OV reslice to disk.')
                         # Mirror:
                         if self.use_mirror_drive:
                             self.mirror_files([ov_filename])
@@ -1367,8 +1376,8 @@ class Stack():
                     # New thumbnail available, show it:
                     self.transmit_cmd('DRAW MV')
 
-                    # When monitoring enabled check if tile ok:
                     tile_accepted = True
+                    # When monitoring enabled check if tile ok:
                     if self.cfg['acq']['monitor_images'] == 'True':
                         if not range_test_passed:
                             tile_accepted = False
@@ -1376,7 +1385,6 @@ class Stack():
                             self.add_to_main_log(
                                 'CTRL: Tile outside of permitted mean/SD '
                                 'range!')
-
                         if (slice_by_slice_test_passed is not None
                             and not slice_by_slice_test_passed):
                             tile_accepted = False
@@ -1384,13 +1392,17 @@ class Stack():
                             self.add_to_main_log(
                                 'CTRL: Tile above mean/SD slice-by-slice '
                                 'thresholds.')
-
+                    # Check for frozen or incomplete frames:
                     if frozen_frame_error:
+                        self.tile_accepted = False
                         self.error_state = 304
                         self.add_to_main_log('CTRL: Tile ' + tile_id
                             + ': SmartSEM frozen frame error!')
                     elif grab_incomplete:
+                        self.tile_accepted = False
                         self.error_state = 303
+                        self.add_to_main_log('CTRL: Tile ' + tile_id
+                            + ': SmartSEM grab incomplete error!')
                     if self.error_state in [505, 506, 507]:
                         # Don't accept tile if autofocus error has ocurred:
                         tile_accepted = False
@@ -1551,8 +1563,17 @@ class Stack():
                                                 grid_number, tile_number,
                                                 tile_width, tile_height)
                     # Save stats and reslice:
-                    self.img_inspector.save_tile_reslice_and_stats(
+                    success = self.img_inspector.save_tile_stats(
                         grid_number, tile_number, self.slice_counter)
+                    if not success:
+                        self.add_to_main_log(
+                            'CTRL: Error saving tile mean and SD to disk.')
+                    success = self.img_inspector.save_tile_reslice(
+                        grid_number, tile_number)
+                    if not success:
+                        self.add_to_main_log(
+                            'CTRL: Error saving tile reslice to disk.')
+
                     # If heuristic autofocus enabled and tile selected as
                     # reference tile, process tile:
                     if (self.af.is_active() and self.af.get_method() == 1
