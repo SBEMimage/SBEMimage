@@ -99,7 +99,6 @@ class ImageInspector(object):
             # error in SmartSEM:
             if self.prev_img_mean_stddev == [mean, stddev]:
                 frozen_frame_error = True
-                self.prev_img_mean_stddev = [0, 0]
             else:
                 frozen_frame_error = False
                 self.prev_img_mean_stddev = [mean, stddev]
