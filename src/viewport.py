@@ -1087,7 +1087,7 @@ class Viewport(QWidget):
             if (show_previews
                     and not self.fov_drag_active
                     and not self.grid_drag_active
-                    and self.cs.get_mv_scale() > 2):
+                    and self.cs.get_mv_scale() > 1.4):
                 # Previews are disabled when FOV or grid is being dragged or
                 # when sufficiently zoomed out.
                 width_px = self.gm.get_tile_width_p(grid_number)
