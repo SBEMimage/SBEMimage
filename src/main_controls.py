@@ -833,15 +833,20 @@ class MainControls(QMainWindow):
 
     def show_current_stage_xy(self):
         xy_pos = self.microtome.get_last_known_xy()
-        position = 'X: ' + '{0:.3f}'.format(xy_pos[0]) + '    ' + \
-                   'Y: ' + '{0:.3f}'.format(xy_pos[1])
-        self.label_currentStageXY.setText(position)
+        if xy_pos[0] is None or xy_pos[1] is None:
+            pos_info = ('X: unknown    Y: unknown')
+        else:
+            pos_info = ('X: {0:.3f}    Y: {1:.3f}'.format(*xy_pos))
+        self.label_currentStageXY.setText(pos_info)
         QApplication.processEvents() # ensures changes are shown without delay
 
     def show_current_stage_z(self):
         z_pos = self.microtome.get_last_known_z()
-        position = 'Z: ' + '{0:.3f}'.format(z_pos)
-        self.label_currentStageZ.setText(position)
+        if z_pos is None:
+            pos_info = 'Z: unknown'
+        else:
+            pos_info = 'Z: {0:.3f}'.format(z_pos)
+        self.label_currentStageZ.setText(pos_info)
         QApplication.processEvents()
 
     def set_statusbar(self, msg):
