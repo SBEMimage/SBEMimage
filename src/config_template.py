@@ -17,7 +17,7 @@
 # deleted from the default configuration files
 CFG_TEMPLATE_FILE = '..\\cfg\\default.ini'
 CFG_NUMBER_SECTIONS = 10
-CFG_NUMBER_KEYS = 179
+CFG_NUMBER_KEYS = 180
 
 SYSCFG_TEMPLATE_FILE = '..\\cfg\\system.cfg'
 SYSCFG_NUMBER_SECTIONS = 7
