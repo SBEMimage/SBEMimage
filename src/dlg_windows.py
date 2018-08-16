@@ -12,7 +12,6 @@
 """This module contains all dialog windows."""
 
 import os
-import shutil
 import re
 import string
 import threading
@@ -1810,6 +1809,8 @@ class ApproachDlg(QDialog):
         self.pushButton_abortApproach.setEnabled(False)
         self.slice_counter = 0
         self.approach_in_progress = False
+        self.aborted = False
+        self.z_mismatch = False
         self.max_slices = self.spinBox_numberSlices.value()
         self.update_progress()
 
@@ -1832,7 +1833,6 @@ class ApproachDlg(QDialog):
             int(self.slice_counter/self.max_slices * 100))
 
     def start_approach(self):
-        self.aborted = False
         self.pushButton_startApproach.setEnabled(False)
         self.pushButton_abortApproach.setEnabled(True)
         self.buttonBox.setEnabled(False)
@@ -1844,6 +1844,7 @@ class ApproachDlg(QDialog):
         thread.start()
 
     def finish_approach(self):
+        # Clear knife
         self.add_to_log('3VIEW: Clearing knife.')
         self.microtome.clear_knife()
         if self.microtome.get_error_state() > 0:
@@ -1864,6 +1865,15 @@ class ApproachDlg(QDialog):
                 QMessageBox.Ok)
             self.slice_counter = 0
             self.update_progress()
+        elif self.z_mismatch:
+            # Show warning message if Z mismatch detected
+            self.microtome.reset_error_state()
+            QMessageBox.warning(
+                self, 'Z position mismatch',
+                'The current Z position does not match the last known '
+                'Z position in SBEMimage. Have you manually changed Z? '
+                'Make sure that the Z position is correct before cutting.',
+                QMessageBox.Ok)
         else:
             QMessageBox.warning(
                 self, 'Approach aborted',
@@ -1882,6 +1892,8 @@ class ApproachDlg(QDialog):
 
     def approach_thread(self):
         self.approach_in_progress = True
+        self.aborted = False
+        self.z_mismatch = False                      
         self.slice_counter = 0
         self.max_slices = self.spinBox_numberSlices.value()
         self.thickness = self.spinBox_thickness.value()
@@ -1896,15 +1908,23 @@ class ApproachDlg(QDialog):
                     'CTRL: Error reading Z position. Approach aborted.')
                 self.microtome.reset_error_state()
                 self.aborted = True
+        if self.microtome.get_error_state() == 206:
+            self.microtome.reset_error_state()
+            self.z_mismatch = True                      
+            self.aborted = True
+            self.add_to_log(
+                'CTRL: Z position mismatch. Approach aborted.')            
         self.main_window_queue.put('UPDATE Z')
         self.main_window_trigger.s.emit()
-        self.microtome.near_knife()
-        self.add_to_log('3VIEW: Moving knife to near position.')
-        if self.microtome.get_error_state() > 0:
-            self.add_to_log(
-                'CTRL: Error moving knife to near position. Approach aborted.')
-            self.aborted = True
-            self.microtome.reset_error_state()
+        if not self.aborted:
+            self.microtome.near_knife()
+            self.add_to_log('3VIEW: Moving knife to near position.')
+            if self.microtome.get_error_state() > 0:
+                self.add_to_log(
+                    'CTRL: Error moving knife to near position. '
+                    'Approach aborted.')
+                self.aborted = True
+                self.microtome.reset_error_state()
         # ====== Approach loop =========
         while (self.slice_counter < self.max_slices) and not self.aborted:
             # Move to new z position:

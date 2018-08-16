@@ -20,7 +20,6 @@ import os
 import threading
 import shutil
 import json
-import requests
 
 from time import sleep
 from queue import Queue
@@ -134,7 +133,17 @@ class MainControls(QMainWindow):
                 'selected EHT. Please calibrate the stage:'
                 '\nMenu  →  Calibration  →  Stage calibration',
                 QMessageBox.Ok)
-
+        # Diplay warning if z coordinate differs from previous session
+        if self.microtome.get_error_state() == 206:
+            self.microtome.reset_error_state()
+            QMessageBox.warning(
+                self, 'Stage Z position',
+                'The current Z position does not match the Z position '
+                'recorded in the current configuration file '
+                '({0:.3f}).'.format(self.microtome.get_stage_z_prev_session())
+                + ' Please make sure that the Z position is correct.',
+                QMessageBox.Ok)
+                    
     def load_gui(self):
         """Load and set up the GUI."""
         loadUi('..\\gui\\main_window.ui', self)
@@ -392,7 +401,7 @@ class MainControls(QMainWindow):
 
         # Initialize DM-3View interface:
         self.microtome = Microtome(self.cfg, self.syscfg)
-        if self.microtome.get_error_state() > 0:
+        if self.microtome.get_error_state() == 101:
             self.add_to_log('3VIEW: Error initializing DigitalMicrograph API.')
             self.add_to_log('3VIEW: ' + self.microtome.get_error_cause())
             QMessageBox.warning(
@@ -419,8 +428,8 @@ class MainControls(QMainWindow):
                 self.cfg['sys']['simulation_mode'] = 'True'
             else:
                 self.add_to_log('3VIEW: Second attempt to initialize '
-                                'DigitalMicrograph API successful.')
-
+                                'DigitalMicrograph API successful.')        
+                
         # Update calibration of stage:
         self.calibration_found = (
             self.microtome.update_stage_calibration(self.sem.get_eht()))
@@ -867,7 +876,7 @@ class MainControls(QMainWindow):
         return super().event(e)
 
     def process_acq_signal(self):
-        """Process signals from acquisition thread or from dialog windows.
+        """Process signals from acquisition thread and from dialog windows.
            The trigger/queue approach is required to pass information
            between threads.
         """
@@ -900,6 +909,14 @@ class MainControls(QMainWindow):
             self.move_stage_success(True)
         elif msg == 'MOVE FAILURE':
             self.move_stage_success(False)
+        elif msg == 'Z WARNING':
+            QMessageBox.warning(
+                self, 'Z position mismatch',
+                'The current Z position does not match the last known '
+                'Z position in SBEMimage. Have you manually changed Z in '
+                'the meantime? Make sure that the Z position is correct '
+                'before (re)starting the stack.',
+                QMessageBox.Ok)
         elif msg == 'FOCUS ALERT':
             QMessageBox.warning(
                 self, 'Focus/stigmation change detected',

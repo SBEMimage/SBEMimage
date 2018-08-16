@@ -36,9 +36,15 @@ class Microtome():
     def __init__(self, config, sysconfig):
         self.cfg = config
         self.syscfg = sysconfig
-        self.last_known_x = 0.0
-        self.last_known_y = 0.0
-        self.last_known_z = 0.0
+        self.last_known_x = None
+        self.last_known_y = None
+        self.last_known_z = None
+        self.prev_known_z = None
+        if self.cfg['microtome']['last_known_z'] == 'None':
+            self.z_prev_session = None
+        else:
+            self.z_prev_session = float(
+                self.cfg['microtome']['last_known_z'])
         self.error_state = 0
         self.error_cause = ''       # additional info on error
         self.motor_warning = False  # True when motors slower than expected
@@ -96,6 +102,12 @@ class Microtome():
                     self.error_state = 101
                     self.error_cause = ('microtome.__init__: stage z position '
                                         'must not be negative.')
+                # Check if z coordinate matches z from previous session:
+                elif (self.z_prev_session is not None
+                      and abs(current_z - self.z_prev_session) > 0.01):
+                    self.error_state = 206
+                    self.error_cause = ('microtome.__init__: stage z position '
+                                        'mismatch')               
                 # Update motor speed calibration in DM script:
                 success = self.write_motor_speed_calibration_to_script()
                 if not success and self.error_state == 0:
@@ -352,9 +364,17 @@ class Microtome():
             z = None
             success = False
         if success:
+            if (self.last_known_z is not None
+                and abs(z - self.last_known_z) > 0.01):
+                self.error_state = 206
+            self.prev_known_z = self.last_known_z
             self.last_known_z = z
+            self.cfg['microtome']['last_known_z'] = str(z)
         return z
 
+    def get_stage_z_prev_session(self):
+        return self.z_prev_session
+        
     def move_stage_to_z(self, z, safe_mode=True):
         """Move stage to new z position. Used during stack acquisition
            before each cut and for sweeps."""
@@ -389,6 +409,9 @@ class Microtome():
 
     def get_last_known_z(self):
         return self.last_known_z
+
+    def get_prev_known_z(self):
+        return self.prev_known_z
 
     def stop_script(self):
         self._send_dm_command('Stop')

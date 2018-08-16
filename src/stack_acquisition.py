@@ -494,9 +494,17 @@ class Stack():
             self.stage_z_position = self.microtome.get_stage_z(wait_interval=2)
             if self.stage_z_position is None or self.stage_z_position < 0:
                 self.error_state = 104
+                self.microtome.reset_error_state()
                 self.pause_acquisition(1)
                 self.add_to_main_log('CTRL: Error reading initial Z position.')
-
+        # Check for Z mismatch:
+        if self.microtome.get_error_state() == 206:
+            self.microtome.reset_error_state()
+            self.error_state = 206
+            self.pause_acquisition(1)
+            # Show warning dialog:
+            self.transmit_cmd('Z WARNING')
+    
         self.transmit_cmd('UPDATE Z')
 
         self.microtome.get_stage_xy(wait_interval=1)
@@ -724,7 +732,7 @@ class Stack():
                         self.add_to_main_log(
                             'CTRL: Stop signal from metadata server '
                             'received.')
-                        if use_email_monitoring:
+                        if self.cfg['acq']['use_email_monitoring'] == 'True':
                             # Send notification email:
                             msg_subject = ('Stack ' + self.stack_name
                                            + ' PAUSED remotely')
