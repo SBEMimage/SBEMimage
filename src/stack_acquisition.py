@@ -504,7 +504,7 @@ class Stack():
             self.pause_acquisition(1)
             # Show warning dialog:
             self.transmit_cmd('Z WARNING')
-    
+
         self.transmit_cmd('UPDATE Z')
 
         self.microtome.get_stage_xy(wait_interval=1)
@@ -1402,12 +1402,12 @@ class Stack():
                                 'thresholds.')
                     # Check for frozen or incomplete frames:
                     if frozen_frame_error:
-                        self.tile_accepted = False
+                        tile_accepted = False
                         self.error_state = 304
                         self.add_to_main_log('CTRL: Tile ' + tile_id
                             + ': SmartSEM frozen frame error!')
                     elif grab_incomplete:
-                        self.tile_accepted = False
+                        tile_accepted = False
                         self.error_state = 303
                         self.add_to_main_log('CTRL: Tile ' + tile_id
                             + ': SmartSEM grab incomplete error!')
