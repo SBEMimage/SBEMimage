@@ -43,6 +43,7 @@ string command_file
 string error_file
 string return_file
 string acknowledge_file
+string acknowledge_file_cut
 string warning_file
 
 string command
@@ -96,6 +97,9 @@ void wait_for_command()
 		}
 		if (DoesFileExist(acknowledge_file)) {
 			DeleteFile(acknowledge_file)
+		}
+		if (DoesFileExist(acknowledge_file_cut)) {
+			DeleteFile(acknowledge_file_cut)
 		}
 		if (DoesFileExist(warning_file)) {
 			DeleteFile(warning_file)
@@ -283,7 +287,7 @@ void wait_for_command()
 			sleep(2)
 			if (cut_ok) {
 				// Create acknowledge file:
-				file = CreateFileForWriting(acknowledge_file)
+				file = CreateFileForWriting(acknowledge_file_cut)
 				closefile(file)
 				result(DateStamp() + ": Done.\n")
 			}
@@ -328,7 +332,7 @@ void wait_for_command()
 			}
 			if (cut_ok) {
 				// Create acknowledge file:
-				file = CreateFileForWriting(acknowledge_file)
+				file = CreateFileForWriting(acknowledge_file_cut)
 				closefile(file)
 				result(DateStamp() + ": Done.\n")
 			}
@@ -603,6 +607,8 @@ trigger_file = install_path + "DMcom.trg"
 command_file = install_path + "DMcom.in"
 // This (empty) file is created to indicate that a command was executed:
 acknowledge_file = install_path + "DMcom.ack"
+// This (empty) file is created to indicate that a full cut was executed:
+acknowledge_file_cut = install_path + "DMcom.ac2"
 // This (empty) file is created to indicate a critical failure:
 error_file = install_path + "DMcom.err"
 // This file contains return value(s) to be read by SBEMimage:

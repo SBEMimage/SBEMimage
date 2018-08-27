@@ -199,7 +199,7 @@ class Microtome():
                 and self.error_state == 0):
             self.error_state = 205
             self.error_cause = 'microtome.do_sweep: sweep distance out of range'
-        else:
+        elif self.error_state == 0:
             # Move to new z position:
             sweep_z_position = z_position - (self.sweep_distance / 1000)
             self.move_stage_to_z(sweep_z_position)
@@ -217,6 +217,12 @@ class Microtome():
                     self.error_state = 205
                     self.error_cause = ('microtome.do_sweep: error during '
                                         'cutting cycle')
+                elif not os.path.exists('..\\dm\\DMcom.ac2'):
+                    # Cut cycle was not carried out:
+                    self.error_state = 103
+                    self.error_cause = ('microtome.do_sweep: command not '
+                                        'processed by DM script')
+                        
             # Move to previous z position (before sweep):
             self.move_stage_to_z(z_position)
             if self.error_state > 0:
@@ -392,7 +398,9 @@ class Microtome():
             # Is there a problem with the motors?
             if os.path.isfile('..\\dm\\DMcom.ack'):
                 # Everything ok! Accept new position as last known position
+                self.prev_known_z = self.last_known_z
                 self.last_known_z = z
+                self.cfg['microtome']['last_known_z'] = str(z)
             elif os.path.isfile('..\\dm\\DMcom.err') and self.error_state == 0:
                 # There was an error during the move!
                 self.error_state = 202
@@ -427,11 +435,20 @@ class Microtome():
         self._send_dm_command('MicrotomeStage_Clear')
         sleep(4)
 
-    def get_error_state(self):
-        # Check if error ocurred during knife movement:
+    def check_for_cut_cycle_error(self):
+        # Check if error ocurred during self.do_full_cut():
         if self.error_state == 0 and os.path.exists('..\\dm\\DMcom.err'):
             self.error_state = 204
-        # Otherwise, return current error_state
+            self.error_cause = ('microtome.do_full_cut: error during '
+                                'cutting cycle')
+        elif not os.path.exists('..\\dm\\DMcom.ac2'):
+            # Cut cycle was not carried out:
+            self.error_state = 103
+            self.error_cause = ('microtome.do_full_cut: command not '
+                                'processed by DM script')
+        
+    def get_error_state(self):
+        # Return current error_state
         return self.error_state
 
     def get_error_cause(self):

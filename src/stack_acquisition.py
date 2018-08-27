@@ -1055,6 +1055,7 @@ class Stack():
             # do the cut (near, cut, retract, clear)
             self.microtome.do_full_cut()
             sleep(self.full_cut_duration)
+            self.microtome.check_for_cut_cycle_error()
             self.error_state = self.microtome.get_error_state()
             self.microtome.reset_error_state()
         if self.error_state > 0:

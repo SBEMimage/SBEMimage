@@ -902,8 +902,10 @@ class MainControls(QMainWindow):
             self.set_statusbar(
                 'Ready. Active configuration: %s' % self.cfg_file)
         elif msg == 'SWEEP SUCCESS':
+            self.show_current_stage_z()
             self.sweep_success(True)
         elif msg == 'SWEEP FAILURE':
+            self.show_current_stage_z()
             self.sweep_success(False)
         elif msg == 'MOVE SUCCESS':
             self.move_stage_success(True)
@@ -1261,8 +1263,9 @@ class MainControls(QMainWindow):
         else:
             self.add_to_log('CTRL: ERROR ocurred during sweep.')
             QMessageBox.warning(self, 'Error during sweep',
-                'An error occurred during the sweep cycle. ' +
-                'Please check the microtome status in DM.', QMessageBox.Ok)
+                'An error occurred during the sweep cycle. '
+                'Please check the microtome status in DM '
+                'and the current Z position.', QMessageBox.Ok)
         self.restrict_gui(False)
         self.viewport.restrict_gui(False)
         self.label_acqIndicator.setText('')

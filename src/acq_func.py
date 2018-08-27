@@ -178,19 +178,13 @@ def sweep(microtome, queue, trigger):
     success = True
     z_position = microtome.get_stage_z(wait_interval=1)
     if (z_position is not None) and (z_position >= 0):
-        sweep_z_position = z_position - (70 / 1000)
-        # Move to new z position:
-        microtome.move_stage_to_z(sweep_z_position)
-        # do a cut cycle above the sample surface to clear away debris:
-        microtome.do_full_cut()
-        sleep(16)
-        # move to previous z position (before sweep):
-        microtome.move_stage_to_z(z_position)
+        microtome.do_sweep(z_position)
         if microtome.get_error_state() > 0:
             success = False
             microtome.reset_error_state()
     else:
         success = False
+        microtome.reset_error_state()
     if success:
         queue.put('SWEEP SUCCESS')
         trigger.s.emit()
