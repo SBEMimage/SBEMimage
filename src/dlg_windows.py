@@ -326,10 +326,10 @@ class CalibrationDlg(QDialog):
         shift = self.spinBox_shift.value()
         pixel_size = self.spinBox_pixelsize.value()
         # Distances in pixels
-        delta_xx = x1x - x2x
-        delta_xy = x2y - x1y
-        delta_yx = y1x - y2x
-        delta_yy = y2y - y1y
+        delta_xx = abs(x1x - x2x)
+        delta_xy = abs(x1y - x2y)
+        delta_yx = abs(y1x - y2x)
+        delta_yy = abs(y1y - y2y)
         # Rotation angles:
         rot_x = atan(delta_xy/delta_xx)
         rot_y = atan(delta_yx/delta_yy)
@@ -1893,7 +1893,7 @@ class ApproachDlg(QDialog):
     def approach_thread(self):
         self.approach_in_progress = True
         self.aborted = False
-        self.z_mismatch = False                      
+        self.z_mismatch = False
         self.slice_counter = 0
         self.max_slices = self.spinBox_numberSlices.value()
         self.thickness = self.spinBox_thickness.value()
@@ -1910,10 +1910,10 @@ class ApproachDlg(QDialog):
                 self.aborted = True
         if self.microtome.get_error_state() == 206:
             self.microtome.reset_error_state()
-            self.z_mismatch = True                      
+            self.z_mismatch = True
             self.aborted = True
             self.add_to_log(
-                'CTRL: Z position mismatch. Approach aborted.')            
+                'CTRL: Z position mismatch. Approach aborted.')
         self.main_window_queue.put('UPDATE Z')
         self.main_window_trigger.s.emit()
         if not self.aborted:
