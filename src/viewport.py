@@ -18,7 +18,6 @@
 import os
 import datetime
 import numpy as np
-from scipy import ndimage
 from PIL import Image
 from math import log, sqrt
 from statistics import mean
@@ -62,6 +61,7 @@ class Viewport(QWidget):
         # for mouse operations (dragging, measuring):
         self.drag_origin = (0, 0)
         self.fov_drag_active = False
+        self.tile_paint_mode_active = False
         self.measure_p1 = (None, None)
         self.measure_p2 = (None, None)
         self.measure_complete = False
@@ -207,7 +207,7 @@ class Viewport(QWidget):
             self.selected_imported = (
                 self.mv_get_imported_mouse_selection(px, py))
 
-            # Shift pressed in first tab? Toggle tile:
+            # Shift pressed in first tab? Toggle tile selection:
             if ((self.tabWidget.currentIndex() == 0)
                and (QApplication.keyboardModifiers() == Qt.ShiftModifier)):
                 if (self.mv_current_grid >= -2
@@ -221,18 +221,22 @@ class Viewport(QWidget):
                             'selection will become effective after imaging of '
                             'the current grid is completed.',
                             QMessageBox.Ok | QMessageBox.Cancel)
-                    if (not self.acq_in_progress
-                        or user_reply == QMessageBox.Ok):
-                        # Toggle tile!
-                        msg = self.gm.toggle_tile(self.selected_grid,
-                                                  self.selected_tile)
-                        # If selected on the fly: Make sure folder exists:
-                        if self.acq_in_progress:
+                        if user_reply == QMessageBox.Ok:
+                            msg = self.gm.toggle_tile(self.selected_grid,
+                                                      self.selected_tile)
+                            self.add_to_main_log(msg)
+                            self.mv_update_after_tile_selection()
+                            # Make sure folder exists:
                             self.transmit_cmd('ADD TILE FOLDER')
-
-                        self.add_to_main_log(msg)
-                        self.mv_update_after_tile_selection()
-
+                    else:
+                        # If no acquisition in progress,
+                        # first toggle current tile:
+                        self.gm.toggle_tile(self.selected_grid, 
+                                            self.selected_tile)   
+                        self.mv_draw() 
+                        # Then enter paint mode until mouse button released.
+                        self.tile_paint_mode_active = True
+           
             # Check if ctrl key is pressed -> Move OV:
             elif ((self.tabWidget.currentIndex() == 0)
                 and (QApplication.keyboardModifiers() == Qt.ControlModifier)
@@ -370,6 +374,17 @@ class Viewport(QWidget):
             if self.tabWidget.currentIndex() == 1:
                 self.sv_shift_fov(drag_vector)
                 self.sv_draw()
+        elif self.tile_paint_mode_active:
+            # Toggle tiles in "painting" mode.
+            prev_selected_grid = self.selected_grid
+            prev_selected_tile = self.selected_tile
+            self.selected_grid, self.selected_tile = \
+                self.mv_get_grid_tile_mouse_selection(px, py)
+            # If mouse has moved to a new tile, toggle it:
+            if (self.selected_grid == prev_selected_grid and
+                self.selected_tile != prev_selected_tile):
+                self.gm.toggle_tile(self.selected_grid, self.selected_tile)   
+                self.mv_draw()                          
         elif ((self.tabWidget.currentIndex() == 0)
             and mouse_pos_within_viewer
             and self.mv_measure_active):
@@ -422,7 +437,9 @@ class Viewport(QWidget):
                         self.ovm.get_ov_width_p(self.selected_ov),
                         self.ovm.get_ov_height_p(self.selected_ov))
                     self.mv_qp.end()
-
+            if self.tile_paint_mode_active:
+                self.tile_paint_mode_active = False
+                self.mv_update_after_tile_selection()
             if self.imported_img_drag_active:
                 self.imported_img_drag_active = False
                 user_reply = QMessageBox.question(
