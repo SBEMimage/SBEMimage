@@ -1356,12 +1356,31 @@ class MainControls(QMainWindow):
 
     def test_send_email(self):
         """Send test e-mail to the primary user."""
-        utils.send_email(smtp_server=self.cfg['sys']['email_smtp'],
-                        sender=self.cfg['sys']['email_account'],
-                        recipients=[self.cfg['monitoring']['user_email']],
-                        subject='Test mail',
-                        main_text='This mail was sent for testing purposes.',
-                        files=[])
+        self.add_to_log('CTRL: Trying to send test e-mail.')
+        success = utils.send_email(
+            smtp_server=self.cfg['sys']['email_smtp'],
+            sender=self.cfg['sys']['email_account'],
+            recipients=[self.cfg['monitoring']['user_email']],
+            subject='Test mail',
+            main_text='This mail was sent for testing purposes.',
+            files=[])
+        if success:
+            self.add_to_log('CTRL: E-mail was sent via '
+                            + self.cfg['sys']['email_smtp'])
+            QMessageBox.information(
+                self, 'E-mail test',
+                'E-mail was sent via ' + self.cfg['sys']['email_smtp']
+                + ' to ' + self.cfg['monitoring']['user_email']
+                + '. Check your inbox.',
+                QMessageBox.Ok)
+        else:
+            self.add_to_log('CTRL: Error: Could not send e-mail.')
+            QMessageBox.warning(
+                self, 'E-mail test failed',
+                'A error occurred while trying to send a test e-mail to ' 
+                + self.cfg['monitoring']['user_email'] + ' via '
+                + self.cfg['sys']['email_smtp'],
+                QMessageBox.Ok)        
 
     def test_plasma_cleaner(self):
         if self.plc_installed:

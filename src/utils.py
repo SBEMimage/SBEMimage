@@ -17,6 +17,7 @@ import json
 import re
 import imaplib
 import smtplib
+import socket
 import requests
 
 from time import sleep
@@ -181,10 +182,12 @@ def send_email(smtp_server, sender, recipients, subject, main_text, files=[]):
                                 os.path.basename(f)))
             msg.attach(part)
         mail_server = smtplib.SMTP(smtp_server)
+        #mail_server = smtplib.SMTP_SSL(smtp_server)
         mail_server.sendmail(sender, recipients, msg.as_string())
         mail_server.quit()
         return True
-    except:
+    except (socket.error, smtplib.SMTPException) as exc:
+        print(exc)
         return False
 
 def get_remote_command(imap_server, email_account, email_pw, allowed_senders):
