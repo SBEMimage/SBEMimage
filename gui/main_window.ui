@@ -1281,19 +1281,19 @@
       <property name="geometry">
        <rect>
         <x>20</x>
-        <y>450</y>
-        <width>61</width>
+        <y>440</y>
+        <width>101</width>
         <height>23</height>
        </rect>
       </property>
       <property name="text">
-       <string>Start</string>
+       <string>Run cycle</string>
       </property>
      </widget>
      <widget class="QRadioButton" name="radioButton_focus">
       <property name="geometry">
        <rect>
-        <x>420</x>
+        <x>440</x>
         <y>430</y>
         <width>82</width>
         <height>17</height>
@@ -1309,7 +1309,7 @@
      <widget class="QRadioButton" name="radioButton_stigX">
       <property name="geometry">
        <rect>
-        <x>420</x>
+        <x>440</x>
         <y>450</y>
         <width>82</width>
         <height>17</height>
@@ -1322,7 +1322,7 @@
      <widget class="QRadioButton" name="radioButton_stigY">
       <property name="geometry">
        <rect>
-        <x>420</x>
+        <x>440</x>
         <y>470</y>
         <width>82</width>
         <height>17</height>
@@ -1335,7 +1335,7 @@
      <widget class="QComboBox" name="comboBox_selectTileFT">
       <property name="geometry">
        <rect>
-        <x>190</x>
+        <x>220</x>
         <y>450</y>
         <width>91</width>
         <height>22</height>
@@ -1472,7 +1472,7 @@
       </property>
       <property name="geometry">
        <rect>
-        <x>510</x>
+        <x>520</x>
         <y>430</y>
         <width>71</width>
         <height>20</height>
@@ -1485,7 +1485,7 @@
       </property>
       <property name="geometry">
        <rect>
-        <x>510</x>
+        <x>520</x>
         <y>450</y>
         <width>71</width>
         <height>20</height>
@@ -1498,7 +1498,7 @@
       </property>
       <property name="geometry">
        <rect>
-        <x>510</x>
+        <x>520</x>
         <y>470</y>
         <width>71</width>
         <height>20</height>
@@ -1508,7 +1508,7 @@
      <widget class="QLabel" name="label_13">
       <property name="geometry">
        <rect>
-        <x>590</x>
+        <x>600</x>
         <y>433</y>
         <width>31</width>
         <height>13</height>
@@ -1521,7 +1521,7 @@
      <widget class="QLabel" name="label_17">
       <property name="geometry">
        <rect>
-        <x>590</x>
+        <x>600</x>
         <y>453</y>
         <width>31</width>
         <height>16</height>
@@ -1534,7 +1534,7 @@
      <widget class="QLabel" name="label_18">
       <property name="geometry">
        <rect>
-        <x>590</x>
+        <x>600</x>
         <y>473</y>
         <width>21</width>
         <height>16</height>
@@ -1547,7 +1547,7 @@
      <widget class="QComboBox" name="comboBox_selectGridFT">
       <property name="geometry">
        <rect>
-        <x>110</x>
+        <x>140</x>
         <y>450</y>
         <width>81</width>
         <height>22</height>
@@ -1573,7 +1573,7 @@
      <widget class="QComboBox" name="comboBox_selectOVFT">
       <property name="geometry">
        <rect>
-        <x>300</x>
+        <x>330</x>
         <y>450</y>
         <width>81</width>
         <height>22</height>
@@ -1583,7 +1583,7 @@
      <widget class="QPushButton" name="pushButton_focusToolSet">
       <property name="geometry">
        <rect>
-        <x>620</x>
+        <x>630</x>
         <y>450</y>
         <width>41</width>
         <height>23</height>
@@ -1596,7 +1596,7 @@
      <widget class="QLabel" name="label_AFnotification">
       <property name="geometry">
        <rect>
-        <x>110</x>
+        <x>140</x>
         <y>480</y>
         <width>211</width>
         <height>16</height>
@@ -1610,6 +1610,19 @@
       </property>
       <property name="text">
        <string/>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_focusToolMove">
+      <property name="geometry">
+       <rect>
+        <x>20</x>
+        <y>460</y>
+        <width>101</width>
+        <height>23</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Move to tile/OV</string>
       </property>
      </widget>
     </widget>

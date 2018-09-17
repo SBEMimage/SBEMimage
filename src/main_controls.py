@@ -50,8 +50,9 @@ from dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                         SaveConfigDlg, PlasmaCleanerDlg, OVSettingsDlg, \
                         ApproachDlg, MirrorDriveDlg, ExportDlg, MotorTestDlg, \
                         CalibrationDlg, PreStackDlg, PauseDlg, StubOVDlg, \
-                        EHTDlg, GrabFrameDlg, FTSetParamsDlg, AskUserDlg, \
-                        ImportImageDlg, AdjustImageDlg, DeleteImageDlg, AboutBox
+                        EHTDlg, GrabFrameDlg, FTSetParamsDlg, FTMoveDlg, \
+                        AskUserDlg, ImportImageDlg, AdjustImageDlg, \
+                        DeleteImageDlg, AboutBox
 
 
 class Trigger(QObject):
@@ -1733,6 +1734,7 @@ class MainControls(QMainWindow):
         self.ft_zoom = False
         # Focus tool start and set buttons:
         self.pushButton_focusToolStart.clicked.connect(self.ft_start)
+        self.pushButton_focusToolMove.clicked.connect(self.ft_open_move_dlg)
         self.pushButton_focusToolSet.clicked.connect(
             self.ft_open_set_params_dlg)
         # Default pixel size:
@@ -1841,9 +1843,24 @@ class MainControls(QMainWindow):
             QMessageBox.information(
                 self, 'Select target tile/OV',
                 'To set specific WD/stigmation values, you have to select '
-                'a tile or an overview image.',
+                'a tile or an overview.',
                 QMessageBox.Ok)
 
+    def ft_open_move_dlg(self):
+        if (self.ft_selected_tile >=0) or (self.ft_selected_ov >= 0):
+            dialog = FTMoveDlg(self.microtome, self.cs, self.gm,
+                               self.ft_selected_grid, self.ft_selected_tile, 
+                               self.ft_selected_ov)
+            dialog.exec_()
+            # Update stage position in main controls tab
+            self.show_current_stage_xy()
+        else:
+            QMessageBox.information(
+                self, 'Select tile/OV',
+                'You must first select a tile or an overview to use the '
+                '"Move" function.',
+                QMessageBox.Ok)       
+            
     def ft_run_cycle(self):
         self.pushButton_focusToolStart.setText('Busy')
         self.pushButton_focusToolStart.setEnabled(False)
@@ -1934,6 +1951,8 @@ class MainControls(QMainWindow):
     def ft_series_complete(self):
         self.pushButton_focusToolStart.setText('Done')
         self.pushButton_focusToolStart.setEnabled(True)
+        # Stage position may have changed. Update in main controls tab
+        self.show_current_stage_xy()
         # Increase counter to move to fresh area for next cycle:
         self.ft_counter += 1
         if self.ft_counter > 10:

@@ -2198,6 +2198,71 @@ class FTSetParamsDlg(QDialog):
 
 #------------------------------------------------------------------------------
 
+class FTMoveDlg(QDialog):
+    """Move the stage to the selected tile or OV position."""
+
+    def __init__(self, microtome, coordinate_system, grid_manager,
+                 grid_number, tile_number, ov_number):
+        super(FTMoveDlg, self).__init__()
+        self.microtome = microtome
+        self.cs = coordinate_system
+        self.gm = grid_manager
+        self.ov_number = ov_number
+        self.grid_number = grid_number
+        self.tile_number = tile_number
+        self.error = False
+        self.finish_trigger = Trigger()
+        self.finish_trigger.s.connect(self.move_completed)
+        loadUi('..\\gui\\focus_tool_move_dlg.ui', self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setFixedSize(self.size())
+        self.show()
+        self.pushButton_move.clicked.connect(self.start_move)
+        if ov_number >= 0:
+            self.label_moveTarget.setText('OV ' + str(ov_number))
+        elif (grid_number >= 0) and (tile_number >= 0):
+            self.label_moveTarget.setText(
+                'Grid: %d, Tile: %d' % (grid_number, tile_number))
+
+    def start_move(self):
+        self.error = False
+        self.pushButton_move.setText('Busy... please wait.')
+        self.pushButton_move.setEnabled(False)
+        thread = threading.Thread(target=self.move_and_wait)
+        thread.start()
+        
+    def move_and_wait(self):
+        # Load target coordinates
+        if self.ov_number >= 0:
+            stage_x, stage_y = self.cs.get_ov_centre_s(self.ov_number)            
+        elif self.tile_number >= 0:
+            stage_x, stage_y = self.gm.get_tile_coordinates_s(
+                self.grid_number, self.tile_number)
+        # Now move the stage
+        self.microtome.move_stage_to_xy((stage_x, stage_y))
+        if self.microtome.get_error_state() > 0:
+            self.error = True
+            self.microtome.reset_error_state()
+        # Signal that move complete
+        self.finish_trigger.s.emit()
+
+    def move_completed(self):
+        if self.error:
+            QMessageBox.warning(self, 'Error',
+                'An error was detected during the move. '
+                'Please try again.',
+                QMessageBox.Ok)
+        else:
+            QMessageBox.information(self, 'Move complete',
+                'The stage has been moved to the selected position.',
+                QMessageBox.Ok)
+        # Enable button again:
+        self.pushButton_move.setText('Move again')
+        self.pushButton_move.setEnabled(True)    
+            
+#------------------------------------------------------------------------------
+
 class MotorTestDlg(QDialog):
     """Perform a random-walk XYZ motor test. Experimental, only for testing/
        debugging."""
