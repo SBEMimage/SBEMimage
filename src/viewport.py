@@ -29,6 +29,7 @@ from PyQt5.QtGui import QPixmap, QPainter, QColor, QFont, QIcon, QPen, \
 from PyQt5.QtCore import Qt, QObject, QRect, QPoint, QSize
 
 import utils
+from dlg_windows import AdaptiveFocusSelectionDlg
 
 
 class Viewport(QWidget):
@@ -774,18 +775,22 @@ class Viewport(QWidget):
             action4.triggered.connect(self.mv_select_all_tiles)
             action5 = menu.addAction('Deselect all tiles in grid')
             action5.triggered.connect(self.mv_deselect_all_tiles)
+            action6 = menu.addAction('Select/deselect for autofocus')
+            action6.triggered.connect(self.mv_toggle_tile_autofocus)
+            action7 = menu.addAction('Select/deselect for adaptive focus')
+            action7.triggered.connect(self.mv_toggle_tile_adaptive_focus)
             menu.addSeparator()
-            action6 = menu.addAction(current_pos_str)
-            action6.triggered.connect(self.mv_move_to_stage_pos)
-            action7 = menu.addAction('Set stub OV centre')
-            action7.triggered.connect(self.mv_set_stub_ov_centre)
+            action8 = menu.addAction(current_pos_str)
+            action8.triggered.connect(self.mv_move_to_stage_pos)
+            action9 = menu.addAction('Set stub OV centre')
+            action9.triggered.connect(self.mv_set_stub_ov_centre)
             menu.addSeparator()
-            action8 = menu.addAction('Import and place image')
-            action8.triggered.connect(self.mv_import_image)
-            action9 = menu.addAction('Adjust imported image')
-            action9.triggered.connect(self.mv_adjust_imported_image)
-            action10 = menu.addAction('Delete imported image')
-            action10.triggered.connect(self.mv_delete_imported_image)
+            action10 = menu.addAction('Import and place image')
+            action10.triggered.connect(self.mv_import_image)
+            action11 = menu.addAction('Adjust imported image')
+            action11.triggered.connect(self.mv_adjust_imported_image)
+            action12 = menu.addAction('Delete imported image')
+            action12.triggered.connect(self.mv_delete_imported_image)
 
             if (self.selected_tile is None) and (self.selected_ov is None):
                 action1.setEnabled(False)
@@ -795,17 +800,17 @@ class Viewport(QWidget):
                 action4.setEnabled(False)
                 action5.setEnabled(False)
             if self.selected_imported is None:
-                action9.setEnabled(False)
+                action11.setEnabled(False)
             if self.ovm.get_number_imported == 0:
-                action10.setEnabled(False)
+                action12.setEnabled(False)
             if self.acq_in_progress:
                 action4.setEnabled(False)
                 action5.setEnabled(False)
                 action6.setEnabled(False)
                 action7.setEnabled(False)
             if self.cfg['sys']['simulation_mode'] == 'True':
-                action6.setEnabled(False)
-                action7.setEnabled(False)
+                action8.setEnabled(False)
+                action9.setEnabled(False)
             menu.exec_(self.mapToGlobal(p))
 
     def mv_get_selected_stage_pos(self):
@@ -1583,6 +1588,32 @@ class Viewport(QWidget):
             self.add_to_main_log('CTRL: All tiles in grid %d deselected.'
                                  % self.selected_grid)
             self.mv_update_after_tile_selection()
+            
+    def mv_toggle_tile_autofocus(self):
+        if self.selected_grid is not None and self.selected_tile is not None:
+            ref_tiles = self.af.get_ref_tiles()
+            tile_id = str(self.selected_grid) + '.' + str(self.selected_tile)
+            if tile_id in ref_tiles:
+                ref_tiles.remove(tile_id)
+            else:
+                ref_tiles.append(tile_id)
+            self.af.set_ref_tiles(ref_tiles)    
+            self.mv_draw()
+    
+    def mv_toggle_tile_adaptive_focus(self):
+        if self.selected_grid is not None and self.selected_tile is not None:
+            af_tiles = self.gm.get_adaptive_focus_tiles(self.selected_grid)
+            if self.selected_tile in af_tiles:
+                af_tiles[af_tiles.index(self.selected_tile)] = -1
+            else:
+                # Let user choose the intended relative position of the tile:
+                dialog = AdaptiveFocusSelectionDlg(af_tiles)
+                if dialog.exec_():
+                    if dialog.selected is not None:
+                        af_tiles[dialog.selected] = self.selected_tile
+            self.gm.set_adaptive_focus_tiles(self.selected_grid, af_tiles)
+            self.transmit_cmd('UPDATE FT TILE SELECTOR')
+            self.mv_draw()            
 
     def mv_toggle_measure(self):
         self.mv_measure_active = not self.mv_measure_active

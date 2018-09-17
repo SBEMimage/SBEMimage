@@ -1015,6 +1015,8 @@ class MainControls(QMainWindow):
             self.show_estimates()
         elif msg == 'LOAD IN FOCUS TOOL':
             self.ft_set_selection_from_mv()
+        elif msg == 'UPDATE FT TILE SELECTOR':
+            self.ft_update_tile_selector()
         elif msg == 'MOVE STAGE':
             self.move_stage()
         elif msg == 'ADD TILE FOLDER':
@@ -2151,7 +2153,14 @@ class MainControls(QMainWindow):
         selected_tile = self.viewport.mv_get_selected_tile()
         if (selected_grid is not None) and (selected_tile is not None):
             self.ft_selected_grid = selected_grid
-            self.ft_selected_tile = selected_tile
+            if self.gm.is_adaptive_focus_active(selected_grid):
+                af_tiles = self.gm.get_adaptive_focus_tiles(selected_grid)
+                if selected_tile in af_tiles:
+                    self.ft_selected_tile = af_tiles.index(selected_tile)
+                else:
+                    self.ft_selected_tile = -1
+            else:
+                self.ft_selected_tile = selected_tile
             self.comboBox_selectGridFT.blockSignals(True)
             self.comboBox_selectGridFT.setCurrentIndex(self.ft_selected_grid)
             self.comboBox_selectGridFT.blockSignals(False)

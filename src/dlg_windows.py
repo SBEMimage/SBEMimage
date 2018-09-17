@@ -971,6 +971,47 @@ class AdaptiveFocusSettingsDlg(QDialog):
 
 #------------------------------------------------------------------------------
 
+class AdaptiveFocusSelectionDlg(QDialog):
+
+    def __init__(self, current_af_tiles):
+        super(AdaptiveFocusSelectionDlg, self).__init__()
+        self.selected = None
+        loadUi('..\\gui\\adaptive_focus_selection_dlg.ui', self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setFixedSize(self.size())
+        self.show()
+        self.grid_illustration.setPixmap(QPixmap('..\\img\\grid.png'))
+        if current_af_tiles[0] >= 0:
+            self.pushButton_pos0.setText(str(current_af_tiles[0]))
+        else:
+            self.pushButton_pos0.setText('-')
+        if current_af_tiles[1] >= 0:
+            self.pushButton_pos1.setText(str(current_af_tiles[1]))
+        else:
+            self.pushButton_pos1.setText('-')
+        if current_af_tiles[2] >= 0:
+            self.pushButton_pos2.setText(str(current_af_tiles[2]))
+        else:
+            self.pushButton_pos2.setText('-')
+        self.pushButton_pos0.clicked.connect(self.select_pos0)
+        self.pushButton_pos1.clicked.connect(self.select_pos1)
+        self.pushButton_pos2.clicked.connect(self.select_pos2)
+        
+    def select_pos0(self):
+        self.selected = 0
+        super(AdaptiveFocusSelectionDlg, self).accept()
+        
+    def select_pos1(self):
+        self.selected = 1 
+        super(AdaptiveFocusSelectionDlg, self).accept()
+
+    def select_pos2(self):
+        self.selected = 2 
+        super(AdaptiveFocusSelectionDlg, self).accept()
+        
+#------------------------------------------------------------------------------
+
 class AcqSettingsDlg(QDialog):
     """Let user adjust acquisition settings."""
 

@@ -501,7 +501,13 @@ class GridManager(object):
         self.cfg['grids']['use_adaptive_focus'] = str(self.af_active)
 
     def get_af_tile_str_list(self, grid_number):
-        return ['Tile %d' % t for t in self.af_tiles[grid_number]]
+        str_list = []
+        for tile in self.af_tiles[grid_number]:
+            if tile >= 0:
+                str_list.append('Tile %d' % tile)
+            else:
+                str_list.append('No tile selected')        
+        return str_list
 
     def update_active_tiles_to_new_grid_size(self, grid_number, new_size):
         current_rows, current_cols = self.size[grid_number]
