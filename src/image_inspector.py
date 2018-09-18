@@ -104,9 +104,12 @@ class ImageInspector(object):
                 self.prev_img_mean_stddev = [mean, stddev]
 
             height, width = img.shape[0], img.shape[1]
-            # Was complete image grabbed? Test final line of image is black:
+            # Was complete image grabbed? Test if first or final line of image 
+            # is black/white/uniform greyscale (bug in SmartSEM)
+            first_line = img[0:1,:]
             final_line = img[height-1:height,:]
-            if np.min(final_line) == np.max(final_line):
+            if (np.min(first_line) == np.max(first_line) or
+                np.min(final_line) == np.max(final_line)):
                 grab_incomplete = True
             else:
                 grab_incomplete = False
