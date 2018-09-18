@@ -382,10 +382,18 @@ class Viewport(QWidget):
             self.selected_grid, self.selected_tile = \
                 self.mv_get_grid_tile_mouse_selection(px, py)
             # If mouse has moved to a new tile, toggle it:
-            if (self.selected_grid == prev_selected_grid and
-                self.selected_tile != prev_selected_tile):
-                self.gm.toggle_tile(self.selected_grid, self.selected_tile)   
-                self.mv_draw()                          
+            if (self.selected_grid is not None
+                and self.selected_tile is not None):
+                if ((self.selected_grid == prev_selected_grid 
+                     and self.selected_tile != prev_selected_tile)
+                    or self.selected_grid != prev_selected_grid):
+                        self.gm.toggle_tile(self.selected_grid, 
+                                            self.selected_tile)   
+                        self.mv_draw()
+            else:
+                # Disable paint mode when mouse moved beyond grid edge.
+                self.tile_paint_mode_active = False
+                                          
         elif ((self.tabWidget.currentIndex() == 0)
             and mouse_pos_within_viewer
             and self.mv_measure_active):
