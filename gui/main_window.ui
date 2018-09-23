@@ -2022,6 +2022,7 @@
     <property name="title">
      <string>Calibration</string>
     </property>
+    <addaction name="actionMagnificationCalibration"/>
     <addaction name="actionStageCalibration"/>
    </widget>
    <addaction name="menuFile"/>
@@ -2138,6 +2139,11 @@
   <action name="actionLeaveSimulationMode">
    <property name="text">
     <string>Leave simulation mode</string>
+   </property>
+  </action>
+  <action name="actionMagnificationCalibration">
+   <property name="text">
+    <string>Magnification calibration</string>
    </property>
   </action>
  </widget>

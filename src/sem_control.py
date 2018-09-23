@@ -83,6 +83,14 @@ class SEM():
         # M = MAG_PX_SIZE_FACTOR / (STORE_RES_X * PX_SIZE)
         self.MAG_PX_SIZE_FACTOR = int(self.syscfg['sem']['mag_px_size_factor'])
 
+    def get_mag_px_size_factor(self):
+        return self.MAG_PX_SIZE_FACTOR
+        
+    def set_mag_px_size_factor(self, new_factor):
+        self.MAG_PX_SIZE_FACTOR = new_factor
+        # Save in sysconfig:
+        self.syscfg['sem']['mag_px_size_factor'] = str(new_factor)    
+        
     def turn_eht_on(self):
         ret_val = self.sem_api.Execute('CMD_BEAM_ON')
         if ret_val == 0:

@@ -49,10 +49,11 @@ from dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                         ImageMonitoringSettingsDlg, AcqSettingsDlg, \
                         SaveConfigDlg, PlasmaCleanerDlg, OVSettingsDlg, \
                         ApproachDlg, MirrorDriveDlg, ExportDlg, MotorTestDlg, \
-                        CalibrationDlg, PreStackDlg, PauseDlg, StubOVDlg, \
-                        EHTDlg, GrabFrameDlg, FTSetParamsDlg, FTMoveDlg, \
-                        AskUserDlg, ImportImageDlg, AdjustImageDlg, \
-                        DeleteImageDlg, AboutBox
+                        CalibrationDlg, MagCalibrationDlg, PreStackDlg, \
+                        PauseDlg, StubOVDlg, EHTDlg, GrabFrameDlg, \
+                        FTSetParamsDlg, FTMoveDlg, AskUserDlg, \
+                        ImportImageDlg, AdjustImageDlg, DeleteImageDlg, \
+                        AboutBox
 
 
 class Trigger(QObject):
@@ -226,6 +227,8 @@ class MainControls(QMainWindow):
         self.actionAboutBox.triggered.connect(self.open_about_box)
         self.actionStageCalibration.triggered.connect(
             self.open_calibration_dlg)
+        self.actionMagnificationCalibration.triggered.connect(
+            self.open_mag_calibration_dlg)
         self.actionExport.triggered.connect(self.open_export_dlg)
         # Buttons for testing purposes (third tab)
         self.pushButton_testGetMag.clicked.connect(self.test_get_mag)
@@ -672,6 +675,10 @@ class MainControls(QMainWindow):
             if (self.cfg['debris']['auto_detection_area'] == 'True'):
                 self.ovm.update_all_ov_debris_detections_areas(self.gm)
             self.viewport.mv_draw()
+            
+    def open_mag_calibration_dlg(self):
+        dialog = MagCalibrationDlg(self.sem)
+        dialog.exec_()
 
     def open_ov_dlg(self):
         dialog = OVSettingsDlg(self.ovm, self.sem, self.current_ov,

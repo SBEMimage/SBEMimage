@@ -370,6 +370,47 @@ class CalibrationDlg(QDialog):
 
 #------------------------------------------------------------------------------
 
+class MagCalibrationDlg(QDialog):
+    """Calibrate the relationship between magnification and pixel size."""
+
+    def __init__(self, sem):
+        super(MagCalibrationDlg, self).__init__()
+        self.sem = sem
+        loadUi('..\\gui\\mag_calibration_dlg.ui', self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setFixedSize(self.size())
+        self.show()
+        self.spinBox_calibrationFactor.setValue(
+            self.sem.get_mag_px_size_factor()) 
+        self.comboBox_frameWidth.addItems(['2048', '4096'])
+        self.comboBox_frameWidth.setCurrentIndex(1)
+        self.pushButton_calculate.clicked.connect(
+            self.calculate_calibration_factor)
+
+    def calculate_calibration_factor(self):
+        """Calculate the mag calibration factor from the frame width, the 
+        magnification and the pixel size.
+        """
+        frame_width = int(str(self.comboBox_frameWidth.currentText()))
+        pixel_size = self.doubleSpinBox_pixelSize.value()
+        mag = self.spinBox_mag.value()
+        new_factor = mag * frame_width * pixel_size     
+        user_choice = QMessageBox.information(
+            self, 'Calculated calibration factor',
+            'Result:\nNew magnification calibration factor: %d '
+            '\n\nDo you want to use this value?' % new_factor,
+            QMessageBox.Ok | QMessageBox.Cancel)
+        if user_choice == QMessageBox.Ok:
+            self.spinBox_calibrationFactor.setValue(new_factor)
+ 
+    def accept(self):
+        self.sem.set_mag_px_size_factor(
+            self.spinBox_calibrationFactor.value())
+        super(MagCalibrationDlg, self).accept()      
+        
+#------------------------------------------------------------------------------
+
 class OVSettingsDlg(QDialog):
     """Let the user change all settings for each overview image."""
 
