@@ -114,8 +114,12 @@ class Stack():
         self.slice_thickness = int(self.cfg['acq']['slice_thickness'])
         self.total_z_diff = float(self.cfg['acq']['total_z_diff'])
         self.stage_z_position = None  # updated when stack (re)started.
-        self.full_cut_duration = self.microtome.get_full_cut_duration()
-        self.sweep_distance = self.microtome.get_sweep_distance()
+        if self.microtome is not None:
+            self.full_cut_duration = self.microtome.get_full_cut_duration()
+            self.sweep_distance = self.microtome.get_sweep_distance()
+        else:
+            self.full_cut_duration = 0
+            self.sweep_distance = None
         self.eht_off_after_stack = (
             self.cfg['acq']['eht_off_after_stack'] == 'True')
         # Was previous acq interrupted by error or paused inbetween by user?

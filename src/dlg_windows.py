@@ -178,49 +178,57 @@ class SEMSettingsDlg(QDialog):
 class MicrotomeSettingsDlg(QDialog):
     """Adjust stage motor limits and wait interval after stage moves."""
 
-    def __init__(self, microtome):
+    def __init__(self, stage, microtome, microtome_active=True):
         super(MicrotomeSettingsDlg, self).__init__()
+        self.stage = stage
         self.microtome = microtome
+        self.microtom_active = microtome_active
         loadUi('..\\gui\\microtome_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
+        # If microtome not active, change selection label:
+        if microtome_active:
+            self.label_selectedStage.setText('Microtome stage active.')
+        else:
+            self.label_selectedStage.setText('SEM stage active.')
+        if microtome_active:
+            # Display settings that can only be changed in DM:
+            self.lineEdit_knifeCutSpeed.setText(
+                str(self.microtome.get_knife_cut_speed()))
+            self.lineEdit_knifeRetractSpeed.setText(
+                str(self.microtome.get_knife_retract_speed()))
+            self.checkBox_useOscillation.setChecked(
+                self.microtome.is_oscillation_enabled())
+            # Settings changeable in GUI:
+            self.doubleSpinBox_waitInterval.setValue(
+                self.microtome.get_stage_move_wait_interval())
+            current_motor_limits = self.microtome.get_motor_limits()
+            self.spinBox_stageMinX.setValue(current_motor_limits[0])
+            self.spinBox_stageMaxX.setValue(current_motor_limits[1])
+            self.spinBox_stageMinY.setValue(current_motor_limits[2])
+            self.spinBox_stageMaxY.setValue(current_motor_limits[3])
 
-        # Display settings that can only be changed in DM:
-        self.lineEdit_knifeCutSpeed.setText(
-            str(self.microtome.get_knife_cut_speed()))
-        self.lineEdit_knifeRetractSpeed.setText(
-            str(self.microtome.get_knife_retract_speed()))
-        self.checkBox_useOscillation.setChecked(
-            self.microtome.is_oscillation_enabled())
-        # Settings changeable in GUI:
-        self.doubleSpinBox_waitInterval.setValue(
-            self.microtome.get_stage_move_wait_interval())
-        current_motor_limits = self.microtome.get_motor_limits()
-        self.spinBox_stageMinX.setValue(current_motor_limits[0])
-        self.spinBox_stageMaxX.setValue(current_motor_limits[1])
-        self.spinBox_stageMinY.setValue(current_motor_limits[2])
-        self.spinBox_stageMaxY.setValue(current_motor_limits[3])
-
-        # Other settings that can be changed in SBEMimage,
-        # but in a different dialog (CalibrationDgl):
-        current_calibration = self.microtome.get_stage_calibration()
-        self.lineEdit_scaleFactorX.setText(str(current_calibration[0]))
-        self.lineEdit_scaleFactorY.setText(str(current_calibration[1]))
-        self.lineEdit_rotationX.setText(str(current_calibration[2]))
-        self.lineEdit_rotationY.setText(str(current_calibration[3]))
-        # Motor speeds:
-        speed_x, speed_y = self.microtome.get_motor_speed_calibration()
-        self.lineEdit_speedX.setText(str(speed_x))
-        self.lineEdit_speedY.setText(str(speed_y))
+            # Other settings that can be changed in SBEMimage,
+            # but in a different dialog (CalibrationDgl):
+            current_calibration = self.microtome.get_stage_calibration()
+            self.lineEdit_scaleFactorX.setText(str(current_calibration[0]))
+            self.lineEdit_scaleFactorY.setText(str(current_calibration[1]))
+            self.lineEdit_rotationX.setText(str(current_calibration[2]))
+            self.lineEdit_rotationY.setText(str(current_calibration[3]))
+            # Motor speeds:
+            speed_x, speed_y = self.microtome.get_motor_speed_calibration()
+            self.lineEdit_speedX.setText(str(speed_x))
+            self.lineEdit_speedY.setText(str(speed_y))
 
     def accept(self):
-        self.microtome.set_stage_move_wait_interval(
-            self.doubleSpinBox_waitInterval.value())
-        self.microtome.set_motor_limits([
-            self.spinBox_stageMinX.value(), self.spinBox_stageMaxX.value(),
-            self.spinBox_stageMinY.value(), self.spinBox_stageMaxY.value()])
+        if self.microtom_active:
+            self.microtome.set_stage_move_wait_interval(
+                self.doubleSpinBox_waitInterval.value())
+            self.microtome.set_motor_limits([
+                self.spinBox_stageMinX.value(), self.spinBox_stageMaxX.value(),
+                self.spinBox_stageMinY.value(), self.spinBox_stageMaxY.value()])
         super(MicrotomeSettingsDlg, self).accept()
 
 #------------------------------------------------------------------------------
@@ -228,10 +236,10 @@ class MicrotomeSettingsDlg(QDialog):
 class CalibrationDlg(QDialog):
     """Calibrate the stage (rotation and scaling) and the motor speeds."""
 
-    def __init__(self, config, microtome, sem):
+    def __init__(self, config, stage, sem):
         super(CalibrationDlg, self).__init__()
         self.base_dir = config['acq']['base_dir']
-        self.microtome = microtome
+        self.stage = stage
         self.sem = sem
         self.current_eht = self.sem.get_eht()
         loadUi('..\\gui\\calibration_dlg.ui', self)
@@ -240,14 +248,14 @@ class CalibrationDlg(QDialog):
         self.setFixedSize(self.size())
         self.show()
         self.lineEdit_EHT.setText('{0:.2f}'.format(self.current_eht))
-        params = self.microtome.get_stage_calibration()
-        self.doubleSpinBox_stageScaleFactorX.setValue(params[0])
-        self.doubleSpinBox_stageScaleFactorY.setValue(params[1])
-        self.doubleSpinBox_stageRotationX.setValue(params[2])
-        self.doubleSpinBox_stageRotationY.setValue(params[3])
-        speed_x, speed_y = self.microtome.get_motor_speed_calibration()
-        self.doubleSpinBox_motorSpeedX.setValue(speed_x)
-        self.doubleSpinBox_motorSpeedY.setValue(speed_y)
+        #params = self.microtome.get_stage_calibration()
+        #self.doubleSpinBox_stageScaleFactorX.setValue(params[0])
+        #self.doubleSpinBox_stageScaleFactorY.setValue(params[1])
+        #self.doubleSpinBox_stageRotationX.setValue(params[2])
+        #self.doubleSpinBox_stageRotationY.setValue(params[3])
+        #speed_x, speed_y = self.microtome.get_motor_speed_calibration()
+        #self.doubleSpinBox_motorSpeedX.setValue(speed_x)
+        #self.doubleSpinBox_motorSpeedY.setValue(speed_y)
         self.pushButton_startImageAcq.clicked.connect(
             self.acquire_calibration_images)
         if config['sys']['simulation_mode'] == 'True':
@@ -293,19 +301,19 @@ class CalibrationDlg(QDialog):
         """
         shift = self.spinBox_shift.value()
         self.sem.apply_frame_settings(4, 10, 0.8)
-        start_x, start_y = self.microtome.get_stage_xy(1)
+        start_x, start_y = self.stage.get_xy(1)
         # First image:
         self.sem.acquire_frame(self.base_dir + '\\start.tif')
         # X shift:
-        self.microtome.move_stage_to_xy((start_x + shift, start_y))
+        self.stage.move_to_xy((start_x + shift, start_y))
         # Second image:
         self.sem.acquire_frame(self.base_dir + '\\shift_x.tif')
         # Y shift:
-        self.microtome.move_stage_to_xy((start_x, start_y + shift))
+        self.stage.move_to_xy((start_x, start_y + shift))
         # Third image:
         self.sem.acquire_frame(self.base_dir + '\\shift_y.tif')
         # Back to initial position:
-        self.microtome.move_stage_to_xy((start_x, start_y))
+        self.stage.move_to_xy((start_x, start_y))
 
     def calculate_stage_parameters(self):
         """Calculate the rotation angles and scale factors from the user input.
@@ -382,20 +390,20 @@ class MagCalibrationDlg(QDialog):
         self.setFixedSize(self.size())
         self.show()
         self.spinBox_calibrationFactor.setValue(
-            self.sem.get_mag_px_size_factor()) 
+            self.sem.get_mag_px_size_factor())
         self.comboBox_frameWidth.addItems(['2048', '4096'])
         self.comboBox_frameWidth.setCurrentIndex(1)
         self.pushButton_calculate.clicked.connect(
             self.calculate_calibration_factor)
 
     def calculate_calibration_factor(self):
-        """Calculate the mag calibration factor from the frame width, the 
+        """Calculate the mag calibration factor from the frame width, the
         magnification and the pixel size.
         """
         frame_width = int(str(self.comboBox_frameWidth.currentText()))
         pixel_size = self.doubleSpinBox_pixelSize.value()
         mag = self.spinBox_mag.value()
-        new_factor = mag * frame_width * pixel_size     
+        new_factor = mag * frame_width * pixel_size
         user_choice = QMessageBox.information(
             self, 'Calculated calibration factor',
             'Result:\nNew magnification calibration factor: %d '
@@ -403,12 +411,12 @@ class MagCalibrationDlg(QDialog):
             QMessageBox.Ok | QMessageBox.Cancel)
         if user_choice == QMessageBox.Ok:
             self.spinBox_calibrationFactor.setValue(new_factor)
- 
+
     def accept(self):
         self.sem.set_mag_px_size_factor(
             self.spinBox_calibrationFactor.value())
-        super(MagCalibrationDlg, self).accept()      
-        
+        super(MagCalibrationDlg, self).accept()
+
 #------------------------------------------------------------------------------
 
 class OVSettingsDlg(QDialog):
@@ -1038,19 +1046,19 @@ class AdaptiveFocusSelectionDlg(QDialog):
         self.pushButton_pos0.clicked.connect(self.select_pos0)
         self.pushButton_pos1.clicked.connect(self.select_pos1)
         self.pushButton_pos2.clicked.connect(self.select_pos2)
-        
+
     def select_pos0(self):
         self.selected = 0
         super(AdaptiveFocusSelectionDlg, self).accept()
-        
+
     def select_pos1(self):
-        self.selected = 1 
+        self.selected = 1
         super(AdaptiveFocusSelectionDlg, self).accept()
 
     def select_pos2(self):
-        self.selected = 2 
+        self.selected = 2
         super(AdaptiveFocusSelectionDlg, self).accept()
-        
+
 #------------------------------------------------------------------------------
 
 class AcqSettingsDlg(QDialog):
@@ -2313,11 +2321,11 @@ class FTMoveDlg(QDialog):
         self.pushButton_move.setEnabled(False)
         thread = threading.Thread(target=self.move_and_wait)
         thread.start()
-        
+
     def move_and_wait(self):
         # Load target coordinates
         if self.ov_number >= 0:
-            stage_x, stage_y = self.cs.get_ov_centre_s(self.ov_number)            
+            stage_x, stage_y = self.cs.get_ov_centre_s(self.ov_number)
         elif self.tile_number >= 0:
             stage_x, stage_y = self.gm.get_tile_coordinates_s(
                 self.grid_number, self.tile_number)
@@ -2341,8 +2349,8 @@ class FTMoveDlg(QDialog):
                 QMessageBox.Ok)
         # Enable button again:
         self.pushButton_move.setText('Move again')
-        self.pushButton_move.setEnabled(True)    
-            
+        self.pushButton_move.setEnabled(True)
+
 #------------------------------------------------------------------------------
 
 class MotorTestDlg(QDialog):

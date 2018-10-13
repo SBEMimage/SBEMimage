@@ -33,7 +33,7 @@
      <attribute name="title">
       <string>Main controls</string>
      </attribute>
-     <widget class="QGroupBox" name="groupBox">
+     <widget class="QGroupBox" name="groupBox_SEM">
       <property name="geometry">
        <rect>
         <x>10</x>
@@ -1181,7 +1181,7 @@
        </property>
       </widget>
      </widget>
-     <widget class="QGroupBox" name="groupBox_9">
+     <widget class="QGroupBox" name="groupBox_stage">
       <property name="geometry">
        <rect>
         <x>10</x>
