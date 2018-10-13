@@ -41,6 +41,7 @@ class SEM():
         # Set beam parameters
         self.eht = float(self.cfg['sem']['eht'])
         self.beam_current = float(self.cfg['sem']['beam_current'])
+        self.rotation = 0  # 0 for now
         # Settings for 'Grab frame' dialog
         self.grab_dwell_time = float(self.cfg['sem']['grab_frame_dwell_time'])
         self.grab_pixel_size = float(self.cfg['sem']['grab_frame_pixel_size'])
@@ -85,12 +86,12 @@ class SEM():
 
     def get_mag_px_size_factor(self):
         return self.MAG_PX_SIZE_FACTOR
-        
+
     def set_mag_px_size_factor(self, new_factor):
         self.MAG_PX_SIZE_FACTOR = new_factor
         # Save in sysconfig:
-        self.syscfg['sem']['mag_px_size_factor'] = str(new_factor)    
-        
+        self.syscfg['sem']['mag_px_size_factor'] = str(new_factor)
+
     def turn_eht_on(self):
         ret_val = self.sem_api.Execute('CMD_BEAM_ON')
         if ret_val == 0:
@@ -415,6 +416,71 @@ class SEM():
         # Error state is set in stack_acquisition.py when this function is
         # called via autofocus.py
         return (ret_val == 0)
+
+    def get_stage_x(self):
+        x = self.sem_api.GetStagePosition()[1]
+        # Return in microns
+        return x * 10**6
+
+    def get_stage_y(self):
+        y = self.sem_api.GetStagePosition()[2]
+        # Return in microns
+        return y * 10**6
+
+    def get_stage_z(self):
+        z = self.sem_api.GetStagePosition()[3]
+        # Return in microns
+        return z * 10**6
+
+    def get_stage_xy(self):
+        x, y = self.sem_api.GetStagePosition()[1:3]
+        # Return in microns
+        return (x * 10**6, y * 10**6)
+
+    def move_stage_to_x(self, x):
+        """Move stage to coordinate x, provided in microns"""
+        x /= 10**6   # convert to metres
+        y = self.get_stage_y() / 10**6
+        z = self.get_stage_z() / 10**6
+        self.sem_api.MoveStage(x, y, z, 0, self.rotation, 0)
+        # TODO: wait time
+        while self.sem_api.Get('DP_STAGE_IS') == 'Busy':
+            sleep(0.2)
+        sleep(3)  # for testing purposes
+
+    def move_stage_to_y(self, y):
+        """Move stage to coordinate y, provided in microns"""
+        y /= 10**6   # convert to metres
+        x = self.get_stage_x() / 10**6
+        z = self.get_stage_z() / 10**6
+        self.sem_api.MoveStage(x, y, z, 0, self.rotation, 0)
+        # TODO: wait time
+        while self.sem_api.Get('DP_STAGE_IS') == 'Busy':
+            sleep(0.2)
+        sleep(3)  # for testing purposes
+
+    def move_stage_to_z(self, z):
+        """Move stage to coordinate y, provided in microns"""
+        z /= 10**6   # convert to metres
+        x = self.get_stage_x() / 10**6
+        y = self.get_stage_y() / 10**6
+        self.sem_api.MoveStage(x, y, z, 0, self.rotation, 0)
+        # TODO: wait time
+        while self.sem_api.Get('DP_STAGE_IS') == 'Busy':
+            sleep(0.2)
+        sleep(3)  # for testing purposes
+
+    def move_stage_to_xy(self, coordinates):
+        """Move stage to coordinates x and y, provided in microns"""
+        x, y = coordinates
+        x /= 10**6   # convert to metres
+        y /= 10**6
+        z = self.get_stage_z() / 10**6
+        self.sem_api.MoveStage(x, y, z, 0, self.rotation, 0)
+        # TODO: wait time
+        while self.sem_api.Get('DP_STAGE_IS') == 'Busy':
+            sleep(0.2)
+        sleep(3)  # for testing purposes
 
     def show_about_box(self):
         self.sem_api.AboutBox()
