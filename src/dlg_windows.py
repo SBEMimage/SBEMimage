@@ -178,10 +178,10 @@ class SEMSettingsDlg(QDialog):
 class MicrotomeSettingsDlg(QDialog):
     """Adjust stage motor limits and wait interval after stage moves."""
 
-    def __init__(self, stage, microtome, microtome_active=True):
+    def __init__(self, microtome, sem, microtome_active=True):
         super(MicrotomeSettingsDlg, self).__init__()
-        self.stage = stage
         self.microtome = microtome
+        self.sem = sem
         self.microtom_active = microtome_active
         loadUi('..\\gui\\microtome_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
@@ -191,9 +191,6 @@ class MicrotomeSettingsDlg(QDialog):
         # If microtome not active, change selection label:
         if microtome_active:
             self.label_selectedStage.setText('Microtome stage active.')
-        else:
-            self.label_selectedStage.setText('SEM stage active.')
-        if microtome_active:
             # Display settings that can only be changed in DM:
             self.lineEdit_knifeCutSpeed.setText(
                 str(self.microtome.get_knife_cut_speed()))
@@ -205,22 +202,38 @@ class MicrotomeSettingsDlg(QDialog):
             self.doubleSpinBox_waitInterval.setValue(
                 self.microtome.get_stage_move_wait_interval())
             current_motor_limits = self.microtome.get_motor_limits()
-            self.spinBox_stageMinX.setValue(current_motor_limits[0])
-            self.spinBox_stageMaxX.setValue(current_motor_limits[1])
-            self.spinBox_stageMinY.setValue(current_motor_limits[2])
-            self.spinBox_stageMaxY.setValue(current_motor_limits[3])
-
-            # Other settings that can be changed in SBEMimage,
-            # but in a different dialog (CalibrationDgl):
             current_calibration = self.microtome.get_stage_calibration()
-            self.lineEdit_scaleFactorX.setText(str(current_calibration[0]))
-            self.lineEdit_scaleFactorY.setText(str(current_calibration[1]))
-            self.lineEdit_rotationX.setText(str(current_calibration[2]))
-            self.lineEdit_rotationY.setText(str(current_calibration[3]))
-            # Motor speeds:
             speed_x, speed_y = self.microtome.get_motor_speed_calibration()
-            self.lineEdit_speedX.setText(str(speed_x))
-            self.lineEdit_speedY.setText(str(speed_y))
+        else:
+            self.label_selectedStage.setText('SEM stage active.')
+            # Display stage limits. Not editable for SEM.
+            self.spinBox_stageMaxX.setMaximum(200000)
+            self.spinBox_stageMaxY.setMaximum(200000)
+            self.spinBox_stageMinX.setMaximum(0)
+            self.spinBox_stageMinY.setMaximum(0)
+            self.spinBox_stageMinX.setEnabled(False)
+            self.spinBox_stageMaxX.setEnabled(False)
+            self.spinBox_stageMinY.setEnabled(False)
+            self.spinBox_stageMaxY.setEnabled(False)
+            current_motor_limits = self.sem.get_motor_limits()
+            current_calibration = self.sem.get_stage_calibration()
+            speed_x, speed_y = self.sem.get_motor_speed_calibration()
+            self.doubleSpinBox_waitInterval.setValue(
+                self.sem.get_stage_move_wait_interval())
+        # Show current calibration:
+        self.spinBox_stageMinX.setValue(current_motor_limits[0])
+        self.spinBox_stageMaxX.setValue(current_motor_limits[1])
+        self.spinBox_stageMinY.setValue(current_motor_limits[2])
+        self.spinBox_stageMaxY.setValue(current_motor_limits[3])
+        # Other settings that can be changed in SBEMimage,
+        # but in a different dialog (CalibrationDgl):
+        self.lineEdit_scaleFactorX.setText(str(current_calibration[0]))
+        self.lineEdit_scaleFactorY.setText(str(current_calibration[1]))
+        self.lineEdit_rotationX.setText(str(current_calibration[2]))
+        self.lineEdit_rotationY.setText(str(current_calibration[3]))
+        # Motor speeds:
+        self.lineEdit_speedX.setText(str(speed_x))
+        self.lineEdit_speedY.setText(str(speed_y))
 
     def accept(self):
         if self.microtom_active:
@@ -229,6 +242,9 @@ class MicrotomeSettingsDlg(QDialog):
             self.microtome.set_motor_limits([
                 self.spinBox_stageMinX.value(), self.spinBox_stageMaxX.value(),
                 self.spinBox_stageMinY.value(), self.spinBox_stageMaxY.value()])
+        else:
+            self.sem.set_stage_move_wait_interval(
+                self.doubleSpinBox_waitInterval.value())
         super(MicrotomeSettingsDlg, self).accept()
 
 #------------------------------------------------------------------------------
