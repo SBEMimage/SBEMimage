@@ -54,6 +54,22 @@ class SEM():
         # self.cycle_time holds the cycle time for the current frame settings,
         # will be set the first time when self.apply_frame_settings() is called.
         self.current_cycle_time = 0
+        # Stage parameters:
+        self.stage_move_wait_interval = float(
+            self.cfg['sem']['stage_move_wait_interval'])
+        self.motor_speed_x = float(self.cfg['sem']['motor_speed_x'])
+        self.motor_speed_y = float(self.cfg['sem']['motor_speed_y'])
+        self.motor_limits = [
+            int(self.cfg['sem']['stage_min_x']),
+            int(self.cfg['sem']['stage_max_x']),
+            int(self.cfg['sem']['stage_min_y']),
+            int(self.cfg['sem']['stage_max_y'])]
+        self.stage_calibration = [
+            float(self.cfg['sem']['stage_scale_factor_x']),
+            float(self.cfg['sem']['stage_scale_factor_y']),
+            float(self.cfg['sem']['stage_rotation_angle_x']),
+            float(self.cfg['sem']['stage_rotation_angle_y'])]
+
         if not self.simulation_mode:
             # Dispatch Merlin API (CZ EM API OLE Control):
             # CZEMApi.ocx must be registered in the Windows registry!
@@ -437,6 +453,12 @@ class SEM():
         # Return in microns
         return (x * 10**6, y * 10**6)
 
+    def get_last_known_xy(self):
+        return (0, 0)
+
+    def get_last_known_z(self):
+        return 0
+
     def move_stage_to_x(self, x):
         """Move stage to coordinate x, provided in microns"""
         x /= 10**6   # convert to metres
@@ -481,6 +503,55 @@ class SEM():
         while self.sem_api.Get('DP_STAGE_IS') == 'Busy':
             sleep(0.2)
         sleep(3)  # for testing purposes
+
+    def get_stage_move_wait_interval(self):
+        return self.stage_move_wait_interval
+
+    def set_stage_move_wait_interval(self, wait_interval):
+        self.stage_move_wait_interval = wait_interval
+        self.cfg['sem']['stage_move_wait_interval'] = str(wait_interval)
+
+    def get_motor_speed_calibration(self):
+        return (self.motor_speed_x, self.motor_speed_y)
+
+    def get_motor_limits(self):
+        return self.motor_limits
+
+    def get_stage_calibration(self):
+        return self.stage_calibration
+
+    def update_stage_calibration(self, eht):
+        eht = int(eht * 1000)  # Dict keys in system config use volts, not kV
+        success = True
+        try:
+            calibration_data = json.loads(
+                self.syscfg['stage']['sem_calibration_data'])
+            available_eht = [int(s) for s in calibration_data.keys()]
+        except:
+            available_eht = []
+            success = False
+
+        if success:
+            if eht in available_eht:
+                params = calibration_data[str(eht)]
+            else:
+                success = False
+                # Fallback option: nearest among the available EHT calibrations
+                new_eht = 1500
+                min_diff = abs(eht - 1500)
+                for eht_choice in available_eht:
+                    diff = abs(eht - eht_choice)
+                    if diff < min_diff:
+                        min_diff = diff
+                        new_eht = eht_choice
+                params = calibration_data[str(new_eht)]
+
+            self.cfg['sem']['stage_scale_factor_x'] = str(params[0])
+            self.cfg['sem']['stage_scale_factor_y'] = str(params[1])
+            self.cfg['sem']['stage_rotation_angle_x'] = str(params[2])
+            self.cfg['sem']['stage_rotation_angle_y'] = str(params[3])
+            self.stage_calibration = params
+        return success
 
     def show_about_box(self):
         self.sem_api.AboutBox()
