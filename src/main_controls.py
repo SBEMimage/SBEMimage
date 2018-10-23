@@ -309,16 +309,26 @@ class MainControls(QMainWindow):
         except:
             self.cfg['microtome']['device'] = 'NOT RECOGNIZED'
 
-        # Get motor limits from system cfg file:
-        motor_limits = json.loads(self.syscfg['stage']['motor_limits'])
+        # Get microtome motor limits from system cfg file:
+        motor_limits = json.loads(self.syscfg['stage']['microtome_motor_limits'])
         self.cfg['microtome']['stage_min_x'] = str(motor_limits[0])
         self.cfg['microtome']['stage_max_x'] = str(motor_limits[1])
         self.cfg['microtome']['stage_min_y'] = str(motor_limits[2])
         self.cfg['microtome']['stage_max_y'] = str(motor_limits[3])
-        # Get motor speeds from system cfg file:
-        motor_speed = json.loads(self.syscfg['stage']['motor_speed'])
+        # Get SEM motor limits from system cfg file:
+        motor_limits = json.loads(self.syscfg['stage']['sem_motor_limits'])
+        self.cfg['sem']['stage_min_x'] = str(motor_limits[0])
+        self.cfg['sem']['stage_max_x'] = str(motor_limits[1])
+        self.cfg['sem']['stage_min_y'] = str(motor_limits[2])
+        self.cfg['sem']['stage_max_y'] = str(motor_limits[3])
+        # Get microtome motor speeds from system cfg file:
+        motor_speed = json.loads(self.syscfg['stage']['microtome_motor_speed'])
         self.cfg['microtome']['motor_speed_x'] = str(motor_speed[0])
         self.cfg['microtome']['motor_speed_y'] = str(motor_speed[1])
+        # Get SEM motor speeds from system cfg file:
+        motor_speed = json.loads(self.syscfg['stage']['sem_motor_speed'])
+        self.cfg['sem']['motor_speed_x'] = str(motor_speed[0])
+        self.cfg['sem']['motor_speed_y'] = str(motor_speed[1])
         # Knife settings:
         self.cfg['microtome']['full_cut_duration'] = (
             self.syscfg['knife']['full_cut_duration'])
@@ -437,18 +447,26 @@ class MainControls(QMainWindow):
                     self.add_to_log('3VIEW: Second attempt to initialize '
                                     'DigitalMicrograph API successful.')
 
-            # Update calibration of stage:
+            # Update calibration of microtome stage:
             self.calibration_found = (
                 self.microtome.update_stage_calibration(self.sem.get_eht()))
             if not self.calibration_found:
                 self.add_to_log(
                     'CTRL: Warning - No stage calibration found for current EHT.')
+            else:
+                self.cs.load_stage_calibration() # update coordinate transformations
 
         else:
             self.microtome = None
+            # Update calibration of SEM stage:
+            self.calibration_found = (
+                self.sem.update_stage_calibration(self.sem.get_eht()))
+            if not self.calibration_found:
+                self.add_to_log(
+                    'CTRL: Warning - No stage calibration found for current EHT.')
 
         utils.show_progress_in_console(70)
-        # Initialize stage:
+        # Stage instance:
         self.stage = Stage(self.sem, self.microtome, self.use_microtome)
 
         # Enable plasma cleaner tool button if plasma cleaner installed:
@@ -672,7 +690,7 @@ class MainControls(QMainWindow):
                     QMessageBox.Ok)
 
     def open_microtome_dlg(self):
-        dialog = MicrotomeSettingsDlg(self.stage, self.microtome,
+        dialog = MicrotomeSettingsDlg(self.microtome, self.sem,
                                       self.use_microtome)
         if dialog.exec_():
             self.cs.load_stage_limits()
@@ -1685,8 +1703,9 @@ class MainControls(QMainWindow):
                 QMessageBox.Yes| QMessageBox.No)
             if result == QMessageBox.Yes:
                 if not self.simulation_mode:
-                    self.microtome.stop_script()
-                    self.add_to_log('3VIEW: Disconnected from DM/3View.')
+                    if self.use_microtome:
+                        self.microtome.stop_script()
+                        self.add_to_log('3VIEW: Disconnected from DM/3View.')
                     sem_log_msg = self.sem.disconnect()
                     self.add_to_log('SEM: ' + sem_log_msg)
                 if self.plc_initialized:
@@ -1937,7 +1956,7 @@ class MainControls(QMainWindow):
         stage_x += self.ft_counter * 800 * self.ft_pixel_size/1000
         stage_y += self.ft_counter * 800 * self.ft_pixel_size/1000
         # Move in thread:
-        self.microtome.move_stage_to_xy((stage_x, stage_y))
+        self.stage.move_to_xy((stage_x, stage_y))
 
         if self.radioButton_focus.isChecked():
             self.ft_mode = 1
