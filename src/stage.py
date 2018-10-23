@@ -9,7 +9,7 @@
 #   See LICENSE.txt in the project root folder.
 #==============================================================================
 
-"""This module provides generic get/move functions for the stage.
+"""This class is a wrapper for generic stage functions.
 Depending on the initialization, either the microtome stage or the SEM stage
 is used when carrying out the commands.
 """
@@ -22,21 +22,17 @@ class Stage():
             self._stage = microtome
         else:
             self._stage = sem
-        self.last_known_x = None
-        self.last_known_y = None
-        self.last_known_z = None
-        self.prev_known_z = None
 
-    def get_x(self, wait_time=0):
+    def get_x(self):
         return self._stage.get_stage_x()
 
-    def get_y(self, wait_time=0):
+    def get_y(self):
         return self._stage.get_stage_y()
 
-    def get_z(self, wait_time=0):
+    def get_z(self):
         return self._stage.get_stage_z()
 
-    def get_xy(self, wait_time=0):
+    def get_xy(self):
         return self._stage.get_stage_xy()
 
     def move_to_x(self, x):
@@ -52,10 +48,16 @@ class Stage():
         return self._stage.move_stage_to_xy(coordinates)
 
     def get_last_known_xy(self):
-        return (self.last_known_x, self.last_known_y)
+        return self._stage.get_last_known_xy()
 
     def get_last_known_z(self):
-        return self.last_known_z
+        return self._stage.get_last_known_z()
 
-    def get_prev_known_z(self):
-        return self.prev_known_z
+    def get_error_state(self):
+        return self._stage.get_error_state()
+
+    def get_error_cause(self):
+        return self._stage.get_error_cause()
+
+    def reset_error_state(self):
+        self._stage.reset_error_state()
