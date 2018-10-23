@@ -54,10 +54,14 @@ class CoordinateSystem():
         """(Re)load rotation and scale parameters and compute
             transformation factors; (re)load current stage motor limits.
         """
-        rot_x = float(self.cfg['microtome']['stage_rotation_angle_x'])
-        rot_y = float(self.cfg['microtome']['stage_rotation_angle_y'])
-        self.scale_x = float(self.cfg['microtome']['stage_scale_factor_x'])
-        self.scale_y = float(self.cfg['microtome']['stage_scale_factor_y'])
+        if self.cfg['sys']['use_microtome'] == 'True':
+            device = 'microtome'
+        else:
+            device = 'sem'
+        rot_x = float(self.cfg[device]['stage_rotation_angle_x'])
+        rot_y = float(self.cfg[device]['stage_rotation_angle_y'])
+        self.scale_x = float(self.cfg[device]['stage_scale_factor_x'])
+        self.scale_y = float(self.cfg[device]['stage_scale_factor_y'])
         angle_diff = rot_x - rot_y
         self.A = cos(rot_y) / cos(angle_diff)
         self.B = sin(rot_x) / cos(angle_diff)
@@ -65,11 +69,15 @@ class CoordinateSystem():
         self.D = cos(rot_x) / cos(angle_diff)
 
     def load_stage_limits(self):
+        if self.cfg['sys']['use_microtome'] == 'True':
+            device = 'microtome'
+        else:
+            device = 'sem'
         self.stage_limits = [
-            int(self.cfg['microtome']['stage_min_x']),
-            int(self.cfg['microtome']['stage_max_x']),
-            int(self.cfg['microtome']['stage_min_y']),
-            int(self.cfg['microtome']['stage_max_y'])]
+            int(self.cfg[device]['stage_min_x']),
+            int(self.cfg[device]['stage_max_x']),
+            int(self.cfg[device]['stage_min_y']),
+            int(self.cfg[device]['stage_max_y'])]
 
     def convert_to_s(self, d_coordinates):
         """Convert SEM coordinates into stage coordinates"""
@@ -210,13 +218,6 @@ class CoordinateSystem():
 
     def get_stage_limits(self):
         return self.stage_limits
-
-    def set_stage_limits(self, limits):
-        self.stage_limits = limits
-        self.cfg['microtome']['stage_min_x'] = str(limits[0])
-        self.cfg['microtome']['stage_max_x'] = str(limits[1])
-        self.cfg['microtome']['stage_min_y'] = str(limits[2])
-        self.cfg['microtome']['stage_max_y'] = str(limits[3])
 
     def is_within_stage_limits(self, s_coordinates):
         within_x = (
