@@ -40,19 +40,30 @@ class Viewport(QWidget):
     VIEWER_WIDTH = 1000
     VIEWER_HEIGHT = 800
 
-    def __init__(self, config, sem, microtome,
+    def __init__(self, config, sem, stage,
                  ov_manager, grid_manager, coordinate_system,
                  autofocus, trigger, queue):
         super(Viewport, self).__init__()
         self.cfg = config
         self.sem = sem
-        self.microtome = microtome
+        self.stage = stage
         self.gm = grid_manager
         self.ovm = ov_manager
         self.cs = coordinate_system
         self.af = autofocus
         self.trigger = trigger
         self.queue = queue
+        # Set limits for viewport panning:
+        self.VC_MIN_X, self.VC_MAX_X, self.VC_MIN_Y, self.VC_MAX_Y = (
+            self.cs.get_dx_dy_range())
+        # Set zoom parameters depending on which stage is selected:
+        if self.cfg['sys']['use_microtome'] == 'True':
+            self.VIEWER_ZOOM_F1 = 0.2
+            self.VIEWER_ZOOM_F2 = 1.05
+        else:
+            self.VIEWER_ZOOM_F1 = 0.0055
+            self.VIEWER_ZOOM_F2 = 1.085
+
         # Shared control variables:
         self.acq_in_progress = False
         self.viewport_active = True
@@ -232,12 +243,12 @@ class Viewport(QWidget):
                     else:
                         # If no acquisition in progress,
                         # first toggle current tile:
-                        self.gm.toggle_tile(self.selected_grid, 
-                                            self.selected_tile)   
-                        self.mv_draw() 
+                        self.gm.toggle_tile(self.selected_grid,
+                                            self.selected_tile)
+                        self.mv_draw()
                         # Then enter paint mode until mouse button released.
                         self.tile_paint_mode_active = True
-           
+
             # Check if ctrl key is pressed -> Move OV:
             elif ((self.tabWidget.currentIndex() == 0)
                 and (QApplication.keyboardModifiers() == Qt.ControlModifier)
@@ -384,16 +395,16 @@ class Viewport(QWidget):
             # If mouse has moved to a new tile, toggle it:
             if (self.selected_grid is not None
                 and self.selected_tile is not None):
-                if ((self.selected_grid == prev_selected_grid 
+                if ((self.selected_grid == prev_selected_grid
                      and self.selected_tile != prev_selected_tile)
                     or self.selected_grid != prev_selected_grid):
-                        self.gm.toggle_tile(self.selected_grid, 
-                                            self.selected_tile)   
+                        self.gm.toggle_tile(self.selected_grid,
+                                            self.selected_tile)
                         self.mv_draw()
             else:
                 # Disable paint mode when mouse moved beyond grid edge.
                 self.tile_paint_mode_active = False
-                                          
+
         elif ((self.tabWidget.currentIndex() == 0)
             and mouse_pos_within_viewer
             and self.mv_measure_active):
@@ -541,7 +552,8 @@ class Viewport(QWidget):
         # Slider for zoom:
         self.horizontalSlider_MV.valueChanged.connect(self.mv_adjust_scale)
         self.horizontalSlider_MV.setValue(
-            log(self.cs.get_mv_scale() / 0.2, 1.05))
+            log(self.cs.get_mv_scale() / self.VIEWER_ZOOM_F1,
+                self.VIEWER_ZOOM_F2))
         # Tile Preview selector:
         self.comboBox_tilePreviewSelectorMV.addItems(
             ['Hide tile previews',
@@ -1362,7 +1374,9 @@ class Viewport(QWidget):
 
     def mv_adjust_scale(self):
         # Recalculate scaling factor:
-        new_mv_scale = 0.2 * (1.05)**self.horizontalSlider_MV.value()
+        new_mv_scale = (
+            self.VIEWER_ZOOM_F1
+            * (self.VIEWER_ZOOM_F2)**self.horizontalSlider_MV.value())
         self.cs.set_mv_scale(new_mv_scale)
         # Redraw viewport:
         self.mv_draw()
@@ -1371,11 +1385,13 @@ class Viewport(QWidget):
         # Recalculate scaling factor:
         old_mv_scale = self.cs.get_mv_scale()
         new_mv_scale = utils.fit_in_range(
-            factor * old_mv_scale, 0.2, 25)
+            factor * old_mv_scale,
+            self.VIEWER_ZOOM_F1,
+            self.VIEWER_ZOOM_F1 * (self.VIEWER_ZOOM_F2)**99)  # 99 is max slider value
         self.cs.set_mv_scale(new_mv_scale)
         self.horizontalSlider_MV.blockSignals(True)
         self.horizontalSlider_MV.setValue(
-            log(new_mv_scale / 0.2, 1.05))
+            log(new_mv_scale / self.VIEWER_ZOOM_F1, self.VIEWER_ZOOM_F2))
         self.horizontalSlider_MV.blockSignals(False)
         # Recentre, so that mouse position is preserved:
         current_centre_dx, current_centre_dy = self.cs.get_mv_centre_d()
@@ -1385,8 +1401,10 @@ class Viewport(QWidget):
         new_centre_dx = current_centre_dx - x_shift * scale_diff
         new_centre_dy = current_centre_dy - y_shift * scale_diff
 
-        new_centre_dx = utils.fit_in_range(new_centre_dx, -2000, 2000)
-        new_centre_dy = utils.fit_in_range(new_centre_dy, -2000, 2000)
+        new_centre_dx = utils.fit_in_range(
+            new_centre_dx, self.VC_MIN_X, self.VC_MAX_X)
+        new_centre_dy = utils.fit_in_range(
+            new_centre_dy, self.VC_MIN_Y, self.VC_MAX_Y)
         # Set new mv_centre coordinates:
         self.cs.set_mv_centre_d((new_centre_dx, new_centre_dy))
         # Redraw viewport:
@@ -1398,8 +1416,10 @@ class Viewport(QWidget):
         mv_scale = self.cs.get_mv_scale()
         new_centre_dx = current_centre_dx + dx / mv_scale
         new_centre_dy = current_centre_dy + dy / mv_scale
-        new_centre_dx = utils.fit_in_range(new_centre_dx, -2000, 2000)
-        new_centre_dy = utils.fit_in_range(new_centre_dy, -2000, 2000)
+        new_centre_dx = utils.fit_in_range(
+            new_centre_dx, self.VC_MIN_X, self.VC_MAX_X)
+        new_centre_dy = utils.fit_in_range(
+            new_centre_dy, self.VC_MIN_Y, self.VC_MAX_Y)
         # Set new mv_centre coordinates:
         self.cs.set_mv_centre_d((new_centre_dx, new_centre_dy))
 
@@ -1596,7 +1616,7 @@ class Viewport(QWidget):
             self.add_to_main_log('CTRL: All tiles in grid %d deselected.'
                                  % self.selected_grid)
             self.mv_update_after_tile_selection()
-            
+
     def mv_toggle_tile_autofocus(self):
         if self.selected_grid is not None and self.selected_tile is not None:
             ref_tiles = self.af.get_ref_tiles()
@@ -1605,9 +1625,9 @@ class Viewport(QWidget):
                 ref_tiles.remove(tile_id)
             else:
                 ref_tiles.append(tile_id)
-            self.af.set_ref_tiles(ref_tiles)    
+            self.af.set_ref_tiles(ref_tiles)
             self.mv_draw()
-    
+
     def mv_toggle_tile_adaptive_focus(self):
         if self.selected_grid is not None and self.selected_tile is not None:
             af_tiles = self.gm.get_adaptive_focus_tiles(self.selected_grid)
@@ -1621,7 +1641,7 @@ class Viewport(QWidget):
                         af_tiles[dialog.selected] = self.selected_tile
             self.gm.set_adaptive_focus_tiles(self.selected_grid, af_tiles)
             self.transmit_cmd('UPDATE FT TILE SELECTOR')
-            self.mv_draw()            
+            self.mv_draw()
 
     def mv_toggle_measure(self):
         self.mv_measure_active = not self.mv_measure_active

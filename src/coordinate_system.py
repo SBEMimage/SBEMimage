@@ -219,6 +219,16 @@ class CoordinateSystem():
     def get_stage_limits(self):
         return self.stage_limits
 
+    def get_dx_dy_range(self):
+        min_sx, max_sx, min_sy, max_sy = self.stage_limits
+        dx = [0, 0, 0, 0]
+        dy = [0, 0, 0, 0]
+        dx[0], dy[0] = self.convert_to_d((min_sx, min_sy))
+        dx[1], dy[1] = self.convert_to_d((max_sx, min_sy))
+        dx[2], dy[2] = self.convert_to_d((max_sx, max_sy))
+        dx[3], dy[3] = self.convert_to_d((min_sx, max_sy))
+        return min(dx), max(dx), min(dy), max(dy)
+
     def is_within_stage_limits(self, s_coordinates):
         within_x = (
             self.stage_limits[0] <= s_coordinates[0] <= self.stage_limits[1])

@@ -89,7 +89,7 @@ class MainControls(QMainWindow):
         self.show()
         QApplication.processEvents()
         # Initialize viewport window:
-        self.viewport = Viewport(self.cfg, self.sem, self.microtome,
+        self.viewport = Viewport(self.cfg, self.sem, self.stage,
                                  self.ovm, self.gm, self.cs, self.autofocus,
                                  self.viewport_trigger,
                                  self.viewport_queue)
