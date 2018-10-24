@@ -457,6 +457,7 @@ class MainControls(QMainWindow):
                 self.cs.load_stage_calibration() # update coordinate transformations
 
         else:
+            # No microtome - use SEM stage
             self.microtome = None
             # Update calibration of SEM stage:
             self.calibration_found = (
@@ -464,6 +465,8 @@ class MainControls(QMainWindow):
             if not self.calibration_found:
                 self.add_to_log(
                     'CTRL: Warning - No stage calibration found for current EHT.')
+            # Restrict GUI: microtome functions are not available:
+            self.restrict_gui_for_sem_stage()
 
         utils.show_progress_in_console(70)
         # Stage instance:
@@ -594,8 +597,11 @@ class MainControls(QMainWindow):
         # Acquisition parameters
         self.lineEdit_baseDir.setText(self.cfg['acq']['base_dir'])
         self.label_numberSlices.setText(self.cfg['acq']['number_slices'])
-        self.label_sliceThickness.setText(
-            self.cfg['acq']['slice_thickness'] + ' nm')
+        if self.use_microtome:
+            self.label_sliceThickness.setText(
+                self.cfg['acq']['slice_thickness'] + ' nm')
+        else:
+            self.label_sliceThickness.setText('---')
 
     def show_estimates(self):
         """Read current estimates from the stack instance and display
@@ -1146,6 +1152,13 @@ class MainControls(QMainWindow):
         self.pushButton_testStopDMScript.setEnabled(False)
         self.pushButton_testPlasmaCleaner.setEnabled(False)
         self.pushButton_testMotors.setEnabled(False)
+
+    def restrict_gui_for_sem_stage(self):
+        self.pushButton_doApproach.setEnabled(False)
+        self.pushButton_doSweep.setEnabled(False)
+        self.pushButton_testNearKnife.setEnabled(False)
+        self.pushButton_testClearKnife.setEnabled(False)
+        self.pushButton_testStopDMScript.setEnabled(False)
 
     def add_to_log(self, text):
         """Update the log from the main thread."""

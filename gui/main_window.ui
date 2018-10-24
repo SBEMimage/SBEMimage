@@ -1659,7 +1659,7 @@
        </rect>
       </property>
       <property name="title">
-       <string>ZEISS Merlin</string>
+       <string>SEM</string>
       </property>
       <widget class="QPushButton" name="pushButton_testGetMag">
        <property name="geometry">
@@ -1776,7 +1776,7 @@
        </rect>
       </property>
       <property name="title">
-       <string>Gatan 3View</string>
+       <string>Stage and microtome</string>
       </property>
       <widget class="QPushButton" name="pushButton_testGetStage">
        <property name="geometry">
@@ -2017,6 +2017,7 @@
     <addaction name="actionSaveNewConfig"/>
     <addaction name="separator"/>
     <addaction name="actionLeaveSimulationMode"/>
+    <addaction name="actionSwitchStage"/>
    </widget>
    <widget class="QMenu" name="menuCalibration">
     <property name="title">
@@ -2144,6 +2145,11 @@
   <action name="actionMagnificationCalibration">
    <property name="text">
     <string>Magnification calibration</string>
+   </property>
+  </action>
+  <action name="actionSwitchStage">
+   <property name="text">
+    <string>Switch to X stage</string>
    </property>
   </action>
  </widget>
