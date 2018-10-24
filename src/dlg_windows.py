@@ -2547,7 +2547,7 @@ class StubOVDlg(QDialog):
 
     def __init__(self, position, size_selector,
                  base_dir, slice_counter,
-                 sem, microtome, ovm, cs,
+                 sem, stage, ovm, cs,
                  main_window_queue, main_window_trigger):
         super(StubOVDlg, self).__init__()
         loadUi('..\\gui\\stub_ov_dlg.ui', self)
@@ -2558,7 +2558,7 @@ class StubOVDlg(QDialog):
         self.base_dir = base_dir
         self.slice_counter = slice_counter
         self.sem = sem
-        self.microtome = microtome
+        self.stage = stage
         self.ovm = ovm
         self.cs = cs
         self.main_window_queue = main_window_queue
@@ -2689,7 +2689,7 @@ class StubOVDlg(QDialog):
         stub_acq_thread = threading.Thread(
                               target=acq_func.acquire_stub_ov,
                               args=(self.base_dir, self.slice_counter,
-                                    self.sem, self.microtome,
+                                    self.sem, self.stage,
                                     position, size_selector,
                                     self.ovm, self.cs,
                                     self.acq_thread_queue,

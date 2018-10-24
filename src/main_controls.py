@@ -404,7 +404,6 @@ class MainControls(QMainWindow):
             self.simulation_mode = True
             self.cfg['sys']['simulation_mode'] = 'True'
 
-
         # Set up overviews:
         self.ovm = OverviewManager(self.cfg, self.sem, self.cs)
         # Set up grids:
@@ -470,7 +469,8 @@ class MainControls(QMainWindow):
 
         utils.show_progress_in_console(70)
         # Stage instance:
-        self.stage = Stage(self.sem, self.microtome, self.use_microtome)
+        self.stage = Stage(self.sem, self.microtome,
+                           self.use_microtome)
 
         # Enable plasma cleaner tool button if plasma cleaner installed:
         self.toolButton_plasmaCleaner.setEnabled(self.plc_installed)
@@ -862,7 +862,7 @@ class MainControls(QMainWindow):
                            size_selector,
                            self.cfg['acq']['base_dir'],
                            self.stack.get_slice_counter(),
-                           self.sem, self.microtome,
+                           self.sem, self.stage,
                            self.ovm, self.cs,
                            self.acq_queue, self.acq_trigger)
         dialog.exec_()
@@ -1191,7 +1191,7 @@ class MainControls(QMainWindow):
                 ov_acq_thread = threading.Thread(
                     target=acq_func.acquire_ov,
                     args=(base_dir, ov_selection,
-                          self.sem, self.microtome,
+                          self.sem, self.stage,
                           self.ovm, self.cs,
                           self.acq_queue, self.acq_trigger,))
                 ov_acq_thread.start()
@@ -1266,7 +1266,7 @@ class MainControls(QMainWindow):
             self.viewport.restrict_gui(True)
             QApplication.processEvents()
             move_thread = threading.Thread(target=acq_func.move,
-                                           args=(self.microtome,
+                                           args=(self.stage,
                                                  target_pos,
                                                  self.acq_queue,
                                                  self.acq_trigger,))
