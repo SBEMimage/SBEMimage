@@ -17,6 +17,7 @@ is used when carrying out the commands.
 class Stage():
 
     def __init__(self, sem, microtome, use_microtome=True):
+        self.use_microtome = use_microtome
         # Select the stage to be used:
         if use_microtome:
             self._stage = microtome
@@ -61,3 +62,8 @@ class Stage():
 
     def reset_error_state(self):
         self._stage.reset_error_state()
+
+    def update_motor_speed(self):
+        if self.use_microtome:
+            return self._stage.write_motor_speed_calibration_to_script()
+
