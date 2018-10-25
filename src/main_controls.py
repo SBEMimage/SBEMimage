@@ -485,7 +485,7 @@ class MainControls(QMainWindow):
                                    self.acq_queue, self.acq_trigger)
         # Finally, the stack instance:
         self.stack = Stack(self.cfg,
-                           self.sem, self.microtome,
+                           self.sem, self.microtome, self.stage,
                            self.ovm, self.gm, self.cs,
                            self.img_inspector, self.autofocus,
                            self.acq_queue, self.acq_trigger)
@@ -1159,6 +1159,8 @@ class MainControls(QMainWindow):
         self.pushButton_testNearKnife.setEnabled(False)
         self.pushButton_testClearKnife.setEnabled(False)
         self.pushButton_testStopDMScript.setEnabled(False)
+        self.checkBox_useDebrisDetection.setEnabled(False)
+        self.toolButton_debrisDetection.setEnabled(False)
 
     def add_to_log(self, text):
         """Update the log from the main thread."""
