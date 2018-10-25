@@ -382,20 +382,20 @@ class MagCalibrationDlg(QDialog):
         self.setFixedSize(self.size())
         self.show()
         self.spinBox_calibrationFactor.setValue(
-            self.sem.get_mag_px_size_factor()) 
+            self.sem.get_mag_px_size_factor())
         self.comboBox_frameWidth.addItems(['2048', '4096'])
         self.comboBox_frameWidth.setCurrentIndex(1)
         self.pushButton_calculate.clicked.connect(
             self.calculate_calibration_factor)
 
     def calculate_calibration_factor(self):
-        """Calculate the mag calibration factor from the frame width, the 
+        """Calculate the mag calibration factor from the frame width, the
         magnification and the pixel size.
         """
         frame_width = int(str(self.comboBox_frameWidth.currentText()))
         pixel_size = self.doubleSpinBox_pixelSize.value()
         mag = self.spinBox_mag.value()
-        new_factor = mag * frame_width * pixel_size     
+        new_factor = mag * frame_width * pixel_size
         user_choice = QMessageBox.information(
             self, 'Calculated calibration factor',
             'Result:\nNew magnification calibration factor: %d '
@@ -403,12 +403,12 @@ class MagCalibrationDlg(QDialog):
             QMessageBox.Ok | QMessageBox.Cancel)
         if user_choice == QMessageBox.Ok:
             self.spinBox_calibrationFactor.setValue(new_factor)
- 
+
     def accept(self):
         self.sem.set_mag_px_size_factor(
             self.spinBox_calibrationFactor.value())
-        super(MagCalibrationDlg, self).accept()      
-        
+        super(MagCalibrationDlg, self).accept()
+
 #------------------------------------------------------------------------------
 
 class OVSettingsDlg(QDialog):
@@ -1038,19 +1038,19 @@ class AdaptiveFocusSelectionDlg(QDialog):
         self.pushButton_pos0.clicked.connect(self.select_pos0)
         self.pushButton_pos1.clicked.connect(self.select_pos1)
         self.pushButton_pos2.clicked.connect(self.select_pos2)
-        
+
     def select_pos0(self):
         self.selected = 0
         super(AdaptiveFocusSelectionDlg, self).accept()
-        
+
     def select_pos1(self):
-        self.selected = 1 
+        self.selected = 1
         super(AdaptiveFocusSelectionDlg, self).accept()
 
     def select_pos2(self):
-        self.selected = 2 
+        self.selected = 2
         super(AdaptiveFocusSelectionDlg, self).accept()
-        
+
 #------------------------------------------------------------------------------
 
 class AcqSettingsDlg(QDialog):
@@ -2313,11 +2313,11 @@ class FTMoveDlg(QDialog):
         self.pushButton_move.setEnabled(False)
         thread = threading.Thread(target=self.move_and_wait)
         thread.start()
-        
+
     def move_and_wait(self):
         # Load target coordinates
         if self.ov_number >= 0:
-            stage_x, stage_y = self.cs.get_ov_centre_s(self.ov_number)            
+            stage_x, stage_y = self.cs.get_ov_centre_s(self.ov_number)
         elif self.tile_number >= 0:
             stage_x, stage_y = self.gm.get_tile_coordinates_s(
                 self.grid_number, self.tile_number)
@@ -2341,13 +2341,13 @@ class FTMoveDlg(QDialog):
                 QMessageBox.Ok)
         # Enable button again:
         self.pushButton_move.setText('Move again')
-        self.pushButton_move.setEnabled(True)    
-            
+        self.pushButton_move.setEnabled(True)
+
 #------------------------------------------------------------------------------
 
 class MotorTestDlg(QDialog):
     """Perform a random-walk XYZ motor test. Experimental, only for testing/
-       debugging."""
+       debugging. Only works with a microtome for now."""
 
     def __init__(self, cfg, microtome, main_window_queue, main_window_trigger):
         super(MotorTestDlg, self).__init__()
@@ -2494,7 +2494,7 @@ class MotorTestDlg(QDialog):
                     logfile.write('OK\n')
 
             self.number_tests += 1
-            self.update_progress()
+            self.progress_trigger.s.emit()
         logfile.write('NUMBER OF ERRORS: ' + str(self.number_errors))
         logfile.close()
         # Signal that thread is done:
