@@ -1111,6 +1111,10 @@ class AcqSettingsDlg(QDialog):
             self.cfg['sys']['metadata_server_admin'])
         self.lineEdit_projectName.setText(
             self.cfg['sys']['metadata_project_name'])
+        # Disable two spinboxes when SEM stage used:
+        if self.cfg['sys']['use_microtome'] == 'False':
+            self.spinBox_sliceThickness.setEnabled(False)
+            self.doubleSpinBox_zDiff.setEnabled(False)
 
     def select_directory(self):
         """Let user select the base directory for the stack acquisition.
