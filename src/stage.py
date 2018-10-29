@@ -36,6 +36,9 @@ class Stage():
     def get_xy(self):
         return self._stage.get_stage_xy()
 
+    def get_xyz(self):
+        return self._stage.get_stage_xyz()
+
     def move_to_x(self, x):
         return self._stage.move_stage_to_x(x)
 

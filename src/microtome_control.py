@@ -308,7 +308,7 @@ class Microtome():
         duration_y = abs(target_y - self.last_known_y) / self.motor_speed_y
         return max(duration_x, duration_y)
 
-    def get_stage_xy(self, wait_interval=0.2):
+    def get_stage_xy(self, wait_interval=0.25):
         """Get current XY coordinates from DM"""
         success = True
         self._send_dm_command('MicrotomeStage_GetPositionXY')
@@ -322,6 +322,17 @@ class Microtome():
         if success:
             self.last_known_x, self.last_known_y = x, y
         return (x, y)
+
+    def get_stage_x(self):
+        return self.get_stage_xy()[0]
+
+    def get_stage_y(self):
+        return self.get_stage_xy()[1]
+
+    def get_stage_xyz(self):
+        x, y = self.get_stage_xy()
+        z = self.get_stage_z()
+        return (x, y, z)
 
     def move_stage_to_xy(self, coordinates):
         """Move stage to coordinates X/Y. This function is called during
@@ -358,7 +369,7 @@ class Microtome():
             self.error_cause = ('microtome.move_stage_to_xy: command not '
                                 'processed by DM script')
 
-    def get_stage_z(self, wait_interval=0.2):
+    def get_stage_z(self, wait_interval=0.5):
         """Get current Z coordinate from DM"""
         success = True
         self._send_dm_command('MicrotomeStage_GetPositionZ')

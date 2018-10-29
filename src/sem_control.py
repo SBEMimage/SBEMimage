@@ -31,6 +31,9 @@ class SEM():
     def __init__(self, config, sysconfig):
         self.cfg = config
         self.syscfg = sysconfig
+        self.last_known_x = None
+        self.last_known_y = None
+        self.last_known_z = None
         # self.error_state: see error codes in stack_acquisition.py
         # Must be reset with self.reset_error_state()
         self.error_state = 0
@@ -83,6 +86,10 @@ class SEM():
                 self.error_state = 301
                 self.error_cause = (
                     'sem.__init__: remote API control could not be initalized.')
+            elif config['sys']['use_microtome'] == 'False':
+                # Load SEM stage coordinates:
+                self.last_known_x, self.last_known_y, self.last_known_z = (
+                    self.get_stage_xyz())
 
     def load_system_constants(self):
         """Load all constant parameters from system config."""
@@ -434,30 +441,34 @@ class SEM():
         return (ret_val == 0)
 
     def get_stage_x(self):
-        x = self.sem_api.GetStagePosition()[1]
         # Return in microns
-        return x * 10**6
+        self.last_known_x = self.sem_api.GetStagePosition()[1] * 10**6
+        return self.last_known_x
 
     def get_stage_y(self):
-        y = self.sem_api.GetStagePosition()[2]
-        # Return in microns
-        return y * 10**6
+        self.last_known_y = self.sem_api.GetStagePosition()[2] * 10**6
+        return self.last_known_y
 
     def get_stage_z(self):
-        z = self.sem_api.GetStagePosition()[3]
-        # Return in microns
-        return z * 10**6
+        self.last_known_z = self.sem_api.GetStagePosition()[3] * 10**6
+        return self.last_known_z
 
     def get_stage_xy(self):
         x, y = self.sem_api.GetStagePosition()[1:3]
-        # Return in microns
-        return (x * 10**6, y * 10**6)
+        self.last_known_x, self.last_known_y = x * 10**6, y * 10**6
+        return (self.last_known_x, self.last_known_y)
+
+    def get_stage_xyz(self):
+        x, y, z = self.sem_api.GetStagePosition()[1:4]
+        self.last_known_x, self.last_known_y, self.last_known_z = (
+            x * 10**6, y * 10**6, z * 10**6)
+        return (self.last_known_x, self.last_known_y, self.last_known_z)
 
     def get_last_known_xy(self):
-        return (0, 0)
+        return (self.last_known_x, self.last_known_y)
 
     def get_last_known_z(self):
-        return 0
+        return self.last_known_z
 
     def move_stage_to_x(self, x):
         """Move stage to coordinate x, provided in microns"""
