@@ -2346,8 +2346,8 @@ class FTMoveDlg(QDialog):
 #------------------------------------------------------------------------------
 
 class MotorTestDlg(QDialog):
-    """Perform a random-walk XYZ motor test. Experimental, only for testing/
-       debugging. Only works with a microtome for now."""
+    """Perform a random-walk-like XYZ motor test. Experimental, only for
+       testing/debugging. Only works with a microtome for now."""
 
     def __init__(self, cfg, microtome, main_window_queue, main_window_trigger):
         super(MotorTestDlg, self).__init__()
@@ -2457,9 +2457,13 @@ class MotorTestDlg(QDialog):
         logfile = open(self.cfg['acq']['base_dir'] + '\\motor_test_log.txt',
                        'w', buffering=1)
         while self.test_in_progress:
-            # Start random walk
-            current_x += (random() - 0.5) * 50
-            current_y += (random() - 0.5) * 50
+            # Start 'random' walk
+            if self.number_tests % 10 == 0:
+                dist = 300  # longer move every 10th cycle
+            else:
+                dist = 50
+            current_x += (random() - 0.5) * dist
+            current_y += (random() - 0.5) * dist
             if self.number_tests % 2 == 0:
                 current_z += (random() - 0.5) * 0.2
             else:
@@ -2483,7 +2487,7 @@ class MotorTestDlg(QDialog):
                               + '\n')
                 self.microtome.reset_error_state()
             else:
-                self.microtome.move_stage_to_z(current_z)
+                self.microtome.move_stage_to_z(current_z, safe_mode=False)
                 if self.microtome.get_error_state() > 0:
                     self.number_errors += 1
                     logfile.write('ERROR DURING Z MOVE: '
