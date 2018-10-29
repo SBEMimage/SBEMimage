@@ -35,6 +35,7 @@ import acq_func
 import utils
 from sem_control import SEM
 from microtome_control import Microtome
+from stage import Stage
 from plasma_cleaner import PlasmaCleaner
 from stack_acquisition import Stack
 from overview_manager import OverviewManager
@@ -88,7 +89,7 @@ class MainControls(QMainWindow):
         self.show()
         QApplication.processEvents()
         # Initialize viewport window:
-        self.viewport = Viewport(self.cfg, self.sem, self.microtome,
+        self.viewport = Viewport(self.cfg, self.sem, self.stage,
                                  self.ovm, self.gm, self.cs, self.autofocus,
                                  self.viewport_trigger,
                                  self.viewport_queue)
@@ -136,7 +137,7 @@ class MainControls(QMainWindow):
                 '\nMenu  →  Calibration  →  Stage calibration',
                 QMessageBox.Ok)
         # Diplay warning if z coordinate differs from previous session
-        if self.microtome.get_error_state() == 206:
+        if self.use_microtome and self.microtome.get_error_state() == 206:
             self.microtome.reset_error_state()
             QMessageBox.warning(
                 self, 'Stage Z position',
@@ -145,7 +146,7 @@ class MainControls(QMainWindow):
                 '({0:.3f}).'.format(self.microtome.get_stage_z_prev_session())
                 + ' Please make sure that the Z position is correct.',
                 QMessageBox.Ok)
-                    
+
     def load_gui(self):
         """Load and set up the GUI."""
         loadUi('..\\gui\\main_window.ui', self)
@@ -308,16 +309,26 @@ class MainControls(QMainWindow):
         except:
             self.cfg['microtome']['device'] = 'NOT RECOGNIZED'
 
-        # Get motor limits from system cfg file:
-        motor_limits = json.loads(self.syscfg['stage']['motor_limits'])
+        # Get microtome motor limits from system cfg file:
+        motor_limits = json.loads(self.syscfg['stage']['microtome_motor_limits'])
         self.cfg['microtome']['stage_min_x'] = str(motor_limits[0])
         self.cfg['microtome']['stage_max_x'] = str(motor_limits[1])
         self.cfg['microtome']['stage_min_y'] = str(motor_limits[2])
         self.cfg['microtome']['stage_max_y'] = str(motor_limits[3])
-        # Get motor speeds from system cfg file:
-        motor_speed = json.loads(self.syscfg['stage']['motor_speed'])
+        # Get SEM motor limits from system cfg file:
+        motor_limits = json.loads(self.syscfg['stage']['sem_motor_limits'])
+        self.cfg['sem']['stage_min_x'] = str(motor_limits[0])
+        self.cfg['sem']['stage_max_x'] = str(motor_limits[1])
+        self.cfg['sem']['stage_min_y'] = str(motor_limits[2])
+        self.cfg['sem']['stage_max_y'] = str(motor_limits[3])
+        # Get microtome motor speeds from system cfg file:
+        motor_speed = json.loads(self.syscfg['stage']['microtome_motor_speed'])
         self.cfg['microtome']['motor_speed_x'] = str(motor_speed[0])
         self.cfg['microtome']['motor_speed_y'] = str(motor_speed[1])
+        # Get SEM motor speeds from system cfg file:
+        motor_speed = json.loads(self.syscfg['stage']['sem_motor_speed'])
+        self.cfg['sem']['motor_speed_x'] = str(motor_speed[0])
+        self.cfg['sem']['motor_speed_y'] = str(motor_speed[1])
         # Knife settings:
         self.cfg['microtome']['full_cut_duration'] = (
             self.syscfg['knife']['full_cut_duration'])
@@ -345,6 +356,7 @@ class MainControls(QMainWindow):
         self.acq_in_progress = False
         self.acq_paused = False
         self.simulation_mode = self.cfg['sys']['simulation_mode'] == 'True'
+        self.use_microtome = self.cfg['sys']['use_microtome'] == 'True'
         self.plc_installed = self.cfg['sys']['plc_installed'] == 'True'
         self.plc_initialized = False
         self.statusbar_msg = ''
@@ -392,7 +404,6 @@ class MainControls(QMainWindow):
             self.simulation_mode = True
             self.cfg['sys']['simulation_mode'] = 'True'
 
-
         # Set up overviews:
         self.ovm = OverviewManager(self.cfg, self.sem, self.cs)
         # Set up grids:
@@ -404,44 +415,62 @@ class MainControls(QMainWindow):
         utils.show_progress_in_console(50)
 
         # Initialize DM-3View interface:
-        self.microtome = Microtome(self.cfg, self.syscfg)
-        if self.microtome.get_error_state() == 101:
-            self.add_to_log('3VIEW: Error initializing DigitalMicrograph API.')
-            self.add_to_log('3VIEW: ' + self.microtome.get_error_cause())
-            QMessageBox.warning(
-                self, 'Error initializing DigitalMicrograph API',
-                'Have you forgotten to start the communication '
-                'script in DM? \nIf yes, please load the '
-                'script and click "Execute".'
-                '\n\nIs the Z coordinate negative? \nIf yes, '
-                'please set it to zero or a positive value.',
-                QMessageBox.Retry)
-            # Try again:
+        if self.use_microtome:
             self.microtome = Microtome(self.cfg, self.syscfg)
-            if self.microtome.get_error_state() > 0:
-                self.add_to_log(
-                    '3VIEW: Error initializing DigitalMicrograph API '
-                    '(second attempt).')
+            if self.microtome.get_error_state() == 101:
+                self.add_to_log('3VIEW: Error initializing DigitalMicrograph API.')
                 self.add_to_log('3VIEW: ' + self.microtome.get_error_cause())
                 QMessageBox.warning(
                     self, 'Error initializing DigitalMicrograph API',
-                    'The second attempt to initalize the DigitalMicrograph '
-                    'API failed.\nSBEMimage will be run in simulation mode.',
-                    QMessageBox.Ok)
-                self.simulation_mode = True
-                self.cfg['sys']['simulation_mode'] = 'True'
+                    'Have you forgotten to start the communication '
+                    'script in DM? \nIf yes, please load the '
+                    'script and click "Execute".'
+                    '\n\nIs the Z coordinate negative? \nIf yes, '
+                    'please set it to zero or a positive value.',
+                    QMessageBox.Retry)
+                # Try again:
+                self.microtome = Microtome(self.cfg, self.syscfg)
+                if self.microtome.get_error_state() > 0:
+                    self.add_to_log(
+                        '3VIEW: Error initializing DigitalMicrograph API '
+                        '(second attempt).')
+                    self.add_to_log('3VIEW: ' + self.microtome.get_error_cause())
+                    QMessageBox.warning(
+                        self, 'Error initializing DigitalMicrograph API',
+                        'The second attempt to initalize the DigitalMicrograph '
+                        'API failed.\nSBEMimage will be run in simulation mode.',
+                        QMessageBox.Ok)
+                    self.simulation_mode = True
+                    self.cfg['sys']['simulation_mode'] = 'True'
+                else:
+                    self.add_to_log('3VIEW: Second attempt to initialize '
+                                    'DigitalMicrograph API successful.')
+
+            # Update calibration of microtome stage:
+            self.calibration_found = (
+                self.microtome.update_stage_calibration(self.sem.get_eht()))
+            if not self.calibration_found:
+                self.add_to_log(
+                    'CTRL: Warning - No stage calibration found for current EHT.')
             else:
-                self.add_to_log('3VIEW: Second attempt to initialize '
-                                'DigitalMicrograph API successful.')        
-                
-        # Update calibration of stage:
-        self.calibration_found = (
-            self.microtome.update_stage_calibration(self.sem.get_eht()))
-        if not self.calibration_found:
-            self.add_to_log(
-                'CTRL: Warning - No stage calibration found for current EHT.')
+                self.cs.load_stage_calibration() # update coordinate transformations
+
+        else:
+            # No microtome - use SEM stage
+            self.microtome = None
+            # Update calibration of SEM stage:
+            self.calibration_found = (
+                self.sem.update_stage_calibration(self.sem.get_eht()))
+            if not self.calibration_found:
+                self.add_to_log(
+                    'CTRL: Warning - No stage calibration found for current EHT.')
+            # Restrict GUI: microtome functions are not available:
+            self.restrict_gui_for_sem_stage()
 
         utils.show_progress_in_console(70)
+        # Stage instance:
+        self.stage = Stage(self.sem, self.microtome,
+                           self.use_microtome)
 
         # Enable plasma cleaner tool button if plasma cleaner installed:
         self.toolButton_plasmaCleaner.setEnabled(self.plc_installed)
@@ -456,7 +485,7 @@ class MainControls(QMainWindow):
                                    self.acq_queue, self.acq_trigger)
         # Finally, the stack instance:
         self.stack = Stack(self.cfg,
-                           self.sem, self.microtome,
+                           self.sem, self.microtome, self.stage,
                            self.ovm, self.gm, self.cs,
                            self.img_inspector, self.autofocus,
                            self.acq_queue, self.acq_trigger)
@@ -517,7 +546,11 @@ class MainControls(QMainWindow):
         """Show current settings in the upper part of the main window"""
         # Installed devices:
         self.label_SEM.setText(self.sem.device_name)
-        self.label_microtome.setText(self.microtome.device_name)
+        if self.use_microtome:
+            self.label_microtome.setText(self.microtome.device_name)
+        else:
+            self.groupBox_stage.setTitle('Stage (no microtome)')
+            self.label_microtome.setText(self.sem.device_name)
         # SEM beam settings:
         self.label_beamSettings.setText(
             '{0:.2f}'.format(self.sem.get_eht()) + ' kV / '
@@ -564,8 +597,11 @@ class MainControls(QMainWindow):
         # Acquisition parameters
         self.lineEdit_baseDir.setText(self.cfg['acq']['base_dir'])
         self.label_numberSlices.setText(self.cfg['acq']['number_slices'])
-        self.label_sliceThickness.setText(
-            self.cfg['acq']['slice_thickness'] + ' nm')
+        if self.use_microtome:
+            self.label_sliceThickness.setText(
+                self.cfg['acq']['slice_thickness'] + ' nm')
+        else:
+            self.label_sliceThickness.setText('---')
 
     def show_estimates(self):
         """Read current estimates from the stack instance and display
@@ -660,7 +696,8 @@ class MainControls(QMainWindow):
                     QMessageBox.Ok)
 
     def open_microtome_dlg(self):
-        dialog = MicrotomeSettingsDlg(self.microtome)
+        dialog = MicrotomeSettingsDlg(self.microtome, self.sem,
+                                      self.use_microtome)
         if dialog.exec_():
             self.cs.load_stage_limits()
             self.viewport.mv_load_stage_limits()
@@ -669,13 +706,13 @@ class MainControls(QMainWindow):
             self.viewport.mv_draw()
 
     def open_calibration_dlg(self):
-        dialog = CalibrationDlg(self.cfg, self.microtome, self.sem)
+        dialog = CalibrationDlg(self.cfg, self.stage, self.sem)
         if dialog.exec_():
             self.cs.load_stage_calibration() # update coordinate transformations
             if (self.cfg['debris']['auto_detection_area'] == 'True'):
                 self.ovm.update_all_ov_debris_detections_areas(self.gm)
             self.viewport.mv_draw()
-            
+
     def open_mag_calibration_dlg(self):
         dialog = MagCalibrationDlg(self.sem)
         dialog.exec_()
@@ -825,7 +862,7 @@ class MainControls(QMainWindow):
                            size_selector,
                            self.cfg['acq']['base_dir'],
                            self.stack.get_slice_counter(),
-                           self.sem, self.microtome,
+                           self.sem, self.stage,
                            self.ovm, self.cs,
                            self.acq_queue, self.acq_trigger)
         dialog.exec_()
@@ -849,7 +886,7 @@ class MainControls(QMainWindow):
                 str(current_slice) + "      (no cut after acq.)")
 
     def show_current_stage_xy(self):
-        xy_pos = self.microtome.get_last_known_xy()
+        xy_pos = self.stage.get_last_known_xy()
         if xy_pos[0] is None or xy_pos[1] is None:
             pos_info = ('X: unknown    Y: unknown')
         else:
@@ -858,7 +895,7 @@ class MainControls(QMainWindow):
         QApplication.processEvents() # ensures changes are shown without delay
 
     def show_current_stage_z(self):
-        z_pos = self.microtome.get_last_known_z()
+        z_pos = self.stage.get_last_known_z()
         if z_pos is None:
             pos_info = 'Z: unknown'
         else:
@@ -1116,6 +1153,15 @@ class MainControls(QMainWindow):
         self.pushButton_testPlasmaCleaner.setEnabled(False)
         self.pushButton_testMotors.setEnabled(False)
 
+    def restrict_gui_for_sem_stage(self):
+        self.pushButton_doApproach.setEnabled(False)
+        self.pushButton_doSweep.setEnabled(False)
+        self.pushButton_testNearKnife.setEnabled(False)
+        self.pushButton_testClearKnife.setEnabled(False)
+        self.pushButton_testStopDMScript.setEnabled(False)
+        self.checkBox_useDebrisDetection.setEnabled(False)
+        self.toolButton_debrisDetection.setEnabled(False)
+
     def add_to_log(self, text):
         """Update the log from the main thread."""
         self.textarea_log.appendPlainText(utils.format_log_entry(text))
@@ -1147,7 +1193,7 @@ class MainControls(QMainWindow):
                 ov_acq_thread = threading.Thread(
                     target=acq_func.acquire_ov,
                     args=(base_dir, ov_selection,
-                          self.sem, self.microtome,
+                          self.sem, self.stage,
                           self.ovm, self.cs,
                           self.acq_queue, self.acq_trigger,))
                 ov_acq_thread.start()
@@ -1222,7 +1268,7 @@ class MainControls(QMainWindow):
             self.viewport.restrict_gui(True)
             QApplication.processEvents()
             move_thread = threading.Thread(target=acq_func.move,
-                                           args=(self.microtome,
+                                           args=(self.stage,
                                                  target_pos,
                                                  self.acq_queue,
                                                  self.acq_trigger,))
@@ -1336,7 +1382,7 @@ class MainControls(QMainWindow):
         self.sem.show_about_box()
 
     def test_get_stage(self):
-        current_x = self.microtome.get_stage_xy()[0]
+        current_x = self.stage.get_x()
         if current_x is not None:
             self.add_to_log(
                 '3VIEW: Current stage X position: '
@@ -1346,23 +1392,32 @@ class MainControls(QMainWindow):
                 '3VIEW: Error - could not read current stage x position.')
 
     def test_set_stage(self):
-        current_x = self.microtome.get_stage_xy()[0]
-        self.microtome.move_stage_to_x(current_x + 10)
+        current_x = self.stage.get_x()
+        self.stage.move_to_x(current_x + 10)
         self.add_to_log(
             '3VIEW: New stage X position should be: '
             + '{0:.2f}'.format(current_x + 10))
 
     def test_near_knife(self):
-        self.microtome.near_knife()
-        self.add_to_log('3VIEW: Knife position should be NEAR')
+        if self.use_microtome:
+            self.microtome.near_knife()
+            self.add_to_log('3VIEW: Knife position should be NEAR')
+        else:
+            self.add_to_log('3VIEW: Microtome not active.')
 
     def test_clear_knife(self):
-        self.microtome.clear_knife()
-        self.add_to_log('3VIEW: Knife position should be CLEAR')
+        if self.use_microtome:
+            self.microtome.clear_knife()
+            self.add_to_log('3VIEW: Knife position should be CLEAR')
+        else:
+            self.add_to_log('3VIEW: Microtome not active.')
 
     def test_stop_dm_script(self):
-        self.microtome.stop_script()
-        self.add_to_log('3VIEW: STOP command sent to DM script.')
+        if self.use_microtome:
+            self.microtome.stop_script()
+            self.add_to_log('3VIEW: STOP command sent to DM script.')
+        else:
+            self.add_to_log('3VIEW: Microtome not active.')
 
     def test_send_email(self):
         """Send test e-mail to the primary user."""
@@ -1387,10 +1442,10 @@ class MainControls(QMainWindow):
             self.add_to_log('CTRL: Error: Could not send e-mail.')
             QMessageBox.warning(
                 self, 'E-mail test failed',
-                'A error occurred while trying to send a test e-mail to ' 
+                'A error occurred while trying to send a test e-mail to '
                 + self.cfg['monitoring']['user_email'] + ' via '
                 + self.cfg['sys']['email_smtp'],
-                QMessageBox.Ok)        
+                QMessageBox.Ok)
 
     def test_plasma_cleaner(self):
         if self.plc_installed:
@@ -1663,8 +1718,9 @@ class MainControls(QMainWindow):
                 QMessageBox.Yes| QMessageBox.No)
             if result == QMessageBox.Yes:
                 if not self.simulation_mode:
-                    self.microtome.stop_script()
-                    self.add_to_log('3VIEW: Disconnected from DM/3View.')
+                    if self.use_microtome:
+                        self.microtome.stop_script()
+                        self.add_to_log('3VIEW: Disconnected from DM/3View.')
                     sem_log_msg = self.sem.disconnect()
                     self.add_to_log('SEM: ' + sem_log_msg)
                 if self.plc_initialized:
@@ -1858,7 +1914,7 @@ class MainControls(QMainWindow):
     def ft_open_move_dlg(self):
         if (self.ft_selected_tile >=0) or (self.ft_selected_ov >= 0):
             dialog = FTMoveDlg(self.microtome, self.cs, self.gm,
-                               self.ft_selected_grid, self.ft_selected_tile, 
+                               self.ft_selected_grid, self.ft_selected_tile,
                                self.ft_selected_ov)
             dialog.exec_()
             # Update stage position in main controls tab
@@ -1868,8 +1924,8 @@ class MainControls(QMainWindow):
                 self, 'Select tile/OV',
                 'You must first select a tile or an overview to use the '
                 '"Move" function.',
-                QMessageBox.Ok)       
-            
+                QMessageBox.Ok)
+
     def ft_run_cycle(self):
         self.pushButton_focusToolStart.setText('Busy')
         self.pushButton_focusToolStart.setEnabled(False)
@@ -1915,7 +1971,7 @@ class MainControls(QMainWindow):
         stage_x += self.ft_counter * 800 * self.ft_pixel_size/1000
         stage_y += self.ft_counter * 800 * self.ft_pixel_size/1000
         # Move in thread:
-        self.microtome.move_stage_to_xy((stage_x, stage_y))
+        self.stage.move_to_xy((stage_x, stage_y))
 
         if self.radioButton_focus.isChecked():
             self.ft_mode = 1

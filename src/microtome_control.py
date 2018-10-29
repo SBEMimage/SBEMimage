@@ -107,7 +107,7 @@ class Microtome():
                       and abs(current_z - self.z_prev_session) > 0.01):
                     self.error_state = 206
                     self.error_cause = ('microtome.__init__: stage z position '
-                                        'mismatch')               
+                                        'mismatch')
                 # Update motor speed calibration in DM script:
                 success = self.write_motor_speed_calibration_to_script()
                 if not success and self.error_state == 0:
@@ -222,7 +222,7 @@ class Microtome():
                     self.error_state = 103
                     self.error_cause = ('microtome.do_sweep: command not '
                                         'processed by DM script')
-                        
+
             # Move to previous z position (before sweep):
             self.move_stage_to_z(z_position)
             if self.error_state > 0:
@@ -380,7 +380,7 @@ class Microtome():
 
     def get_stage_z_prev_session(self):
         return self.z_prev_session
-        
+
     def move_stage_to_z(self, z, safe_mode=True):
         """Move stage to new z position. Used during stack acquisition
            before each cut and for sweeps."""
@@ -446,7 +446,7 @@ class Microtome():
             self.error_state = 103
             self.error_cause = ('microtome.do_full_cut: command not '
                                 'processed by DM script')
-        
+
     def get_error_state(self):
         # Return current error_state
         return self.error_state
@@ -498,17 +498,17 @@ class Microtome():
         self.cfg['microtome']['stage_rotation_angle_x'] = str(params[2])
         self.cfg['microtome']['stage_rotation_angle_y'] = str(params[3])
         # Save data in sysconfig:
-        calibration_data = json.loads(self.syscfg['stage']['calibration_data'])
+        calibration_data = json.loads(self.syscfg['stage']['microtome_calibration_data'])
         eht = int(eht * 1000)  # Dict keys in system config use volts, not kV
         calibration_data[str(eht)] = params
-        self.syscfg['stage']['calibration_data'] = json.dumps(calibration_data)
+        self.syscfg['stage']['microtome_calibration_data'] = json.dumps(calibration_data)
 
     def update_stage_calibration(self, eht):
         eht = int(eht * 1000)  # Dict keys in system config use volts, not kV
         success = True
         try:
             calibration_data = json.loads(
-                self.syscfg['stage']['calibration_data'])
+                self.syscfg['stage']['microtome_calibration_data'])
             available_eht = [int(s) for s in calibration_data.keys()]
         except:
             available_eht = []

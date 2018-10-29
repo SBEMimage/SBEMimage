@@ -22,9 +22,9 @@ from PIL import Image
 
 import utils
 
-def acquire_ov(base_dir, selection, sem, microtome, ovm, cs, queue, trigger):
+def acquire_ov(base_dir, selection, sem, stage, ovm, cs, queue, trigger):
     # Update current xy position:
-    microtome.get_stage_xy(wait_interval=1)
+    stage.get_xy()
     queue.put('UPDATE XY')
     trigger.s.emit()
     success = True
@@ -38,11 +38,11 @@ def acquire_ov(base_dir, selection, sem, microtome, ovm, cs, queue, trigger):
             '3VIEW: Moving stage to OV %d position.' % i))
         trigger.s.emit()
         # Move to OV stage coordinates:
-        microtome.move_stage_to_xy(cs.get_ov_centre_s(i))
+        stage.move_to_xy(cs.get_ov_centre_s(i))
         # Check to see if error ocurred:
-        if microtome.get_error_state() > 0:
+        if stage.get_error_state() > 0:
             success = False
-            microtome.reset_error_state()
+            stage.reset_error_state()
         if success:
             # update stage position in GUI:
             queue.put('UPDATE XY')
@@ -76,7 +76,7 @@ def acquire_ov(base_dir, selection, sem, microtome, ovm, cs, queue, trigger):
         queue.put('OV FAILURE')
         trigger.s.emit()
 
-def acquire_stub_ov(base_dir, slice_counter, sem, microtome, pos, size_selector,
+def acquire_stub_ov(base_dir, slice_counter, sem, stage, pos, size_selector,
                     ovm, cs, queue, trigger, abort_queue):
     """Acquire a large overview image of user-defined size that can cover
        the entire stub.
@@ -84,12 +84,13 @@ def acquire_stub_ov(base_dir, slice_counter, sem, microtome, pos, size_selector,
     success = True
     aborted = False
     # Update current xy position:
-    microtome.get_stage_xy(wait_interval=1)
+    stage.get_xy()
     queue.put('UPDATE STAGEPOS')
     trigger.s.emit()
     # Make sure DM script uses the correct motor speed calibration
     # (This information is lost when script crashes.)
-    success = microtome.write_motor_speed_calibration_to_script()
+    if stage.use_microtome:
+        success = stage.update_motor_speed()
 
     if success:
         ovm.set_stub_ov_size_selector(size_selector)
@@ -124,12 +125,12 @@ def acquire_stub_ov(base_dir, slice_counter, sem, microtome, pos, size_selector,
                     aborted = True
                     break
 
-            microtome.move_stage_to_xy((target_x, target_y))
+            stage.move_to_xy((target_x, target_y))
 
             # Check to see if error ocurred:
-            if microtome.get_error_state() > 0:
+            if stage.get_error_state() > 0:
                 success = False
-                microtome.reset_error_state()
+                stage.reset_error_state()
             else:
                 # Show new stage coordinates in main control window:
                 queue.put('UPDATE STAGEPOS')
@@ -192,16 +193,16 @@ def sweep(microtome, queue, trigger):
         queue.put('SWEEP FAILURE')
         trigger.s.emit()
 
-def move(microtome, target_pos, queue, trigger):
+def move(stage, target_pos, queue, trigger):
     # Update current xy position:
-    microtome.get_stage_xy(wait_interval=0.5)
+    stage.get_xy()
     queue.put('UPDATE XY')
     trigger.s.emit()
     success = True
-    microtome.move_stage_to_xy(target_pos)
-    if microtome.get_error_state() > 0:
+    stage.move_to_xy(target_pos)
+    if stage.get_error_state() > 0:
         success = False
-        microtome.reset_error_state()
+        stage.reset_error_state()
     if success:
         queue.put('UPDATE XY')
         trigger.s.emit()

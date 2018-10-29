@@ -28,12 +28,13 @@ import utils
 
 class Stack():
 
-    def __init__(self, config, sem, microtome,
+    def __init__(self, config, sem, microtome, stage,
                  overview_manager, grid_manager, coordinate_system,
                  image_inspector, autofocus, acq_queue, acq_trigger):
         self.cfg = config
         self.sem = sem
         self.microtome = microtome
+        self.stage = stage
         self.ovm = overview_manager
         self.gm = grid_manager
         self.cs = coordinate_system
@@ -114,8 +115,12 @@ class Stack():
         self.slice_thickness = int(self.cfg['acq']['slice_thickness'])
         self.total_z_diff = float(self.cfg['acq']['total_z_diff'])
         self.stage_z_position = None  # updated when stack (re)started.
-        self.full_cut_duration = self.microtome.get_full_cut_duration()
-        self.sweep_distance = self.microtome.get_sweep_distance()
+        if self.microtome is not None:
+            self.full_cut_duration = self.microtome.get_full_cut_duration()
+            self.sweep_distance = self.microtome.get_sweep_distance()
+        else:
+            self.full_cut_duration = 0
+            self.sweep_distance = None
         self.eht_off_after_stack = (
             self.cfg['acq']['eht_off_after_stack'] == 'True')
         # Was previous acq interrupted by error or paused inbetween by user?
@@ -480,7 +485,7 @@ class Stack():
 
         # Make sure DM script uses the correct motor speed calibration
         # (This information is lost when script crashes.)
-        success = self.microtome.write_motor_speed_calibration_to_script()
+        success = self.stage.update_motor_speed()
         if not success:
             self.error_state = 101
             self.pause_acquisition(1)
@@ -488,17 +493,17 @@ class Stack():
                                  'motor speed calibration')
 
         # Get current z position of stage:
-        self.stage_z_position = self.microtome.get_stage_z(wait_interval=1)
+        self.stage_z_position = self.stage.get_z()
         if self.stage_z_position is None or self.stage_z_position < 0:
             # try again:
-            self.stage_z_position = self.microtome.get_stage_z(wait_interval=2)
+            self.stage_z_position = self.stage.get_z()
             if self.stage_z_position is None or self.stage_z_position < 0:
                 self.error_state = 104
-                self.microtome.reset_error_state()
+                self.stage.reset_error_state()
                 self.pause_acquisition(1)
                 self.add_to_main_log('CTRL: Error reading initial Z position.')
         # Check for Z mismatch:
-        if self.microtome.get_error_state() == 206:
+        if self.microtome is not None and self.microtome.get_error_state() == 206:
             self.microtome.reset_error_state()
             self.error_state = 206
             self.pause_acquisition(1)
@@ -507,7 +512,7 @@ class Stack():
 
         self.transmit_cmd('UPDATE Z')
 
-        self.microtome.get_stage_xy(wait_interval=1)
+        self.stage.get_xy()
         self.transmit_cmd('UPDATE XY')
 
         # ========================= ACQUISITION LOOP ==========================
@@ -1037,6 +1042,8 @@ class Stack():
         self.report_requested = False
 
     def perform_cutting_sequence(self):
+        """Carry out a single cut. This function is called when the microtome
+        is active and skipped if the SEM stage is active."""
         old_stage_z_position = self.stage_z_position
         # Move to new z position:
         self.stage_z_position = (self.stage_z_position
@@ -1087,9 +1094,9 @@ class Stack():
         if move_required:
             self.add_to_main_log(
                 '3VIEW: Moving stage to OV %d position.' % ov_number)
-            self.microtome.move_stage_to_xy(ov_stage_position)
-            if self.microtome.get_error_state() > 0:
-                self.microtome.reset_error_state()
+            self.stage.move_to_xy(ov_stage_position)
+            if self.stage.get_error_state() > 0:
+                self.stage.reset_error_state()
                 # Update error log in viewport window with warning message:
                 log_str = (str(self.slice_counter) + ': WARNING ('
                            + 'Move to OV%d position failed)'
@@ -1098,8 +1105,8 @@ class Stack():
                 self.transmit_cmd('VP LOG' + log_str)
                 # Try again
                 sleep(2)
-                self.microtome.move_stage_to_xy(ov_stage_position)
-                self.error_state = self.microtome.get_error_state()
+                self.stage.move_to_xy(ov_stage_position)
+                self.error_state = self.stage.get_error_state()
                 if self.error_state > 0:
                     self.add_to_main_log('CTRL: Stage failed to move to '
                                          'OV position.')
@@ -1232,7 +1239,8 @@ class Stack():
             self.mirror_files([debris_save_path])
 
     def remove_debris(self):
-        """Try to remove detected debris by sweeping the surface."""
+        """Try to remove detected debris by sweeping the surface. Microtome must
+        be active for this function. Cannot be used with SEM stage."""
         self.add_to_main_log('CTRL: Sweeping to remove debris.')
         self.microtome.do_sweep(self.stage_z_position)
         if self.microtome.get_error_state() > 0:
@@ -1278,12 +1286,12 @@ class Stack():
             # Move to that position:
             self.add_to_main_log('3VIEW: Moving stage to position '
                           'of tile %s' % tile_id)
-            self.microtome.move_stage_to_xy((stage_x, stage_y))
+            self.stage.move_to_xy((stage_x, stage_y))
             # The move function waits for the specified stage move wait interval
             # Check if there were microtome problems:
             # If yes, try one more time before pausing acquisition.
-            if self.microtome.get_error_state() > 0:
-                self.microtome.reset_error_state()
+            if self.stage.get_error_state() > 0:
+                self.stage.reset_error_state()
                 self.add_to_main_log('CTRL: Problem detected (XY '
                               'stage move). Trying again.')
                 # Error_log in viewport window:
@@ -1296,10 +1304,10 @@ class Stack():
                 # Try to move to tile position again:
                 self.add_to_main_log('3VIEW: Moving stage to position '
                               'of tile ' + tile_id)
-                self.microtome.move_stage_to_xy((stage_x, stage_y))
+                self.stage.move_to_xy((stage_x, stage_y))
                 # Check again if there is a failure:
-                self.error_state = self.microtome.get_error_state()
-                self.microtome.reset_error_state()
+                self.error_state = self.stage.get_error_state()
+                self.stage.reset_error_state()
                 # If yes, pause stack:
                 if self.error_state > 0:
                     self.add_to_main_log(
@@ -1670,12 +1678,12 @@ class Stack():
             self.add_to_main_log(
                 '3VIEW: Moving stage to position of tile '
                 + str(grid_number) + '.' + str(tile_number) + ' for autofocus')
-            self.microtome.move_stage_to_xy((stage_x, stage_y))
+            self.stage.move_to_xy((stage_x, stage_y))
             # The move function waits for the specified stage move wait interval
             # Check if there were microtome problems:
             # If yes, try one more time before pausing acquisition.
-            if self.microtome.get_error_state() > 0:
-                self.microtome.reset_error_state()
+            if self.stage.get_error_state() > 0:
+                self.stage.reset_error_state()
                 self.add_to_main_log('CTRL: Problem detected (XY '
                               'stage move). Trying again.')
                 # Error_log in viewport window:
@@ -1689,10 +1697,10 @@ class Stack():
                 self.add_to_main_log(
                     '3VIEW: Moving stage to position of tile '
                     + str(grid_number) + '.' + str(tile_number))
-                self.microtome.move_stage_to_xy((stage_x, stage_y))
+                self.stage.move_to_xy((stage_x, stage_y))
                 # Check again if there is a failure:
-                self.error_state = self.microtome.get_error_state()
-                self.microtome.reset_error_state()
+                self.error_state = self.stage.get_error_state()
+                self.stage.reset_error_state()
                 # If yes, pause stack:
                 if self.error_state > 0:
                     self.add_to_main_log(
