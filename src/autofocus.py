@@ -44,6 +44,9 @@ class Autofocus():
         self.max_wd_diff, self.max_sx_diff, self.max_sy_diff = json.loads(
             self.cfg['autofocus']['max_wd_stig_diff'])
         # For heuristic autofocus:
+        # Dictionary of cropped central tile areas, kept in memory
+        # for processing during cut cycle:
+        self.img = {}
         self.wd_delta, self.stig_x_delta, self.stig_y_delta = json.loads(
             self.cfg['autofocus']['heuristic_deltas'])
         self.heuristic_calibration = json.loads(
@@ -179,15 +182,21 @@ class Autofocus():
 
     # ===== Below: Heuristic autofocus =======
 
-    def process_heuristic_new_image(self, img, tile_key, slice_counter):
+    def crop_tile_for_heuristic_af(self, tile_img, tile_key):
+        """Crop tile_img provided as numpy array. Save in dictionary with
+           tile_key."""
+        # Crop image to 512x512:
+        height, width = tile_img.shape[0], tile_img.shape[1]
+        self.img[tile_key] = tile_img[int(height/2 - 256):int(height/2 + 256),
+                                      int(width/2 - 256):int(width/2 + 256)]
+
+    def process_image_for_heuristic_af(self, tile_key):
         """Compute single-image estimators as described in
            Binding et al., 2013"""
 
-        # image provided as numpy array.
-        # Crop image to 512x512:
-        height, width = img.shape[0], img.shape[1]
-        img = img[int(height/2 - 256):int(height/2 + 256),
-                  int(width/2 - 256):int(width/2 + 256)]
+        # image provided as numpy array from dictionary,
+        # already cropped to 512x512
+        img = self.img[tile_key]
         mean = int(np.mean(img))
         # recast as int16 before mean subtraction
         img = img.astype(np.int16)

@@ -169,6 +169,8 @@ class Stack():
         # Alternating plus/minus deltas for wd and stig, needed for
         # heuristic autofocus, otherwise 0
         self.wd_delta, self.stig_x_delta, self.stig_y_delta = 0, 0, 0
+        # List of tiles to be processed for heuristic autofocus:
+        self.heuristic_af_queue = []
 
         # Variables used for reply from main program:
         self.user_reply = None
@@ -1061,7 +1063,10 @@ class Stack():
                           + ' nm cutting thickness).')
             # do the cut (near, cut, retract, clear)
             self.microtome.do_full_cut()
-            sleep(self.full_cut_duration)
+            if (0): # for testing
+                sleep(self.full_cut_duration)
+            else:
+                self.process_heuristic_af_queue()
             self.microtome.check_for_cut_cycle_error()
             self.error_state = self.microtome.get_error_state()
             self.microtome.reset_error_state()
@@ -1082,6 +1087,21 @@ class Stack():
             self.total_z_diff += self.slice_thickness/1000
             self.cfg['acq']['total_z_diff'] = str(self.total_z_diff)
         sleep(1)
+
+    def process_heuristic_af_queue(self):
+        start_time = datetime.datetime.now()
+        print(start_time)
+        for tile_key in self.heuristic_af_queue:
+            self.perform_heuristic_autofocus(tile_key)
+            current_time = datetime.datetime.now()
+            time_elapsed = current_time - start_time
+            print('Time elapsed', time_elapsed.total_seconds())
+        self.heuristic_af_queue = []
+        remaining_cutting_time = (
+            self.full_cut_duration - time_elapsed.total_seconds())
+        if remaining_cutting_time > 0:
+            print('Remaining wait time', remaining_cutting_time)
+            sleep(remaining_cutting_time)
 
     def acquire_overview(self, ov_number, move_required=True):
         """Acquire an overview image with error handling and image inspection"""
@@ -1595,8 +1615,10 @@ class Stack():
                     # reference tile, process tile:
                     if (self.af.is_active() and self.af.get_method() == 1
                             and self.af.is_tile_selected(grid_number, tile_number)):
-                        self.perform_heuristic_autofocus(
-                            tile_img, grid_number, tile_number)
+                        tile_key = str(grid_number) + '.' + str(tile_number)
+                        self.af.crop_tile_for_heuristic_af(
+                            tile_img, tile_key)
+                        self.heuristic_af_queue.append(tile_key)
 
                 elif (not tile_selected
                       and not tile_skipped
@@ -1735,12 +1757,10 @@ class Stack():
                 self.gm.get_pixel_size(grid_number),
                 self.gm.get_dwell_time(grid_number))
 
-    def perform_heuristic_autofocus(self, tile_img, grid_number, tile_number):
-        tile_key = str(grid_number) + '.' + str(tile_number)
+    def perform_heuristic_autofocus(self, tile_key):
         self.add_to_main_log('CTRL: Processing tile %s for '
             'heuristic autofocus ' %tile_key)
-        self.af.process_heuristic_new_image(
-            tile_img, tile_key, self.slice_counter)
+        self.af.process_image_for_heuristic_af(tile_key)
         wd_corr, sx_corr, sy_corr, within_range = (
             self.af.get_heuristic_corrections(tile_key))
         if wd_corr is not None:
