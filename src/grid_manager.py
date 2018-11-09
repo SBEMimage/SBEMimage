@@ -321,6 +321,10 @@ class GridManager(object):
         if grid_number < len(self.grid_map_wd_stig):
             self.grid_map_wd_stig[grid_number][tile_number][0] = wd
 
+    def adjust_tile_wd(self, grid_number, tile_number, delta):
+        if grid_number < len(self.grid_map_wd_stig):
+            self.grid_map_wd_stig[grid_number][tile_number][0] += delta
+
     def get_average_grid_wd(self, grid_number):
         wd_list = []
         for tile_entry in self.grid_map_wd_stig[grid_number]:
@@ -341,6 +345,12 @@ class GridManager(object):
         if grid_number < len(self.grid_map_wd_stig):
             self.grid_map_wd_stig[grid_number][tile_number][1] = stig_x
             self.grid_map_wd_stig[grid_number][tile_number][2] = stig_y
+
+    def adjust_tile_stig_xy(self, grid_number, tile_number,
+                            delta_stig_x, delta_stig_y):
+        if grid_number < len(self.grid_map_wd_stig):
+            self.grid_map_wd_stig[grid_number][tile_number][1] += delta_stig_x
+            self.grid_map_wd_stig[grid_number][tile_number][2] += delta_stig_y
 
     def get_average_grid_stig_xy(self, grid_number):
         stig_x_list = []
@@ -506,7 +516,7 @@ class GridManager(object):
             if tile >= 0:
                 str_list.append('Tile %d' % tile)
             else:
-                str_list.append('No tile selected')        
+                str_list.append('No tile selected')
         return str_list
 
     def update_active_tiles_to_new_grid_size(self, grid_number, new_size):
@@ -579,6 +589,13 @@ class GridManager(object):
     def initialize_wd_stig_map(self, grid_number):
         for t in range(self.size[grid_number][0] * self.size[grid_number][1]):
             self.grid_map_wd_stig[grid_number][t] = [0, 0, 0]
+
+    def set_wd_stig_map(self, grid_number, wd, stig_x, stig_y):
+        """Set all tiles to specified working distance and stig_xy, except those
+        that are already set to values other than 0, 0, 0."""
+        for t in range(self.size[grid_number][0] * self.size[grid_number][1]):
+            if self.grid_map_wd_stig[grid_number][t] == [0, 0, 0]:
+                self.grid_map_wd_stig[grid_number][t] = [wd, stig_x, stig_y]
 
     def adjust_focus_gradient(self, grid_number, diff):
         t1, t2, t3 = self.af_tiles[grid_number]

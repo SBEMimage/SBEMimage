@@ -481,7 +481,7 @@ class MainControls(QMainWindow):
         self.img_inspector = ImageInspector(self.cfg, self.ovm)
 
         # Set up autofocus instance:
-        self.autofocus = Autofocus(self.cfg, self.sem,
+        self.autofocus = Autofocus(self.cfg, self.sem, self.gm,
                                    self.acq_queue, self.acq_trigger)
         # Finally, the stack instance:
         self.stack = Stack(self.cfg,

@@ -1756,9 +1756,6 @@ class AutofocusSettingsDlg(QDialog):
         self.comboBox_trackingMode.addItems(['Average',
                                              'Track all',
                                              'Individual + Best Fit'])
-        # Disable second and third option for now (under development)
-        self.comboBox_trackingMode.model().item(1).setEnabled(False)
-        self.comboBox_trackingMode.model().item(2).setEnabled(False)
         self.comboBox_trackingMode.setCurrentIndex(
             self.af.get_tracking_mode())
         # SmartSEM autofocus

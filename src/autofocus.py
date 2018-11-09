@@ -29,9 +29,10 @@ from scipy.signal import correlate2d, fftconvolve
 
 class Autofocus():
 
-    def __init__(self, config, sem, acq_queue, acq_trigger):
+    def __init__(self, config, sem, grid_manager, acq_queue, acq_trigger):
         self.cfg = config
         self.sem = sem
+        self.gm = grid_manager
         self.queue = acq_queue
         self.trigger = acq_trigger
         self.method = int(self.cfg['autofocus']['method'])
@@ -282,6 +283,15 @@ class Autofocus():
             return (mean(wd_corr), mean(stig_x_corr), mean(stig_y_corr))
         else:
             return (None, None, None)
+
+    def apply_heuristic_tile_corrections(self):
+        """Apply individual tile corrections for the specified grid."""
+        for tile_key in self.wd_stig_corr:
+            g, t = tile_key.split('.')
+            g, t = int(g), int(t)
+            self.gm.adjust_tile_wd(g, t, self.wd_stig_corr[tile_key][0])
+            self.gm.adjust_tile_stig_xy(
+                g, t, *self.wd_stig_corr[tile_key][1:3])
 
     def make_heuristic_weight_function_masks(self):
         # Parameters as given in Binding et al. 2013:
