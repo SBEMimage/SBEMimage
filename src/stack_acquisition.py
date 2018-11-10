@@ -788,7 +788,8 @@ class Stack():
 
             # ========================== CUTTING ==============================
             if (self.pause_state != 1) and (self.error_state == 0):
-                self.perform_cutting_sequence()
+                if self.microtome is not None:
+                    self.perform_cutting_sequence()
                 self.reset_interruption_info()
 
             # Imaging and cutting for current slice completed.
