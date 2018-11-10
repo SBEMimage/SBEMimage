@@ -163,7 +163,7 @@
     <number>-1400</number>
    </property>
    <property name="maximum">
-    <number>1400</number>
+    <number>140000</number>
    </property>
    <property name="singleStep">
     <number>10</number>
@@ -185,10 +185,13 @@
     <number>-1400</number>
    </property>
    <property name="maximum">
-    <number>1400</number>
+    <number>140000</number>
    </property>
    <property name="singleStep">
     <number>10</number>
+   </property>
+   <property name="value">
+    <number>0</number>
    </property>
   </widget>
   <widget class="QLabel" name="label_4">

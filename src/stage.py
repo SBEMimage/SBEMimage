@@ -69,4 +69,6 @@ class Stage():
     def update_motor_speed(self):
         if self.use_microtome:
             return self._stage.write_motor_speed_calibration_to_script()
+        else:
+            return True
 
