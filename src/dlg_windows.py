@@ -1732,9 +1732,10 @@ class ImageMonitoringSettingsDlg(QDialog):
 class AutofocusSettingsDlg(QDialog):
     """Adjust settings for the ZEISS autofocus or the heuristic autofocus."""
 
-    def __init__(self, autofocus):
+    def __init__(self, autofocus, grid_manager):
         super(AutofocusSettingsDlg, self).__init__()
         self.af = autofocus
+        self.gm = grid_manager
         loadUi('..\\gui\\autofocus_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -1749,15 +1750,19 @@ class AutofocusSettingsDlg(QDialog):
         # General settings
         self.lineEdit_refTiles.setText(
             str(self.af.get_ref_tiles())[1:-1].replace('\'', ''))
+        if self.af.get_tracking_mode() == 1:
+            self.lineEdit_refTiles.setEnabled(False)
         max_diff = self.af.get_max_wd_stig_diff()
         self.doubleSpinBox_maxWDDiff.setValue(max_diff[0] * 1000000)
         self.doubleSpinBox_maxStigXDiff.setValue(max_diff[1])
         self.doubleSpinBox_maxStigYDiff.setValue(max_diff[2])
-        self.comboBox_trackingMode.addItems(['Average',
-                                             'Track all',
-                                             'Individual + Best Fit'])
+        self.comboBox_trackingMode.addItems(['Track selected, approx. others',
+                                             'Track all active tiles',
+                                             'Average over selected'])
         self.comboBox_trackingMode.setCurrentIndex(
             self.af.get_tracking_mode())
+        self.comboBox_trackingMode.currentIndexChanged.connect(
+            self.change_tracking_mode)
         # SmartSEM autofocus
         self.spinBox_interval.setValue(self.af.get_interval())
         self.spinBox_autostigDelay.setValue(self.af.get_autostig_delay())
@@ -1779,6 +1784,27 @@ class AutofocusSettingsDlg(QDialog):
         status = self.radioButton_useSmartSEM.isChecked()
         self.groupBox_ZEISS_af.setEnabled(status)
         self.groupBox_heuristic_af.setEnabled(not status)
+
+    def change_tracking_mode(self):
+        """Let user confirm switch to "track all"."""
+        if self.comboBox_trackingMode.currentIndex() == 1:
+            response = QMessageBox.information(
+                self, 'Track all tiles',
+                'This will select all active tiles for autofocus tracking and '
+                'overwrite the current selection of reference tiles. '
+                'Continue?',
+                QMessageBox.Ok, QMessageBox.Cancel)
+            if response == QMessageBox.Ok:
+                self.lineEdit_refTiles.setText(str(
+                    self.gm.get_active_tile_key_list())[1:-1].replace('\'', ''))
+                self.lineEdit_refTiles.setEnabled(False)
+            else:
+                # Revert to tracking mode 0:
+                self.comboBox_trackingMode.blockSignals(True)
+                self.comboBox_trackingMode.setCurrentIndex(0)
+                self.comboBox_trackingMode.blockSignals(False)
+        else:
+            self.lineEdit_refTiles.setEnabled(True)
 
     def accept(self):
         error_str = ''

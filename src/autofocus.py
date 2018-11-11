@@ -90,6 +90,13 @@ class Autofocus():
         tile_key = str(grid_number) + '.' + str(tile_number)
         return (tile_key in self.ref_tiles)
 
+    def toggle_ref_tile(self, grid_number, tile_number):
+        tile_key = str(grid_number) + '.' + str(tile_number)
+        if tile_key in self.ref_tiles:
+            self.ref_tiles.remove(tile_key)
+        else:
+            self.ref_tiles.append(tile_key)
+
     def get_tracking_mode(self):
         return self.tracking_mode
 
@@ -145,6 +152,18 @@ class Autofocus():
     def is_tile_selected(self, grid_number, tile_number):
         grid_tile_str = str(grid_number) + '.' + str(tile_number)
         return (grid_tile_str in self.ref_tiles)
+
+    def select_all_active_tiles(self):
+        """Delete the current autofocus reference tile selection and
+        select all active tiles."""
+        self.ref_tiles = []
+        number_grids = int(self.cfg['grids']['number_grids'])
+        for grid in range(number_grids):
+            for tile in self.gm.get_active_tiles(grid):
+                self.ref_tiles.append(str(grid) + '.' + str(tile))
+
+    def reset_ref_tiles(self):
+        self.ref_tiles = []
 
     def run_zeiss_af(self, autofocus=True, autostig=True):
         msg = 'CTRL: SmartSEM AF did not run.'

@@ -236,6 +236,9 @@ class Viewport(QWidget):
                         if user_reply == QMessageBox.Ok:
                             msg = self.gm.toggle_tile(self.selected_grid,
                                                       self.selected_tile)
+                            if self.af.get_tracking_mode() == 1:
+                                self.af.toggle_ref_tile(self.selected_grid,
+                                                        self.selected_tile)
                             self.add_to_main_log(msg)
                             self.mv_update_after_tile_selection()
                             # Make sure folder exists:
@@ -245,6 +248,9 @@ class Viewport(QWidget):
                         # first toggle current tile:
                         self.gm.toggle_tile(self.selected_grid,
                                             self.selected_tile)
+                        if self.af.get_tracking_mode() == 1:
+                            self.af.toggle_ref_tile(self.selected_grid,
+                                                    self.selected_tile)
                         self.mv_draw()
                         # Then enter paint mode until mouse button released.
                         self.tile_paint_mode_active = True
@@ -400,6 +406,9 @@ class Viewport(QWidget):
                     or self.selected_grid != prev_selected_grid):
                         self.gm.toggle_tile(self.selected_grid,
                                             self.selected_tile)
+                        if self.af.get_tracking_mode() == 1:
+                            self.af.toggle_ref_tile(self.selected_grid,
+                                                    self.selected_tile)
                         self.mv_draw()
             else:
                 # Disable paint mode when mouse moved beyond grid edge.
@@ -819,6 +828,8 @@ class Viewport(QWidget):
             if self.selected_grid is None:
                 action4.setEnabled(False)
                 action5.setEnabled(False)
+            if self.af.get_tracking_mode() == 1:
+                action6.setEnabled(False)
             if self.selected_imported is None:
                 action11.setEnabled(False)
             if self.ovm.get_number_imported == 0:
@@ -1606,6 +1617,8 @@ class Viewport(QWidget):
     def mv_select_all_tiles(self):
         if self.selected_grid is not None:
             self.gm.select_all_tiles(self.selected_grid)
+            if self.af.get_tracking_mode() == 1:
+                self.af.select_all_active_tiles()
             self.add_to_main_log('CTRL: All tiles in grid %d selected.'
                                  % self.selected_grid)
             self.mv_update_after_tile_selection()
@@ -1613,6 +1626,8 @@ class Viewport(QWidget):
     def mv_deselect_all_tiles(self):
        if self.selected_grid is not None:
             self.gm.reset_active_tiles(self.selected_grid)
+            if self.af.get_tracking_mode() == 1:
+                self.af.reset_ref_tiles()
             self.add_to_main_log('CTRL: All tiles in grid %d deselected.'
                                  % self.selected_grid)
             self.mv_update_after_tile_selection()

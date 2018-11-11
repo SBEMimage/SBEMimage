@@ -386,6 +386,13 @@ class GridManager(object):
         else:
             return []
 
+    def get_active_tile_key_list(self):
+        active_tile_key_list = []
+        for grid in range(self.number_grids):
+            for tile in self.get_active_tiles(grid):
+                active_tile_key_list.append(str(grid) + '.' + str(tile))
+        return active_tile_key_list
+
     def get_number_active_tiles(self, grid_number):
         return self.number_active_tiles[grid_number]
 

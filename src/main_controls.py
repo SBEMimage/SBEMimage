@@ -826,7 +826,7 @@ class MainControls(QMainWindow):
             self.img_inspector.update_monitoring_settings()
 
     def open_autofocus_dlg(self):
-        dialog = AutofocusSettingsDlg(self.autofocus)
+        dialog = AutofocusSettingsDlg(self.autofocus, self.gm)
         if dialog.exec_():
             self.viewport.mv_draw()
 
