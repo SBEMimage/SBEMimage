@@ -86,6 +86,23 @@ class Autofocus():
         self.ref_tiles = ref_tile_list
         self.cfg['autofocus']['ref_tiles'] = json.dumps(ref_tile_list)
 
+    def get_ref_tile_average_wd_stig(self):
+        wd_list = []
+        stig_x_list = []
+        stig_y_list = []
+        for ref_tile in self.ref_tiles:
+            grid, tile = ref_tile.split('.')
+            grid, tile = int(grid), int(tile)
+            wd = self.gm.get_tile_wd(grid, tile)
+            wd_list.append(wd)
+            stig_x, stig_y = self.gm.get_tile_stig_xy(grid, tile)
+            stig_x_list.append(stig_x)
+            stig_y_list.append(stig_y)
+        if wd_list and stig_x_list and stig_y_list:
+            return mean(wd_list), mean(stig_x_list), mean(stig_y_list)
+        else:
+            return None, None, None
+
     def is_ref_tile(self, grid_number, tile_number):
         tile_key = str(grid_number) + '.' + str(tile_number)
         return (tile_key in self.ref_tiles)
