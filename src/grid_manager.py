@@ -15,6 +15,7 @@
 """
 
 from statistics import mean
+from math import sqrt
 import json
 import utils
 
@@ -335,6 +336,20 @@ class GridManager(object):
             return mean(wd_list)
         else:
             return None
+
+    def get_distance_between_tiles(self, grid, tile1, tile2):
+        """Compute the distance between two tiles in the same grid, in microns.
+        (centre-to-centre distance)"""
+        cols = self.size[grid][1]
+        # Calculate coordinates in grid:
+        tile1_x = tile1 % cols
+        tile2_x = tile2 % cols
+        tile1_y = tile1 // cols
+        tile2_y = tile2 // cols
+        # Distances along x and y:
+        delta_x = abs(tile1_x - tile2_x) * self.get_tile_width_d(grid)
+        delta_y = abs(tile1_y - tile2_y) * self.get_tile_height_d(grid)
+        return sqrt(delta_x**2 + delta_y**2)
 
     def get_tile_stig_xy(self, grid_number, tile_number):
         return (self.grid_map_wd_stig[grid_number][tile_number][1],
