@@ -82,26 +82,60 @@ class Autofocus():
     def get_ref_tiles(self):
         return self.ref_tiles
 
+    def get_ref_tiles_in_grid(self, grid_number):
+        tile_list = []
+        for tile_key in self.ref_tiles:
+            grid, tile = tile_key.split('.')
+            grid, tile = int(grid), int(tile)
+            if grid == grid_number:
+                tile_list.append(tile)
+        return tile_list
+
     def set_ref_tiles(self, ref_tile_list):
         self.ref_tiles = ref_tile_list
         self.cfg['autofocus']['ref_tiles'] = json.dumps(ref_tile_list)
 
-    def get_ref_tile_average_wd_stig(self):
+    def get_ref_tile_average_wd_stig(self, grid_number):
         wd_list = []
         stig_x_list = []
         stig_y_list = []
         for ref_tile in self.ref_tiles:
             grid, tile = ref_tile.split('.')
             grid, tile = int(grid), int(tile)
-            wd = self.gm.get_tile_wd(grid, tile)
-            wd_list.append(wd)
-            stig_x, stig_y = self.gm.get_tile_stig_xy(grid, tile)
-            stig_x_list.append(stig_x)
-            stig_y_list.append(stig_y)
+            if grid == grid_number:
+                wd = self.gm.get_tile_wd(grid, tile)
+                wd_list.append(wd)
+                stig_x, stig_y = self.gm.get_tile_stig_xy(grid, tile)
+                stig_x_list.append(stig_x)
+                stig_y_list.append(stig_y)
         if wd_list and stig_x_list and stig_y_list:
             return mean(wd_list), mean(stig_x_list), mean(stig_y_list)
         else:
             return None, None, None
+
+    def approximate_all_tile_wd_stig(self, grid_number):
+        """Approximate the working distance and stigmation parameters for all
+        non-selected active tiles. Simple approach for now: use the settings
+        of the nearest (selected) neighbour."""
+        active_tiles = self.gm.get_active_tiles(grid_number)
+        autofocus_tiles = self.get_ref_tiles_in_grid(grid_number)
+        if active_tiles and autofocus_tiles:
+            for tile in active_tiles:
+                min_dist = 10**6
+                nearest = None
+                for af_tile in autofocus_tiles:
+                    dist = self.gm.get_distance_between_tiles(
+                        grid_number, tile, af_tile)
+                    if dist < min_dist:
+                        min_dist = dist
+                        nearest = af_tile
+                # Set focus parameters for current tile to nearest autofocus tile:
+                self.gm.set_tile_wd(
+                    grid_number, tile,
+                    self.gm.get_tile_wd(grid_number, nearest))
+                self.gm.set_tile_stig_xy(
+                    grid_number, tile,
+                    *self.gm.get_tile_stig_xy(grid_number, nearest))
 
     def is_ref_tile(self, grid_number, tile_number):
         tile_key = str(grid_number) + '.' + str(tile_number)
