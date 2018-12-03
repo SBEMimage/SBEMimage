@@ -687,6 +687,12 @@ class Stack():
                                 + str(grid_number) + ' already acquired. '
                                 'Skipping. ')
                         else:
+                            if (self.af.is_active()
+                                    and self.af.get_method() == 0
+                                    and (self.autofocus_stig_current_slice[0]
+                                    or self.autofocus_stig_current_slice[1])):
+                                self.do_autofocus_before_grid_acq(grid_number)
+                            self.handle_autofocus_adjustments(grid_number)
                             self.acquire_grid(grid_number)
                 else:
                     self.add_to_main_log(
@@ -1472,35 +1478,11 @@ class Stack():
 
         # WD and stig must be adjusted for each tile if adaptive focus active
         # of if autofocus is used with "track all" or "best fit" option.
-        # Otherwise the set of self.wd_current_grid, self.stig_x_current_grid,
+        # Otherwise self.wd_current_grid, self.stig_x_current_grid,
         # and self.stig_y_current_grid are used.
         adjust_wd_stig_for_each_tile = (
             self.use_adaptive_focus
             or (self.af.is_active() and self.af.get_tracking_mode() > 0))
-
-        if (self.af.is_active() and self.af.get_method() == 0
-            and (self.autofocus_stig_current_slice[0] or
-                 self.autofocus_stig_current_slice[1])):
-            # Check if non-active tile selected for Zeiss autofocus:
-            all_autofocus_tiles = self.af.get_ref_tiles()
-            autofocus_tiles = []
-            for tile in all_autofocus_tiles:
-                g = int(tile.split('.')[0])
-                t = int(tile.split('.')[1])
-                if g == grid_number and not t in active_tiles:
-                    autofocus_tiles.append(str(g) + '.' + str(t))
-            # Perform Zeiss autofocus for non_active_autofocus_tiles:
-            for tile in autofocus_tiles:
-                t = int(tile.split('.')[1])
-                do_move = True
-                self.perform_zeiss_autofocus(
-                    *self.autofocus_stig_current_slice, do_move, grid_number, t)
-                if self.error_state != 0 or self.pause_state == 1:
-                    # Immediately pause and save interruption info
-                    if not self.acq_paused:
-                        self.pause_acquisition(1)
-                    self.save_interruption_point(grid_number, t)
-                    break
 
         if self.pause_state != 1:
             self.add_to_main_log(
@@ -1522,58 +1504,6 @@ class Stack():
                         self.tiles_acquired.remove(tile)
 
             tile_width, tile_height = self.gm.get_tile_size_px_py(grid_number)
-
-            # For ZEISS autofocus: Apply average WD/STIG from reference tiles
-            # if tracking mode "Average" is selected:
-            if (self.af.is_active()
-                and self.af.get_method() == 0
-                and self.af.get_tracking_mode() == 0):
-                average_grid_wd = self.gm.get_average_grid_wd(grid_number)
-                average_grid_stig = self.gm.get_average_grid_stig_xy(grid_number)
-                if (average_grid_wd is not None
-                        and average_grid_stig[0] is not None
-                        and average_grid_stig[1] is not None):
-                    self.add_to_main_log(
-                        'CTRL: Applying average WD/STIG parameters '
-                        '(SmartSEM autofocus).')
-                    # Check if difference within acceptable range:
-                    if self.af.check_wd_stig_diff(average_grid_wd,
-                                                  average_grid_stig[0],
-                                                  average_grid_stig[1]):
-                        # Apply:
-                        self.wd_current_grid = average_grid_wd
-                        self.stig_x_current_grid, self.stig_y_current_grid = (
-                            average_grid_stig)
-                    else:
-                        self.add_to_main_log(
-                            'CTRL: Error: Difference in WD/STIG too large.')
-                        self.error_state = 507
-                        self.pause_acquisition(1)
-
-            # For heuristic autofocus: Apply average corrections to
-            # WD/STIG targets if tracking mode "Average" is selected:
-            if (self.af.is_active()
-                and self.af.get_method() == 1
-                and self.af.get_tracking_mode() == 0):
-
-                average_grid_corr = (
-                    self.af.get_heuristic_average_grid_correction(grid_number))
-                if average_grid_corr[0]:
-                    if (abs(average_grid_corr[0]/1000) < 3 * abs(self.wd_delta)
-                        and abs(average_grid_corr[1]) < 3 * abs(self.stig_x_delta)
-                        and abs(average_grid_corr[2]) < 3 * abs(self.stig_y_delta)):
-                        # Apply corrections:
-                        self.wd_current_grid += average_grid_corr[0]/1000
-                        self.stig_x_current_grid += average_grid_corr[1]
-                        self.stig_y_current_grid += average_grid_corr[2]
-                        self.add_to_main_log('CTRL: Applying average heuristic '
-                                             'corrections for current grid.')
-                    else:
-                        self.add_to_main_log('CTRL: Average heuristic '
-                                             'corrections too large. Discarded')
-
-            # If adaptive focus active, adjust focus for grid(s):
-            # TODO
 
             # Set WD and stig settings for the current grid and lock the settings:
             if not adjust_wd_stig_for_each_tile:
@@ -1774,6 +1704,25 @@ class Stack():
                 self.gm.get_pixel_size(grid_number),
                 self.gm.get_dwell_time(grid_number))
 
+    def do_autofocus_before_grid_acq(self, grid_number):
+        """If non-active tiles are selected for the SmartSEM autofocus, call the
+        autofocus on them one by one before the grid acquisition starts."""
+        autofocus_tiles = self.af.get_ref_tiles_in_grid(grid_number)
+        active_tiles = self.gm.get_active_tiles(grid_number)
+        # Perform Zeiss autofocus for non-active autofocus tiles:
+        for tile in autofocus_tiles:
+            if tile not in active_tiles:
+                do_move = True
+                self.perform_zeiss_autofocus(
+                    *self.autofocus_stig_current_slice,
+                    do_move, grid_number, tile)
+                if self.error_state != 0 or self.pause_state == 1:
+                    # Immediately pause and save interruption info
+                    if not self.acq_paused:
+                        self.pause_acquisition(1)
+                    self.save_interruption_point(grid_number, t)
+                    break
+
     def perform_heuristic_autofocus(self, tile_key):
         self.add_to_main_log('CTRL: Processing tile %s for '
             'heuristic autofocus ' %tile_key)
@@ -1791,6 +1740,67 @@ class Stack():
                 self.pause_acquisition(1)
         else:
             self.add_to_main_log('CTRL: No estimates computed (need one additional slice) ')
+
+    def handle_autofocus_adjustments(self, grid_number):
+        # For ZEISS autofocus: Apply average WD/STIG from reference tiles
+        # if tracking mode "Average" is selected:
+        if (self.af.is_active()
+            and self.af.get_method() == 0
+            and self.af.get_tracking_mode() == 2):
+            average_grid_wd = self.gm.get_average_grid_wd(grid_number)
+            average_grid_stig = self.gm.get_average_grid_stig_xy(grid_number)
+            if (average_grid_wd is not None
+                    and average_grid_stig[0] is not None
+                    and average_grid_stig[1] is not None):
+                self.add_to_main_log(
+                    'CTRL: Applying average WD/STIG parameters '
+                    '(SmartSEM autofocus).')
+                # Check if difference within acceptable range:
+                if self.af.check_wd_stig_diff(average_grid_wd,
+                                              average_grid_stig[0],
+                                              average_grid_stig[1]):
+                    # Apply:
+                    self.wd_current_grid = average_grid_wd
+                    self.stig_x_current_grid, self.stig_y_current_grid = (
+                        average_grid_stig)
+                else:
+                    self.add_to_main_log(
+                        'CTRL: Error: Difference in WD/STIG too large.')
+                    self.error_state = 507
+                    self.pause_acquisition(1)
+
+        # For heuristic autofocus: Apply average corrections to
+        # WD/STIG targets if tracking mode "Average" is selected:
+        if (self.af.is_active()
+            and self.af.get_method() == 1
+            and self.af.get_tracking_mode() == 2):
+
+            average_grid_corr = (
+                self.af.get_heuristic_average_grid_correction(grid_number))
+            if average_grid_corr[0]:
+                if (abs(average_grid_corr[0]/1000) < 3 * abs(self.wd_delta)
+                    and abs(average_grid_corr[1]) < 3 * abs(self.stig_x_delta)
+                    and abs(average_grid_corr[2]) < 3 * abs(self.stig_y_delta)):
+                    # Apply corrections:
+                    self.wd_current_grid += average_grid_corr[0]/1000
+                    self.stig_x_current_grid += average_grid_corr[1]
+                    self.stig_y_current_grid += average_grid_corr[2]
+                    self.add_to_main_log('CTRL: Applying average heuristic '
+                                         'corrections for current grid.')
+                else:
+                    self.add_to_main_log('CTRL: Average heuristic '
+                                         'corrections too large. Discarded')
+
+        # For both SmartSEM and heuristic autofocus:
+        # If "Individual + Approximate" mode selected - approximate the working
+        # distances and stig parameters for all non-autofocus tiles that are
+        # active:
+        if (self.af.is_active()
+            and self.af.get_tracking_mode() == 0):
+            self.af.approximate_tile_wd_stig(grid_number)
+
+        # If adaptive focus active, adjust focus for grid(s):
+        # TODO
 
     def lock_wd_stig(self):
         self.locked_wd = self.sem.get_wd()
