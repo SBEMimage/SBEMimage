@@ -1,5 +1,5 @@
 // $BACKGROUND$
-// Script to measure motor speeds.
+// Script to measure motor speeds in GMS2
 
 number counter
 // Move both motors to the origin position (0, 0)
