@@ -66,9 +66,23 @@ class Stage():
     def reset_error_state(self):
         self._stage.reset_error_state()
 
+    def get_stage_calibration(self):
+        return self._stage.get_stage_calibration()
+
+    def set_stage_calibration(self, current_eht, stage_params):
+        if self.use_microtome:
+            return self._stage.set_stage_calibration(current_eht, stage_params)
+
+    def get_motor_speeds(self):
+        return self._stage.get_motor_speeds()
+
+    def set_motor_speeds(self, motor_speed_x, motor_speed_y):
+        if self.use_microtome:
+            return self._stage.set_motor_speeds(motor_speed_x, motor_speed_y)
+
     def update_motor_speed(self):
         if self.use_microtome:
-            return self._stage.write_motor_speed_calibration_to_script()
+            return self._stage.write_motor_speeds_to_script()
         else:
             return True
 

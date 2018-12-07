@@ -109,7 +109,7 @@ class Microtome():
                     self.error_cause = ('microtome.__init__: stage z position '
                                         'mismatch')
                 # Update motor speed calibration in DM script:
-                success = self.write_motor_speed_calibration_to_script()
+                success = self.write_motor_speeds_to_script()
                 if not success and self.error_state == 0:
                     self.error_state = 101
                     self.error_cause = ('microtome.__init__: could not set '
@@ -241,10 +241,10 @@ class Microtome():
         self._send_dm_command('MicrotomeStage_Retract')
         sleep(1.2/self.knife_retract_speed)
 
-    def get_motor_speed_calibration(self):
+    def get_motor_speeds(self):
         return (self.motor_speed_x, self.motor_speed_y)
 
-    def set_motor_speed_calibration(self, motor_speed_x, motor_speed_y):
+    def set_motor_speeds(self, motor_speed_x, motor_speed_y):
         self.motor_speed_x = motor_speed_x
         self.motor_speed_y = motor_speed_y
         self.cfg['microtome']['motor_speed_x'] = str(motor_speed_x)
@@ -252,9 +252,9 @@ class Microtome():
         # Save in sysconfig:
         self.syscfg['stage']['motor_speed'] = str(
             [self.motor_speed_x, self.motor_speed_y])
-        return self.write_motor_speed_calibration_to_script()
+        return self.write_motor_speeds_to_script()
 
-    def write_motor_speed_calibration_to_script(self):
+    def write_motor_speeds_to_script(self):
         if os.path.isfile('..\\dm\\DMcom.ack'):
             os.remove('..\\dm\\DMcom.ack')
         self._send_dm_command('SetMotorSpeedCalibrationXY',

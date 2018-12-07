@@ -522,7 +522,7 @@ class SEM():
         self.stage_move_wait_interval = wait_interval
         self.cfg['sem']['stage_move_wait_interval'] = str(wait_interval)
 
-    def get_motor_speed_calibration(self):
+    def get_motor_speeds(self):
         return (self.motor_speed_x, self.motor_speed_y)
 
     def get_motor_limits(self):
