@@ -113,7 +113,7 @@ class Autofocus():
         else:
             return None, None, None
 
-    def approximate_all_tile_wd_stig(self, grid_number):
+    def approximate_tile_wd_stig(self, grid_number):
         """Approximate the working distance and stigmation parameters for all
         non-selected active tiles. Simple approach for now: use the settings
         of the nearest (selected) neighbour."""
