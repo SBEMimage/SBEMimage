@@ -316,8 +316,15 @@ class CalibrationDlg(QDialog):
            Frame settings are fixed for now. Currently no error handling.
         """
         shift = self.spinBox_shift.value()
-        self.sem.apply_frame_settings(4, 10, 0.8)
-        start_x, start_y = self.stage.get_xy(1)
+        # Use frame size 4 if available, otherwise 3:
+        if len(self.sem.STORE_RES) > 4:
+            # Merlin
+            self.sem.apply_frame_settings(4, 10, 0.8)
+        else:
+            # Sigma
+            self.sem.apply_frame_settings(3, 10, 0.8)
+
+        start_x, start_y = self.stage.get_xy()
         # First image:
         self.sem.acquire_frame(self.base_dir + '\\start.tif')
         # X shift:
