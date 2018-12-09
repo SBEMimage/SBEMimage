@@ -648,6 +648,7 @@ class MainControls(QMainWindow):
             self.checkBox_monitorTiles.isChecked())
         self.cfg['acq']['use_autofocus'] = str(
             self.checkBox_useAutofocus.isChecked())
+        self.show_estimates()
         self.viewport.mv_draw()
 
 # ============== Below: all methods that open dialog windows ==================

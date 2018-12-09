@@ -66,6 +66,12 @@ class Stage():
     def reset_error_state(self):
         self._stage.reset_error_state()
 
+    def get_stage_move_wait_interval(self):
+        return self._stage.get_stage_move_wait_interval()
+
+    def set_stage_move_wait_interval(self, wait_interval):
+        return self._stage.set_stage_move_wait_interval(wait_interval)
+
     def get_stage_calibration(self):
         return self._stage.get_stage_calibration()
 
