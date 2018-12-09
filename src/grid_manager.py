@@ -66,8 +66,14 @@ class GridManager(object):
         self.set_row_shift(new_grid_number, 0)
         self.set_number_active_tiles(new_grid_number, 0)
         self.set_active_tiles(new_grid_number, [])
-        self.set_tile_size_px_py(new_grid_number, [4096, 3072])
-        self.set_tile_size_selector(new_grid_number, 4)
+        if len(self.sem.STORE_RES) > 4:
+            # Merlin
+            self.set_tile_size_px_py(new_grid_number, [4096, 3072])
+            self.set_tile_size_selector(new_grid_number, 4)
+        else:
+            # Sigma
+            self.set_tile_size_px_py(new_grid_number, [3072, 2304])
+            self.set_tile_size_selector(new_grid_number, 3)
         self.set_pixel_size(new_grid_number, 10)
         self.set_dwell_time(new_grid_number, 0.8)
         self.set_dwell_time_selector(new_grid_number, 4)
@@ -506,7 +512,7 @@ class GridManager(object):
             if tile >= 0:
                 str_list.append('Tile %d' % tile)
             else:
-                str_list.append('No tile selected')        
+                str_list.append('No tile selected')
         return str_list
 
     def update_active_tiles_to_new_grid_size(self, grid_number, new_size):
