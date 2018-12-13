@@ -1476,9 +1476,12 @@ class Stack():
                 self.gm.get_tile_size_selector(grid_number),
                 self.gm.get_pixel_size(grid_number),
                 self.gm.get_dwell_time(grid_number))
+
+            # Delay necessary for Gemini? (change of mag)
+            sleep(0.2)
             # Lock magnification:
             self.lock_mag()
-
+            
             if self.acq_interrupted:
                 # Remove tiles that are no longer active from acquired_tiles list
                 acq_tmp = list(self.tiles_acquired)
@@ -1770,6 +1773,8 @@ class Stack():
     def lock_mag(self):
         self.target_mag = self.sem.get_mag()
         self.mag_locked = True
+        self.add_to_main_log(
+            'SEM: Locked magnification: ' + str(self.target_mag))
 
     def set_target_wd_stig(self):
         """Set wd/stig to target values and add deltas for heuristic
@@ -1814,6 +1819,9 @@ class Stack():
         if current_mag != self.target_mag:
             self.add_to_main_log(
                 'CTRL: Warning: Change in magnification detected.')
+            self.add_to_main_log(
+                'CTRL: Current mag: ' + str(current_mag) 
+                + '; target mag: ' + str(self.target_mag))
             #Fix it:
             self.add_to_main_log('CTRL: Resetting magnification.')
             self.sem.set_mag(self.target_mag)
