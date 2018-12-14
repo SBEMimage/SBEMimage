@@ -1559,7 +1559,7 @@ class Stack():
             for tile_number in active_tiles:
                 fail_counter = 0
                 tile_accepted = False
-                tile_id = str(tile_number) + '.' + str(grid_number)
+                tile_id = str(grid_number) + '.' + str(tile_number)
                 # Acquire the current tile, up to three attempts:
                 while not tile_accepted and fail_counter < 3:
                     (tile_img, relative_save_path, save_path,
@@ -1739,6 +1739,8 @@ class Stack():
                 self.gm.get_tile_size_selector(grid_number),
                 self.gm.get_pixel_size(grid_number),
                 self.gm.get_dwell_time(grid_number))
+            # Delay necessary for Gemini (change of mag):
+            sleep(0.2)
 
     def perform_heuristic_autofocus(self, tile_img, grid_number, tile_number):
         tile_key = str(grid_number) + '.' + str(tile_number)
