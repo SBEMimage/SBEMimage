@@ -392,8 +392,9 @@ class SEM():
         self.sem_api.Execute('CMD_UNFREEZE_ALL')
         sleep(1)
         ret_val = self.sem_api.Execute('CMD_AUTO_FOCUS_FINE')
+        sleep(1)
         timeout_counter = 0
-        while self.sem_api.Get('DP_AUTO_FN_STATUS', 0)[1] == 'Busy':
+        while self.sem_api.Get('DP_AUTO_FUNCTION', 0)[1] == 'Focus':
             sleep(1)
             timeout_counter += 1
             if timeout_counter > 60:
@@ -409,6 +410,7 @@ class SEM():
         self.sem_api.Execute('CMD_UNFREEZE_ALL')
         sleep(1)
         ret_val = self.sem_api.Execute('CMD_AUTO_STIG')
+        sleep(1)
         timeout_counter = 0
         while self.sem_api.Get('DP_AUTO_FN_STATUS', 0)[1] == 'Busy':
             sleep(1)
@@ -428,6 +430,7 @@ class SEM():
         self.sem_api.Execute('CMD_UNFREEZE_ALL')
         sleep(1)
         ret_val = self.sem_api.Execute('CMD_FOCUS_STIG')
+        sleep(1)
         timeout_counter = 0
         while self.sem_api.Get('DP_AUTO_FN_STATUS', 0)[1] == 'Busy':
             sleep(1)
