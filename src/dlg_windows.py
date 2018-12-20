@@ -2063,7 +2063,7 @@ class ApproachDlg(QDialog):
                             + str(self.thickness) + ' nm cutting thickness).')
             # Do the approach cut (cut, retract, in near position)
             self.microtome.do_full_approach_cut()
-            sleep(10)
+            sleep(self.microtome.get_full_cut_duration() - 5)
             if self.microtome.get_error_state() > 0:
                 self.add_to_log(
                     'CTRL: Cutting problem detected. Approach aborted.')
