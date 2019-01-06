@@ -1241,7 +1241,8 @@ class Viewport(QWidget):
                                             'AUTOFOCUS')
                     font.setBold(False)
                     self.mv_qp.setFont(font)
-                    if self.gm.get_tile_wd(grid_number, tile) != 0:
+                    if (self.gm.get_tile_wd(grid_number, tile) != 0
+                        and (tile in active_tiles or grad_label or af_label)):
                         position_rect = QRect(
                             pos_x - tile_width_v,
                             pos_y - tile_height_v

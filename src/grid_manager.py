@@ -715,14 +715,19 @@ class GridManager(object):
             self.grid_map_wd_stig[g][t] = wd_stig_dict[tile_key]
 
     def save_wd_stig_data_to_cfg(self):
+        """Save the working distances and stigmation parameters of those tiles that
+        are active and/or selected for the autofocus and/or the adaptive focus."""
         wd_stig_dict = {}
+        # Get current autofocus tiles:
+        autofocus_tiles = json.loads(self.cfg['autofocus']['ref_tiles'])
         for g in range(self.number_grids):
             for t in range(self.size[g][0] * self.size[g][1]):
+                tile_key = str(g) + '.' + str(t)
                 if (self.grid_map_wd_stig[g][t][0] != 0
-                    and (t in self.af_tiles[g] or self.grid_map_d[g][t][2])):
+                    and (self.grid_map_d[g][t][2] or t in self.af_tiles[g]
+                    or tile_key in autofocus_tiles)):
                     # Only save tiles with WD != 0 which are active or
-                    # selected for focus gradient calculation
-                    tile_key = str(g) + '.' + str(t)
+                    # selected for autofocus or adaptive focus.
                     wd_stig_dict[tile_key] = [
                         round(self.grid_map_wd_stig[g][t][0], 9),  # WD
                         round(self.grid_map_wd_stig[g][t][1], 6),  # Stig X
