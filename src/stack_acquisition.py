@@ -478,6 +478,13 @@ class Stack():
         self.sem.set_beam_blanking(1)
         sleep(1)
 
+        for grid_number in range(number_grids):
+            if not self.gm.is_adaptive_focus_active(grid_number):
+                self.gm.set_initial_wd_stig_for_grid(grid_number,
+                                                     self.wd_current_grid,
+                                                     self.stig_x_current_grid,
+                                                     self.stig_y_current_grid)
+
         for ov_number in range(number_ov):
             self.ovm.set_ov_wd(ov_number, 0)
             self.ovm.set_ov_stig_xy(ov_number, 0, 0)
@@ -819,9 +826,13 @@ class Stack():
 
         # ===================== END OF ACQUISITION LOOP =======================
 
-        if self.af.is_active() and self.af.get_method() == 1:
-            self.wd_delta, self.stig_x_delta, self.stig_y_delta = 0, 0, 0
-            self.set_grid_wd_stig()
+        if self.af.is_active():
+            for grid_number in range(self.number_grids):
+                self.handle_autofocus_adjustments(grid_number)
+                self.transmit_cmd('DRAW MV')
+            if self.af.get_method() == 1:
+                self.wd_delta, self.stig_x_delta, self.stig_y_delta = 0, 0, 0
+                self.set_grid_wd_stig()
 
         if self.error_state > 0:
             self.process_error_state()
@@ -1374,6 +1385,10 @@ class Stack():
                 self.perform_zeiss_autofocus(
                     *self.autofocus_stig_current_slice,
                     do_move, grid_number, tile_number)
+                # For tracking mode 0: Adjust wd/stig of other tiles:
+                if self.af.get_tracking_mode() == 0:
+                    self.af.approximate_tile_wd_stig(grid_number)
+                    self.transmit_cmd('DRAW MV')
 
             # Check mag if locked:
             if self.mag_locked and not self.error_state in [505, 506, 507]:
@@ -1683,8 +1698,7 @@ class Stack():
                 self.gm.set_tile_wd(grid_number, tile_number, self.sem.get_wd())
                 self.gm.set_tile_stig_xy(grid_number, tile_number,
                                         *self.sem.get_stig_xy())
-                # Lock focus/stig with new values:
-                self.lock_wd_stig()
+
                 # Show updated WD in viewport:
                 self.transmit_cmd('DRAW MV')
 
