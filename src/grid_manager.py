@@ -617,6 +617,13 @@ class GridManager(object):
         for t in range(self.size[grid_number][0] * self.size[grid_number][1]):
             self.grid_map_wd_stig[grid_number][t] = [wd, stig_x, stig_y]
 
+    def set_initial_wd_stig_for_grid(self, grid_number, wd, stig_x, stig_y):
+        """Set all tiles that are uninitialized to specified working
+        distance and stig_xy."""
+        for t in range(self.size[grid_number][0] * self.size[grid_number][1]):
+            if self.grid_map_wd_stig[grid_number][t][0] == 0:
+                self.grid_map_wd_stig[grid_number][t] = [wd, stig_x, stig_y]
+
     def adjust_focus_gradient(self, grid_number, diff):
         t1, t2, t3 = self.af_tiles[grid_number]
         self.grid_map_wd_stig[grid_number][t1][0] += diff
