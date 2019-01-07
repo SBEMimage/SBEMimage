@@ -829,9 +829,9 @@ class Stack():
         # ===================== END OF ACQUISITION LOOP =======================
 
         if self.af.is_active():
-            for grid_number in range(self.number_grids):
+            for grid_number in range(number_grids):
                 self.handle_autofocus_adjustments(grid_number)
-                self.transmit_cmd('DRAW MV')
+            self.transmit_cmd('DRAW MV')
             if self.af.get_method() == 1:
                 self.wd_delta, self.stig_x_delta, self.stig_y_delta = 0, 0, 0
                 self.set_grid_wd_stig()
@@ -1801,7 +1801,7 @@ class Stack():
         self.locked_mag = self.sem.get_mag()
         self.mag_locked = True
         self.add_to_main_log(
-            'SEM: Locked magnification: ' + str(self.target_mag))
+            'SEM: Locked magnification: ' + str(self.locked_mag))
 
     def set_grid_wd_stig(self):
         """Set wd/stig to target values for the current grid and add deltas
@@ -1845,7 +1845,7 @@ class Stack():
                 'CTRL: Warning: Change in magnification detected.')
             self.add_to_main_log(
                 'CTRL: Current mag: ' + str(current_mag)
-                + '; target mag: ' + str(self.target_mag))
+                + '; target mag: ' + str(self.locked_mag))
             #Fix it:
             self.add_to_main_log('CTRL: Resetting magnification.')
             self.sem.set_mag(self.locked_mag)
