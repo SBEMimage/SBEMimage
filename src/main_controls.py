@@ -481,7 +481,7 @@ class MainControls(QMainWindow):
         self.img_inspector = ImageInspector(self.cfg, self.ovm)
 
         # Set up autofocus instance:
-        self.autofocus = Autofocus(self.cfg, self.sem,
+        self.autofocus = Autofocus(self.cfg, self.sem, self.gm,
                                    self.acq_queue, self.acq_trigger)
         # Finally, the stack instance:
         self.stack = Stack(self.cfg,
@@ -829,7 +829,7 @@ class MainControls(QMainWindow):
             self.img_inspector.update_monitoring_settings()
 
     def open_autofocus_dlg(self):
-        dialog = AutofocusSettingsDlg(self.autofocus)
+        dialog = AutofocusSettingsDlg(self.autofocus, self.gm)
         if dialog.exec_():
             self.viewport.mv_draw()
 
@@ -1907,6 +1907,11 @@ class MainControls(QMainWindow):
                         # Recalculate with new wd:
                         self.gm.calculate_focus_gradient(self.ft_selected_grid)
                     self.viewport.mv_draw()
+                # Also set SEM to new values:
+                self.sem.set_wd(self.ft_selected_wd)
+                self.sem.set_stig_xy(
+                    self.ft_selected_stig_x, self.ft_selected_stig_y)
+
         else:
             QMessageBox.information(
                 self, 'Select target tile/OV',

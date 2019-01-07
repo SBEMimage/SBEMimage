@@ -161,13 +161,19 @@ class Stack():
         # locked focus params:
         self.wd_stig_locked = False
         self.mag_locked = False
-        self.target_wd = None
-        self.target_stig_x, self.target_stig_y = None, None
-        self.target_mag = None
+        self.locked_wd = None
+        self.locked_stig_x, self.locked_stig_y = None, None
+        self.locked_mag = None
+
+        # Focus parameters for current grid, initialized with current settings:
+        self.wd_current_grid = self.sem.get_wd()
+        self.stig_x_current_grid, self.stig_y_current_grid = self.sem.get_stig_xy()
 
         # Alternating plus/minus deltas for wd and stig, needed for
         # heuristic autofocus, otherwise 0
         self.wd_delta, self.stig_x_delta, self.stig_y_delta = 0, 0, 0
+        # List of tiles to be processed for heuristic autofocus:
+        self.heuristic_af_queue = []
 
         # Variables used for reply from main program:
         self.user_reply = None
@@ -473,16 +479,21 @@ class Stack():
         self.sem.set_beam_blanking(1)
         sleep(1)
 
-        # Clear WD/STIG info for all grids in which no focus gradient is used:
         for grid_number in range(number_grids):
             if not self.gm.is_adaptive_focus_active(grid_number):
-                self.gm.initialize_wd_stig_map(grid_number)
+                self.gm.set_initial_wd_stig_for_grid(grid_number,
+                                                     self.wd_current_grid,
+                                                     self.stig_x_current_grid,
+                                                     self.stig_y_current_grid)
+
         for ov_number in range(number_ov):
             self.ovm.set_ov_wd(ov_number, 0)
             self.ovm.set_ov_stig_xy(ov_number, 0, 0)
 
-        # Lock the current working distance & stigmation settings:
-        self.lock_wd_stig()
+        # Show current focus/stig settings:
+        self.log_wd_stig(self.wd_current_grid,
+                         self.stig_x_current_grid,
+                         self.stig_y_current_grid)
 
         # Make sure DM script uses the correct motor speed calibration
         # (This information is lost when script crashes.)
@@ -674,6 +685,12 @@ class Stack():
                                 + str(grid_number) + ' already acquired. '
                                 'Skipping. ')
                         else:
+                            if (self.af.is_active()
+                                    and self.af.get_method() == 0
+                                    and (self.autofocus_stig_current_slice[0]
+                                    or self.autofocus_stig_current_slice[1])):
+                                self.do_autofocus_before_grid_acq(grid_number)
+                            self.handle_autofocus_adjustments(grid_number)
                             self.acquire_grid(grid_number)
                 else:
                     self.add_to_main_log(
@@ -811,9 +828,13 @@ class Stack():
 
         # ===================== END OF ACQUISITION LOOP =======================
 
-        if self.af.is_active() and self.af.get_method() == 1:
-            self.wd_delta, self.stig_x_delta, self.stig_y_delta = 0, 0, 0
-            self.set_target_wd_stig()
+        if self.af.is_active():
+            for grid_number in range(self.number_grids):
+                self.handle_autofocus_adjustments(grid_number)
+                self.transmit_cmd('DRAW MV')
+            if self.af.get_method() == 1:
+                self.wd_delta, self.stig_x_delta, self.stig_y_delta = 0, 0, 0
+                self.set_grid_wd_stig()
 
         if self.error_state > 0:
             self.process_error_state()
@@ -1063,7 +1084,14 @@ class Stack():
                           + ' nm cutting thickness).')
             # do the cut (near, cut, retract, clear)
             self.microtome.do_full_cut()
-            sleep(self.full_cut_duration)
+            # Process tiles for heuristic autofocus during cut:
+            if self.heuristic_af_queue:
+                self.process_heuristic_af_queue()
+                # Apply all corrections to tiles:
+                self.add_to_main_log('CTRL: Applying corrections to WD/STIG')
+                self.af.apply_heuristic_tile_corrections()
+            else:
+                sleep(self.full_cut_duration)
             self.microtome.check_for_cut_cycle_error()
             self.error_state = self.microtome.get_error_state()
             self.microtome.reset_error_state()
@@ -1084,6 +1112,21 @@ class Stack():
             self.total_z_diff += self.slice_thickness/1000
             self.cfg['acq']['total_z_diff'] = str(self.total_z_diff)
         sleep(1)
+
+    def process_heuristic_af_queue(self):
+        start_time = datetime.datetime.now()
+        print(start_time)
+        for tile_key in self.heuristic_af_queue:
+            self.perform_heuristic_autofocus(tile_key)
+            current_time = datetime.datetime.now()
+            time_elapsed = current_time - start_time
+            print('Time elapsed', time_elapsed.total_seconds())
+        self.heuristic_af_queue = []
+        remaining_cutting_time = (
+            self.full_cut_duration - time_elapsed.total_seconds())
+        if remaining_cutting_time > 0:
+            print('Remaining wait time', remaining_cutting_time)
+            sleep(remaining_cutting_time)
 
     def acquire_overview(self, ov_number, move_required=True):
         """Acquire an overview image with error handling and image inspection"""
@@ -1134,8 +1177,6 @@ class Stack():
                 self.add_to_main_log(
                     'SEM: Using user-specified WD: '
                     '{0:.6f}'.format(ov_wd * 1000))
-            else:
-                self.set_target_wd_stig()
             # Path and filename of overview image to be acquired:
             ov_save_path = (self.base_dir
                             + '\\'
@@ -1346,19 +1387,18 @@ class Stack():
                 self.perform_zeiss_autofocus(
                     *self.autofocus_stig_current_slice,
                     do_move, grid_number, tile_number)
+                # For tracking mode 0: Adjust wd/stig of other tiles:
+                if self.af.get_tracking_mode() == 0:
+                    self.af.approximate_tile_wd_stig(grid_number)
+                    self.transmit_cmd('DRAW MV')
 
             # Check mag if locked:
             if self.mag_locked and not self.error_state in [505, 506, 507]:
                 self.check_locked_mag()
             # Check focus if locked:
-            if (self.wd_locked
-                and not self.use_adaptive_focus
+            if (self.wd_stig_locked
                 and not self.error_state in [505, 506, 507]):
                 self.check_locked_wd_stig()
-            # Adjust wd if necessary:
-            if self.use_adaptive_focus:
-                self.sem.set_wd(
-                    self.gm.get_tile_wd(grid_number, tile_number))
 
             # Now acquire the frame:
             # (even if failure detected. May be helpful.)
@@ -1443,29 +1483,13 @@ class Stack():
         # Get size and active tiles  (using list() to get a copy)
         active_tiles = list(self.gm.get_active_tiles(grid_number))
 
-        if (self.af.is_active() and self.af.get_method() == 0
-            and (self.autofocus_stig_current_slice[0] or
-                 self.autofocus_stig_current_slice[1])):
-            # Check if non-active tile selected for Zeiss autofocus:
-            all_autofocus_tiles = self.af.get_ref_tiles()
-            autofocus_tiles = []
-            for tile in all_autofocus_tiles:
-                g = int(tile.split('.')[0])
-                t = int(tile.split('.')[1])
-                if g == grid_number and not t in active_tiles:
-                    autofocus_tiles.append(str(g) + '.' + str(t))
-            # Perform Zeiss autofocus for non_active_autofocus_tiles:
-            for tile in autofocus_tiles:
-                t = int(tile.split('.')[1])
-                do_move = True
-                self.perform_zeiss_autofocus(
-                    *self.autofocus_stig_current_slice, do_move, grid_number, t)
-                if self.error_state != 0 or self.pause_state == 1:
-                    # Immediately pause and save interruption info
-                    if not self.acq_paused:
-                        self.pause_acquisition(1)
-                    self.save_interruption_point(grid_number, t)
-                    break
+        # WD and stig must be adjusted for each tile if adaptive focus active
+        # of if autofocus is used with "track all" or "best fit" option.
+        # Otherwise self.wd_current_grid, self.stig_x_current_grid,
+        # and self.stig_y_current_grid are used.
+        adjust_wd_stig_for_each_tile = (
+            self.use_adaptive_focus
+            or (self.af.is_active() and self.af.get_tracking_mode() < 2))
 
         if self.pause_state != 1:
             self.add_to_main_log(
@@ -1491,75 +1515,23 @@ class Stack():
 
             tile_width, tile_height = self.gm.get_tile_size_px_py(grid_number)
 
-            # For ZEISS autofocus: Apply average WD/STIG from reference tiles:
-            if self.af.is_active() and self.af.get_method() == 0:
-                average_grid_wd = self.gm.get_average_grid_wd(grid_number)
-                average_grid_stig = self.gm.get_average_grid_stig_xy(grid_number)
-                if (average_grid_wd is not None
-                        and average_grid_stig[0] is not None
-                        and average_grid_stig[1] is not None):
-                    self.add_to_main_log(
-                        'CTRL: Applying average WD/STIG parameters '
-                        '(SmartSEM autofocus).')
-                    # Check if difference within acceptable range:
-                    if self.af.check_wd_stig_diff(average_grid_wd,
-                                                  average_grid_stig[0],
-                                                  average_grid_stig[1]):
-                        # Apply:
-                        self.target_wd = average_grid_wd
-                        self.target_stig_x, self.target_stig_y = average_grid_stig
-                    else:
-                        self.add_to_main_log(
-                            'CTRL: Error: Difference in WD/STIG too large.')
-                        self.error_state = 507
-                        self.pause_acquisition(1)
-
-            # For heuristic autofocus: Apply average corrections to
-            # WD/STIG targets:
-            if self.af.is_active() and self.af.get_method() == 1:
-                average_grid_corr = (
-                    self.af.get_heuristic_average_grid_correction(grid_number))
-                if average_grid_corr[0]:
-                    if (abs(average_grid_corr[0]/1000) < 3 * abs(self.wd_delta)
-                        and abs(average_grid_corr[1]) < 3 * abs(self.stig_x_delta)
-                        and abs(average_grid_corr[2]) < 3 * abs(self.stig_y_delta)):
-                        # Apply corrections:
-                        self.target_wd += average_grid_corr[0]/1000
-                        self.target_stig_x += average_grid_corr[1]
-                        self.target_stig_y += average_grid_corr[2]
-                        self.add_to_main_log('CTRL: Applying average heuristic '
-                                             'corrections for current grid.')
-                        #self.add_to_main_log(
-                        #    'SEM: New WD/STIG_XY: '
-                        #    '{0:.6f}'.format(self.target_wd * 1000)
-                        #    + ', {0:.6f}'.format(self.target_stig_x)
-                        #    + ', {0:.6f}'.format(self.target_stig_y))
-                    else:
-                        self.add_to_main_log('CTRL: Average heuristic '
-                                             'corrections too large. Discarded')
-
-            # If adaptive focus active, adjust focus for grid(s):
-            #if self.use_adaptive_focus:
-            #    diff = (self.sem.get_wd()
-            #            - self.gm.get_tile_wd(grid_number, tile_number))
-            #    # Adjust:
-            #    self.gm.adjust_focus_gradient(grid_number, diff)
-
-
-            # Set WD and stig settings:
-            if not self.use_adaptive_focus:
-                self.set_target_wd_stig()
-
-            self.add_to_main_log(
-                'SEM: Current WD/STIG_XY: {0:.6f}'.format(self.sem.get_wd() * 1000)
-                + ', {0:.6f}'.format(self.sem.get_stig_x())
-                + ', {0:.6f}'.format(self.sem.get_stig_y()))
+            # Set WD and stig settings for the current grid and lock the settings:
+            if not adjust_wd_stig_for_each_tile:
+                self.set_grid_wd_stig()
+                self.lock_wd_stig()
 
             # ===================== Grid acquisition loop =========================
             for tile_number in active_tiles:
                 fail_counter = 0
                 tile_accepted = False
                 tile_id = str(grid_number) + '.' + str(tile_number)
+                # Individual WD/stig adjustment for tile, if necessary:
+                if adjust_wd_stig_for_each_tile:
+                    new_wd = self.gm.get_tile_wd(grid_number, tile_number)
+                    new_stig_xy = self.gm.get_tile_stig_xy(grid_number, tile_number)
+                    self.sem.set_wd(new_wd)
+                    self.sem.set_stig_xy(*new_stig_xy)
+                    self.log_wd_stig(new_wd, new_stig_xy[0], new_stig_xy[1])
                 # Acquire the current tile, up to three attempts:
                 while not tile_accepted and fail_counter < 3:
                     (tile_img, relative_save_path, save_path,
@@ -1597,11 +1569,13 @@ class Stack():
                             'CTRL: Error saving tile reslice to disk.')
 
                     # If heuristic autofocus enabled and tile selected as
-                    # reference tile, process tile:
+                    # reference tile, prepare tile for processing:
                     if (self.af.is_active() and self.af.get_method() == 1
                             and self.af.is_tile_selected(grid_number, tile_number)):
-                        self.perform_heuristic_autofocus(
-                            tile_img, grid_number, tile_number)
+                        tile_key = str(grid_number) + '.' + str(tile_number)
+                        self.af.crop_tile_for_heuristic_af(
+                            tile_img, tile_key)
+                        self.heuristic_af_queue.append(tile_key)
 
                 elif (not tile_selected
                       and not tile_skipped
@@ -1725,12 +1699,11 @@ class Stack():
             if 'ERROR' in return_msg:
                 self.error_state = 505
             else:
-                # Set new WD/stig parameters:
-                self.lock_wd_stig()
                 # Save settings for current tile:
-                self.gm.set_tile_wd(grid_number, tile_number, self.target_wd)
+                self.gm.set_tile_wd(grid_number, tile_number, self.sem.get_wd())
                 self.gm.set_tile_stig_xy(grid_number, tile_number,
-                                          self.target_stig_x, self.target_stig_y)
+                                        *self.sem.get_stig_xy())
+
                 # Show updated WD in viewport:
                 self.transmit_cmd('DRAW MV')
 
@@ -1742,12 +1715,29 @@ class Stack():
             # Delay necessary for Gemini (change of mag):
             sleep(0.2)
 
-    def perform_heuristic_autofocus(self, tile_img, grid_number, tile_number):
-        tile_key = str(grid_number) + '.' + str(tile_number)
+    def do_autofocus_before_grid_acq(self, grid_number):
+        """If non-active tiles are selected for the SmartSEM autofocus, call the
+        autofocus on them one by one before the grid acquisition starts."""
+        autofocus_tiles = self.af.get_ref_tiles_in_grid(grid_number)
+        active_tiles = self.gm.get_active_tiles(grid_number)
+        # Perform Zeiss autofocus for non-active autofocus tiles:
+        for tile in autofocus_tiles:
+            if tile not in active_tiles:
+                do_move = True
+                self.perform_zeiss_autofocus(
+                    *self.autofocus_stig_current_slice,
+                    do_move, grid_number, tile)
+                if self.error_state != 0 or self.pause_state == 1:
+                    # Immediately pause and save interruption info
+                    if not self.acq_paused:
+                        self.pause_acquisition(1)
+                    self.save_interruption_point(grid_number, t)
+                    break
+
+    def perform_heuristic_autofocus(self, tile_key):
         self.add_to_main_log('CTRL: Processing tile %s for '
             'heuristic autofocus ' %tile_key)
-        self.af.process_heuristic_new_image(
-            tile_img, tile_key, self.slice_counter)
+        self.af.process_image_for_heuristic_af(tile_key)
         wd_corr, sx_corr, sy_corr, within_range = (
             self.af.get_heuristic_corrections(tile_key))
         if wd_corr is not None:
@@ -1760,41 +1750,78 @@ class Stack():
                 self.error_state = 507
                 self.pause_acquisition(1)
         else:
-            self.add_to_main_log('CTRL: No estimates computed. ')
+            self.add_to_main_log('CTRL: No estimates computed (need one additional slice) ')
+
+    def handle_autofocus_adjustments(self, grid_number):
+        # Apply average WD/STIG from reference tiles
+        # if tracking mode "Average" is selected:
+        if self.af.is_active() and self.af.get_tracking_mode() == 2:
+            if self.af.get_method() == 0:
+                self.add_to_main_log(
+                    'CTRL: Applying average WD/STIG parameters '
+                    '(SmartSEM autofocus).')
+            elif self.af.get_method() == 1:
+                self.add_to_main_log(
+                    'CTRL: Applying average WD/STIG parameters '
+                    '(heuristic autofocus).')
+            # Compute new grid average for WD and STIG:
+            avg_grid_wd, avg_grid_stig_x, avg_grid_stig_y = (
+                self.af.get_ref_tile_average_wd_stig(grid_number))
+            if (avg_grid_wd is not None
+                    and avg_grid_stig_x is not None
+                    and avg_grid_stig_y is not None):
+                # TODO: Check if difference within acceptable range
+                # Apply:
+                self.wd_current_grid = avg_grid_wd
+                self.stig_x_current_grid = avg_grid_stig_x
+                self.stig_y_current_grid = avg_grid_stig_y
+                # Update grid:
+                self.gm.set_wd_stig_for_grid(
+                    grid_number, avg_grid_wd, avg_grid_stig_x, avg_grid_stig_y)
+                #else:
+                #    self.add_to_main_log(
+                #        'CTRL: Error: Difference in WD/STIG too large.')
+                #    self.error_state = 507
+                #    self.pause_acquisition(1)
+
+        # If "Individual + Approximate" mode selected - approximate the working
+        # distances and stig parameters for all non-autofocus tiles that are
+        # active:
+        if (self.af.is_active()
+            and self.af.get_tracking_mode() == 0):
+            self.af.approximate_tile_wd_stig(grid_number)
+
+        # If adaptive focus active, adjust focus for grid(s):
+        # TODO
 
     def lock_wd_stig(self):
-        self.target_wd = self.sem.get_wd()
-        self.target_stig_x = self.sem.get_stig_x()
-        self.target_stig_y = self.sem.get_stig_y()
-        self.wd_locked = True
-        self.add_to_main_log(
-            'SEM: Current WD/STIG_XY: {0:.6f}'.format(self.target_wd * 1000)
-            + ', {0:.6f}'.format(self.target_stig_x)
-            + ', {0:.6f}'.format(self.target_stig_y))
+        self.locked_wd = self.sem.get_wd()
+        self.locked_stig_x = self.sem.get_stig_x()
+        self.locked_stig_y = self.sem.get_stig_y()
+        self.wd_stig_locked = True
 
     def lock_mag(self):
-        self.target_mag = self.sem.get_mag()
+        self.locked_mag = self.sem.get_mag()
         self.mag_locked = True
         self.add_to_main_log(
             'SEM: Locked magnification: ' + str(self.target_mag))
 
-    def set_target_wd_stig(self):
-        """Set wd/stig to target values and add deltas for heuristic
-        autofocus"""
-        wd = self.target_wd + self.wd_delta
-        stig_x = self.target_stig_x + self.stig_x_delta
-        stig_y = self.target_stig_y + self.stig_y_delta
+    def set_grid_wd_stig(self):
+        """Set wd/stig to target values for the current grid and add deltas
+        for heuristic autofocus"""
+        wd = self.wd_current_grid + self.wd_delta
+        stig_x = self.stig_x_current_grid + self.stig_x_delta
+        stig_y = self.stig_y_current_grid + self.stig_y_delta
         self.sem.set_wd(wd)
         self.sem.set_stig_xy(stig_x, stig_y)
+        self.log_wd_stig(wd, stig_x, stig_y)
 
     def check_locked_wd_stig(self):
         """Check if wd/stig was accidentally changed and restore targets."""
         change_detected = False
-        diff_wd = abs(self.sem.get_wd() - (self.target_wd + self.wd_delta))
-        diff_stig_x = abs(
-            self.sem.get_stig_x() - (self.target_stig_x + self.stig_x_delta))
-        diff_stig_y = abs(
-            self.sem.get_stig_y() - (self.target_stig_y + self.stig_y_delta))
+        diff_wd = abs(self.sem.get_wd() - self.locked_wd)
+        diff_stig_x = abs(self.sem.get_stig_x() - self.locked_stig_x)
+        diff_stig_y = abs(self.sem.get_stig_y() - self.locked_stig_y)
 
         if diff_wd > 0.000001:
             change_detected = True
@@ -1802,23 +1829,21 @@ class Stack():
                 'CTRL: Warning: Change in working distance detected.')
             #Fix it:
             self.add_to_main_log('CTRL: Resetting working distance.')
-            self.sem.set_wd(self.target_wd + self.wd_delta)
+            self.sem.set_wd(self.locked_wd)
         if (diff_stig_x > 0.000001 or diff_stig_y > 0.000001):
             change_detected = True
             self.add_to_main_log(
                 'CTRL: Warning: Change in stigmation settings detected.')
             #Fix it:
             self.add_to_main_log('CTRL: Resetting stigmation parameters.')
-            self.sem.set_stig_xy(
-                self.target_stig_x + self.stig_x_delta,
-                self.target_stig_y + self.stig_y_delta)
+            self.sem.set_stig_xy(self.locked_stig_x, self.locked_stig_y)
         if change_detected:
             self.transmit_cmd('FOCUS ALERT')
 
     def check_locked_mag(self):
         """Check if mag was accidentally changed and restore target mag."""
         current_mag = self.sem.get_mag()
-        if current_mag != self.target_mag:
+        if current_mag != self.locked_mag:
             self.add_to_main_log(
                 'CTRL: Warning: Change in magnification detected.')
             self.add_to_main_log(
@@ -1826,8 +1851,15 @@ class Stack():
                 + '; target mag: ' + str(self.target_mag))
             #Fix it:
             self.add_to_main_log('CTRL: Resetting magnification.')
-            self.sem.set_mag(self.target_mag)
+            self.sem.set_mag(self.locked_mag)
             self.transmit_cmd('MAG ALERT')
+
+    def log_wd_stig(self, wd, stig_x, stig_y):
+        self.add_to_main_log(
+            'SEM: WD/STIG_XY: '
+            + '{0:.6f}'.format(wd * 1000)
+            + ', {0:.6f}'.format(stig_x)
+            + ', {0:.6f}'.format(stig_y))
 
     def set_user_reply(self, reply):
         """Receive a user reply from main window."""

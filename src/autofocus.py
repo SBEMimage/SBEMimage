@@ -29,9 +29,10 @@ from scipy.signal import correlate2d, fftconvolve
 
 class Autofocus():
 
-    def __init__(self, config, sem, acq_queue, acq_trigger):
+    def __init__(self, config, sem, grid_manager, acq_queue, acq_trigger):
         self.cfg = config
         self.sem = sem
+        self.gm = grid_manager
         self.queue = acq_queue
         self.trigger = acq_trigger
         self.method = int(self.cfg['autofocus']['method'])
@@ -44,6 +45,9 @@ class Autofocus():
         self.max_wd_diff, self.max_sx_diff, self.max_sy_diff = json.loads(
             self.cfg['autofocus']['max_wd_stig_diff'])
         # For heuristic autofocus:
+        # Dictionary of cropped central tile areas, kept in memory
+        # for processing during cut cycle:
+        self.img = {}
         self.wd_delta, self.stig_x_delta, self.stig_y_delta = json.loads(
             self.cfg['autofocus']['heuristic_deltas'])
         self.heuristic_calibration = json.loads(
@@ -78,13 +82,71 @@ class Autofocus():
     def get_ref_tiles(self):
         return self.ref_tiles
 
+    def get_ref_tiles_in_grid(self, grid_number):
+        tile_list = []
+        for tile_key in self.ref_tiles:
+            grid, tile = tile_key.split('.')
+            grid, tile = int(grid), int(tile)
+            if grid == grid_number:
+                tile_list.append(tile)
+        return tile_list
+
     def set_ref_tiles(self, ref_tile_list):
         self.ref_tiles = ref_tile_list
         self.cfg['autofocus']['ref_tiles'] = json.dumps(ref_tile_list)
 
+    def get_ref_tile_average_wd_stig(self, grid_number):
+        wd_list = []
+        stig_x_list = []
+        stig_y_list = []
+        for ref_tile in self.ref_tiles:
+            grid, tile = ref_tile.split('.')
+            grid, tile = int(grid), int(tile)
+            if grid == grid_number:
+                wd = self.gm.get_tile_wd(grid, tile)
+                wd_list.append(wd)
+                stig_x, stig_y = self.gm.get_tile_stig_xy(grid, tile)
+                stig_x_list.append(stig_x)
+                stig_y_list.append(stig_y)
+        if wd_list and stig_x_list and stig_y_list:
+            return mean(wd_list), mean(stig_x_list), mean(stig_y_list)
+        else:
+            return None, None, None
+
+    def approximate_tile_wd_stig(self, grid_number):
+        """Approximate the working distance and stigmation parameters for all
+        non-selected active tiles. Simple approach for now: use the settings
+        of the nearest (selected) neighbour."""
+        active_tiles = self.gm.get_active_tiles(grid_number)
+        autofocus_tiles = self.get_ref_tiles_in_grid(grid_number)
+        if active_tiles and autofocus_tiles:
+            for tile in active_tiles:
+                min_dist = 10**6
+                nearest = None
+                for af_tile in autofocus_tiles:
+                    dist = self.gm.get_distance_between_tiles(
+                        grid_number, tile, af_tile)
+                    if dist < min_dist:
+                        min_dist = dist
+                        nearest = af_tile
+                # Set focus parameters for current tile to nearest autofocus tile:
+                self.gm.set_tile_wd(
+                    grid_number, tile,
+                    self.gm.get_tile_wd(grid_number, nearest))
+                self.gm.set_tile_stig_xy(
+                    grid_number, tile,
+                    *self.gm.get_tile_stig_xy(grid_number, nearest))
+
     def is_ref_tile(self, grid_number, tile_number):
         tile_key = str(grid_number) + '.' + str(tile_number)
         return (tile_key in self.ref_tiles)
+
+    def toggle_ref_tile(self, grid_number, tile_number):
+        tile_key = str(grid_number) + '.' + str(tile_number)
+        if tile_key in self.ref_tiles:
+            self.ref_tiles.remove(tile_key)
+        else:
+            self.ref_tiles.append(tile_key)
 
     def get_tracking_mode(self):
         return self.tracking_mode
@@ -142,6 +204,18 @@ class Autofocus():
         grid_tile_str = str(grid_number) + '.' + str(tile_number)
         return (grid_tile_str in self.ref_tiles)
 
+    def select_all_active_tiles(self):
+        """Delete the current autofocus reference tile selection and
+        select all active tiles."""
+        self.ref_tiles = []
+        number_grids = int(self.cfg['grids']['number_grids'])
+        for grid in range(number_grids):
+            for tile in self.gm.get_active_tiles(grid):
+                self.ref_tiles.append(str(grid) + '.' + str(tile))
+
+    def reset_ref_tiles(self):
+        self.ref_tiles = []
+
     def run_zeiss_af(self, autofocus=True, autostig=True):
         msg = 'CTRL: SmartSEM AF did not run.'
         if autofocus or autostig:
@@ -179,15 +253,21 @@ class Autofocus():
 
     # ===== Below: Heuristic autofocus =======
 
-    def process_heuristic_new_image(self, img, tile_key, slice_counter):
+    def crop_tile_for_heuristic_af(self, tile_img, tile_key):
+        """Crop tile_img provided as numpy array. Save in dictionary with
+           tile_key."""
+        # Crop image to 512x512:
+        height, width = tile_img.shape[0], tile_img.shape[1]
+        self.img[tile_key] = tile_img[int(height/2 - 256):int(height/2 + 256),
+                                      int(width/2 - 256):int(width/2 + 256)]
+
+    def process_image_for_heuristic_af(self, tile_key):
         """Compute single-image estimators as described in
            Binding et al., 2013"""
 
-        # image provided as numpy array.
-        # Crop image to 512x512:
-        height, width = img.shape[0], img.shape[1]
-        img = img[int(height/2 - 256):int(height/2 + 256),
-                  int(width/2 - 256):int(width/2 + 256)]
+        # image provided as numpy array from dictionary,
+        # already cropped to 512x512
+        img = self.img[tile_key]
         mean = int(np.mean(img))
         # recast as int16 before mean subtraction
         img = img.astype(np.int16)
@@ -273,6 +353,15 @@ class Autofocus():
             return (mean(wd_corr), mean(stig_x_corr), mean(stig_y_corr))
         else:
             return (None, None, None)
+
+    def apply_heuristic_tile_corrections(self):
+        """Apply individual tile corrections for the specified grid."""
+        for tile_key in self.wd_stig_corr:
+            g, t = tile_key.split('.')
+            g, t = int(g), int(t)
+            self.gm.adjust_tile_wd(g, t, self.wd_stig_corr[tile_key][0])
+            self.gm.adjust_tile_stig_xy(
+                g, t, *self.wd_stig_corr[tile_key][1:3])
 
     def make_heuristic_weight_function_masks(self):
         # Parameters as given in Binding et al. 2013:

@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>281</width>
-    <height>587</height>
+    <width>301</width>
+    <height>641</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -22,8 +22,8 @@
   <widget class="QDialogButtonBox" name="buttonBox">
    <property name="geometry">
     <rect>
-     <x>80</x>
-     <y>550</y>
+     <x>100</x>
+     <y>600</y>
      <width>191</width>
      <height>32</height>
     </rect>
@@ -56,12 +56,12 @@
     <rect>
      <x>10</x>
      <y>30</y>
-     <width>221</width>
+     <width>241</width>
      <height>17</height>
     </rect>
    </property>
    <property name="text">
-    <string>Use heuristic algorithm (continuous)</string>
+    <string>Use heuristic algorithm (continuous tracking)</string>
    </property>
   </widget>
   <widget class="QGroupBox" name="groupBox_heuristic_af">
@@ -71,8 +71,8 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>370</y>
-     <width>261</width>
+     <y>420</y>
+     <width>281</width>
      <height>171</height>
     </rect>
    </property>
@@ -82,7 +82,7 @@
    <widget class="QDoubleSpinBox" name="doubleSpinBox_stigXDiff">
     <property name="geometry">
      <rect>
-      <x>130</x>
+      <x>150</x>
       <y>50</y>
       <width>61</width>
       <height>22</height>
@@ -104,7 +104,7 @@
    <widget class="QDoubleSpinBox" name="doubleSpinBox_wdDiff">
     <property name="geometry">
      <rect>
-      <x>190</x>
+      <x>210</x>
       <y>20</y>
       <width>61</width>
       <height>22</height>
@@ -155,7 +155,7 @@
    <widget class="QDoubleSpinBox" name="doubleSpinBox_stigYDiff">
     <property name="geometry">
      <rect>
-      <x>190</x>
+      <x>210</x>
       <y>50</y>
       <width>61</width>
       <height>22</height>
@@ -177,7 +177,7 @@
    <widget class="QDoubleSpinBox" name="doubleSpinBox_focusCalib">
     <property name="geometry">
      <rect>
-      <x>190</x>
+      <x>210</x>
       <y>80</y>
       <width>61</width>
       <height>22</height>
@@ -215,7 +215,7 @@
    <widget class="QDoubleSpinBox" name="doubleSpinBox_stigXCalib">
     <property name="geometry">
      <rect>
-      <x>130</x>
+      <x>150</x>
       <y>110</y>
       <width>61</width>
       <height>22</height>
@@ -253,7 +253,7 @@
    <widget class="QDoubleSpinBox" name="doubleSpinBox_stigYCalib">
     <property name="geometry">
      <rect>
-      <x>190</x>
+      <x>210</x>
       <y>110</y>
       <width>61</width>
       <height>22</height>
@@ -278,7 +278,7 @@
    <widget class="QDoubleSpinBox" name="doubleSpinBox_stigRot">
     <property name="geometry">
      <rect>
-      <x>130</x>
+      <x>150</x>
       <y>140</y>
       <width>61</width>
       <height>22</height>
@@ -313,7 +313,7 @@
    <widget class="QDoubleSpinBox" name="doubleSpinBox_stigScale">
     <property name="geometry">
      <rect>
-      <x>190</x>
+      <x>210</x>
       <y>140</y>
       <width>61</width>
       <height>22</height>
@@ -340,8 +340,8 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>230</y>
-     <width>261</width>
+     <y>280</y>
+     <width>281</width>
      <height>131</height>
     </rect>
    </property>
@@ -351,7 +351,7 @@
    <widget class="QDoubleSpinBox" name="doubleSpinBox_pixelSize">
     <property name="geometry">
      <rect>
-      <x>190</x>
+      <x>210</x>
       <y>100</y>
       <width>61</width>
       <height>22</height>
@@ -375,12 +375,12 @@
      <rect>
       <x>10</x>
       <y>100</y>
-      <width>111</width>
+      <width>191</width>
       <height>20</height>
      </rect>
     </property>
     <property name="text">
-     <string>Pixel size (nm):</string>
+     <string>Pixel size for refocusing (nm):</string>
     </property>
    </widget>
    <widget class="QLabel" name="label_fdp_3">
@@ -388,18 +388,18 @@
      <rect>
       <x>10</x>
       <y>20</y>
-      <width>121</width>
+      <width>171</width>
       <height>20</height>
      </rect>
     </property>
     <property name="text">
-     <string>Interval (every N slices):</string>
+     <string>Interval N (refocus every N slices):</string>
     </property>
    </widget>
    <widget class="QSpinBox" name="spinBox_interval">
     <property name="geometry">
      <rect>
-      <x>190</x>
+      <x>210</x>
       <y>20</y>
       <width>61</width>
       <height>22</height>
@@ -421,7 +421,7 @@
    <widget class="QSpinBox" name="spinBox_autostigDelay">
     <property name="geometry">
      <rect>
-      <x>190</x>
+      <x>210</x>
       <y>50</y>
       <width>61</width>
       <height>22</height>
@@ -457,7 +457,7 @@
      </rect>
     </property>
     <property name="text">
-     <string>(Select -1 to disable autostigmator)</string>
+     <string>(Select -1 to disable autostigmator.)</string>
     </property>
    </widget>
   </widget>
@@ -466,8 +466,8 @@
     <rect>
      <x>9</x>
      <y>60</y>
-     <width>261</width>
-     <height>161</height>
+     <width>281</width>
+     <height>211</height>
     </rect>
    </property>
    <property name="title">
@@ -477,21 +477,21 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>17</y>
-      <width>201</width>
-      <height>20</height>
+      <y>40</y>
+      <width>251</width>
+      <height>16</height>
      </rect>
     </property>
     <property name="text">
-     <string>Reference tile(s), in format 0.3, 1.15...:</string>
+     <string>right clicks in viewport. Currently selected tile(s), in </string>
     </property>
    </widget>
    <widget class="QLineEdit" name="lineEdit_refTiles">
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>40</y>
-      <width>241</width>
+      <y>90</y>
+      <width>261</width>
       <height>20</height>
      </rect>
     </property>
@@ -499,9 +499,9 @@
    <widget class="QComboBox" name="comboBox_trackingMode">
     <property name="geometry">
      <rect>
-      <x>98</x>
-      <y>70</y>
-      <width>151</width>
+      <x>88</x>
+      <y>120</y>
+      <width>181</width>
       <height>22</height>
      </rect>
     </property>
@@ -510,8 +510,8 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>70</y>
-      <width>81</width>
+      <y>120</y>
+      <width>74</width>
       <height>20</height>
      </rect>
     </property>
@@ -522,8 +522,8 @@
    <widget class="QDoubleSpinBox" name="doubleSpinBox_maxWDDiff">
     <property name="geometry">
      <rect>
-      <x>190</x>
-      <y>100</y>
+      <x>210</x>
+      <y>150</y>
       <width>61</width>
       <height>22</height>
      </rect>
@@ -545,20 +545,20 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>100</y>
+      <y>150</y>
       <width>181</width>
       <height>20</height>
      </rect>
     </property>
     <property name="text">
-     <string>Max. permitted WD difference (μm):</string>
+     <string>Max. permitted WD change (μm):</string>
     </property>
    </widget>
    <widget class="QDoubleSpinBox" name="doubleSpinBox_maxStigXDiff">
     <property name="geometry">
      <rect>
-      <x>130</x>
-      <y>130</y>
+      <x>150</x>
+      <y>180</y>
       <width>61</width>
       <height>22</height>
      </rect>
@@ -583,20 +583,20 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>130</y>
+      <y>180</y>
       <width>131</width>
       <height>20</height>
      </rect>
     </property>
     <property name="text">
-     <string>Max. Astig X/Y diff.:</string>
+     <string>Max. astig X/Y change:</string>
     </property>
    </widget>
    <widget class="QDoubleSpinBox" name="doubleSpinBox_maxStigYDiff">
     <property name="geometry">
      <rect>
-      <x>190</x>
-      <y>130</y>
+      <x>210</x>
+      <y>180</y>
       <width>61</width>
       <height>22</height>
      </rect>
@@ -615,6 +615,32 @@
     </property>
     <property name="value">
      <double>1.000000000000000</double>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>20</y>
+      <width>261</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Tiles can be (de)selected for autofocus tracking with </string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_rt_2">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>60</y>
+      <width>251</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>format #grid_number.#tile_number:</string>
     </property>
    </widget>
   </widget>

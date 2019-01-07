@@ -15,6 +15,7 @@
 """
 
 from statistics import mean
+from math import sqrt
 import json
 import utils
 
@@ -327,6 +328,10 @@ class GridManager(object):
         if grid_number < len(self.grid_map_wd_stig):
             self.grid_map_wd_stig[grid_number][tile_number][0] = wd
 
+    def adjust_tile_wd(self, grid_number, tile_number, delta):
+        if grid_number < len(self.grid_map_wd_stig):
+            self.grid_map_wd_stig[grid_number][tile_number][0] += delta
+
     def get_average_grid_wd(self, grid_number):
         wd_list = []
         for tile_entry in self.grid_map_wd_stig[grid_number]:
@@ -338,6 +343,20 @@ class GridManager(object):
         else:
             return None
 
+    def get_distance_between_tiles(self, grid, tile1, tile2):
+        """Compute the distance between two tiles in the same grid, in microns.
+        (centre-to-centre distance)"""
+        cols = self.size[grid][1]
+        # Calculate coordinates in grid:
+        tile1_x = tile1 % cols
+        tile2_x = tile2 % cols
+        tile1_y = tile1 // cols
+        tile2_y = tile2 // cols
+        # Distances along x and y:
+        delta_x = abs(tile1_x - tile2_x) * self.get_tile_width_d(grid)
+        delta_y = abs(tile1_y - tile2_y) * self.get_tile_height_d(grid)
+        return sqrt(delta_x**2 + delta_y**2)
+
     def get_tile_stig_xy(self, grid_number, tile_number):
         return (self.grid_map_wd_stig[grid_number][tile_number][1],
                 self.grid_map_wd_stig[grid_number][tile_number][2])
@@ -347,6 +366,12 @@ class GridManager(object):
         if grid_number < len(self.grid_map_wd_stig):
             self.grid_map_wd_stig[grid_number][tile_number][1] = stig_x
             self.grid_map_wd_stig[grid_number][tile_number][2] = stig_y
+
+    def adjust_tile_stig_xy(self, grid_number, tile_number,
+                            delta_stig_x, delta_stig_y):
+        if grid_number < len(self.grid_map_wd_stig):
+            self.grid_map_wd_stig[grid_number][tile_number][1] += delta_stig_x
+            self.grid_map_wd_stig[grid_number][tile_number][2] += delta_stig_y
 
     def get_average_grid_stig_xy(self, grid_number):
         stig_x_list = []
@@ -381,6 +406,13 @@ class GridManager(object):
             return self.active_tiles[grid_number]
         else:
             return []
+
+    def get_active_tile_key_list(self):
+        active_tile_key_list = []
+        for grid in range(self.number_grids):
+            for tile in self.get_active_tiles(grid):
+                active_tile_key_list.append(str(grid) + '.' + str(tile))
+        return active_tile_key_list
 
     def get_number_active_tiles(self, grid_number):
         return self.number_active_tiles[grid_number]
@@ -586,6 +618,18 @@ class GridManager(object):
         for t in range(self.size[grid_number][0] * self.size[grid_number][1]):
             self.grid_map_wd_stig[grid_number][t] = [0, 0, 0]
 
+    def set_wd_stig_for_grid(self, grid_number, wd, stig_x, stig_y):
+        """Set all tiles to specified working distance and stig_xy."""
+        for t in range(self.size[grid_number][0] * self.size[grid_number][1]):
+            self.grid_map_wd_stig[grid_number][t] = [wd, stig_x, stig_y]
+
+    def set_initial_wd_stig_for_grid(self, grid_number, wd, stig_x, stig_y):
+        """Set all tiles that are uninitialized to specified working
+        distance and stig_xy."""
+        for t in range(self.size[grid_number][0] * self.size[grid_number][1]):
+            if self.grid_map_wd_stig[grid_number][t][0] == 0:
+                self.grid_map_wd_stig[grid_number][t] = [wd, stig_x, stig_y]
+
     def adjust_focus_gradient(self, grid_number, diff):
         t1, t2, t3 = self.af_tiles[grid_number]
         self.grid_map_wd_stig[grid_number][t1][0] += diff
@@ -682,14 +726,19 @@ class GridManager(object):
             self.grid_map_wd_stig[g][t] = wd_stig_dict[tile_key]
 
     def save_wd_stig_data_to_cfg(self):
+        """Save the working distances and stigmation parameters of those tiles that
+        are active and/or selected for the autofocus and/or the adaptive focus."""
         wd_stig_dict = {}
+        # Get current autofocus tiles:
+        autofocus_tiles = json.loads(self.cfg['autofocus']['ref_tiles'])
         for g in range(self.number_grids):
             for t in range(self.size[g][0] * self.size[g][1]):
+                tile_key = str(g) + '.' + str(t)
                 if (self.grid_map_wd_stig[g][t][0] != 0
-                    and (t in self.af_tiles[g] or self.grid_map_d[g][t][2])):
+                    and (self.grid_map_d[g][t][2] or t in self.af_tiles[g]
+                    or tile_key in autofocus_tiles)):
                     # Only save tiles with WD != 0 which are active or
-                    # selected for focus gradient calculation
-                    tile_key = str(g) + '.' + str(t)
+                    # selected for autofocus or adaptive focus.
                     wd_stig_dict[tile_key] = [
                         round(self.grid_map_wd_stig[g][t][0], 9),  # WD
                         round(self.grid_map_wd_stig[g][t][1], 6),  # Stig X
