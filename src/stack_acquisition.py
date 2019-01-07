@@ -99,7 +99,6 @@ class Stack():
 
         self.acq_setup()
 
-
     def acq_setup(self):
         """Set up all variables for a new stack acquisition, or update
            variables for restarting a stack.
@@ -195,7 +194,6 @@ class Stack():
         the stack, the estimated duration of the stack acquisition, the storage
         requirements, and the estimated date of completion.
         """
-
         N = self.number_slices
         if N == 0:
             N = 1
@@ -206,42 +204,47 @@ class Stack():
         total_grid_time = 0
         total_area = 0
         total_data = 0
+        # The following stage move durations are rough estimates. TODO:
+        # Calculate precisely from the known distances and motor speeds.
+        avg_ov_stage_move_duration = (
+            5 + self.stage.get_stage_move_wait_interval())
+        avg_grid_stage_move_duration = (
+            0.5 + self.stage.get_stage_move_wait_interval())
 
-        for ov_number in range(self.ovm.get_number_ov()):
-            dwell_time = self.ovm.get_ov_dwell_time(ov_number)
-            pixel_size = self.ovm.get_ov_pixel_size(ov_number)
-            dose = (current * 10**(-12) /
-                (1.602 * 10**(-19)) * dwell_time * 10**(-6) / (pixel_size**2))
-            if (min_dose is None) or (dose < min_dose):
-                min_dose = dose
-            if (max_dose is None) or (dose > max_dose):
-                max_dose = dose
-            ov_skip = self.ovm.get_ov_acq_interval(ov_number)
-            avg_motor_time = 5
-            # add OV acq plus motor time to get total OV acq time:
-            total_ov_time += ((self.ovm.get_ov_cycle_time(ov_number)
-                              + avg_motor_time)
-                              * (N // ov_skip))
-            frame_size = (self.ovm.get_ov_width_p(ov_number)
-                          * self.ovm.get_ov_height_p(ov_number))
-            total_data += frame_size * (N // ov_skip)
+        if self.cfg['acq']['take_overviews'] == 'True':
+            for ov_number in range(self.ovm.get_number_ov()):
+                dwell_time = self.ovm.get_ov_dwell_time(ov_number)
+                pixel_size = self.ovm.get_ov_pixel_size(ov_number)
+                dose = (current * 10**(-12) / (1.602 * 10**(-19))
+                        * dwell_time * 10**(-6) / (pixel_size**2))
+                if (min_dose is None) or (dose < min_dose):
+                    min_dose = dose
+                if (max_dose is None) or (dose > max_dose):
+                    max_dose = dose
+                ov_skip = self.ovm.get_ov_acq_interval(ov_number)
+                # add OV acq plus stage move duration to get total OV acq time:
+                total_ov_time += ((self.ovm.get_ov_cycle_time(ov_number)
+                                  + avg_ov_stage_move_duration)
+                                  * (N // ov_skip))
+                frame_size = (self.ovm.get_ov_width_p(ov_number)
+                              * self.ovm.get_ov_height_p(ov_number))
+                total_data += frame_size * (N // ov_skip)
 
         for grid_number in range(self.gm.get_number_grids()):
             dwell_time = self.gm.get_dwell_time(grid_number)
             pixel_size = self.gm.get_pixel_size(grid_number)
             dose = (current * 10**(-12) /
                 (1.602 * 10**(-19)) * dwell_time * 10**(-6) / (pixel_size**2))
-            if dose < min_dose:
+            if (min_dose is None) or (dose < min_dose):
                 min_dose = dose
-            if dose > max_dose:
+            if (max_dose is None) or (dose > max_dose):
                 max_dose = dose
-            # add grid acq plus motor time to total grid acq time:
+            # add grid acq plus stage move duration to get total grid acq time:
             grid_skip = self.gm.get_acq_interval(grid_number)
             number_active_tiles = self.gm.get_number_active_tiles(grid_number)
-            avg_motor_time = 0.5
             total_grid_time += ((self.gm.get_tile_cycle_time(grid_number)
-                                + avg_motor_time) * number_active_tiles
-                                * (N // grid_skip))
+                                + avg_grid_stage_move_duration)
+                                * number_active_tiles * (N // grid_skip))
             total_area += (number_active_tiles
                            * self.gm.get_tile_width_d(grid_number)
                            * self.gm.get_tile_height_d(grid_number))
@@ -251,7 +254,6 @@ class Stack():
                            * (N // grid_skip))
 
         total_z = (self.number_slices * self.slice_thickness) / 1000
-
         total_duration = total_cut_time + total_ov_time + total_grid_time
         total_data_in_GB = total_data / (10**9)
 
@@ -267,7 +269,6 @@ class Stack():
         # Return all estimates, to be displayed in main window GUI:
         return (min_dose, max_dose, total_area, total_z,
                 total_duration, total_data_in_GB, date_estimate)
-
 
     def create_subdirectories(self, dir_list):
         """Create subdirectories given in dir_list in the base folder"""
@@ -805,7 +806,8 @@ class Stack():
 
             # ========================== CUTTING ==============================
             if (self.pause_state != 1) and (self.error_state == 0):
-                self.perform_cutting_sequence()
+                if self.microtome is not None:
+                    self.perform_cutting_sequence()
                 self.reset_interruption_info()
 
             # Imaging and cutting for current slice completed.
@@ -1498,9 +1500,12 @@ class Stack():
                 self.gm.get_tile_size_selector(grid_number),
                 self.gm.get_pixel_size(grid_number),
                 self.gm.get_dwell_time(grid_number))
+
+            # Delay necessary for Gemini? (change of mag)
+            sleep(0.2)
             # Lock magnification:
             self.lock_mag()
-
+            
             if self.acq_interrupted:
                 # Remove tiles that are no longer active from acquired_tiles list
                 acq_tmp = list(self.tiles_acquired)
@@ -1519,7 +1524,7 @@ class Stack():
             for tile_number in active_tiles:
                 fail_counter = 0
                 tile_accepted = False
-                tile_id = str(tile_number) + '.' + str(grid_number)
+                tile_id = str(grid_number) + '.' + str(tile_number)
                 # Individual WD/stig adjustment for tile, if necessary:
                 if adjust_wd_stig_for_each_tile:
                     new_wd = self.gm.get_tile_wd(grid_number, tile_number)
@@ -1707,6 +1712,8 @@ class Stack():
                 self.gm.get_tile_size_selector(grid_number),
                 self.gm.get_pixel_size(grid_number),
                 self.gm.get_dwell_time(grid_number))
+            # Delay necessary for Gemini (change of mag):
+            sleep(0.2)
 
     def do_autofocus_before_grid_acq(self, grid_number):
         """If non-active tiles are selected for the SmartSEM autofocus, call the
@@ -1796,6 +1803,8 @@ class Stack():
     def lock_mag(self):
         self.locked_mag = self.sem.get_mag()
         self.mag_locked = True
+        self.add_to_main_log(
+            'SEM: Locked magnification: ' + str(self.target_mag))
 
     def set_grid_wd_stig(self):
         """Set wd/stig to target values for the current grid and add deltas
@@ -1837,6 +1846,9 @@ class Stack():
         if current_mag != self.locked_mag:
             self.add_to_main_log(
                 'CTRL: Warning: Change in magnification detected.')
+            self.add_to_main_log(
+                'CTRL: Current mag: ' + str(current_mag) 
+                + '; target mag: ' + str(self.target_mag))
             #Fix it:
             self.add_to_main_log('CTRL: Resetting magnification.')
             self.sem.set_mag(self.locked_mag)

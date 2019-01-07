@@ -203,7 +203,7 @@ class MicrotomeSettingsDlg(QDialog):
                 self.microtome.get_stage_move_wait_interval())
             current_motor_limits = self.microtome.get_motor_limits()
             current_calibration = self.microtome.get_stage_calibration()
-            speed_x, speed_y = self.microtome.get_motor_speed_calibration()
+            speed_x, speed_y = self.microtome.get_motor_speeds()
         else:
             self.label_selectedStage.setText('SEM stage active.')
             # Display stage limits. Not editable for SEM.
@@ -217,7 +217,7 @@ class MicrotomeSettingsDlg(QDialog):
             self.spinBox_stageMaxY.setEnabled(False)
             current_motor_limits = self.sem.get_motor_limits()
             current_calibration = self.sem.get_stage_calibration()
-            speed_x, speed_y = self.sem.get_motor_speed_calibration()
+            speed_x, speed_y = self.sem.get_motor_speeds()
             self.doubleSpinBox_waitInterval.setValue(
                 self.sem.get_stage_move_wait_interval())
         # Show current calibration:
@@ -264,14 +264,14 @@ class CalibrationDlg(QDialog):
         self.setFixedSize(self.size())
         self.show()
         self.lineEdit_EHT.setText('{0:.2f}'.format(self.current_eht))
-        #params = self.microtome.get_stage_calibration()
-        #self.doubleSpinBox_stageScaleFactorX.setValue(params[0])
-        #self.doubleSpinBox_stageScaleFactorY.setValue(params[1])
-        #self.doubleSpinBox_stageRotationX.setValue(params[2])
-        #self.doubleSpinBox_stageRotationY.setValue(params[3])
-        #speed_x, speed_y = self.microtome.get_motor_speed_calibration()
-        #self.doubleSpinBox_motorSpeedX.setValue(speed_x)
-        #self.doubleSpinBox_motorSpeedY.setValue(speed_y)
+        params = self.stage.get_stage_calibration()
+        self.doubleSpinBox_stageScaleFactorX.setValue(params[0])
+        self.doubleSpinBox_stageScaleFactorY.setValue(params[1])
+        self.doubleSpinBox_stageRotationX.setValue(params[2])
+        self.doubleSpinBox_stageRotationY.setValue(params[3])
+        speed_x, speed_y = self.stage.get_motor_speeds()
+        self.doubleSpinBox_motorSpeedX.setValue(speed_x)
+        self.doubleSpinBox_motorSpeedY.setValue(speed_y)
         self.pushButton_startImageAcq.clicked.connect(
             self.acquire_calibration_images)
         if config['sys']['simulation_mode'] == 'True':
@@ -316,8 +316,15 @@ class CalibrationDlg(QDialog):
            Frame settings are fixed for now. Currently no error handling.
         """
         shift = self.spinBox_shift.value()
-        self.sem.apply_frame_settings(4, 10, 0.8)
-        start_x, start_y = self.stage.get_xy(1)
+        # Use frame size 4 if available, otherwise 3:
+        if len(self.sem.STORE_RES) > 4:
+            # Merlin
+            self.sem.apply_frame_settings(4, 10, 0.8)
+        else:
+            # Sigma
+            self.sem.apply_frame_settings(3, 10, 0.8)
+
+        start_x, start_y = self.stage.get_xy()
         # First image:
         self.sem.acquire_frame(self.base_dir + '\\start.tif')
         # X shift:
@@ -381,8 +388,8 @@ class CalibrationDlg(QDialog):
             self.doubleSpinBox_stageScaleFactorY.value(),
             self.doubleSpinBox_stageRotationX.value(),
             self.doubleSpinBox_stageRotationY.value()]
-        self.microtome.set_stage_calibration(self.current_eht, stage_params)
-        success = self.microtome.set_motor_speed_calibration(
+        self.stage.set_stage_calibration(self.current_eht, stage_params)
+        success = self.stage.set_motor_speeds(
             self.doubleSpinBox_motorSpeedX.value(),
             self.doubleSpinBox_motorSpeedY.value())
         if not success:
@@ -2079,7 +2086,7 @@ class ApproachDlg(QDialog):
                             + str(self.thickness) + ' nm cutting thickness).')
             # Do the approach cut (cut, retract, in near position)
             self.microtome.do_full_approach_cut()
-            sleep(10)
+            sleep(self.microtome.get_full_cut_duration() - 5)
             if self.microtome.get_error_state() > 0:
                 self.add_to_log(
                     'CTRL: Cutting problem detected. Approach aborted.')

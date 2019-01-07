@@ -648,6 +648,7 @@ class MainControls(QMainWindow):
             self.checkBox_monitorTiles.isChecked())
         self.cfg['acq']['use_autofocus'] = str(
             self.checkBox_useAutofocus.isChecked())
+        self.show_estimates()
         self.viewport.mv_draw()
 
 # ============== Below: all methods that open dialog windows ==================
@@ -675,10 +676,12 @@ class MainControls(QMainWindow):
     def open_sem_dlg(self):
         dialog = SEMSettingsDlg(self.sem)
         if dialog.exec_():
-            # Update stage calibration (EHT may have changed):
-            self.calibration_found = (
-                self.microtome.update_stage_calibration(self.sem.get_eht()))
-            self.cs.load_stage_calibration() # update coordinate transformations
+            self.calibration_found = True
+            if self.microtome is not None:
+                # Update stage calibration (EHT may have changed):
+                self.calibration_found = (
+                    self.microtome.update_stage_calibration(self.sem.get_eht()))
+                self.cs.load_stage_calibration() # update coordinate transformations
             self.show_current_settings()
             # Electron dose may have changed:
             self.show_estimates()
