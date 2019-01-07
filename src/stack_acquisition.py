@@ -1115,17 +1115,14 @@ class Stack():
 
     def process_heuristic_af_queue(self):
         start_time = datetime.datetime.now()
-        print(start_time)
         for tile_key in self.heuristic_af_queue:
             self.perform_heuristic_autofocus(tile_key)
             current_time = datetime.datetime.now()
             time_elapsed = current_time - start_time
-            print('Time elapsed', time_elapsed.total_seconds())
         self.heuristic_af_queue = []
         remaining_cutting_time = (
             self.full_cut_duration - time_elapsed.total_seconds())
         if remaining_cutting_time > 0:
-            print('Remaining wait time', remaining_cutting_time)
             sleep(remaining_cutting_time)
 
     def acquire_overview(self, ov_number, move_required=True):
@@ -1505,7 +1502,7 @@ class Stack():
             sleep(0.2)
             # Lock magnification:
             self.lock_mag()
-            
+
             if self.acq_interrupted:
                 # Remove tiles that are no longer active from acquired_tiles list
                 acq_tmp = list(self.tiles_acquired)
@@ -1847,7 +1844,7 @@ class Stack():
             self.add_to_main_log(
                 'CTRL: Warning: Change in magnification detected.')
             self.add_to_main_log(
-                'CTRL: Current mag: ' + str(current_mag) 
+                'CTRL: Current mag: ' + str(current_mag)
                 + '; target mag: ' + str(self.target_mag))
             #Fix it:
             self.add_to_main_log('CTRL: Resetting magnification.')
