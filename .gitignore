@@ -11,3 +11,6 @@ __pycache__/
 
 # Ignore DM script control files:
 DMcom.*
+
+# Ignore virtual environment:
+venv/
