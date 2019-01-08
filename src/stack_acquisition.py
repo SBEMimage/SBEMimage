@@ -166,8 +166,10 @@ class Stack():
         self.locked_mag = None
 
         # Focus parameters for current grid, initialized with current settings:
-        self.wd_current_grid = self.sem.get_wd()
-        self.stig_x_current_grid, self.stig_y_current_grid = self.sem.get_stig_xy()
+        if self.cfg['sys']['simulation_mode'] == 'False':
+            self.wd_current_grid = self.sem.get_wd()
+            self.stig_x_current_grid, self.stig_y_current_grid = (
+                self.sem.get_stig_xy())
 
         # Alternating plus/minus deltas for wd and stig, needed for
         # heuristic autofocus, otherwise 0
