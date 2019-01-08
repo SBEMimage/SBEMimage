@@ -1,0 +1,12 @@
+PyQt5
+colorama
+validators
+validate_email
+Pillow
+requests
+pythoncom
+pywin32
+pyserial
+scipy
+numpy
+python-dateutil
