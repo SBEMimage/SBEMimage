@@ -250,7 +250,7 @@ class Microtome():
         self.cfg['microtome']['motor_speed_x'] = str(motor_speed_x)
         self.cfg['microtome']['motor_speed_y'] = str(motor_speed_y)
         # Save in sysconfig:
-        self.syscfg['stage']['motor_speed'] = str(
+        self.syscfg['stage']['microtome_motor_speed'] = str(
             [self.motor_speed_x, self.motor_speed_y])
         return self.write_motor_speeds_to_script()
 
@@ -285,7 +285,7 @@ class Microtome():
         self.cfg['microtome']['stage_min_y'] = str(limits[2])
         self.cfg['microtome']['stage_max_y'] = str(limits[3])
         # Save data in sysconfig:
-        self.syscfg['stage']['motor_limits'] = str(self.motor_limits)
+        self.syscfg['stage']['microtome_motor_limits'] = str(self.motor_limits)
 
     def move_stage_to_x(self, x):
         # only used for testing
