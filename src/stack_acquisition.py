@@ -329,6 +329,7 @@ class Stack():
             'overviews\\stub',
             'overviews\\debris',
             'tiles',
+            'tiles\\rejected',
             'workspace',
             'workspace\\viewport',
             'workspace\\reslices'
@@ -1280,6 +1281,14 @@ class Stack():
         if self.use_mirror_drive:
             self.mirror_files([debris_save_path])
 
+    def save_rejected_tile(self, tile_save_path, fail_counter):
+        rejected_tile_save_path = (
+            self.base_dir + '\\tiles\\rejected\\'
+            + tile_save_path[tile_save_path.rfind('\\') + 1:-4]
+            + '_' + str(fail_counter) + '.tif')
+        # Move tile to folder 'rejected', TODO: error handling
+        shutil.copy(tile_save_path, rejected_tile_save_path)
+
     def remove_debris(self):
         """Try to remove detected debris by sweeping the surface. Microtome must
         be active for this function. Cannot be used with SEM stage."""
@@ -1538,13 +1547,19 @@ class Stack():
                         self.acquire_tile(grid_number, tile_number))
 
                     if self.error_state in [302, 303, 304, 404]:
-                        self.add_to_main_log(
-                            'CTRL: Problem with tile detected. Trying again.')
-                        # Try again in this case, problem may disappear:
+                        self.save_rejected_tile(save_path, fail_counter)
+                        # Try again, problem may disappear:
                         fail_counter += 1
-                        # Reset error state:
-                        self.error_state = 0
-
+                        if fail_counter == 3:
+                            # Pause after third failed attempt
+                            self.pause_acquisition(1)
+                        else:
+                            # Remove the file to avoid overwrite error:
+                            os.remove(save_path)
+                            self.add_to_main_log(
+                            'CTRL: Trying again to image tile.')
+                            # Reset error state:
+                            self.error_state = 0
                     elif self.error_state > 0:
                         self.pause_acquisition(1)
                         break
