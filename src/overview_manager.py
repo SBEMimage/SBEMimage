@@ -58,20 +58,16 @@ class OverviewManager(object):
         self.STUB_OV_SIZE = json.loads(self.cfg['overviews']['stub_ov_size'])
         self.STUB_OV_FRAME_SIZE_SELECTOR = int(
             self.cfg['overviews']['stub_ov_frame_size_selector'])
-        self.STUB_OV_MAGNIFICATION = int(
-            self.cfg['overviews']['stub_ov_magnification'])
+        self.STUB_OV_PIXEL_SIZE = int(
+            self.cfg['overviews']['stub_ov_pixel_size'])
         self.STUB_OV_DWELL_TIME = float(
             self.cfg['overviews']['stub_ov_dwell_time'])
         self.stub_ov_file = self.cfg['overviews']['stub_ov_viewport_image']
-
         self.STUB_OV_FRAME_WIDTH = (
             self.sem.STORE_RES[self.STUB_OV_FRAME_SIZE_SELECTOR][0])
         self.STUB_OV_FRAME_HEIGHT = (
             self.sem.STORE_RES[self.STUB_OV_FRAME_SIZE_SELECTOR][1])
         self.STUB_OV_OVERLAP = int(self.cfg['overviews']['stub_ov_overlap'])
-        self.STUB_OV_PIXEL_SIZE = (
-            self.sem.MAG_PX_SIZE_FACTOR
-            / (self.STUB_OV_FRAME_WIDTH * self.STUB_OV_MAGNIFICATION))
         self.calculate_stub_ov_grid()
 
         # Imported images:
