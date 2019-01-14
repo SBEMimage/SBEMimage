@@ -31,8 +31,16 @@ class OverviewManager(object):
             self.cfg['overviews']['ov_size_selector'])
         self.ov_size_px_py = json.loads(
             self.cfg['overviews']['ov_size_px_py'])
-        self.ov_magnification = json.loads(
-            self.cfg['overviews']['ov_magnification'])
+        self.ov_pixel_size = json.loads(
+            self.cfg['overviews']['ov_pixel_size'])
+        # Calculate mag from pixel size:
+        self.ov_magnification = []
+        for i in range(self.number_ov):
+            self.ov_magnification.append(
+                int(self.sem.MAG_PX_SIZE_FACTOR
+                / (self.ov_size_px_py[i][0] * self.ov_pixel_size[i])))
+        self.cfg['overviews']['ov_magnification'] = str(
+            self.ov_magnification)
         self.ov_dwell_time = json.loads(self.cfg['overviews']['ov_dwell_time'])
         self.ov_dwell_time_selector = json.loads(
             self.cfg['overviews']['ov_dwell_time_selector'])
@@ -92,7 +100,7 @@ class OverviewManager(object):
         self.cs.set_ov_centre_s(new_ov_number, [x_pos, y_pos+50])
         self.set_ov_size_selector(new_ov_number, 2)
         self.set_ov_rotation(new_ov_number, 0)
-        self.set_ov_magnification(new_ov_number, 360)
+        self.set_ov_pixel_size(new_ov_number, 155.0)
         self.set_ov_dwell_time_selector(new_ov_number, 4)
         self.set_ov_wd(new_ov_number, 0)
         self.set_ov_stig_xy(new_ov_number, 0, 0)
@@ -114,6 +122,8 @@ class OverviewManager(object):
         self.cfg['overviews']['ov_size_px_py'] = str(self.ov_size_px_py)
         del self.ov_magnification[-1]
         self.cfg['overviews']['ov_magnification'] = str(self.ov_magnification)
+        del self.ov_pixel_size[-1]
+        self.cfg['overviews']['ov_pixel_size'] = str(self.ov_pixel_size)
         del self.ov_dwell_time[-1]
         self.cfg['overviews']['ov_dwell_time'] = str(self.ov_dwell_time)
         del self.ov_dwell_time_selector[-1]
@@ -205,11 +215,37 @@ class OverviewManager(object):
             self.ov_magnification.append(mag)
         self.cfg['overviews']['ov_magnification'] = str(
             self.ov_magnification)
+        # Calculate pixel size:
+        pixel_size = (
+            self.sem.MAG_PX_SIZE_FACTOR
+            / (self.get_ov_width_p(ov_number) * mag))
+        if ov_number < len(self.ov_pixel_size):
+            self.ov_pixel_size[ov_number] = pixel_size
+        else:
+            self.ov_pixel_size.append(pixel_size)
+        self.cfg['overviews']['ov_pixel_size'] = str(
+            self.ov_pixel_size)
 
     def get_ov_pixel_size(self, ov_number):
-        return (self.sem.MAG_PX_SIZE_FACTOR
-                / (self.get_ov_width_p(ov_number)
-                * self.ov_magnification[ov_number]))
+        return self.ov_pixel_size[ov_number]
+
+    def set_ov_pixel_size(self, ov_number, pixel_size):
+        if ov_number < len(self.ov_pixel_size):
+            self.ov_pixel_size[ov_number] = pixel_size
+        else:
+            self.ov_pixel_size.append(pixel_size)
+        self.cfg['overviews']['ov_pixel_size'] = str(
+            self.ov_pixel_size)
+        # Calculate magnification:
+        mag = (
+            int(self.sem.MAG_PX_SIZE_FACTOR
+            / (self.get_ov_width_p(ov_number) * pixel_size)))
+        if ov_number < len(self.ov_magnification):
+            self.ov_magnification[ov_number] = mag
+        else:
+            self.ov_magnification.append(mag)
+        self.cfg['overviews']['ov_magnification'] = str(
+            self.ov_magnification)
 
     def get_ov_dwell_time(self, ov_number):
         return self.ov_dwell_time[ov_number]

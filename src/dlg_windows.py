@@ -466,7 +466,11 @@ class OVSettingsDlg(QDialog):
         store_res_list = [
             '%d × %d' % (res[0], res[1]) for res in self.sem.STORE_RES]
         self.comboBox_frameSize.addItems(store_res_list)
+        self.comboBox_frameSize.currentIndexChanged.connect(
+            self.update_pixel_size)
         self.comboBox_dwellTime.addItems(map(str, self.sem.DWELL_TIME))
+        # Update pixel size when mag changed:
+        self.spinBox_magnification.valueChanged.connect(self.update_pixel_size)
         # Add and delete button:
         self.pushButton_save.clicked.connect(self.save_current_settings)
         self.pushButton_addOV.clicked.connect(self.add_ov)
@@ -480,12 +484,22 @@ class OVSettingsDlg(QDialog):
             self.ovm.get_ov_size_selector(self.current_ov))
         self.spinBox_magnification.setValue(
             self.ovm.get_ov_magnification(self.current_ov))
+        self.doubleSpinBox_pixelSize.setValue(
+            self.ovm.get_ov_pixel_size(self.current_ov))
         self.comboBox_dwellTime.setCurrentIndex(
             self.ovm.get_ov_dwell_time_selector(self.current_ov))
         self.spinBox_acqInterval.setValue(
             self.ovm.get_ov_acq_interval(self.current_ov))
         self.spinBox_acqIntervalOffset.setValue(
             self.ovm.get_ov_acq_interval_offset(self.current_ov))
+
+    def update_pixel_size(self):
+        """Calculate pixel size from current magnification and display it."""
+        pixel_size = (
+            self.sem.MAG_PX_SIZE_FACTOR
+            / (self.sem.STORE_RES[self.comboBox_frameSize.currentIndex()][0]
+            * self.spinBox_magnification.value()))
+        self.doubleSpinBox_pixelSize.setValue(pixel_size)
 
     def show_frame_size(self):
         """Calculate and show frame size depending on user selection."""
