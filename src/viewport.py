@@ -524,6 +524,7 @@ class Viewport(QWidget):
             self.cfg['viewport']['show_native_resolution'] == 'True')
         self.show_saturated_pixels = (
             self.cfg['viewport']['show_saturated_pixels'] == 'True')
+        self.show_stage_pos = False
         # Acq indicators:
         self.tile_indicator_on = False
         self.tile_indicator_pos = [None, None]
@@ -593,6 +594,9 @@ class Viewport(QWidget):
         self.checkBox_showStubOV.setChecked(self.show_stub_ov)
         self.checkBox_showStubOV.stateChanged.connect(
             self.mv_toggle_show_stub_ov)
+        self.checkBox_showStagePos.setChecked(self.show_stage_pos)
+        self.checkBox_showStagePos.stateChanged.connect(
+            self.mv_toggle_show_stage_pos)
 
     def mv_update_grid_selector(self, current_grid=-1):
         # Set up grid selector:
@@ -668,6 +672,10 @@ class Viewport(QWidget):
     def mv_toggle_ov_acq_indicator(self, ov_number):
         self.ov_indicator_on ^= True
         self.ov_indicator_pos = ov_number
+        self.mv_draw()
+
+    def mv_toggle_show_stage_pos(self):
+        self.show_stage_pos ^= True
         self.mv_draw()
 
     def mv_load_stage_limits(self):
@@ -925,6 +933,19 @@ class Viewport(QWidget):
             self.mv_qp.drawRect(0, 0, 140, 20)
             self.mv_qp.setPen(QPen(QColor(255, 0, 0), 1, Qt.SolidLine))
             self.mv_qp.drawText(5, 15, 'SIMULATION MODE')
+        # Show current stage position:
+        if self.show_stage_pos:
+            # Coordinates within mv_qp:
+            stage_x_v, stage_y_v = self.cs.convert_to_v(self.cs.convert_to_d(
+                self.stage.get_last_known_xy()))
+            size = int(self.cs.get_mv_scale() * 5)
+            if size < 10:
+                size = 10
+            self.mv_qp.setPen(QPen(QColor(255, 255, 255), 2, Qt.SolidLine))
+            self.mv_qp.setBrush(QColor(255, 255, 255, 0))
+            self.mv_qp.drawEllipse(QPoint(stage_x_v, stage_y_v), size, size)
+            self.mv_qp.setBrush(QColor(255, 255, 255, 80))
+            self.mv_qp.drawEllipse(QPoint(stage_x_v, stage_y_v), int(size/2), int(size/2))
 
         self.mv_qp.end()
         # All elements have been drawn, show them:

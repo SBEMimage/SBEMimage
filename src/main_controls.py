@@ -1282,6 +1282,7 @@ class MainControls(QMainWindow):
     def move_stage_success(self, success):
         if success:
             self.add_to_log('CTRL: User-requested stage move completed.')
+            self.viewport.mv_draw()
         else:
             self.add_to_log('CTRL: ERROR ocurred during stage move.')
             QMessageBox.warning(
