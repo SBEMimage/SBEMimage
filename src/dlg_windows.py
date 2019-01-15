@@ -25,6 +25,8 @@ from validate_email import validate_email
 from math import atan, sqrt
 from queue import Queue
 from PIL import Image
+from skimage.io import imread
+from skimage.feature import register_translation
 
 from PyQt5.uic import loadUi
 from PyQt5.QtCore import Qt, QObject, QSize, pyqtSignal
@@ -258,6 +260,13 @@ class CalibrationDlg(QDialog):
         self.stage = stage
         self.sem = sem
         self.current_eht = self.sem.get_eht()
+        self.shift_x_vector = [0, 0]
+        self.shift_y_vector = [0, 0]
+        self.finish_trigger = Trigger()
+        self.finish_trigger.s.connect(self.calculate_stage_parameters)
+        self.update_calc_trigger = Trigger()
+        self.update_calc_trigger.s.connect(self.update_log)
+        self.busy = False
         loadUi('..\\gui\\calibration_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -273,11 +282,11 @@ class CalibrationDlg(QDialog):
         self.doubleSpinBox_motorSpeedX.setValue(speed_x)
         self.doubleSpinBox_motorSpeedY.setValue(speed_y)
         self.pushButton_startImageAcq.clicked.connect(
-            self.acquire_calibration_images)
+            self.start_calibration_procedure)
         if config['sys']['simulation_mode'] == 'True':
             self.pushButton_startImageAcq.setEnabled(False)
         self.pushButton_calcStage.clicked.connect(
-            self.calculate_stage_parameters)
+            self.calculate_stage_parameters_from_user_input)
         self.pushButton_calcMotor.clicked.connect(
             self.calculate_motor_parameters)
 
@@ -298,31 +307,43 @@ class CalibrationDlg(QDialog):
             self.doubleSpinBox_motorSpeedX.setValue(motor_speed_x)
             self.doubleSpinBox_motorSpeedY.setValue(motor_speed_y)
 
-    def acquire_calibration_images(self):
+    def start_calibration_procedure(self):
         """Acquire three images to be used for the stage calibration"""
         # TODO: error handling!
         reply = QMessageBox.information(
-            self, 'Acquire calibration images',
+            self, 'Start calibration procedure',
             'Three images will be acquired and saved in the base '
             'directory: start.tif, shift_x.tif, shift_y.tif. '
-            'The current stage position will be used as a starting point.',
+            'Structure must be visible in the images, and the beam must be '
+            'focused.\nThe current stage position will be used as the starting '
+            'position. The recommended starting position is the centre of the '
+            'stage (0, 0). Angles and scale factors will be computed from the '
+            'shifts between the acquired test images.',
             QMessageBox.Ok | QMessageBox.Cancel)
         if reply == QMessageBox.Ok:
-            thread = threading.Thread(target=self.acq_thread)
+            # Show update in text field:
+            self.busy = True
+            self.plainTextEdit_calibLog.setPlainText('Acquiring images...')
+            self.pushButton_startImageAcq.setText('Busy')
+            self.pushButton_startImageAcq.setEnabled(False)
+            self.pushButton_calcStage.setEnabled(False)
+            thread = threading.Thread(target=self.stage_calibration_acq_thread)
             thread.start()
 
-    def acq_thread(self):
+    def stage_calibration_acq_thread(self):
         """Acquisition thread for three images used for the stage calibration.
            Frame settings are fixed for now. Currently no error handling.
+           XY shifts are computed from images.
         """
         shift = self.spinBox_shift.value()
+        pixel_size = self.spinBox_pixelsize.value()
         # Use frame size 4 if available, otherwise 3:
         if len(self.sem.STORE_RES) > 4:
             # Merlin
-            self.sem.apply_frame_settings(4, 10, 0.8)
+            self.sem.apply_frame_settings(4, pixel_size, 0.8)
         else:
             # Sigma
-            self.sem.apply_frame_settings(3, 10, 0.8)
+            self.sem.apply_frame_settings(3, pixel_size, 0.8)
 
         start_x, start_y = self.stage.get_xy()
         # First image:
@@ -337,8 +358,56 @@ class CalibrationDlg(QDialog):
         self.sem.acquire_frame(self.base_dir + '\\shift_y.tif')
         # Back to initial position:
         self.stage.move_to_xy((start_x, start_y))
+        # Show in log that calculations begin:
+        self.update_calc_trigger.s.emit()
+        # Load images and calculate shifts:
+        start_img = imread(self.base_dir + '\\start.tif')
+        shift_x_img = imread(self.base_dir + '\\shift_x.tif')
+        shift_y_img = imread(self.base_dir + '\\shift_y.tif')
+        x_shift_xyz, _, _ = register_translation(start_img, shift_x_img)
+        y_shift_xyz, _, _ = register_translation(start_img, shift_y_img)
+        self.x_shift_vector = [abs(x_shift_xyz[0]), abs(x_shift_xyz[1])]
+        self.y_shift_vector = [abs(y_shift_xyz[0]), abs(y_shift_xyz[1])]
+        self.finish_trigger.s.emit()
+
+    def update_log(self):
+        self.plainTextEdit_calibLog.appendPlainText('Now computing shifts...')
 
     def calculate_stage_parameters(self):
+        self.pushButton_startImageAcq.setText('Start')
+        self.pushButton_startImageAcq.setEnabled(True)
+        self.pushButton_calcStage.setEnabled(True)
+        self.plainTextEdit_calibLog.setPlainText(
+            'Shift_X: {}, Shift_Y: {}'.format(
+            str(self.x_shift_vector), str(self.y_shift_vector)))
+        delta_xx, delta_xy = self.x_shift_vector
+        delta_yx, delta_yy = self.y_shift_vector
+        shift = self.spinBox_shift.value()
+        pixel_size = self.spinBox_pixelsize.value()
+
+        # Rotation angles:
+        rot_x = atan(delta_xy/delta_xx)
+        rot_y = atan(delta_yx/delta_yy)
+        # Scale factors:
+        scale_x = shift / (sqrt(delta_xx**2 + delta_xy**2) * pixel_size / 1000)
+        scale_y = shift / (sqrt(delta_yx**2 + delta_yy**2) * pixel_size / 1000)
+
+        self.busy = False
+        user_choice = QMessageBox.information(
+            self, 'Calculated parameters',
+            'Results:\nRotation X: ' + '{0:.5f}'.format(rot_x)
+            + ';\nRotation Y: ' + '{0:.5f}'.format(rot_y)
+            + '\nScale factor X: ' + '{0:.5f}'.format(scale_x)
+            + ';\nScale factor Y: ' + '{0:.5f}'.format(scale_y)
+            + '\n\nDo you want to use these values?',
+            QMessageBox.Ok | QMessageBox.Cancel)
+        if user_choice == QMessageBox.Ok:
+            self.doubleSpinBox_stageScaleFactorX.setValue(scale_x)
+            self.doubleSpinBox_stageScaleFactorY.setValue(scale_y)
+            self.doubleSpinBox_stageRotationX.setValue(rot_x)
+            self.doubleSpinBox_stageRotationY.setValue(rot_y)
+
+    def calculate_stage_parameters_from_user_input(self):
         """Calculate the rotation angles and scale factors from the user input.
            The user provides the pixel position of any object that can be
            identified in all three acquired test images. From this, the program
@@ -354,50 +423,50 @@ class CalibrationDlg(QDialog):
         y1y = x1y
         y2x = self.spinBox_y2x.value()
         y2y = self.spinBox_y2y.value()
-        shift = self.spinBox_shift.value()
-        pixel_size = self.spinBox_pixelsize.value()
+
         # Distances in pixels
         delta_xx = abs(x1x - x2x)
         delta_xy = abs(x1y - x2y)
         delta_yx = abs(y1x - y2x)
         delta_yy = abs(y1y - y2y)
-        # Rotation angles:
-        rot_x = atan(delta_xy/delta_xx)
-        rot_y = atan(delta_yx/delta_yy)
-        # Scale factors:
-        scale_x = shift / (sqrt(delta_xx**2 + delta_xy**2) * pixel_size / 1000)
-        scale_y = shift / (sqrt(delta_yx**2 + delta_yy**2) * pixel_size / 1000)
-
-        user_choice = QMessageBox.information(
-            self, 'Calculated parameters',
-            'Results:\nRotation X: ' + '{0:.5f}'.format(rot_x)
-            + ';\nRotation Y: ' + '{0:.5f}'.format(rot_y)
-            + '\nScale factor X: ' + '{0:.5f}'.format(scale_x)
-            + ';\nScale factor Y: ' + '{0:.5f}'.format(scale_y)
-            + '\n\nDo you want to use these values?',
-            QMessageBox.Ok | QMessageBox.Cancel)
-        if user_choice == QMessageBox.Ok:
-            self.doubleSpinBox_stageScaleFactorX.setValue(scale_x)
-            self.doubleSpinBox_stageScaleFactorY.setValue(scale_y)
-            self.doubleSpinBox_stageRotationX.setValue(rot_x)
-            self.doubleSpinBox_stageRotationY.setValue(rot_y)
+        if delta_xx == 0 or delta_yy == 0:
+            QMessageBox.warning(
+                self, 'Error computing stage calibration',
+                'Please check your input values.',
+                QMessageBox.Ok)
+        else:
+            self.plainTextEdit_calibLog.setPlainText('Using user input: ')
+            self.x_shift_vector = [delta_xx, delta_xy]
+            self.y_shift_vector = [delta_yx, delta_yy]
+            self.calculate_stage_parameters()
 
     def accept(self):
-        stage_params = [
-            self.doubleSpinBox_stageScaleFactorX.value(),
-            self.doubleSpinBox_stageScaleFactorY.value(),
-            self.doubleSpinBox_stageRotationX.value(),
-            self.doubleSpinBox_stageRotationY.value()]
-        self.stage.set_stage_calibration(self.current_eht, stage_params)
-        success = self.stage.set_motor_speeds(
-            self.doubleSpinBox_motorSpeedX.value(),
-            self.doubleSpinBox_motorSpeedY.value())
-        if not success:
-            QMessageBox.warning(
-                self, 'Error updating motor speeds',
-                'Motor calibration could not be updated in DM script.',
-                QMessageBox.Ok)
-        super(CalibrationDlg, self).accept()
+        if not self.busy:
+            stage_params = [
+                self.doubleSpinBox_stageScaleFactorX.value(),
+                self.doubleSpinBox_stageScaleFactorY.value(),
+                self.doubleSpinBox_stageRotationX.value(),
+                self.doubleSpinBox_stageRotationY.value()]
+            self.stage.set_stage_calibration(self.current_eht, stage_params)
+            success = self.stage.set_motor_speeds(
+                self.doubleSpinBox_motorSpeedX.value(),
+                self.doubleSpinBox_motorSpeedY.value())
+            if not success:
+                QMessageBox.warning(
+                    self, 'Error updating motor speeds',
+                    'Motor calibration could not be updated in DM script.',
+                    QMessageBox.Ok)
+            super(CalibrationDlg, self).accept()
+
+    def reject(self):
+        if not self.busy:
+            super(CalibrationDlg, self).reject()
+
+    def closeEvent(self, event):
+        if not self.busy:
+            event.accept()
+        else:
+            event.ignore()
 
 #------------------------------------------------------------------------------
 

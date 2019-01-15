@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>601</width>
-    <height>337</height>
+    <width>641</width>
+    <height>338</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -22,7 +22,7 @@
   <widget class="QDialogButtonBox" name="buttonBox">
    <property name="geometry">
     <rect>
-     <x>400</x>
+     <x>440</x>
      <y>300</y>
      <width>191</width>
      <height>32</height>
@@ -111,7 +111,7 @@
     <rect>
      <x>10</x>
      <y>180</y>
-     <width>581</width>
+     <width>621</width>
      <height>20</height>
     </rect>
    </property>
@@ -175,30 +175,17 @@
     <rect>
      <x>300</x>
      <y>10</y>
-     <width>291</width>
+     <width>331</width>
      <height>171</height>
     </rect>
    </property>
    <property name="title">
     <string>Calculate calibration parameters</string>
    </property>
-   <widget class="QPushButton" name="pushButton_calcStage">
-    <property name="geometry">
-     <rect>
-      <x>218</x>
-      <y>137</y>
-      <width>61</width>
-      <height>23</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Calculate</string>
-    </property>
-   </widget>
    <widget class="QLabel" name="label">
     <property name="geometry">
      <rect>
-      <x>80</x>
+      <x>250</x>
       <y>20</y>
       <width>81</width>
       <height>16</height>
@@ -214,8 +201,8 @@
    <widget class="QLabel" name="label_2">
     <property name="geometry">
      <rect>
-      <x>80</x>
-      <y>96</y>
+      <x>250</x>
+      <y>99</y>
       <width>81</width>
       <height>16</height>
      </rect>
@@ -230,8 +217,8 @@
    <widget class="QLabel" name="label_3">
     <property name="geometry">
      <rect>
-      <x>15</x>
-      <y>75</y>
+      <x>180</x>
+      <y>73</y>
       <width>16</width>
       <height>16</height>
      </rect>
@@ -243,8 +230,8 @@
    <widget class="QLabel" name="label_4">
     <property name="geometry">
      <rect>
-      <x>15</x>
-      <y>95</y>
+      <x>180</x>
+      <y>93</y>
       <width>16</width>
       <height>16</height>
      </rect>
@@ -256,7 +243,7 @@
    <widget class="QLabel" name="label_15">
     <property name="geometry">
      <rect>
-      <x>88</x>
+      <x>258</x>
       <y>63</y>
       <width>16</width>
       <height>16</height>
@@ -269,8 +256,8 @@
    <widget class="QLabel" name="label_16">
     <property name="geometry">
      <rect>
-      <x>88</x>
-      <y>139</y>
+      <x>258</x>
+      <y>142</y>
       <width>16</width>
       <height>16</height>
      </rect>
@@ -282,7 +269,7 @@
    <widget class="QLabel" name="label_17">
     <property name="geometry">
      <rect>
-      <x>88</x>
+      <x>258</x>
       <y>43</y>
       <width>16</width>
       <height>16</height>
@@ -295,8 +282,8 @@
    <widget class="QLabel" name="label_18">
     <property name="geometry">
      <rect>
-      <x>88</x>
-      <y>119</y>
+      <x>258</x>
+      <y>122</y>
       <width>16</width>
       <height>16</height>
      </rect>
@@ -308,8 +295,8 @@
    <widget class="QLabel" name="label_19">
     <property name="geometry">
      <rect>
-      <x>190</x>
-      <y>79</y>
+      <x>10</x>
+      <y>50</y>
       <width>81</width>
       <height>16</height>
      </rect>
@@ -321,8 +308,8 @@
    <widget class="QSpinBox" name="spinBox_x1x">
     <property name="geometry">
      <rect>
-      <x>25</x>
-      <y>72</y>
+      <x>190</x>
+      <y>70</y>
       <width>51</width>
       <height>22</height>
      </rect>
@@ -337,7 +324,7 @@
    <widget class="QSpinBox" name="spinBox_x2x">
     <property name="geometry">
      <rect>
-      <x>100</x>
+      <x>270</x>
       <y>40</y>
       <width>51</width>
       <height>22</height>
@@ -353,8 +340,8 @@
    <widget class="QSpinBox" name="spinBox_x1y">
     <property name="geometry">
      <rect>
-      <x>25</x>
-      <y>92</y>
+      <x>190</x>
+      <y>90</y>
       <width>51</width>
       <height>22</height>
      </rect>
@@ -369,7 +356,7 @@
    <widget class="QSpinBox" name="spinBox_x2y">
     <property name="geometry">
      <rect>
-      <x>100</x>
+      <x>270</x>
       <y>60</y>
       <width>51</width>
       <height>22</height>
@@ -385,8 +372,8 @@
    <widget class="QSpinBox" name="spinBox_y2y">
     <property name="geometry">
      <rect>
-      <x>100</x>
-      <y>136</y>
+      <x>270</x>
+      <y>139</y>
       <width>51</width>
       <height>22</height>
      </rect>
@@ -401,8 +388,8 @@
    <widget class="QSpinBox" name="spinBox_y2x">
     <property name="geometry">
      <rect>
-      <x>100</x>
-      <y>116</y>
+      <x>270</x>
+      <y>119</y>
       <width>51</width>
       <height>22</height>
      </rect>
@@ -417,8 +404,8 @@
    <widget class="QSpinBox" name="spinBox_shift">
     <property name="geometry">
      <rect>
-      <x>200</x>
-      <y>99</y>
+      <x>100</x>
+      <y>50</y>
       <width>51</width>
       <height>22</height>
      </rect>
@@ -433,8 +420,8 @@
    <widget class="QLabel" name="label_21">
     <property name="geometry">
      <rect>
-      <x>190</x>
-      <y>30</y>
+      <x>10</x>
+      <y>20</y>
       <width>81</width>
       <height>16</height>
      </rect>
@@ -446,8 +433,8 @@
    <widget class="QSpinBox" name="spinBox_pixelsize">
     <property name="geometry">
      <rect>
-      <x>200</x>
-      <y>50</y>
+      <x>100</x>
+      <y>20</y>
       <width>51</width>
       <height>22</height>
      </rect>
@@ -466,7 +453,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>20</y>
+      <y>80</y>
       <width>51</width>
       <height>23</height>
      </rect>
@@ -475,13 +462,78 @@
      <string>Start</string>
     </property>
    </widget>
+   <widget class="QPlainTextEdit" name="plainTextEdit_calibLog">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>110</y>
+      <width>141</width>
+      <height>51</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_calcStage">
+    <property name="geometry">
+     <rect>
+      <x>180</x>
+      <y>139</y>
+      <width>61</width>
+      <height>23</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Calculate</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_6">
+    <property name="geometry">
+     <rect>
+      <x>180</x>
+      <y>20</y>
+      <width>47</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Manual</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_14">
+    <property name="geometry">
+     <rect>
+      <x>180</x>
+      <y>35</y>
+      <width>61</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>procedure:</string>
+    </property>
+   </widget>
+   <widget class="Line" name="line">
+    <property name="geometry">
+     <rect>
+      <x>157</x>
+      <y>20</y>
+      <width>20</width>
+      <height>141</height>
+     </rect>
+    </property>
+    <property name="orientation">
+     <enum>Qt::Vertical</enum>
+    </property>
+   </widget>
   </widget>
   <widget class="QGroupBox" name="groupBox_2">
    <property name="geometry">
     <rect>
      <x>300</x>
      <y>200</y>
-     <width>291</width>
+     <width>331</width>
      <height>80</height>
     </rect>
    </property>
@@ -491,7 +543,7 @@
    <widget class="QPushButton" name="pushButton_calcMotor">
     <property name="geometry">
      <rect>
-      <x>218</x>
+      <x>260</x>
       <y>45</y>
       <width>61</width>
       <height>23</height>
@@ -571,7 +623,7 @@
     <rect>
      <x>10</x>
      <y>280</y>
-     <width>581</width>
+     <width>621</width>
      <height>20</height>
     </rect>
    </property>
