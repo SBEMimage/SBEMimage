@@ -151,8 +151,9 @@ class SEM():
         """Save the target EHT and set the EHT in SmartSEM
            to this target value.
         """
-        self.eht = target_eht
+        # Save with two decimal digits:
         self.cfg['sem']['eht'] = '{0:.2f}'.format(target_eht)
+        self.eht = float(self.cfg['sem']['eht'])
         # target_eht given in kV
         variant = VARIANT(pythoncom.VT_R4, target_eht * 1000)
         ret_val = self.sem_api.Set('AP_MANUALKV', variant)[0]
