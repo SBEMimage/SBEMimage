@@ -4,7 +4,6 @@ validators
 validate_email
 Pillow
 requests
-pythoncom
 pywin32
 pyserial
 scipy
