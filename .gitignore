@@ -14,3 +14,6 @@ DMcom.*
 
 # Ignore virtual environment:
 venv/
+
+# Ignore _build folder in docs:
+docs/_build/
