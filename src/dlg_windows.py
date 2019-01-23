@@ -1820,7 +1820,8 @@ class ImageMonitoringSettingsDlg(QDialog):
 #------------------------------------------------------------------------------
 
 class AutofocusSettingsDlg(QDialog):
-    """Adjust settings for the ZEISS autofocus or the heuristic autofocus."""
+    """Adjust settings for the ZEISS autofocus, the heuristic autofocus,
+    and tracking the focus/stig when refocusing manually."""
 
     def __init__(self, autofocus, grid_manager):
         super(AutofocusSettingsDlg, self).__init__()
@@ -1835,7 +1836,11 @@ class AutofocusSettingsDlg(QDialog):
             self.radioButton_useSmartSEM.setChecked(True)
         elif self.af.get_method() == 1:
             self.radioButton_useHeuristic.setChecked(True)
+        elif self.af.get_method() == 2:
+            self.radioButton_useTrackingOnly.setChecked(True)
         self.radioButton_useSmartSEM.toggled.connect(self.group_box_update)
+        self.radioButton_useHeuristic.toggled.connect(self.group_box_update)
+        self.radioButton_useTrackingOnly.toggled.connect(self.group_box_update)
         self.group_box_update()
         # General settings
         self.lineEdit_refTiles.setText(
@@ -1871,9 +1876,23 @@ class AutofocusSettingsDlg(QDialog):
         self.doubleSpinBox_stigScale.setValue(scale)
 
     def group_box_update(self):
-        status = self.radioButton_useSmartSEM.isChecked()
-        self.groupBox_ZEISS_af.setEnabled(status)
-        self.groupBox_heuristic_af.setEnabled(not status)
+        if self.radioButton_useSmartSEM.isChecked():
+            zeiss_enabled = True
+            heuristic_enabled = False
+            diffs_enabled = True
+        elif self.radioButton_useHeuristic.isChecked():
+            zeiss_enabled = False
+            heuristic_enabled = True
+            diffs_enabled = True
+        elif self.radioButton_useTrackingOnly.isChecked():
+            zeiss_enabled = False
+            heuristic_enabled = False
+            diffs_enabled = False
+        self.groupBox_ZEISS_af.setEnabled(zeiss_enabled)
+        self.groupBox_heuristic_af.setEnabled(heuristic_enabled)
+        self.doubleSpinBox_maxWDDiff.setEnabled(diffs_enabled)
+        self.doubleSpinBox_maxStigXDiff.setEnabled(diffs_enabled)
+        self.doubleSpinBox_maxStigYDiff.setEnabled(diffs_enabled)
 
     def change_tracking_mode(self):
         """Let user confirm switch to "track all"."""
@@ -1900,8 +1919,10 @@ class AutofocusSettingsDlg(QDialog):
         error_str = ''
         if self.radioButton_useSmartSEM.isChecked():
             self.af.set_method(0)
-        else:
+        elif self.radioButton_useHeuristic.isChecked():
             self.af.set_method(1)
+        elif self.radioButton_useTrackingOnly.isChecked():
+            self.af.set_method(2)
 
         success, tile_list = utils.validate_tile_list(
             self.lineEdit_refTiles.text())
