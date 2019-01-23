@@ -1003,6 +1003,14 @@ class MainControls(QMainWindow):
                 QMessageBox.Yes | QMessageBox.No | QMessageBox.Abort,
                 QMessageBox.Yes)
             self.stack.set_user_reply(reply)
+        elif msg == 'ASK IMAGE ERROR OVERRIDE':
+            reply = QMessageBox.question(
+                self, 'Image inspector',
+                'The current image has failed the image inspector tests.\n'
+                'Would you like to proceed anyway?',
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes)
+            self.stack.set_user_reply(reply)
         elif msg == 'REMOTE STOP':
             self.remote_stop()
         elif msg == 'ERROR PAUSE':

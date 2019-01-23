@@ -180,6 +180,7 @@ class Stack():
         # Variables used for reply from main program:
         self.user_reply = None
         self.user_reply_received = False
+        self.image_rejected_by_user = False
 
     def get_remote_password(self):
         return self.email_pw
@@ -583,7 +584,8 @@ class Stack():
                             ov_filename, ov_accepted = (
                                 self.acquire_overview(ov_number))
 
-                            if self.error_state in [303, 404]:
+                            if (self.error_state in [303, 404]
+                                and not self.image_rejected_by_user):
                                 # Image incomplete or cannot be loaded,
                                 # try again:
                                 fail_counter += 1
@@ -1268,6 +1270,21 @@ class Stack():
                 self.error_state = 502
                 self.pause_acquisition(1)
                 ov_accepted = False
+
+        # Check for "Ask User" override:
+        if (self.cfg['acq']['ask_user'] == 'True'
+                and self.error_state in [303, 502]):
+            self.transmit_cmd('ASK IMAGE ERROR OVERRIDE')
+            while not self.user_reply_received:
+                sleep(0.1)
+            if self.user_reply == QMessageBox.Yes:
+                # Proceed anyway, reset error state and accept OV:
+                self.error_state = 0
+                ov_accepted = True
+            else:
+                self.image_rejected_by_user = True
+            self.user_reply_received = False
+
         return ov_save_path, ov_accepted
 
     def save_debris_image(self, ov_file_name, sweep_counter):
@@ -1481,6 +1498,20 @@ class Stack():
                 self.add_to_main_log('CTRL: Tile image acquisition failure. ')
                 self.error_state = 302
 
+        # Check for "Ask User" override:
+        if (self.cfg['acq']['ask_user'] == 'True'
+                and self.error_state in [303, 304, 503, 504]):
+            self.transmit_cmd('ASK IMAGE ERROR OVERRIDE')
+            while not self.user_reply_received:
+                sleep(0.1)
+            if self.user_reply == QMessageBox.Yes:
+                # Proceed anyway, reset error state and accept tile:
+                self.error_state = 0
+                tile_accepted = True
+            else:
+                self.image_rejected_by_user = True
+            self.user_reply_received = False
+
         return (tile_img, relative_save_path, save_path,
                 tile_accepted, tile_skipped, tile_selected)
 
@@ -1546,7 +1577,8 @@ class Stack():
                      tile_accepted, tile_skipped, tile_selected) = (
                         self.acquire_tile(grid_number, tile_number))
 
-                    if self.error_state in [302, 303, 304, 404]:
+                    if (self.error_state in [302, 303, 304, 404]
+                            and not self.image_rejected_by_user) :
                         self.save_rejected_tile(save_path, fail_counter)
                         # Try again, problem may disappear:
                         fail_counter += 1
