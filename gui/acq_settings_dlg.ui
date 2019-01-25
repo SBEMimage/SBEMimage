@@ -333,12 +333,12 @@
     <rect>
      <x>10</x>
      <y>210</y>
-     <width>161</width>
+     <width>171</width>
      <height>20</height>
     </rect>
    </property>
    <property name="text">
-    <string>Set ∆Z (depth already cut):</string>
+    <string>Set ∆Z (depth already cut, in μm):</string>
    </property>
   </widget>
   <widget class="QDoubleSpinBox" name="doubleSpinBox_zDiff">
