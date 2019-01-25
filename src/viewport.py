@@ -941,11 +941,15 @@ class Viewport(QWidget):
             size = int(self.cs.get_mv_scale() * 5)
             if size < 10:
                 size = 10
-            self.mv_qp.setPen(QPen(QColor(255, 255, 255), 2, Qt.SolidLine))
-            self.mv_qp.setBrush(QColor(255, 255, 255, 0))
+            self.mv_qp.setPen(QPen(QColor(255, 0, 0), 2, Qt.SolidLine))
+            self.mv_qp.setBrush(QColor(255, 0, 0, 0))
             self.mv_qp.drawEllipse(QPoint(stage_x_v, stage_y_v), size, size)
-            self.mv_qp.setBrush(QColor(255, 255, 255, 80))
+            self.mv_qp.setBrush(QColor(255, 0, 0, 0))
             self.mv_qp.drawEllipse(QPoint(stage_x_v, stage_y_v), int(size/2), int(size/2))
+            self.mv_qp.drawLine(stage_x_v - 1.25 * size, stage_y_v,
+                                stage_x_v + 1.25 * size, stage_y_v)
+            self.mv_qp.drawLine(stage_x_v, stage_y_v - 1.25 * size,
+                                stage_x_v, stage_y_v + 1.25 * size)
 
         self.mv_qp.end()
         # All elements have been drawn, show them:
