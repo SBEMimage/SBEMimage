@@ -1946,8 +1946,10 @@ class MainControls(QMainWindow):
     def ft_run_cycle(self):
         self.pushButton_focusToolStart.setText('Busy')
         self.pushButton_focusToolStart.setEnabled(False)
+        self.pushButton_focusToolMove.setEnabled(False)
         self.pushButton_focusToolSet.setEnabled(False)
         self.spinBox_ftPixelSize.setEnabled(False)
+        self.checkBox_zoom.setEnabled(False)
         self.verticalSlider_ftDelta.setEnabled(False)
         self.radioButton_focus.setEnabled(False)
         self.radioButton_stigX.setEnabled(False)
@@ -1991,29 +1993,26 @@ class MainControls(QMainWindow):
         self.stage.move_to_xy((stage_x, stage_y))
 
         if self.radioButton_focus.isChecked():
-            self.ft_mode = 1
             self.ft_delta = (
                 0.00000004 * self.ft_slider_delta * self.ft_pixel_size)
             self.ft_acquire_focus_series()
 
         if self.radioButton_stigX.isChecked():
-            self.ft_mode = 2
-            # Read current stig x:
             self.ft_delta = (
                 0.008 * self.ft_slider_delta * self.ft_pixel_size)
             self.ft_acquire_stig_series(0)
 
         if self.radioButton_stigY.isChecked():
-            self.ft_mode = 3
-            # Read current stig x:
             self.ft_delta = 0.008 * self.ft_slider_delta * self.ft_pixel_size
             self.ft_acquire_stig_series(1)
 
     def ft_reset(self):
         self.pushButton_focusToolStart.setText('Start')
         self.pushButton_focusToolStart.setEnabled(True)
+        self.pushButton_focusToolMove.setEnabled(True)
         self.pushButton_focusToolSet.setEnabled(True)
         self.spinBox_ftPixelSize.setEnabled(True)
+        self.checkBox_zoom.setEnabled(True)
         self.verticalSlider_ftDelta.setEnabled(True)
         self.radioButton_focus.setEnabled(True)
         self.radioButton_stigX.setEnabled(True)
@@ -2059,6 +2058,7 @@ class MainControls(QMainWindow):
         # Display current focus:
         self.ft_index = 4
         self.ft_display_during_cycle()
+        self.ft_mode = 1
         self.ft_series_complete()
 
     def ft_acquire_stig_series(self, xy_choice):
@@ -2088,6 +2088,10 @@ class MainControls(QMainWindow):
         # Display at current stigmation setting:
         self.ft_index = 4
         self.ft_display_during_cycle()
+        if xy_choice == 0:
+            self.ft_mode = 2
+        else:
+            self.ft_mode = 3
         self.ft_series_complete()
 
     def ft_display_during_cycle(self):
@@ -2268,7 +2272,8 @@ class MainControls(QMainWindow):
 
     def ft_toggle_zoom(self):
         self.ft_zoom = self.ft_zoom == False
-        self.ft_display_during_cycle()
+        if self.ft_mode > 0:
+            self.ft_display_during_cycle()
 
     def keyPressEvent(self, event):
         if (type(event) == QKeyEvent) and (self.tabWidget.currentIndex() == 1):
