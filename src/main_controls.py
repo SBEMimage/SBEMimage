@@ -1821,6 +1821,9 @@ class MainControls(QMainWindow):
         self.ft_update_tile_selector()
         self.ft_update_ov_selector()
         # Initialize Pixmap for Focus Tool:
+        self.ft_clear_display()
+
+    def ft_clear_display(self):
         blank = QPixmap(512, 384)
         blank.fill(QColor(0, 0, 0))
         self.img_focusToolViewer.setPixmap(blank)
@@ -2224,6 +2227,8 @@ class MainControls(QMainWindow):
                 'Adaptive focus active in this grid.')
         else:
             self.label_AFnotification.setText('')
+        # Clear current image:
+        self.ft_clear_display()
 
     def ft_load_selected_ov(self):
         self.ft_selected_ov = self.comboBox_selectOVFT.currentIndex() - 1
@@ -2236,6 +2241,8 @@ class MainControls(QMainWindow):
             self.ft_update_stig_display()
         elif self.ft_selected_tile == -1:
             self.ft_clear_wd_stig_display()
+        # Clear current image:
+        self.ft_clear_display()
 
     def ft_set_selection_from_mv(self):
         selected_ov = self.viewport.mv_get_selected_ov()
@@ -2273,6 +2280,8 @@ class MainControls(QMainWindow):
             self.comboBox_selectTileFT.blockSignals(False)
             self.ft_load_selected_ov()
             self.ft_selected_tile = -1
+        # Clear current image:
+        self.ft_clear_display()
         # Switch to Focus Tool tab:
         self.tabWidget.setCurrentIndex(1)
 
