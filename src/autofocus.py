@@ -91,6 +91,9 @@ class Autofocus():
                 tile_list.append(tile)
         return tile_list
 
+    def is_ref_tile(self, grid_number, tile_number):
+        return tile_number in self.get_ref_tiles_in_grid(grid_number)
+
     def set_ref_tiles(self, ref_tile_list):
         self.ref_tiles = ref_tile_list
         self.cfg['autofocus']['ref_tiles'] = json.dumps(ref_tile_list)
