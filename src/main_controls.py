@@ -90,7 +90,7 @@ class MainControls(QMainWindow):
         QApplication.processEvents()
         # Initialize viewport window:
         self.viewport = Viewport(self.cfg, self.sem, self.stage,
-                                 self.ovm, self.gm, self.cs, self.autofocus,
+                                 self.ovm, self.gm, self.cs, self.af,
                                  self.viewport_trigger,
                                  self.viewport_queue)
         self.viewport.show()
@@ -481,13 +481,13 @@ class MainControls(QMainWindow):
         self.img_inspector = ImageInspector(self.cfg, self.ovm)
 
         # Set up autofocus instance:
-        self.autofocus = Autofocus(self.cfg, self.sem, self.gm,
-                                   self.acq_queue, self.acq_trigger)
+        self.af = Autofocus(self.cfg, self.sem, self.gm,
+                            self.acq_queue, self.acq_trigger)
         # Finally, the stack instance:
         self.stack = Stack(self.cfg,
                            self.sem, self.microtome, self.stage,
                            self.ovm, self.gm, self.cs,
-                           self.img_inspector, self.autofocus,
+                           self.img_inspector, self.af,
                            self.acq_queue, self.acq_trigger)
 
     def try_to_create_directory(self, new_directory):
@@ -829,7 +829,7 @@ class MainControls(QMainWindow):
             self.img_inspector.update_monitoring_settings()
 
     def open_autofocus_dlg(self):
-        dialog = AutofocusSettingsDlg(self.autofocus, self.gm)
+        dialog = AutofocusSettingsDlg(self.af, self.gm)
         if dialog.exec_():
             self.viewport.mv_draw()
 
@@ -2214,6 +2214,16 @@ class MainControls(QMainWindow):
             self.ft_update_stig_display()
         elif self.ft_selected_ov == -1:
             self.ft_clear_wd_stig_display()
+
+        if (self.af.is_active() and self.af.is_ref_tile(
+                self.ft_selected_grid, self.ft_selected_tile)):
+            self.label_AFnotification.setText(
+                'WD/STIG of selected tile are being tracked.')
+        elif self.gm.is_adaptive_focus_active(self.ft_selected_grid):
+            self.label_AFnotification.setText(
+                'Adaptive focus active in this grid.')
+        else:
+            self.label_AFnotification.setText('')
 
     def ft_load_selected_ov(self):
         self.ft_selected_ov = self.comboBox_selectOVFT.currentIndex() - 1
