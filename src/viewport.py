@@ -812,7 +812,10 @@ class Viewport(QWidget):
             action4.triggered.connect(self.mv_select_all_tiles)
             action5 = menu.addAction('Deselect all tiles in grid')
             action5.triggered.connect(self.mv_deselect_all_tiles)
-            action6 = menu.addAction('Select/deselect for autofocus')
+            if self.af.get_method() == 2:
+                action6 = menu.addAction('Select/deselect for focus tracking')
+            else:
+                action6 = menu.addAction('Select/deselect for autofocus')
             action6.triggered.connect(self.mv_toggle_tile_autofocus)
             action7 = menu.addAction('Select/deselect for adaptive focus')
             action7.triggered.connect(self.mv_toggle_tile_adaptive_focus)
