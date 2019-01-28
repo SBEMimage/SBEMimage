@@ -10,11 +10,11 @@
     <x>0</x>
     <y>0</y>
     <width>301</width>
-    <height>641</height>
+    <height>659</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Autofocus Settings</string>
+   <string>Autofocus/Tracking Settings</string>
   </property>
   <property name="modal">
    <bool>false</bool>
@@ -23,7 +23,7 @@
    <property name="geometry">
     <rect>
      <x>100</x>
-     <y>600</y>
+     <y>620</y>
      <width>191</width>
      <height>32</height>
     </rect>
@@ -40,7 +40,7 @@
     <rect>
      <x>10</x>
      <y>10</y>
-     <width>261</width>
+     <width>251</width>
      <height>17</height>
     </rect>
    </property>
@@ -56,12 +56,12 @@
     <rect>
      <x>10</x>
      <y>30</y>
-     <width>241</width>
+     <width>251</width>
      <height>17</height>
     </rect>
    </property>
    <property name="text">
-    <string>Use heuristic algorithm (continuous tracking)</string>
+    <string>Use heuristic algorithm (slice-by-slice updates)</string>
    </property>
   </widget>
   <widget class="QGroupBox" name="groupBox_heuristic_af">
@@ -71,7 +71,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>420</y>
+     <y>440</y>
      <width>281</width>
      <height>171</height>
     </rect>
@@ -340,7 +340,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>280</y>
+     <y>300</y>
      <width>281</width>
      <height>131</height>
     </rect>
@@ -465,7 +465,7 @@
    <property name="geometry">
     <rect>
      <x>9</x>
-     <y>60</y>
+     <y>80</y>
      <width>281</width>
      <height>211</height>
     </rect>
@@ -627,7 +627,7 @@
      </rect>
     </property>
     <property name="text">
-     <string>Tiles can be (de)selected for autofocus tracking with </string>
+     <string>Tiles can be (de)selected for (auto)focus tracking with </string>
     </property>
    </widget>
    <widget class="QLabel" name="label_rt_2">
@@ -643,6 +643,19 @@
      <string>format #grid_number.#tile_number:</string>
     </property>
    </widget>
+  </widget>
+  <widget class="QRadioButton" name="radioButton_useTrackingOnly">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>50</y>
+     <width>241</width>
+     <height>17</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Use tracking only (manual refocusing)</string>
+   </property>
   </widget>
  </widget>
  <tabstops>

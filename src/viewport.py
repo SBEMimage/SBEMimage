@@ -812,7 +812,10 @@ class Viewport(QWidget):
             action4.triggered.connect(self.mv_select_all_tiles)
             action5 = menu.addAction('Deselect all tiles in grid')
             action5.triggered.connect(self.mv_deselect_all_tiles)
-            action6 = menu.addAction('Select/deselect for autofocus')
+            if self.af.get_method() == 2:
+                action6 = menu.addAction('Select/deselect for focus tracking')
+            else:
+                action6 = menu.addAction('Select/deselect for autofocus')
             action6.triggered.connect(self.mv_toggle_tile_autofocus)
             action7 = menu.addAction('Select/deselect for adaptive focus')
             action7.triggered.connect(self.mv_toggle_tile_adaptive_focus)
@@ -1246,28 +1249,44 @@ class Viewport(QWidget):
                         - tile_height_v/4,
                         2 * tile_width_v, 2 * tile_height_v)
 
-                    grad_label = (
+                    show_grad_label = (
                         self.gm.is_adaptive_focus_tile(grid_number, tile)
                         and self.gm.is_adaptive_focus_active(grid_number))
-                    af_label = (
+                    show_af_label = (
                         self.af.is_ref_tile(grid_number, tile)
-                        and self.af.is_active())
-                    if grad_label and af_label:
+                        and self.af.is_active()
+                        and self.af.get_method() < 2)
+                    show_tracking_label = (
+                        self.af.is_ref_tile(grid_number, tile)
+                        and self.af.is_active()
+                        and self.af.get_method() == 2)
+
+                    if show_grad_label and show_af_label:
                         self.mv_qp.drawText(position_rect,
                                             Qt.AlignVCenter | Qt.AlignHCenter,
                                             'GRAD + AF')
-                    elif grad_label:
+                    elif show_grad_label and show_tracking_label:
+                        self.mv_qp.drawText(position_rect,
+                                            Qt.AlignVCenter | Qt.AlignHCenter,
+                                            'GRAD + TRACK')
+                    elif show_grad_label:
                         self.mv_qp.drawText(position_rect,
                                             Qt.AlignVCenter | Qt.AlignHCenter,
                                             'GRADIENT')
-                    elif af_label:
+                    elif show_af_label:
                         self.mv_qp.drawText(position_rect,
                                             Qt.AlignVCenter | Qt.AlignHCenter,
                                             'AUTOFOCUS')
+                    elif show_tracking_label:
+                        self.mv_qp.drawText(position_rect,
+                                            Qt.AlignVCenter | Qt.AlignHCenter,
+                                            'TRACKED FOCUS')
+
                     font.setBold(False)
                     self.mv_qp.setFont(font)
                     if (self.gm.get_tile_wd(grid_number, tile) != 0
-                        and (tile in active_tiles or grad_label or af_label)):
+                        and (tile in active_tiles or show_grad_label
+                        or show_af_label or show_tracking_label)):
                         position_rect = QRect(
                             pos_x - tile_width_v,
                             pos_y - tile_height_v
