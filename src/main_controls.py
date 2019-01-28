@@ -277,6 +277,8 @@ class MainControls(QMainWindow):
             self.cfg['acq']['monitor_images'] == 'True')
         self.checkBox_useAutofocus.setChecked(
             self.cfg['acq']['use_autofocus'] == 'True')
+        if int(self.cfg['autofocus']['method']) == 2:
+            self.checkBox_useAutofocus.setText('Focus tracking')
         # Checkbox updates:
         self.checkBox_useMonitoring.stateChanged.connect(
             self.update_acq_options)
@@ -831,6 +833,10 @@ class MainControls(QMainWindow):
     def open_autofocus_dlg(self):
         dialog = AutofocusSettingsDlg(self.af, self.gm)
         if dialog.exec_():
+            if self.af.get_method() == 2:
+                self.checkBox_useAutofocus.setText('Focus tracking')
+            else:
+                self.checkBox_useAutofocus.setText('Autofocus')
             self.viewport.mv_draw()
 
     def open_plasma_cleaner_dlg(self):
