@@ -78,6 +78,7 @@ class Viewport(QWidget):
         self.measure_p2 = (None, None)
         self.measure_complete = False
         self.stub_ov_centre = [None, None]
+        self.help_panel_visible = False
 
         self.load_gui()
         # Initialize viewport tabs:
@@ -544,6 +545,8 @@ class Viewport(QWidget):
 
         # Canvas:
         self.mv_canvas = QPixmap(self.VIEWER_WIDTH, self.VIEWER_HEIGHT)
+        # Help panel:
+        self.mv_help_panel_img = QPixmap('..\\img\\help-viewport.png')
         # QPainter:
         self.mv_qp = QPainter()
 
@@ -559,6 +562,9 @@ class Viewport(QWidget):
         self.pushButton_measureMosaic.clicked.connect(self.mv_toggle_measure)
         self.pushButton_measureMosaic.setIcon(QIcon('..\\img\\measure.png'))
         self.pushButton_measureMosaic.setIconSize(QSize(16, 16))
+        self.pushButton_helpViewport.clicked.connect(self.mv_toggle_help_panel)
+        self.pushButton_helpSliceViewer.clicked.connect(
+            self.mv_toggle_help_panel)
         # Slider for zoom:
         self.horizontalSlider_MV.valueChanged.connect(self.mv_adjust_scale)
         self.horizontalSlider_MV.setValue(
@@ -928,6 +934,9 @@ class Viewport(QWidget):
             self.mv_draw_stage_axes()
         if self.mv_measure_active:
             self.mv_draw_measure_labels()
+        # Show help panel:
+        if self.help_panel_visible:
+            self.mv_qp.drawPixmap(800, 310, self.mv_help_panel_img)
 
         if self.cfg['sys']['simulation_mode'] == 'True':
             # Simulation mode indicator:
@@ -1713,6 +1722,21 @@ class Viewport(QWidget):
         self.update_measure_buttons()
         self.mv_draw()
 
+    def mv_toggle_help_panel(self):
+        self.help_panel_visible ^= True
+        if self.help_panel_visible:
+            self.pushButton_helpViewport.setStyleSheet(
+                'QPushButton {color: #FF6A22;}')
+            self.pushButton_helpSliceViewer.setStyleSheet(
+                'QPushButton {color: #FF6A22;}')
+        else:
+            self.pushButton_helpViewport.setStyleSheet(
+                'QPushButton {color: #000000;}')
+            self.pushButton_helpSliceViewer.setStyleSheet(
+                'QPushButton {color: #000000;}')
+        self.mv_draw()
+        self.sv_draw()
+
     def mv_import_image(self):
         self.transmit_cmd('IMPORT IMG')
 
@@ -1750,6 +1774,8 @@ class Viewport(QWidget):
 
         self.sv_measure_active = False
         self.sv_canvas = QPixmap(self.VIEWER_WIDTH, self.VIEWER_HEIGHT)
+        # Help panel:
+        self.sv_help_panel_img = QPixmap('..\\img\\help-sliceviewer.png')
         self.sv_qp = QPainter()
 
         self.pushButton_reloadSV.clicked.connect(self.sv_load_slices)
@@ -2104,6 +2130,7 @@ class Viewport(QWidget):
     def sv_draw(self):
         # Empty black canvas for slice viewer
         self.sv_canvas.fill(Qt.black)
+        self.sv_qp.begin(self.sv_canvas)
         if self.sv_current_ov >= 0:
             viewport_pixel_size = 1000 / self.sv_scale_ov
             ov_pixel_size = self.ovm.get_ov_pixel_size(self.sv_current_ov)
@@ -2114,7 +2141,6 @@ class Viewport(QWidget):
             resize_ratio = tile_pixel_size / viewport_pixel_size
 
         if len(self.slice_view_images) > 0:
-            self.sv_qp.begin(self.sv_canvas)
             offset_x = 0
             offset_y = 0
             if self.sv_current_ov >= 0:
@@ -2197,8 +2223,13 @@ class Viewport(QWidget):
                     else:
                         self.sv_qp.drawText(925, 795,
                                          '{0:.2f}'.format(d) + ' µm')
-            self.sv_qp.end()
-            self.slice_viewer.setPixmap(self.sv_canvas)
+
+        # Help panel:
+        if self.help_panel_visible:
+            self.sv_qp.drawPixmap(800, 475, self.sv_help_panel_img)
+
+        self.sv_qp.end()
+        self.slice_viewer.setPixmap(self.sv_canvas)
         # Update scaling label:
         if self.sv_current_ov >= 0:
             self.label_FOVSize_sliceViewer.setText(

@@ -57,20 +57,20 @@
      <widget class="QLabel" name="label_6">
       <property name="geometry">
        <rect>
-        <x>770</x>
+        <x>780</x>
         <y>52</y>
-        <width>71</width>
+        <width>31</width>
         <height>16</height>
        </rect>
       </property>
       <property name="text">
-       <string>Current FOV:</string>
+       <string>FOV:</string>
       </property>
      </widget>
      <widget class="QLabel" name="label_FOVSize">
       <property name="geometry">
        <rect>
-        <x>840</x>
+        <x>810</x>
         <y>52</y>
         <width>151</width>
         <height>16</height>
@@ -83,7 +83,7 @@
      <widget class="QCheckBox" name="checkBox_showLabels">
       <property name="geometry">
        <rect>
-        <x>630</x>
+        <x>640</x>
         <y>36</y>
         <width>121</width>
         <height>17</height>
@@ -96,7 +96,7 @@
      <widget class="QCheckBox" name="checkBox_showAxes">
       <property name="geometry">
        <rect>
-        <x>630</x>
+        <x>640</x>
         <y>20</y>
         <width>81</width>
         <height>17</height>
@@ -109,7 +109,7 @@
      <widget class="QSlider" name="horizontalSlider_MV">
       <property name="geometry">
        <rect>
-        <x>770</x>
+        <x>780</x>
         <y>20</y>
         <width>211</width>
         <height>20</height>
@@ -128,7 +128,7 @@
      <widget class="QLabel" name="label_4">
       <property name="geometry">
        <rect>
-        <x>730</x>
+        <x>740</x>
         <y>20</y>
         <width>41</width>
         <height>16</height>
@@ -252,7 +252,7 @@
      <widget class="QCheckBox" name="checkBox_showStagePos">
       <property name="geometry">
        <rect>
-        <x>630</x>
+        <x>640</x>
         <y>52</y>
         <width>121</width>
         <height>17</height>
@@ -260,6 +260,32 @@
       </property>
       <property name="text">
        <string>Show stage position</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_helpViewport">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
+      <property name="geometry">
+       <rect>
+        <x>973</x>
+        <y>49</y>
+        <width>21</width>
+        <height>20</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>9</pointsize>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="layoutDirection">
+       <enum>Qt::LeftToRight</enum>
+      </property>
+      <property name="text">
+       <string>?</string>
       </property>
      </widget>
     </widget>
@@ -332,20 +358,20 @@
      <widget class="QLabel" name="label_7">
       <property name="geometry">
        <rect>
-        <x>770</x>
+        <x>780</x>
         <y>50</y>
-        <width>71</width>
+        <width>31</width>
         <height>16</height>
        </rect>
       </property>
       <property name="text">
-       <string>Current FOV:</string>
+       <string>FOV:</string>
       </property>
      </widget>
      <widget class="QLabel" name="label_FOVSize_sliceViewer">
       <property name="geometry">
        <rect>
-        <x>840</x>
+        <x>810</x>
         <y>50</y>
         <width>151</width>
         <height>16</height>
@@ -358,7 +384,7 @@
      <widget class="QSlider" name="horizontalSlider_SV">
       <property name="geometry">
        <rect>
-        <x>770</x>
+        <x>780</x>
         <y>20</y>
         <width>211</width>
         <height>20</height>
@@ -389,7 +415,7 @@
      <widget class="QLabel" name="label_5">
       <property name="geometry">
        <rect>
-        <x>730</x>
+        <x>740</x>
         <y>20</y>
         <width>41</width>
         <height>16</height>
@@ -532,6 +558,32 @@
         <width>69</width>
         <height>22</height>
        </rect>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_helpSliceViewer">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
+      <property name="geometry">
+       <rect>
+        <x>973</x>
+        <y>49</y>
+        <width>21</width>
+        <height>20</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>9</pointsize>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="layoutDirection">
+       <enum>Qt::LeftToRight</enum>
+      </property>
+      <property name="text">
+       <string>?</string>
       </property>
      </widget>
     </widget>
