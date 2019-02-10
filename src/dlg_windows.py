@@ -1269,6 +1269,14 @@ class AcqSettingsDlg(QDialog):
                 'Slice counter must be smaller than or equal to '
                 'target number of slices.', QMessageBox.Ok)
             success = False
+        reg = re.compile('^[a-zA-Z]:\\\$')
+        if not reg.match(self.lineEdit_baseDir.text()[:3]):
+            QMessageBox.warning(
+                self, 'Error',
+                'Please specify the full path to the base directory. It must '
+                'begin with a drive letter, for example: "D:\\..."',
+                QMessageBox.Ok)
+            success = False
         if success:
             super(AcqSettingsDlg, self).accept()
 
