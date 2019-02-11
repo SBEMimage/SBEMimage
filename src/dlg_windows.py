@@ -19,6 +19,7 @@ import datetime
 import glob
 import json
 import validators
+
 from random import random
 from time import sleep, time
 from validate_email import validate_email
@@ -260,10 +261,10 @@ class CalibrationDlg(QDialog):
         self.stage = stage
         self.sem = sem
         self.current_eht = self.sem.get_eht()
-        self.shift_x_vector = [0, 0]
-        self.shift_y_vector = [0, 0]
+        self.x_shift_vector = [0, 0]
+        self.y_shift_vector = [0, 0]
         self.finish_trigger = Trigger()
-        self.finish_trigger.s.connect(self.calculate_stage_parameters)
+        self.finish_trigger.s.connect(self.process_results)
         self.update_calc_trigger = Trigger()
         self.update_calc_trigger.s.connect(self.update_log)
         self.busy = False
@@ -272,6 +273,8 @@ class CalibrationDlg(QDialog):
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
+        self.arrow_symbol1.setPixmap(QPixmap('..\\img\\arrow.png'))
+        self.arrow_symbol2.setPixmap(QPixmap('..\\img\\arrow.png'))
         self.lineEdit_EHT.setText('{0:.2f}'.format(self.current_eht))
         params = self.stage.get_stage_calibration()
         self.doubleSpinBox_stageScaleFactorX.setValue(params[0])
@@ -364,26 +367,37 @@ class CalibrationDlg(QDialog):
         start_img = imread(self.base_dir + '\\start.tif')
         shift_x_img = imread(self.base_dir + '\\shift_x.tif')
         shift_y_img = imread(self.base_dir + '\\shift_y.tif')
-        x_shift_xyz, _, _ = register_translation(start_img, shift_x_img)
-        y_shift_xyz, _, _ = register_translation(start_img, shift_y_img)
-        self.x_shift_vector = [abs(x_shift_xyz[0]), abs(x_shift_xyz[1])]
-        self.y_shift_vector = [abs(y_shift_xyz[0]), abs(y_shift_xyz[1])]
+        x_shift_yxz, _, _ = register_translation(start_img, shift_x_img)
+        self.x_shift_vector = [abs(x_shift_yxz[1]), abs(x_shift_yxz[0])]
+        y_shift_yxz, _, _ = register_translation(start_img, shift_y_img)
+        self.y_shift_vector = [abs(y_shift_yxz[1]), abs(y_shift_yxz[0])]
         self.finish_trigger.s.emit()
 
     def update_log(self):
         self.plainTextEdit_calibLog.appendPlainText('Now computing shifts...')
 
-    def calculate_stage_parameters(self):
+    def process_results(self):
         self.pushButton_startImageAcq.setText('Start')
         self.pushButton_startImageAcq.setEnabled(True)
         self.pushButton_calcStage.setEnabled(True)
+        # Show the vectors in the textbox and the spinboxes:
         self.plainTextEdit_calibLog.setPlainText(
             'Shift_X: {}, Shift_Y: {}'.format(
             str(self.x_shift_vector), str(self.y_shift_vector)))
         delta_xx, delta_xy = self.x_shift_vector
         delta_yx, delta_yy = self.y_shift_vector
+        self.spinBox_x2x.setValue(delta_xx)
+        self.spinBox_x2y.setValue(delta_xy)
+        self.spinBox_y2x.setValue(delta_yx)
+        self.spinBox_y2y.setValue(delta_yy)
+        # Now calculate parameters:
+        self.calculate_stage_parameters()
+
+    def calculate_stage_parameters(self):
         shift = self.spinBox_shift.value()
         pixel_size = self.spinBox_pixelsize.value()
+        delta_xx, delta_xy = self.x_shift_vector
+        delta_yx, delta_yy = self.y_shift_vector
 
         # Rotation angles:
         rot_x = atan(delta_xy/delta_xx)
@@ -419,8 +433,8 @@ class CalibrationDlg(QDialog):
         x1y = self.spinBox_x1y.value()
         x2x = self.spinBox_x2x.value()
         x2y = self.spinBox_x2y.value()
-        y1x = x1x
-        y1y = x1y
+        y1x = self.spinBox_y1x.value()
+        y1y = self.spinBox_y1y.value()
         y2x = self.spinBox_y2x.value()
         y2y = self.spinBox_y2y.value()
 
@@ -435,7 +449,8 @@ class CalibrationDlg(QDialog):
                 'Please check your input values.',
                 QMessageBox.Ok)
         else:
-            self.plainTextEdit_calibLog.setPlainText('Using user input: ')
+            self.plainTextEdit_calibLog.setPlainText(
+                'Using pixel shifts specified on the right side as input...')
             self.x_shift_vector = [delta_xx, delta_xy]
             self.y_shift_vector = [delta_yx, delta_yy]
             self.calculate_stage_parameters()
