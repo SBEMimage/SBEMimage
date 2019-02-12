@@ -6,19 +6,22 @@
 // ========================================================================
 //   This Gatan DigitalMicrograph script is part of SBEMimage, ver. 2.0,
 //   3View/SmartSEM acquisition control software
-//   (c) 2016-2018 Benjamin Titze, 
+//   (c) 2016-2018 Benjamin Titze,
 //   Friedrich Miescher Institute for Biomedical Research, Basel.
 //   This software is licensed under the terms of the MIT License.
 //   See LICENSE.txt in the project rool folder.
 //
-//   This script (SBEMimage_DMcom_GMS3.s) must be running in DM to enable 
+//   This script (SBEMimage_DMcom_GMS3.s) must be running in DM to enable
 //   communication between SBEMimage and 3View. It is compatible with
 //   GMS 3. Another version is available for GMS 2.
 // ========================================================================
 //
 // INSTRUCTIONS FOR USERS:
 //
-// After opening this script (SBEMimage_DMcom_GMS3.s), click "Execute". 
+// If your SBEMimage installation is not in C:\pytools\SBEMimage, you must
+// change the install_path variable in line 599 before using this script.
+//
+// After opening this script (SBEMimage_DMcom_GMS3.s), click "Execute".
 // Then start SBEMimage.
 // The script's activity is recorded in DM's output window.
 // After starting the script, the text in the output window should say:
@@ -26,10 +29,10 @@
 // To open the output window: Menu "Window" -> Show Output Window
 //
 // If DM crashes or behaves eratically, restart DM and restart this script.
-// If the script becomes unresponsive, for example after a DM error 
-// message, restart it by clicking "Execute" again. 
+// If the script becomes unresponsive, for example after a DM error
+// message, restart it by clicking "Execute" again.
 // If DM shows a "positive overflow" error message during a cut, run the
-// script "tackle_overflow_error.s" in "\sbem-image\misc".
+// script "tackle_overflow_error.s" in "\SBEMimage\dm".
 // If the knife moves with the wrong speed during a cut, execute one full
 // record cycle from within DM with the intended knife speed.
 
@@ -40,6 +43,7 @@ string command_file
 string error_file
 string return_file
 string acknowledge_file
+string acknowledge_file_cut
 string warning_file
 
 string command
@@ -78,11 +82,11 @@ number move_duration_y
 number motor_speed_x
 number motor_speed_y
 
-   
+
 void wait_for_command()
 {
 	// Check whether trigger file exists. If yes, read command
-	// file. Command file contains one command string, and (optionally) 
+	// file. Command file contains one command string, and (optionally)
     // up to two float parameters.
     if (DoesFileExist(trigger_file))
     {
@@ -95,6 +99,9 @@ void wait_for_command()
 		}
 		if (DoesFileExist(acknowledge_file)) {
 			DeleteFile(acknowledge_file)
+		}
+		if (DoesFileExist(acknowledge_file_cut)) {
+			DeleteFile(acknowledge_file_cut)
 		}
 		if (DoesFileExist(warning_file)) {
 			DeleteFile(warning_file)
@@ -160,13 +167,13 @@ void wait_for_command()
 		if (command == "MicrotomeStage_Cut") {
 			// Only for testing purposes. Limited error handling.
 			// Stroke up, oscillator on:
-			stroke_down = 0		
-		    oscillator_off = 0 
+			stroke_down = 0
+		    oscillator_off = 0
 		    DS_value = 64 + 32 + 16 + 8 + 4 + 2*oscillator_off + stroke_down
 		    DSSetDigitalOutput(DS_value)
             sleep(1)
-		    // Cut:		
-			if (!MicrotomeStage_Cut(1)) { 
+		    // Cut:
+			if (!MicrotomeStage_Cut(1)) {
 				sleep(2)
 				err_file = CreateFileForWriting(error_file)
 				closefile(err_file)
@@ -175,7 +182,7 @@ void wait_for_command()
 			sleep(1)
 			result("\n" + DateStamp() + ": Done.\n")
 		    // Stroke down, oscillator off:
-			stroke_down = 1		
+			stroke_down = 1
 		    oscillator_off = 1
 			DS_value = 64 + 32 + 16 + 8 + 4 + 2*oscillator_off + stroke_down
 		    DSSetDigitalOutput(DS_value)
@@ -202,7 +209,7 @@ void wait_for_command()
 				    closefile(file)
 				    result(DateStamp() + ": ERROR clearing the knife.\n")
 		        }
-	        }            
+	        }
 			if (clear_ok) {
 				// Create acknowledge file:
 				file = CreateFileForWriting(acknowledge_file)
@@ -213,7 +220,7 @@ void wait_for_command()
 		// ================================================================
 		if (command == "MicrotomeStage_Near") {
 			// Near the knife, with error handling.
-            near_ok = 1 			
+            near_ok = 1
             MicrotomeStage_Near()
           	timer = GetCurrentTime()
 	        while (MicrotomeStage_GetClearMotorState() != 1) {
@@ -225,7 +232,7 @@ void wait_for_command()
 			    	closefile(file)
 				    result(DateStamp() + ": ERROR nearing the knife.\n")
 			    }
-            }                
+            }
 			if (near_ok) {
 				// Create acknowledge file:
 				file = CreateFileForWriting(acknowledge_file)
@@ -241,12 +248,12 @@ void wait_for_command()
 			// ~15 s
 			result("\n" + DateStamp() + ": =========================================.\n")
 		    result(DateStamp() + ": Full cutting cycle in progress.\n")
-		    cut_ok = 1        
+		    cut_ok = 1
             // Near knife:
             MicrotomeStage_Near()
           	timer = GetCurrentTime()
 	        while (MicrotomeStage_GetClearMotorState() != 1) {
-	            sleep(0.1) 
+	            sleep(0.1)
 		        time_elapsed = (GetCurrentTime()-timer)/10000000
 		        if (time_elapsed > 4) {
                     cut_ok = 0
@@ -254,16 +261,16 @@ void wait_for_command()
 			    	closefile(file)
 				    result(DateStamp() + ": ERROR nearing the knife.\n")
 			    }
-            }                
+            }
 			sleep(2)
 			// Stroke up, oscillator on:
-			stroke_down = 0		
-			oscillator_off = 0 
+			stroke_down = 0
+			oscillator_off = 0
 			DS_value = 64 + 32 + 16 + 8 + 4 + 2*oscillator_off + stroke_down
 			DSSetDigitalOutput(DS_value)
 			sleep(1)
-			// Cut:		
-			if (!MicrotomeStage_Cut(1)) { 
+			// Cut:
+			if (!MicrotomeStage_Cut(1)) {
 				sleep(2)
 				cut_ok = 0
 				file = CreateFileForWriting(error_file)
@@ -272,7 +279,7 @@ void wait_for_command()
 			}
 			sleep(1)
 			// Stroke down, oscillator off:
-			stroke_down = 1		
+			stroke_down = 1
 			oscillator_off = 1
 			DS_value = 64 + 32 + 16 + 8 + 4 + 2*oscillator_off + stroke_down
 			DSSetDigitalOutput(DS_value)
@@ -297,11 +304,11 @@ void wait_for_command()
 				    closefile(file)
 				    result(DateStamp() + ": ERROR clearing the knife.\n")
 		        }
-	        }                        
+	        }
 			sleep(2)
 			if (cut_ok) {
 				// Create acknowledge file:
-				file = CreateFileForWriting(acknowledge_file)
+				file = CreateFileForWriting(acknowledge_file_cut)
 				closefile(file)
 				result(DateStamp() + ": Done.\n")
 			}
@@ -316,13 +323,13 @@ void wait_for_command()
 		    result(DateStamp() + ": Approach cutting cycle in progress.\n")
 		    cut_ok = 1
 			// Stroke up, oscillator on:
-			stroke_down = 0		
-			oscillator_off = 0 
+			stroke_down = 0
+			oscillator_off = 0
 			DS_value = 64 + 32 + 16 + 8 + 4 + 2*oscillator_off + stroke_down
 			DSSetDigitalOutput(DS_value)
 			sleep(1)
-			// Cut:		
-			if (!MicrotomeStage_Cut(1)) { 
+			// Cut:
+			if (!MicrotomeStage_Cut(1)) {
 				sleep(2)
 				cut_ok = 0
 				file = CreateFileForWriting(error_file)
@@ -331,7 +338,7 @@ void wait_for_command()
 			}
 			sleep(1)
 			// Stroke down, oscillator off:
-			stroke_down = 1		
+			stroke_down = 1
 			oscillator_off = 1
 			DS_value = 64 + 32 + 16 + 8 + 4 + 2*oscillator_off + stroke_down
 			DSSetDigitalOutput(DS_value)
@@ -346,7 +353,7 @@ void wait_for_command()
 			}
 			if (cut_ok) {
 				// Create acknowledge file:
-				file = CreateFileForWriting(acknowledge_file)
+				file = CreateFileForWriting(acknowledge_file_cut)
 				closefile(file)
 				result(DateStamp() + ": Done.\n")
 			}
@@ -416,7 +423,7 @@ void wait_for_command()
 			}
 			catch {
 				result("\n" + DateStamp() + ": ERROR occured when trying to write to return file.\n")
-			}	
+			}
 		}
 		// ================================================================
 		if (command == "MicrotomeStage_GetPositionZ") {
@@ -438,7 +445,7 @@ void wait_for_command()
 			}
 			catch {
 				result("\n" + DateStamp() + ": ERROR occured when trying to write to return file.")
-			}	
+			}
 		}
 		// ================================================================
 		if (command == "MicrotomeStage_SetPositionX\n") {
@@ -465,7 +472,7 @@ void wait_for_command()
 		if (command == "MicrotomeStage_SetPositionXY_Confirm\n") {
 			// Set XY position, read XY position after move, and check
             // if target coordinates reached. If not, try again.
-			// If second attempt fails, write coordinates to return file 
+			// If second attempt fails, write coordinates to return file
 			// and create error file.
 			// This function is called during stack acquisitions.
 			result(DateStamp() + ": set_value_X: " + set_value1 + "\n")
@@ -491,7 +498,7 @@ void wait_for_command()
 			// Get new coordinates:
 			currentX = EMGetStageX()
 			currentY = EMGetStageY()
-			// Check if the current position does NOT match the target 
+			// Check if the current position does NOT match the target
 			// position within 50 nm:
 			if ((abs(currentX - set_value1) > 0.05) || (abs(currentY - set_value2) > 0.05)) {
 				// Create warning file and try again after 2 seconds:
@@ -503,7 +510,7 @@ void wait_for_command()
 				currentX = EMGetStageX()
 				currentY = EMGetStageY()
 				if ((abs(currentX - set_value1) > 0.05) || (abs(currentY - set_value2) > 0.05)) {
-					// Create error file. Write current position into 
+					// Create error file. Write current position into
 					// return file:
 					file = CreateFileForWriting(error_file)
 					closefile(file)
@@ -511,22 +518,22 @@ void wait_for_command()
 					WriteFile(file, format(currentX, "%9.3f") + "\n" + format(currentY, "%9.3f"))
 					closefile(file)
 					result("\n" + DateStamp() + ": ERROR - stage XY target coordinates not reached.\n")
-				}	
-				else {			
+				}
+				else {
 					// Create acknowledge file:
 					file = CreateFileForWriting(acknowledge_file)
 					closefile(file)
 					result(DateStamp() + ": Done.\n")
 				}
 			}
-			else {			
+			else {
 				// Create acknowledge file:
 				file = CreateFileForWriting(acknowledge_file)
 				closefile(file)
 				result(DateStamp() + ": Done.\n")
 			}
 		}
-		// ================================================================	
+		// ================================================================
 		if (command == "MicrotomeStage_SetPositionZ\n") {
 		    result(DateStamp() + ": set_value: " + set_value1 + "\n")
 			EMSetStageZ(set_value1)
@@ -534,9 +541,9 @@ void wait_for_command()
 		}
 		// ================================================================
 		if (command == "MicrotomeStage_SetPositionZ_Confirm\n") {
-			// Set Z position, read new Z position after move, and check 
+			// Set Z position, read new Z position after move, and check
 			// if target Z was reached.
-			// If not, write Z coordinate to return file and create 
+			// If not, write Z coordinate to return file and create
 			// error file.
 			// This function is called during stack acquisitions.
 		    result(DateStamp() + ": set_value: " + set_value1 + "\n")
@@ -545,19 +552,19 @@ void wait_for_command()
             sleep(0.5)
 			// Get new Z position:
 			currentZ = EMGetStageZ()
-			// Check if the current position does NOT match the target 
+			// Check if the current position does NOT match the target
 			// position within 5 nm:
 			if (abs(currentZ - set_value1) > 0.005) {
-				// Create error file. Write current position into 
+				// Create error file. Write current position into
 				// return file:
 				file = CreateFileForWriting(error_file)
 				closefile(file)
 				file = CreateFileForWriting(return_file)
 				WriteFile(file, format(currentZ, "%9.3f"))
 				closefile(file)
-				result("\n" + DateStamp() + ": ERROR - stage Z target position not reached.\n")	
+				result("\n" + DateStamp() + ": ERROR - stage Z target position not reached.\n")
 			}
-			else {	
+			else {
 				// Create acknowledge file:
 				file = CreateFileForWriting(acknowledge_file)
 				closefile(file)
@@ -596,11 +603,11 @@ void wait_for_command()
 			}
 			catch {
 				result(DateStamp() + ": ERROR occured when trying to write to return file.\n")
-			}	
+			}
 		}
 		DeleteFile(trigger_file)
 		t_status = 0
-    }    
+    }
     else
     {
 		if (t_status == 0) {
@@ -619,6 +626,8 @@ trigger_file = install_path + "DMcom.trg"
 command_file = install_path + "DMcom.in"
 // This (empty) file is created to indicate that a command was executed:
 acknowledge_file = install_path + "DMcom.ack"
+// This (empty) file is created to indicate that a full cut was executed:
+acknowledge_file_cut = install_path + "DMcom.ac2"
 // This (empty) file is created to indicate a critical failure:
 error_file = install_path + "DMcom.err"
 // This file contains return value(s) to be read by SBEMimage:
@@ -627,7 +636,7 @@ return_file = install_path + "DMcom.out"
 warning_file = install_path + "DMcom.wng"
 
 number wait_interval = 0.1
-remote_control = 1 
+remote_control = 1
 // Default settings for motor speeds (slow), can be updated from SBEMimage:
 motor_speed_x = 40
 motor_speed_y = 40
@@ -648,7 +657,7 @@ closefile(file)
 idle_counter = 0
 idle_threshold = 1
 while (remote_control)
-{	
+{
 	wait_for_command()
 	sleep(wait_interval)
 	idle_counter = idle_counter + 1
