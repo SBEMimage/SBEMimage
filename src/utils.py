@@ -225,7 +225,7 @@ def get_remote_command(imap_server, email_account, email_pw, allowed_senders):
 
 def meta_server_put_request(url, data):
     try:
-        r = requests.put(url, data)
+        r = requests.put(url, json=data)
         status = r.status_code
     except:
         status = 100
@@ -233,22 +233,27 @@ def meta_server_put_request(url, data):
 
 def meta_server_post_request(url, data):
     try:
-        r = requests.post(url, data)
+        r = requests.post(url, json=data)
         status = r.status_code
     except:
         status = 100
     return status
 
 def meta_server_get_request(url):
+    command = None
+    msg = None
     try:
         r = requests.get(url)
         received = json.loads(r.content)
-        status = received.status_code
-        command = received['command']
-        msg = received['message']
+        status = r.status_code
+        if 'command' in received:
+            command = received['command']
+        if 'message' in received:
+            msg = received['message']
+        if 'version' in received:
+            msg = received['version']
     except:
         status = 100
-        command = ''
         msg = 'Metadata server request failed.'
     return (status, command, msg)
 

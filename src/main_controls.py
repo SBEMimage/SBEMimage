@@ -1474,7 +1474,7 @@ class MainControls(QMainWindow):
             self.add_to_log('CTRL: Plasma cleaner not installed/activated.')
 
     def test_server_request(self):
-        url = self.cfg['sys']['metadata_server_url']
+        url = self.cfg['sys']['metadata_server_url'] + '/version'
         status, command, msg = utils.meta_server_get_request(url)
         if status == 100:
             QMessageBox.warning(self, 'Server test',
@@ -1482,7 +1482,7 @@ class MainControls(QMainWindow):
                                 QMessageBox.Ok)
         else:
             QMessageBox.information(self, 'Server test',
-                                    'Server message: ' + str(msg),
+                                    'Version: ' + str(msg),
                                     QMessageBox.Ok)
 
     def debris_detection_test(self):

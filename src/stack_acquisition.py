@@ -91,7 +91,7 @@ class Stack():
             505: 'Autofocus error (SmartSEM)' ,
             506: 'Autofocus error (heuristic)',
             507: 'WD/STIG difference error',
-            508: 'metadata server error',
+            508: 'Metadata server error',
 
             # First digit 6: reserved for user-defined errors
             601: 'Test case error'
@@ -1672,7 +1672,7 @@ class Stack():
         tile_metadata = {
             'timestamp': timestamp,
             'tileid': tile_id,
-            'filename': save_path,
+            'filename': save_path.replace('\\', '/'),
             'tile_width': tile_width,
             'tile_height': tile_height,
             'working_distance': wd,
