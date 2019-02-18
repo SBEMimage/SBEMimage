@@ -206,14 +206,15 @@ def get_remote_command(imap_server, email_account, email_pw, allowed_senders):
             for response_part in data:
                 if isinstance(response_part, tuple):
                     msg = message_from_string(response_part[1].decode('utf-8'))
-                    subject = msg['subject']
+                    subject = msg['subject'].strip().lower()
                     sender = msg['from']
             mail_server.logout()
             # Check sender and subject
             # Sender email must be main user email or cc email:
             sender_allowed = (allowed_senders[0] in sender
                               or allowed_senders[1] in sender)
-            allowed_commands = ['PAUSE', 'STOP', 'CONTINUE', 'REPORT']
+            allowed_commands = ['pause', 'stop', 'continue', 'start', 'restart',
+                                'report']
             if (subject in allowed_commands) and sender_allowed:
                 return subject
             else:

@@ -895,7 +895,7 @@ class Stack():
                                            self.email_pw,
                                            self.user_email_addresses)
         # Send command to main program via trigger, queue:
-        if command in ['STOP', 'PAUSE']:
+        if command in ['stop', 'pause']:
             self.add_to_main_log('CTRL: STOP/PAUSE remote command received.')
             utils.send_email(self.smtp_server,
                              self.email_account,
@@ -903,11 +903,18 @@ class Stack():
                              'Command received',
                              '')
             self.pause_acquisition(2)
+            success = utils.send_email(self.smtp_server,
+                                       self.email_account,
+                                       self.user_email_addresses,
+                                       'Remote stop',
+                                       'The acquisition was paused remotely.')
+            if not success:
+                self.add_to_log('CTRL: Error sending confirmation email.')
             self.transmit_cmd('REMOTE STOP')
-        if command in ['CONTINUE', 'START']:
+        if command in ['continue', 'start', 'restart']:
             pass
             # TODO: let user continue paused acq with remote command
-        if command == 'REPORT':
+        if command == 'report':
             self.add_to_main_log('CTRL: REPORT remote command received.')
             utils.send_email(self.smtp_server,
                              self.email_account,
