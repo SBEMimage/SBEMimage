@@ -623,6 +623,12 @@ class GridManager(object):
         for t in range(self.size[grid_number][0] * self.size[grid_number][1]):
             self.grid_map_wd_stig[grid_number][t] = [wd, stig_x, stig_y]
 
+    def set_stig_for_grid(self, grid_number, stig_x, stig_y):
+        """Set all tiles to specified stig_xy."""
+        for t in range(self.size[grid_number][0] * self.size[grid_number][1]):
+            self.grid_map_wd_stig[grid_number][t][1] = stig_x
+            self.grid_map_wd_stig[grid_number][t][2] = stig_y
+
     def set_initial_wd_stig_for_grid(self, grid_number, wd, stig_x, stig_y):
         """Set all tiles that are uninitialized to specified working
         distance and stig_xy."""

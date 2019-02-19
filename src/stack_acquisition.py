@@ -489,7 +489,13 @@ class Stack():
                                                      self.wd_current_grid,
                                                      self.stig_x_current_grid,
                                                      self.stig_y_current_grid)
-
+            else:
+                # Set stig values to current settings for each tile if adaptive 
+                # focus used
+                self.gm.set_stig_for_grid(grid_number,
+                                          self.stig_x_current_grid,
+                                          self.stig_y_current_grid)
+           
         for ov_number in range(number_ov):
             self.ovm.set_ov_wd(ov_number, 0)
             self.ovm.set_ov_stig_xy(ov_number, 0, 0)
