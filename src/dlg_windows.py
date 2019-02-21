@@ -19,6 +19,7 @@ import datetime
 import glob
 import json
 import validators
+import csv
 
 from random import random
 from time import sleep, time
@@ -1510,19 +1511,47 @@ class ExportDlg(QDialog):
 class ImportMagCDlg(QDialog):
     """Import MagC metadata."""
 
-    def __init__(self):
-        super(ImportMagCDlg, self).__init__()
+    def __init__(self, grid_manager):
+        super().__init__()
+        self.gm = grid_manager
         loadUi('..\\gui\\import_magc_metadata_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.pushButton_selectFile.clicked.connect(self.select_file)
+        self.pushButton_selectFile.setIcon(QIcon('..\\img\\selectdir.png'))
+        self.pushButton_selectFile.setIconSize(QSize(16, 16))
         self.setFixedSize(self.size())
         self.pushButton_import.clicked.connect(self.import_metadata)
         self.show()
         
     def import_metadata(self):
         # Add code to import data
+        file_name = self.lineEdit_fileName.text()
+        # Open and read file
+        with open(file_name, 'r') as f:
+            reader = csv.reader(f, delimiter='\t')
+            sections = list(reader)        
+        print(sections)
+        self.gm.delete_all_additional_grids()        
+        for section in range(len(sections)-1):
+            self.gm.add_new_grid()
+        
+        print(self.gm.get_number_grids())    
         self.accept()
-    
+        
+    def select_file(self):
+        # Let user select MagC file to be imported:
+        start_path = 'C:\\'
+        selected_file = str(QFileDialog.getOpenFileName(
+                self, 'Select MagC metadata file',
+                start_path,
+                'MagC files (*.magc)'
+                )[0])
+        if len(selected_file) > 0:
+            # Replace forward slashes with backward slashes:
+            selected_file = selected_file.replace('/', '\\')
+            self.lineEdit_fileName.setText(selected_file)
+
     def accept(self):
         super(ImportMagCDlg, self).accept()
 

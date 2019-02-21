@@ -810,9 +810,10 @@ class MainControls(QMainWindow):
         dialog.exec_()
         
     def open_magc_import_dlg(self):
-        dialog = ImportMagCDlg()
+        dialog = ImportMagCDlg(self.gm)
         if dialog.exec_():
             self.tabWidget.setTabEnabled(3, True)
+            self.update_from_grid_dlg()
 
     def open_email_monitoring_dlg(self):
         dialog = EmailMonitoringSettingsDlg(self.cfg, self.stack)
