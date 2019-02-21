@@ -810,7 +810,7 @@ class MainControls(QMainWindow):
         dialog.exec_()
         
     def open_magc_import_dlg(self):
-        dialog = ImportMagCDlg(self.gm)
+        dialog = ImportMagCDlg(self.gm, self.cs, self.stage)
         if dialog.exec_():
             self.tabWidget.setTabEnabled(3, True)
             self.update_from_grid_dlg()

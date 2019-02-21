@@ -1511,9 +1511,11 @@ class ExportDlg(QDialog):
 class ImportMagCDlg(QDialog):
     """Import MagC metadata."""
 
-    def __init__(self, grid_manager):
+    def __init__(self, grid_manager, coordinate_system, stage):
         super().__init__()
         self.gm = grid_manager
+        self.stage = stage
+        self.cs = coordinate_system
         loadUi('..\\gui\\import_magc_metadata_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -1535,6 +1537,12 @@ class ImportMagCDlg(QDialog):
         self.gm.delete_all_additional_grids()        
         for section in range(len(sections)-1):
             self.gm.add_new_grid()
+        
+        for idx, section in enumerate(sections):
+            self.cs.set_grid_origin_s(grid_number=idx, s_coordinates=list(map(float, section[:2])))
+            self.gm.set_rotation(grid_number=idx, rotation=float(section[2]))
+        
+        self.stage.move_to_xy((self.cs.get_grid_origin_s(grid_number=0)))
         
         print(self.gm.get_number_grids())    
         self.accept()
