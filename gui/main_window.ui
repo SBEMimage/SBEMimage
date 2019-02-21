@@ -1936,6 +1936,11 @@
       </widget>
      </widget>
     </widget>
+    <widget class="QWidget" name="tab">
+     <attribute name="title">
+      <string>MagC</string>
+     </attribute>
+    </widget>
    </widget>
    <widget class="QPlainTextEdit" name="textarea_log">
     <property name="geometry">

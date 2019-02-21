@@ -1520,7 +1520,11 @@ class ImportMagCDlg(QDialog):
         self.show()
         
     def import_metadata(self):
-        pass
+        # Add code to import data
+        self.accept()
+    
+    def accept(self):
+        super(ImportMagCDlg, self).accept()
 
 #------------------------------------------------------------------------------
 

@@ -158,6 +158,8 @@ class MainControls(QMainWindow):
         self.setFixedSize(self.size())
         self.move(1120, 20)
         self.hide() # hide window until fully initialized
+        # Disable MagC tab at start of the program:
+        self.tabWidget.setTabEnabled(3, False)
         # Pushbuttons
         self.pushButton_SEMSettings.clicked.connect(self.open_sem_dlg)
         self.pushButton_SEMSettings.setIcon(QIcon('..\\img\\settings.png'))
@@ -809,7 +811,8 @@ class MainControls(QMainWindow):
         
     def open_magc_import_dlg(self):
         dialog = ImportMagCDlg()
-        dialog.exec_()
+        if dialog.exec_():
+            self.tabWidget.setTabEnabled(3, True)
 
     def open_email_monitoring_dlg(self):
         dialog = EmailMonitoringSettingsDlg(self.cfg, self.stack)
