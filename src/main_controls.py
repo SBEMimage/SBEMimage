@@ -54,7 +54,7 @@ from dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                         PauseDlg, StubOVDlg, EHTDlg, GrabFrameDlg, \
                         FTSetParamsDlg, FTMoveDlg, AskUserDlg, \
                         ImportImageDlg, AdjustImageDlg, DeleteImageDlg, \
-                        AboutBox
+                        ImportMagCDlg, AboutBox
 
 
 class Trigger(QObject):
@@ -231,6 +231,8 @@ class MainControls(QMainWindow):
         self.actionMagnificationCalibration.triggered.connect(
             self.open_mag_calibration_dlg)
         self.actionExport.triggered.connect(self.open_export_dlg)
+        self.actionImportMagCMetadata.triggered.connect(
+            self.open_magc_import_dlg)
         # Buttons for testing purposes (third tab)
         self.pushButton_testGetMag.clicked.connect(self.test_get_mag)
         self.pushButton_testSetMag.clicked.connect(self.test_set_mag)
@@ -803,6 +805,10 @@ class MainControls(QMainWindow):
 
     def open_export_dlg(self):
         dialog = ExportDlg(self.cfg)
+        dialog.exec_()
+        
+    def open_magc_import_dlg(self):
+        dialog = ImportMagCDlg()
         dialog.exec_()
 
     def open_email_monitoring_dlg(self):

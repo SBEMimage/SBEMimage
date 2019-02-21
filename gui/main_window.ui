@@ -2026,10 +2026,17 @@
     <addaction name="actionMagnificationCalibration"/>
     <addaction name="actionStageCalibration"/>
    </widget>
+   <widget class="QMenu" name="menuImport">
+    <property name="title">
+     <string>Import</string>
+    </property>
+    <addaction name="actionImportMagCMetadata"/>
+   </widget>
    <addaction name="menuFile"/>
    <addaction name="menuSettings"/>
    <addaction name="menuConfiguration"/>
    <addaction name="menuCalibration"/>
+   <addaction name="menuImport"/>
    <addaction name="menuExport"/>
    <addaction name="menuHelp"/>
   </widget>
@@ -2150,6 +2157,11 @@
   <action name="actionSwitchStage">
    <property name="text">
     <string>Switch to X stage</string>
+   </property>
+  </action>
+  <action name="actionImportMagCMetadata">
+   <property name="text">
+    <string>Import MagC metadata</string>
    </property>
   </action>
  </widget>

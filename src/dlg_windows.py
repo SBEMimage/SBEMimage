@@ -1507,6 +1507,23 @@ class ExportDlg(QDialog):
 
 #------------------------------------------------------------------------------
 
+class ImportMagCDlg(QDialog):
+    """Import MagC metadata."""
+
+    def __init__(self):
+        super(ImportMagCDlg, self).__init__()
+        loadUi('..\\gui\\import_magc_metadata_dlg.ui', self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setFixedSize(self.size())
+        self.pushButton_import.clicked.connect(self.import_metadata)
+        self.show()
+        
+    def import_metadata(self):
+        pass
+
+#------------------------------------------------------------------------------
+
 class EmailMonitoringSettingsDlg(QDialog):
     """Adjust settings for the e-mail monitoring feature."""
 
