@@ -66,7 +66,7 @@ class Trigger(QObject):
 class MainControls(QMainWindow):
 
     def __init__(self, config, sysconfig, config_file, VERSION):
-        super(MainControls, self).__init__()
+        super().__init__()
         self.cfg = config
         self.syscfg = sysconfig
         self.cfg_file = config_file # the file name

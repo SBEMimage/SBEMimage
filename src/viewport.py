@@ -43,7 +43,7 @@ class Viewport(QWidget):
     def __init__(self, config, sem, stage,
                  ov_manager, grid_manager, coordinate_system,
                  autofocus, trigger, queue):
-        super(Viewport, self).__init__()
+        super().__init__()
         self.cfg = config
         self.sem = sem
         self.stage = stage
