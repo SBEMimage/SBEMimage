@@ -2043,8 +2043,7 @@ class Viewport(QWidget):
                     self.slice_view_images.append(QPixmap(filename))
                     slices_loaded = True
                     utils.suppress_console_warning()
-
-            self.sv_set_native_resolution()
+            # self.sv_set_native_resolution()
             self.sv_draw()
         elif self.sv_current_tile >= 0:
             selected_tile = self.gm.get_active_tiles(
@@ -2058,7 +2057,7 @@ class Viewport(QWidget):
                     slices_loaded = True
                     self.slice_view_images.append(QPixmap(filename))
                     utils.suppress_console_warning()
-            self.sv_set_native_resolution()
+            # self.sv_set_native_resolution()
             # Draw the current slice:
             self.sv_draw()
 
