@@ -1096,6 +1096,18 @@ class Stack():
         self.transmit_cmd('UPDATE Z')
         # Check if there were microtome problems:
         self.error_state = self.microtome.get_error_state()
+        if self.error_state in [103, 202]:
+            self.add_to_main_log('CTRL: Problem detected. Trying again.')
+            self.error_state = 0
+            self.microtome.reset_error_state()
+            # Try again after 3 sec delay:
+            sleep(3)
+            self.microtome.move_stage_to_z(self.stage_z_position)
+            # Show new Z position in main window:
+            self.transmit_cmd('UPDATE Z')
+            # Read new error_state:
+            self.error_state = self.microtome.get_error_state()
+
         if self.error_state == 0:
             self.add_to_main_log('3VIEW: Cutting in progress ('
                           + str(self.slice_thickness)
