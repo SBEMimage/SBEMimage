@@ -1929,7 +1929,11 @@ class Viewport(QWidget):
     def sv_change_grid_selection(self):
         self.sv_current_grid = self.comboBox_gridSelectorSV.currentIndex()
         self.cfg['viewport']['sv_current_grid'] = str(self.sv_current_grid)
-        self.sv_update_tile_selector()
+        if self.gm.get_number_active_tiles(self.sv_current_grid) > 0:
+            self.sv_update_tile_selector(0)
+            self.sv_change_tile_selection()
+        else:
+            self.sv_update_tile_selector()
 
     def sv_change_tile_selection(self):
         self.sv_current_tile = self.comboBox_tileSelectorSV.currentIndex() - 1
