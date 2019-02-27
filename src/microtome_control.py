@@ -213,11 +213,11 @@ class Microtome():
                 self.do_full_cut()
                 sleep(self.full_cut_duration)
                 # Cutting error?
-                if os.path.exists('..\\dm\\DMcom.err'):
+                if os.path.isfile('..\\dm\\DMcom.err'):
                     self.error_state = 205
                     self.error_cause = ('microtome.do_sweep: error during '
                                         'cutting cycle')
-                elif not os.path.exists('..\\dm\\DMcom.ac2'):
+                elif not os.path.isfile('..\\dm\\DMcom.ac2'):
                     # Cut cycle was not carried out:
                     self.error_state = 103
                     self.error_cause = ('microtome.do_sweep: command not '
@@ -447,16 +447,26 @@ class Microtome():
         sleep(4)
 
     def check_for_cut_cycle_error(self):
+        duration_exceeded = False
         # Check if error ocurred during self.do_full_cut():
-        if self.error_state == 0 and os.path.exists('..\\dm\\DMcom.err'):
+        if self.error_state == 0 and os.path.isfile('..\\dm\\DMcom.err'):
             self.error_state = 204
             self.error_cause = ('microtome.do_full_cut: error during '
                                 'cutting cycle')
-        elif not os.path.exists('..\\dm\\DMcom.ac2'):
-            # Cut cycle was not carried out:
+        elif not os.path.isfile('..\\dm\\DMcom.ac2'):
+            # Cut cycle was not carried out within the specified time limit.
             self.error_state = 103
             self.error_cause = ('microtome.do_full_cut: command not '
                                 'processed by DM script')
+            duration_exceeded = True
+            # Wait another 10 sec maximum:
+            for i in range(10):
+                sleep(1)
+                if os.path.isfile('..\\dm\\DMcom.ac2'):
+                    self.error_state = 0
+                    self.error_cause = ''
+                    break
+        return duration_exceeded
 
     def get_error_state(self):
         # Return current error_state

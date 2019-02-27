@@ -1122,7 +1122,10 @@ class Stack():
                 self.af.apply_heuristic_tile_corrections()
             else:
                 sleep(self.full_cut_duration)
-            self.microtome.check_for_cut_cycle_error()
+            duration_exceeded = self.microtome.check_for_cut_cycle_error()
+            if duration_exceeded:
+                self.add_to_main_log(
+                    'CTRL: Warning: Cut cycle took longer than specified.')
             self.error_state = self.microtome.get_error_state()
             self.microtome.reset_error_state()
         if self.error_state > 0:
