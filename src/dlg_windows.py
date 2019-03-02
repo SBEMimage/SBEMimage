@@ -19,7 +19,6 @@ import datetime
 import glob
 import json
 import validators
-
 from random import random
 from time import sleep, time
 from validate_email import validate_email
@@ -28,6 +27,8 @@ from queue import Queue
 from PIL import Image
 from skimage.io import imread
 from skimage.feature import register_translation
+import numpy as np
+from imreg_dft import translation
 
 from PyQt5.uic import loadUi
 from PyQt5.QtCore import Qt, QObject, QSize, pyqtSignal
@@ -269,6 +270,7 @@ class CalibrationDlg(QDialog):
         self.update_calc_trigger.s.connect(self.update_log)
         self.busy = False
         loadUi('..\\gui\\calibration_dlg.ui', self)
+
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
@@ -288,6 +290,7 @@ class CalibrationDlg(QDialog):
             self.start_calibration_procedure)
         if config['sys']['simulation_mode'] == 'True':
             self.pushButton_startImageAcq.setEnabled(False)
+
         self.pushButton_calcStage.clicked.connect(
             self.calculate_stage_parameters_from_user_input)
         self.pushButton_calcMotor.clicked.connect(
@@ -364,13 +367,25 @@ class CalibrationDlg(QDialog):
         # Show in log that calculations begin:
         self.update_calc_trigger.s.emit()
         # Load images and calculate shifts:
-        start_img = imread(self.base_dir + '\\start.tif')
-        shift_x_img = imread(self.base_dir + '\\shift_x.tif')
-        shift_y_img = imread(self.base_dir + '\\shift_y.tif')
-        x_shift_yxz, _, _ = register_translation(start_img, shift_x_img)
-        self.x_shift_vector = [abs(x_shift_yxz[1]), abs(x_shift_yxz[0])]
-        y_shift_yxz, _, _ = register_translation(start_img, shift_y_img)
-        self.y_shift_vector = [abs(y_shift_yxz[1]), abs(y_shift_yxz[0])]
+        start_img = imread(self.base_dir + '\\start.tif', as_grey=True)
+        shift_x_img = imread(self.base_dir + '\\shift_x.tif', as_grey=True)
+        shift_y_img = imread(self.base_dir + '\\shift_y.tif', as_grey=True)
+        #         Shift vector (in pixels) required to register ``target_image`` with
+        #         ``src_image``.  Axis ordering is consistent with numpy (e.g. Z, Y, X)
+        try:
+            # [::-1] -> obey (x, y) order in GUI
+            # x_shift_xyz = register_translation(start_img, shift_x_img)[0][::-1]
+            # y_shift_xyz = register_translation(start_img, shift_y_img)[0][::-1]
+
+            x_shift_alt = translation(start_img, shift_x_img, filter_pcorr=3)["tvec"][::-1]
+            y_shift_alt = translation(start_img, shift_y_img, filter_pcorr=3)["tvec"][::-1]
+            # print(x_shift_xyz, x_shift_alt, y_shift_xyz, y_shift_alt)
+
+            self.x_shift_vector = [x_shift_alt[0], x_shift_alt[1]]
+            self.y_shift_vector = [y_shift_alt[0], y_shift_alt[1]]
+        except Exception as e:
+            # TODO: add appropriate logging / propagation to GUI
+            print("Unknown exception occured during translation fit.", e)
         self.finish_trigger.s.emit()
 
     def update_log(self):
@@ -405,6 +420,28 @@ class CalibrationDlg(QDialog):
         # Scale factors:
         scale_x = shift / (sqrt(delta_xx**2 + delta_xy**2) * pixel_size / 1000)
         scale_y = shift / (sqrt(delta_yx**2 + delta_yy**2) * pixel_size / 1000)
+
+        # alternative calc
+        x_abs = np.linalg.norm([self.x_shift_vector[0], self.x_shift_vector[1]])
+        y_abs = np.linalg.norm([self.y_shift_vector[0], self.y_shift_vector[1]])
+        rot_x_alt = np.arccos(shift * self.x_shift_vector[0] / (shift * x_abs))
+        rot_y_alt = np.arccos(shift * self.y_shift_vector[1] / (shift * y_abs))
+        # GUI cannot handle negative values
+        if rot_x_alt < 0:
+            rot_x_alt += 2 * 3.141592
+        if rot_y_alt < 0:
+            rot_y_alt += 2 * 3.141592
+        # Scale factors:
+        scale_x_alt = shift / (x_abs * pixel_size / 1000)
+        scale_y_alt = shift / (y_abs * pixel_size / 1000)
+
+        print("Previous:", rot_x, rot_y, scale_x, scale_y)
+        print("Alternative:", rot_x_alt, rot_y_alt, scale_x_alt, scale_y_alt)
+
+        rot_x = rot_x_alt
+        rot_y = rot_y_alt
+        scale_x = scale_x_alt
+        scale_y = scale_y_alt
 
         self.busy = False
         user_choice = QMessageBox.information(
@@ -463,9 +500,11 @@ class CalibrationDlg(QDialog):
                 self.doubleSpinBox_stageRotationX.value(),
                 self.doubleSpinBox_stageRotationY.value()]
             self.stage.set_stage_calibration(self.current_eht, stage_params)
+
             success = self.stage.set_motor_speeds(
                 self.doubleSpinBox_motorSpeedX.value(),
                 self.doubleSpinBox_motorSpeedY.value())
+
             if not success:
                 QMessageBox.warning(
                     self, 'Error updating motor speeds',
