@@ -9,3 +9,4 @@ pyserial
 scipy
 numpy
 python-dateutil
+scikit-image
