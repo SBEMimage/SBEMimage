@@ -2026,11 +2026,18 @@
     <addaction name="actionMagnificationCalibration"/>
     <addaction name="actionStageCalibration"/>
    </widget>
+   <widget class="QMenu" name="menuUpdate">
+    <property name="title">
+     <string>Update</string>
+    </property>
+    <addaction name="actionUpdate"/>
+   </widget>
    <addaction name="menuFile"/>
    <addaction name="menuSettings"/>
    <addaction name="menuConfiguration"/>
    <addaction name="menuCalibration"/>
    <addaction name="menuExport"/>
+   <addaction name="menuUpdate"/>
    <addaction name="menuHelp"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
@@ -2150,6 +2157,11 @@
   <action name="actionSwitchStage">
    <property name="text">
     <string>Switch to X stage</string>
+   </property>
+  </action>
+  <action name="actionUpdate">
+   <property name="text">
+    <string>Update SBEMimage</string>
    </property>
   </action>
  </widget>
