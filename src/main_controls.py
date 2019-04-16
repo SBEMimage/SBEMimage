@@ -296,6 +296,9 @@ class MainControls(QMainWindow):
         self.checkBox_zoom.stateChanged.connect(self.ft_toggle_zoom)
         # Progress bar for stack acquisitions:
         self.progressBar.setValue(0)
+        # Limit the log to user-specified number of most recent lines:
+        self.textarea_log.setMaximumBlockCount(
+            int(self.cfg['monitoring']['max_log_line_count']))
 
     def import_system_settings(self):
         """Import settings from the system configuration file."""
