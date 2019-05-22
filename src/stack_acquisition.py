@@ -380,7 +380,7 @@ class Stack():
         # Set up imagelist file:
         self.imagelist_filename = (self.base_dir + '\\meta\\logs\\'
                                    + 'imagelist_' + timestamp + '.txt')
-        self.imagelist_file = open(self.imagelist_filename, 'w')
+        self.imagelist_file = open(self.imagelist_filename, 'w', buffer_size)
         # Log files for debris and errors:
         self.debris_log_filename = (self.base_dir + '\\meta\\logs\\'
                                     + 'debris_log_' + timestamp + '.txt')
@@ -409,6 +409,11 @@ class Stack():
         # Copy all log files to mirror drive:
         if self.use_mirror_drive:
             self.mirror_files(log_file_list)
+            # Handle for imagelist file on mirror drive:
+            self.mirror_imagelist_file = open(
+                self.mirror_drive
+                + self.imagelist_filename[2:],
+                'w', buffer_size)
 
 # ===================== STACK ACQUISITION THREAD run() ========================
 
@@ -830,11 +835,10 @@ class Stack():
             if self.slice_counter == self.number_slices:
                 self.stack_completed = True
 
-            # Copy log file and imagelist file to mirror disk
+            # Copy log file to mirror disk
             # (Error handling in self.mirror_files())
             if self.use_mirror_drive:
-                self.mirror_files([self.main_log_filename,
-                                   self.imagelist_filename])
+                self.mirror_files([self.main_log_filename])
             sleep(0.1)
 
         # ===================== END OF ACQUISITION LOOP =======================
@@ -881,13 +885,13 @@ class Stack():
         # Close all log files:
         self.main_log_file.close()
         self.imagelist_file.close()
+        self.mirror_imagelist_file.close()
         self.debris_log_file.close()
         self.error_log_file.close()
         self.metadata_file.close()
         # Finally, copy files to mirror drive:
         if self.use_mirror_drive:
             self.mirror_files([self.main_log_filename,
-                               self.imagelist_filename,
                                self.debris_log_filename,
                                self.error_log_filename,
                                self.metadata_filename])
@@ -1689,12 +1693,15 @@ class Stack():
             self.gm.get_tile_coordinates_for_registration(
                 grid_number, tile_number))
         global_z = int(self.total_z_diff * 1000)
-        self.imagelist_file.write(
-            save_path + ';'
-            + str(global_x) + ';'
-            + str(global_y) + ';'
-            + str(global_z) + ';'
-            + str(self.slice_counter) + '\n')
+        tileinfo_str = (save_path + ';'
+                         + str(global_x) + ';'
+                         + str(global_y) + ';'
+                         + str(global_z) + ';'
+                         + str(self.slice_counter) + '\n')
+        self.imagelist_file.write(tileinfo_str)
+        # Write to mirror:
+        if self.use_mirror_drive:
+            self.mirror_imagelist_file.write(tileinfo_str)
         self.tiles_acquired.append(tile_number)
         self.cfg['acq']['tiles_acquired'] = str(
             self.tiles_acquired)
