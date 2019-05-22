@@ -558,9 +558,14 @@ class Microtome():
 
         return success
 
-
     def get_full_cut_duration(self):
         return self.full_cut_duration
+
+    def set_full_cut_duration(self, cut_duration):
+        self.full_cut_duration = cut_duration
+        self.cfg['microtome']['full_cut_duration'] = str(cut_duration)
+        # Save duration in sysconfig:
+        self.syscfg['knife']['full_cut_duration'] = str(cut_duration)
 
     def get_sweep_distance(self):
         return self.sweep_distance

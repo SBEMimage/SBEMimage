@@ -54,7 +54,7 @@ from dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                         PauseDlg, StubOVDlg, EHTDlg, GrabFrameDlg, \
                         FTSetParamsDlg, FTMoveDlg, AskUserDlg, \
                         ImportImageDlg, AdjustImageDlg, DeleteImageDlg, \
-                        UpdateDlg, AboutBox
+                        UpdateDlg, CutDurationDlg, AboutBox
 
 
 class Trigger(QObject):
@@ -230,6 +230,8 @@ class MainControls(QMainWindow):
             self.open_calibration_dlg)
         self.actionMagnificationCalibration.triggered.connect(
             self.open_mag_calibration_dlg)
+        self.actionCutDuration.triggered.connect(
+            self.open_cut_duration_dlg)
         self.actionExport.triggered.connect(self.open_export_dlg)
         self.actionUpdate.triggered.connect(self.open_update_dlg)
         # Buttons for testing purposes (third tab)
@@ -726,6 +728,10 @@ class MainControls(QMainWindow):
         dialog = MagCalibrationDlg(self.sem)
         dialog.exec_()
 
+    def open_cut_duration_dlg(self):
+        dialog = CutDurationDlg(self.microtome)
+        dialog.exec_()
+
     def open_ov_dlg(self):
         dialog = OVSettingsDlg(self.ovm, self.sem, self.current_ov,
                                self.acq_queue, self.acq_trigger)
@@ -1186,6 +1192,7 @@ class MainControls(QMainWindow):
         self.pushButton_testStopDMScript.setEnabled(False)
         self.checkBox_useDebrisDetection.setEnabled(False)
         self.toolButton_debrisDetection.setEnabled(False)
+        self.actionCutDuration.setEnabled(False)
 
     def add_to_log(self, text):
         """Update the log from the main thread."""

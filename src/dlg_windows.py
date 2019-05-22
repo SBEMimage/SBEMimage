@@ -529,6 +529,26 @@ class MagCalibrationDlg(QDialog):
 
 #------------------------------------------------------------------------------
 
+class CutDurationDlg(QDialog):
+
+    def __init__(self, microtome):
+        super().__init__()
+        self.microtome = microtome
+        loadUi('..\\gui\\cut_duration_dlg.ui', self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setFixedSize(self.size())
+        self.show()
+        self.doubleSpinBox_cutDuration.setValue(
+            self.microtome.get_full_cut_duration())
+
+    def accept(self):
+        self.microtome.set_full_cut_duration(
+            self.doubleSpinBox_cutDuration.value())
+        super().accept()
+
+#------------------------------------------------------------------------------
+
 class OVSettingsDlg(QDialog):
     """Let the user change all settings for each overview image."""
 
@@ -1538,7 +1558,7 @@ class UpdateDlg(QDialog):
                 'Could not download current version from GitHub. Check your '
                 'internet connection. ',
                 QMessageBox.Ok)
-        else:   
+        else:
             # Get directory of current installation:
             install_path = os.path.dirname(
                 os.path.dirname(os.path.abspath(__file__)))

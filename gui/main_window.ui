@@ -2025,6 +2025,7 @@
     </property>
     <addaction name="actionMagnificationCalibration"/>
     <addaction name="actionStageCalibration"/>
+    <addaction name="actionCutDuration"/>
    </widget>
    <widget class="QMenu" name="menuUpdate">
     <property name="title">
@@ -2162,6 +2163,11 @@
   <action name="actionUpdate">
    <property name="text">
     <string>Update SBEMimage</string>
+   </property>
+  </action>
+  <action name="actionCutDuration">
+   <property name="text">
+    <string>Microtome cut duration</string>
    </property>
   </action>
  </widget>
