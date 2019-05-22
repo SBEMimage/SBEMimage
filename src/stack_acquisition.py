@@ -490,12 +490,12 @@ class Stack():
                                                      self.stig_x_current_grid,
                                                      self.stig_y_current_grid)
             else:
-                # Set stig values to current settings for each tile if adaptive 
+                # Set stig values to current settings for each tile if adaptive
                 # focus used
                 self.gm.set_stig_for_grid(grid_number,
                                           self.stig_x_current_grid,
                                           self.stig_y_current_grid)
-           
+
         for ov_number in range(number_ov):
             self.ovm.set_ov_wd(ov_number, 0)
             self.ovm.set_ov_stig_xy(ov_number, 0, 0)
@@ -1685,13 +1685,15 @@ class Stack():
         timestamp = int(time.time())
         tile_id = utils.get_tile_id(grid_number, tile_number,
                                     self.slice_counter)
-        pos_x, pos_y = self.gm.get_tile_coordinates_p(grid_number, tile_number)
-        global_px = int(pos_x - tile_width/2)
-        global_py = int(pos_y - tile_height/2)
+        global_x, global_y = (
+            self.gm.get_tile_coordinates_for_registration(
+                grid_number, tile_number))
+        global_z = int(self.total_z_diff * 1000)
         self.imagelist_file.write(
             save_path + ';'
-            + str(global_px) + ';'
-            + str(global_py) + ';'
+            + str(global_x) + ';'
+            + str(global_y) + ';'
+            + str(global_z) + ';'
             + str(self.slice_counter) + '\n')
         self.tiles_acquired.append(tile_number)
         self.cfg['acq']['tiles_acquired'] = str(
@@ -1704,8 +1706,9 @@ class Stack():
             'tile_width': tile_width,
             'tile_height': tile_height,
             'working_distance': wd,
-            'glob_x': global_px,
-            'glob_y': global_py,
+            'glob_x': global_x,
+            'glob_y': global_y,
+            'glob_z': global_z,
             'slice_counter': self.slice_counter}
         self.metadata_file.write('TILE: ' + str(tile_metadata) + '\n')
         # Server notification:
