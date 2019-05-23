@@ -1074,6 +1074,8 @@ class MainControls(QMainWindow):
             self.viewport.mv_draw()
         elif msg[:6] == 'VP LOG':
             self.viewport.add_to_viewport_log(msg[6:])
+        elif msg[:15] == 'GET CURRENT LOG':
+            self.write_current_log_to_file(msg[15:])
         else:
             # If msg is not a command, show it in log:
             self.textarea_log.appendPlainText(msg)
@@ -1197,6 +1199,10 @@ class MainControls(QMainWindow):
     def add_to_log(self, text):
         """Update the log from the main thread."""
         self.textarea_log.appendPlainText(utils.format_log_entry(text))
+
+    def write_current_log_to_file(self, filename):
+        with open(filename, 'w') as f:
+            f.write(self.textarea_log.toPlainText())
 
 # ==================== Below: Manual SBEM commands ============================
 

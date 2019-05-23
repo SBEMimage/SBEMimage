@@ -373,6 +373,9 @@ class Stack():
         # Create main log file:
         self.main_log_filename = (self.base_dir + '\\meta\\logs\\'
                                   + 'log_' + timestamp + '.txt')
+        # Log file for most recent entries (used for status report):
+        self.recent_log_filename = (self.base_dir + '\\meta\\logs\\'
+                                    + 'log_' + timestamp + '_mostrecent.txt')
         # A buffer_size of 1 ensures that all log entries are immediately
         # written to disk:
         buffer_size = 1
@@ -947,11 +950,14 @@ class Stack():
         self.transmit_cmd('VP LOG' + log_str)
         # Send notification e-mail about error:
         if self.cfg['acq']['use_email_monitoring'] == 'True':
+            # Generate log file from current content of log:
+            self.transmit_cmd('GET CURRENT LOG' + self.recent_log_filename)
+            sleep(0.5) # wait for file to be written.
             if self.viewport_filename is not None:
-                attachment_list = [self.main_log_filename,
+                attachment_list = [self.recent_log_filename,
                                    self.viewport_filename]
             else:
-                attachment_list = [self.main_log_filename]
+                attachment_list = [self.recent_log_filename]
             msg_subject = ('Stack ' + self.stack_name + ': slice '
                            + str(self.slice_counter) + ', ERROR')
             success = utils.send_email(self.smtp_server,
@@ -975,7 +981,10 @@ class Stack():
         tile_list = json.loads(self.cfg['monitoring']['watch_tiles'])
         ov_list = json.loads(self.cfg['monitoring']['watch_ov'])
         if self.cfg['monitoring']['send_logfile'] == 'True':
-            attachment_list.append(self.main_log_filename)
+            # Generate log file from current content of log:
+            self.transmit_cmd('GET CURRENT LOG' + self.recent_log_filename)
+            sleep(0.5) # wait for file be written.
+            attachment_list.append(self.recent_log_filename)
         if self.cfg['monitoring']['send_additional_logs'] == 'True':
             attachment_list.append(self.debris_log_filename)
             attachment_list.append(self.error_log_filename)
