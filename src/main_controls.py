@@ -1276,7 +1276,11 @@ class MainControls(QMainWindow):
                               + self.cfg['acq']['base_dir'][2:]
                               + '\\overviews\\stub')
                 if not os.path.exists(mirror_path):
-                    os.makedirs(mirror_path)
+                    try:
+                        os.makedirs(mirror_path)
+                    except:
+                        self.add_to_log(
+                            'CTRL: Creating directory on mirror drive failed.')
                 try:
                     shutil.copy(self.ovm.get_stub_ov_file(), mirror_path)
                 except:
