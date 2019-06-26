@@ -268,6 +268,7 @@ class CalibrationDlg(QDialog):
         self.finish_trigger.s.connect(self.process_results)
         self.update_calc_trigger = Trigger()
         self.update_calc_trigger.s.connect(self.update_log)
+        self.calc_exception = None
         self.busy = False
         loadUi('..\\gui\\calibration_dlg.ui', self)
 
@@ -372,41 +373,48 @@ class CalibrationDlg(QDialog):
         shift_y_img = imread(self.base_dir + '\\shift_y.tif', as_grey=True)
         #         Shift vector (in pixels) required to register ``target_image`` with
         #         ``src_image``.  Axis ordering is consistent with numpy (e.g. Z, Y, X)
+        self.calc_exception = None
         try:
             # [::-1] -> obey (x, y) order in GUI
             # x_shift_xyz = register_translation(start_img, shift_x_img)[0][::-1]
             # y_shift_xyz = register_translation(start_img, shift_y_img)[0][::-1]
-
             x_shift_alt = translation(start_img, shift_x_img, filter_pcorr=3)["tvec"][::-1]
             y_shift_alt = translation(start_img, shift_y_img, filter_pcorr=3)["tvec"][::-1]
             # print(x_shift_xyz, x_shift_alt, y_shift_xyz, y_shift_alt)
-
             self.x_shift_vector = [x_shift_alt[0], x_shift_alt[1]]
             self.y_shift_vector = [y_shift_alt[0], y_shift_alt[1]]
         except Exception as e:
-            # TODO: add appropriate logging / propagation to GUI
-            print("Unknown exception occured during translation fit.", e)
+            self.calc_exception = e
         self.finish_trigger.s.emit()
 
     def update_log(self):
-        self.plainTextEdit_calibLog.appendPlainText('Now computing shifts...')
+        self.plainTextEdit_calibLog.appendPlainText('Now computing pixel shifts...')
 
     def process_results(self):
         self.pushButton_startImageAcq.setText('Start')
         self.pushButton_startImageAcq.setEnabled(True)
         self.pushButton_calcStage.setEnabled(True)
-        # Show the vectors in the textbox and the spinboxes:
-        self.plainTextEdit_calibLog.setPlainText(
-            'Shift_X: {}, Shift_Y: {}'.format(
-            str(self.x_shift_vector), str(self.y_shift_vector)))
-        delta_xx, delta_xy = self.x_shift_vector
-        delta_yx, delta_yy = self.y_shift_vector
-        self.spinBox_x2x.setValue(delta_xx)
-        self.spinBox_x2y.setValue(delta_xy)
-        self.spinBox_y2x.setValue(delta_yx)
-        self.spinBox_y2y.setValue(delta_yy)
-        # Now calculate parameters:
-        self.calculate_stage_parameters()
+        if self.calc_exception is None:
+            # Show the vectors in the textbox and the spinboxes:
+            self.plainTextEdit_calibLog.setPlainText(
+                'Shift_X: [{0:.1f}, {1:.1f}], '
+                'Shift_Y: [{2:.1f}, {3:.1f}]'.format(
+                *self.x_shift_vector, *self.y_shift_vector))
+            delta_xx, delta_xy = self.x_shift_vector
+            delta_yx, delta_yy = self.y_shift_vector
+            self.spinBox_x2x.setValue(delta_xx)
+            self.spinBox_x2y.setValue(delta_xy)
+            self.spinBox_y2x.setValue(delta_yx)
+            self.spinBox_y2y.setValue(delta_yy)
+            # Now calculate parameters:
+            self.calculate_stage_parameters()
+        else:
+            QMessageBox.warning(
+                self, 'Error',
+                'An exception occured while computing the translations: '
+                + str(self.calc_exception),
+                QMessageBox.Ok)
+            self.busy = False
 
     def calculate_stage_parameters(self):
         shift = self.spinBox_shift.value()
