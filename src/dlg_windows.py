@@ -30,6 +30,8 @@ from queue import Queue
 from PIL import Image
 from skimage.io import imread
 from skimage.feature import register_translation
+import numpy as np
+from imreg_dft import translation
 from zipfile import ZipFile
 
 from PyQt5.uic import loadUi
@@ -270,8 +272,10 @@ class CalibrationDlg(QDialog):
         self.finish_trigger.s.connect(self.process_results)
         self.update_calc_trigger = Trigger()
         self.update_calc_trigger.s.connect(self.update_log)
+        self.calc_exception = None
         self.busy = False
         loadUi('..\\gui\\calibration_dlg.ui', self)
+
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
@@ -291,6 +295,7 @@ class CalibrationDlg(QDialog):
             self.start_calibration_procedure)
         if config['sys']['simulation_mode'] == 'True':
             self.pushButton_startImageAcq.setEnabled(False)
+
         self.pushButton_calcStage.clicked.connect(
             self.calculate_stage_parameters_from_user_input)
         self.pushButton_calcMotor.clicked.connect(
@@ -367,40 +372,61 @@ class CalibrationDlg(QDialog):
         # Show in log that calculations begin:
         self.update_calc_trigger.s.emit()
         # Load images and calculate shifts:
-        start_img = imread(self.base_dir + '\\start.tif')
-        shift_x_img = imread(self.base_dir + '\\shift_x.tif')
-        shift_y_img = imread(self.base_dir + '\\shift_y.tif')
-        x_shift_yxz, _, _ = register_translation(start_img, shift_x_img)
-        self.x_shift_vector = [abs(x_shift_yxz[1]), abs(x_shift_yxz[0])]
-        y_shift_yxz, _, _ = register_translation(start_img, shift_y_img)
-        self.y_shift_vector = [abs(y_shift_yxz[1]), abs(y_shift_yxz[0])]
+        start_img = imread(self.base_dir + '\\start.tif', as_grey=True)
+        shift_x_img = imread(self.base_dir + '\\shift_x.tif', as_grey=True)
+        shift_y_img = imread(self.base_dir + '\\shift_y.tif', as_grey=True)
+        #         Shift vector (in pixels) required to register ``target_image`` with
+        #         ``src_image``.  Axis ordering is consistent with numpy (e.g. Z, Y, X)
+        self.calc_exception = None
+        try:
+            # [::-1] -> obey (x, y) order in GUI
+            # x_shift_xyz = register_translation(start_img, shift_x_img)[0][::-1]
+            # y_shift_xyz = register_translation(start_img, shift_y_img)[0][::-1]
+            x_shift_alt = translation(start_img, shift_x_img, filter_pcorr=3)["tvec"][::-1]
+            y_shift_alt = translation(start_img, shift_y_img, filter_pcorr=3)["tvec"][::-1]
+            # print(x_shift_xyz, x_shift_alt, y_shift_xyz, y_shift_alt)
+            self.x_shift_vector = [x_shift_alt[0], x_shift_alt[1]]
+            self.y_shift_vector = [y_shift_alt[0], y_shift_alt[1]]
+        except Exception as e:
+            self.calc_exception = e
         self.finish_trigger.s.emit()
 
     def update_log(self):
-        self.plainTextEdit_calibLog.appendPlainText('Now computing shifts...')
+        self.plainTextEdit_calibLog.appendPlainText('Now computing pixel shifts...')
 
     def process_results(self):
         self.pushButton_startImageAcq.setText('Start')
         self.pushButton_startImageAcq.setEnabled(True)
         self.pushButton_calcStage.setEnabled(True)
-        # Show the vectors in the textbox and the spinboxes:
-        self.plainTextEdit_calibLog.setPlainText(
-            'Shift_X: {}, Shift_Y: {}'.format(
-            str(self.x_shift_vector), str(self.y_shift_vector)))
-        delta_xx, delta_xy = self.x_shift_vector
-        delta_yx, delta_yy = self.y_shift_vector
-        self.spinBox_x2x.setValue(delta_xx)
-        self.spinBox_x2y.setValue(delta_xy)
-        self.spinBox_y2x.setValue(delta_yx)
-        self.spinBox_y2y.setValue(delta_yy)
-        # Now calculate parameters:
-        self.calculate_stage_parameters()
+        if self.calc_exception is None:
+            # Show the vectors in the textbox and the spinboxes:
+            self.plainTextEdit_calibLog.setPlainText(
+                'Shift_X: [{0:.1f}, {1:.1f}], '
+                'Shift_Y: [{2:.1f}, {3:.1f}]'.format(
+                *self.x_shift_vector, *self.y_shift_vector))
+            # Absolute values for the GUI
+            self.spinBox_x2x.setValue(abs(self.x_shift_vector[0]))
+            self.spinBox_x2y.setValue(abs(self.x_shift_vector[1]))
+            self.spinBox_y2x.setValue(abs(self.y_shift_vector[0]))
+            self.spinBox_y2y.setValue(abs(self.y_shift_vector[1]))
+            # Now calculate parameters:
+            self.calculate_stage_parameters()
+        else:
+            QMessageBox.warning(
+                self, 'Error',
+                'An exception occured while computing the translations: '
+                + str(self.calc_exception),
+                QMessageBox.Ok)
+            self.busy = False
 
     def calculate_stage_parameters(self):
         shift = self.spinBox_shift.value()
         pixel_size = self.spinBox_pixelsize.value()
-        delta_xx, delta_xy = self.x_shift_vector
-        delta_yx, delta_yy = self.y_shift_vector
+        # Use absolute values for now, TODO: revisit for the Sigma stage
+        delta_xx, delta_xy = (
+            abs(self.x_shift_vector[0]), abs(self.x_shift_vector[1]))
+        delta_yx, delta_yy = (
+            abs(self.y_shift_vector[0]), abs(self.y_shift_vector[1]))
 
         # Rotation angles:
         rot_x = atan(delta_xy/delta_xx)
@@ -408,6 +434,20 @@ class CalibrationDlg(QDialog):
         # Scale factors:
         scale_x = shift / (sqrt(delta_xx**2 + delta_xy**2) * pixel_size / 1000)
         scale_y = shift / (sqrt(delta_yx**2 + delta_yy**2) * pixel_size / 1000)
+
+        # alternative calc
+        # x_abs = np.linalg.norm([self.x_shift_vector[0], self.x_shift_vector[1]])
+        # y_abs = np.linalg.norm([self.y_shift_vector[0], self.y_shift_vector[1]])
+        # rot_x_alt = np.arccos(shift * self.x_shift_vector[0] / (shift * x_abs))
+        # rot_y_alt = np.arccos(shift * self.y_shift_vector[1] / (shift * y_abs))
+        # GUI cannot handle negative values
+        # if rot_x < 0:
+        #    rot_x += 2 * 3.141592
+        # if rot_y < 0:
+        #    rot_y += 2 * 3.141592
+        # Scale factors:
+        # scale_x_alt = shift / (x_abs * pixel_size / 1000)
+        # scale_y_alt = shift / (y_abs * pixel_size / 1000)
 
         self.busy = False
         user_choice = QMessageBox.information(
@@ -466,9 +506,11 @@ class CalibrationDlg(QDialog):
                 self.doubleSpinBox_stageRotationX.value(),
                 self.doubleSpinBox_stageRotationY.value()]
             self.stage.set_stage_calibration(self.current_eht, stage_params)
+
             success = self.stage.set_motor_speeds(
                 self.doubleSpinBox_motorSpeedX.value(),
                 self.doubleSpinBox_motorSpeedY.value())
+
             if not success:
                 QMessageBox.warning(
                     self, 'Error updating motor speeds',

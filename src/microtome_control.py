@@ -27,12 +27,14 @@
 import os
 from time import sleep
 import json
-
 import utils
 
 
-class Microtome():
-
+class MicrotomeBase:
+    """
+    Base class for microtome control. It implements minimum config/parameter handling
+    and interactions with GUI. Undefined methods have to be implemented in the child class.
+    """
     def __init__(self, config, sysconfig):
         self.cfg = config
         self.syscfg = sysconfig
@@ -82,6 +84,244 @@ class Microtome():
             float(self.cfg['microtome']['stage_scale_factor_y']),
             float(self.cfg['microtome']['stage_rotation_angle_x']),
             float(self.cfg['microtome']['stage_rotation_angle_y'])]
+
+    def do_full_cut(self):
+        """Perform a full cut cycle. This is the only knife control function
+           used during stack acquisitions.
+        """
+        raise NotImplementedError
+
+    def do_full_approach_cut(self):
+        """Perform a full cut cycle under the assumption that knife is
+           already neared."""
+        raise NotImplementedError
+
+    def do_sweep(self, z_position):
+        """Perform a sweep by cutting slightly above the surface."""
+        if (((self.sweep_distance < 30) or (self.sweep_distance > 1000))
+                and self.error_state == 0):
+            self.error_state = 205
+            self.error_cause = 'microtome.do_sweep: sweep distance out of range'
+        elif self.error_state == 0:
+            raise NotImplementedError
+
+    def cut(self):
+        # only used for testing
+        raise NotImplementedError
+
+    def retract_knife(self):
+        # only used for testing
+        raise NotImplementedError
+
+    def get_motor_speeds(self):
+        return self.motor_speed_x, self.motor_speed_y
+
+    def set_motor_speeds(self, motor_speed_x, motor_speed_y):
+        self.motor_speed_x = motor_speed_x
+        self.motor_speed_y = motor_speed_y
+        self.cfg['microtome']['motor_speed_x'] = str(motor_speed_x)
+        self.cfg['microtome']['motor_speed_y'] = str(motor_speed_y)
+        # Save in sysconfig:
+        self.syscfg['stage']['microtome_motor_speed'] = str(
+            [self.motor_speed_x, self.motor_speed_y])
+        return self.write_motor_speeds_to_script()
+
+    def write_motor_speeds_to_script(self):
+        raise NotImplementedError
+
+    def get_stage_move_wait_interval(self):
+        return self.stage_move_wait_interval
+
+    def set_stage_move_wait_interval(self, wait_interval):
+        self.stage_move_wait_interval = wait_interval
+        self.cfg['microtome']['stage_move_wait_interval'] = str(wait_interval)
+
+    def get_motor_limits(self):
+        return self.motor_limits
+
+    def set_motor_limits(self, limits):
+        self.motor_limits = limits
+        self.cfg['microtome']['stage_min_x'] = str(limits[0])
+        self.cfg['microtome']['stage_max_x'] = str(limits[1])
+        self.cfg['microtome']['stage_min_y'] = str(limits[2])
+        self.cfg['microtome']['stage_max_y'] = str(limits[3])
+        # Save data in sysconfig:
+        self.syscfg['stage']['microtome_motor_limits'] = str(self.motor_limits)
+
+    def move_stage_to_x(self, x):
+        # only used for testing
+        raise NotImplementedError
+
+    def move_stage_to_y(self, y):
+        # only used for testing
+        raise NotImplementedError
+
+    def calculate_stage_move_duration(self, target_x, target_y):
+        """Use the last known position and the given target position
+           to calculate how much time it will take for the motors to move
+           to target position.
+        """
+        duration_x = abs(target_x - self.last_known_x) / self.motor_speed_x
+        duration_y = abs(target_y - self.last_known_y) / self.motor_speed_y
+        return max(duration_x, duration_y)
+
+    def get_stage_xy(self, wait_interval=0.25):
+        """Get current XY coordinates from DM"""
+        raise NotImplementedError
+
+    def get_stage_x(self):
+        return self.get_stage_xy()[0]
+
+    def get_stage_y(self):
+        return self.get_stage_xy()[1]
+
+    def get_stage_xyz(self):
+        x, y = self.get_stage_xy()
+        z = self.get_stage_z()
+        return x, y, z
+
+    def move_stage_to_xy(self, coordinates):
+        """Move stage to coordinates X/Y. This function is called during
+           acquisitions. It includes waiting times. The other move functions
+           below do not.
+        """
+        raise NotImplementedError
+
+    def get_stage_z(self, wait_interval=0.5):
+        """Get current Z coordinate from DM"""
+        raise NotImplementedError
+
+    def get_stage_z_prev_session(self):
+        return self.z_prev_session
+
+    def move_stage_to_z(self, z, safe_mode=True):
+        """Move stage to new z position. Used during stack acquisition
+           before each cut and for sweeps."""
+        raise NotImplementedError
+
+    def get_last_known_xy(self):
+        return self.last_known_x, self.last_known_y
+
+    def get_last_known_z(self):
+        return self.last_known_z
+
+    def get_prev_known_z(self):
+        return self.prev_known_z
+
+    def stop_script(self):
+        raise NotImplementedError
+
+    def near_knife(self):
+        raise NotImplementedError
+
+    def clear_knife(self):
+        raise NotImplementedError
+
+    def check_for_cut_cycle_error(self):
+        raise NotImplementedError
+
+    def reset_error_state(self):
+        raise NotImplementedError
+
+    def get_error_state(self):
+        # Return current error_state
+        return self.error_state
+
+    def get_error_cause(self):
+        return self.error_cause
+
+    def motor_warning_received(self):
+        return self.motor_warning
+
+    def get_knife_cut_speed(self):
+        return self.knife_cut_speed
+
+    def set_knife_cut_speed(self, cut_speed):
+        self.knife_cut_speed = cut_speed
+        self.cfg['microtome']['knife_cut_speed'] = '{0:.1f}'.format(cut_speed)
+
+    def get_knife_retract_speed(self):
+        return self.knife_retract_speed
+
+    def set_knife_retract_speed(self, retract_speed):
+        self.knife_retract_speed = retract_speed
+        self.cfg['microtome']['knife_retract_speed'] = '{0:.1f}'.format(
+            retract_speed)
+
+    def is_oscillation_enabled(self):
+        return self.use_oscillation
+
+    def set_oscillation_enabled(self, status):
+        self.use_oscillation = status
+        self.cfg['microtome']['knife_oscillation'] = str(status)
+
+    def get_stage_calibration(self):
+        return self.stage_calibration
+
+    def set_stage_calibration(self, eht, params):
+        self.stage_calibration = params
+        self.cfg['microtome']['stage_scale_factor_x'] = str(params[0])
+        self.cfg['microtome']['stage_scale_factor_y'] = str(params[1])
+        self.cfg['microtome']['stage_rotation_angle_x'] = str(params[2])
+        self.cfg['microtome']['stage_rotation_angle_y'] = str(params[3])
+        # Save data in sysconfig:
+        calibration_data = json.loads(self.syscfg['stage']['microtome_calibration_data'])
+        eht = int(eht * 1000)  # Dict keys in system config use volts, not kV
+        calibration_data[str(eht)] = params
+        self.syscfg['stage']['microtome_calibration_data'] = json.dumps(calibration_data)
+
+    def update_stage_calibration(self, eht):
+        eht = int(eht * 1000)  # Dict keys in system config use volts, not kV
+        success = True
+        try:
+            calibration_data = json.loads(
+                self.syscfg['stage']['microtome_calibration_data'])
+            available_eht = [int(s) for s in calibration_data.keys()]
+        except:
+            available_eht = []
+            success = False
+
+        if success:
+            if eht in available_eht:
+                params = calibration_data[str(eht)]
+            else:
+                success = False
+                # Fallback option: nearest among the available EHT calibrations
+                new_eht = 1500
+                min_diff = abs(eht - 1500)
+                for eht_choice in available_eht:
+                    diff = abs(eht - eht_choice)
+                    if diff < min_diff:
+                        min_diff = diff
+                        new_eht = eht_choice
+                params = calibration_data[str(new_eht)]
+            self.cfg['microtome']['stage_scale_factor_x'] = str(params[0])
+            self.cfg['microtome']['stage_scale_factor_y'] = str(params[1])
+            self.cfg['microtome']['stage_rotation_angle_x'] = str(params[2])
+            self.cfg['microtome']['stage_rotation_angle_y'] = str(params[3])
+            self.stage_calibration = params
+        return success
+
+    def get_full_cut_duration(self):
+        return self.full_cut_duration
+
+    def set_full_cut_duration(self, cut_duration):
+        self.full_cut_duration = cut_duration
+        self.cfg['microtome']['full_cut_duration'] = str(cut_duration)
+        # Save duration in sysconfig:
+        self.syscfg['knife']['full_cut_duration'] = str(cut_duration)  
+      
+    def get_sweep_distance(self):
+        return self.sweep_distance
+
+
+class Microtome(MicrotomeBase):
+    """
+    Refactored DM class which inherits basic functionality from MicrotomeBase.
+    TODO: untested.
+    """
+    def __init__(self, config, sysconfig):
+        super().__init__(config, sysconfig)
 
         # Perform handshake and read initial X/Y/Z.
         if not self.simulation_mode:
@@ -241,19 +481,6 @@ class Microtome():
         self._send_dm_command('MicrotomeStage_Retract')
         sleep(1.2/self.knife_retract_speed)
 
-    def get_motor_speeds(self):
-        return (self.motor_speed_x, self.motor_speed_y)
-
-    def set_motor_speeds(self, motor_speed_x, motor_speed_y):
-        self.motor_speed_x = motor_speed_x
-        self.motor_speed_y = motor_speed_y
-        self.cfg['microtome']['motor_speed_x'] = str(motor_speed_x)
-        self.cfg['microtome']['motor_speed_y'] = str(motor_speed_y)
-        # Save in sysconfig:
-        self.syscfg['stage']['microtome_motor_speed'] = str(
-            [self.motor_speed_x, self.motor_speed_y])
-        return self.write_motor_speeds_to_script()
-
     def write_motor_speeds_to_script(self):
         if os.path.isfile('..\\dm\\DMcom.ack'):
             os.remove('..\\dm\\DMcom.ack')
@@ -268,25 +495,6 @@ class Microtome():
             success = os.path.isfile('..\\dm\\DMcom.ack')
         return success
 
-    def get_stage_move_wait_interval(self):
-        return self.stage_move_wait_interval
-
-    def set_stage_move_wait_interval(self, wait_interval):
-        self.stage_move_wait_interval = wait_interval
-        self.cfg['microtome']['stage_move_wait_interval'] = str(wait_interval)
-
-    def get_motor_limits(self):
-        return self.motor_limits
-
-    def set_motor_limits(self, limits):
-        self.motor_limits = limits
-        self.cfg['microtome']['stage_min_x'] = str(limits[0])
-        self.cfg['microtome']['stage_max_x'] = str(limits[1])
-        self.cfg['microtome']['stage_min_y'] = str(limits[2])
-        self.cfg['microtome']['stage_max_y'] = str(limits[3])
-        # Save data in sysconfig:
-        self.syscfg['stage']['microtome_motor_limits'] = str(self.motor_limits)
-
     def move_stage_to_x(self, x):
         # only used for testing
         self._send_dm_command('MicrotomeStage_SetPositionX', [x])
@@ -298,15 +506,6 @@ class Microtome():
         self._send_dm_command('MicrotomeStage_SetPositionY', [y])
         sleep(0.5)
         self.get_stage_xy()
-
-    def calculate_stage_move_duration(self, target_x, target_y):
-        """Use the last known position and the given target position
-           to calculate how much time it will take for the motors to move
-           to target position.
-        """
-        duration_x = abs(target_x - self.last_known_x) / self.motor_speed_x
-        duration_y = abs(target_y - self.last_known_y) / self.motor_speed_y
-        return max(duration_x, duration_y)
 
     def get_stage_xy(self, wait_interval=0.25):
         """Get current XY coordinates from DM"""
@@ -321,18 +520,7 @@ class Microtome():
             success = False
         if success:
             self.last_known_x, self.last_known_y = x, y
-        return (x, y)
-
-    def get_stage_x(self):
-        return self.get_stage_xy()[0]
-
-    def get_stage_y(self):
-        return self.get_stage_xy()[1]
-
-    def get_stage_xyz(self):
-        x, y = self.get_stage_xy()
-        z = self.get_stage_z()
-        return (x, y, z)
+        return x, y
 
     def move_stage_to_xy(self, coordinates):
         """Move stage to coordinates X/Y. This function is called during
@@ -423,15 +611,6 @@ class Microtome():
                 self.error_cause = ('move_stage_to_z: command not processed '
                                     'by DM script')
 
-    def get_last_known_xy(self):
-        return (self.last_known_x, self.last_known_y)
-
-    def get_last_known_z(self):
-        return self.last_known_z
-
-    def get_prev_known_z(self):
-        return self.prev_known_z
-
     def stop_script(self):
         self._send_dm_command('Stop')
         sleep(0.2)
@@ -468,16 +647,6 @@ class Microtome():
                     break
         return duration_exceeded
 
-    def get_error_state(self):
-        # Return current error_state
-        return self.error_state
-
-    def get_error_cause(self):
-        return self.error_cause
-
-    def motor_warning_received(self):
-        return self.motor_warning
-
     def reset_error_state(self):
         self.error_state = 0
         self.error_cause = ''
@@ -486,86 +655,4 @@ class Microtome():
             os.remove('..\\dm\\DMcom.err')
         if os.path.isfile('..\\dm\\DMcom.wng'):
             os.remove('..\\dm\\DMcom.wng')
-
-    def get_knife_cut_speed(self):
-        return self.knife_cut_speed
-
-    def set_knife_cut_speed(self, cut_speed):
-        self.knife_cut_speed = cut_speed
-        self.cfg['microtome']['knife_cut_speed'] = '{0:.1f}'.format(cut_speed)
-
-    def get_knife_retract_speed(self):
-        return self.knife_retract_speed
-
-    def set_knife_retract_speed(self, retract_speed):
-        self.knife_retract_speed = retract_speed
-        self.cfg['microtome']['knife_retract_speed'] = '{0:.1f}'.format(
-            retract_speed)
-
-    def is_oscillation_enabled(self):
-        return self.use_oscillation
-
-    def set_oscillation_enabled(self, status):
-        self.use_oscillation = status
-        self.cfg['microtome']['knife_oscillation'] = str(status)
-
-    def get_stage_calibration(self):
-        return self.stage_calibration
-
-    def set_stage_calibration(self, eht, params):
-        self.stage_calibration = params
-        self.cfg['microtome']['stage_scale_factor_x'] = str(params[0])
-        self.cfg['microtome']['stage_scale_factor_y'] = str(params[1])
-        self.cfg['microtome']['stage_rotation_angle_x'] = str(params[2])
-        self.cfg['microtome']['stage_rotation_angle_y'] = str(params[3])
-        # Save data in sysconfig:
-        calibration_data = json.loads(self.syscfg['stage']['microtome_calibration_data'])
-        eht = int(eht * 1000)  # Dict keys in system config use volts, not kV
-        calibration_data[str(eht)] = params
-        self.syscfg['stage']['microtome_calibration_data'] = json.dumps(calibration_data)
-
-    def update_stage_calibration(self, eht):
-        eht = int(eht * 1000)  # Dict keys in system config use volts, not kV
-        success = True
-        try:
-            calibration_data = json.loads(
-                self.syscfg['stage']['microtome_calibration_data'])
-            available_eht = [int(s) for s in calibration_data.keys()]
-        except:
-            available_eht = []
-            success = False
-
-        if success:
-            if eht in available_eht:
-                params = calibration_data[str(eht)]
-            else:
-                success = False
-                # Fallback option: nearest among the available EHT calibrations
-                new_eht = 1500
-                min_diff = abs(eht - 1500)
-                for eht_choice in available_eht:
-                    diff = abs(eht - eht_choice)
-                    if diff < min_diff:
-                        min_diff = diff
-                        new_eht = eht_choice
-                params = calibration_data[str(new_eht)]
-
-            self.cfg['microtome']['stage_scale_factor_x'] = str(params[0])
-            self.cfg['microtome']['stage_scale_factor_y'] = str(params[1])
-            self.cfg['microtome']['stage_rotation_angle_x'] = str(params[2])
-            self.cfg['microtome']['stage_rotation_angle_y'] = str(params[3])
-            self.stage_calibration = params
-
-        return success
-
-    def get_full_cut_duration(self):
-        return self.full_cut_duration
-
-    def set_full_cut_duration(self, cut_duration):
-        self.full_cut_duration = cut_duration
-        self.cfg['microtome']['full_cut_duration'] = str(cut_duration)
-        # Save duration in sysconfig:
-        self.syscfg['knife']['full_cut_duration'] = str(cut_duration)
-
-    def get_sweep_distance(self):
-        return self.sweep_distance
+            

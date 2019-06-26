@@ -10,3 +10,4 @@ scipy
 numpy
 python-dateutil
 scikit-image
+imreg_dft
