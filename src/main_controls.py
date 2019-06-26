@@ -54,7 +54,7 @@ from dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                         PauseDlg, StubOVDlg, EHTDlg, GrabFrameDlg, \
                         FTSetParamsDlg, FTMoveDlg, AskUserDlg, \
                         ImportImageDlg, AdjustImageDlg, DeleteImageDlg, \
-                        AboutBox
+                        UpdateDlg, CutDurationDlg, AboutBox
 
 
 class Trigger(QObject):
@@ -230,7 +230,10 @@ class MainControls(QMainWindow):
             self.open_calibration_dlg)
         self.actionMagnificationCalibration.triggered.connect(
             self.open_mag_calibration_dlg)
+        self.actionCutDuration.triggered.connect(
+            self.open_cut_duration_dlg)
         self.actionExport.triggered.connect(self.open_export_dlg)
+        self.actionUpdate.triggered.connect(self.open_update_dlg)
         # Buttons for testing purposes (third tab)
         self.pushButton_testGetMag.clicked.connect(self.test_get_mag)
         self.pushButton_testSetMag.clicked.connect(self.test_set_mag)
@@ -295,6 +298,9 @@ class MainControls(QMainWindow):
         self.checkBox_zoom.stateChanged.connect(self.ft_toggle_zoom)
         # Progress bar for stack acquisitions:
         self.progressBar.setValue(0)
+        # Limit the log to user-specified number of most recent lines:
+        self.textarea_log.setMaximumBlockCount(
+            int(self.cfg['monitoring']['max_log_line_count']))
 
     def import_system_settings(self):
         """Import settings from the system configuration file."""
@@ -722,6 +728,10 @@ class MainControls(QMainWindow):
         dialog = MagCalibrationDlg(self.sem)
         dialog.exec_()
 
+    def open_cut_duration_dlg(self):
+        dialog = CutDurationDlg(self.microtome)
+        dialog.exec_()
+
     def open_ov_dlg(self):
         dialog = OVSettingsDlg(self.ovm, self.sem, self.current_ov,
                                self.acq_queue, self.acq_trigger)
@@ -803,6 +813,10 @@ class MainControls(QMainWindow):
 
     def open_export_dlg(self):
         dialog = ExportDlg(self.cfg)
+        dialog.exec_()
+
+    def open_update_dlg(self):
+        dialog = UpdateDlg()
         dialog.exec_()
 
     def open_email_monitoring_dlg(self):
@@ -1060,6 +1074,8 @@ class MainControls(QMainWindow):
             self.viewport.mv_draw()
         elif msg[:6] == 'VP LOG':
             self.viewport.add_to_viewport_log(msg[6:])
+        elif msg[:15] == 'GET CURRENT LOG':
+            self.write_current_log_to_file(msg[15:])
         else:
             # If msg is not a command, show it in log:
             self.textarea_log.appendPlainText(msg)
@@ -1178,10 +1194,15 @@ class MainControls(QMainWindow):
         self.pushButton_testStopDMScript.setEnabled(False)
         self.checkBox_useDebrisDetection.setEnabled(False)
         self.toolButton_debrisDetection.setEnabled(False)
+        self.actionCutDuration.setEnabled(False)
 
     def add_to_log(self, text):
         """Update the log from the main thread."""
         self.textarea_log.appendPlainText(utils.format_log_entry(text))
+
+    def write_current_log_to_file(self, filename):
+        with open(filename, 'w') as f:
+            f.write(self.textarea_log.toPlainText())
 
 # ==================== Below: Manual SBEM commands ============================
 
@@ -1255,7 +1276,11 @@ class MainControls(QMainWindow):
                               + self.cfg['acq']['base_dir'][2:]
                               + '\\overviews\\stub')
                 if not os.path.exists(mirror_path):
-                    os.makedirs(mirror_path)
+                    try:
+                        os.makedirs(mirror_path)
+                    except:
+                        self.add_to_log(
+                            'CTRL: Creating directory on mirror drive failed.')
                 try:
                     shutil.copy(self.ovm.get_stub_ov_file(), mirror_path)
                 except:

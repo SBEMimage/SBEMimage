@@ -34,11 +34,15 @@ from dlg_windows import AdaptiveFocusSelectionDlg
 
 class Viewport(QWidget):
 
-    # Fixed window parameters:
+    # Fixed window/viewer parameters:
     WINDOW_MARGIN_X = 20
     WINDOW_MARGIN_Y = 40
     VIEWER_WIDTH = 1000
     VIEWER_HEIGHT = 800
+    VIEWER_OV_ZOOM_F1 = 1.0
+    VIEWER_OV_ZOOM_F2 = 1.03
+    VIEWER_TILE_ZOOM_F1 = 5.0
+    VIEWER_TILE_ZOOM_F2 = 1.04
 
     def __init__(self, config, sem, stage,
                  ov_manager, grid_manager, coordinate_system,
@@ -310,6 +314,10 @@ class Viewport(QWidget):
                 and not self.mv_measure_active):
                 self.mv_show_context_menu(p)
 
+            if ((self.tabWidget.currentIndex() == 1)
+                and not self.sv_measure_active):
+                self.sv_show_context_menu(p)
+
             if (self.tabWidget.currentIndex() == 0) and self.mv_measure_active:
                 self.mv_start_measure(px - 500, py - 400)
 
@@ -331,15 +339,16 @@ class Viewport(QWidget):
     def mouseDoubleClickEvent(self, event):
         p = event.pos()
         px, py = p.x() - self.WINDOW_MARGIN_X, p.y() - self.WINDOW_MARGIN_Y
-        mouse_pos_within_viewer = (
-            px in range(self.VIEWER_WIDTH) and py in range(self.VIEWER_HEIGHT))
-
-        if ((self.tabWidget.currentIndex() == 0)
-            and mouse_pos_within_viewer):
-            if event.button() == Qt.LeftButton:
+        if px in range(self.VIEWER_WIDTH) and py in range(self.VIEWER_HEIGHT):
+            if self.tabWidget.currentIndex() == 0:
                 self.mv_mouse_zoom(px, py, 2)
-            if event.button() == Qt.RightButton:
-                self.mv_mouse_zoom(px, py, 0.5)
+            elif self.tabWidget.currentIndex() == 1:
+                # Disable native resolution:
+                self.cfg['viewport']['show_native_resolution'] = 'False'
+                self.horizontalSlider_SV.setEnabled(True)
+                self.checkBox_setNativeRes.setChecked(False)
+                # Zoom in:
+                self.sv_mouse_zoom(px, py, 2)
 
     def mouseMoveEvent(self, event):
         p = event.pos()
@@ -1787,10 +1796,13 @@ class Viewport(QWidget):
 
         self.horizontalSlider_SV.valueChanged.connect(self.sv_adjust_scale)
         if self.sv_current_ov >= 0:
-            self.horizontalSlider_SV.setValue(log(self.sv_scale_ov, 1.03))
+            self.horizontalSlider_SV.setValue(
+                log(self.sv_scale_ov / self.VIEWER_OV_ZOOM_F1,
+                    self.VIEWER_OV_ZOOM_F2))
         else:
             self.horizontalSlider_SV.setValue(
-                log(self.sv_scale_tile / 5.0, 1.04))
+                log(self.sv_scale_tile / self.VIEWER_TILE_ZOOM_F1,
+                    self.VIEWER_TILE_ZOOM_F2))
 
         self.comboBox_gridSelectorSV.currentIndexChanged.connect(
             self.sv_change_grid_selection)
@@ -1892,7 +1904,9 @@ class Viewport(QWidget):
         # This depends on whether OV or a tile is displayed.
         if self.sv_current_ov >= 0:
             previous_scaling_ov = self.sv_scale_ov
-            self.sv_scale_ov = 1.0 * 1.03**self.horizontalSlider_SV.value()
+            self.sv_scale_ov = (
+                self.VIEWER_OV_ZOOM_F1
+                * self.VIEWER_OV_ZOOM_F2**self.horizontalSlider_SV.value())
             self.cfg['viewport']['sv_scale_ov'] = str(self.sv_scale_ov)
             ratio = self.sv_scale_ov/previous_scaling_ov
             # Offsets must be adjusted to keep slice view centred:
@@ -1906,7 +1920,9 @@ class Viewport(QWidget):
             self.cfg['viewport']['sv_offset_y_ov'] = str(new_offset_y_ov)
         else:
             previous_scaling = self.sv_scale_tile
-            self.sv_scale_tile = 5.0 * 1.04**self.horizontalSlider_SV.value()
+            self.sv_scale_tile = (
+                self.VIEWER_TILE_ZOOM_F1
+                * self.VIEWER_TILE_ZOOM_F2**self.horizontalSlider_SV.value())
             self.cfg['viewport']['sv_scale_tile'] = str(self.sv_scale_tile)
             ratio = self.sv_scale_tile/previous_scaling
             # Offsets must be adjusted to keep slice view centred:
@@ -1926,14 +1942,66 @@ class Viewport(QWidget):
         # Redraw viewport:
         self.sv_draw()
 
+    def sv_mouse_zoom(self, px, py, factor):
+        """Zoom in by specified factor and preserve the relative location of
+        where user double-clicked."""
+        if self.sv_current_ov >= 0:
+            old_sv_scale_ov = self.sv_scale_ov
+            # Recalculate scaling factor:
+            self.sv_scale_ov = utils.fit_in_range(
+                factor * old_sv_scale_ov,
+                self.VIEWER_OV_ZOOM_F1,
+                self.VIEWER_OV_ZOOM_F1 * self.VIEWER_OV_ZOOM_F2**99)
+                # 99 is max slider value
+            self.cfg['viewport']['sv_scale_ov'] = str(self.sv_scale_ov)
+            ratio = self.sv_scale_ov / old_sv_scale_ov
+            self.horizontalSlider_SV.blockSignals(True)
+            self.horizontalSlider_SV.setValue(
+                log(self.sv_scale_ov / self.VIEWER_OV_ZOOM_F1,
+                    self.VIEWER_OV_ZOOM_F2))
+            self.horizontalSlider_SV.blockSignals(False)
+            # Preserve mouse click position:
+            current_offset_x_ov = int(self.cfg['viewport']['sv_offset_x_ov'])
+            current_offset_y_ov = int(self.cfg['viewport']['sv_offset_y_ov'])
+            new_offset_x_ov = int(
+                ratio * current_offset_x_ov - (ratio - 1) * px)
+            new_offset_y_ov = int(
+                ratio * current_offset_y_ov - (ratio - 1) * py)
+            self.cfg['viewport']['sv_offset_x_ov'] = str(new_offset_x_ov)
+            self.cfg['viewport']['sv_offset_y_ov'] = str(new_offset_y_ov)
+        elif self.sv_current_tile >= 0:
+            old_sv_scale_tile = self.sv_scale_tile
+            # Recalculate scaling factor:
+            self.sv_scale_tile = utils.fit_in_range(
+                factor * old_sv_scale_tile,
+                self.VIEWER_TILE_ZOOM_F1,
+                self.VIEWER_TILE_ZOOM_F1 * self.VIEWER_TILE_ZOOM_F2**99)
+                # 99 is max slider value
+            self.cfg['viewport']['sv_scale_tile'] = str(self.sv_scale_tile)
+            ratio = self.sv_scale_tile / old_sv_scale_tile
+            self.horizontalSlider_SV.blockSignals(True)
+            self.horizontalSlider_SV.setValue(
+                log(self.sv_scale_tile / self.VIEWER_TILE_ZOOM_F1,
+                    self.VIEWER_TILE_ZOOM_F2))
+            self.horizontalSlider_SV.blockSignals(False)
+            # Preserve mouse click position:
+            current_offset_x_tile = int(
+                self.cfg['viewport']['sv_offset_x_tile'])
+            current_offset_y_tile = int(
+                self.cfg['viewport']['sv_offset_y_tile'])
+            new_offset_x_tile = int(
+                ratio * current_offset_x_tile - (ratio - 1) * px)
+            new_offset_y_tile = int(
+                ratio * current_offset_y_tile - (ratio - 1) * py)
+            self.cfg['viewport']['sv_offset_x_tile'] = str(new_offset_x_tile)
+            self.cfg['viewport']['sv_offset_y_tile'] = str(new_offset_y_tile)
+        # Redraw viewport:
+        self.sv_draw()
+
     def sv_change_grid_selection(self):
         self.sv_current_grid = self.comboBox_gridSelectorSV.currentIndex()
         self.cfg['viewport']['sv_current_grid'] = str(self.sv_current_grid)
-        if self.gm.get_number_active_tiles(self.sv_current_grid) > 0:
-            self.sv_update_tile_selector(0)
-            self.sv_change_tile_selection()
-        else:
-            self.sv_update_tile_selector()
+        self.sv_update_tile_selector()
 
     def sv_change_tile_selection(self):
         self.sv_current_tile = self.comboBox_tileSelectorSV.currentIndex() - 1
@@ -2043,7 +2111,8 @@ class Viewport(QWidget):
                     self.slice_view_images.append(QPixmap(filename))
                     slices_loaded = True
                     utils.suppress_console_warning()
-            # self.sv_set_native_resolution()
+
+            self.sv_set_native_resolution()
             self.sv_draw()
         elif self.sv_current_tile >= 0:
             selected_tile = self.gm.get_active_tiles(
@@ -2057,7 +2126,7 @@ class Viewport(QWidget):
                     slices_loaded = True
                     self.slice_view_images.append(QPixmap(filename))
                     utils.suppress_console_warning()
-            # self.sv_set_native_resolution()
+            self.sv_set_native_resolution()
             # Draw the current slice:
             self.sv_draw()
 
@@ -2300,6 +2369,50 @@ class Viewport(QWidget):
             self.measure_p2 = (dx / scale, dy / scale)
             self.measure_complete = True
             self.sv_draw()
+
+    def sv_reset_view(self):
+        """Zoom out completely and centre current image."""
+        if self.sv_current_ov >= 0:
+            self.sv_scale_ov = self.VIEWER_OV_ZOOM_F1
+            self.cfg['viewport']['sv_scale_ov'] = str(self.sv_scale_ov)
+            self.horizontalSlider_SV.blockSignals(True)
+            self.horizontalSlider_SV.setValue(0)
+            self.horizontalSlider_SV.blockSignals(False)
+            width, height = self.ovm.get_ov_size_px_py(self.sv_current_ov)
+            viewport_pixel_size = 1000 / self.sv_scale_ov
+            ov_pixel_size = self.ovm.get_ov_pixel_size(self.sv_current_ov)
+            resize_ratio = ov_pixel_size / viewport_pixel_size
+            self.cfg['viewport']['sv_offset_x_ov'] = str(
+                int(500 - (width/2) * resize_ratio))
+            self.cfg['viewport']['sv_offset_y_ov'] = str(
+                int(400 - (height/2) * resize_ratio))
+        elif self.sv_current_tile >= 0:
+            self.sv_scale_tile = self.VIEWER_TILE_ZOOM_F1
+            self.cfg['viewport']['sv_scale_tile'] = str(self.sv_scale_tile)
+            self.horizontalSlider_SV.blockSignals(True)
+            self.horizontalSlider_SV.setValue(0)
+            self.horizontalSlider_SV.blockSignals(False)
+            width, height = self.gm.get_tile_size_px_py(self.sv_current_grid)
+            viewport_pixel_size = 1000 / self.sv_scale_tile
+            tile_pixel_size = self.gm.get_pixel_size(self.sv_current_grid)
+            resize_ratio = tile_pixel_size / viewport_pixel_size
+            self.cfg['viewport']['sv_offset_x_tile'] = str(
+                int(500 - (width/2) * resize_ratio))
+            self.cfg['viewport']['sv_offset_y_tile'] = str(
+                int(400 - (height/2) * resize_ratio))
+        # Disable native resolution:
+        self.cfg['viewport']['show_native_resolution'] = 'False'
+        self.horizontalSlider_SV.setEnabled(True)
+        self.checkBox_setNativeRes.setChecked(False)
+        self.sv_draw()
+
+    def sv_show_context_menu(self, p):
+        px, py = p.x() - self.WINDOW_MARGIN_X, p.y() - self.WINDOW_MARGIN_Y
+        if px in range(self.VIEWER_WIDTH) and py in range(self.VIEWER_HEIGHT):
+            menu = QMenu()
+            action1 = menu.addAction('Reset view for current image')
+            action1.triggered.connect(self.sv_reset_view)
+            menu.exec_(self.mapToGlobal(p))
 
 # ===== Below: monitoring tab functions =======================================
 

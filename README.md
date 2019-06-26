@@ -9,13 +9,14 @@ See also: https://groups.google.com/d/forum/sbemimage
 
 ## Releases
 
-*The release of version 2.1, with an installer and an expanded manual, is planned for Feburary 2019.*
+*The release of version 2.1, with an installer and an expanded manual, is planned for the first half of 2019.*
 
 ## Authors / Contributing
 
-* **Benjamin Titze** - *Design and programming* - [btitze](https://github.com/btitze)
+Lead developer: Benjamin Titze ([btitze](https://github.com/btitze)), Friedrich Miescher Institute for Biomedical Research, Basel, Switzerland. 
+Development partner(s): EPFL, Lausanne, Switzerland (CIME/BioEM) 
 
-Please contact me for feedback, bug reports, and if you are interested in contributing to the development of SBEMimage. Pull requests are welcome.  
+Please contact benjamin.titze ÄT fmi.ch for feedback, bug reports, or if you are interested in contributing to the development of SBEMimage. Pull requests are welcome.  
 
 ## Publication ##
 
