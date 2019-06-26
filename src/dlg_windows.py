@@ -400,12 +400,11 @@ class CalibrationDlg(QDialog):
                 'Shift_X: [{0:.1f}, {1:.1f}], '
                 'Shift_Y: [{2:.1f}, {3:.1f}]'.format(
                 *self.x_shift_vector, *self.y_shift_vector))
-            delta_xx, delta_xy = self.x_shift_vector
-            delta_yx, delta_yy = self.y_shift_vector
-            self.spinBox_x2x.setValue(delta_xx)
-            self.spinBox_x2y.setValue(delta_xy)
-            self.spinBox_y2x.setValue(delta_yx)
-            self.spinBox_y2y.setValue(delta_yy)
+            # Absolute values for the GUI
+            self.spinBox_x2x.setValue(abs(self.x_shift_vector[0]))
+            self.spinBox_x2y.setValue(abs(self.x_shift_vector[1]))
+            self.spinBox_y2x.setValue(abs(self.y_shift_vector[0]))
+            self.spinBox_y2y.setValue(abs(self.y_shift_vector[1]))
             # Now calculate parameters:
             self.calculate_stage_parameters()
         else:
@@ -419,8 +418,11 @@ class CalibrationDlg(QDialog):
     def calculate_stage_parameters(self):
         shift = self.spinBox_shift.value()
         pixel_size = self.spinBox_pixelsize.value()
-        delta_xx, delta_xy = self.x_shift_vector
-        delta_yx, delta_yy = self.y_shift_vector
+        # Use absolute values for now, TODO: revisit for the Sigma stage
+        delta_xx, delta_xy = (
+            abs(self.x_shift_vector[0]), abs(self.x_shift_vector[1]))
+        delta_yx, delta_yy = (
+            abs(self.y_shift_vector[0]), abs(self.y_shift_vector[1]))
 
         # Rotation angles:
         rot_x = atan(delta_xy/delta_xx)
@@ -430,26 +432,18 @@ class CalibrationDlg(QDialog):
         scale_y = shift / (sqrt(delta_yx**2 + delta_yy**2) * pixel_size / 1000)
 
         # alternative calc
-        x_abs = np.linalg.norm([self.x_shift_vector[0], self.x_shift_vector[1]])
-        y_abs = np.linalg.norm([self.y_shift_vector[0], self.y_shift_vector[1]])
-        rot_x_alt = np.arccos(shift * self.x_shift_vector[0] / (shift * x_abs))
-        rot_y_alt = np.arccos(shift * self.y_shift_vector[1] / (shift * y_abs))
+        # x_abs = np.linalg.norm([self.x_shift_vector[0], self.x_shift_vector[1]])
+        # y_abs = np.linalg.norm([self.y_shift_vector[0], self.y_shift_vector[1]])
+        # rot_x_alt = np.arccos(shift * self.x_shift_vector[0] / (shift * x_abs))
+        # rot_y_alt = np.arccos(shift * self.y_shift_vector[1] / (shift * y_abs))
         # GUI cannot handle negative values
-        if rot_x_alt < 0:
-            rot_x_alt += 2 * 3.141592
-        if rot_y_alt < 0:
-            rot_y_alt += 2 * 3.141592
+        # if rot_x < 0:
+        #    rot_x += 2 * 3.141592
+        # if rot_y < 0:
+        #    rot_y += 2 * 3.141592
         # Scale factors:
-        scale_x_alt = shift / (x_abs * pixel_size / 1000)
-        scale_y_alt = shift / (y_abs * pixel_size / 1000)
-
-        print("Previous:", rot_x, rot_y, scale_x, scale_y)
-        print("Alternative:", rot_x_alt, rot_y_alt, scale_x_alt, scale_y_alt)
-
-        rot_x = rot_x_alt
-        rot_y = rot_y_alt
-        scale_x = scale_x_alt
-        scale_y = scale_y_alt
+        # scale_x_alt = shift / (x_abs * pixel_size / 1000)
+        # scale_y_alt = shift / (y_abs * pixel_size / 1000)
 
         self.busy = False
         user_choice = QMessageBox.information(
