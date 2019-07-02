@@ -737,59 +737,55 @@ class Viewport(QWidget):
             self.stub_ov_exists = False
 
     def mv_load_all_imported_images(self):
-        """Load imported images into memory"""
+        """Load all imported images into memory. Clear all previously loaded
+        images.
+        """
         self.imported_img = []
         self.imported_img_opacity = []
         self.number_imported = self.ovm.get_number_imported()
-        imported_file_list = self.ovm.get_imported_img_file_list()
         for i in range(self.number_imported):
-            if os.path.isfile(imported_file_list[i]):
-                angle = self.ovm.get_imported_img_rotation(i)
-                img = QPixmap(imported_file_list[i])
+            self.mv_load_imported_image(i)
+
+    def mv_load_last_imported_image(self):
+        """Load the most recent imported image into memory and enable the
+        option 'show imported images'.
+        """
+        self.number_imported = self.ovm.get_number_imported()
+        new_image_number = self.number_imported - 1
+        self.mv_load_imported_image(new_image_number)
+        self.show_imported = True
+        self.cfg['viewport']['show_imported'] = 'True'
+        self.checkBox_showImported.setChecked(True)
+
+    def mv_load_imported_image(self, img_number):
+        """Load the specified imported image into memory."""
+        file_name = self.ovm.get_imported_img_file(img_number)
+        angle = self.ovm.get_imported_img_rotation(img_number)
+        opacity = 1 - self.ovm.get_imported_img_transparency(img_number)/100
+        if os.path.isfile(file_name):
+            try:
+                img = QPixmap(file_name)
                 if angle != 0:
                     trans = QTransform()
                     trans.rotate(angle)
                     img = img.transformed(trans)
-                self.imported_img.append(img)
-                self.imported_img_opacity.append(
-                    1 - self.ovm.get_imported_img_transparency(i)/100)
-
-    def mv_load_last_imported_image(self):
-        self.number_imported = self.ovm.get_number_imported()
-        new_image_number = self.number_imported - 1
-        file_name = self.ovm.get_imported_img_file(new_image_number)
-        img = QPixmap(file_name)
-        angle = self.ovm.get_imported_img_rotation(new_image_number)
-        if angle != 0:
-            trans = QTransform()
-            trans.rotate(angle)
-            img = img.transformed(trans)
-        if new_image_number >= 0:
-            if new_image_number > len(self.imported_img) - 1:
-                self.imported_img.append(img)
-                self.imported_img_opacity.append(
-                    1 - self.ovm.get_imported_img_transparency(new_image_number)/100)
-            else:
-                self.imported_img[new_image_number] = img
-                self.imported_img_opacity[new_image_number] = (
-                    1 - self.ovm.get_imported_img_transparency(new_image_number)/100)
-
-            self.show_imported = True
-            self.cfg['viewport']['show_imported'] = 'True'
-            self.checkBox_showImported.setChecked(True)
-
-    def mv_load_imported_image(self, img_number):
-        file_name = self.ovm.get_imported_img_file(img_number)
-        if os.path.isfile(file_name):
-            angle = self.ovm.get_imported_img_rotation(img_number)
-            img = QPixmap(file_name)
-            if angle != 0:
-                trans = QTransform()
-                trans.rotate(angle)
-                img = img.transformed(trans)
+            except:
+                img = None
+        else:
+            img = None
+        if img_number < len(self.imported_img):
             self.imported_img[img_number] = img
-            self.imported_img_opacity[img_number] = (
-                1 - self.ovm.get_imported_img_transparency(img_number)/100)
+            self.imported_img_opacity[img_number] = opacity
+        else:
+            self.imported_img.append(img)
+            self.imported_img_opacity.append(opacity)
+        if img is None:
+            QMessageBox.warning(self, 'Error loading imported image',
+                                f'Imported image number {img_number} could not '
+                                f'be loaded. Check if the folder containing '
+                                f'the image ({file_name}) was deleted or '
+                                f'moved, or if the image file is damaged or in '
+                                f'the wrong format.', QMessageBox.Ok)
 
     def mv_update_after_tile_selection(self):
         # Update tile selectors:
@@ -1048,30 +1044,32 @@ class Viewport(QWidget):
                              height_px * resize_ratio + 1)
 
     def mv_place_imported_img(self, img_number):
-        viewport_pixel_size = 1000 / self.cs.get_mv_scale()
-        img_pixel_size = self.ovm.get_imported_img_pixel_size(img_number)
-        resize_ratio = img_pixel_size / viewport_pixel_size
+        """Place imported image specified by img_number into the viewport."""
+        if self.imported_img[img_number] is not None:
+            viewport_pixel_size = 1000 / self.cs.get_mv_scale()
+            img_pixel_size = self.ovm.get_imported_img_pixel_size(img_number)
+            resize_ratio = img_pixel_size / viewport_pixel_size
 
-        # Compute position of image in viewport:
-        dx, dy = self.cs.get_imported_img_centre_d(img_number)
-        # Get width and height of the imported QPixmap:
-        width = self.imported_img[img_number].width()
-        height = self.imported_img[img_number].height()
-        pixel_size = self.ovm.get_imported_img_pixel_size(img_number)
-        dx -= (width * pixel_size / 1000)/2
-        dy -= (height * pixel_size / 1000)/2
-        vx, vy = self.cs.convert_to_v((dx, dy))
-        # Crop and resize image before placing it into viewport:
-        visible, crop_area, vx_rel, vy_rel = self.mv_calculate_visible_area(
-            vx, vy, width, height, resize_ratio)
-        if visible:
-            cropped_img = self.imported_img[img_number].copy(crop_area)
-            v_width = cropped_img.size().width()
-            cropped_resized_img = cropped_img.scaledToWidth(
-                v_width * resize_ratio)
-            self.mv_qp.setOpacity(self.imported_img_opacity[img_number])
-            self.mv_qp.drawPixmap(vx_rel, vy_rel, cropped_resized_img)
-            self.mv_qp.setOpacity(1)
+            # Compute position of image in viewport:
+            dx, dy = self.cs.get_imported_img_centre_d(img_number)
+            # Get width and height of the imported QPixmap:
+            width = self.imported_img[img_number].width()
+            height = self.imported_img[img_number].height()
+            pixel_size = self.ovm.get_imported_img_pixel_size(img_number)
+            dx -= (width * pixel_size / 1000)/2
+            dy -= (height * pixel_size / 1000)/2
+            vx, vy = self.cs.convert_to_v((dx, dy))
+            # Crop and resize image before placing it into viewport:
+            visible, crop_area, vx_rel, vy_rel = self.mv_calculate_visible_area(
+                vx, vy, width, height, resize_ratio)
+            if visible:
+                cropped_img = self.imported_img[img_number].copy(crop_area)
+                v_width = cropped_img.size().width()
+                cropped_resized_img = cropped_img.scaledToWidth(
+                    v_width * resize_ratio)
+                self.mv_qp.setOpacity(self.imported_img_opacity[img_number])
+                self.mv_qp.drawPixmap(vx_rel, vy_rel, cropped_resized_img)
+                self.mv_qp.setOpacity(1)
 
     def mv_place_overview(self, ov_number, show_debris_area):
         """Place OV overview image specified by ov_number into the mosaic
@@ -1658,23 +1656,26 @@ class Viewport(QWidget):
                 # Calculate origin of the image with respect to mosaic viewer
                 # Use width and heigh of loaded image (may be rotated
                 # and therefore larger than original image)
-                dx, dy = self.cs.get_imported_img_centre_d(img_number)
-                pixel_size = self.ovm.get_imported_img_pixel_size(img_number)
-                width_d = (self.imported_img[img_number].size().width()
-                           * pixel_size / 1000)
-                height_d = (self.imported_img[img_number].size().height()
-                            * pixel_size / 1000)
-                dx -= width_d/2
-                dy -= height_d/2
-                pixel_offset_x, pixel_offset_y = self.cs.convert_to_v((dx, dy))
-                mv_scale = self.cs.get_mv_scale()
-                p_width = width_d * mv_scale
-                p_height = height_d * mv_scale
-                x, y = px - pixel_offset_x, py - pixel_offset_y
-                if x >= 0 and y >= 0:
-                    if x < p_width and y < p_height:
-                        selected_imported = img_number
-                        break
+                if self.imported_img[img_number] is not None:
+                    dx, dy = self.cs.get_imported_img_centre_d(img_number)
+                    pixel_size = self.ovm.get_imported_img_pixel_size(
+                        img_number)
+                    width_d = (self.imported_img[img_number].size().width()
+                               * pixel_size / 1000)
+                    height_d = (self.imported_img[img_number].size().height()
+                                * pixel_size / 1000)
+                    dx -= width_d/2
+                    dy -= height_d/2
+                    pixel_offset_x, pixel_offset_y = self.cs.convert_to_v(
+                        (dx, dy))
+                    mv_scale = self.cs.get_mv_scale()
+                    p_width = width_d * mv_scale
+                    p_height = height_d * mv_scale
+                    x, y = px - pixel_offset_x, py - pixel_offset_y
+                    if x >= 0 and y >= 0:
+                        if x < p_width and y < p_height:
+                            selected_imported = img_number
+                            break
         return selected_imported
 
     def mv_select_all_tiles(self):
