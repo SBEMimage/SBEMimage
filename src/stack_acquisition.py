@@ -888,7 +888,8 @@ class Stack():
         # Close all log files:
         self.main_log_file.close()
         self.imagelist_file.close()
-        self.mirror_imagelist_file.close()
+        if self.use_mirror_drive:
+            self.mirror_imagelist_file.close()
         self.debris_log_file.close()
         self.error_log_file.close()
         self.metadata_file.close()
