@@ -34,7 +34,7 @@ from PyQt5.uic import loadUi
 import acq_func
 import utils
 from sem_control import SEM_SmartSEM
-from microtome_control import Microtome
+from microtome_control import Microtome_3View
 from stage import Stage
 from plasma_cleaner import PlasmaCleaner
 from stack_acquisition import Stack
@@ -426,8 +426,9 @@ class MainControls(QMainWindow):
         utils.show_progress_in_console(50)
 
         # Initialize DM-3View interface:
-        if self.use_microtome:
-            self.microtome = Microtome(self.cfg, self.syscfg)
+        if (self.use_microtome
+            and self.cfg['microtome']['device'] == 'Gatan 3View'):
+            self.microtome = Microtome_3View(self.cfg, self.syscfg)
             if self.microtome.get_error_state() == 101:
                 self.add_to_log('3VIEW: Error initializing DigitalMicrograph API.')
                 self.add_to_log('3VIEW: ' + self.microtome.get_error_cause())
@@ -440,7 +441,7 @@ class MainControls(QMainWindow):
                     'please set it to zero or a positive value.',
                     QMessageBox.Retry)
                 # Try again:
-                self.microtome = Microtome(self.cfg, self.syscfg)
+                self.microtome = Microtome_3View(self.cfg, self.syscfg)
                 if self.microtome.get_error_state() > 0:
                     self.add_to_log(
                         '3VIEW: Error initializing DigitalMicrograph API '

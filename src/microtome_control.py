@@ -30,7 +30,7 @@ import json
 import utils
 
 
-class MicrotomeBase:
+class Microtome:
     """
     Base class for microtome control. It implements minimum config/parameter handling
     and interactions with GUI. Undefined methods have to be implemented in the child class.
@@ -309,13 +309,13 @@ class MicrotomeBase:
         self.full_cut_duration = cut_duration
         self.cfg['microtome']['full_cut_duration'] = str(cut_duration)
         # Save duration in sysconfig:
-        self.syscfg['knife']['full_cut_duration'] = str(cut_duration)  
-      
+        self.syscfg['knife']['full_cut_duration'] = str(cut_duration)
+
     def get_sweep_distance(self):
         return self.sweep_distance
 
 
-class Microtome(MicrotomeBase):
+class Microtome_3View(Microtome):
     """
     Refactored DM class which inherits basic functionality from MicrotomeBase.
     TODO: untested.
@@ -655,4 +655,3 @@ class Microtome(MicrotomeBase):
             os.remove('..\\dm\\DMcom.err')
         if os.path.isfile('..\\dm\\DMcom.wng'):
             os.remove('..\\dm\\DMcom.wng')
-            
