@@ -33,7 +33,7 @@ from PyQt5.uic import loadUi
 
 import acq_func
 import utils
-from sem_control import SEM
+from sem_control import SEM_SmartSEM
 from microtome_control import Microtome
 from stage import Stage
 from plasma_cleaner import PlasmaCleaner
@@ -397,20 +397,23 @@ class MainControls(QMainWindow):
         # Initialize coordinate system
         self.cs = CoordinateSystem(self.cfg)
 
-        # Initialize SEM instance to control SmartSEM API:
-        self.sem = SEM(self.cfg, self.syscfg)
-        if self.sem.get_error_state() > 0:
-            self.add_to_log('SEM: Error initializing SmartSEM Remote API.')
-            self.add_to_log('SEM: ' + self.sem.get_error_cause())
-            QMessageBox.warning(
-                self, 'Error initializing SmartSEM Remote API',
-                'Initalization of the SmartSEM Remote API failed. Please '
-                'verify that the Remote API is installed and configured '
-                'correctly.'
-                '\nSBEMimage will be run in simulation mode.',
-                QMessageBox.Ok)
-            self.simulation_mode = True
-            self.cfg['sys']['simulation_mode'] = 'True'
+        if self.cfg['sem']['device'] in [
+            "ZEISS Merlin", "ZEISS Sigma", "ZEISS GeminiSEM",
+            "ZEISS Ultra Plus"]:
+            # Initialize SEM instance to control SmartSEM API:
+            self.sem = SEM_SmartSEM(self.cfg, self.syscfg)
+            if self.sem.get_error_state() > 0:
+                self.add_to_log('SEM: Error initializing SmartSEM Remote API.')
+                self.add_to_log('SEM: ' + self.sem.get_error_cause())
+                QMessageBox.warning(
+                    self, 'Error initializing SmartSEM Remote API',
+                    'Initalization of the SmartSEM Remote API failed. Please '
+                    'verify that the Remote API is installed and configured '
+                    'correctly.'
+                    '\nSBEMimage will be run in simulation mode.',
+                    QMessageBox.Ok)
+                self.simulation_mode = True
+                self.cfg['sys']['simulation_mode'] = 'True'
 
         # Set up overviews:
         self.ovm = OverviewManager(self.cfg, self.sem, self.cs)
