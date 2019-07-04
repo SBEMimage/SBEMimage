@@ -310,19 +310,17 @@ class Viewport(QWidget):
            and (self.tabWidget.currentIndex() < 2)
            and mouse_pos_within_viewer):
 
-            if ((self.tabWidget.currentIndex() == 0)
-                and not self.mv_measure_active):
-                self.mv_show_context_menu(p)
+            if self.tabWidget.currentIndex() == 0:
+                if self.mv_measure_active:
+                    self.mv_start_measure(px - 500, py - 400)
+                else:
+                    self.mv_show_context_menu(p)
 
-            if ((self.tabWidget.currentIndex() == 1)
-                and not self.sv_measure_active):
-                self.sv_show_context_menu(p)
-
-            if (self.tabWidget.currentIndex() == 0) and self.mv_measure_active:
-                self.mv_start_measure(px - 500, py - 400)
-
-            if (self.tabWidget.currentIndex() == 1) and self.sv_measure_active:
-                self.sv_start_measure(px, py)
+            elif self.tabWidget.currentIndex() == 1:
+                if self.sv_measure_active:
+                    self.sv_start_measure(px, py)
+                else:
+                    self.sv_show_context_menu(p)
 
         # Left mouse click in statistics tab:
         if ((event.button() == Qt.LeftButton)
