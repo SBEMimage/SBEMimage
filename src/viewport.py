@@ -855,10 +855,13 @@ class Viewport(QWidget):
             if self.ovm.get_number_imported == 0:
                 action12.setEnabled(False)
             if self.acq_in_progress:
+                action2.setEnabled(False)
                 action4.setEnabled(False)
                 action5.setEnabled(False)
                 action6.setEnabled(False)
                 action7.setEnabled(False)
+                action8.setEnabled(False)
+                action9.setEnabled(False)
             if self.cfg['sys']['simulation_mode'] == 'True':
                 action8.setEnabled(False)
                 action9.setEnabled(False)
