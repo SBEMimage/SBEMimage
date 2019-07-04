@@ -533,9 +533,10 @@ class CalibrationDlg(QDialog):
 class MagCalibrationDlg(QDialog):
     """Calibrate the relationship between magnification and pixel size."""
 
-    def __init__(self, sem):
+    def __init__(self, sem, ovm):
         super().__init__()
         self.sem = sem
+        self.ovm = ovm
         loadUi('..\\gui\\mag_calibration_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -567,6 +568,8 @@ class MagCalibrationDlg(QDialog):
     def accept(self):
         self.sem.set_mag_px_size_factor(
             self.spinBox_calibrationFactor.value())
+        # Update the magnifications of all OVs:
+        self.ovm.calculate_ov_mag_from_pixel_size()
         super().accept()
 
 #------------------------------------------------------------------------------

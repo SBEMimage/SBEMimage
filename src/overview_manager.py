@@ -33,12 +33,7 @@ class OverviewManager(object):
             self.cfg['overviews']['ov_size_px_py'])
         self.ov_pixel_size = json.loads(
             self.cfg['overviews']['ov_pixel_size'])
-        # Calculate mag from pixel size:
-        self.ov_magnification = []
-        for i in range(self.number_ov):
-            self.ov_magnification.append(
-                int(self.sem.MAG_PX_SIZE_FACTOR
-                / (self.ov_size_px_py[i][0] * self.ov_pixel_size[i])))
+        self.calculate_ov_mag_from_pixel_size()
         self.cfg['overviews']['ov_magnification'] = str(
             self.ov_magnification)
         self.ov_dwell_time = json.loads(self.cfg['overviews']['ov_dwell_time'])
@@ -225,6 +220,13 @@ class OverviewManager(object):
             self.ov_pixel_size.append(pixel_size)
         self.cfg['overviews']['ov_pixel_size'] = str(
             self.ov_pixel_size)
+
+    def calculate_ov_mag_from_pixel_size(self):
+        self.ov_magnification = []
+        for i in range(self.number_ov):
+            self.ov_magnification.append(
+                int(self.sem.MAG_PX_SIZE_FACTOR
+                / (self.ov_size_px_py[i][0] * self.ov_pixel_size[i])))
 
     def get_ov_pixel_size(self, ov_number):
         return self.ov_pixel_size[ov_number]

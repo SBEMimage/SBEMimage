@@ -729,8 +729,10 @@ class MainControls(QMainWindow):
             self.viewport.mv_draw()
 
     def open_mag_calibration_dlg(self):
-        dialog = MagCalibrationDlg(self.sem)
-        dialog.exec_()
+        dialog = MagCalibrationDlg(self.sem, self.ovm)
+        if dialog.exec_():
+            # Show updated OV mag:
+            self.show_current_settings()
 
     def open_cut_duration_dlg(self):
         dialog = CutDurationDlg(self.microtome)
