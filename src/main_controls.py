@@ -315,6 +315,8 @@ class MainControls(QMainWindow):
 		header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
 		# header.setStretchLastSection(True)
 
+		self.tableView_magc_sectionList.doubleClicked.connect(self.double_clicked_section)
+		
 		# set logo
 		self.collectomeLogo.setScaledContents(True)
 		self.collectomeLogo.setPixmap(QPixmap(os.path.join('..','img','magc','collectome_logo.png')))
@@ -783,6 +785,17 @@ class MainControls(QMainWindow):
 			selection = QItemSelection(index, index)
 			selectionModel.select(selection, QItemSelectionModel.Select)
 		self.tableView_magc_sectionList.setFocus()
+		
+	def double_clicked_section(self, doubleClickedIndex):
+		row = doubleClickedIndex.row()
+		model = doubleClickedIndex.model()
+		firstColumnIndex = model.index(row, 0)
+		sectionKey = int(model.data(firstColumnIndex)) # the index and the key of the section should in theory be the same, just in case 
+		self.add_to_log('Section ' + str(sectionKey) + ' has been double-clicked. Moving to section')
+		# xxx Merlin stage already activated ?
+		# self.stage.move_to_xy((self.cs.get_grid_origin_s(grid_number=row)))
+		# xxx update viewport to new location
+		
 		
 #--------------- End of MagC tab------------------------------------
 	
