@@ -936,12 +936,12 @@ class MainControls(QMainWindow):
         self.statusbar_msg = msg
         self.statusBar().showMessage(msg)
 
-    def show_status_busy(self):
-        # Indicate in GUI that program is busy:
+    def set_status(self, text):
+        """Set status label in GUI (acquisition panel)."""
         pal = QPalette(self.label_acqIndicator.palette())
         pal.setColor(QPalette.WindowText, QColor(Qt.red))
         self.label_acqIndicator.setPalette(pal)
-        self.label_acqIndicator.setText('Busy.')
+        self.label_acqIndicator.setText(text)
 
     def event(self, e):
         """Override status tips when hovering with mouse over menu."""
@@ -964,15 +964,15 @@ class MainControls(QMainWindow):
         elif msg == 'STUB OV FAILURE':
             self.acquire_stub_ov_success(False)
         elif msg == 'STUB OV BUSY':
-            self.show_status_busy()
+            self.set_status('Busy.')
             self.set_statusbar(
                 'Stub overview acquisition in progress...')
         elif msg == 'APPROACH BUSY':
-            self.show_status_busy()
+            self.set_status('Busy.')
             self.set_statusbar(
                 'Approach cutting in progress...')
         elif msg == 'STATUS IDLE':
-            self.label_acqIndicator.setText('')
+            self.set_status('')
             self.set_statusbar(
                 'Ready. Active configuration: %s' % self.cfg_file)
         elif msg == 'SWEEP SUCCESS':
@@ -1230,7 +1230,7 @@ class MainControls(QMainWindow):
                     'CTRL: User-requested acquisition of OV image(s) started')
                 self.restrict_gui(True)
                 self.viewport.restrict_gui(True)
-                self.show_status_busy()
+                self.set_status('Busy.')
                 self.set_statusbar(
                     'Overview acquisition in progress...')
                 # Start OV acquisition thread:
@@ -1263,7 +1263,7 @@ class MainControls(QMainWindow):
                 'SBEMimage are correct.', QMessageBox.Ok)
         self.restrict_gui(False)
         self.viewport.restrict_gui(False)
-        self.label_acqIndicator.setText('')
+        self.set_status('')
         self.set_statusbar(
             'Ready. Active configuration: %s' % self.cfg_file)
 
@@ -1298,7 +1298,7 @@ class MainControls(QMainWindow):
             self.add_to_log('CTRL: ERROR ocurred during stub overview '
                             'acquisition.')
 
-        self.label_acqIndicator.setText('')
+        self.set_status('')
         self.set_statusbar(
             'Ready. Active configuration: %s' % self.cfg_file)
 
@@ -1321,7 +1321,7 @@ class MainControls(QMainWindow):
                                                  self.acq_queue,
                                                  self.acq_trigger,))
             move_thread.start()
-            self.show_status_busy()
+            self.set_status('Busy.')
             self.set_statusbar('Stage move in progress...')
 
     def move_stage_success(self, success):
@@ -1337,7 +1337,7 @@ class MainControls(QMainWindow):
                 QMessageBox.Ok)
         self.restrict_gui(False)
         self.viewport.restrict_gui(False)
-        self.label_acqIndicator.setText('')
+        self.set_status('')
         self.set_statusbar(
             'Ready. Active configuration: ' + self.cfg_file)
 
@@ -1359,7 +1359,7 @@ class MainControls(QMainWindow):
                                                        self.acq_queue,
                                                        self.acq_trigger,))
             user_sweep_thread.start()
-            self.show_status_busy()
+            self.set_status('Busy.')
             self.set_statusbar('Sweep in progress...')
 
     def sweep_success(self, success):
@@ -1373,7 +1373,7 @@ class MainControls(QMainWindow):
                 'and the current Z position.', QMessageBox.Ok)
         self.restrict_gui(False)
         self.viewport.restrict_gui(False)
-        self.label_acqIndicator.setText('')
+        self.set_status('')
         self.set_statusbar(
             'Ready. Active configuration: ' + self.cfg_file)
 
@@ -1616,10 +1616,7 @@ class MainControls(QMainWindow):
             self.pushButton_resetAcq.setEnabled(False)
             self.show_estimates()
             # Indicate in GUI that stack is running now:
-            pal = QPalette(self.label_acqIndicator.palette())
-            pal.setColor(QPalette.WindowText, QColor(Qt.red))
-            self.label_acqIndicator.setPalette(pal)
-            self.label_acqIndicator.setText('Acquisition in progress')
+            self.set_status('Acquisition in progress')
             self.set_statusbar(
                 'Acquisition in progress. Active configuration: '
                 + self.cfg_file)
@@ -1711,7 +1708,7 @@ class MainControls(QMainWindow):
 
     def acq_not_in_progress_update_gui(self):
         self.acq_in_progress = False
-        self.label_acqIndicator.setText('')
+        self.set_status('')
         self.set_statusbar(
             'Ready. Active configuration: ' + self.cfg_file)
         self.restrict_gui(False)
