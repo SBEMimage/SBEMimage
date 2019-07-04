@@ -36,7 +36,7 @@ from PyQt5.QtGui import QPixmap, QIcon, QPalette, QColor, QFont, \
 						QStandardItem, QStandardItemModel
 from PyQt5.QtWidgets import QApplication, QDialog, QMessageBox, \
 							QFileDialog, QLineEdit, QDialogButtonBox, \
-							QTableWidget, QTableWidgetItem, QHeaderView
+							QHeaderView
 							
 import utils
 import acq_func
@@ -1513,12 +1513,12 @@ class ExportDlg(QDialog):
 class ImportMagCDlg(QDialog):
 	"""Import MagC metadata."""
 
-	def __init__(self, grid_manager, coordinate_system, stage, sectionList, trigger, queue):
+	def __init__(self, grid_manager, coordinate_system, stage, gui_items, trigger, queue):
 		super().__init__()
 		self.gm = grid_manager
 		self.stage = stage
 		self.cs = coordinate_system
-		self.sectionList = sectionList
+		self.gui_items = gui_items
 		self.trigger = trigger
 		self.queue = queue
 		loadUi(os.path.join('..', 'gui', 'import_magc_metadata_dlg.ui'), self)
@@ -1538,12 +1538,11 @@ class ImportMagCDlg(QDialog):
 		# Send entry to main window via queue and trigger:
 		self.queue.put(msg)
 		self.trigger.s.emit()
-		
+
 	def import_metadata(self):
 		color_not_acquired = QColor(200,200,200)
 		color_acquired = QColor(Qt.green)
 		color_acquiring = QColor(Qt.yellow)
-		color_to_acquire = QColor(Qt.cyan)
 		
 		#-----------------------------
 		# read sections from MagC JSON
@@ -1572,18 +1571,14 @@ class ImportMagCDlg(QDialog):
 			# self.viewport.mv_load_last_imported_image()
 			# self.viewport.mv_draw()
 		else:
-			self.add_to_main_log('There are more than 1 pictures available in the folder containing the .magc section description file. Please place only one wafer .tif picture in the folder.')
+			self.add_to_main_log('There are more than 1 picture available in the folder containing the .magc section description file. Please place only one wafer picture (.tif) in the folder.')
 		#--------------------------------------
 		
-		# initialize the sectionList
-		sectionListModel = QStandardItemModel(0, 2)
-		sectionListModel.setHorizontalHeaderItem(0, QStandardItem('Sections'))
-		# sectionListModel.setHorizontalHeaderItem(1, QStandardItem('State'))
 		
-		self.sectionList.setModel(sectionListModel)
-		
-		# populate the grids
-		self.gm.delete_all_additional_grids()        
+		#---------------------------------------
+		# populate the grids and the sectionList
+		sectionListModel = self.gui_items['sectionList'].model()
+		self.gm.delete_all_additional_grids()   
 		for section in range(n_sections - 1):
 			self.gm.add_new_grid()
 		for idx, section in sections.items():
@@ -1591,30 +1586,25 @@ class ImportMagCDlg(QDialog):
 			self.gm.set_rotation(grid_number=idx, rotation=float(section['angle']))
 			self.gm.set_grid_size(grid_number=idx, size = [3,2])
 			self.gm.calculate_grid_map(grid_number=idx)
-			# self.gm.set_tile_size_selector(idx, 1)
-			item = QStandardItem(str(idx))
-			item.setCheckable(True)
-			# item.setBackground(color_notacquired)
-			sectionListModel.appendRow(item)
-
-		header = self.sectionList.horizontalHeader()
-		header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
-		# header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
-
-		# self.stage.move_to_xy((self.cs.get_grid_origin_s(grid_number=0)))
-		# focus in viewport
-
+			
+			# populate the sectionList
+			item1 = QStandardItem(str(idx))
+			item1.setCheckable(True)
+			item2 = QStandardItem('')
+			item2.setBackground(color_not_acquired)
+			item2.setCheckable(False)
+			sectionListModel.appendRow([item1, item2])
+		#---------------------------------------
 		self.accept()
 		
 	def select_file(self):
-		# Let user select MagC file to be imported:
-		# start_path = 'C:\\'
-		start_path = r'C:\Research\Flies\Drosophila_2019\wafer_16\CleanProofreading\backup'
-		selected_file = str(QFileDialog.getOpenFileName(
-				self, 'Select MagC metadata file',
-				start_path,
-				'MagC files (*.magc)'
-				)[0])
+		# # start_path = 'C:\\'
+		# # selected_file = str(QFileDialog.getOpenFileName(
+				# # self, 'Select MagC metadata file',
+				# # start_path,
+				# # 'MagC files (*.magc)'
+				# # )[0])
+		selected_file = os.path.join('..', 'magc_433_sections.magc')
 		if len(selected_file) > 0:
 			selected_file = os.path.normpath(selected_file)
 			self.lineEdit_fileName.setText(selected_file)

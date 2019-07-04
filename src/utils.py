@@ -268,7 +268,9 @@ def get_indexes_from_user_string(userString):
 	Enter a range (2-30), a range with increment (2-30-2), or a list (2,5,3)
 	'''
 	userString = userString.replace(' ', '')
-	if ',' in userString:
+	if ',' in userString and '.' in userString:
+		return None
+	elif ',' in userString:
 		splitIndexes = [int(splitIndex) for splitIndex in userString.split(',') if splitIndex.isdigit()]
 		if len(splitIndexes) > 0:
 			return splitIndexes
@@ -276,4 +278,6 @@ def get_indexes_from_user_string(userString):
 		splitIndexes = [int(splitIndex) for splitIndex in userString.split('-') if splitIndex.isdigit()]
 		if len(splitIndexes) == 2 or len(splitIndexes) == 3:
 			return range(*splitIndexes)
+	elif userString.isdigit():
+		return [int(userString)]
 	return None
