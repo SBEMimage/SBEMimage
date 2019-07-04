@@ -2960,32 +2960,40 @@ class StubOVDlg(QDialog):
         """Acquire the stub overview. Acquisition routine runs in
            a thread.
         """
-        # Save previous stub OV origin in case user aborts acq:
-        self.acq_in_progress = True
-        position = (self.spinBox_X.value(), self.spinBox_Y.value())
-        size_selector = self.comboBox_sizeSelector.currentIndex()
-        self.add_to_log(
-            'CTRL: User-requested acquisition of stub OV mosaic started.')
-        self.pushButton_acquire.setEnabled(False)
-        self.pushButton_abort.setEnabled(True)
-        self.buttonBox.setEnabled(False)
-        self.spinBox_X.setEnabled(False)
-        self.spinBox_Y.setEnabled(False)
-        self.comboBox_sizeSelector.setEnabled(False)
-        self.progressBar.setValue(0)
-        self.main_window_queue.put('STUB OV BUSY')
-        self.main_window_trigger.s.emit()
-        QApplication.processEvents()
-        stub_acq_thread = threading.Thread(
-                              target=acq_func.acquire_stub_ov,
-                              args=(self.base_dir, self.slice_counter,
-                                    self.sem, self.stage,
-                                    position, size_selector,
-                                    self.ovm, self.cs,
-                                    self.acq_thread_queue,
-                                    self.acq_thread_trigger,
-                                    self.abort_queue,))
-        stub_acq_thread.start()
+        # Start acquisition only if EHT is on:
+        if self.sem.is_eht_on():
+            self.acq_in_progress = True
+            # Save previous stub OV origin in case user aborts acq:
+            position = (self.spinBox_X.value(), self.spinBox_Y.value())
+            size_selector = self.comboBox_sizeSelector.currentIndex()
+            self.add_to_log(
+                'CTRL: User-requested acquisition of stub OV mosaic started.')
+            self.pushButton_acquire.setEnabled(False)
+            self.pushButton_abort.setEnabled(True)
+            self.buttonBox.setEnabled(False)
+            self.spinBox_X.setEnabled(False)
+            self.spinBox_Y.setEnabled(False)
+            self.comboBox_sizeSelector.setEnabled(False)
+            self.progressBar.setValue(0)
+            self.main_window_queue.put('STUB OV BUSY')
+            self.main_window_trigger.s.emit()
+            QApplication.processEvents()
+            stub_acq_thread = threading.Thread(
+                                  target=acq_func.acquire_stub_ov,
+                                  args=(self.base_dir, self.slice_counter,
+                                        self.sem, self.stage,
+                                        position, size_selector,
+                                        self.ovm, self.cs,
+                                        self.acq_thread_queue,
+                                        self.acq_thread_trigger,
+                                        self.abort_queue,))
+            stub_acq_thread.start()
+        else:
+            QMessageBox.warning(
+                self, 'EHT off',
+                'EHT / high voltage is off. Please turn '
+                'it on before starting the acquisition.',
+                QMessageBox.Ok)
 
     def abort(self):
         if self.abort_queue.empty():
