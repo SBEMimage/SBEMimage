@@ -20,6 +20,8 @@ import glob
 import json
 import validators
 import csv
+import requests
+import shutil
 
 from random import random
 from time import sleep, time
@@ -29,6 +31,9 @@ from queue import Queue
 from PIL import Image
 from skimage.io import imread
 from skimage.feature import register_translation
+import numpy as np
+from imreg_dft import translation
+from zipfile import ZipFile
 
 from PyQt5.uic import loadUi
 from PyQt5.QtCore import Qt, QObject, QSize, pyqtSignal
@@ -55,7 +60,7 @@ class ConfigDlg(QDialog):
        show warning message box."""
 
     def __init__(self, VERSION):
-        super(ConfigDlg, self).__init__()
+        super().__init__()
         loadUi('..\\gui\\config_dlg.ui', self)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.label_version.setText('Version ' + VERSION)
@@ -108,7 +113,7 @@ class ConfigDlg(QDialog):
 
     def reject(self):
         self.abort = True
-        super(ConfigDlg, self).reject()
+        super().reject()
 
     def get_ini_file(self):
         if not self.abort:
@@ -122,7 +127,7 @@ class SaveConfigDlg(QDialog):
     """Save current configuration in a new config file."""
 
     def __init__(self):
-        super(SaveConfigDlg, self).__init__()
+        super().__init__()
         loadUi('..\\gui\\save_config_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -144,7 +149,7 @@ class SaveConfigDlg(QDialog):
         if (reg.match(self.lineEdit_cfgFileName.text())
             and self.lineEdit_cfgFileName.text().lower != 'default'):
             self.file_name = self.lineEdit_cfgFileName.text() + '.ini'
-            super(SaveConfigDlg, self).accept()
+            super().accept()
         else:
             QMessageBox.warning(
                 self, 'Error',
@@ -158,7 +163,7 @@ class SEMSettingsDlg(QDialog):
        Display current working distance and stigmation.
     """
     def __init__(self, sem):
-        super(SEMSettingsDlg, self).__init__()
+        super().__init__()
         self.sem = sem
         loadUi('..\\gui\\sem_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
@@ -177,7 +182,7 @@ class SEMSettingsDlg(QDialog):
     def accept(self):
         self.sem.set_eht(self.doubleSpinBox_EHT.value())
         self.sem.set_beam_current(self.spinBox_beamCurrent.value())
-        super(SEMSettingsDlg, self).accept()
+        super().accept()
 
 #------------------------------------------------------------------------------
 
@@ -185,7 +190,7 @@ class MicrotomeSettingsDlg(QDialog):
     """Adjust stage motor limits and wait interval after stage moves."""
 
     def __init__(self, microtome, sem, microtome_active=True):
-        super(MicrotomeSettingsDlg, self).__init__()
+        super().__init__()
         self.microtome = microtome
         self.sem = sem
         self.microtom_active = microtome_active
@@ -251,7 +256,7 @@ class MicrotomeSettingsDlg(QDialog):
         else:
             self.sem.set_stage_move_wait_interval(
                 self.doubleSpinBox_waitInterval.value())
-        super(MicrotomeSettingsDlg, self).accept()
+        super().accept()
 
 #------------------------------------------------------------------------------
 
@@ -259,7 +264,7 @@ class CalibrationDlg(QDialog):
     """Calibrate the stage (rotation and scaling) and the motor speeds."""
 
     def __init__(self, config, stage, sem):
-        super(CalibrationDlg, self).__init__()
+        super().__init__()
         self.base_dir = config['acq']['base_dir']
         self.stage = stage
         self.sem = sem
@@ -270,8 +275,10 @@ class CalibrationDlg(QDialog):
         self.finish_trigger.s.connect(self.process_results)
         self.update_calc_trigger = Trigger()
         self.update_calc_trigger.s.connect(self.update_log)
+        self.calc_exception = None
         self.busy = False
         loadUi('..\\gui\\calibration_dlg.ui', self)
+
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
@@ -291,6 +298,7 @@ class CalibrationDlg(QDialog):
             self.start_calibration_procedure)
         if config['sys']['simulation_mode'] == 'True':
             self.pushButton_startImageAcq.setEnabled(False)
+
         self.pushButton_calcStage.clicked.connect(
             self.calculate_stage_parameters_from_user_input)
         self.pushButton_calcMotor.clicked.connect(
@@ -367,40 +375,61 @@ class CalibrationDlg(QDialog):
         # Show in log that calculations begin:
         self.update_calc_trigger.s.emit()
         # Load images and calculate shifts:
-        start_img = imread(self.base_dir + '\\start.tif')
-        shift_x_img = imread(self.base_dir + '\\shift_x.tif')
-        shift_y_img = imread(self.base_dir + '\\shift_y.tif')
-        x_shift_yxz, _, _ = register_translation(start_img, shift_x_img)
-        self.x_shift_vector = [abs(x_shift_yxz[1]), abs(x_shift_yxz[0])]
-        y_shift_yxz, _, _ = register_translation(start_img, shift_y_img)
-        self.y_shift_vector = [abs(y_shift_yxz[1]), abs(y_shift_yxz[0])]
+        start_img = imread(self.base_dir + '\\start.tif', as_grey=True)
+        shift_x_img = imread(self.base_dir + '\\shift_x.tif', as_grey=True)
+        shift_y_img = imread(self.base_dir + '\\shift_y.tif', as_grey=True)
+        #         Shift vector (in pixels) required to register ``target_image`` with
+        #         ``src_image``.  Axis ordering is consistent with numpy (e.g. Z, Y, X)
+        self.calc_exception = None
+        try:
+            # [::-1] -> obey (x, y) order in GUI
+            # x_shift_xyz = register_translation(start_img, shift_x_img)[0][::-1]
+            # y_shift_xyz = register_translation(start_img, shift_y_img)[0][::-1]
+            x_shift_alt = translation(start_img, shift_x_img, filter_pcorr=3)["tvec"][::-1]
+            y_shift_alt = translation(start_img, shift_y_img, filter_pcorr=3)["tvec"][::-1]
+            # print(x_shift_xyz, x_shift_alt, y_shift_xyz, y_shift_alt)
+            self.x_shift_vector = [x_shift_alt[0], x_shift_alt[1]]
+            self.y_shift_vector = [y_shift_alt[0], y_shift_alt[1]]
+        except Exception as e:
+            self.calc_exception = e
         self.finish_trigger.s.emit()
 
     def update_log(self):
-        self.plainTextEdit_calibLog.appendPlainText('Now computing shifts...')
+        self.plainTextEdit_calibLog.appendPlainText('Now computing pixel shifts...')
 
     def process_results(self):
         self.pushButton_startImageAcq.setText('Start')
         self.pushButton_startImageAcq.setEnabled(True)
         self.pushButton_calcStage.setEnabled(True)
-        # Show the vectors in the textbox and the spinboxes:
-        self.plainTextEdit_calibLog.setPlainText(
-            'Shift_X: {}, Shift_Y: {}'.format(
-            str(self.x_shift_vector), str(self.y_shift_vector)))
-        delta_xx, delta_xy = self.x_shift_vector
-        delta_yx, delta_yy = self.y_shift_vector
-        self.spinBox_x2x.setValue(delta_xx)
-        self.spinBox_x2y.setValue(delta_xy)
-        self.spinBox_y2x.setValue(delta_yx)
-        self.spinBox_y2y.setValue(delta_yy)
-        # Now calculate parameters:
-        self.calculate_stage_parameters()
+        if self.calc_exception is None:
+            # Show the vectors in the textbox and the spinboxes:
+            self.plainTextEdit_calibLog.setPlainText(
+                'Shift_X: [{0:.1f}, {1:.1f}], '
+                'Shift_Y: [{2:.1f}, {3:.1f}]'.format(
+                *self.x_shift_vector, *self.y_shift_vector))
+            # Absolute values for the GUI
+            self.spinBox_x2x.setValue(abs(self.x_shift_vector[0]))
+            self.spinBox_x2y.setValue(abs(self.x_shift_vector[1]))
+            self.spinBox_y2x.setValue(abs(self.y_shift_vector[0]))
+            self.spinBox_y2y.setValue(abs(self.y_shift_vector[1]))
+            # Now calculate parameters:
+            self.calculate_stage_parameters()
+        else:
+            QMessageBox.warning(
+                self, 'Error',
+                'An exception occured while computing the translations: '
+                + str(self.calc_exception),
+                QMessageBox.Ok)
+            self.busy = False
 
     def calculate_stage_parameters(self):
         shift = self.spinBox_shift.value()
         pixel_size = self.spinBox_pixelsize.value()
-        delta_xx, delta_xy = self.x_shift_vector
-        delta_yx, delta_yy = self.y_shift_vector
+        # Use absolute values for now, TODO: revisit for the Sigma stage
+        delta_xx, delta_xy = (
+            abs(self.x_shift_vector[0]), abs(self.x_shift_vector[1]))
+        delta_yx, delta_yy = (
+            abs(self.y_shift_vector[0]), abs(self.y_shift_vector[1]))
 
         # Rotation angles:
         rot_x = atan(delta_xy/delta_xx)
@@ -408,6 +437,20 @@ class CalibrationDlg(QDialog):
         # Scale factors:
         scale_x = shift / (sqrt(delta_xx**2 + delta_xy**2) * pixel_size / 1000)
         scale_y = shift / (sqrt(delta_yx**2 + delta_yy**2) * pixel_size / 1000)
+
+        # alternative calc
+        # x_abs = np.linalg.norm([self.x_shift_vector[0], self.x_shift_vector[1]])
+        # y_abs = np.linalg.norm([self.y_shift_vector[0], self.y_shift_vector[1]])
+        # rot_x_alt = np.arccos(shift * self.x_shift_vector[0] / (shift * x_abs))
+        # rot_y_alt = np.arccos(shift * self.y_shift_vector[1] / (shift * y_abs))
+        # GUI cannot handle negative values
+        # if rot_x < 0:
+        #    rot_x += 2 * 3.141592
+        # if rot_y < 0:
+        #    rot_y += 2 * 3.141592
+        # Scale factors:
+        # scale_x_alt = shift / (x_abs * pixel_size / 1000)
+        # scale_y_alt = shift / (y_abs * pixel_size / 1000)
 
         self.busy = False
         user_choice = QMessageBox.information(
@@ -466,19 +509,21 @@ class CalibrationDlg(QDialog):
                 self.doubleSpinBox_stageRotationX.value(),
                 self.doubleSpinBox_stageRotationY.value()]
             self.stage.set_stage_calibration(self.current_eht, stage_params)
+
             success = self.stage.set_motor_speeds(
                 self.doubleSpinBox_motorSpeedX.value(),
                 self.doubleSpinBox_motorSpeedY.value())
+
             if not success:
                 QMessageBox.warning(
                     self, 'Error updating motor speeds',
                     'Motor calibration could not be updated in DM script.',
                     QMessageBox.Ok)
-            super(CalibrationDlg, self).accept()
+            super().accept()
 
     def reject(self):
         if not self.busy:
-            super(CalibrationDlg, self).reject()
+            super().reject()
 
     def closeEvent(self, event):
         if not self.busy:
@@ -491,9 +536,10 @@ class CalibrationDlg(QDialog):
 class MagCalibrationDlg(QDialog):
     """Calibrate the relationship between magnification and pixel size."""
 
-    def __init__(self, sem):
-        super(MagCalibrationDlg, self).__init__()
+    def __init__(self, sem, ovm):
+        super().__init__()
         self.sem = sem
+        self.ovm = ovm
         loadUi('..\\gui\\mag_calibration_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -525,7 +571,29 @@ class MagCalibrationDlg(QDialog):
     def accept(self):
         self.sem.set_mag_px_size_factor(
             self.spinBox_calibrationFactor.value())
-        super(MagCalibrationDlg, self).accept()
+        # Update the magnifications of all OVs:
+        self.ovm.calculate_ov_mag_from_pixel_size()
+        super().accept()
+
+#------------------------------------------------------------------------------
+
+class CutDurationDlg(QDialog):
+
+    def __init__(self, microtome):
+        super().__init__()
+        self.microtome = microtome
+        loadUi('..\\gui\\cut_duration_dlg.ui', self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setFixedSize(self.size())
+        self.show()
+        self.doubleSpinBox_cutDuration.setValue(
+            self.microtome.get_full_cut_duration())
+
+    def accept(self):
+        self.microtome.set_full_cut_duration(
+            self.doubleSpinBox_cutDuration.value())
+        super().accept()
 
 #------------------------------------------------------------------------------
 
@@ -534,7 +602,7 @@ class OVSettingsDlg(QDialog):
 
     def __init__(self, ovm, sem, current_ov,
                  main_window_queue, main_window_trigger):
-        super(OVSettingsDlg, self).__init__()
+        super().__init__()
         self.ovm = ovm
         self.sem = sem
         self.current_ov = current_ov
@@ -675,7 +743,7 @@ class ImportImageDlg(QDialog):
         self.ovm = ovm
         self.cs = cs
         self.target_dir = target_dir
-        super(ImportImageDlg, self).__init__()
+        super().__init__()
         loadUi('..\\gui\\import_image_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -749,7 +817,7 @@ class ImportImageDlg(QDialog):
             selection_success = False
 
         if selection_success:
-            super(ImportImageDlg, self).accept()
+            super().accept()
 
 #------------------------------------------------------------------------------
 
@@ -763,7 +831,7 @@ class AdjustImageDlg(QDialog):
         self.main_window_queue = main_window_queue
         self.main_window_trigger = main_window_trigger
         self.selected_img = selected_img
-        super(AdjustImageDlg, self).__init__()
+        super().__init__()
         loadUi('..\\gui\\adjust_imported_image_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -812,7 +880,7 @@ class DeleteImageDlg(QDialog):
 
     def __init__(self, ovm):
         self.ovm = ovm
-        super(DeleteImageDlg, self).__init__()
+        super().__init__()
         loadUi('..\\gui\\delete_image_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -828,7 +896,7 @@ class DeleteImageDlg(QDialog):
         selected_img = self.listWidget_imagelist.currentRow()
         if selected_img is not None:
             self.ovm.delete_imported_img(selected_img)
-        super(DeleteImageDlg, self).accept()
+        super().accept()
 
 #------------------------------------------------------------------------------
 
@@ -837,7 +905,7 @@ class GridSettingsDlg(QDialog):
 
     def __init__(self, grid_manager, sem, current_grid,
                  main_window_queue, main_window_trigger):
-        super(GridSettingsDlg, self).__init__()
+        super().__init__()
         self.gm = grid_manager
         self.sem = sem
         self.current_grid = current_grid
@@ -1034,7 +1102,7 @@ class AdaptiveFocusSettingsDlg(QDialog):
     """Select the tiles to calculate the gradient for the adaptive focus."""
 
     def __init__(self, gm, current_grid):
-        super(AdaptiveFocusSettingsDlg, self).__init__()
+        super().__init__()
         self.gm = gm
         self.current_grid = current_grid
         loadUi('..\\gui\\adaptive_focus_settings_dlg.ui', self)
@@ -1127,7 +1195,7 @@ class AdaptiveFocusSettingsDlg(QDialog):
 
     def accept(self):
         if self.af_success:
-            super(AdaptiveFocusSettingsDlg, self).accept()
+            super().accept()
         else:
             QMessageBox.warning(
                 self, 'Error',
@@ -1140,14 +1208,14 @@ class AdaptiveFocusSettingsDlg(QDialog):
         self.gm.set_adaptive_focus_tiles(self.current_grid, self.prev_af_tiles)
         # Recalculate with previous setting:
         self.gm.calculate_focus_gradient(self.current_grid)
-        super(AdaptiveFocusSettingsDlg, self).reject()
+        super().reject()
 
 #------------------------------------------------------------------------------
 
 class AdaptiveFocusSelectionDlg(QDialog):
 
     def __init__(self, current_af_tiles):
-        super(AdaptiveFocusSelectionDlg, self).__init__()
+        super().__init__()
         self.selected = None
         loadUi('..\\gui\\adaptive_focus_selection_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
@@ -1173,15 +1241,15 @@ class AdaptiveFocusSelectionDlg(QDialog):
 
     def select_pos0(self):
         self.selected = 0
-        super(AdaptiveFocusSelectionDlg, self).accept()
+        super().accept()
 
     def select_pos1(self):
         self.selected = 1
-        super(AdaptiveFocusSelectionDlg, self).accept()
+        super().accept()
 
     def select_pos2(self):
         self.selected = 2
-        super(AdaptiveFocusSelectionDlg, self).accept()
+        super().accept()
 
 #------------------------------------------------------------------------------
 
@@ -1189,7 +1257,7 @@ class AcqSettingsDlg(QDialog):
     """Let user adjust acquisition settings."""
 
     def __init__(self, config, stack):
-        super(AcqSettingsDlg, self).__init__()
+        super().__init__()
         self.cfg = config
         self.stack = stack
         loadUi('..\\gui\\acq_settings_dlg.ui', self)
@@ -1296,7 +1364,7 @@ class AcqSettingsDlg(QDialog):
                 QMessageBox.Ok)
             success = False
         if success:
-            super(AcqSettingsDlg, self).accept()
+            super().accept()
 
 #------------------------------------------------------------------------------
 
@@ -1307,7 +1375,7 @@ class PreStackDlg(QDialog):
     """
 
     def __init__(self, config, ovm, gm, paused):
-        super(PreStackDlg, self).__init__()
+        super().__init__()
         self.cfg = config
         self.ovm = ovm
         self.gm = gm
@@ -1388,7 +1456,7 @@ class PreStackDlg(QDialog):
             self.spinBox_bias.value())
         self.cfg['microtome']['knife_oscillation'] = str(
             self.checkBox_oscillation.isChecked())
-        super(PreStackDlg, self).accept()
+        super().accept()
 
 #------------------------------------------------------------------------------
 
@@ -1399,7 +1467,7 @@ class PauseDlg(QDialog):
     """
 
     def __init__(self):
-        super(PauseDlg, self).__init__()
+        super().__init__()
         loadUi('..\\gui\\pause_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -1421,7 +1489,7 @@ class PauseDlg(QDialog):
         return self.pause_type
 
     def accept(self):
-        super(PauseDlg, self).accept()
+        super().accept()
 
 #------------------------------------------------------------------------------
 
@@ -1429,7 +1497,7 @@ class ExportDlg(QDialog):
     """Export image list in TrakEM2 format."""
 
     def __init__(self, config):
-        super(ExportDlg, self).__init__()
+        super().__init__()
         self.cfg = config
         loadUi('..\\gui\\export_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
@@ -1614,11 +1682,68 @@ class ImportMagCDlg(QDialog):
 
 #------------------------------------------------------------------------------
 
+class UpdateDlg(QDialog):
+    """Update SBEMimage by downloading latest version from GitHub."""
+
+    def __init__(self):
+        super().__init__()
+        loadUi('..\\gui\\update_dlg.ui', self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setFixedSize(self.size())
+        self.pushButton_update.clicked.connect(self.update)
+        self.show()
+
+    def update(self):
+        self.pushButton_update.setText('Busy')
+        self.pushButton_update.setEnabled(False)
+        QApplication.processEvents()
+        url = "https://github.com/SBEMimage/SBEMimage/archive/master.zip"
+        try:
+            response = requests.get(url, stream=True)
+            with open('master.zip', 'wb') as file:
+                shutil.copyfileobj(response.raw, file)
+            del response
+        except:
+            QMessageBox.warning(
+                self, 'Error',
+                'Could not download current version from GitHub. Check your '
+                'internet connection. ',
+                QMessageBox.Ok)
+        else:
+            # Get directory of current installation:
+            install_path = os.path.dirname(
+                os.path.dirname(os.path.abspath(__file__)))
+            try:
+                with ZipFile("master.zip", "r") as zip_object:
+                    for zip_info in zip_object.infolist():
+                        if zip_info.filename[-1] == '/':
+                            continue
+                        # Remove 'SBEMimage-master/':
+                        zip_info.filename = zip_info.filename[17:]
+                        print(zip_info.filename)
+                        zip_object.extract(zip_info, install_path)
+            except:
+                QMessageBox.warning(
+                self, 'Error',
+                'Could not extract downloaded GitHub archive.',
+                QMessageBox.Ok)
+            else:
+                QMessageBox.information(
+                self, 'Update complete',
+                'SBEMimage was updated to the most recent version. '
+                'You must restart the program to use the updated version.',
+                QMessageBox.Ok)
+                self.pushButton_update.setText('Update now')
+                self.pushButton_update.setEnabled(True)
+
+#------------------------------------------------------------------------------
+
 class EmailMonitoringSettingsDlg(QDialog):
     """Adjust settings for the e-mail monitoring feature."""
 
     def __init__(self, config, stack):
-        super(EmailMonitoringSettingsDlg, self).__init__()
+        super().__init__()
         self.cfg = config
         self.stack = stack
         loadUi('..\\gui\\email_monitoring_settings_dlg.ui', self)
@@ -1717,7 +1842,7 @@ class EmailMonitoringSettingsDlg(QDialog):
             self.spinBox_remoteCheckInterval.value())
         self.stack.set_remote_password(self.lineEdit_password.text())
         if not error_str:
-            super(EmailMonitoringSettingsDlg, self).accept()
+            super().accept()
         else:
             QMessageBox.warning(self, 'Error', error_str, QMessageBox.Ok)
 
@@ -1730,7 +1855,7 @@ class DebrisSettingsDlg(QDialog):
     """
 
     def __init__(self, config, ovm):
-        super(DebrisSettingsDlg, self).__init__()
+        super().__init__()
         self.cfg = config
         self.ovm = ovm
         loadUi('..\\gui\\debris_settings_dlg.ui', self)
@@ -1818,7 +1943,7 @@ class DebrisSettingsDlg(QDialog):
             self.cfg['debris']['detection_method'] = '1'
         elif self.radioButton_methodHistogram.isChecked():
             self.cfg['debris']['detection_method'] = '2'
-        super(DebrisSettingsDlg, self).accept()
+        super().accept()
 
 #------------------------------------------------------------------------------
 
@@ -1829,7 +1954,7 @@ class AskUserDlg(QDialog):
     """
 
     def __init__(self):
-        super(AskUserDlg, self).__init__()
+        super().__init__()
         loadUi('..\\gui\\ask_user_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -1842,7 +1967,7 @@ class MirrorDriveDlg(QDialog):
     """Select a mirror drive from all available drives."""
 
     def __init__(self, config):
-        super(MirrorDriveDlg, self).__init__()
+        super().__init__()
         self.cfg = config
         loadUi('..\\gui\\mirror_drive_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
@@ -1883,7 +2008,7 @@ class MirrorDriveDlg(QDialog):
             else:
                 self.cfg['sys']['mirror_drive'] = (
                     self.comboBox_allDrives.currentText())
-                super(MirrorDriveDlg, self).accept()
+                super().accept()
 
 #------------------------------------------------------------------------------
 
@@ -1893,7 +2018,7 @@ class ImageMonitoringSettingsDlg(QDialog):
        Tile-by-tile comparisons are performed for the selected tiles.
     """
     def __init__(self, config):
-        super(ImageMonitoringSettingsDlg, self).__init__()
+        super().__init__()
         self.cfg = config
         loadUi('..\\gui\\image_monitoring_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
@@ -1943,7 +2068,7 @@ class ImageMonitoringSettingsDlg(QDialog):
         self.cfg['monitoring']['tile_stddev_threshold'] = str(
             self.doubleSpinBox_stdDevThreshold.value())
         if not error_str:
-            super(ImageMonitoringSettingsDlg, self).accept()
+            super().accept()
         else:
             QMessageBox.warning(self, 'Error', error_str, QMessageBox.Ok)
 
@@ -1954,7 +2079,7 @@ class AutofocusSettingsDlg(QDialog):
     and tracking the focus/stig when refocusing manually."""
 
     def __init__(self, autofocus, grid_manager):
-        super(AutofocusSettingsDlg, self).__init__()
+        super().__init__()
         self.af = autofocus
         self.gm = grid_manager
         loadUi('..\\gui\\autofocus_settings_dlg.ui', self)
@@ -2081,7 +2206,7 @@ class AutofocusSettingsDlg(QDialog):
             [self.doubleSpinBox_stigRot.value(),
              self.doubleSpinBox_stigScale.value()])
         if not error_str:
-            super(AutofocusSettingsDlg, self).accept()
+            super().accept()
         else:
             QMessageBox.warning(self, 'Error', error_str, QMessageBox.Ok)
 
@@ -2091,7 +2216,7 @@ class PlasmaCleanerDlg(QDialog):
     """Set parameters for the downstream asher, run it."""
 
     def __init__(self, plc_):
-        super(PlasmaCleanerDlg, self).__init__()
+        super().__init__()
         self.plc = plc_
         loadUi('..\\gui\\plasma_cleaner_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
@@ -2159,7 +2284,7 @@ class ApproachDlg(QDialog):
     """
 
     def __init__(self, microtome, main_window_queue, main_window_trigger):
-        super(ApproachDlg, self).__init__()
+        super().__init__()
         self.microtome = microtome
         self.main_window_queue = main_window_queue
         self.main_window_trigger = main_window_trigger
@@ -2348,7 +2473,7 @@ class ApproachDlg(QDialog):
 
     def accept(self):
         if not self.approach_in_progress:
-            super(ApproachDlg, self).accept()
+            super().accept()
 
 #------------------------------------------------------------------------------
 
@@ -2356,7 +2481,7 @@ class GrabFrameDlg(QDialog):
     """Acquires or saves a single frame from SmartSEM."""
 
     def __init__(self, config, sem, main_window_queue, main_window_trigger):
-        super(GrabFrameDlg, self).__init__()
+        super().__init__()
         self.cfg = config
         self.sem = sem
         self.main_window_queue = main_window_queue
@@ -2465,7 +2590,7 @@ class EHTDlg(QDialog):
     """Show EHT status and let user switch beam on or off."""
 
     def __init__(self, sem):
-        super(EHTDlg, self).__init__()
+        super().__init__()
         self.sem = sem
         loadUi('..\\gui\\eht_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
@@ -2533,7 +2658,7 @@ class FTSetParamsDlg(QDialog):
 
     def __init__(self, sem, current_wd, current_stig_x, current_stig_y,
                  simulation_mode=False):
-        super(FTSetParamsDlg, self).__init__()
+        super().__init__()
         self.sem = sem
         loadUi('..\\gui\\focus_tool_set_params_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
@@ -2568,7 +2693,7 @@ class FTSetParamsDlg(QDialog):
         self.new_wd = self.doubleSpinBox_currentFocus.value() / 1000
         self.new_stig_x = self.doubleSpinBox_currentStigX.value()
         self.new_stig_y = self.doubleSpinBox_currentStigY.value()
-        super(FTSetParamsDlg, self).accept()
+        super().accept()
 
 #------------------------------------------------------------------------------
 
@@ -2577,7 +2702,7 @@ class FTMoveDlg(QDialog):
 
     def __init__(self, microtome, coordinate_system, grid_manager,
                  grid_number, tile_number, ov_number):
-        super(FTMoveDlg, self).__init__()
+        super().__init__()
         self.microtome = microtome
         self.cs = coordinate_system
         self.gm = grid_manager
@@ -2642,7 +2767,7 @@ class MotorTestDlg(QDialog):
        testing/debugging. Only works with a microtome for now."""
 
     def __init__(self, cfg, microtome, main_window_queue, main_window_trigger):
-        super(MotorTestDlg, self).__init__()
+        super().__init__()
         self.cfg = cfg
         self.microtome = microtome
         self.main_window_queue = main_window_queue
@@ -2808,7 +2933,7 @@ class MotorTestDlg(QDialog):
 
     def accept(self):
         if not self.approach_in_progress:
-            super(MotorTestDlg, self).accept()
+            super().accept()
 
 #------------------------------------------------------------------------------
 
@@ -2821,7 +2946,7 @@ class StubOVDlg(QDialog):
                  base_dir, slice_counter,
                  sem, stage, ovm, cs,
                  main_window_queue, main_window_trigger):
-        super(StubOVDlg, self).__init__()
+        super().__init__()
         loadUi('..\\gui\\stub_ov_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -2942,32 +3067,40 @@ class StubOVDlg(QDialog):
         """Acquire the stub overview. Acquisition routine runs in
            a thread.
         """
-        # Save previous stub OV origin in case user aborts acq:
-        self.acq_in_progress = True
-        position = (self.spinBox_X.value(), self.spinBox_Y.value())
-        size_selector = self.comboBox_sizeSelector.currentIndex()
-        self.add_to_log(
-            'CTRL: User-requested acquisition of stub OV mosaic started.')
-        self.pushButton_acquire.setEnabled(False)
-        self.pushButton_abort.setEnabled(True)
-        self.buttonBox.setEnabled(False)
-        self.spinBox_X.setEnabled(False)
-        self.spinBox_Y.setEnabled(False)
-        self.comboBox_sizeSelector.setEnabled(False)
-        self.progressBar.setValue(0)
-        self.main_window_queue.put('STUB OV BUSY')
-        self.main_window_trigger.s.emit()
-        QApplication.processEvents()
-        stub_acq_thread = threading.Thread(
-                              target=acq_func.acquire_stub_ov,
-                              args=(self.base_dir, self.slice_counter,
-                                    self.sem, self.stage,
-                                    position, size_selector,
-                                    self.ovm, self.cs,
-                                    self.acq_thread_queue,
-                                    self.acq_thread_trigger,
-                                    self.abort_queue,))
-        stub_acq_thread.start()
+        # Start acquisition only if EHT is on:
+        if self.sem.is_eht_on():
+            self.acq_in_progress = True
+            # Save previous stub OV origin in case user aborts acq:
+            position = (self.spinBox_X.value(), self.spinBox_Y.value())
+            size_selector = self.comboBox_sizeSelector.currentIndex()
+            self.add_to_log(
+                'CTRL: User-requested acquisition of stub OV mosaic started.')
+            self.pushButton_acquire.setEnabled(False)
+            self.pushButton_abort.setEnabled(True)
+            self.buttonBox.setEnabled(False)
+            self.spinBox_X.setEnabled(False)
+            self.spinBox_Y.setEnabled(False)
+            self.comboBox_sizeSelector.setEnabled(False)
+            self.progressBar.setValue(0)
+            self.main_window_queue.put('STUB OV BUSY')
+            self.main_window_trigger.s.emit()
+            QApplication.processEvents()
+            stub_acq_thread = threading.Thread(
+                                  target=acq_func.acquire_stub_ov,
+                                  args=(self.base_dir, self.slice_counter,
+                                        self.sem, self.stage,
+                                        position, size_selector,
+                                        self.ovm, self.cs,
+                                        self.acq_thread_queue,
+                                        self.acq_thread_trigger,
+                                        self.abort_queue,))
+            stub_acq_thread.start()
+        else:
+            QMessageBox.warning(
+                self, 'EHT off',
+                'EHT / high voltage is off. Please turn '
+                'it on before starting the acquisition.',
+                QMessageBox.Ok)
 
     def abort(self):
         if self.abort_queue.empty():
@@ -2988,7 +3121,7 @@ class AboutBox(QDialog):
     """
 
     def __init__(self, VERSION):
-        super(AboutBox, self).__init__()
+        super().__init__()
         loadUi('..\\gui\\about_box.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))

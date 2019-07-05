@@ -373,6 +373,9 @@ class Stack():
         # Create main log file:
         self.main_log_filename = (self.base_dir + '\\meta\\logs\\'
                                   + 'log_' + timestamp + '.txt')
+        # Log file for most recent entries (used for status report):
+        self.recent_log_filename = (self.base_dir + '\\meta\\logs\\'
+                                    + 'log_' + timestamp + '_mostrecent.txt')
         # A buffer_size of 1 ensures that all log entries are immediately
         # written to disk:
         buffer_size = 1
@@ -380,7 +383,7 @@ class Stack():
         # Set up imagelist file:
         self.imagelist_filename = (self.base_dir + '\\meta\\logs\\'
                                    + 'imagelist_' + timestamp + '.txt')
-        self.imagelist_file = open(self.imagelist_filename, 'w')
+        self.imagelist_file = open(self.imagelist_filename, 'w', buffer_size)
         # Log files for debris and errors:
         self.debris_log_filename = (self.base_dir + '\\meta\\logs\\'
                                     + 'debris_log_' + timestamp + '.txt')
@@ -409,6 +412,11 @@ class Stack():
         # Copy all log files to mirror drive:
         if self.use_mirror_drive:
             self.mirror_files(log_file_list)
+            # Handle for imagelist file on mirror drive:
+            self.mirror_imagelist_file = open(
+                self.mirror_drive
+                + self.imagelist_filename[2:],
+                'w', buffer_size)
 
 # ===================== STACK ACQUISITION THREAD run() ========================
 
@@ -490,12 +498,12 @@ class Stack():
                                                      self.stig_x_current_grid,
                                                      self.stig_y_current_grid)
             else:
-                # Set stig values to current settings for each tile if adaptive 
+                # Set stig values to current settings for each tile if adaptive
                 # focus used
                 self.gm.set_stig_for_grid(grid_number,
                                           self.stig_x_current_grid,
                                           self.stig_y_current_grid)
-           
+
         for ov_number in range(number_ov):
             self.ovm.set_ov_wd(ov_number, 0)
             self.ovm.set_ov_stig_xy(ov_number, 0, 0)
@@ -830,11 +838,10 @@ class Stack():
             if self.slice_counter == self.number_slices:
                 self.stack_completed = True
 
-            # Copy log file and imagelist file to mirror disk
+            # Copy log file to mirror disk
             # (Error handling in self.mirror_files())
             if self.use_mirror_drive:
-                self.mirror_files([self.main_log_filename,
-                                   self.imagelist_filename])
+                self.mirror_files([self.main_log_filename])
             sleep(0.1)
 
         # ===================== END OF ACQUISITION LOOP =======================
@@ -881,13 +888,14 @@ class Stack():
         # Close all log files:
         self.main_log_file.close()
         self.imagelist_file.close()
+        if self.use_mirror_drive:
+            self.mirror_imagelist_file.close()
         self.debris_log_file.close()
         self.error_log_file.close()
         self.metadata_file.close()
         # Finally, copy files to mirror drive:
         if self.use_mirror_drive:
             self.mirror_files([self.main_log_filename,
-                               self.imagelist_filename,
                                self.debris_log_filename,
                                self.error_log_filename,
                                self.metadata_filename])
@@ -943,11 +951,14 @@ class Stack():
         self.transmit_cmd('VP LOG' + log_str)
         # Send notification e-mail about error:
         if self.cfg['acq']['use_email_monitoring'] == 'True':
+            # Generate log file from current content of log:
+            self.transmit_cmd('GET CURRENT LOG' + self.recent_log_filename)
+            sleep(0.5) # wait for file to be written.
             if self.viewport_filename is not None:
-                attachment_list = [self.main_log_filename,
+                attachment_list = [self.recent_log_filename,
                                    self.viewport_filename]
             else:
-                attachment_list = [self.main_log_filename]
+                attachment_list = [self.recent_log_filename]
             msg_subject = ('Stack ' + self.stack_name + ': slice '
                            + str(self.slice_counter) + ', ERROR')
             success = utils.send_email(self.smtp_server,
@@ -971,7 +982,10 @@ class Stack():
         tile_list = json.loads(self.cfg['monitoring']['watch_tiles'])
         ov_list = json.loads(self.cfg['monitoring']['watch_ov'])
         if self.cfg['monitoring']['send_logfile'] == 'True':
-            attachment_list.append(self.main_log_filename)
+            # Generate log file from current content of log:
+            self.transmit_cmd('GET CURRENT LOG' + self.recent_log_filename)
+            sleep(0.5) # wait for file be written.
+            attachment_list.append(self.recent_log_filename)
         if self.cfg['monitoring']['send_additional_logs'] == 'True':
             attachment_list.append(self.debris_log_filename)
             attachment_list.append(self.error_log_filename)
@@ -1096,6 +1110,18 @@ class Stack():
         self.transmit_cmd('UPDATE Z')
         # Check if there were microtome problems:
         self.error_state = self.microtome.get_error_state()
+        if self.error_state in [103, 202]:
+            self.add_to_main_log('CTRL: Problem detected. Trying again.')
+            self.error_state = 0
+            self.microtome.reset_error_state()
+            # Try again after 3 sec delay:
+            sleep(3)
+            self.microtome.move_stage_to_z(self.stage_z_position)
+            # Show new Z position in main window:
+            self.transmit_cmd('UPDATE Z')
+            # Read new error_state:
+            self.error_state = self.microtome.get_error_state()
+
         if self.error_state == 0:
             self.add_to_main_log('3VIEW: Cutting in progress ('
                           + str(self.slice_thickness)
@@ -1110,7 +1136,10 @@ class Stack():
                 self.af.apply_heuristic_tile_corrections()
             else:
                 sleep(self.full_cut_duration)
-            self.microtome.check_for_cut_cycle_error()
+            duration_exceeded = self.microtome.check_for_cut_cycle_error()
+            if duration_exceeded:
+                self.add_to_main_log(
+                    'CTRL: Warning: Cut cycle took longer than specified.')
             self.error_state = self.microtome.get_error_state()
             self.microtome.reset_error_state()
         if self.error_state > 0:
@@ -1670,14 +1699,19 @@ class Stack():
         timestamp = int(time.time())
         tile_id = utils.get_tile_id(grid_number, tile_number,
                                     self.slice_counter)
-        pos_x, pos_y = self.gm.get_tile_coordinates_p(grid_number, tile_number)
-        global_px = int(pos_x - tile_width/2)
-        global_py = int(pos_y - tile_height/2)
-        self.imagelist_file.write(
-            save_path + ';'
-            + str(global_px) + ';'
-            + str(global_py) + ';'
-            + str(self.slice_counter) + '\n')
+        global_x, global_y = (
+            self.gm.get_tile_coordinates_for_registration(
+                grid_number, tile_number))
+        global_z = int(self.total_z_diff * 1000)
+        tileinfo_str = (save_path + ';'
+                         + str(global_x) + ';'
+                         + str(global_y) + ';'
+                         + str(global_z) + ';'
+                         + str(self.slice_counter) + '\n')
+        self.imagelist_file.write(tileinfo_str)
+        # Write to mirror:
+        if self.use_mirror_drive:
+            self.mirror_imagelist_file.write(tileinfo_str)
         self.tiles_acquired.append(tile_number)
         self.cfg['acq']['tiles_acquired'] = str(
             self.tiles_acquired)
@@ -1689,8 +1723,9 @@ class Stack():
             'tile_width': tile_width,
             'tile_height': tile_height,
             'working_distance': wd,
-            'glob_x': global_px,
-            'glob_y': global_py,
+            'glob_x': global_x,
+            'glob_y': global_y,
+            'glob_z': global_z,
             'slice_counter': self.slice_counter}
         self.metadata_file.write('TILE: ' + str(tile_metadata) + '\n')
         # Server notification:

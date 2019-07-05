@@ -268,10 +268,6 @@ class GridManager(object):
             self.tile_size_px_py.append(tile_size_px_py)
         self.cfg['grids']['tile_size_px_py'] = str(self.tile_size_px_py)
 
-    def get_tile_position_d(self, grid_number, tile_number):
-        return (self.grid_map_d[grid_number][tile_number][0],
-                self.grid_map_d[grid_number][tile_number][1])
-
     def get_pixel_size(self, grid_number):
         return self.pixel_size[grid_number]
 
@@ -807,6 +803,21 @@ class GridManager(object):
         return (self.grid_map_d[grid_number][tile_number][0],
                 self.grid_map_d[grid_number][tile_number][1])
 
+    def get_tile_coordinates_d(self, grid_number, tile_number):
+        """Provide location of tile centre in SEM coordinates
+        (units: microns)."""
+        origin_dx, origin_dy = self.cs.get_grid_origin_d(grid_number)
+        return (origin_dx + self.grid_map_d[grid_number][tile_number][0],
+                origin_dy + self.grid_map_d[grid_number][tile_number][1])
+
+    def get_tile_coordinates_for_registration(self, grid_number, tile_number):
+        """Provide tile location (upper left corner of tile) in nanometres.
+        """
+        dx, dy = self.get_tile_coordinates_d(grid_number, tile_number)
+        width_d = self.get_tile_width_d(grid_number)
+        height_d = self.get_tile_height_d(grid_number)
+        return int((dx - width_d/2) * 1000), int((dy - height_d/2) * 1000)
+
     def get_tile_coordinates_s(self, grid_number, tile_number):
         sx_sy = self.cs.convert_to_s((
             self.grid_map_d[grid_number][tile_number][0],
@@ -817,11 +828,6 @@ class GridManager(object):
         # Tile position in SEM pixel coordinates relative to grid origin:
         return (self.grid_map_p[grid_number][tile_number][0],
                 self.grid_map_p[grid_number][tile_number][1])
-
-    def get_tile_coordinates_p(self, grid_number, tile_number):
-        origin_px, origin_py = self.cs.get_grid_origin_p(grid_number)
-        return (origin_px + self.grid_map_p[grid_number][tile_number][0],
-                origin_py + self.grid_map_p[grid_number][tile_number][1])
 
     def get_grid_map_d(self, grid_number):
         return self.grid_map_d[grid_number]

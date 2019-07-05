@@ -36,8 +36,8 @@ from PyQt5.uic import loadUi
 
 import acq_func
 import utils
-from sem_control import SEM
-from microtome_control import Microtome
+from sem_control import SEM_SmartSEM
+from microtome_control import Microtome_3View
 from stage import Stage
 from plasma_cleaner import PlasmaCleaner
 from stack_acquisition import Stack
@@ -57,7 +57,7 @@ from dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                         PauseDlg, StubOVDlg, EHTDlg, GrabFrameDlg, \
                         FTSetParamsDlg, FTMoveDlg, AskUserDlg, \
                         ImportImageDlg, AdjustImageDlg, DeleteImageDlg, \
-                        ImportMagCDlg, AboutBox
+                        ImportMagCDlg, UpdateDlg, CutDurationDlg, AboutBox
 
 
 class Trigger(QObject):
@@ -69,7 +69,7 @@ class Trigger(QObject):
 class MainControls(QMainWindow):
 
     def __init__(self, config, sysconfig, config_file, VERSION):
-        super(MainControls, self).__init__()
+        super().__init__()
         self.cfg = config
         self.syscfg = sysconfig
         self.cfg_file = config_file # the file name
@@ -235,7 +235,10 @@ class MainControls(QMainWindow):
             self.open_calibration_dlg)
         self.actionMagnificationCalibration.triggered.connect(
             self.open_mag_calibration_dlg)
+        self.actionCutDuration.triggered.connect(
+            self.open_cut_duration_dlg)
         self.actionExport.triggered.connect(self.open_export_dlg)
+        self.actionUpdate.triggered.connect(self.open_update_dlg)
         self.actionImportMagCMetadata.triggered.connect(
             self.open_magc_import_dlg)
         # Buttons for testing purposes (third tab)
@@ -302,6 +305,9 @@ class MainControls(QMainWindow):
         self.checkBox_zoom.stateChanged.connect(self.ft_toggle_zoom)
         # Progress bar for stack acquisitions:
         self.progressBar.setValue(0)
+        # Limit the log to user-specified number of most recent lines:
+        self.textarea_log.setMaximumBlockCount(
+            int(self.cfg['monitoring']['max_log_line_count']))
 
         #------- GUI for MagC tab ---------------------------------
         # initialize the sectionList (QTableView)
@@ -427,20 +433,23 @@ class MainControls(QMainWindow):
         # Initialize coordinate system
         self.cs = CoordinateSystem(self.cfg)
 
-        # Initialize SEM instance to control SmartSEM API:
-        self.sem = SEM(self.cfg, self.syscfg)
-        if self.sem.get_error_state() > 0:
-            self.add_to_log('SEM: Error initializing SmartSEM Remote API.')
-            self.add_to_log('SEM: ' + self.sem.get_error_cause())
-            QMessageBox.warning(
-                self, 'Error initializing SmartSEM Remote API',
-                'Initalization of the SmartSEM Remote API failed. Please '
-                'verify that the Remote API is installed and configured '
-                'correctly.'
-                '\nSBEMimage will be run in simulation mode.',
-                QMessageBox.Ok)
-            self.simulation_mode = True
-            self.cfg['sys']['simulation_mode'] = 'True'
+        if self.cfg['sem']['device'] in [
+            "ZEISS Merlin", "ZEISS Sigma", "ZEISS GeminiSEM",
+            "ZEISS Ultra Plus"]:
+            # Initialize SEM instance to control SmartSEM API:
+            self.sem = SEM_SmartSEM(self.cfg, self.syscfg)
+            if self.sem.get_error_state() > 0:
+                self.add_to_log('SEM: Error initializing SmartSEM Remote API.')
+                self.add_to_log('SEM: ' + self.sem.get_error_cause())
+                QMessageBox.warning(
+                    self, 'Error initializing SmartSEM Remote API',
+                    'Initalization of the SmartSEM Remote API failed. Please '
+                    'verify that the Remote API is installed and configured '
+                    'correctly.'
+                    '\nSBEMimage will be run in simulation mode.',
+                    QMessageBox.Ok)
+                self.simulation_mode = True
+                self.cfg['sys']['simulation_mode'] = 'True'
 
         # Set up overviews:
         self.ovm = OverviewManager(self.cfg, self.sem, self.cs)
@@ -453,8 +462,9 @@ class MainControls(QMainWindow):
         utils.show_progress_in_console(50)
 
         # Initialize DM-3View interface:
-        if self.use_microtome:
-            self.microtome = Microtome(self.cfg, self.syscfg)
+        if (self.use_microtome
+            and self.cfg['microtome']['device'] == 'Gatan 3View'):
+            self.microtome = Microtome_3View(self.cfg, self.syscfg)
             if self.microtome.get_error_state() == 101:
                 self.add_to_log('3VIEW: Error initializing DigitalMicrograph API.')
                 self.add_to_log('3VIEW: ' + self.microtome.get_error_cause())
@@ -467,7 +477,7 @@ class MainControls(QMainWindow):
                     'please set it to zero or a positive value.',
                     QMessageBox.Retry)
                 # Try again:
-                self.microtome = Microtome(self.cfg, self.syscfg)
+                self.microtome = Microtome_3View(self.cfg, self.syscfg)
                 if self.microtome.get_error_state() > 0:
                     self.add_to_log(
                         '3VIEW: Error initializing DigitalMicrograph API '
@@ -866,7 +876,13 @@ class MainControls(QMainWindow):
             self.viewport.mv_draw()
 
     def open_mag_calibration_dlg(self):
-        dialog = MagCalibrationDlg(self.sem)
+        dialog = MagCalibrationDlg(self.sem, self.ovm)
+        if dialog.exec_():
+            # Show updated OV mag:
+            self.show_current_settings()
+
+    def open_cut_duration_dlg(self):
+        dialog = CutDurationDlg(self.microtome)
         dialog.exec_()
 
     def open_ov_dlg(self):
@@ -952,6 +968,10 @@ class MainControls(QMainWindow):
         dialog = ExportDlg(self.cfg)
         dialog.exec_()
         
+    def open_update_dlg(self):
+        dialog = UpdateDlg()
+        dialog.exec_()
+
     def open_magc_import_dlg(self):
         gui_items = {
         'sectionList': self.tableView_magc_sectionList,
@@ -1072,12 +1092,12 @@ class MainControls(QMainWindow):
         self.statusbar_msg = msg
         self.statusBar().showMessage(msg)
 
-    def show_status_busy(self):
-        # Indicate in GUI that program is busy:
+    def set_status(self, text):
+        """Set status label in GUI (acquisition panel)."""
         pal = QPalette(self.label_acqIndicator.palette())
         pal.setColor(QPalette.WindowText, QColor(Qt.red))
         self.label_acqIndicator.setPalette(pal)
-        self.label_acqIndicator.setText('Busy.')
+        self.label_acqIndicator.setText(text)
 
     def event(self, e):
         """Override status tips when hovering with mouse over menu."""
@@ -1100,15 +1120,15 @@ class MainControls(QMainWindow):
         elif msg == 'STUB OV FAILURE':
             self.acquire_stub_ov_success(False)
         elif msg == 'STUB OV BUSY':
-            self.show_status_busy()
+            self.set_status('Busy.')
             self.set_statusbar(
                 'Stub overview acquisition in progress...')
         elif msg == 'APPROACH BUSY':
-            self.show_status_busy()
+            self.set_status('Busy.')
             self.set_statusbar(
                 'Approach cutting in progress...')
         elif msg == 'STATUS IDLE':
-            self.label_acqIndicator.setText('')
+            self.set_status('')
             self.set_statusbar(
                 'Ready. Active configuration: %s' % self.cfg_file)
         elif msg == 'SWEEP SUCCESS':
@@ -1216,6 +1236,8 @@ class MainControls(QMainWindow):
             self.viewport.mv_draw()
         elif msg[:6] == 'VP LOG':
             self.viewport.add_to_viewport_log(msg[6:])
+        elif msg[:15] == 'GET CURRENT LOG':
+            self.write_current_log_to_file(msg[15:])
         else:
             # If msg is not a command, show it in log:
             self.textarea_log.appendPlainText(msg)
@@ -1334,10 +1356,15 @@ class MainControls(QMainWindow):
         self.pushButton_testStopDMScript.setEnabled(False)
         self.checkBox_useDebrisDetection.setEnabled(False)
         self.toolButton_debrisDetection.setEnabled(False)
+        self.actionCutDuration.setEnabled(False)
 
     def add_to_log(self, text):
         """Update the log from the main thread."""
         self.textarea_log.appendPlainText(utils.format_log_entry(text))
+
+    def write_current_log_to_file(self, filename):
+        with open(filename, 'w') as f:
+            f.write(self.textarea_log.toPlainText())
 
 # ==================== Below: Manual SBEM commands ============================
 
@@ -1359,7 +1386,7 @@ class MainControls(QMainWindow):
                     'CTRL: User-requested acquisition of OV image(s) started')
                 self.restrict_gui(True)
                 self.viewport.restrict_gui(True)
-                self.show_status_busy()
+                self.set_status('Busy.')
                 self.set_statusbar(
                     'Overview acquisition in progress...')
                 # Start OV acquisition thread:
@@ -1392,7 +1419,7 @@ class MainControls(QMainWindow):
                 'SBEMimage are correct.', QMessageBox.Ok)
         self.restrict_gui(False)
         self.viewport.restrict_gui(False)
-        self.label_acqIndicator.setText('')
+        self.set_status('')
         self.set_statusbar(
             'Ready. Active configuration: %s' % self.cfg_file)
 
@@ -1411,7 +1438,11 @@ class MainControls(QMainWindow):
                               + self.cfg['acq']['base_dir'][2:]
                               + '\\overviews\\stub')
                 if not os.path.exists(mirror_path):
-                    os.makedirs(mirror_path)
+                    try:
+                        os.makedirs(mirror_path)
+                    except:
+                        self.add_to_log(
+                            'CTRL: Creating directory on mirror drive failed.')
                 try:
                     shutil.copy(self.ovm.get_stub_ov_file(), mirror_path)
                 except:
@@ -1423,7 +1454,7 @@ class MainControls(QMainWindow):
             self.add_to_log('CTRL: ERROR ocurred during stub overview '
                             'acquisition.')
 
-        self.label_acqIndicator.setText('')
+        self.set_status('')
         self.set_statusbar(
             'Ready. Active configuration: %s' % self.cfg_file)
 
@@ -1446,7 +1477,7 @@ class MainControls(QMainWindow):
                                                  self.acq_queue,
                                                  self.acq_trigger,))
             move_thread.start()
-            self.show_status_busy()
+            self.set_status('Busy.')
             self.set_statusbar('Stage move in progress...')
 
     def move_stage_success(self, success):
@@ -1462,7 +1493,7 @@ class MainControls(QMainWindow):
                 QMessageBox.Ok)
         self.restrict_gui(False)
         self.viewport.restrict_gui(False)
-        self.label_acqIndicator.setText('')
+        self.set_status('')
         self.set_statusbar(
             'Ready. Active configuration: ' + self.cfg_file)
 
@@ -1484,7 +1515,7 @@ class MainControls(QMainWindow):
                                                        self.acq_queue,
                                                        self.acq_trigger,))
             user_sweep_thread.start()
-            self.show_status_busy()
+            self.set_status('Busy.')
             self.set_statusbar('Sweep in progress...')
 
     def sweep_success(self, success):
@@ -1498,7 +1529,7 @@ class MainControls(QMainWindow):
                 'and the current Z position.', QMessageBox.Ok)
         self.restrict_gui(False)
         self.viewport.restrict_gui(False)
-        self.label_acqIndicator.setText('')
+        self.set_status('')
         self.set_statusbar(
             'Ready. Active configuration: ' + self.cfg_file)
 
@@ -1741,10 +1772,7 @@ class MainControls(QMainWindow):
             self.pushButton_resetAcq.setEnabled(False)
             self.show_estimates()
             # Indicate in GUI that stack is running now:
-            pal = QPalette(self.label_acqIndicator.palette())
-            pal.setColor(QPalette.WindowText, QColor(Qt.red))
-            self.label_acqIndicator.setPalette(pal)
-            self.label_acqIndicator.setText('Acquisition in progress')
+            self.set_status('Acquisition in progress')
             self.set_statusbar(
                 'Acquisition in progress. Active configuration: '
                 + self.cfg_file)
@@ -1836,7 +1864,7 @@ class MainControls(QMainWindow):
 
     def acq_not_in_progress_update_gui(self):
         self.acq_in_progress = False
-        self.label_acqIndicator.setText('')
+        self.set_status('')
         self.set_statusbar(
             'Ready. Active configuration: ' + self.cfg_file)
         self.restrict_gui(False)

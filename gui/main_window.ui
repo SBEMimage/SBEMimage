@@ -2329,6 +2329,13 @@ Green: acquired</string>
     </property>
     <addaction name="actionMagnificationCalibration"/>
     <addaction name="actionStageCalibration"/>
+    <addaction name="actionCutDuration"/>
+   </widget>
+   <widget class="QMenu" name="menuUpdate">
+    <property name="title">
+     <string>Update</string>
+    </property>
+    <addaction name="actionUpdate"/>
    </widget>
    <widget class="QMenu" name="menuImport">
     <property name="title">
@@ -2342,6 +2349,7 @@ Green: acquired</string>
    <addaction name="menuCalibration"/>
    <addaction name="menuImport"/>
    <addaction name="menuExport"/>
+   <addaction name="menuUpdate"/>
    <addaction name="menuHelp"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
@@ -2468,6 +2476,16 @@ Green: acquired</string>
     <string>Import MagC metadata</string>
    </property>
   </action>
+  <action name="actionCutDuration">
+   <property name="text">
+    <string>Microtome cut duration</string>
+   </property>
+  </action>
+  <action name="actionUpdate">
+   <property name="text">
+    <string>Update SBEMimage</string>
+   </property>
+  </action>  
  </widget>
  <tabstops>
   <tabstop>tabWidget</tabstop>

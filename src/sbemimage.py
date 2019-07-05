@@ -4,8 +4,8 @@
 #==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2016-2018 Benjamin Titze,
-#   Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2016-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
+#   Author(s): B. Titze (benjamin.titze@fmi.ch)
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
 #==============================================================================
@@ -25,7 +25,7 @@ from dlg_windows import ConfigDlg
 from config_template import process_cfg
 from main_controls import MainControls
 
-VERSION = '2.0 (R2018-07-07)'
+VERSION = '2.0 (R2019-02-28)'
 
 def main():
     """Load configuration and run QApplication.
