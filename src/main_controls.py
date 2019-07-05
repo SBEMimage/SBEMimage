@@ -57,7 +57,8 @@ from dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                         PauseDlg, StubOVDlg, EHTDlg, GrabFrameDlg, \
                         FTSetParamsDlg, FTMoveDlg, AskUserDlg, \
                         ImportImageDlg, AdjustImageDlg, DeleteImageDlg, \
-                        ImportMagCDlg, UpdateDlg, CutDurationDlg, AboutBox
+                        ImportMagCDlg, UpdateDlg, CutDurationDlg, AboutBox, \
+                        ImportWaferImageDlg
 
 
 class Trigger(QObject):
@@ -336,8 +337,10 @@ class MainControls(QMainWindow):
         self.pushButton_magc_invertSelection.clicked.connect(self.magc_invert_selection)
         self.pushButton_magc_selectChecked.clicked.connect(self.magc_select_checked)
         self.pushButton_magc_okStringSections.clicked.connect(self.magc_string_sections)
-        #------- end of GUI for MagC tab ---------------------------------
-
+        self.pushButton_magc_importWaferImage.clicked.connect(self.open_import_wafer_image)
+        self.waferCalibrationFlag.setStyleSheet('background-color: yellow')
+        #------- end of GUI for MagC tab ---------------------------------   
+        
     def import_system_settings(self):
         """Import settings from the system configuration file."""
         # Device names
@@ -902,6 +905,16 @@ class MainControls(QMainWindow):
         self.show_estimates()
         self.viewport.mv_draw()
 
+        
+    def open_import_wafer_image(self):    
+        target_dir = os.path.join(self.cfg['acq']['base_dir'], 'overviews', 'imported')
+        if not os.path.exists(target_dir):
+            self.try_to_create_directory(target_dir)
+        dialog = ImportWaferImageDlg(self.ovm, self.cs, target_dir)
+        if dialog.exec_():
+            self.viewport.mv_load_last_imported_image()
+            self.viewport.mv_draw()
+        
     def open_import_image_dlg(self):
         target_dir = self.cfg['acq']['base_dir'] + '\\overviews\\imported'
         if not os.path.exists(target_dir):

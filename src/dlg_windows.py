@@ -821,6 +821,86 @@ class ImportImageDlg(QDialog):
 
 #------------------------------------------------------------------------------
 
+class ImportWaferImageDlg(QDialog):
+    """Import a wafer image into the viewport for MagC."""
+
+    def __init__(self, ovm, cs, target_dir):
+        self.ovm = ovm
+        self.cs = cs
+        self.target_dir = target_dir
+        super().__init__()
+        loadUi(os.path.join('..','gui','import_wafer_image_dlg.ui'), self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon(os.path.join('..','img','icon_16px.ico')))
+        self.setFixedSize(self.size())
+        self.show()
+        self.pushButton_selectFile.clicked.connect(self.select_file)
+        self.pushButton_selectFile.setIcon(QIcon(os.path.join('..','img','selectdir.png')))
+        self.pushButton_selectFile.setIconSize(QSize(16, 16))
+
+    def select_file(self):
+        # Let user select image to be imported:
+        start_path = 'C:\\'
+        selected_file = str(QFileDialog.getOpenFileName(
+                self, 'Select image',
+                start_path,
+                'Images (*.tif *.png *.bmp *.jpg)'
+                )[0])
+        if len(selected_file) > 0:
+            # Replace forward slashes with backward slashes:
+            selected_file = os.path.normpath(selected_file)
+            self.lineEdit_fileName.setText(selected_file)
+            self.lineEdit_name.setText(
+                os.path.splitext(os.path.basename(selected_file))[0])
+
+    def accept(self):
+        selection_success = True
+        selected_path = self.lineEdit_fileName.text()
+        selected_filename = os.path.basename(selected_path)
+        timestamp = str(datetime.datetime.now())
+        # Remove some characters from timestamp to get valid file name:
+        timestamp = timestamp[:19].translate({ord(c): None for c in ' :-.'})
+        target_path = os.path.join(self.target_dir,
+                       os.path.splitext(selected_filename)[0] +
+                       '_' + timestamp + '.png')
+        if os.path.isfile(selected_path):
+            # Copy file to data folder as png:
+            try:
+                imported_img = Image.open(selected_path)
+                imported_img.save(target_path)
+            except Exception as e:
+                QMessageBox.warning(
+                    self, 'Error',
+                    'Could not load image file.' + str(e),
+                     QMessageBox.Ok)
+                selection_success = False
+
+            if selection_success:
+                new_img_number = self.ovm.get_number_imported()
+                self.ovm.add_imported_img()
+                width, height = imported_img.size
+                self.cs.set_imported_img_centre_s(
+                    new_img_number,
+                    [width//2, height//2])
+                self.ovm.set_imported_img_file(
+                    new_img_number, target_path)
+                self.ovm.set_imported_img_name(new_img_number,
+                                               self.lineEdit_name.text())
+                self.ovm.set_imported_img_size_px_py(
+                    new_img_number, width, height)
+                self.ovm.set_imported_img_pixel_size(
+                    new_img_number, 1000)
+        else:
+            QMessageBox.warning(self, 'Error',
+                                'Specified file not found.',
+                                QMessageBox.Ok)
+            selection_success = False
+
+        if selection_success:
+            super().accept()
+
+#------------------------------------------------------------------------------
+
 class AdjustImageDlg(QDialog):
     """Adjust an imported image (size, rotation, transparency)"""
 
@@ -1622,7 +1702,7 @@ class ImportMagCDlg(QDialog):
             sectionJSONClass, id = sectionJSON['label'].split('-')
             if sectionJSONClass == 'tissue':
                 sections[int(id)] = {
-                'center': sectionJSON['center'],
+                'center': [1 * a for a in sectionJSON['center']],
                 'angle': sectionJSON['angle']}
         n_sections = len(sections)
         self.add_to_main_log(str(n_sections) + ' MagC sections have been loaded.')
@@ -1641,7 +1721,6 @@ class ImportMagCDlg(QDialog):
         else:
             self.add_to_main_log('There are more than 1 picture available in the folder containing the .magc section description file. Please place only one wafer picture (.tif) in the folder.')
         #--------------------------------------
-        
         
         #---------------------------------------
         # populate the grids and the sectionList
@@ -1676,7 +1755,7 @@ class ImportMagCDlg(QDialog):
         if len(selected_file) > 0:
             selected_file = os.path.normpath(selected_file)
             self.lineEdit_fileName.setText(selected_file)
-
+    
     def accept(self):
         super(ImportMagCDlg, self).accept()
 
