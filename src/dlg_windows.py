@@ -847,15 +847,12 @@ class ImportWaferImageDlg(QDialog):
                 'Images (*.tif *.png *.bmp *.jpg)'
                 )[0])
         if len(selected_file) > 0:
-            # Replace forward slashes with backward slashes:
             selected_file = os.path.normpath(selected_file)
             self.lineEdit_fileName.setText(selected_file)
-            self.lineEdit_name.setText(
-                os.path.splitext(os.path.basename(selected_file))[0])
 
     def accept(self):
         selection_success = True
-        selected_path = self.lineEdit_fileName.text()
+        selected_path = os.path.normpath(self.lineEdit_fileName.text())
         selected_filename = os.path.basename(selected_path)
         timestamp = str(datetime.datetime.now())
         # Remove some characters from timestamp to get valid file name:
@@ -879,17 +876,17 @@ class ImportWaferImageDlg(QDialog):
                 new_img_number = self.ovm.get_number_imported()
                 self.ovm.add_imported_img()
                 width, height = imported_img.size
-                self.cs.set_imported_img_centre_s(
-                    new_img_number,
-                    [width//2, height//2])
                 self.ovm.set_imported_img_file(
                     new_img_number, target_path)
                 self.ovm.set_imported_img_name(new_img_number,
-                                               self.lineEdit_name.text())
+                                               selected_filename)
                 self.ovm.set_imported_img_size_px_py(
                     new_img_number, width, height)
                 self.ovm.set_imported_img_pixel_size(
                     new_img_number, 1000)
+                self.cs.set_imported_img_centre_s(
+                    new_img_number,
+                    [width//2, height//2])
         else:
             QMessageBox.warning(self, 'Error',
                                 'Specified file not found.',
