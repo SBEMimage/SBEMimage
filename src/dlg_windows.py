@@ -821,83 +821,6 @@ class ImportImageDlg(QDialog):
 
 #------------------------------------------------------------------------------
 
-class ImportWaferImageDlg(QDialog):
-    """Import a wafer image into the viewport for MagC."""
-
-    def __init__(self, ovm, cs, target_dir):
-        self.ovm = ovm
-        self.cs = cs
-        self.target_dir = target_dir
-        super().__init__()
-        loadUi(os.path.join('..','gui','import_wafer_image_dlg.ui'), self)
-        self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon(os.path.join('..','img','icon_16px.ico')))
-        self.setFixedSize(self.size())
-        self.show()
-        self.pushButton_selectFile.clicked.connect(self.select_file)
-        self.pushButton_selectFile.setIcon(QIcon(os.path.join('..','img','selectdir.png')))
-        self.pushButton_selectFile.setIconSize(QSize(16, 16))
-
-    def select_file(self):
-        # Let user select image to be imported:
-        start_path = 'C:\\'
-        selected_file = str(QFileDialog.getOpenFileName(
-                self, 'Select image',
-                start_path,
-                'Images (*.tif *.png *.bmp *.jpg)'
-                )[0])
-        if len(selected_file) > 0:
-            selected_file = os.path.normpath(selected_file)
-            self.lineEdit_fileName.setText(selected_file)
-
-    def accept(self):
-        selection_success = True
-        selected_path = os.path.normpath(self.lineEdit_fileName.text())
-        selected_filename = os.path.basename(selected_path)
-        timestamp = str(datetime.datetime.now())
-        # Remove some characters from timestamp to get valid file name:
-        timestamp = timestamp[:19].translate({ord(c): None for c in ' :-.'})
-        target_path = os.path.join(self.target_dir,
-                       os.path.splitext(selected_filename)[0] +
-                       '_' + timestamp + '.png')
-        if os.path.isfile(selected_path):
-            # Copy file to data folder as png:
-            try:
-                imported_img = Image.open(selected_path)
-                imported_img.save(target_path)
-            except Exception as e:
-                QMessageBox.warning(
-                    self, 'Error',
-                    'Could not load image file.' + str(e),
-                     QMessageBox.Ok)
-                selection_success = False
-
-            if selection_success:
-                new_img_number = self.ovm.get_number_imported()
-                self.ovm.add_imported_img()
-                width, height = imported_img.size
-                self.ovm.set_imported_img_file(
-                    new_img_number, target_path)
-                self.ovm.set_imported_img_name(new_img_number,
-                                               selected_filename)
-                self.ovm.set_imported_img_size_px_py(
-                    new_img_number, width, height)
-                self.ovm.set_imported_img_pixel_size(
-                    new_img_number, 1000)
-                self.cs.set_imported_img_centre_s(
-                    new_img_number,
-                    [width//2, height//2])
-        else:
-            QMessageBox.warning(self, 'Error',
-                                'Specified file not found.',
-                                QMessageBox.Ok)
-            selection_success = False
-
-        if selection_success:
-            super().accept()
-
-#------------------------------------------------------------------------------
-
 class AdjustImageDlg(QDialog):
     """Adjust an imported image (size, rotation, transparency)"""
 
@@ -1653,12 +1576,12 @@ class ExportDlg(QDialog):
         self.pushButton_export.setEnabled(True)
         QApplication.processEvents()
 
-#------------------------------------------------------------------------------
+#-------------- MagC dialogs -----------------------------------------------------
 
 class ImportMagCDlg(QDialog):
     """Import MagC metadata."""
 
-    def __init__(self, grid_manager, coordinate_system, stage, gui_items, trigger, queue):
+    def __init__(self, config, grid_manager, coordinate_system, stage, gui_items, trigger, queue):
         super().__init__()
         self.gm = grid_manager
         self.stage = stage
@@ -1666,6 +1589,7 @@ class ImportMagCDlg(QDialog):
         self.gui_items = gui_items
         self.trigger = trigger
         self.queue = queue
+        self.cfg = config
         loadUi(os.path.join('..', 'gui', 'import_magc_metadata_dlg.ui'), self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon(os.path.join('..', 'img', 'icon_16px.ico')))
@@ -1737,8 +1661,18 @@ class ImportMagCDlg(QDialog):
             item2 = QStandardItem('')
             item2.setBackground(color_not_acquired)
             item2.setCheckable(False)
+            item2.setSelectable(False)
             sectionListModel.appendRow([item1, item2])
         #---------------------------------------
+        
+        #---------------------------------------
+        # Update config with MagC items
+        self.cfg['sys']['magc_mode'] = 'True'
+        self.cfg['MagC'] = {
+        'selected_sections': []
+        }
+        #---------------------------------------
+        
         self.accept()
         
     def select_file(self):
@@ -1757,6 +1691,83 @@ class ImportMagCDlg(QDialog):
         super(ImportMagCDlg, self).accept()
 
 #------------------------------------------------------------------------------
+
+class ImportWaferImageDlg(QDialog):
+    """Import a wafer image into the viewport for MagC."""
+
+    def __init__(self, ovm, cs, target_dir):
+        self.ovm = ovm
+        self.cs = cs
+        self.target_dir = target_dir
+        super().__init__()
+        loadUi(os.path.join('..','gui','import_wafer_image_dlg.ui'), self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon(os.path.join('..','img','icon_16px.ico')))
+        self.setFixedSize(self.size())
+        self.show()
+        self.pushButton_selectFile.clicked.connect(self.select_file)
+        self.pushButton_selectFile.setIcon(QIcon(os.path.join('..','img','selectdir.png')))
+        self.pushButton_selectFile.setIconSize(QSize(16, 16))
+
+    def select_file(self):
+        # Let user select image to be imported:
+        start_path = os.getenv('SystemDrive')
+        selected_file = str(QFileDialog.getOpenFileName(
+                self, 'Select image',
+                start_path,
+                'Images (*.tif *.png *.bmp *.jpg)'
+                )[0])
+        if len(selected_file) > 0:
+            selected_file = os.path.normpath(selected_file)
+            self.lineEdit_fileName.setText(selected_file)
+
+    def accept(self):
+        selection_success = True
+        selected_path = os.path.normpath(self.lineEdit_fileName.text())
+        selected_filename = os.path.basename(selected_path)
+        timestamp = str(datetime.datetime.now())
+        # Remove some characters from timestamp to get valid file name:
+        timestamp = timestamp[:19].translate({ord(c): None for c in ' :-.'})
+        target_path = os.path.join(self.target_dir,
+                       os.path.splitext(selected_filename)[0] +
+                       '_' + timestamp + '.png')
+        if os.path.isfile(selected_path):
+            # Copy file to data folder as png:
+            try:
+                imported_img = Image.open(selected_path)
+                imported_img.save(target_path)
+            except Exception as e:
+                QMessageBox.warning(
+                    self, 'Error',
+                    'Could not load image file.' + str(e),
+                     QMessageBox.Ok)
+                selection_success = False
+
+            if selection_success:
+                new_img_number = self.ovm.get_number_imported()
+                self.ovm.add_imported_img()
+                width, height = imported_img.size
+                self.ovm.set_imported_img_file(
+                    new_img_number, target_path)
+                self.ovm.set_imported_img_name(new_img_number,
+                                               selected_filename)
+                self.ovm.set_imported_img_size_px_py(
+                    new_img_number, width, height)
+                self.ovm.set_imported_img_pixel_size(
+                    new_img_number, 1000)
+                self.cs.set_imported_img_centre_s(
+                    new_img_number,
+                    [width//2, height//2])
+        else:
+            QMessageBox.warning(self, 'Error',
+                                'Specified file not found.',
+                                QMessageBox.Ok)
+            selection_success = False
+
+        if selection_success:
+            super().accept()
+        
+#----------------- End of MagC dialogs ----------------------------------------------------
 
 class UpdateDlg(QDialog):
     """Update SBEMimage by downloading latest version from GitHub."""

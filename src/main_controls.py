@@ -316,6 +316,7 @@ class MainControls(QMainWindow):
         sectionListModel.setHorizontalHeaderItem(0, QStandardItem('Sections'))
         sectionListModel.setHorizontalHeaderItem(1, QStandardItem('State'))
         self.tableView_magc_sectionList.setModel(sectionListModel)
+        self.tableView_magc_sectionList.selectionModel().selectionChanged.connect(self.magc_update_selected_sections_to_config)
 
         header = self.tableView_magc_sectionList.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
@@ -336,7 +337,7 @@ class MainControls(QMainWindow):
         self.pushButton_magc_uncheckSelected.clicked.connect(self.magc_uncheck_selected)
         self.pushButton_magc_invertSelection.clicked.connect(self.magc_invert_selection)
         self.pushButton_magc_selectChecked.clicked.connect(self.magc_select_checked)
-        self.pushButton_magc_okStringSections.clicked.connect(self.magc_string_sections)
+        self.pushButton_magc_okStringSections.clicked.connect(self.magc_select_string_sections)
         self.pushButton_magc_importWaferImage.clicked.connect(self.open_import_wafer_image)
         self.waferCalibrationFlag.setStyleSheet('background-color: yellow')
         #------- end of GUI for MagC tab ---------------------------------   
@@ -703,17 +704,11 @@ class MainControls(QMainWindow):
         self.viewport.mv_draw()
 
 #--------------- MagC tab------------------------------------
+    
     def magc_select_all(self):
         tableView = self.tableView_magc_sectionList
-        tableView.clearSelection()
         model = tableView.model()
-        selectionModel = tableView.selectionModel()
-
-        topLeft = model.index(0, 0)
-        bottomRight = model.index(model.rowCount() - 1, 0)
-        selection = QItemSelection(topLeft, bottomRight)
-        selectionModel.select(selection, QItemSelectionModel.Select)
-        self.tableView_magc_sectionList.setFocus()
+        self.magc_select_rows(range(model.rowCount()))
 
     def magc_deselect_all(self):
         tableView = self.tableView_magc_sectionList
@@ -721,84 +716,80 @@ class MainControls(QMainWindow):
 
     def magc_check_selected(self):
         tableView = self.tableView_magc_sectionList
-        selectedIndexes = tableView.selectedIndexes()
-        model = tableView.model()
-        model.blockSignals(True) # prevent slowness
-        for selectedIndex in selectedIndexes:
-            if selectedIndex.column() == 0: # prevent checking the state column
-                item = model.item(selectedIndex.row(), selectedIndex.column())
-                item.setCheckState(Qt.Checked)
-        model.blockSignals(False)
-        self.tableView_magc_sectionList.setFocus()
+        selectedRows = [id.row() for id in tableView.selectedIndexes()]
+        self.magc_set_check_rows(selectedRows, Qt.Checked)
+        self.magc_update_checked_sections_to_config()
         
     def magc_uncheck_selected(self):
         tableView = self.tableView_magc_sectionList
-        selectedIndexes = tableView.selectedIndexes()
-        model = tableView.model()
-        model.blockSignals(True) # prevent slowness
-        for selectedIndex in selectedIndexes:
-            if selectedIndex.column() == 0: # prevent checking the state column
-                item = model.item(selectedIndex.row(), selectedIndex.column())
-                item.setCheckState(Qt.Unchecked)
-        model.blockSignals(False)
-        self.tableView_magc_sectionList.setFocus()
+        selectedRows = [id.row() for id in tableView.selectedIndexes()]
+        self.magc_set_check_rows(selectedRows, Qt.Unchecked)
+        self.magc_update_checked_sections_to_config()
         
     def magc_invert_selection(self):
         tableView = self.tableView_magc_sectionList
-        selectedIndexes = tableView.selectedIndexes()
+        selectedRows = [id.row() for id in tableView.selectedIndexes()]
         model = tableView.model()
-        allIndexes = []
-        for r in range(model.rowCount()):
-            allIndexes.append(model.index(r, 0))
-
-        tableView.clearSelection()
-        indexesToSelect = set(allIndexes) - set(selectedIndexes)
-        selectionModel = tableView.selectionModel()
-        
-        selectionModel.blockSignals(True)
-        for index in indexesToSelect:
-            selection = QItemSelection(index, index)
-            selectionModel.select(selection, QItemSelectionModel.Select)
-        selectionModel.blockSignals(False)
-        self.tableView_magc_sectionList.setFocus()
+        rowsToSelect = set(range(model.rowCount())) - set(selectedRows)
+        self.magc_select_rows(rowsToSelect)
 
     def magc_select_checked(self):
         tableView = self.tableView_magc_sectionList
-        tableView.clearSelection()
         model = tableView.model()
-        selectionModel = tableView.selectionModel()
-
-        selectionModel.blockSignals(True)
+        checkedRows = []
         for r in range(model.rowCount()):
             item = model.item(r, 0)
             if item.checkState() == Qt.Checked:
-                index = model.index(r, 0)
-                selection = QItemSelection(index, index)
-                selectionModel.select(selection, QItemSelectionModel.Select)
-        selectionModel.blockSignals(False)
-        self.tableView_magc_sectionList.setFocus()
-
-    def magc_string_sections(self):
+                checkedRows.append(r)
+        self.magc_select_rows(checkedRows)
+        
+    def magc_select_string_sections(self):
         userString = self.textEdit_magc_stringSections.toPlainText()
         indexes = utils.get_indexes_from_user_string(userString)
         if indexes:
-            self.magc_select_indexes(indexes)
+            self.magc_select_rows(indexes)
             self.tableView_magc_sectionList.verticalScrollBar().setValue(indexes[0])
             self.add_to_log('Custom section string selection: ' + userString)
         else:
             self.add_to_log('Something wrong in your input. Use 2,5,3 or 2-30 or 2-30-5')       
         
-    def magc_select_indexes(self, rows):
+    def magc_set_check_rows(self, rows, check_state):
+        tableView = self.tableView_magc_sectionList
+        model = tableView.model()
+        model.blockSignals(True) # prevent slowness
+        for row in rows:
+            item = model.item(row, 0)
+            item.setCheckState(check_state)
+        model.blockSignals(False)
+        self.tableView_magc_sectionList.setFocus()
+       
+    def magc_select_rows(self, rows):
         tableView = self.tableView_magc_sectionList
         tableView.clearSelection()
         model = tableView.model()
         selectionModel = tableView.selectionModel()
+        selection = QItemSelection()
         for row in rows:
             index = model.index(row, 0)
-            selection = QItemSelection(index, index)
-            selectionModel.select(selection, QItemSelectionModel.Select)
+            selection.merge(QItemSelection(index, index), QItemSelectionModel.Select)
+        selectionModel.select(selection, QItemSelectionModel.Select)
         self.tableView_magc_sectionList.setFocus()
         
+    def magc_update_selected_sections_to_config(self):
+        tableView = self.tableView_magc_sectionList
+        selectedRows = [id.row() for id in tableView.selectedIndexes()]
+        self.cfg['MagC']['selected_sections'] = str(selectedRows)
+
+    def magc_update_checked_sections_to_config(self):
+        checkedSections = []
+        tableView = self.tableView_magc_sectionList
+        model = tableView.model()
+        for r in range(model.rowCount()):
+            item = model.item(r, 0)
+            if item.checkState() == Qt.Checked:
+                checkedSections.append(r)
+        self.cfg['MagC']['checked_sections'] = str(checkedSections)
+
     def double_clicked_section(self, doubleClickedIndex):
         row = doubleClickedIndex.row()
         model = doubleClickedIndex.model()
@@ -808,6 +799,7 @@ class MainControls(QMainWindow):
         # xxx Merlin stage already activated ?
         # self.stage.move_to_xy((self.cs.get_grid_origin_s(grid_number=row)))
         # xxx update viewport to new location
+
         
         
 #--------------- End of MagC tab------------------------------------
@@ -989,7 +981,7 @@ class MainControls(QMainWindow):
         gui_items = {
         'sectionList': self.tableView_magc_sectionList,
         }
-        dialog = ImportMagCDlg(self.gm, self.cs, self.stage, gui_items, self.acq_trigger, self.acq_queue)
+        dialog = ImportMagCDlg(self.cfg, self.gm, self.cs, self.stage, gui_items, self.acq_trigger, self.acq_queue)
         if dialog.exec_():
             # self.tabWidget.setTabEnabled(3, True)
             self.update_from_grid_dlg()

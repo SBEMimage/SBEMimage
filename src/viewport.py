@@ -840,6 +840,14 @@ class Viewport(QWidget):
             action11.triggered.connect(self.mv_adjust_imported_image)
             action12 = menu.addAction('Delete imported image')
             action12.triggered.connect(self.mv_delete_imported_image)
+            if ('magc_mode' in self.cfg['sys'] 
+            and self.cfg['sys']['magc_mode'] == 'True'):
+                
+                menu.addSeparator()
+                action13 = menu.addAction('MagC|Propagate grid to all sections')
+                action13.triggered.connect(self.mv_propagate_grid_all_sections)
+                action14 = menu.addAction('MagC|Propagate grid to selected sections')
+                action14.triggered.connect(self.mv_propagate_grid_selected_sections)
 
             if (self.selected_tile is None) and (self.selected_ov is None):
                 action1.setEnabled(False)
@@ -1770,6 +1778,13 @@ class Viewport(QWidget):
         self.mv_load_stub_overview()
         self.mv_draw()
 
+    def mv_propagate_grid_selected_sections(self):
+        print('selected_sections', self.cfg['MagC']['selected_sections'])
+        pass
+        
+    def mv_propagate_grid_all_sections(self):
+        pass
+        
 # =================== Below: Slice Viewer (sv) functions ======================
 
     def sv_initialize(self):
