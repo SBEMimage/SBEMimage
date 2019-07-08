@@ -810,6 +810,8 @@ class MainControls(QMainWindow):
         model = doubleClickedIndex.model()
         firstColumnIndex = model.index(row, 0)
         sectionKey = int(model.data(firstColumnIndex)) # the index and the key of the section should in theory be the same, just in case 
+        self.cs.set_mv_centre_d(self.cs.get_grid_origin_d(grid_number=row))
+        self.viewport.mv_draw()
         if self.cfg['magc']['wafer_calibrated'] == 'True':
             self.add_to_log('Section ' + str(sectionKey) + ' has been double-clicked. Moving to section...')
             # xxx moving to the center of the section. To compute the center we need
@@ -818,7 +820,6 @@ class MainControls(QMainWindow):
             # grid_size = self.gm.get_grid_size(grid_number=row)
             grid_origin = self.cs.get_grid_origin_s(grid_number=row)
             self.stage.move_to_xy(grid_origin)
-            # xxx update viewport to new location
         else:
             self.add_to_log('Section ' + str(sectionKey) + ' has been double-clicked. Wafer is not calibrated, therefore no stage movement.')
      
