@@ -1625,6 +1625,11 @@ class ImportMagCDlg(QDialog):
                 sections[int(id)] = {
                 'center': [1 * a for a in sectionJSON['center']],
                 'angle': sectionJSON['angle']}
+            elif 'tissueROI' in sectionJSONClass:
+                sections[sectionJSON['label']] = {
+                'center': sectionJSON['center']
+                }
+            
         n_sections = len(sections)
         self.add_to_main_log(str(n_sections) + ' MagC sections have been loaded.')
         #-----------------------------
@@ -1664,14 +1669,16 @@ class ImportMagCDlg(QDialog):
             item2.setSelectable(False)
             sectionListModel.appendRow([item1, item2])
         #---------------------------------------
-        
+
         #---------------------------------------
         # Update config with MagC items
         self.cfg['sys']['magc_mode'] = 'True'
-        self.cfg['MagC'] = {
-        'selected_sections': []
+        self.cfg['magc'] = {
+        'sections': json.dumps(sections),
+        'selected_sections': [],
+        'checked_sections': []
         }
-        #---------------------------------------
+        # ---------------------------------------
         
         self.accept()
         

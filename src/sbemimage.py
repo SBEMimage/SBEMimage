@@ -20,6 +20,7 @@ import ctypes
 from configparser import ConfigParser
 from PyQt5.QtWidgets import QApplication
 import colorama # needed to suppress TIFFReadDirectory warnings in the console
+import json
 
 from dlg_windows import ConfigDlg
 from config_template import process_cfg
@@ -67,9 +68,11 @@ def main():
                 print('Loading configuration file %s ...'
                       % config_file, end='')
                 config = ConfigParser()
-                with open('..\\cfg\\' + config_file, 'r') as file:
+                config_file_path = os.path.join('..', 'cfg', config_file)
+                with open(config_file_path, 'r') as file:
                     config.read_file(file)
                 print(' Done.\n')
+
                 # Load corresponding system settings file
                 sysconfig_file = config['sys']['sys_config_file']
                 if default_configuration and sysconfig_file != 'system.cfg':
@@ -82,9 +85,9 @@ def main():
                     sysconfig.read_file(file)
                 configuration_loaded = True
                 print(' Done.\n')
-            except:
+            except Exception as e:
                 configuration_loaded = False
-                print('\nError while loading configuration! Program aborted.\n')
+                print('\nError while loading configuration! Program aborted.\n Exception:', str(e))
                 # Keep terminal window open when run from batch file
                 os.system('cmd /k')
                 sys.exit()

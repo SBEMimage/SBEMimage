@@ -16,8 +16,15 @@
 # The following constants must be updated if entries are added to or
 # deleted from the default configuration files
 CFG_TEMPLATE_FILE = '..\\cfg\\default.ini'
-CFG_NUMBER_SECTIONS = 10
-CFG_NUMBER_KEYS = 194
+CFG_NUMBER_SECTIONS_SBEMIMAGE = 10
+CFG_NUMBER_KEYS_SBEMIMAGE = 194
+
+CFG_NUMBER_SECTIONS_MAGC = 1 # magc
+CFG_NUMBER_KEYS_MAGC = 4 # [sys][magc_mode],[magc][selected_sections] 
+                        # [magc][checked_sections], [magc][sections]
+
+CFG_NUMBER_SECTIONS = CFG_NUMBER_SECTIONS_SBEMIMAGE + CFG_NUMBER_SECTIONS_MAGC
+CFG_NUMBER_KEYS = CFG_NUMBER_KEYS_SBEMIMAGE + CFG_NUMBER_KEYS_MAGC
 
 SYSCFG_TEMPLATE_FILE = '..\\cfg\\system.cfg'
 SYSCFG_NUMBER_SECTIONS = 7

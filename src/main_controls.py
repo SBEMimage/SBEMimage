@@ -704,7 +704,6 @@ class MainControls(QMainWindow):
         self.viewport.mv_draw()
 
 #--------------- MagC tab------------------------------------
-    
     def magc_select_all(self):
         tableView = self.tableView_magc_sectionList
         model = tableView.model()
@@ -778,7 +777,7 @@ class MainControls(QMainWindow):
     def magc_update_selected_sections_to_config(self):
         tableView = self.tableView_magc_sectionList
         selectedRows = [id.row() for id in tableView.selectedIndexes()]
-        self.cfg['MagC']['selected_sections'] = str(selectedRows)
+        self.cfg['magc']['selected_sections'] = str(selectedRows)
 
     def magc_update_checked_sections_to_config(self):
         checkedSections = []
@@ -788,7 +787,7 @@ class MainControls(QMainWindow):
             item = model.item(r, 0)
             if item.checkState() == Qt.Checked:
                 checkedSections.append(r)
-        self.cfg['MagC']['checked_sections'] = str(checkedSections)
+        self.cfg['magc']['checked_sections'] = str(checkedSections)
 
     def double_clicked_section(self, doubleClickedIndex):
         row = doubleClickedIndex.row()
