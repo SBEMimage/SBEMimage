@@ -323,7 +323,7 @@ class MainControls(QMainWindow):
         sectionListModel.setHorizontalHeaderItem(0, QStandardItem('Sections'))
         sectionListModel.setHorizontalHeaderItem(1, QStandardItem('State'))
         self.tableView_magc_sectionList.setModel(sectionListModel)
-        self.tableView_magc_sectionList.selectionModel().selectionChanged.connect(self.magc_update_selected_sections_to_config)
+        self.tableView_magc_sectionList.selectionModel().selectionChanged.connect(self.magc_actions_selected_section_changed)
 
         header = self.tableView_magc_sectionList.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
@@ -781,9 +781,16 @@ class MainControls(QMainWindow):
         selectionModel.select(selection, QItemSelectionModel.Select)
         self.tableView_magc_sectionList.setFocus()
         
-    def magc_update_selected_sections_to_config(self):
+    def magc_actions_selected_section_changed(self, changedSelected, changedDeselected):
         tableView = self.tableView_magc_sectionList
         selectedRows = [id.row() for id in tableView.selectedIndexes()]
+        for changedSelectedIndex in changedSelected.indexes():
+            row = changedSelectedIndex.row()
+            self.gm.set_display_colour(grid_number=row, colour=0)
+        for changedDeselectedIndex in changedDeselected.indexes():
+            row = changedDeselectedIndex.row()
+            self.gm.set_display_colour(grid_number=row, colour=1)
+        self.viewport.mv_draw()
         self.cfg['magc']['selected_sections'] = str(selectedRows)
 
     def magc_update_checked_sections_to_config(self):
