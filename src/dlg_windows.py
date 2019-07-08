@@ -1651,8 +1651,8 @@ class ImportMagCDlg(QDialog):
         #---------------------------------------
         # populate the grids and the sectionList
         sectionListModel = self.gui_items['sectionList'].model()
-        self.gm.delete_all_additional_grids()   
-        for section in range(n_sections - 1):
+        self.gm.delete_all_grids()
+        for section in range(n_sections):
             self.gm.add_new_grid()
         for idx, section in sections.items():
             self.cs.set_grid_origin_s(grid_number=idx, s_coordinates=list(map(float, section['center'])))
@@ -1673,9 +1673,9 @@ class ImportMagCDlg(QDialog):
         #---------------------------------------
         # Update config with MagC items
         self.cfg['sys']['magc_mode'] = 'True'
-        self.cfg['magc']['sections'] = json.dump(sections)
-        self.cfg['magc']['selected_sections'] = []
-        self.cfg['magc']['checked_sections'] = []
+        self.cfg['magc']['sections'] = json.dumps(sections)
+        self.cfg['magc']['selected_sections'] = '[]'
+        self.cfg['magc']['checked_sections'] = '[]'
         # xxx does importing a new magc file always require a wafer_calibration ?
         # ---------------------------------------
         

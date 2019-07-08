@@ -58,8 +58,11 @@ class GridManager(object):
 
     def add_new_grid(self):
         new_grid_number = self.number_grids
-        # Position new grid next to the previous grid
-        x_pos, y_pos = self.cs.get_grid_origin_s(new_grid_number-1)
+        # Position new grid next to the previous grid (if it exists)
+        if new_grid_number == 0:
+            x_pos, y_pos = 0,0
+        else:
+            x_pos, y_pos = self.cs.get_grid_origin_s(new_grid_number-1)
         self.cs.set_grid_origin_s(new_grid_number, [x_pos, y_pos+50])
         self.set_grid_size(new_grid_number, [5, 5])
         self.set_rotation(new_grid_number, 0)
@@ -78,12 +81,18 @@ class GridManager(object):
         self.set_pixel_size(new_grid_number, 10)
         self.set_dwell_time(new_grid_number, 0.8)
         self.set_dwell_time_selector(new_grid_number, 4)
-        # Choose colour not already used:
-        new_colours = [c for c in range(8) if c not in self.display_colour]
-        if not new_colours:
-            # If all colours have been used already, use 1 (green):
-            new_colours = [1]
-        self.set_display_colour(new_grid_number, new_colours[0])
+        
+        # set colour
+        if self.cfg['sys']['magc_mode'] == 'False':
+            # Choose colour not already used:
+            new_colours = [c for c in range(8) if c not in self.display_colour]
+            if not new_colours:
+                # If all colours have been used already, use 1 (green):
+                new_colours = [1]
+            self.set_display_colour(new_grid_number, new_colours[0])
+        else: # use green by default in magc_mode
+            self.set_display_colour(new_grid_number, 1)
+        
         self.set_origin_wd(new_grid_number, 0)
         self.set_acq_interval(new_grid_number, 1)
         self.set_acq_interval_offset(new_grid_number, 0)
@@ -148,6 +157,10 @@ class GridManager(object):
 
     def delete_all_additional_grids(self):
         for grid_number in range(self.number_grids-1):
+            self.delete_grid()
+            
+    def delete_all_grids(self):
+        for grid_number in range(self.number_grids):
             self.delete_grid()
 
     def get_number_grids(self):
