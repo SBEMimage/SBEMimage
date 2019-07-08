@@ -915,6 +915,11 @@ class Viewport(QWidget):
         # First, show stub OV if option selected:
         if self.show_stub_ov and self.stub_ov_exists:
             self.mv_place_stub_overview()
+        # For MagC: show imported images before drawing grids
+        if (self.show_imported and self.number_imported > 0
+            and self.cfg['sys']['magc_mode'] == 'True'):
+            for i in range(self.number_imported):
+                self.mv_place_imported_img(i)
         # Place OV overviews over stub OV:
         if self.mv_current_ov == -1:
             for i in range(self.number_ov):
@@ -938,7 +943,8 @@ class Viewport(QWidget):
             self.mv_place_grid(self.mv_current_grid, show_grid,
                             show_previews, with_gaps)
         # Finally, show imported images:
-        if self.show_imported and (self.number_imported > 0):
+        if (self.show_imported and self.number_imported > 0
+            and self.cfg['sys']['magc_mode'] == 'False'):
             for i in range(self.number_imported):
                 self.mv_place_imported_img(i)
         # Show stage boundaries (motor limits)
