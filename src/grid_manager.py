@@ -155,10 +155,6 @@ class GridManager(object):
         self.number_grids -= 1
         self.cfg['grids']['number_grids'] = str(self.number_grids)
 
-    def delete_all_additional_grids(self):
-        for grid_number in range(self.number_grids-1):
-            self.delete_grid()
-            
     def delete_all_grids(self):
         for grid_number in range(self.number_grids):
             self.delete_grid()
