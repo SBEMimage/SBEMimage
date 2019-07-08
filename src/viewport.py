@@ -17,6 +17,7 @@
 
 import os
 import datetime
+import json
 import numpy as np
 from PIL import Image
 from math import log, sqrt
@@ -840,14 +841,15 @@ class Viewport(QWidget):
             action11.triggered.connect(self.mv_adjust_imported_image)
             action12 = menu.addAction('Delete imported image')
             action12.triggered.connect(self.mv_delete_imported_image)
-            if ('magc_mode' in self.cfg['sys'] 
-            and self.cfg['sys']['magc_mode'] == 'True'):
-                
+            #----- MagC items -----
+            if (self.cfg['sys']['magc_mode'] == 'True'
+                and self.selected_grid):
                 menu.addSeparator()
                 action13 = menu.addAction('MagC|Propagate grid to all sections')
                 action13.triggered.connect(self.mv_propagate_grid_all_sections)
                 action14 = menu.addAction('MagC|Propagate grid to selected sections')
                 action14.triggered.connect(self.mv_propagate_grid_selected_sections)
+            #----- End of MagC items -----
 
             if (self.selected_tile is None) and (self.selected_ov is None):
                 action1.setEnabled(False)
@@ -1785,11 +1787,21 @@ class Viewport(QWidget):
         self.mv_draw()
 
     def mv_propagate_grid_selected_sections(self):
-        print('selected_sections', self.cfg['MagC']['selected_sections'])
-        pass
+        clicked_section_number = self.selected_grid
+        selected_sections = json.loads(self.cfg['magc']['selected_sections'])
+        for selected_section in selected_sections:
+            self.gm.propagate_source_grid_to_target_grid(clicked_section_number, selected_section)
+        self.mv_draw()
         
     def mv_propagate_grid_all_sections(self):
-        pass
+        clicked_section_number = self.selected_grid
+        section_numbers = [int(key) for key in 
+            json.loads(self.cfg['magc']['sections']).keys() if key.isdigit()]
+            # check isdigit because it could be tissueROI
+        for section in section_numbers:
+            self.gm.propagate_source_grid_to_target_grid(clicked_section_number,
+            section)
+        self.mv_draw()
         
 # =================== Below: Slice Viewer (sv) functions ======================
 

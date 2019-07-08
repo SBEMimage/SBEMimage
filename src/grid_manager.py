@@ -107,6 +107,43 @@ class GridManager(object):
         self.number_grids += 1
         self.cfg['grids']['number_grids'] = str(self.number_grids)
 
+    def propagate_source_grid_to_target_grid(self, source_grid_number,
+        target_grid_number):
+        s = source_grid_number
+        t = target_grid_number
+        
+        # target location/rotation to implement when rotation ready
+        # x_pos, y_pos = 
+        # self.cs.set_grid_origin_s(t, [xxx, yyy])
+        # self.set_rotation(t, xxx)
+        
+        # # probably these should not be changed ?
+        # self.set_origin_wd(t, self.get_origin_wd(s))
+        # self.initialize_wd_stig_map(t)
+
+        self.set_grid_size(t, self.get_grid_size(s))
+        self.set_overlap(t, self.get_overlap(s))
+        self.set_row_shift(t, self.get_row_shift(s))
+        self.set_number_active_tiles(t, self.get_number_active_tiles(s))
+        self.set_active_tiles(t, self.get_active_tiles(s))
+        if len(self.sem.STORE_RES) > 4:
+            # Merlin
+            self.set_tile_size_px_py(t, self.get_tile_size_px_py(s))
+            self.set_tile_size_selector(t, self.get_tile_size_selector(s))
+        else:
+            # Sigma
+            self.set_tile_size_px_py(t, self.get_tile_size_px_py(s))
+            self.set_tile_size_selector(t, self.get_tile_size_selector(s))
+        self.set_pixel_size(t, self.get_pixel_size(s))
+        self.set_dwell_time(t, self.get_dwell_time(s))
+        self.set_dwell_time_selector(t, self.get_dwell_time_selector(s))
+        self.set_acq_interval(t, self.get_acq_interval(s))
+        self.set_acq_interval_offset(t, self.get_acq_interval_offset(s))
+        self.set_adaptive_focus_enabled(t, self.get_adaptive_focus_enabled(s))
+        self.set_adaptive_focus_tiles(t, self.get_adaptive_focus_tiles(s))
+        self.set_adaptive_focus_gradient(t, self.get_adaptive_focus_gradient(s))
+        self.calculate_grid_map(t)
+        
     def delete_grid(self):
         # Delete last item from each grid variable:
         self.cs.delete_grid_origin(self.number_grids - 1)
@@ -547,6 +584,9 @@ class GridManager(object):
             self.af_active[grid_number] = 0
         self.cfg['grids']['use_adaptive_focus'] = str(self.af_active)
 
+    def get_adaptive_focus_enabled(self, grid_number):
+        return self.af_active[grid_number]
+        
     def get_af_tile_str_list(self, grid_number):
         str_list = []
         for tile in self.af_tiles[grid_number]:

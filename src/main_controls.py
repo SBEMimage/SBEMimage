@@ -793,7 +793,7 @@ class MainControls(QMainWindow):
         # update config
         tableView = self.tableView_magc_sectionList
         selectedRows = [id.row() for id in tableView.selectedIndexes()]
-        self.cfg['magc']['selected_sections'] = str(selectedRows)
+        self.cfg['magc']['selected_sections'] = json.dumps(selectedRows)
 
     def magc_update_checked_sections_to_config(self):
         checkedSections = []
