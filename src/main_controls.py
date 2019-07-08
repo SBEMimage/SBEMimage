@@ -150,6 +150,13 @@ class MainControls(QMainWindow):
                 '({0:.3f}).'.format(self.microtome.get_stage_z_prev_session())
                 + ' Please make sure that the Z position is correct.',
                 QMessageBox.Ok)
+        # ------ MagC operations ------
+        self.cfg['magc']['selected_sections'] = '[]'
+        self.cfg['magc']['checked_sections'] = '[]'
+        # for now, start of SBEMimage restarts all sections and wafer_calibration
+        self.cfg['magc']['sections'] = '{}'
+        self.cfg['magc']['wafer_calibrated'] = 'False'
+        # ------ End of MagC operations ------
 
     def load_gui(self):
         """Load and set up the GUI."""
@@ -794,12 +801,18 @@ class MainControls(QMainWindow):
         model = doubleClickedIndex.model()
         firstColumnIndex = model.index(row, 0)
         sectionKey = int(model.data(firstColumnIndex)) # the index and the key of the section should in theory be the same, just in case 
-        self.add_to_log('Section ' + str(sectionKey) + ' has been double-clicked. Moving to section')
-        # xxx Merlin stage already activated ?
-        # self.stage.move_to_xy((self.cs.get_grid_origin_s(grid_number=row)))
-        # xxx update viewport to new location
-
-        
+        if self.cfg['magc']['wafer_calibrated'] == 'True':
+            self.add_to_log('Section ' + str(sectionKey) + ' has been double-clicked. Moving to section...')
+            # xxx moving to the center of the section. To compute the center we need
+            # grid_origin, grid_size, grid_rotation. Need rotation implementation.
+            # Moving to grid origin for now
+            # grid_size = self.gm.get_grid_size(grid_number=row)
+            grid_origin = self.cs.get_grid_origin_s(grid_number=row)
+            self.stage.move_to_xy(grid_origin)
+            # xxx update viewport to new location
+        else:
+            self.add_to_log('Section ' + str(sectionKey) + ' has been double-clicked. Wafer is not calibrated, therefore no stage movement.')
+     
         
 #--------------- End of MagC tab------------------------------------
     

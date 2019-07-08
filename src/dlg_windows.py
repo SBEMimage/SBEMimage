@@ -1673,11 +1673,10 @@ class ImportMagCDlg(QDialog):
         #---------------------------------------
         # Update config with MagC items
         self.cfg['sys']['magc_mode'] = 'True'
-        self.cfg['magc'] = {
-        'sections': json.dumps(sections),
-        'selected_sections': [],
-        'checked_sections': []
-        }
+        self.cfg['magc']['sections'] = json.dump(sections)
+        self.cfg['magc']['selected_sections'] = []
+        self.cfg['magc']['checked_sections'] = []
+        # xxx does importing a new magc file always require a wafer_calibration ?
         # ---------------------------------------
         
         self.accept()

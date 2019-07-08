@@ -20,8 +20,9 @@ CFG_NUMBER_SECTIONS_CORE = 10
 CFG_NUMBER_KEYS_CORE = 194
 
 CFG_NUMBER_SECTIONS_MAGC = 1 # magc
-CFG_NUMBER_KEYS_MAGC = 4 # [sys][magc_mode],[magc][selected_sections] 
-                        # [magc][checked_sections], [magc][sections]
+CFG_NUMBER_KEYS_MAGC = 5 # [sys]:magc_mode,
+                    # [magc]:selected_sections, checked_sections,
+                    # sections, wafer_calibrated
 
 CFG_NUMBER_SECTIONS = CFG_NUMBER_SECTIONS_CORE + CFG_NUMBER_SECTIONS_MAGC
 CFG_NUMBER_KEYS = CFG_NUMBER_KEYS_CORE + CFG_NUMBER_KEYS_MAGC
