@@ -449,6 +449,9 @@ class GridManager(object):
     def get_acq_interval(self, grid_number):
         return self.acq_interval[grid_number]
 
+    def get_max_acq_interval(self):
+        return max(self.acq_interval)
+
     def set_acq_interval(self, grid_number, interval):
         if grid_number < len(self.acq_interval):
             self.acq_interval[grid_number] = interval
@@ -458,6 +461,9 @@ class GridManager(object):
 
     def get_acq_interval_offset(self, grid_number):
         return self.acq_interval_offset[grid_number]
+
+    def get_max_acq_interval_offset(self):
+        return max(self.acq_interval_offset)
 
     def set_acq_interval_offset(self, grid_number, offset):
         if grid_number < len(self.acq_interval_offset):

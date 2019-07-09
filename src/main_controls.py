@@ -620,8 +620,10 @@ class MainControls(QMainWindow):
            them in the main window.
         """
         # Get current estimates:
-        (min_dose, max_dose, total_area, total_z, total_duration,
-        total_data, date_estimate) = self.stack.calculate_estimates()
+        (min_dose, max_dose, total_area, total_z, total_data,
+        total_imaging, total_stage_moves, total_cutting,
+        date_estimate) = self.stack.calculate_estimates()
+        total_duration = total_imaging + total_stage_moves + total_cutting
         minutes, seconds = divmod(int(total_duration), 60)
         hours, minutes = divmod(minutes, 60)
         days, hours = divmod(hours, 24)
@@ -632,8 +634,13 @@ class MainControls(QMainWindow):
             self.label_dose.setText(
                 '{0:.2f}'.format(min_dose) + ' .. '
                 + '{0:.1f}'.format(max_dose) + ' electrons per nm²')
+        if total_duration == 0:
+            total_duration = 1  # prevent division by zero
         self.label_totalDuration.setText(
-            str(days) + ' d ' + str(hours) + ' h ' + str(minutes) + ' min')
+            f'{days} d {hours} h {minutes} min     '
+            f'({total_imaging/total_duration * 100:.1f}% / '
+            f'{total_stage_moves/total_duration * 100:.1f}% / '
+            f'{total_cutting/total_duration * 100:.1f}%)')
         self.label_totalArea.setText('{0:.1f}'.format(total_area) + ' µm²')
         self.label_totalZ.setText('{0:.1f}'.format(total_z) + ' µm')
         self.label_totalData.setText('{0:.1f}'.format(total_data) + ' GB')

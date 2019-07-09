@@ -326,6 +326,9 @@ class OverviewManager(object):
     def get_ov_acq_interval(self, ov_number):
         return self.ov_acq_interval[ov_number]
 
+    def get_max_ov_acq_interval(self):
+        return max(self.ov_acq_interval)
+
     def set_ov_acq_interval(self, ov_number, interval):
         if ov_number < len(self.ov_acq_interval):
             self.ov_acq_interval[ov_number] = interval
@@ -335,6 +338,9 @@ class OverviewManager(object):
 
     def get_ov_acq_interval_offset(self, ov_number):
         return self.ov_acq_interval_offset[ov_number]
+
+    def get_max_ov_acq_interval_offset(self):
+        return max(self.ov_acq_interval_offset)
 
     def set_ov_acq_interval_offset(self, ov_number, offset):
         if ov_number < len(self.ov_acq_interval_offset):
