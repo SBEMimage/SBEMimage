@@ -262,3 +262,20 @@ def suppress_console_warning():
     # Suppress TIFFReadDirectory warnings that otherwise flood console window
     print('\x1b[19;1H' + 80*' ' + '\x1b[19;1H', end='')
     print('\x1b[18;1H' + 80*' ' + '\x1b[18;1H', end='')
+
+def calculate_electron_dose(current, dwell_time, pixel_size):
+    """Calculate the electron dose.
+    The current is multiplied by the elementary charge of an electron
+    (1.602 * 10^−19 C) and the dwell time to obtain the total charge per pixel.
+    This charge is divided by the area of a single pixel.
+
+    Args:
+        current (float): beam current in pA
+        dwell_time (float): dwell time in microseconds
+        pixel_size (float): xy pixel size in nm
+
+    Returns:
+        dose (float): electron dose in electrons per nanometre
+    """
+    return (current * 10**(-12) / (1.602 * 10**(-19))
+            * dwell_time * 10**(-6) / (pixel_size**2))

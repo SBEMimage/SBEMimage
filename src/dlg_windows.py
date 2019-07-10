@@ -982,10 +982,9 @@ class GridSettingsDlg(QDialog):
         current = self.sem.get_beam_current()
         dwell_time = float(self.comboBox_dwellTime.currentText())
         pixel_size = self.doubleSpinBox_pixelSize.value()
-        # Calculate the electron dose in electrons per square nanometre.
-        dose = (current * 10**(-12) / (1.602 * 10**(-19))
-                * dwell_time * 10**(-6) / (pixel_size**2))
-        self.label_dose.setText('{0:.1f}'.format(dose))
+        # Show electron dose in electrons per square nanometre.
+        self.label_dose.setText('{0:.1f}'.format(
+            utils.calculate_electron_dose(current, dwell_time, pixel_size)))
 
     def change_grid(self):
         self.current_grid = self.comboBox_gridSelector.currentIndex()

@@ -319,8 +319,7 @@ class Stack():
                                 * self.gm.get_tile_height_d(grid_number))
             dwell_time = self.gm.get_dwell_time(grid_number)
             pixel_size = self.gm.get_pixel_size(grid_number)
-            dose = (current * 10**(-12) /
-                (1.602 * 10**(-19)) * dwell_time * 10**(-6) / (pixel_size**2))
+            dose = utils.calculate_electron_dose(current, dwell_time, pixel_size)
             if (min_dose is None) or (dose < min_dose):
                 min_dose = dose
             if (max_dose is None) or (dose > max_dose):
@@ -330,8 +329,8 @@ class Stack():
             for ov_number in range(self.ovm.get_number_ov()):
                 dwell_time = self.ovm.get_ov_dwell_time(ov_number)
                 pixel_size = self.ovm.get_ov_pixel_size(ov_number)
-                dose = (current * 10**(-12) / (1.602 * 10**(-19))
-                        * dwell_time * 10**(-6) / (pixel_size**2))
+                dose = utils.calculate_electron_dose(
+                    current, dwell_time, pixel_size)
                 if (min_dose is None) or (dose < min_dose):
                     min_dose = dose
                 if (max_dose is None) or (dose > max_dose):
