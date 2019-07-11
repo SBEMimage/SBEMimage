@@ -5,18 +5,18 @@ Open-source acquisition software for serial block-face electron microscopy, made
 ## Getting started
 
 Please read SBEMimage_Manual.pdf (in the project root folder). It currently contains installation instructions and a short introduction to the software. The document will be expanded into a full manual for the release of version 2.1 (see below). Questions? Contact benjamin.titze ÄT fmi.ch
-See also: https://groups.google.com/d/forum/sbemimage
+See also: https://groups.google.com/d/forum/sbemimage (a forum to be used for future announcements and discussions)
 
 ## Releases
 
-*The release of version 2.1, with an installer and an expanded manual, is planned for the first half of 2019.*
+*The release of version 2.1, with an installer and an expanded manual, is planned for the second half of 2019.*
 
 ## Authors / Contributing
 
-Lead developer: Benjamin Titze ([btitze](https://github.com/btitze)), Friedrich Miescher Institute for Biomedical Research, Basel, Switzerland. 
-Development partner(s): EPFL, Lausanne, Switzerland (CIME/BioEM) 
+Lead developer: Benjamin Titze ([btitze](https://github.com/btitze)), Friedrich Miescher Institute for Biomedical Research, Basel, Switzerland.
+Development partner(s): EPFL, Lausanne, Switzerland (CIME/BioEM)
 
-Please contact benjamin.titze ÄT fmi.ch for feedback, bug reports, or if you are interested in contributing to the development of SBEMimage. Pull requests are welcome.  
+Please contact benjamin.titze ÄT fmi.ch for feedback, bug reports, or if you are interested in contributing to the development of SBEMimage. Pull requests are welcome.
 
 ## Publication ##
 
