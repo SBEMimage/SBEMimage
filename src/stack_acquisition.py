@@ -1534,7 +1534,7 @@ class Stack():
                     *self.autofocus_stig_current_slice,
                     do_move, grid_number, tile_number)
                 # For tracking mode 0: Adjust wd/stig of other tiles:
-                if self.af.get_tracking_mode() == 0:
+                if self.error_state == 0 and self.af.get_tracking_mode() == 0:
                     self.af.approximate_tile_wd_stig(grid_number)
                     self.transmit_cmd('DRAW MV')
 
@@ -1575,42 +1575,43 @@ class Stack():
                         self.slice_counter))
 
                 if not load_error:
+                    # Assume tile_accepted, check against various errors below
+                    tile_accepted = True
                     self.add_to_main_log('CTRL: Tile ' + tile_id
                                   + ': M:' + '{0:.2f}'.format(mean)
                                   + ', SD:' + '{0:.2f}'.format(stddev))
                     # New thumbnail available, show it:
                     self.transmit_cmd('DRAW MV')
 
-                    tile_accepted = True
-                    # When monitoring enabled check if tile ok:
-                    if self.cfg['acq']['monitor_images'] == 'True':
-                        if not range_test_passed:
-                            tile_accepted = False
-                            self.error_state = 503
-                            self.add_to_main_log(
-                                'CTRL: Tile outside of permitted mean/SD '
-                                'range!')
-                        if (slice_by_slice_test_passed is not None
-                            and not slice_by_slice_test_passed):
-                            tile_accepted = False
-                            self.error_state = 504
-                            self.add_to_main_log(
-                                'CTRL: Tile above mean/SD slice-by-slice '
-                                'thresholds.')
-                    # Check for frozen or incomplete frames:
-                    if frozen_frame_error:
-                        tile_accepted = False
-                        self.error_state = 304
-                        self.add_to_main_log('CTRL: Tile ' + tile_id
-                            + ': SmartSEM frozen frame error!')
-                    elif grab_incomplete:
-                        tile_accepted = False
-                        self.error_state = 303
-                        self.add_to_main_log('CTRL: Tile ' + tile_id
-                            + ': SmartSEM grab incomplete error!')
                     if self.error_state in [505, 506, 507]:
                         # Don't accept tile if autofocus error has ocurred:
                         tile_accepted = False
+                    else:
+                        # Check for frozen or incomplete frames:
+                        if frozen_frame_error:
+                            tile_accepted = False
+                            self.error_state = 304
+                            self.add_to_main_log('CTRL: Tile ' + tile_id
+                                + ': SmartSEM frozen frame error!')
+                        elif grab_incomplete:
+                            tile_accepted = False
+                            self.error_state = 303
+                            self.add_to_main_log('CTRL: Tile ' + tile_id
+                                + ': SmartSEM grab incomplete error!')
+                        elif self.cfg['acq']['monitor_images'] == 'True':
+                            if not range_test_passed:
+                                tile_accepted = False
+                                self.error_state = 503
+                                self.add_to_main_log(
+                                    'CTRL: Tile outside of permitted mean/SD '
+                                    'range!')
+                            elif (slice_by_slice_test_passed is not None
+                                and not slice_by_slice_test_passed):
+                                tile_accepted = False
+                                self.error_state = 504
+                                self.add_to_main_log(
+                                    'CTRL: Tile above mean/SD slice-by-slice '
+                                    'thresholds.')
                 else:
                     tile_accepted = False
                     self.error_state = 404 # load error
@@ -1864,6 +1865,8 @@ class Stack():
                 af_type = '(focus only)'
             elif do_stig:
                 af_type = '(stig only)'
+            wd = self.sem.get_wd()
+            sx, sy = self.sem.get_stig_xy()
             self.add_to_main_log('CTRL: Running SmartSEM AF procedure '
                                  + af_type + ' for tile '
                                  + str(grid_number) + '.' + str(tile_number))
@@ -1871,6 +1874,8 @@ class Stack():
             self.add_to_main_log(return_msg)
             if 'ERROR' in return_msg:
                 self.error_state = 505
+            elif not self.af.check_wd_stig_diff(wd, sx, sy):
+                self.error_state = 507
             else:
                 # Save settings for current tile:
                 self.gm.set_tile_wd(grid_number, tile_number, self.sem.get_wd())
