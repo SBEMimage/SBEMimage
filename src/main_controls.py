@@ -26,7 +26,7 @@ from queue import Queue
 
 from PyQt5.QtWidgets import QApplication, QTableWidgetSelectionRange
 from PyQt5.QtCore import QObject, Qt, QRect, QSize, pyqtSignal, QEvent, \
-                        QItemSelection, QItemSelectionModel
+                        QItemSelection, QItemSelectionModel, QModelIndex
 from PyQt5.QtGui import QIcon, QPalette, QColor, QPixmap, QKeyEvent, \
                         QStatusTipEvent, \
                         QStandardItem, QStandardItemModel
@@ -337,7 +337,8 @@ class MainControls(QMainWindow):
         self.collectomeLogo.setPixmap(QPixmap(os.path.join('..','img','magc','collectome_logo.png')))
 
         # initialize other MagC GUI items
-        self.pushButton_importMagc.clicked.connect(self.open_magc_import_dlg)
+        self.pushButton_magc_importMagc.clicked.connect(self.open_magc_import_dlg)
+        self.pushButton_magc_resetMagc.clicked.connect(self.reset_magc)
         self.pushButton_magc_selectAll.clicked.connect(self.magc_select_all)
         self.pushButton_magc_deselectAll.clicked.connect(self.magc_deselect_all)
         self.pushButton_magc_checkSelected.clicked.connect(self.magc_check_selected)
@@ -822,7 +823,16 @@ class MainControls(QMainWindow):
             self.stage.move_to_xy(grid_origin)
         else:
             self.add_to_log('Section ' + str(sectionKey) + ' has been double-clicked. Wafer is not calibrated, therefore no stage movement.')
-     
+    def reset_magc(self):
+        self.cfg['magc']['wafer_calibrated'] = 'False'
+        self.cfg['magc']['selected_sections'] = '[]'
+        self.cfg['magc']['checked_sections'] = '[]'
+        self.cfg['magc']['sections'] = '{}'        
+        self.gm.delete_all_but_last_grid()
+        self.viewport.update_grids()
+        self.viewport.mv_draw()
+        tableModel = self.tableView_magc_sectionList.model()
+        tableModel.removeRows(0, tableModel.rowCount(), QModelIndex())
         
 #--------------- End of MagC tab------------------------------------
     

@@ -195,6 +195,10 @@ class GridManager(object):
     def delete_all_grids(self):
         for grid_number in range(self.number_grids):
             self.delete_grid()
+            
+    def delete_all_but_last_grid(self):
+        for grid_number in range(self.number_grids - 1):
+            self.delete_grid()
 
     def get_number_grids(self):
         return self.number_grids
@@ -328,7 +332,7 @@ class GridManager(object):
         self.cfg['grids']['pixel_size'] = str(self.pixel_size)
 
     def get_dwell_time(self, grid_number):
-        return self.dwell_time[grid_number]
+            return self.dwell_time[grid_number]
 
     def get_dwell_time_list(self):
         return self.dwell_time
