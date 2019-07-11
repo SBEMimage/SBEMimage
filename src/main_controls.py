@@ -1013,7 +1013,7 @@ class MainControls(QMainWindow):
         gui_items = {
         'sectionList': self.tableView_magc_sectionList,
         }
-        dialog = ImportMagCDlg(self.cfg, self.gm, self.cs, self.stage, gui_items, self.acq_trigger, self.acq_queue)
+        dialog = ImportMagCDlg(self.cfg, self.gm, self.cs, self.stage, self.sem, gui_items, self.acq_trigger, self.acq_queue)
         if dialog.exec_():
             # self.tabWidget.setTabEnabled(3, True)
             self.update_from_grid_dlg()

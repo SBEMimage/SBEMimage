@@ -1581,7 +1581,7 @@ class ExportDlg(QDialog):
 class ImportMagCDlg(QDialog):
     """Import MagC metadata."""
 
-    def __init__(self, config, grid_manager, coordinate_system, stage, gui_items, trigger, queue):
+    def __init__(self, config, grid_manager, coordinate_system, stage, sem, gui_items, trigger, queue):
         super().__init__()
         self.gm = grid_manager
         self.stage = stage
@@ -1590,15 +1590,20 @@ class ImportMagCDlg(QDialog):
         self.trigger = trigger
         self.queue = queue
         self.cfg = config
+        self.sem = sem
         loadUi(os.path.join('..', 'gui', 'import_magc_metadata_dlg.ui'), self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon(os.path.join('..', 'img', 'icon_16px.ico')))
         self.pushButton_selectFile.clicked.connect(self.select_file)
-        self.pushButton_selectFile.setIcon(QIcon('..\\img\\selectdir.png'))
+        self.pushButton_selectFile.setIcon(QIcon(os.path.join('..','img','selectdir.png')))
         self.pushButton_selectFile.setIcon(QIcon(os.path.join('..', 'img', 'selectdir.png')))
         self.pushButton_selectFile.setIconSize(QSize(16, 16))
         self.setFixedSize(self.size())
-        self.pushButton_import.clicked.connect(self.import_metadata)
+        self.pushButton_import.accepted.connect(self.import_metadata)
+        self.pushButton_import.rejected.connect(self.accept)
+        store_res_list = [
+            '%d × %d' % (res[0], res[1]) for res in self.sem.STORE_RES]
+        self.comboBox_tileSize.addItems(store_res_list)        
         self.show()
 
     def add_to_main_log(self, msg):
@@ -1616,69 +1621,79 @@ class ImportMagCDlg(QDialog):
         #-----------------------------
         # read sections from MagC JSON
         file_name = self.lineEdit_fileName.text()
-        with open(file_name, 'r') as f:
-            sectionsJSON = json.load(f)
-        sections = {}
-        for sectionJSON in sectionsJSON['shapes']:
-            sectionJSONClass, id = sectionJSON['label'].split('-')
-            if sectionJSONClass == 'tissue':
-                sections[int(id)] = {
-                'center': [1 * a for a in sectionJSON['center']],
-                'angle': sectionJSON['angle']}
-            elif 'tissueROI' in sectionJSONClass:
-                sections[sectionJSON['label']] = {
-                'center': sectionJSON['center']
-                }
-            
-        n_sections = len(sections)
-        self.add_to_main_log(str(n_sections) + ' MagC sections have been loaded.')
-        #-----------------------------
-        
-        #--------------------------------------
-        # import wafer overview if file present
-        dir_json = os.path.dirname(os.path.normpath(file_name))
-        im_names = [im_name for im_name in os.listdir(dir_json) if os.path.splitext(im_name)[1] == '.tif']
-        if im_names == []:
-            self.add_to_main_log('No wafer picture was found.')
-        elif len(im_names) == 1:
-            im_path = os.path.join(dir_json, im_names[0])
-            # self.viewport.mv_load_last_imported_image()
-            # self.viewport.mv_draw()
+        if not os.path.isfile(file_name):
+            self.add_to_main_log('MagC file not found')
         else:
-            self.add_to_main_log('There are more than 1 picture available in the folder containing the .magc section description file. Please place only one wafer picture (.tif) in the folder.')
-        #--------------------------------------
-        
-        #---------------------------------------
-        # populate the grids and the sectionList
-        sectionListModel = self.gui_items['sectionList'].model()
-        self.gm.delete_all_grids()
-        for section in range(n_sections):
-            self.gm.add_new_grid()
-        for idx, section in sections.items():
-            self.cs.set_grid_origin_s(grid_number=idx, s_coordinates=list(map(float, section['center'])))
-            self.gm.set_rotation(grid_number=idx, rotation=float(section['angle']))
-            self.gm.set_grid_size(grid_number=idx, size = [3,2])
-            self.gm.calculate_grid_map(grid_number=idx)
+            with open(file_name, 'r') as f:
+                sectionsJSON = json.load(f)
+            sections = {}
+            for sectionJSON in sectionsJSON['shapes']:
+                sectionJSONClass, id = sectionJSON['label'].split('-')
+                if sectionJSONClass == 'tissue':
+                    sections[int(id)] = {
+                    'center': [1 * a for a in sectionJSON['center']],
+                    'angle': sectionJSON['angle']}
+                elif 'tissueROI' in sectionJSONClass:
+                    sections[sectionJSON['label']] = {
+                    'center': sectionJSON['center']
+                    }
+                
+            n_sections = len(sections)
+            self.add_to_main_log(str(n_sections) + ' MagC sections have been loaded.')
+            #-----------------------------
             
-            # populate the sectionList
-            item1 = QStandardItem(str(idx))
-            item1.setCheckable(True)
-            item2 = QStandardItem('')
-            item2.setBackground(color_not_acquired)
-            item2.setCheckable(False)
-            item2.setSelectable(False)
-            sectionListModel.appendRow([item1, item2])
-        #---------------------------------------
+            #--------------------------------------
+            # import wafer overview if file present
+            dir_json = os.path.dirname(os.path.normpath(file_name))
+            im_names = [im_name for im_name in os.listdir(dir_json) if os.path.splitext(im_name)[1] == '.tif']
+            if im_names == []:
+                self.add_to_main_log('No wafer picture was found.')
+            elif len(im_names) == 1:
+                im_path = os.path.join(dir_json, im_names[0])
+                # self.viewport.mv_load_last_imported_image()
+                # self.viewport.mv_draw()
+            else:
+                self.add_to_main_log('There are more than 1 picture available in the folder containing the .magc section description file. Please place only one wafer picture (.tif) in the folder.')
+            #--------------------------------------
+            
+            #---------------------------------------
+            # populate the grids and the sectionList
+            tile_size_selector = self.comboBox_tileSize.currentIndex()
+            pixel_size = self.doubleSpinBox_pixelSize.value()
+            
+            sectionListModel = self.gui_items['sectionList'].model()
+            self.gm.delete_all_grids()
+            for section in range(n_sections):
+                self.gm.add_new_grid()
+            for idx, section in sections.items():
+                self.cs.set_grid_origin_s(grid_number=idx, s_coordinates=list(map(float, section['center'])))
+                self.gm.set_rotation(idx, float(section['angle']))
+                self.gm.set_grid_size(idx,
+                                      (self.spinBox_rows.value(),
+                                      self.spinBox_cols.value()))
+                self.gm.set_tile_size_selector(idx, tile_size_selector)
+                self.gm.set_pixel_size(idx, pixel_size)
+                self.gm.calculate_grid_map(grid_number=idx)
+                
+                # populate the sectionList
+                item1 = QStandardItem(str(idx))
+                item1.setCheckable(True)
+                item2 = QStandardItem('')
+                item2.setBackground(color_not_acquired)
+                item2.setCheckable(False)
+                item2.setSelectable(False)
+                sectionListModel.appendRow([item1, item2])
+            #---------------------------------------
 
-        #---------------------------------------
-        # Update config with MagC items
-        self.cfg['sys']['magc_mode'] = 'True'
-        self.cfg['magc']['sections'] = json.dumps(sections)
-        self.cfg['magc']['selected_sections'] = '[]'
-        self.cfg['magc']['checked_sections'] = '[]'
-        # xxx does importing a new magc file always require a wafer_calibration ?
-        # ---------------------------------------
-        
+            #---------------------------------------
+            # Update config with MagC items
+            self.cfg['sys']['magc_mode'] = 'True'
+            self.cfg['magc']['sections'] = json.dumps(sections)
+            self.cfg['magc']['selected_sections'] = '[]'
+            self.cfg['magc']['checked_sections'] = '[]'
+            # xxx does importing a new magc file always require a wafer_calibration ?
+            # ---------------------------------------
+            
         self.accept()
         
     def select_file(self):

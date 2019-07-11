@@ -9,7 +9,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>486</width>
+    <width>766</width>
     <height>911</height>
    </rect>
   </property>
@@ -25,52 +25,17 @@
   <property name="layoutDirection">
    <enum>Qt::RightToLeft</enum>
   </property>
-  <widget class="QDialogButtonBox" name="buttonBox">
-   <property name="geometry">
-    <rect>
-     <x>110</x>
-     <y>230</y>
-     <width>171</width>
-     <height>32</height>
-    </rect>
-   </property>
-   <property name="layoutDirection">
-    <enum>Qt::LeftToRight</enum>
-   </property>
-   <property name="locale">
-    <locale language="English" country="UnitedKingdom"/>
-   </property>
-   <property name="orientation">
-    <enum>Qt::Horizontal</enum>
-   </property>
-   <property name="standardButtons">
-    <set>QDialogButtonBox::Close</set>
-   </property>
-  </widget>
   <widget class="Line" name="line_2">
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>180</y>
-     <width>271</width>
+     <y>232</y>
+     <width>331</width>
      <height>16</height>
     </rect>
    </property>
    <property name="orientation">
     <enum>Qt::Horizontal</enum>
-   </property>
-  </widget>
-  <widget class="QPushButton" name="pushButton_import">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>200</y>
-     <width>271</width>
-     <height>23</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Import</string>
    </property>
   </widget>
   <widget class="QLabel" name="label">
@@ -78,8 +43,8 @@
     <rect>
      <x>10</x>
      <y>10</y>
-     <width>181</width>
-     <height>16</height>
+     <width>232</width>
+     <height>23</height>
     </rect>
    </property>
    <property name="text">
@@ -89,9 +54,9 @@
   <widget class="QPushButton" name="pushButton_selectFile">
    <property name="geometry">
     <rect>
-     <x>250</x>
-     <y>30</y>
-     <width>30</width>
+     <x>289</x>
+     <y>40</y>
+     <width>51</width>
      <height>23</height>
     </rect>
    </property>
@@ -103,8 +68,8 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>30</y>
-     <width>231</width>
+     <y>40</y>
+     <width>271</width>
      <height>23</height>
     </rect>
    </property>
@@ -113,9 +78,9 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>60</y>
-     <width>271</width>
-     <height>111</height>
+     <y>72</y>
+     <width>341</width>
+     <height>161</height>
     </rect>
    </property>
    <property name="layoutDirection">
@@ -128,9 +93,9 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>50</y>
-      <width>91</width>
-      <height>16</height>
+      <y>80</y>
+      <width>112</width>
+      <height>23</height>
      </rect>
     </property>
     <property name="text">
@@ -140,9 +105,9 @@
    <widget class="QComboBox" name="comboBox_tileSize">
     <property name="geometry">
      <rect>
-      <x>150</x>
-      <y>46</y>
-      <width>111</width>
+      <x>130</x>
+      <y>80</y>
+      <width>201</width>
       <height>22</height>
      </rect>
     </property>
@@ -154,9 +119,9 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>20</y>
-      <width>101</width>
-      <height>16</height>
+      <y>40</y>
+      <width>175</width>
+      <height>23</height>
      </rect>
     </property>
     <property name="text">
@@ -166,10 +131,10 @@
    <widget class="QSpinBox" name="spinBox_cols">
     <property name="geometry">
      <rect>
-      <x>210</x>
-      <y>16</y>
-      <width>51</width>
-      <height>22</height>
+      <x>270</x>
+      <y>30</y>
+      <width>61</width>
+      <height>41</height>
      </rect>
     </property>
     <property name="minimum">
@@ -179,10 +144,10 @@
    <widget class="QSpinBox" name="spinBox_rows">
     <property name="geometry">
      <rect>
-      <x>150</x>
-      <y>16</y>
-      <width>51</width>
-      <height>22</height>
+      <x>190</x>
+      <y>31</y>
+      <width>61</width>
+      <height>41</height>
      </rect>
     </property>
     <property name="minimum">
@@ -192,10 +157,10 @@
    <widget class="QDoubleSpinBox" name="doubleSpinBox_pixelSize">
     <property name="geometry">
      <rect>
-      <x>210</x>
-      <y>80</y>
-      <width>51</width>
-      <height>22</height>
+      <x>250</x>
+      <y>111</y>
+      <width>81</width>
+      <height>41</height>
      </rect>
     </property>
     <property name="decimals">
@@ -212,9 +177,9 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>84</y>
-      <width>111</width>
-      <height>16</height>
+      <y>124</y>
+      <width>127</width>
+      <height>23</height>
      </rect>
     </property>
     <property name="text">
@@ -222,43 +187,29 @@
     </property>
    </widget>
   </widget>
+  <widget class="QDialogButtonBox" name="pushButton_import">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>240</y>
+     <width>331</width>
+     <height>61</height>
+    </rect>
+   </property>
+   <property name="layoutDirection">
+    <enum>Qt::LeftToRight</enum>
+   </property>
+   <property name="orientation">
+    <enum>Qt::Horizontal</enum>
+   </property>
+   <property name="standardButtons">
+    <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+   </property>
+   <property name="centerButtons">
+    <bool>true</bool>
+   </property>
+  </widget>
  </widget>
- <tabstops>
-  <tabstop>pushButton_import</tabstop>
- </tabstops>
  <resources/>
- <connections>
-  <connection>
-   <sender>buttonBox</sender>
-   <signal>accepted()</signal>
-   <receiver>importMagCDlg</receiver>
-   <slot>accept()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>248</x>
-     <y>254</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>157</x>
-     <y>274</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>buttonBox</sender>
-   <signal>rejected()</signal>
-   <receiver>importMagCDlg</receiver>
-   <slot>reject()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>316</x>
-     <y>260</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>286</x>
-     <y>274</y>
-    </hint>
-   </hints>
-  </connection>
- </connections>
+ <connections/>
 </ui>
