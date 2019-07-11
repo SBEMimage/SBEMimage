@@ -2648,6 +2648,7 @@ class FTMoveDlg(QDialog):
             QMessageBox.information(self, 'Move complete',
                 'The stage has been moved to the selected position.',
                 QMessageBox.Ok)
+            super().accept()
         # Enable button again:
         self.pushButton_move.setText('Move again')
         self.pushButton_move.setEnabled(True)
