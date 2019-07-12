@@ -1266,6 +1266,7 @@ class AcqSettingsDlg(QDialog):
         self.pushButton_selectDir.setIconSize(QSize(16, 16))
         # Display current settings:
         self.lineEdit_baseDir.setText(self.cfg['acq']['base_dir'])
+        self.new_base_dir = ''
         self.spinBox_sliceThickness.setValue(self.stack.get_slice_thickness())
         self.spinBox_numberSlices.setValue(self.stack.get_number_slices())
         self.spinBox_sliceCounter.setValue(self.stack.get_slice_counter())
@@ -1297,28 +1298,21 @@ class AcqSettingsDlg(QDialog):
             start_path = self.cfg['acq']['base_dir'][:3]
         else:
             start_path = 'C:\\'
-        directory = str(QFileDialog.getExistingDirectory(
-                            self, 'Select Directory',
-                            start_path,
-                            QFileDialog.ShowDirsOnly))
-        if len(directory) > 0:
-            # Replace forward slashes with backward slashes:
-            directory = directory.replace('/', '\\')
-            self.lineEdit_baseDir.setText(directory)
-            self.cfg['acq']['base_dir'] = directory
+        self.new_base_dir = str(QFileDialog.getExistingDirectory(
+                                self, 'Select Directory',
+                                start_path,
+                                QFileDialog.ShowDirsOnly)).replace('/', '\\')
+        self.lineEdit_baseDir.setText(self.new_base_dir)
 
     def update_server_lineedit(self):
-        status = self.checkBox_sendMetaData.isChecked()
-        self.lineEdit_projectName.setEnabled(status)
+        self.lineEdit_projectName.setEnabled(
+            self.checkBox_sendMetaData.isChecked())
 
     def accept(self):
         success = True
-        self.cfg['acq']['base_dir'] = self.lineEdit_baseDir.text()
-        # Remove spaces if necessary:
-        if ' ' in self.cfg['acq']['base_dir']:
-            self.cfg['acq']['base_dir'] = (
-                self.cfg['acq']['base_dir'].replace(' ', '_'))
-            self.lineEdit_baseDir.setText(self.cfg['acq']['base_dir'])
+        self.new_base_dir = (
+            self.lineEdit_baseDir.text().replace(' ', '_').replace('/', '\\'))
+        self.lineEdit_baseDir.setText(self.new_base_dir)
         if 5 <= self.spinBox_sliceThickness.value() <= 200:
             self.stack.set_slice_thickness(self.spinBox_sliceThickness.value())
         number_slices = self.spinBox_numberSlices.value()
@@ -1332,16 +1326,13 @@ class AcqSettingsDlg(QDialog):
         self.cfg['sys']['send_metadata'] = str(
             self.checkBox_sendMetaData.isChecked())
         if self.checkBox_sendMetaData.isChecked():
-            server_url = self.lineEdit_metaDataServer.text()
-            if validators.url(server_url):
-                self.cfg['sys']['metadata_server_url'] = server_url
-            else:
+            metadata_server_url = self.lineEdit_metaDataServer.text()
+            if not validators.url(metadata_server_url):
                 QMessageBox.warning(
                     self, 'Error',
                     'Metadata server URL is invalid. Change the URL in the '
                     'system configuration file.',
                     QMessageBox.Ok)
-                success = False
             self.cfg['sys']['metadata_project_name'] = (
                 self.lineEdit_projectName.text())
         if ((number_slices > 0)
@@ -1360,6 +1351,7 @@ class AcqSettingsDlg(QDialog):
                 QMessageBox.Ok)
             success = False
         if success:
+            self.cfg['acq']['base_dir'] = self.new_base_dir
             super().accept()
 
 #------------------------------------------------------------------------------
