@@ -19,7 +19,7 @@ import json
 
 from time import sleep
 from PIL import Image
-from scipy.misc import imsave
+from imageio import imwrite
 from dateutil.relativedelta import relativedelta
 from PyQt5.QtWidgets import QMessageBox
 
@@ -1332,7 +1332,7 @@ class Stack():
                         + ', SD:' + '{0:.2f}'.format(stddev))
                     workspace_save_path = (self.base_dir + '\\workspace\\OV'
                                            + str(ov_number).zfill(3) + '.bmp')
-                    imsave(workspace_save_path, ov_img)
+                    imwrite(workspace_save_path, ov_img)
                     self.ovm.update_ov_file_list(ov_number, workspace_save_path)
                     # Signal to update viewport:
                     self.transmit_cmd('MV UPDATE OV' + str(ov_number))

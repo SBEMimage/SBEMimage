@@ -17,7 +17,8 @@ import os
 import json
 import numpy as np
 
-from scipy.misc import imresize, imsave
+from imageio import imwrite
+from scipy.misc import imresize
 from scipy.signal import medfilt2d
 from PIL import Image
 
@@ -104,7 +105,7 @@ class ImageInspector(object):
                 self.prev_img_mean_stddev = [mean, stddev]
 
             height, width = img.shape[0], img.shape[1]
-            # Was complete image grabbed? Test if first or final line of image 
+            # Was complete image grabbed? Test if first or final line of image
             # is black/white/uniform greyscale (bug in SmartSEM)
             first_line = img[0:1,:]
             final_line = img[height-1:height,:]
@@ -120,7 +121,7 @@ class ImageInspector(object):
 
             # Save preview image:
             preview = imresize(img, (384, 512))
-            imsave(self.base_dir + '\\workspace\\' + tile_key + '.png', preview)
+            imwrite(self.base_dir + '\\workspace\\' + tile_key + '.png', preview)
 
             # Save reslice line in memory. Take a 400-px line from the centre
             # of the image. This works for all frame resolutions.
@@ -218,9 +219,9 @@ class ImageInspector(object):
                 if reslice_img is not None and reslice_img.shape[1] == 400:
                     new_reslice_img = np.concatenate(
                         (reslice_img, self.tile_reslice_line[tile_key]))
-                    imsave(reslice_filename, new_reslice_img)
+                    imwrite(reslice_filename, new_reslice_img)
                 else:
-                    imsave(reslice_filename, self.tile_reslice_line[tile_key])
+                    imwrite(reslice_filename, self.tile_reslice_line[tile_key])
             except:
                 success = False # couldn't write to disk
         else:
@@ -322,9 +323,9 @@ class ImageInspector(object):
                 if reslice_img is not None and reslice_img.shape[1] == 400:
                     new_reslice_img = np.concatenate(
                         (reslice_img, self.ov_reslice_line[ov_number]))
-                    imsave(reslice_filename, new_reslice_img)
+                    imwrite(reslice_filename, new_reslice_img)
                 else:
-                    imsave(reslice_filename, self.ov_reslice_line[ov_number])
+                    imwrite(reslice_filename, self.ov_reslice_line[ov_number])
             except:
                 success = False
         else:
