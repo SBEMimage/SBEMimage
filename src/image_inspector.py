@@ -18,7 +18,6 @@ import json
 import numpy as np
 
 from imageio import imwrite
-from scipy.misc import imresize
 from scipy.signal import medfilt2d
 from PIL import Image
 
@@ -87,12 +86,24 @@ class ImageInspector(object):
         tile_selected = False
         try:
             img = Image.open(filename)
-            load_error = False
         except:
             load_error = True
 
         if not load_error:
             img = np.array(img)
+            height, width = img.shape[0], img.shape[1]
+
+            tile_key = ('g' + str(grid_number).zfill(utils.GRID_DIGITS)
+                        + '_' + 't' + str(tile_number).zfill(utils.TILE_DIGITS))
+            tile_key_short = str(grid_number) + '.' + str(tile_number)
+
+            # Save preview image:
+            preview_img = Image.frombytes(
+                'L', (width, height),
+                img.tostring()).resize((512, 384), resample=2)
+            preview_img.save(
+                self.base_dir + '\\workspace\\' + tile_key + '.png')
+
             # calculate mean and stddev:
             mean = np.mean(img)
             stddev = np.std(img)
@@ -104,7 +115,6 @@ class ImageInspector(object):
                 frozen_frame_error = False
                 self.prev_img_mean_stddev = [mean, stddev]
 
-            height, width = img.shape[0], img.shape[1]
             # Was complete image grabbed? Test if first or final line of image
             # is black/white/uniform greyscale (bug in SmartSEM)
             first_line = img[0:1,:]
@@ -114,14 +124,6 @@ class ImageInspector(object):
                 grab_incomplete = True
             else:
                 grab_incomplete = False
-
-            tile_key = ('g' + str(grid_number).zfill(utils.GRID_DIGITS)
-                        + '_' + 't' + str(tile_number).zfill(utils.TILE_DIGITS))
-            tile_key_short = str(grid_number) + '.' + str(tile_number)
-
-            # Save preview image:
-            preview = imresize(img, (384, 512))
-            imwrite(self.base_dir + '\\workspace\\' + tile_key + '.png', preview)
 
             # Save reslice line in memory. Take a 400-px line from the centre
             # of the image. This works for all frame resolutions.
