@@ -809,24 +809,54 @@ class Viewport(QWidget):
                                + 'Y: {0:.3f}'.format(sy))
             self.selected_stage_pos = (sx, sy)
 
+            selected_for_autofocus = selected_for_gradient = 'Select/deselect as'
+            if self.selected_grid is not None and self.selected_tile is not None:
+                selected = f'tile {self.selected_grid}.{self.selected_tile}'
+                if self.af.is_ref_tile(self.selected_grid, self.selected_tile):
+                    selected_for_autofocus = (
+                        f'Deselect tile {self.selected_grid}.'
+                        f'{self.selected_tile} as')
+                else:
+                    selected_for_autofocus = (
+                        f'Select tile {self.selected_grid}.'
+                        f'{self.selected_tile} as')
+                if self.gm.is_adaptive_focus_tile(
+                    self.selected_grid, self.selected_tile):
+                    selected_for_gradient = (
+                        f'Deselect tile {self.selected_grid}.'
+                        f'{self.selected_tile} as')
+                else:
+                    selected_for_gradient = (
+                        f'Select tile {self.selected_grid}.'
+                        f'{self.selected_tile} as')
+
+            elif self.selected_ov is not None:
+                selected = f'OV {self.selected_ov}'
+            else:
+                selected = 'tile/OV'
+
             menu = QMenu()
-            action1 = menu.addAction('Load tile/OV in Slice Viewer')
+            action1 = menu.addAction(f'Load {selected} in Slice Viewer')
             action1.triggered.connect(self.sv_load_selected)
-            action2 = menu.addAction('Load tile/OV in Focus Tool')
+            action2 = menu.addAction(f'Load {selected} in Focus Tool')
             action2.triggered.connect(self.mv_load_selected_in_ft)
-            action3 = menu.addAction('Load tile/OV statistics')
+            action3 = menu.addAction(f'Load {selected} statistics')
             action3.triggered.connect(self.m_load_selected)
             menu.addSeparator()
             action4 = menu.addAction('Select all tiles in grid')
             action4.triggered.connect(self.mv_select_all_tiles)
             action5 = menu.addAction('Deselect all tiles in grid')
             action5.triggered.connect(self.mv_deselect_all_tiles)
+            menu.addSeparator()
             if self.af.get_method() == 2:
-                action6 = menu.addAction('Select/deselect for focus tracking')
+                action6 = menu.addAction(selected_for_autofocus
+                                         + ' focus tracking ref.')
             else:
-                action6 = menu.addAction('Select/deselect for autofocus')
+                action6 = menu.addAction(selected_for_autofocus
+                                         + ' autofocus ref.')
             action6.triggered.connect(self.mv_toggle_tile_autofocus)
-            action7 = menu.addAction('Select/deselect for adaptive focus')
+            action7 = menu.addAction(selected_for_gradient
+                                     + ' focus gradient ref.')
             action7.triggered.connect(self.mv_toggle_tile_adaptive_focus)
             menu.addSeparator()
             action8 = menu.addAction(current_pos_str)
@@ -848,6 +878,8 @@ class Viewport(QWidget):
             if self.selected_grid is None:
                 action4.setEnabled(False)
                 action5.setEnabled(False)
+                action6.setEnabled(False)
+                action7.setEnabled(False)
             if self.af.get_tracking_mode() == 1:
                 action6.setEnabled(False)
             if self.selected_imported is None:
