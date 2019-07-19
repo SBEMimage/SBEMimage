@@ -808,7 +808,9 @@ class Viewport(QWidget):
             current_pos_str = ('Move stage to X: {0:.3f}, '.format(sx)
                                + 'Y: {0:.3f}'.format(sy))
             self.selected_stage_pos = (sx, sy)
-
+            grid_str = ''
+            if self.selected_grid is not None:
+                grid_str = f'in grid {self.selected_grid}'
             selected_for_autofocus = selected_for_gradient = 'Select/deselect as'
             if self.selected_grid is not None and self.selected_tile is not None:
                 selected = f'tile {self.selected_grid}.{self.selected_tile}'
@@ -843,9 +845,9 @@ class Viewport(QWidget):
             action3 = menu.addAction(f'Load {selected} statistics')
             action3.triggered.connect(self.m_load_selected)
             menu.addSeparator()
-            action4 = menu.addAction('Select all tiles in grid')
+            action4 = menu.addAction('Select all tiles ' + grid_str)
             action4.triggered.connect(self.mv_select_all_tiles)
-            action5 = menu.addAction('Deselect all tiles in grid')
+            action5 = menu.addAction('Deselect all tiles ' + grid_str)
             action5.triggered.connect(self.mv_deselect_all_tiles)
             menu.addSeparator()
             if self.af.get_method() == 2:
@@ -878,6 +880,7 @@ class Viewport(QWidget):
             if self.selected_grid is None:
                 action4.setEnabled(False)
                 action5.setEnabled(False)
+            if self.selected_tile is None:
                 action6.setEnabled(False)
                 action7.setEnabled(False)
             if self.af.get_tracking_mode() == 1:
@@ -1713,21 +1716,33 @@ class Viewport(QWidget):
 
     def mv_select_all_tiles(self):
         if self.selected_grid is not None:
-            self.gm.select_all_tiles(self.selected_grid)
-            if self.af.get_tracking_mode() == 1:
-                self.af.select_all_active_tiles()
-            self.add_to_main_log('CTRL: All tiles in grid %d selected.'
-                                 % self.selected_grid)
-            self.mv_update_after_tile_selection()
+            user_reply = QMessageBox.question(
+                self, 'Selecting all tiles in grid',
+                f'This will select all tiles in grid {self.selected_grid}. '
+                f'Proceed?',
+                QMessageBox.Ok | QMessageBox.Cancel)
+            if user_reply == QMessageBox.Ok:
+                self.gm.select_all_tiles(self.selected_grid)
+                if self.af.get_tracking_mode() == 1:
+                    self.af.select_all_active_tiles()
+                self.add_to_main_log('CTRL: All tiles in grid %d selected.'
+                                     % self.selected_grid)
+                self.mv_update_after_tile_selection()
 
     def mv_deselect_all_tiles(self):
        if self.selected_grid is not None:
-            self.gm.reset_active_tiles(self.selected_grid)
-            if self.af.get_tracking_mode() == 1:
-                self.af.reset_ref_tiles()
-            self.add_to_main_log('CTRL: All tiles in grid %d deselected.'
-                                 % self.selected_grid)
-            self.mv_update_after_tile_selection()
+            user_reply = QMessageBox.question(
+                self, 'Deselecting all tiles in grid',
+                f'This will deselect all tiles in grid {self.selected_grid}. '
+                f'Proceed?',
+                QMessageBox.Ok | QMessageBox.Cancel)
+            if user_reply == QMessageBox.Ok:
+                self.gm.reset_active_tiles(self.selected_grid)
+                if self.af.get_tracking_mode() == 1:
+                    self.af.reset_ref_tiles()
+                self.add_to_main_log('CTRL: All tiles in grid %d deselected.'
+                                     % self.selected_grid)
+                self.mv_update_after_tile_selection()
 
     def mv_toggle_tile_autofocus(self):
         if self.selected_grid is not None and self.selected_tile is not None:
