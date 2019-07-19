@@ -937,6 +937,8 @@ class GridSettingsDlg(QDialog):
         # Adaptive focus tool button:
         self.toolButton_adaptiveFocus.clicked.connect(
             self.open_adaptive_focus_dlg)
+        # Reset wd/stig parameters:
+        self.pushButton_resetFocusParams.clicked.connect(self.reset_wd_stig_params)
         # Save, add and delete button:
         self.pushButton_save.clicked.connect(self.save_current_settings)
         self.pushButton_addGrid.clicked.connect(self.add_grid)
@@ -1040,6 +1042,18 @@ class GridSettingsDlg(QDialog):
             self.update_buttons()
             self.show_current_settings()
             self.show_tile_size_and_dose()
+            self.main_window_queue.put('GRID SETTINGS CHANGED')
+            self.main_window_trigger.s.emit()
+
+    def reset_wd_stig_params(self):
+        user_reply = QMessageBox.question(
+            self, 'Reset focus/astigmatism parameters',
+            f'This will reset the focus and astigmatism parameters for '
+            f'all tiles in grid {self.current_grid}.\n'
+            f'Proceed?',
+            QMessageBox.Ok | QMessageBox.Cancel)
+        if user_reply == QMessageBox.Ok:
+            self.gm.initialize_wd_stig_map(self.current_grid)
             self.main_window_queue.put('GRID SETTINGS CHANGED')
             self.main_window_trigger.s.emit()
 
