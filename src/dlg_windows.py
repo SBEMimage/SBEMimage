@@ -938,7 +938,8 @@ class GridSettingsDlg(QDialog):
         self.toolButton_adaptiveFocus.clicked.connect(
             self.open_adaptive_focus_dlg)
         # Reset wd/stig parameters:
-        self.pushButton_resetFocusParams.clicked.connect(self.reset_wd_stig_params)
+        self.pushButton_resetFocusParams.clicked.connect(
+            self.reset_wd_stig_params)
         # Save, add and delete button:
         self.pushButton_save.clicked.connect(self.save_current_settings)
         self.pushButton_addGrid.clicked.connect(self.add_grid)
@@ -957,6 +958,8 @@ class GridSettingsDlg(QDialog):
         self.spinBox_rows.setValue(self.gm.get_number_rows(self.current_grid))
         self.spinBox_cols.setValue(self.gm.get_number_cols(self.current_grid))
         self.spinBox_overlap.setValue(self.gm.get_overlap(self.current_grid))
+        self.doubleSpinBox_rotation.setValue(
+            self.gm.get_rotation(self.current_grid))
         self.spinBox_shift.setValue(self.gm.get_row_shift(self.current_grid))
 
         self.doubleSpinBox_pixelSize.setValue(
@@ -1072,6 +1075,8 @@ class GridSettingsDlg(QDialog):
         else:
             error_msg = ('Overlap outside of allowed '
                          'range (-30% .. 30% frame width).')
+        self.gm.set_rotation(
+            self.current_grid, self.doubleSpinBox_rotation.value())
         if 0 <= input_shift <= tile_width_p:
             self.gm.set_row_shift(self.current_grid, input_shift)
         else:

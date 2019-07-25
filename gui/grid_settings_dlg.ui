@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>261</width>
-    <height>688</height>
+    <height>718</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -20,7 +20,7 @@
    <property name="geometry">
     <rect>
      <x>60</x>
-     <y>650</y>
+     <y>680</y>
      <width>191</width>
      <height>32</height>
     </rect>
@@ -46,7 +46,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>610</y>
+     <y>640</y>
      <width>111</width>
      <height>23</height>
     </rect>
@@ -59,7 +59,7 @@
    <property name="geometry">
     <rect>
      <x>130</x>
-     <y>610</y>
+     <y>640</y>
      <width>121</width>
      <height>23</height>
     </rect>
@@ -101,7 +101,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>580</y>
+     <y>610</y>
      <width>241</width>
      <height>23</height>
     </rect>
@@ -122,7 +122,7 @@
      <x>10</x>
      <y>40</y>
      <width>241</width>
-     <height>201</height>
+     <height>231</height>
     </rect>
    </property>
    <property name="title">
@@ -164,7 +164,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>174</y>
+      <y>204</y>
       <width>161</width>
       <height>16</height>
      </rect>
@@ -203,7 +203,7 @@
     <property name="geometry">
      <rect>
       <x>180</x>
-      <y>170</y>
+      <y>200</y>
       <width>51</width>
       <height>22</height>
      </rect>
@@ -293,12 +293,47 @@
      <string>Tile size (px):</string>
     </property>
    </widget>
+   <widget class="QLabel" name="label_11">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>174</y>
+      <width>161</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Rotation angle (degrees)</string>
+    </property>
+   </widget>
+   <widget class="QDoubleSpinBox" name="doubleSpinBox_rotation">
+    <property name="geometry">
+     <rect>
+      <x>180</x>
+      <y>170</y>
+      <width>51</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="decimals">
+     <number>1</number>
+    </property>
+    <property name="minimum">
+     <double>0.000000000000000</double>
+    </property>
+    <property name="maximum">
+     <double>359.899999999999977</double>
+    </property>
+    <property name="value">
+     <double>0.000000000000000</double>
+    </property>
+   </widget>
   </widget>
   <widget class="QGroupBox" name="groupBox">
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>250</y>
+     <y>280</y>
      <width>241</width>
      <height>111</height>
     </rect>
@@ -395,7 +430,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>370</y>
+     <y>400</y>
      <width>241</width>
      <height>201</height>
     </rect>
