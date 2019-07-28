@@ -346,6 +346,10 @@ class MainControls(QMainWindow):
         self.pushButton_magc_selectChecked.clicked.connect(self.magc_select_checked)
         self.pushButton_magc_okStringSections.clicked.connect(self.magc_select_string_sections)
         self.pushButton_magc_importWaferImage.clicked.connect(self.open_import_wafer_image)
+        self.pushButton_magc_addSection.clicked.connect(self.add_section)
+        if self.cfg['magc']['wafer_calibrated'] == 'False':
+            self.pushButton_magc_addSection.setEnabled(False)
+        self.pushButton_magc_deleteLastSection.clicked.connect(self.delete_last_section)
         self.waferCalibrationFlag.setStyleSheet('background-color: yellow')
         #------- end of GUI for MagC tab ---------------------------------   
         
@@ -832,6 +836,54 @@ class MainControls(QMainWindow):
         tableModel = self.tableView_magc_sectionList.model()
         tableModel.removeRows(0, tableModel.rowCount(), QModelIndex())
         
+    def open_import_wafer_image(self):    
+        target_dir = os.path.join(self.cfg['acq']['base_dir'], 'overviews', 'imported')
+        if not os.path.exists(target_dir):
+            self.try_to_create_directory(target_dir)
+        dialog = ImportWaferImageDlg(self.ovm, self.cs, target_dir)
+        if dialog.exec_():
+            self.viewport.mv_load_last_imported_image()
+            self.viewport.mv_draw()
+        
+    def add_section(self):
+        self.gm.add_new_grid()
+        grid_number = self.gm.get_number_grids() - 1
+        self.cs.set_grid_origin_s(grid_number, list(*self.stage.get_xy()))
+        
+        # set same properties as previous section if it exists
+        if grid_number != 0:
+            self.gm.set_rotation(grid_number,
+                    self.gm.get_rotation(grid_number-1))
+            self.gm.set_grid_size(grid_number,
+                    *self.gm.get_grid_size(grid_number-1))
+            self.gm.set_tile_size_selector(grid_number, 
+                    self.gm.get_tile_size_selector(grid_number-1))
+            self.gm.set_pixel_size(grid_number,
+                    self.gm.get_pixel_size(grid_number-1))
+        self.gm.calculate_grid_map(grid_number)
+        self.update_from_grid_dlg()
+        
+        # add section to the sectionList
+        item1 = QStandardItem(str(grid_number))
+        item1.setCheckable(True)
+        item2 = QStandardItem('')
+        item2.setBackground(color_not_acquired)
+        item2.setCheckable(False)
+        item2.setSelectable(False)
+        tableView = self.tableView_magc_sectionList
+        sectionListModel = tableView.model()
+        sectionListModel.appendRow([item1, item2])
+        
+    def delete_last_section(self):
+        # remove grid
+        self.gm.delete_grid()        
+        self.update_from_grid_dlg()
+        # remove section from list
+        tableView = self.tableView_magc_sectionList
+        sectionListModel = tableView.model()
+        sectionListModel.removeRow(sectionListModel.rowCount()-1)
+
+    
 #--------------- End of MagC tab------------------------------------
     
         
@@ -927,16 +979,6 @@ class MainControls(QMainWindow):
         self.show_estimates()
         self.viewport.mv_draw()
 
-        
-    def open_import_wafer_image(self):    
-        target_dir = os.path.join(self.cfg['acq']['base_dir'], 'overviews', 'imported')
-        if not os.path.exists(target_dir):
-            self.try_to_create_directory(target_dir)
-        dialog = ImportWaferImageDlg(self.ovm, self.cs, target_dir)
-        if dialog.exec_():
-            self.viewport.mv_load_last_imported_image()
-            self.viewport.mv_draw()
-        
     def open_import_image_dlg(self):
         target_dir = self.cfg['acq']['base_dir'] + '\\overviews\\imported'
         if not os.path.exists(target_dir):
@@ -959,7 +1001,7 @@ class MainControls(QMainWindow):
 
     def open_grid_dlg(self):
         dialog = GridSettingsDlg(self.gm, self.sem, self.current_grid,
-                                 self.acq_queue, self.acq_trigger)
+                                 self.cfg, self.acq_queue, self.acq_trigger)
         # self.update_from_grid_dlg() is called when user saves settings
         # or adds/deletes grids.
         dialog.exec_()

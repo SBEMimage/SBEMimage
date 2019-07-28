@@ -904,11 +904,12 @@ class GridSettingsDlg(QDialog):
     """Let the user change all settings for each grid."""
 
     def __init__(self, grid_manager, sem, current_grid,
-                 main_window_queue, main_window_trigger):
+                 config, main_window_queue, main_window_trigger):
         super().__init__()
         self.gm = grid_manager
         self.sem = sem
         self.current_grid = current_grid
+        self.cfg = config
         self.main_window_queue = main_window_queue
         self.main_window_trigger = main_window_trigger
         loadUi('..\\gui\\grid_settings_dlg.ui', self)
@@ -947,9 +948,9 @@ class GridSettingsDlg(QDialog):
         self.update_buttons()
         self.show_current_settings()
         self.show_tile_size_and_dose()
-        # # inactivating add grid in magc_mode (should be done in magc panel instead)
-        # if self.cfg['sys']['magc_mode'] == 'True':
-            
+        # inactivating add grid in magc_mode (should be done in magc panel instead)
+        if self.cfg['sys']['magc_mode'] == 'True':
+            self.pushButton_addGrid.setEnabled(False)
         
     def show_current_settings(self):
         self.comboBox_colourSelector.setCurrentIndex(
@@ -1669,7 +1670,7 @@ class ImportMagCDlg(QDialog):
             for section in range(n_sections):
                 self.gm.add_new_grid()
             for idx, section in sections.items():
-                self.cs.set_grid_origin_s(grid_number=idx, s_coordinates=list(map(float, section['center'])))
+                self.cs.set_grid_origin_s(idx, list(map(float, section['center'])))
                 self.gm.set_rotation(idx, float(section['angle']))
                 self.gm.set_grid_size(idx,
                                       (self.spinBox_rows.value(),

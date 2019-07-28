@@ -2033,7 +2033,7 @@ Green: acquired</string>
       <property name="geometry">
        <rect>
         <x>540</x>
-        <y>210</y>
+        <y>170</y>
         <width>101</width>
         <height>41</height>
        </rect>
@@ -2049,7 +2049,7 @@ Green: acquired</string>
       <property name="geometry">
        <rect>
         <x>650</x>
-        <y>210</y>
+        <y>170</y>
         <width>31</width>
         <height>40</height>
        </rect>
@@ -2062,9 +2062,9 @@ Green: acquired</string>
       <property name="geometry">
        <rect>
         <x>540</x>
-        <y>270</y>
+        <y>230</y>
         <width>141</width>
-        <height>40</height>
+        <height>31</height>
        </rect>
       </property>
       <property name="font">
@@ -2081,9 +2081,9 @@ Green: acquired</string>
       <property name="geometry">
        <rect>
         <x>540</x>
-        <y>320</y>
+        <y>270</y>
         <width>141</width>
-        <height>40</height>
+        <height>31</height>
        </rect>
       </property>
       <property name="font">
@@ -2100,9 +2100,9 @@ Green: acquired</string>
       <property name="geometry">
        <rect>
         <x>540</x>
-        <y>110</y>
+        <y>90</y>
         <width>141</width>
-        <height>40</height>
+        <height>31</height>
        </rect>
       </property>
       <property name="text">
@@ -2115,7 +2115,7 @@ Green: acquired</string>
         <x>540</x>
         <y>10</y>
         <width>141</width>
-        <height>40</height>
+        <height>31</height>
        </rect>
       </property>
       <property name="text">
@@ -2126,9 +2126,9 @@ Green: acquired</string>
       <property name="geometry">
        <rect>
         <x>540</x>
-        <y>60</y>
+        <y>50</y>
         <width>141</width>
-        <height>40</height>
+        <height>31</height>
        </rect>
       </property>
       <property name="text">
@@ -2138,7 +2138,7 @@ Green: acquired</string>
      <widget class="QPushButton" name="pushButton_magc_startAcquisition">
       <property name="geometry">
        <rect>
-        <x>540</x>
+        <x>200</x>
         <y>450</y>
         <width>141</width>
         <height>40</height>
@@ -2152,9 +2152,9 @@ Green: acquired</string>
       <property name="geometry">
        <rect>
         <x>540</x>
-        <y>160</y>
+        <y>130</y>
         <width>141</width>
-        <height>40</height>
+        <height>31</height>
        </rect>
       </property>
       <property name="text">
@@ -2233,7 +2233,7 @@ Green: acquired</string>
       <property name="geometry">
        <rect>
         <x>550</x>
-        <y>260</y>
+        <y>220</y>
         <width>118</width>
         <height>3</height>
        </rect>
@@ -2322,6 +2322,53 @@ Wafer Image</string>
        <string>Reset MagC</string>
       </property>
      </widget>
+     <widget class="QPushButton" name="pushButton_magc_addSection">
+      <property name="geometry">
+       <rect>
+        <x>540</x>
+        <y>320</y>
+        <width>141</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="toolTip">
+       <string>Requires wafer calibration</string>
+      </property>
+      <property name="text">
+       <string>Add section</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_magc_deleteLastSection">
+      <property name="geometry">
+       <rect>
+        <x>540</x>
+        <y>360</y>
+        <width>141</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>7</pointsize>
+       </font>
+      </property>
+      <property name="text">
+       <string>Delete last section</string>
+      </property>
+     </widget>
+     <widget class="Line" name="line_3">
+      <property name="geometry">
+       <rect>
+        <x>550</x>
+        <y>310</y>
+        <width>118</width>
+        <height>3</height>
+       </rect>
+      </property>
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
+      </property>
+     </widget>
      <zorder>collectomeLogo</zorder>
      <zorder>tableView_magc_sectionList</zorder>
      <zorder>textEdit_magc_stringSections</zorder>
@@ -2340,6 +2387,9 @@ Wafer Image</string>
      <zorder>waferCalibrationFlag</zorder>
      <zorder>pushButton_magc_importWaferImage</zorder>
      <zorder>pushButton_magc_resetMagc</zorder>
+     <zorder>pushButton_magc_addSection</zorder>
+     <zorder>pushButton_magc_deleteLastSection</zorder>
+     <zorder>line_3</zorder>
     </widget>
    </widget>
    <widget class="QPlainTextEdit" name="textarea_log">
