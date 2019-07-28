@@ -154,7 +154,6 @@ class MainControls(QMainWindow):
         self.cfg['magc']['selected_sections'] = '[]'
         self.cfg['magc']['checked_sections'] = '[]'
         # for now, start of SBEMimage restarts all sections and wafer_calibration
-        self.cfg['magc']['sections'] = '{}'
         self.cfg['magc']['wafer_calibrated'] = 'False'
         # ------ End of MagC operations ------
 
@@ -827,7 +826,6 @@ class MainControls(QMainWindow):
         self.cfg['magc']['wafer_calibrated'] = 'False'
         self.cfg['magc']['selected_sections'] = '[]'
         self.cfg['magc']['checked_sections'] = '[]'
-        self.cfg['magc']['sections'] = '{}'        
         self.gm.delete_all_but_last_grid()
         self.viewport.update_grids()
         self.viewport.mv_draw()

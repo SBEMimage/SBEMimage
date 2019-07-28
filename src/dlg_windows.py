@@ -947,7 +947,10 @@ class GridSettingsDlg(QDialog):
         self.update_buttons()
         self.show_current_settings()
         self.show_tile_size_and_dose()
-
+        # # inactivating add grid in magc_mode (should be done in magc panel instead)
+        # if self.cfg['sys']['magc_mode'] == 'True':
+            
+        
     def show_current_settings(self):
         self.comboBox_colourSelector.setCurrentIndex(
             self.gm.get_display_colour_index(self.current_grid))
@@ -1688,7 +1691,6 @@ class ImportMagCDlg(QDialog):
             #---------------------------------------
             # Update config with MagC items
             self.cfg['sys']['magc_mode'] = 'True'
-            self.cfg['magc']['sections'] = json.dumps(sections)
             self.cfg['magc']['selected_sections'] = '[]'
             self.cfg['magc']['checked_sections'] = '[]'
             # xxx does importing a new magc file always require a wafer_calibration ?

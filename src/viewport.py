@@ -845,9 +845,9 @@ class Viewport(QWidget):
             if (self.cfg['sys']['magc_mode'] == 'True'
                 and self.selected_grid):
                 menu.addSeparator()
-                action13 = menu.addAction('MagC|Propagate grid to all sections')
+                action13 = menu.addAction('MagC|Propagate grid properties to all sections')
                 action13.triggered.connect(self.mv_propagate_grid_all_sections)
-                action14 = menu.addAction('MagC|Propagate grid to selected sections')
+                action14 = menu.addAction('MagC|Propagate grid properties to selected sections')
                 action14.triggered.connect(self.mv_propagate_grid_selected_sections)
             #----- End of MagC items -----
 
@@ -1795,10 +1795,8 @@ class Viewport(QWidget):
         
     def mv_propagate_grid_all_sections(self):
         clicked_section_number = self.selected_grid
-        section_numbers = [int(key) for key in 
-            json.loads(self.cfg['magc']['sections']).keys() if key.isdigit()]
-            # check isdigit because it could be tissueROI
-        for section in section_numbers:
+        section_number = self.gm.get_number_grids()
+        for section in range(section_number):
             self.gm.propagate_source_grid_to_target_grid(clicked_section_number,
             section)
         self.mv_draw()
