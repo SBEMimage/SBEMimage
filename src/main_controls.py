@@ -58,7 +58,7 @@ from dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                         FTSetParamsDlg, FTMoveDlg, AskUserDlg, \
                         ImportImageDlg, AdjustImageDlg, DeleteImageDlg, \
                         ImportMagCDlg, UpdateDlg, CutDurationDlg, AboutBox, \
-                        ImportWaferImageDlg
+                        ImportWaferImageDlg, WaferCalibrationDlg
 
 
 class Trigger(QObject):
@@ -337,6 +337,7 @@ class MainControls(QMainWindow):
 
         # initialize other MagC GUI items
         self.pushButton_magc_importMagc.clicked.connect(self.open_magc_import_dlg)
+        self.pushButton_magc_waferCalibration.clicked.connect(self.open_magc_wafer_calibration_dlg)
         self.pushButton_magc_resetMagc.clicked.connect(self.reset_magc)
         self.pushButton_magc_selectAll.clicked.connect(self.magc_select_all)
         self.pushButton_magc_deselectAll.clicked.connect(self.magc_deselect_all)
@@ -883,6 +884,11 @@ class MainControls(QMainWindow):
         sectionListModel = tableView.model()
         sectionListModel.removeRow(sectionListModel.rowCount()-1)
 
+    def open_magc_wafer_calibration_dlg(self):
+        dialog = WaferCalibrationDlg(self.cfg, self.stage, self.acq_queue, self.acq_trigger)
+        if dialog.exec_():
+            pass
+    
     
 #--------------- End of MagC tab------------------------------------
     

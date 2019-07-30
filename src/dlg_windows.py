@@ -41,7 +41,7 @@ from PyQt5.QtGui import QPixmap, QIcon, QPalette, QColor, QFont, \
                         QStandardItem, QStandardItemModel
 from PyQt5.QtWidgets import QApplication, QDialog, QMessageBox, \
                             QFileDialog, QLineEdit, QDialogButtonBox, \
-                            QHeaderView
+                            QHeaderView, QPushButton
                             
 import utils
 import acq_func
@@ -1618,10 +1618,9 @@ class ImportMagCDlg(QDialog):
         self.trigger.s.emit()
 
     def import_metadata(self):
-        color_not_acquired = QColor(200,200,200)
+        color_not_acquired = QColor(Qt.lightGray)
         color_acquired = QColor(Qt.green)
         color_acquiring = QColor(Qt.yellow)
-        
         #-----------------------------
         # read sections from MagC JSON
         file_name = self.lineEdit_fileName.text()
@@ -1631,6 +1630,7 @@ class ImportMagCDlg(QDialog):
             with open(file_name, 'r') as f:
                 sectionsJSON = json.load(f)
             sections = {}
+            landmarks = {}
             for sectionJSON in sectionsJSON['shapes']:
                 sectionJSONClass, id = sectionJSON['label'].split('-')
                 if sectionJSONClass == 'tissue':
@@ -1639,8 +1639,10 @@ class ImportMagCDlg(QDialog):
                     'angle': sectionJSON['angle']}
                 elif 'tissueROI' in sectionJSONClass:
                     sections[sectionJSON['label']] = {
-                    'center': sectionJSON['center']
-                    }
+                    'center': sectionJSON['center']}
+                elif 'landmark' in sectionJSONClass:
+                    landmarks[int(id)] = {
+                    'source': sectionJSON['points']}
                 
             n_sections = len(sections)
             self.add_to_main_log(str(n_sections) + ' MagC sections have been loaded.')
@@ -1666,34 +1668,38 @@ class ImportMagCDlg(QDialog):
             pixel_size = self.doubleSpinBox_pixelSize.value()
             
             sectionListModel = self.gui_items['sectionList'].model()
+            sectionListModel.clear()
             self.gm.delete_all_grids()
             for section in range(n_sections):
                 self.gm.add_new_grid()
             for idx, section in sections.items():
-                self.cs.set_grid_origin_s(idx, list(map(float, section['center'])))
-                self.gm.set_rotation(idx, float(section['angle']))
-                self.gm.set_grid_size(idx,
-                                      (self.spinBox_rows.value(),
-                                      self.spinBox_cols.value()))
-                self.gm.set_tile_size_selector(idx, tile_size_selector)
-                self.gm.set_pixel_size(idx, pixel_size)
-                self.gm.calculate_grid_map(grid_number=idx)
-                
-                # populate the sectionList
-                item1 = QStandardItem(str(idx))
-                item1.setCheckable(True)
-                item2 = QStandardItem('')
-                item2.setBackground(color_not_acquired)
-                item2.setCheckable(False)
-                item2.setSelectable(False)
-                sectionListModel.appendRow([item1, item2])
+                if str(idx).isdigit(): # to exclude tissueROI and landmarks
+                    self.cs.set_grid_origin_s(idx, list(map(float, section['center'])))
+                    self.gm.set_rotation(idx, float(section['angle']))
+                    self.gm.set_grid_size(idx,
+                                          (self.spinBox_rows.value(),
+                                          self.spinBox_cols.value()))
+                    self.gm.set_tile_size_selector(idx, tile_size_selector)
+                    self.gm.set_pixel_size(idx, pixel_size)
+                    self.gm.calculate_grid_map(grid_number=idx)
+                    
+                    # populate the sectionList
+                    item1 = QStandardItem(str(idx))
+                    item1.setCheckable(True)
+                    item2 = QStandardItem('')
+                    item2.setBackground(color_not_acquired)
+                    item2.setCheckable(False)
+                    item2.setSelectable(False)
+                    sectionListModel.appendRow([item1, item2])
             #---------------------------------------
 
             #---------------------------------------
             # Update config with MagC items
             self.cfg['sys']['magc_mode'] = 'True'
+            self.cfg['magc']['sections'] = json.dumps(sections)
             self.cfg['magc']['selected_sections'] = '[]'
             self.cfg['magc']['checked_sections'] = '[]'
+            self.cfg['magc']['landmarks'] = json.dumps(landmarks)
             # xxx does importing a new magc file always require a wafer_calibration ?
             # ---------------------------------------
             
@@ -1791,6 +1797,261 @@ class ImportWaferImageDlg(QDialog):
         if selection_success:
             super().accept()
         
+#------------------------------------------------------------------------------
+
+class WaferCalibrationDlg(QDialog):
+    """Wafer calibration."""
+
+    def __init__(self, config, stage, queue, trigger):
+        super().__init__()
+        self.cfg = config
+        self.stage = stage
+        self.trigger = trigger
+        self.queue = queue
+        loadUi(os.path.join('..', 'gui', 'wafer_calibration_dlg.ui'), self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon(os.path.join('..', 'img', 'icon_16px.ico')))
+        self.setFixedSize(self.size())
+        self.lTable = self.tableView_magc_landmarkTable
+        self.initLandmarkList()
+        self.pushButton_cancel.clicked.connect(self.accept)
+        self.pushButton_validateCalibration.clicked.connect(self.validate_calibration)
+        self.show()
+
+    def add_to_main_log(self, msg):
+        """Add entry to the log in the main window"""
+        msg = utils.format_log_entry(msg)
+        # Send entry to main window via queue and trigger:
+        self.queue.put(msg)
+        self.trigger.s.emit()    
+        
+    def initLandmarkList(self):
+
+        # initialize the landmarkTableModel (QTableView)
+        landmarkModel = QStandardItemModel(0, 0)
+        landmarkModel.setHorizontalHeaderItem(0, QStandardItem(''))
+        landmarkModel.setHorizontalHeaderItem(1, QStandardItem('Source x'))
+        landmarkModel.setHorizontalHeaderItem(2, QStandardItem('Source y'))
+        landmarkModel.setHorizontalHeaderItem(3, QStandardItem('Target x'))
+        landmarkModel.setHorizontalHeaderItem(4, QStandardItem('Target y'))
+        landmarkModel.setHorizontalHeaderItem(5, QStandardItem('Set'))
+        landmarkModel.setHorizontalHeaderItem(6, QStandardItem('Move'))
+        landmarkModel.setHorizontalHeaderItem(7, QStandardItem('Go to'))
+        self.lTable.setModel(landmarkModel)
+
+        header = self.lTable.horizontalHeader()
+        for i in range(8):
+            header.setSectionResizeMode(i, QHeaderView.ResizeToContents)
+        
+        landmarkModel = self.lTable.model()
+        landmarks = json.loads(self.cfg['magc']['landmarks'])
+        for id, (key,sourceTarget) in enumerate(landmarks.items()):
+            item0 = QStandardItem(str(key))
+
+            item1 = QStandardItem(str(sourceTarget['source'][0]))
+
+            item2 = QStandardItem(str(sourceTarget['source'][1]))
+            
+            item5 = QPushButton('Set')
+            item5.setFixedSize(QSize(50, 40))
+            item5.clicked.connect(self.set_landmark(id))
+            
+            item6 = QPushButton('Go to')
+            item6.setFixedSize(QSize(60, 40))
+            item6.clicked.connect(self.goto_landmark(id))
+            
+            if self.cfg['sys']['simulation_mode'] == 'True':
+                item5.setEnabled(False)
+                item6.setEnabled(False)
+                
+            item7 = QPushButton('Clear')
+            item7.setFixedSize(QSize(60, 40))
+            item7.clicked.connect(self.clear_landmark(id))
+            
+            if 'target' in sourceTarget:
+                item0.setBackground(QColor(Qt.green))
+                
+                item3 = QStandardItem(str(sourceTarget['target'][0]))
+                item3.setBackground(QColor(Qt.green))
+                
+                item4 = QStandardItem(str(sourceTarget['target'][1]))
+                item4.setBackground(QColor(Qt.green))
+            else:
+                item0.setBackground(QColor(Qt.lightGray))
+                
+                item3 = QStandardItem('')
+                item3.setBackground(QColor(Qt.lightGray))
+                
+                item4 = QStandardItem('')
+                item4.setBackground(QColor(Qt.lightGray))
+                
+                item6.setEnabled(False)
+                item7.setEnabled(False)
+            
+            item3.setCheckable(False)
+            item4.setCheckable(False)
+            
+            landmarkModel.appendRow([item0, item1, item2, item3, item4])
+            self.lTable.setIndexWidget(landmarkModel.index(id, 5), item5)
+            self.lTable.setIndexWidget(landmarkModel.index(id, 6), item6)
+            self.lTable.setIndexWidget(landmarkModel.index(id, 7), item7)
+        
+    def clear_landmark(self, row):
+        def callback_clear_landmark():
+            item3 = self.lTable.model().item(row, 3)
+            item3.setData('')
+            item3.setBackground(QColor(Qt.lightGray))
+            
+            item4 = self.lTable.model().item(row, 4)
+            item4.setData('')
+            item4.setBackground(QColor(Qt.lightGray))
+            
+            del self.cfg['magc']['landmarks'][str(row)]['target']
+        return callback_clear_landmark
+    
+    def set_landmark(self, row):
+        def callback_set_landmark():
+            x,y = self.stage.get_xy()
+            
+            # update table
+            item0 = self.lTable.model().item(row, 0)
+            item0.setBackground(QColor(Qt.green))
+            
+            item3 = self.lTable.model().item(row, 3)
+            item3.setData(str(x))
+            item3.setBackground(QColor(Qt.green))
+            
+            item4 = self.lTable.model().item(row, 4)
+            item4.setData(str(y))
+            item4.setBackground(QColor(Qt.green))
+            
+            # update cfg
+            self.cfg['magc']['landmarks'][str(row)]['target'] = json.dumps([x,y])
+            
+            # compute transform and update landmarks
+            if len(calibratedLandmarkIds) > 1: # at least 2 landmarks needed
+                nLandmarks = len(self.cfg['magc']['landmarks'])
+                calibratedLandmarkIds = [int(id) 
+                    for id,landmark 
+                    in self.cfg['magc']['landmarks'].items()
+                    if 'target' in landmark]
+                noncalibratedLandmarkIds = set(range(nLandmarks)) - set(calibratedLandmarkIds)
+
+            # calculating the wafer transform from source to target. Using all possible landmarks available in the target (minimum 2)
+
+            landmarks = json.loads(self.cfg['magc']['landmarks'])
+            x_landmarks_source = [landmarks[str(i)]['source'][0]
+                for i in range(nLandmarks)]
+            y_landmarks_source = [landmarks[str(i)]['source'][1]
+                for i in range(nLandmarks)]
+                
+            # taking only the source landmarks for which there is a corresponding target landmark
+            x_landmarks_source_partial = [landmarks[str(i)]['source'][0]
+                for i in calibratedLandmarkIds]
+            y_landmarks_source_partial = [landmarks[str(i)]['source'][1]
+                for i in calibratedLandmarkIds]
+                
+            x_landmarks_target_partial = [landmarks[str(i)]['target'][0]
+                for i in calibratedLandmarkIds]
+            y_landmarks_target_partial = [landmarks[str(i)]['target'][1]
+                for i in calibratedLandmarkIds]
+
+            waferTransform = utils.rigidT(
+                -x_landmarks_source_partial, y_landmarks_source_partial,
+                -x_landmarks_target_partial, y_landmarks_target_partial)[0]
+
+            # compute all targetLandmarks
+            x_target_updated_landmarks, y_target_updated_landmarks = utils.applyRigidT(
+                -x_landmarks_source, y_landmarks_source, waferTransform)
+
+            x_target_updated_landmarks = -x_target_updated_landmarks # x axis flipping on Merlin    
+                
+            # set the new target landmarks that were missing
+            for noncalibratedLandmarkId in noncalibratedLandmarkIds: 
+                x = x_target_updated_landmarks[noncalibratedLandmarkId]
+                y = y_target_updated_landmarks[noncalibratedLandmarkId]
+                self.cfg['magc']['landmarks'][noncalibratedLandmarkId]['target'] = json.loads([x,y])
+
+                item3 = self.lTable.model().item(noncalibratedLandmarkId, 3)
+                item3.setData(str(x))
+                item3.setBackground(QColor(Qt.yellow))
+                
+                item4 = self.lTable.model().item(noncalibratedLandmarkId, 4)
+                item4.setData(str(y))
+                item4.setBackground(QColor(Qt.yellow))
+            
+        return callback_set_landmark
+        
+    def goto_landmark(self, row):
+        def callback_goto_landmark():
+            item3 = self.lTable.model().item(row, 3)
+            item4 = self.lTable.model().item(row, 4)
+            x = self.lTable.model().data(item3.index())
+            y = self.lTable.model().data(item4.index())
+            
+            self.stage.move_to_xy(x,y)
+            # xxx move viewport
+            # self.cs.set_mv_centre_d(self.cs.get_grid_origin_d(grid_number=row))
+            # self.viewport.mv_draw()
+        return callback_goto_landmark
+    
+    def validate_calibration(self):
+        landmarks = json.loads(self.cfg['magc']['landmarks'])
+
+        nLandmarks = len(landmarks)
+        calibratedLandmarkIds = [int(id) 
+            for id,landmark in landmarks.items()
+            if 'target' in landmark]
+
+        if len(calibratedLandmarkIds) != nLandmarks:
+            self.add_to_main_log(
+            '''
+            Cannot validate wafer calibration: all target landmarks must be validated
+            ''')
+            
+        else:
+            x_landmarks_source = [landmarks[str(i)]['source'][0]
+                for i in range(len(landmarks))]
+            y_landmarks_source = [landmarks[str(i)]['source'][1]
+                for i in range(len(landmarks))]
+        
+            x_landmarks_target = [landmarks[str(i)]['target'][0]
+                for i in range(len(landmarks))]
+            y_landmarks_target = [landmarks[str(i)]['target'][1]
+                for i in range(len(landmarks))]
+        
+            waferTransform = utils.rigidT(
+                x_landmarks_source, y_landmarks_source,
+                x_landmarks_target, y_landmarks_target)[0]
+            
+            self.cfg['magc']['wafer_transform'] = json.dumps(waferTransform)
+            
+            # compute new grid locations (always transform from reference source)
+            x_source = [section['center'][0] for section in sections]
+            y_source = [section['center'][1] for section in sections]
+            
+            x_target, y_target = utils.applyRigidT(-x_source, y_source, waferTransform)
+            x_target = -x_target # x axis flipping on Merlin
+            
+            transformAngle = utils.getRigidRotation(waferTransform)
+            angles_target = [section['angle'] + transformAngle
+                for section in sections]
+
+            # update grids
+            for grid_number in range(self.gm.get_number_grids()):
+                self.gm.set_rotation(grid_number, angles_target[grid_number])
+                self.cs.set_grid_origin_s(
+                    x_source[grid_number], y_source[grid_number])
+            self.viewport.mv_draw()
+            
+            # todo: update wafer picture
+                
+
+            self.cfg['magc']['wafer_calibrated'] = True
+
+    def accept(self):
+        super().accept()
+
 #----------------- End of MagC dialogs ----------------------------------------------------
 
 class UpdateDlg(QDialog):
