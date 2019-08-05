@@ -1188,25 +1188,47 @@ class Viewport(QWidget):
     def mv_place_grid(self, grid_number, show_grid=True,
                       show_previews=False, with_gaps=False):
         mv_scale = self.cs.get_mv_scale()
-        # Calculate origin of the tile map with respect to mosaic viewer
         dx, dy = self.cs.get_grid_origin_d(grid_number)
+        # Coordinates of grid origin with respect to Viewport canvas:
+        origin_vx, origin_vy = self.cs.convert_to_v((dx, dy))
+
+        # Calculate top-left corner of the tile grid:
         dx -= self.gm.get_tile_width_d(grid_number)/2
         dy -= self.gm.get_tile_height_d(grid_number)/2
-        origin_vx, origin_vy = self.cs.convert_to_v((dx, dy))
+        topleft_vx, topleft_vy = self.cs.convert_to_v((dx, dy))
+
         width_px, height_px = self.gm.get_grid_size_px_py(grid_number)
 
         viewport_pixel_size = 1000 / mv_scale
         grid_pixel_size = self.gm.get_pixel_size(grid_number)
         resize_ratio = grid_pixel_size / viewport_pixel_size
 
+        theta = self.gm.get_rotation(grid_number)
+        use_rotation = theta > 0
+
         visible = self.mv_element_is_visible(
-            origin_vx, origin_vy, width_px, height_px, resize_ratio)
+            topleft_vx, topleft_vy, width_px, height_px, resize_ratio)
 
         if visible:
+            # Rotate the painter if necessary:
+            if use_rotation:
+                # Translate painter to coordinates of grid origin:
+                self.mv_qp.translate(origin_vx, origin_vy)
+                self.mv_qp.rotate(theta)
+                # Translate to top-left corner:
+                self.mv_qp.translate(-self.gm.get_tile_width_d(grid_number)/2 * mv_scale,
+                                     -self.gm.get_tile_height_d(grid_number)/2 * mv_scale)
+                # Enable anti-aliasing in this case:
+                # self.mv_qp.setRenderHint(QPainter.Antialiasing)
+            else:
+                # Translate painter to coordinates of top-left corner:
+                self.mv_qp.translate(topleft_vx, topleft_vy)
+
             if with_gaps:
                 tile_map = self.gm.get_gapped_grid_map(grid_number)
             else:
-                tile_map = self.gm.get_grid_map_d(grid_number)
+                # Tile grid in pixels, not rotated:
+                tile_map = self.gm.get_grid_map_p(grid_number)
             # active tiles in current grid:
             active_tiles = self.gm.get_active_tiles(grid_number)
             tile_width_v = self.gm.get_tile_width_d(grid_number) * mv_scale
@@ -1227,10 +1249,11 @@ class Viewport(QWidget):
                 height_px = self.gm.get_tile_height_p(grid_number)
 
                 for tile in active_tiles:
-                    vx = origin_vx + tile_map[tile][0] * mv_scale
-                    vy = origin_vy + tile_map[tile][1] * mv_scale
+                    vx = tile_map[tile][0] * resize_ratio
+                    vy = tile_map[tile][1] * resize_ratio
                     tile_visible = self.mv_element_is_visible(
-                        vx, vy, width_px, height_px, resize_ratio)
+                        topleft_vx + vx, topleft_vy + vy,
+                        width_px, height_px, resize_ratio)
                     if tile_visible:
                         # load current tile preview:
                         tile_preview_filename = (
@@ -1244,12 +1267,11 @@ class Viewport(QWidget):
                             self.mv_qp.drawPixmap(vx, vy, tile_img)
 
             # Display grid lines
-            size = self.gm.get_grid_size(grid_number)
-            rows, cols = size[0], size[1]
+            rows, cols = self.gm.get_grid_size(grid_number)
             # Load grid colour:
             rgb = self.gm.get_display_colour(grid_number)
             grid_colour = QColor(rgb[0], rgb[1], rgb[2], 255)
-            indicator_colour = QColor(128, 00, 128, 80)
+            indicator_colour = QColor(128, 0, 128, 80)
             grid_pen = QPen(grid_colour, 1, Qt.SolidLine)
             grid_brush_active_tile = QBrush(QColor(rgb[0], rgb[1], rgb[2], 40),
                                             Qt.SolidPattern)
@@ -1267,8 +1289,8 @@ class Viewport(QWidget):
                     self.mv_qp.setBrush(indicator_colour)
                 # tile rectangles
                 if show_grid:
-                    self.mv_qp.drawRect(origin_vx + tile_map[tile][0] * mv_scale,
-                        origin_vy + tile_map[tile][1] * mv_scale,
+                    self.mv_qp.drawRect(tile_map[tile][0] * resize_ratio,
+                        tile_map[tile][1] * resize_ratio,
                         tile_width_v, tile_height_v)
                 if self.show_labels:
                     if tile in active_tiles:
@@ -1277,9 +1299,9 @@ class Viewport(QWidget):
                     else:
                         self.mv_qp.setPen(QColor(rgb[0], rgb[1], rgb[2]))
                         font.setBold(False)
-                    pos_x = (origin_vx + tile_map[tile][0] * mv_scale
+                    pos_x = (tile_map[tile][0] * resize_ratio
                             + tile_width_v/2)
-                    pos_y = (origin_vy + tile_map[tile][1] * mv_scale
+                    pos_y = (tile_map[tile][1] * resize_ratio
                             + tile_height_v/2)
                     position_rect = QRect(pos_x - tile_width_v/2,
                                           pos_y - tile_height_v/2,
@@ -1359,7 +1381,7 @@ class Viewport(QWidget):
                 self.mv_qp.setFont(font)
                 self.mv_qp.setPen(grid_colour)
                 self.mv_qp.setBrush(grid_colour)
-                grid_label_rect = QRect(origin_vx, origin_vy - int(4/3 * fontsize),
+                grid_label_rect = QRect(0, -int(4/3 * fontsize),
                                         int(5.3 * fontsize), int(4/3 * fontsize))
                 self.mv_qp.drawRect(grid_label_rect)
                 if self.gm.get_display_colour_index(grid_number) in [1, 2, 3]:
@@ -1370,6 +1392,10 @@ class Viewport(QWidget):
                 self.mv_qp.drawText(grid_label_rect,
                                     Qt.AlignVCenter | Qt.AlignHCenter,
                                     'GRID %d' % grid_number)
+            # Reset painter (undo translation and rotation):
+            self.mv_qp.resetTransform()
+
+
 
     def mv_draw_stage_boundaries(self):
         """Show bounding box around area accessible to the stage motors:
