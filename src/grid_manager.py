@@ -15,7 +15,7 @@
 """
 
 from statistics import mean
-from math import sqrt
+from math import sqrt, radians, sin, cos
 import json
 import utils
 
@@ -263,6 +263,10 @@ class GridManager(object):
         else:
             self.tile_size_px_py.append(tile_size_px_py)
         self.cfg['grids']['tile_size_px_py'] = str(self.tile_size_px_py)
+
+    def get_tile_position_d(self, grid_number, tile_number):
+        return (self.grid_map_d[grid_number][tile_number][0],
+                self.grid_map_d[grid_number][tile_number][1])
 
     def get_pixel_size(self, grid_number):
         return self.pixel_size[grid_number]
@@ -576,6 +580,7 @@ class GridManager(object):
         pixel_size = self.pixel_size[grid_number]
         overlap = self.overlap[grid_number]
         row_shift = self.row_shift[grid_number]
+        theta = radians(self.rotation[grid_number])
 
         for y_pos in range(rows):
             for x_pos in range(cols):
@@ -585,17 +590,23 @@ class GridManager(object):
                 # Introduce alternating shift in x direction
                 # to avoid quadruple beam exposure:
                 x_shift = row_shift * (y_pos % 2)
+                x_coord += x_shift
                 # Save position in tile map
-                # Format of pixel grid map:
+                # Format of pixel grid map (always non-rotated):
                 # 0: x-coordinate, 1: y-coordinate
                 self.grid_map_p[grid_number][tile_number] = [
-                    x_coord + x_shift,
+                    x_coord,
                     y_coord]
-                # Format of SEM coordinate grid map:
+                if theta > 0:
+                    # Rotate coordinates:
+                    x_coord_rot = x_coord * cos(theta) - y_coord * sin(theta)
+                    y_coord_rot = x_coord * sin(theta) + y_coord * cos(theta)
+                    x_coord, y_coord = x_coord_rot, y_coord_rot
+                # Format of SEM coordinate grid map (includes rotation):
                 # 0: X-coord, 1: Y-coord,
                 # 2: active/inactive (True/False)
                 self.grid_map_d[grid_number][tile_number] = [
-                    (x_coord + x_shift) * pixel_size / 1000,       # x
+                    x_coord * pixel_size / 1000,                   # x
                     y_coord * pixel_size / 1000,                   # y
                     tile_number in self.active_tiles[grid_number]] # tile active?
 
@@ -811,6 +822,11 @@ class GridManager(object):
         origin_dx, origin_dy = self.cs.get_grid_origin_d(grid_number)
         return (origin_dx + self.grid_map_d[grid_number][tile_number][0],
                 origin_dy + self.grid_map_d[grid_number][tile_number][1])
+
+    def get_tile_coordinates_p(self, grid_number, tile_number):
+        origin_px, origin_py = self.cs.get_grid_origin_p(grid_number)
+        return (origin_px + self.grid_map_p[grid_number][tile_number][0],
+                origin_py + self.grid_map_p[grid_number][tile_number][1])
 
     def get_tile_coordinates_for_registration(self, grid_number, tile_number):
         """Provide tile location (upper left corner of tile) in nanometres.
