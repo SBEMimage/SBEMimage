@@ -184,6 +184,10 @@ class SEM:
         """
         raise NotImplementedError
 
+    def set_scan_rotation(self, angle):
+        """Set the scan rotation angle."""
+        raise NotImplementedError
+
     def acquire_frame(self, save_path_filename, extra_delay=0):
         """Acquire a full frame and save it to save_path_filename.
            All imaging parameters must be applied BEFORE calling this function.
@@ -494,6 +498,20 @@ class SEM_SmartSEM(SEM):
         """Translates dwell time into scan rate and calls self.set_scan_rate()
         """
         return self.set_scan_rate(self.DWELL_TIME.index(dwell_time))
+
+    def set_scan_rotation(self, angle):
+        """Set the scan rotation angle.
+        Enable scan rotation for angles > 0.
+        """
+        if angle > 0:
+            enable_variant = VARIANT(pythoncom.VT_R4, 1)
+        else:
+            enable_variant = VARIANT(pythoncom.VT_R4, 0)
+        ret_val1 = self.sem_api.Set('DP_SCAN_ROT', enable_variant)[0]
+        variant_angle = VARIANT(pythoncom.VT_R4, angle)
+        ret_val2 = self.sem_api.Set('AP_SCANROTATION', variant_angle)[0]
+        sleep(0.5)
+        return ret_val1 == 0 and ret_val2 == 0
 
     def acquire_frame(self, save_path_filename, extra_delay=0):
         """Acquire a full frame and save it to save_path_filename.

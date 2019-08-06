@@ -1681,6 +1681,11 @@ class Stack():
                 self.set_grid_wd_stig()
                 self.lock_wd_stig()
 
+            theta = self.gm.get_rotation(grid_number)
+            if theta > 0:
+                # Enable scan rotation
+                self.sem.set_scan_rotation(360 - theta)
+
             # ===================== Grid acquisition loop =========================
             for tile_number in active_tiles:
                 fail_counter = 0
@@ -1761,6 +1766,10 @@ class Stack():
                     self.save_interruption_point(grid_number, tile_number)
                     break
             # ================== End of grid acquisition loop =====================
+
+            if theta > 0:
+                # Disable scan rotation
+                self.sem.set_scan_rotation(0)
 
             if len(active_tiles) == len(self.tiles_acquired):
                 # Grid is complete, add it to the grids_acquired list:
