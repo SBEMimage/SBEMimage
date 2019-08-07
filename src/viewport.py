@@ -1613,43 +1613,50 @@ class Viewport(QWidget):
         return self.selected_ov
 
     def mv_get_grid_tile_mouse_selection(self, px, py):
-        if self.mv_current_grid == -2:
+        """Get the grid number and tile number at the position in the viewport
+        where user clicked."""
+        if self.mv_current_grid == -2:  # grids are hidden
             grid_range = []
             selected_grid, selected_tile = None, None
-        elif self.mv_current_grid == -1:
+        elif self.mv_current_grid == -1:  # all grids visible
             grid_range = reversed(range(self.number_grids))
             selected_grid, selected_tile = None, None
-        elif self.mv_current_grid >= 0:
+        elif self.mv_current_grid >= 0:  # one selected grid visible
             grid_range = range(self.mv_current_grid, self.mv_current_grid + 1)
             selected_grid, selected_tile = self.mv_current_grid, None
 
+        # Go through all visible grids to check for overlap with mouse click
+        # position. Check grids with a higher grid number first.
         for grid_number in grid_range:
-            # Calculate origin of the tile map with respect to mosaic viewer
+            # Calculate origin of the grid with respect to viewport canvas
             dx, dy = self.cs.get_grid_origin_d(grid_number)
-            origin_pixel_offset_x, origin_pixel_offset_y = (
-                self.cs.convert_to_v((dx, dy)))
+            grid_origin_vx, grid_origin_vy = self.cs.convert_to_v((dx, dy))
             mv_scale = self.cs.get_mv_scale()
             pixel_size = self.gm.get_pixel_size(grid_number)
+            # Calculate top-left corner of unrotated grid
             dx -= self.gm.get_tile_width_d(grid_number)/2
             dy -= self.gm.get_tile_height_d(grid_number)/2
-            pixel_offset_x, pixel_offset_y = self.cs.convert_to_v((dx, dy))
+            grid_topleft_vx, grid_topleft_vy = self.cs.convert_to_v((dx, dy))
             cols = self.gm.get_number_cols(grid_number)
             rows = self.gm.get_number_rows(grid_number)
             overlap = self.gm.get_overlap(grid_number)
-            shift = (self.gm.get_row_shift(grid_number) * pixel_size
-                     / 1000 * mv_scale)
             tile_width_p = self.gm.get_tile_width_p(grid_number)
             tile_height_p = self.gm.get_tile_height_p(grid_number)
-            p_width = (((tile_width_p - overlap) * pixel_size)
+            # Tile width in viewport pixels taking overlap into account
+            tile_width_v = ((tile_width_p - overlap) * pixel_size
+                            / 1000 * mv_scale)
+            tile_height_v = ((tile_height_p - overlap) * pixel_size
+                             / 1000 * mv_scale)
+            # Row shift in viewport pixels
+            shift_v = (self.gm.get_row_shift(grid_number) * pixel_size
                        / 1000 * mv_scale)
-            p_height = (((tile_height_p - overlap) * pixel_size)
-                        / 1000 * mv_scale)
-            x, y = px - pixel_offset_x, py - pixel_offset_y
-            # Take into account grid rotation angle:
+            # Mouse click position relative to top-left corner of grid
+            x, y = px - grid_topleft_vx, py - grid_topleft_vy
             theta = radians(self.gm.get_rotation(grid_number))
             if theta > 0:
+                # Rotate the mouse click coordinates if grid is rotated.
                 # Use grid origin as pivot:
-                x, y = px - origin_pixel_offset_x, py - origin_pixel_offset_y
+                x, y = px - grid_origin_vx, py - grid_origin_vy
                 # Inverse rotation for (x, y):
                 x_rot = x * cos(-theta) - y * sin(-theta)
                 y_rot = x * sin(-theta) + y * cos(-theta)
@@ -1657,27 +1664,23 @@ class Viewport(QWidget):
                 # Correction for top-left corner:
                 x += tile_width_p / 2 * pixel_size / 1000 * mv_scale
                 y += tile_height_p / 2 * pixel_size / 1000 * mv_scale
-
+            # Check if mouse click position is within current grid
             if x >= 0 and y >= 0:
-                j = y // p_height
+                j = y // tile_height_v
                 if j % 2 == 0:
-                    i = x // p_width
-                elif x > shift:
-                    i = (x - shift) // p_width
+                    i = x // tile_width_v
+                elif x > shift_v:
+                    # Subtract shift for odd rows
+                    i = (x - shift_v) // tile_width_v
                 else:
                     i = cols
                 if (i < cols) and (j < rows):
                     selected_tile = int(i + j * cols)
-                else:
-                    selected_tile = None
-                if selected_tile in range(
-                    self.gm.get_number_tiles(grid_number)):
                     selected_grid = grid_number
                     break
-                else:
-                    selected_tile = None
-            # Also check whether grid label clicked:
-            f = int(self.cs.get_mv_scale() * 8)
+            # Also check whether grid label clicked. This selects only the grid
+            # and not a specific tile.
+            f = int(mv_scale * 8)
             if f < 12:
                 f = 12
             label_width = int(5.3 * f)
@@ -1686,6 +1689,7 @@ class Viewport(QWidget):
             if x >= 0 and l_y >= 0 and selected_grid is None:
                 if x < label_width and l_y < label_height:
                     selected_grid = grid_number
+                    selected_tile = None
                     break
 
         return selected_grid, selected_tile
