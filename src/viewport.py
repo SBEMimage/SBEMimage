@@ -19,7 +19,7 @@ import os
 import datetime
 import numpy as np
 from PIL import Image
-from math import log, sqrt
+from math import log, sqrt, sin, cos, radians
 from statistics import mean
 
 from PyQt5.uic import loadUi
@@ -1626,6 +1626,8 @@ class Viewport(QWidget):
         for grid_number in grid_range:
             # Calculate origin of the tile map with respect to mosaic viewer
             dx, dy = self.cs.get_grid_origin_d(grid_number)
+            origin_pixel_offset_x, origin_pixel_offset_y = (
+                self.cs.convert_to_v((dx, dy)))
             mv_scale = self.cs.get_mv_scale()
             pixel_size = self.gm.get_pixel_size(grid_number)
             dx -= self.gm.get_tile_width_d(grid_number)/2
@@ -1643,6 +1645,19 @@ class Viewport(QWidget):
             p_height = (((tile_height_p - overlap) * pixel_size)
                         / 1000 * mv_scale)
             x, y = px - pixel_offset_x, py - pixel_offset_y
+            # Take into account grid rotation angle:
+            theta = radians(self.gm.get_rotation(grid_number))
+            if theta > 0:
+                # Use grid origin as pivot:
+                x, y = px - origin_pixel_offset_x, py - origin_pixel_offset_y
+                # Inverse rotation for (x, y):
+                x_rot = x * cos(-theta) - y * sin(-theta)
+                y_rot = x * sin(-theta) + y * cos(-theta)
+                x, y = x_rot, y_rot
+                # Correction for top-left corner:
+                x += tile_width_p / 2 * pixel_size / 1000 * mv_scale
+                y += tile_height_p / 2 * pixel_size / 1000 * mv_scale
+
             if x >= 0 and y >= 0:
                 j = y // p_height
                 if j % 2 == 0:
