@@ -1040,13 +1040,32 @@ class Viewport(QWidget):
                 vx_cropped = 0
         return visible, crop_area, vx_cropped, vy_cropped
 
-    def mv_element_is_visible(self, vx, vy, w_px, h_px, resize_ratio):
-        if ((-vx >= w_px * resize_ratio) or (-vy >= h_px * resize_ratio)
-            or (vx >= self.VIEWER_WIDTH) or (vy >= self.VIEWER_HEIGHT)):
-            visible = False
-        else:
-            visible = True
-        return visible
+    def mv_element_is_visible(self, vx, vy, width, height, resize_ratio,
+                              pivot_vx=0, pivot_vy=0, angle=0):
+        # Calculate the four corners of the unrotated bounding box
+        points_x = [vx, vx + width * resize_ratio, vx, vx + width * resize_ratio]
+        points_y = [vy, vy, vy + height * resize_ratio, vy + height * resize_ratio]
+        if angle > 0:
+            angle = radians(angle)
+            # Rotate all coordinates with respect to the pivot:
+            # (1) Subtract pivot coordinates
+            # (2) Rotate corners
+            # (3) Add pivot coordinates
+            for i in range(4):
+                points_x[i] -= pivot_vx
+                points_y[i] -= pivot_vy
+                x_rot = points_x[i] * cos(angle) - points_y[i] * sin(angle)
+                y_rot = points_x[i] * sin(angle) + points_y[i] * cos(angle)
+                points_x[i] = x_rot + pivot_vx
+                points_y[i] = y_rot + pivot_vy
+        # Find the maximum and minimum x and y coordinates:
+        max_x, min_x = max(points_x), min(points_x)
+        max_y, min_y = max(points_y), min(points_y)
+        # Check if bounding box is within viewport
+        if (min_x > self.VIEWER_WIDTH or max_x < 0
+            or min_y > self.VIEWER_HEIGHT or max_y < 0):
+            return False
+        return True
 
     def mv_place_stub_overview(self):
         """Place stub overview image into the mosaic viewer canvas.
@@ -1207,7 +1226,8 @@ class Viewport(QWidget):
         use_rotation = theta > 0
 
         visible = self.mv_element_is_visible(
-            topleft_vx, topleft_vy, width_px, height_px, resize_ratio)
+            topleft_vx, topleft_vy, width_px, height_px, resize_ratio,
+            origin_vx, origin_vy, theta)
 
         if visible:
             # Rotate the painter if necessary:
