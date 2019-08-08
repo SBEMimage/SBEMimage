@@ -12,6 +12,7 @@
 """This module manages the grids. It holds all the grid parameters and provides
    getter and setter access to other modules, adds and deletes grids,
    calculates position and focus maps.
+   TODO: Refactor (use inner class Grid)
 """
 
 from statistics import mean
@@ -709,17 +710,22 @@ class GridManager(object):
             success = False
         return success
 
-    def get_gapped_grid_map(self, grid_number):
+    def get_gapped_grid_map_p(self, grid_number):
+        """Return unrotated grid map in pixel coordinates with gaps between
+        the tiles. The gaps are 5% of tile width/height.
+        """
         gapped_tile_map = {}
-        for y_pos in range(self.size[grid_number][0]):
-            for x_pos in range(self.size[grid_number][1]):
-                tile_number = x_pos + y_pos * self.size[grid_number][1]
-                x_coord = x_pos * 1.05 * self.tile_size_px_py[grid_number][0]
-                y_coord = y_pos * 1.05 * self.tile_size_px_py[grid_number][1]
-                x_shift = self.row_shift[grid_number] * (y_pos % 2)
-                gapped_tile_map[tile_number] = [
-                    (x_coord + x_shift) * self.pixel_size[grid_number] / 1000,
-                    y_coord * self.pixel_size[grid_number] / 1000]
+        rows, cols = self.size[grid_number]
+        width_p, height_p = self.tile_size_px_py[grid_number]
+        for y_pos in range(rows):
+            for x_pos in range(cols):
+                tile_number = x_pos + y_pos * cols
+                x_coord = 1.05 * x_pos * width_p
+                y_coord = 1.05 * y_pos * height_p
+                x_coord += self.row_shift[grid_number] * (y_pos % 2)
+                # Format of gapped pixel grid map (always non-rotated):
+                # 0: x-coordinate, 1: y-coordinate
+                gapped_tile_map[tile_number] = [x_coord, y_coord]
         return gapped_tile_map
 
     def save_grid_setup(self, timestamp):

@@ -1245,7 +1245,8 @@ class Viewport(QWidget):
                 self.mv_qp.translate(topleft_vx, topleft_vy)
 
             if with_gaps:
-                tile_map = self.gm.get_gapped_grid_map(grid_number)
+                # Use gapped tile grid, not rotated:
+                tile_map = self.gm.get_gapped_grid_map_p(grid_number)
             else:
                 # Tile grid in pixels, not rotated:
                 tile_map = self.gm.get_grid_map_p(grid_number)
