@@ -875,13 +875,31 @@ class GridManager(object):
             self.number_active_tiles)
 
     def get_tile_bounding_box(self, grid_number, tile_number):
-        origin_dx, origin_dy = self.cs.get_grid_origin_d(grid_number)
-        top_left_dx = (origin_dx
-                      + self.grid_map_d[grid_number][tile_number][0]
-                      - self.get_tile_width_d(grid_number)/2)
-        top_left_dy = (origin_dy
-                      + self.grid_map_d[grid_number][tile_number][1]
-                      - self.get_tile_height_d(grid_number)/2)
-        bottom_right_dx = top_left_dx + self.get_tile_width_d(grid_number)
-        bottom_right_dy = top_left_dy + self.get_tile_height_d(grid_number)
-        return (top_left_dx, top_left_dy, bottom_right_dx, bottom_right_dy)
+        grid_origin_dx, grid_origin_dy = self.cs.get_grid_origin_d(grid_number)
+        tile_width_d = self.get_tile_width_d(grid_number)
+        tile_height_d = self.get_tile_height_d(grid_number)
+        # Calculate bounding box (unrotated):
+        top_left_dx = (grid_origin_dx
+            + self.grid_map_d[grid_number][tile_number][0] - tile_width_d/2)
+        top_left_dy = (grid_origin_dy
+            + self.grid_map_d[grid_number][tile_number][1] - tile_height_d/2)
+        points_x = [top_left_dx, top_left_dx + tile_width_d,
+                    top_left_dx, top_left_dx + tile_width_d]
+        points_y = [top_left_dy, top_left_dy,
+                    top_left_dy + tile_height_d, top_left_dy + tile_height_d]
+        theta = radians(self.get_rotation(grid_number))
+        if theta > 0:
+            pivot_dx = top_left_dx + tile_width_d/2
+            pivot_dy = top_left_dy + tile_height_d/2
+            for i in range(4):
+                points_x[i] -= pivot_dx
+                points_y[i] -= pivot_dy
+                x_rot = points_x[i] * cos(theta) - points_y[i] * sin(theta)
+                y_rot = points_x[i] * sin(theta) + points_y[i] * cos(theta)
+                points_x[i] = x_rot + pivot_dx
+                points_y[i] = y_rot + pivot_dy
+        # Find the maximum and minimum x and y coordinates:
+        max_dx, min_dx = max(points_x), min(points_x)
+        max_dy, min_dy = max(points_y), min(points_y)
+
+        return min_dx, max_dx, min_dy, max_dy
