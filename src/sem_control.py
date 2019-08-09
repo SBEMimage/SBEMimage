@@ -284,6 +284,14 @@ class SEM:
         """Move stage to coordinates x and y, provided in microns"""
         raise NotImplementedError
 
+    def calculate_stage_move_duration(self, from_x, from_y, to_x, to_y):
+        """Calculate the duration of a stage move in seconds using the
+        motor speeds specified in the configuration.
+        """
+        duration_x = abs(to_x - from_x) / self.motor_speed_x
+        duration_y = abs(to_y - from_y) / self.motor_speed_y
+        return max(duration_x, duration_y) + self.stage_move_wait_interval
+
     def get_stage_move_wait_interval(self):
         return self.stage_move_wait_interval
 
