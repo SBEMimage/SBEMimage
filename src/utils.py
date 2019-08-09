@@ -300,37 +300,22 @@ def get_indexes_from_user_string(userString):
 	return None
     
 # ------------------- Functions for geometric transforms (MagC) -------------------
-def rigidT(x_in,y_in,x_out,y_out):
-    A_data = []
-    for i in range(len(x_in)):
-        A_data.append( [-y_in[i], x_in[i], 1, 0])
-        A_data.append( [x_in[i], y_in[i], 0, 1])
-        
-    b_data = []
-    for i in range(len(x_out)):
-        b_data.append(x_out[i])
-        b_data.append(y_out[i])
+def affineT(x_in, y_in, x_out, y_out):
+    X = np.array([[x, y, 1] for (x,y) in zip(x_in, y_in)])
+    Y = np.array([[x, y, 1] for (x,y) in zip(x_out, y_out)])
+    aff, res, rank, s = np.linalg.lstsq(X, Y)
+    return aff
 
-    A = np.matrix( A_data )
-    b = np.matrix( b_data ).T
-    # Solve
-    c = np.linalg.lstsq(A, b)[0].T
-    c = np.array(c)[0]
-        
-    displacements = []
-    for i in range(len(x_in)):
-        displacements.append(np.sqrt(
-        np.square((c[1]*x_in[i] - c[0]*y_in[i] + c[2] - x_out[i]) + 
-        np.square(c[1]*y_in[i] + c[0]*x_in[i] + c[3] - y_out[i]))))
+def applyAffineT(x_in, y_in, aff):
+    input = np.array([ [x, y, 1] for (x,y) in zip(x_in, y_in)])
+    output = np.dot(input, aff)
+    print(input, output.T)
+    x_out, y_out = output.T[0:2]
+    return x_out, y_out
     
-    return c, np.mean(displacements)
+def invertAffineT(aff):
+    return np.linalg.inv(aff)
 
-def applyRigidT(x,y,coefs):
-    x,y = map(lambda x: np.array(x),[x,y])
-    x_out = coefs[1]*x - coefs[0]*y + coefs[2]
-    y_out = coefs[1]*y + coefs[0]*x + coefs[3]
-    return x_out,y_out
-    
-def getRigidRotation(coefs):
-    return np.rad2deg(arctan2(coefs[0], coefs[1]))
+def getAffineRotation(aff):
+    return np.rad2deg(np.arctan2(aff[1][0], aff[1][1]))
 # ------------------- End of functions for geometric transforms (MagC) -------------------
