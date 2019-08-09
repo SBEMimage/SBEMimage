@@ -11,3 +11,4 @@ numpy
 python-dateutil
 scikit-image
 imreg_dft
+imageio

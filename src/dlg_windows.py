@@ -941,6 +941,9 @@ class GridSettingsDlg(QDialog):
         # Adaptive focus tool button:
         self.toolButton_adaptiveFocus.clicked.connect(
             self.open_adaptive_focus_dlg)
+        # Reset wd/stig parameters:
+        self.pushButton_resetFocusParams.clicked.connect(
+            self.reset_wd_stig_params)
         # Save, add and delete button:
         self.pushButton_save.clicked.connect(self.save_current_settings)
         self.pushButton_addGrid.clicked.connect(self.add_grid)
@@ -962,6 +965,8 @@ class GridSettingsDlg(QDialog):
         self.spinBox_rows.setValue(self.gm.get_number_rows(self.current_grid))
         self.spinBox_cols.setValue(self.gm.get_number_cols(self.current_grid))
         self.spinBox_overlap.setValue(self.gm.get_overlap(self.current_grid))
+        self.doubleSpinBox_rotation.setValue(
+            self.gm.get_rotation(self.current_grid))
         self.spinBox_shift.setValue(self.gm.get_row_shift(self.current_grid))
 
         self.doubleSpinBox_pixelSize.setValue(
@@ -989,10 +994,9 @@ class GridSettingsDlg(QDialog):
         current = self.sem.get_beam_current()
         dwell_time = float(self.comboBox_dwellTime.currentText())
         pixel_size = self.doubleSpinBox_pixelSize.value()
-        # Calculate the electron dose in electrons per square nanometre.
-        dose = (current * 10**(-12) / (1.602 * 10**(-19))
-                * dwell_time * 10**(-6) / (pixel_size**2))
-        self.label_dose.setText('{0:.1f}'.format(dose))
+        # Show electron dose in electrons per square nanometre.
+        self.label_dose.setText('{0:.1f}'.format(
+            utils.calculate_electron_dose(current, dwell_time, pixel_size)))
 
     def change_grid(self):
         self.current_grid = self.comboBox_gridSelector.currentIndex()
@@ -1051,6 +1055,18 @@ class GridSettingsDlg(QDialog):
             self.main_window_queue.put('GRID SETTINGS CHANGED')
             self.main_window_trigger.s.emit()
 
+    def reset_wd_stig_params(self):
+        user_reply = QMessageBox.question(
+            self, 'Reset focus/astigmatism parameters',
+            f'This will reset the focus and astigmatism parameters for '
+            f'all tiles in grid {self.current_grid}.\n'
+            f'Proceed?',
+            QMessageBox.Ok | QMessageBox.Cancel)
+        if user_reply == QMessageBox.Ok:
+            self.gm.initialize_wd_stig_map(self.current_grid)
+            self.main_window_queue.put('GRID SETTINGS CHANGED')
+            self.main_window_trigger.s.emit()
+
     def save_current_settings(self):
         error_msg = ''
         self.gm.set_grid_size(self.current_grid,
@@ -1066,6 +1082,8 @@ class GridSettingsDlg(QDialog):
         else:
             error_msg = ('Overlap outside of allowed '
                          'range (-30% .. 30% frame width).')
+        self.gm.set_rotation(
+            self.current_grid, self.doubleSpinBox_rotation.value())
         if 0 <= input_shift <= tile_width_p:
             self.gm.set_row_shift(self.current_grid, input_shift)
         else:
@@ -1274,6 +1292,7 @@ class AcqSettingsDlg(QDialog):
         self.pushButton_selectDir.setIconSize(QSize(16, 16))
         # Display current settings:
         self.lineEdit_baseDir.setText(self.cfg['acq']['base_dir'])
+        self.new_base_dir = ''
         self.spinBox_sliceThickness.setValue(self.stack.get_slice_thickness())
         self.spinBox_numberSlices.setValue(self.stack.get_number_slices())
         self.spinBox_sliceCounter.setValue(self.stack.get_slice_counter())
@@ -1305,28 +1324,21 @@ class AcqSettingsDlg(QDialog):
             start_path = self.cfg['acq']['base_dir'][:3]
         else:
             start_path = 'C:\\'
-        directory = str(QFileDialog.getExistingDirectory(
-                            self, 'Select Directory',
-                            start_path,
-                            QFileDialog.ShowDirsOnly))
-        if len(directory) > 0:
-            # Replace forward slashes with backward slashes:
-            directory = directory.replace('/', '\\')
-            self.lineEdit_baseDir.setText(directory)
-            self.cfg['acq']['base_dir'] = directory
+        self.new_base_dir = str(QFileDialog.getExistingDirectory(
+                                self, 'Select Directory',
+                                start_path,
+                                QFileDialog.ShowDirsOnly)).replace('/', '\\')
+        self.lineEdit_baseDir.setText(self.new_base_dir)
 
     def update_server_lineedit(self):
-        status = self.checkBox_sendMetaData.isChecked()
-        self.lineEdit_projectName.setEnabled(status)
+        self.lineEdit_projectName.setEnabled(
+            self.checkBox_sendMetaData.isChecked())
 
     def accept(self):
         success = True
-        self.cfg['acq']['base_dir'] = self.lineEdit_baseDir.text()
-        # Remove spaces if necessary:
-        if ' ' in self.cfg['acq']['base_dir']:
-            self.cfg['acq']['base_dir'] = (
-                self.cfg['acq']['base_dir'].replace(' ', '_'))
-            self.lineEdit_baseDir.setText(self.cfg['acq']['base_dir'])
+        self.new_base_dir = (
+            self.lineEdit_baseDir.text().replace(' ', '_').replace('/', '\\'))
+        self.lineEdit_baseDir.setText(self.new_base_dir)
         if 5 <= self.spinBox_sliceThickness.value() <= 200:
             self.stack.set_slice_thickness(self.spinBox_sliceThickness.value())
         number_slices = self.spinBox_numberSlices.value()
@@ -1340,16 +1352,13 @@ class AcqSettingsDlg(QDialog):
         self.cfg['sys']['send_metadata'] = str(
             self.checkBox_sendMetaData.isChecked())
         if self.checkBox_sendMetaData.isChecked():
-            server_url = self.lineEdit_metaDataServer.text()
-            if validators.url(server_url):
-                self.cfg['sys']['metadata_server_url'] = server_url
-            else:
+            metadata_server_url = self.lineEdit_metaDataServer.text()
+            if not validators.url(metadata_server_url):
                 QMessageBox.warning(
                     self, 'Error',
                     'Metadata server URL is invalid. Change the URL in the '
                     'system configuration file.',
                     QMessageBox.Ok)
-                success = False
             self.cfg['sys']['metadata_project_name'] = (
                 self.lineEdit_projectName.text())
         if ((number_slices > 0)
@@ -1368,6 +1377,7 @@ class AcqSettingsDlg(QDialog):
                 QMessageBox.Ok)
             success = False
         if success:
+            self.cfg['acq']['base_dir'] = self.new_base_dir
             super().accept()
 
 #------------------------------------------------------------------------------
@@ -3128,6 +3138,7 @@ class FTMoveDlg(QDialog):
             QMessageBox.information(self, 'Move complete',
                 'The stage has been moved to the selected position.',
                 QMessageBox.Ok)
+            super().accept()
         # Enable button again:
         self.pushButton_move.setText('Move again')
         self.pushButton_move.setEnabled(True)

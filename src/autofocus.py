@@ -23,7 +23,6 @@ import numpy as np
 from math import sqrt, exp, sin, cos
 from statistics import mean
 from time import sleep, time
-from scipy.misc import imsave
 from scipy.signal import correlate2d, fftconvolve
 
 

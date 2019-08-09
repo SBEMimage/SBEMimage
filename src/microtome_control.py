@@ -156,14 +156,19 @@ class Microtome:
         # only used for testing
         raise NotImplementedError
 
-    def calculate_stage_move_duration(self, target_x, target_y):
+    def calculate_rel_stage_move_duration(self, target_x, target_y):
         """Use the last known position and the given target position
            to calculate how much time it will take for the motors to move
-           to target position.
+           to target position. Add self.stage_move_wait_interval.
         """
         duration_x = abs(target_x - self.last_known_x) / self.motor_speed_x
         duration_y = abs(target_y - self.last_known_y) / self.motor_speed_y
-        return max(duration_x, duration_y)
+        return max(duration_x, duration_y) + self.stage_move_wait_interval
+
+    def calculate_stage_move_duration(self, from_x, from_y, to_x, to_y):
+        duration_x = abs(to_x - from_x) / self.motor_speed_x
+        duration_y = abs(to_y - from_y) / self.motor_speed_y
+        return max(duration_x, duration_y) + self.stage_move_wait_interval
 
     def get_stage_xy(self, wait_interval=0.25):
         """Get current XY coordinates from DM"""
@@ -533,10 +538,8 @@ class Microtome_3View(Microtome):
         self._send_dm_command('MicrotomeStage_SetPositionXY_Confirm', [x, y])
         sleep(0.2)
         # Wait for the time it takes the motors to move:
-        move_duration = self.calculate_stage_move_duration(x, y)
+        move_duration = self.calculate_rel_stage_move_duration(x, y)
         sleep(move_duration + 0.1)
-        # Additional waiting time to let vibrations subside:
-        sleep(self.stage_move_wait_interval)
         # Is there a problem with the motors or was the command not executed?
         if os.path.isfile('..\\dm\\DMcom.ack'):
             # Everything ok! Accept new position as last known position

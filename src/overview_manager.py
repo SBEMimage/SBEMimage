@@ -326,6 +326,9 @@ class OverviewManager(object):
     def get_ov_acq_interval(self, ov_number):
         return self.ov_acq_interval[ov_number]
 
+    def get_max_ov_acq_interval(self):
+        return max(self.ov_acq_interval)
+
     def set_ov_acq_interval(self, ov_number, interval):
         if ov_number < len(self.ov_acq_interval):
             self.ov_acq_interval[ov_number] = interval
@@ -335,6 +338,9 @@ class OverviewManager(object):
 
     def get_ov_acq_interval_offset(self, ov_number):
         return self.ov_acq_interval_offset[ov_number]
+
+    def get_max_ov_acq_interval_offset(self):
+        return max(self.ov_acq_interval_offset)
 
     def set_ov_acq_interval_offset(self, ov_number, offset):
         if ov_number < len(self.ov_acq_interval_offset):
@@ -590,6 +596,8 @@ class OverviewManager(object):
             self.update_ov_debris_detection_area(ov_number, gm)
 
     def update_ov_debris_detection_area(self, ov_number, gm):
+        """Change the debris detection area to cover all tiles from all grids
+        that fall within the overview specified by ov_number."""
         if self.cfg['debris']['auto_detection_area'] == 'False':
             # set full detection area:
             self.set_ov_debris_detection_area(ov_number,
@@ -601,39 +609,38 @@ class OverviewManager(object):
              ov_bottom_right_dx, ov_bottom_right_dy) = (
                 self.get_ov_bounding_box(ov_number))
             ov_pixel_size = self.get_ov_pixel_size(ov_number)
+            # The following corner coordinates define the debris detection area
             top_left_dx_min, top_left_dy_min = None, None
             bottom_right_dx_max, bottom_right_dy_max = None, None
-            #extra_margin = 20
             # Check all grids for active tile overlap with OV
             for grid_number in range(gm.get_number_grids()):
                 for tile_number in gm.get_active_tiles(grid_number):
-                    (top_left_dx, top_left_dy,
-                     bottom_right_dx, bottom_right_dy) = (
+                    (min_dx, max_dx, min_dy, max_dy) = (
                         gm.get_tile_bounding_box(grid_number, tile_number))
                     # Is tile within OV?
-                    overlap = not (top_left_dx >= ov_bottom_right_dx
-                                   or top_left_dy >= ov_bottom_right_dy
-                                   or bottom_right_dx <= ov_top_left_dx
-                                   or bottom_right_dy <= ov_top_left_dy)
+                    overlap = not (min_dx >= ov_bottom_right_dx
+                                   or min_dy >= ov_bottom_right_dy
+                                   or max_dx <= ov_top_left_dx
+                                   or max_dy <= ov_top_left_dy)
                     if overlap:
                         # transform coordinates to d coord. rel. to OV image:
-                        top_left_dx -= ov_top_left_dx
-                        top_left_dy -= ov_top_left_dy
-                        bottom_right_dx -= ov_top_left_dx
-                        bottom_right_dy -= ov_top_left_dy
+                        min_dx -= ov_top_left_dx
+                        min_dy -= ov_top_left_dy
+                        max_dx -= ov_top_left_dx
+                        max_dy -= ov_top_left_dy
 
                         if (top_left_dx_min is None
-                            or top_left_dx < top_left_dx_min):
-                            top_left_dx_min = top_left_dx
+                            or min_dx < top_left_dx_min):
+                            top_left_dx_min = min_dx
                         if (top_left_dy_min is None
-                            or top_left_dy < top_left_dy_min):
-                            top_left_dy_min = top_left_dy
+                            or min_dy < top_left_dy_min):
+                            top_left_dy_min = min_dy
                         if (bottom_right_dx_max is None
-                            or bottom_right_dx > bottom_right_dx_max):
-                            bottom_right_dx_max = bottom_right_dx
+                            or max_dx > bottom_right_dx_max):
+                            bottom_right_dx_max = max_dx
                         if (bottom_right_dy_max is None
-                            or bottom_right_dy > bottom_right_dy_max):
-                            bottom_right_dy_max = bottom_right_dy
+                            or max_dy > bottom_right_dy_max):
+                            bottom_right_dy_max = max_dy
 
             if top_left_dx_min is None:
                 top_left_px, top_left_py = 0, 0

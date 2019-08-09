@@ -12,10 +12,11 @@
 """This module manages the grids. It holds all the grid parameters and provides
    getter and setter access to other modules, adds and deletes grids,
    calculates position and focus maps.
+   TODO: Refactor (use inner class Grid)
 """
 
 from statistics import mean
-from math import sqrt
+from math import sqrt, radians, sin, cos
 import json
 import utils
 
@@ -318,6 +319,10 @@ class GridManager(object):
             self.tile_size_px_py.append(tile_size_px_py)
         self.cfg['grids']['tile_size_px_py'] = str(self.tile_size_px_py)
 
+    def get_tile_position_d(self, grid_number, tile_number):
+        return (self.grid_map_d[grid_number][tile_number][0],
+                self.grid_map_d[grid_number][tile_number][1])
+
     def get_pixel_size(self, grid_number):
         return self.pixel_size[grid_number]
 
@@ -503,6 +508,9 @@ class GridManager(object):
     def get_acq_interval(self, grid_number):
         return self.acq_interval[grid_number]
 
+    def get_max_acq_interval(self):
+        return max(self.acq_interval)
+
     def set_acq_interval(self, grid_number, interval):
         if grid_number < len(self.acq_interval):
             self.acq_interval[grid_number] = interval
@@ -512,6 +520,9 @@ class GridManager(object):
 
     def get_acq_interval_offset(self, grid_number):
         return self.acq_interval_offset[grid_number]
+
+    def get_max_acq_interval_offset(self):
+        return max(self.acq_interval_offset)
 
     def set_acq_interval_offset(self, grid_number, offset):
         if grid_number < len(self.acq_interval_offset):
@@ -627,6 +638,7 @@ class GridManager(object):
         pixel_size = self.pixel_size[grid_number]
         overlap = self.overlap[grid_number]
         row_shift = self.row_shift[grid_number]
+        theta = radians(self.rotation[grid_number])
 
         for y_pos in range(rows):
             for x_pos in range(cols):
@@ -636,17 +648,23 @@ class GridManager(object):
                 # Introduce alternating shift in x direction
                 # to avoid quadruple beam exposure:
                 x_shift = row_shift * (y_pos % 2)
+                x_coord += x_shift
                 # Save position in tile map
-                # Format of pixel grid map:
+                # Format of pixel grid map (always non-rotated):
                 # 0: x-coordinate, 1: y-coordinate
                 self.grid_map_p[grid_number][tile_number] = [
-                    x_coord + x_shift,
+                    x_coord,
                     y_coord]
-                # Format of SEM coordinate grid map:
+                if theta > 0:
+                    # Rotate coordinates:
+                    x_coord_rot = x_coord * cos(theta) - y_coord * sin(theta)
+                    y_coord_rot = x_coord * sin(theta) + y_coord * cos(theta)
+                    x_coord, y_coord = x_coord_rot, y_coord_rot
+                # Format of SEM coordinate grid map (includes rotation):
                 # 0: X-coord, 1: Y-coord,
                 # 2: active/inactive (True/False)
                 self.grid_map_d[grid_number][tile_number] = [
-                    (x_coord + x_shift) * pixel_size / 1000,       # x
+                    x_coord * pixel_size / 1000,                   # x
                     y_coord * pixel_size / 1000,                   # y
                     tile_number in self.active_tiles[grid_number]] # tile active?
 
@@ -749,17 +767,22 @@ class GridManager(object):
             success = False
         return success
 
-    def get_gapped_grid_map(self, grid_number):
+    def get_gapped_grid_map_p(self, grid_number):
+        """Return unrotated grid map in pixel coordinates with gaps between
+        the tiles. The gaps are 5% of tile width/height.
+        """
         gapped_tile_map = {}
-        for y_pos in range(self.size[grid_number][0]):
-            for x_pos in range(self.size[grid_number][1]):
-                tile_number = x_pos + y_pos * self.size[grid_number][1]
-                x_coord = x_pos * 1.05 * self.tile_size_px_py[grid_number][0]
-                y_coord = y_pos * 1.05 * self.tile_size_px_py[grid_number][1]
-                x_shift = self.row_shift[grid_number] * (y_pos % 2)
-                gapped_tile_map[tile_number] = [
-                    (x_coord + x_shift) * self.pixel_size[grid_number] / 1000,
-                    y_coord * self.pixel_size[grid_number] / 1000]
+        rows, cols = self.size[grid_number]
+        width_p, height_p = self.tile_size_px_py[grid_number]
+        for y_pos in range(rows):
+            for x_pos in range(cols):
+                tile_number = x_pos + y_pos * cols
+                x_coord = 1.05 * x_pos * width_p
+                y_coord = 1.05 * y_pos * height_p
+                x_coord += self.row_shift[grid_number] * (y_pos % 2)
+                # Format of gapped pixel grid map (always non-rotated):
+                # 0: x-coordinate, 1: y-coordinate
+                gapped_tile_map[tile_number] = [x_coord, y_coord]
         return gapped_tile_map
 
     def save_grid_setup(self, timestamp):
@@ -863,6 +886,11 @@ class GridManager(object):
         return (origin_dx + self.grid_map_d[grid_number][tile_number][0],
                 origin_dy + self.grid_map_d[grid_number][tile_number][1])
 
+    def get_tile_coordinates_p(self, grid_number, tile_number):
+        origin_px, origin_py = self.cs.get_grid_origin_p(grid_number)
+        return (origin_px + self.grid_map_p[grid_number][tile_number][0],
+                origin_py + self.grid_map_p[grid_number][tile_number][1])
+
     def get_tile_coordinates_for_registration(self, grid_number, tile_number):
         """Provide tile location (upper left corner of tile) in nanometres.
         """
@@ -910,13 +938,31 @@ class GridManager(object):
             self.number_active_tiles)
 
     def get_tile_bounding_box(self, grid_number, tile_number):
-        origin_dx, origin_dy = self.cs.get_grid_origin_d(grid_number)
-        top_left_dx = (origin_dx
-                      + self.grid_map_d[grid_number][tile_number][0]
-                      - self.get_tile_width_d(grid_number)/2)
-        top_left_dy = (origin_dy
-                      + self.grid_map_d[grid_number][tile_number][1]
-                      - self.get_tile_height_d(grid_number)/2)
-        bottom_right_dx = top_left_dx + self.get_tile_width_d(grid_number)
-        bottom_right_dy = top_left_dy + self.get_tile_height_d(grid_number)
-        return (top_left_dx, top_left_dy, bottom_right_dx, bottom_right_dy)
+        grid_origin_dx, grid_origin_dy = self.cs.get_grid_origin_d(grid_number)
+        tile_width_d = self.get_tile_width_d(grid_number)
+        tile_height_d = self.get_tile_height_d(grid_number)
+        # Calculate bounding box (unrotated):
+        top_left_dx = (grid_origin_dx
+            + self.grid_map_d[grid_number][tile_number][0] - tile_width_d/2)
+        top_left_dy = (grid_origin_dy
+            + self.grid_map_d[grid_number][tile_number][1] - tile_height_d/2)
+        points_x = [top_left_dx, top_left_dx + tile_width_d,
+                    top_left_dx, top_left_dx + tile_width_d]
+        points_y = [top_left_dy, top_left_dy,
+                    top_left_dy + tile_height_d, top_left_dy + tile_height_d]
+        theta = radians(self.get_rotation(grid_number))
+        if theta > 0:
+            pivot_dx = top_left_dx + tile_width_d/2
+            pivot_dy = top_left_dy + tile_height_d/2
+            for i in range(4):
+                points_x[i] -= pivot_dx
+                points_y[i] -= pivot_dy
+                x_rot = points_x[i] * cos(theta) - points_y[i] * sin(theta)
+                y_rot = points_x[i] * sin(theta) + points_y[i] * cos(theta)
+                points_x[i] = x_rot + pivot_dx
+                points_y[i] = y_rot + pivot_dy
+        # Find the maximum and minimum x and y coordinates:
+        max_dx, min_dx = max(points_x), min(points_x)
+        max_dy, min_dy = max(points_y), min(points_y)
+
+        return min_dx, max_dx, min_dy, max_dy

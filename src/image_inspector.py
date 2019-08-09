@@ -17,7 +17,7 @@ import os
 import json
 import numpy as np
 
-from scipy.misc import imresize, imsave
+from imageio import imwrite
 from scipy.signal import medfilt2d
 from PIL import Image
 
@@ -86,12 +86,24 @@ class ImageInspector(object):
         tile_selected = False
         try:
             img = Image.open(filename)
-            load_error = False
         except:
             load_error = True
 
         if not load_error:
             img = np.array(img)
+            height, width = img.shape[0], img.shape[1]
+
+            tile_key = ('g' + str(grid_number).zfill(utils.GRID_DIGITS)
+                        + '_' + 't' + str(tile_number).zfill(utils.TILE_DIGITS))
+            tile_key_short = str(grid_number) + '.' + str(tile_number)
+
+            # Save preview image:
+            preview_img = Image.frombytes(
+                'L', (width, height),
+                img.tostring()).resize((512, 384), resample=2)
+            preview_img.save(
+                self.base_dir + '\\workspace\\' + tile_key + '.png')
+
             # calculate mean and stddev:
             mean = np.mean(img)
             stddev = np.std(img)
@@ -103,8 +115,7 @@ class ImageInspector(object):
                 frozen_frame_error = False
                 self.prev_img_mean_stddev = [mean, stddev]
 
-            height, width = img.shape[0], img.shape[1]
-            # Was complete image grabbed? Test if first or final line of image 
+            # Was complete image grabbed? Test if first or final line of image
             # is black/white/uniform greyscale (bug in SmartSEM)
             first_line = img[0:1,:]
             final_line = img[height-1:height,:]
@@ -113,14 +124,6 @@ class ImageInspector(object):
                 grab_incomplete = True
             else:
                 grab_incomplete = False
-
-            tile_key = ('g' + str(grid_number).zfill(utils.GRID_DIGITS)
-                        + '_' + 't' + str(tile_number).zfill(utils.TILE_DIGITS))
-            tile_key_short = str(grid_number) + '.' + str(tile_number)
-
-            # Save preview image:
-            preview = imresize(img, (384, 512))
-            imsave(self.base_dir + '\\workspace\\' + tile_key + '.png', preview)
 
             # Save reslice line in memory. Take a 400-px line from the centre
             # of the image. This works for all frame resolutions.
@@ -218,9 +221,9 @@ class ImageInspector(object):
                 if reslice_img is not None and reslice_img.shape[1] == 400:
                     new_reslice_img = np.concatenate(
                         (reslice_img, self.tile_reslice_line[tile_key]))
-                    imsave(reslice_filename, new_reslice_img)
+                    imwrite(reslice_filename, new_reslice_img)
                 else:
-                    imsave(reslice_filename, self.tile_reslice_line[tile_key])
+                    imwrite(reslice_filename, self.tile_reslice_line[tile_key])
             except:
                 success = False # couldn't write to disk
         else:
@@ -322,9 +325,9 @@ class ImageInspector(object):
                 if reslice_img is not None and reslice_img.shape[1] == 400:
                     new_reslice_img = np.concatenate(
                         (reslice_img, self.ov_reslice_line[ov_number]))
-                    imsave(reslice_filename, new_reslice_img)
+                    imwrite(reslice_filename, new_reslice_img)
                 else:
-                    imsave(reslice_filename, self.ov_reslice_line[ov_number])
+                    imwrite(reslice_filename, self.ov_reslice_line[ov_number])
             except:
                 success = False
         else:

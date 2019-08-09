@@ -23,7 +23,7 @@ import pythoncom
 import win32com.client   # required to access CZEMApi.ocx (Carl Zeiss EM API)
 from win32com.client import VARIANT  # necessary for API function calls
 
-class SEM():
+class SEM:
     """Base class for remote SEM control. Implements minimum parameter handling.
     Unimplemented methods raise a NotImplementedError - they must be implemented
     in child classes.
@@ -135,6 +135,7 @@ class SEM():
         """
         self.beam_current = target_current
         self.cfg['sem']['beam_current'] = str(target_current)
+        # Setting SEM to target beam current must be implemented in child class!
 
     def apply_beam_settings(self):
         """"Set the SEM to the target EHT voltage and beam current."""
@@ -181,6 +182,10 @@ class SEM():
     def set_dwell_time(self, dwell_time):
         """Translates dwell time into scan rate and calls self.set_scan_rate()
         """
+        raise NotImplementedError
+
+    def set_scan_rotation(self, angle):
+        """Set the scan rotation angle."""
         raise NotImplementedError
 
     def acquire_frame(self, save_path_filename, extra_delay=0):
@@ -350,23 +355,23 @@ class SEM_SmartSEM(SEM):
     def __init__(self, config, sysconfig):
         super().__init__(config, sysconfig)
         if not self.simulation_mode:
-                # Dispatch Merlin API (CZ EM API OLE Control):
-                # CZEMApi.ocx must be registered in the Windows registry!
-                # 'CZ.EMApiCtrl.1'  {71BD42C4-EBD3-11D0-AB3A-444553540000}
-                try:
-                    self.sem_api = win32com.client.Dispatch('CZ.EMApiCtrl.1')
-                    ret_val = self.sem_api.InitialiseRemoting()
-                except:
-                    ret_val = 1
-                if ret_val != 0:   # In ZEISS API, response of '0' means success
-                    self.error_state = 301
-                    self.error_cause = (
-                        'sem.__init__: remote API control could not be'
-                        'initalized.')
-                elif config['sys']['use_microtome'] == 'False':
-                    # Load SEM stage coordinates:
-                    self.last_known_x, self.last_known_y, self.last_known_z = (
-                        self.get_stage_xyz())
+            # Dispatch Merlin API (CZ EM API OLE Control):
+            # CZEMApi.ocx must be registered in the Windows registry!
+            # 'CZ.EMApiCtrl.1'  {71BD42C4-EBD3-11D0-AB3A-444553540000}
+            try:
+                self.sem_api = win32com.client.Dispatch('CZ.EMApiCtrl.1')
+                ret_val = self.sem_api.InitialiseRemoting()
+            except:
+                ret_val = 1
+            if ret_val != 0:   # In ZEISS API, response of '0' means success
+                self.error_state = 301
+                self.error_cause = (
+                    'sem.__init__: remote API control could not be'
+                    'initalized.')
+            elif config['sys']['use_microtome'] == 'False':
+                # Load SEM stage coordinates:
+                self.last_known_x, self.last_known_y, self.last_known_z = (
+                    self.get_stage_xyz())
 
     def turn_eht_on(self):
         ret_val = self.sem_api.Execute('CMD_BEAM_ON')
@@ -395,6 +400,8 @@ class SEM_SmartSEM(SEM):
         return (self.sem_api.Get('DP_RUNUPSTATE', 0)[1] == 'EHT Off')
 
     def set_eht(self, target_eht):
+        # Call method in parent class to change settings:
+        super().set_eht(target_eht)
         # target_eht given in kV
         variant = VARIANT(pythoncom.VT_R4, target_eht * 1000)
         ret_val = self.sem_api.Set('AP_MANUALKV', variant)[0]
@@ -406,6 +413,8 @@ class SEM_SmartSEM(SEM):
             return False
 
     def set_beam_current(self, target_current):
+        # Call method in parent class to change settings:
+        super().set_beam_current(target_current)
         # target_current given in pA
         variant = VARIANT(pythoncom.VT_R4, target_current * 10**(-12))
         ret_val = self.sem_api.Set('AP_IPROBE', variant)[0]
@@ -489,6 +498,20 @@ class SEM_SmartSEM(SEM):
         """Translates dwell time into scan rate and calls self.set_scan_rate()
         """
         return self.set_scan_rate(self.DWELL_TIME.index(dwell_time))
+
+    def set_scan_rotation(self, angle):
+        """Set the scan rotation angle.
+        Enable scan rotation for angles > 0.
+        """
+        if angle > 0:
+            enable_variant = VARIANT(pythoncom.VT_R4, 1)
+        else:
+            enable_variant = VARIANT(pythoncom.VT_R4, 0)
+        ret_val1 = self.sem_api.Set('DP_SCAN_ROT', enable_variant)[0]
+        variant_angle = VARIANT(pythoncom.VT_R4, angle)
+        ret_val2 = self.sem_api.Set('AP_SCANROTATION', variant_angle)[0]
+        sleep(0.5)
+        return ret_val1 == 0 and ret_val2 == 0
 
     def acquire_frame(self, save_path_filename, extra_delay=0):
         """Acquire a full frame and save it to save_path_filename.

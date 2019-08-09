@@ -20,7 +20,7 @@ import datetime
 import json
 import numpy as np
 from PIL import Image
-from math import log, sqrt
+from math import log, sqrt, sin, cos, radians
 from statistics import mean
 
 from PyQt5.uic import loadUi
@@ -809,25 +809,57 @@ class Viewport(QWidget):
             current_pos_str = ('Move stage to X: {0:.3f}, '.format(sx)
                                + 'Y: {0:.3f}'.format(sy))
             self.selected_stage_pos = (sx, sy)
+            grid_str = ''
+            if self.selected_grid is not None:
+                grid_str = f'in grid {self.selected_grid}'
+            selected_for_autofocus = selected_for_gradient = 'Select/deselect as'
+            if self.selected_grid is not None and self.selected_tile is not None:
+                selected = f'tile {self.selected_grid}.{self.selected_tile}'
+                if self.af.is_ref_tile(self.selected_grid, self.selected_tile):
+                    selected_for_autofocus = (
+                        f'Deselect tile {self.selected_grid}.'
+                        f'{self.selected_tile} as')
+                else:
+                    selected_for_autofocus = (
+                        f'Select tile {self.selected_grid}.'
+                        f'{self.selected_tile} as')
+                if self.gm.is_adaptive_focus_tile(
+                    self.selected_grid, self.selected_tile):
+                    selected_for_gradient = (
+                        f'Deselect tile {self.selected_grid}.'
+                        f'{self.selected_tile} as')
+                else:
+                    selected_for_gradient = (
+                        f'Select tile {self.selected_grid}.'
+                        f'{self.selected_tile} as')
+
+            elif self.selected_ov is not None:
+                selected = f'OV {self.selected_ov}'
+            else:
+                selected = 'tile/OV'
 
             menu = QMenu()
-            action1 = menu.addAction('Load tile/OV in Slice Viewer')
+            action1 = menu.addAction(f'Load {selected} in Slice Viewer')
             action1.triggered.connect(self.sv_load_selected)
-            action2 = menu.addAction('Load tile/OV in Focus Tool')
+            action2 = menu.addAction(f'Load {selected} in Focus Tool')
             action2.triggered.connect(self.mv_load_selected_in_ft)
-            action3 = menu.addAction('Load tile/OV statistics')
+            action3 = menu.addAction(f'Load {selected} statistics')
             action3.triggered.connect(self.m_load_selected)
             menu.addSeparator()
-            action4 = menu.addAction('Select all tiles in grid')
+            action4 = menu.addAction('Select all tiles ' + grid_str)
             action4.triggered.connect(self.mv_select_all_tiles)
-            action5 = menu.addAction('Deselect all tiles in grid')
+            action5 = menu.addAction('Deselect all tiles ' + grid_str)
             action5.triggered.connect(self.mv_deselect_all_tiles)
+            menu.addSeparator()
             if self.af.get_method() == 2:
-                action6 = menu.addAction('Select/deselect for focus tracking')
+                action6 = menu.addAction(selected_for_autofocus
+                                         + ' focus tracking ref.')
             else:
-                action6 = menu.addAction('Select/deselect for autofocus')
+                action6 = menu.addAction(selected_for_autofocus
+                                         + ' autofocus ref.')
             action6.triggered.connect(self.mv_toggle_tile_autofocus)
-            action7 = menu.addAction('Select/deselect for adaptive focus')
+            action7 = menu.addAction(selected_for_gradient
+                                     + ' focus gradient ref.')
             action7.triggered.connect(self.mv_toggle_tile_adaptive_focus)
             menu.addSeparator()
             action8 = menu.addAction(current_pos_str)
@@ -858,6 +890,9 @@ class Viewport(QWidget):
             if self.selected_grid is None:
                 action4.setEnabled(False)
                 action5.setEnabled(False)
+            if self.selected_tile is None:
+                action6.setEnabled(False)
+                action7.setEnabled(False)
             if self.af.get_tracking_mode() == 1:
                 action6.setEnabled(False)
             if self.selected_imported is None:
@@ -1021,13 +1056,32 @@ class Viewport(QWidget):
                 vx_cropped = 0
         return visible, crop_area, vx_cropped, vy_cropped
 
-    def mv_element_is_visible(self, vx, vy, w_px, h_px, resize_ratio):
-        if ((-vx >= w_px * resize_ratio) or (-vy >= h_px * resize_ratio)
-            or (vx >= self.VIEWER_WIDTH) or (vy >= self.VIEWER_HEIGHT)):
-            visible = False
-        else:
-            visible = True
-        return visible
+    def mv_element_is_visible(self, vx, vy, width, height, resize_ratio,
+                              pivot_vx=0, pivot_vy=0, angle=0):
+        # Calculate the four corners of the unrotated bounding box
+        points_x = [vx, vx + width * resize_ratio, vx, vx + width * resize_ratio]
+        points_y = [vy, vy, vy + height * resize_ratio, vy + height * resize_ratio]
+        if angle > 0:
+            angle = radians(angle)
+            # Rotate all coordinates with respect to the pivot:
+            # (1) Subtract pivot coordinates
+            # (2) Rotate corners
+            # (3) Add pivot coordinates
+            for i in range(4):
+                points_x[i] -= pivot_vx
+                points_y[i] -= pivot_vy
+                x_rot = points_x[i] * cos(angle) - points_y[i] * sin(angle)
+                y_rot = points_x[i] * sin(angle) + points_y[i] * cos(angle)
+                points_x[i] = x_rot + pivot_vx
+                points_y[i] = y_rot + pivot_vy
+        # Find the maximum and minimum x and y coordinates:
+        max_x, min_x = max(points_x), min(points_x)
+        max_y, min_y = max(points_y), min(points_y)
+        # Check if bounding box is within viewport
+        if (min_x > self.VIEWER_WIDTH or max_x < 0
+            or min_y > self.VIEWER_HEIGHT or max_y < 0):
+            return False
+        return True
 
     def mv_place_stub_overview(self):
         """Place stub overview image into the mosaic viewer canvas.
@@ -1169,25 +1223,49 @@ class Viewport(QWidget):
     def mv_place_grid(self, grid_number, show_grid=True,
                       show_previews=False, with_gaps=False):
         mv_scale = self.cs.get_mv_scale()
-        # Calculate origin of the tile map with respect to mosaic viewer
         dx, dy = self.cs.get_grid_origin_d(grid_number)
+        # Coordinates of grid origin with respect to Viewport canvas:
+        origin_vx, origin_vy = self.cs.convert_to_v((dx, dy))
+
+        # Calculate top-left corner of the tile grid:
         dx -= self.gm.get_tile_width_d(grid_number)/2
         dy -= self.gm.get_tile_height_d(grid_number)/2
-        origin_vx, origin_vy = self.cs.convert_to_v((dx, dy))
+        topleft_vx, topleft_vy = self.cs.convert_to_v((dx, dy))
+
         width_px, height_px = self.gm.get_grid_size_px_py(grid_number)
 
         viewport_pixel_size = 1000 / mv_scale
         grid_pixel_size = self.gm.get_pixel_size(grid_number)
         resize_ratio = grid_pixel_size / viewport_pixel_size
 
+        theta = self.gm.get_rotation(grid_number)
+        use_rotation = theta > 0
+
         visible = self.mv_element_is_visible(
-            origin_vx, origin_vy, width_px, height_px, resize_ratio)
+            topleft_vx, topleft_vy, width_px, height_px, resize_ratio,
+            origin_vx, origin_vy, theta)
 
         if visible:
-            if with_gaps:
-                tile_map = self.gm.get_gapped_grid_map(grid_number)
+            # Rotate the painter if necessary:
+            if use_rotation:
+                # Translate painter to coordinates of grid origin:
+                self.mv_qp.translate(origin_vx, origin_vy)
+                self.mv_qp.rotate(theta)
+                # Translate to top-left corner:
+                self.mv_qp.translate(-self.gm.get_tile_width_d(grid_number)/2 * mv_scale,
+                                     -self.gm.get_tile_height_d(grid_number)/2 * mv_scale)
+                # Enable anti-aliasing in this case:
+                # self.mv_qp.setRenderHint(QPainter.Antialiasing)
             else:
-                tile_map = self.gm.get_grid_map_d(grid_number)
+                # Translate painter to coordinates of top-left corner:
+                self.mv_qp.translate(topleft_vx, topleft_vy)
+
+            if with_gaps:
+                # Use gapped tile grid, not rotated:
+                tile_map = self.gm.get_gapped_grid_map_p(grid_number)
+            else:
+                # Tile grid in pixels, not rotated:
+                tile_map = self.gm.get_grid_map_p(grid_number)
             # active tiles in current grid:
             active_tiles = self.gm.get_active_tiles(grid_number)
             tile_width_v = self.gm.get_tile_width_d(grid_number) * mv_scale
@@ -1208,10 +1286,11 @@ class Viewport(QWidget):
                 height_px = self.gm.get_tile_height_p(grid_number)
 
                 for tile in active_tiles:
-                    vx = origin_vx + tile_map[tile][0] * mv_scale
-                    vy = origin_vy + tile_map[tile][1] * mv_scale
+                    vx = tile_map[tile][0] * resize_ratio
+                    vy = tile_map[tile][1] * resize_ratio
                     tile_visible = self.mv_element_is_visible(
-                        vx, vy, width_px, height_px, resize_ratio)
+                        topleft_vx + vx, topleft_vy + vy,
+                        width_px, height_px, resize_ratio)
                     if tile_visible:
                         # load current tile preview:
                         tile_preview_filename = (
@@ -1225,12 +1304,11 @@ class Viewport(QWidget):
                             self.mv_qp.drawPixmap(vx, vy, tile_img)
 
             # Display grid lines
-            size = self.gm.get_grid_size(grid_number)
-            rows, cols = size[0], size[1]
+            rows, cols = self.gm.get_grid_size(grid_number)
             # Load grid colour:
             rgb = self.gm.get_display_colour(grid_number)
             grid_colour = QColor(rgb[0], rgb[1], rgb[2], 255)
-            indicator_colour = QColor(128, 00, 128, 80)
+            indicator_colour = QColor(128, 0, 128, 80)
             grid_pen = QPen(grid_colour, 1, Qt.SolidLine)
             grid_brush_active_tile = QBrush(QColor(rgb[0], rgb[1], rgb[2], 40),
                                             Qt.SolidPattern)
@@ -1248,8 +1326,8 @@ class Viewport(QWidget):
                     self.mv_qp.setBrush(indicator_colour)
                 # tile rectangles
                 if show_grid:
-                    self.mv_qp.drawRect(origin_vx + tile_map[tile][0] * mv_scale,
-                        origin_vy + tile_map[tile][1] * mv_scale,
+                    self.mv_qp.drawRect(tile_map[tile][0] * resize_ratio,
+                        tile_map[tile][1] * resize_ratio,
                         tile_width_v, tile_height_v)
                 if self.show_labels:
                     if tile in active_tiles:
@@ -1258,9 +1336,9 @@ class Viewport(QWidget):
                     else:
                         self.mv_qp.setPen(QColor(rgb[0], rgb[1], rgb[2]))
                         font.setBold(False)
-                    pos_x = (origin_vx + tile_map[tile][0] * mv_scale
+                    pos_x = (tile_map[tile][0] * resize_ratio
                             + tile_width_v/2)
-                    pos_y = (origin_vy + tile_map[tile][1] * mv_scale
+                    pos_y = (tile_map[tile][1] * resize_ratio
                             + tile_height_v/2)
                     position_rect = QRect(pos_x - tile_width_v/2,
                                           pos_y - tile_height_v/2,
@@ -1340,7 +1418,7 @@ class Viewport(QWidget):
                 self.mv_qp.setFont(font)
                 self.mv_qp.setPen(grid_colour)
                 self.mv_qp.setBrush(grid_colour)
-                grid_label_rect = QRect(origin_vx, origin_vy - int(4/3 * fontsize),
+                grid_label_rect = QRect(0, -int(4/3 * fontsize),
                                         int(5.3 * fontsize), int(4/3 * fontsize))
                 self.mv_qp.drawRect(grid_label_rect)
                 if self.gm.get_display_colour_index(grid_number) in [1, 2, 3]:
@@ -1351,6 +1429,10 @@ class Viewport(QWidget):
                 self.mv_qp.drawText(grid_label_rect,
                                     Qt.AlignVCenter | Qt.AlignHCenter,
                                     'GRID %d' % grid_number)
+            # Reset painter (undo translation and rotation):
+            self.mv_qp.resetTransform()
+
+
 
     def mv_draw_stage_boundaries(self):
         """Show bounding box around area accessible to the stage motors:
@@ -1568,56 +1650,74 @@ class Viewport(QWidget):
         return self.selected_ov
 
     def mv_get_grid_tile_mouse_selection(self, px, py):
-        if self.mv_current_grid == -2:
+        """Get the grid number and tile number at the position in the viewport
+        where user clicked."""
+        if self.mv_current_grid == -2:  # grids are hidden
             grid_range = []
             selected_grid, selected_tile = None, None
-        elif self.mv_current_grid == -1:
+        elif self.mv_current_grid == -1:  # all grids visible
             grid_range = reversed(range(self.number_grids))
             selected_grid, selected_tile = None, None
-        elif self.mv_current_grid >= 0:
+        elif self.mv_current_grid >= 0:  # one selected grid visible
             grid_range = range(self.mv_current_grid, self.mv_current_grid + 1)
             selected_grid, selected_tile = self.mv_current_grid, None
 
+        # Go through all visible grids to check for overlap with mouse click
+        # position. Check grids with a higher grid number first.
         for grid_number in grid_range:
-            # Calculate origin of the tile map with respect to mosaic viewer
+            # Calculate origin of the grid with respect to viewport canvas
             dx, dy = self.cs.get_grid_origin_d(grid_number)
+            grid_origin_vx, grid_origin_vy = self.cs.convert_to_v((dx, dy))
             mv_scale = self.cs.get_mv_scale()
             pixel_size = self.gm.get_pixel_size(grid_number)
+            # Calculate top-left corner of unrotated grid
             dx -= self.gm.get_tile_width_d(grid_number)/2
             dy -= self.gm.get_tile_height_d(grid_number)/2
-            pixel_offset_x, pixel_offset_y = self.cs.convert_to_v((dx, dy))
+            grid_topleft_vx, grid_topleft_vy = self.cs.convert_to_v((dx, dy))
             cols = self.gm.get_number_cols(grid_number)
             rows = self.gm.get_number_rows(grid_number)
             overlap = self.gm.get_overlap(grid_number)
-            shift = (self.gm.get_row_shift(grid_number) * pixel_size
-                     / 1000 * mv_scale)
             tile_width_p = self.gm.get_tile_width_p(grid_number)
             tile_height_p = self.gm.get_tile_height_p(grid_number)
-            p_width = (((tile_width_p - overlap) * pixel_size)
+            # Tile width in viewport pixels taking overlap into account
+            tile_width_v = ((tile_width_p - overlap) * pixel_size
+                            / 1000 * mv_scale)
+            tile_height_v = ((tile_height_p - overlap) * pixel_size
+                             / 1000 * mv_scale)
+            # Row shift in viewport pixels
+            shift_v = (self.gm.get_row_shift(grid_number) * pixel_size
                        / 1000 * mv_scale)
-            p_height = (((tile_height_p - overlap) * pixel_size)
-                        / 1000 * mv_scale)
-            x, y = px - pixel_offset_x, py - pixel_offset_y
+            # Mouse click position relative to top-left corner of grid
+            x, y = px - grid_topleft_vx, py - grid_topleft_vy
+            theta = radians(self.gm.get_rotation(grid_number))
+            if theta > 0:
+                # Rotate the mouse click coordinates if grid is rotated.
+                # Use grid origin as pivot:
+                x, y = px - grid_origin_vx, py - grid_origin_vy
+                # Inverse rotation for (x, y):
+                x_rot = x * cos(-theta) - y * sin(-theta)
+                y_rot = x * sin(-theta) + y * cos(-theta)
+                x, y = x_rot, y_rot
+                # Correction for top-left corner:
+                x += tile_width_p / 2 * pixel_size / 1000 * mv_scale
+                y += tile_height_p / 2 * pixel_size / 1000 * mv_scale
+            # Check if mouse click position is within current grid
             if x >= 0 and y >= 0:
-                j = y // p_height
+                j = y // tile_height_v
                 if j % 2 == 0:
-                    i = x // p_width
-                elif x > shift:
-                    i = (x - shift) // p_width
+                    i = x // tile_width_v
+                elif x > shift_v:
+                    # Subtract shift for odd rows
+                    i = (x - shift_v) // tile_width_v
                 else:
                     i = cols
                 if (i < cols) and (j < rows):
                     selected_tile = int(i + j * cols)
-                else:
-                    selected_tile = None
-                if selected_tile in range(
-                    self.gm.get_number_tiles(grid_number)):
                     selected_grid = grid_number
                     break
-                else:
-                    selected_tile = None
-            # Also check whether grid label clicked:
-            f = int(self.cs.get_mv_scale() * 8)
+            # Also check whether grid label clicked. This selects only the grid
+            # and not a specific tile.
+            f = int(mv_scale * 8)
             if f < 12:
                 f = 12
             label_width = int(5.3 * f)
@@ -1626,6 +1726,7 @@ class Viewport(QWidget):
             if x >= 0 and l_y >= 0 and selected_grid is None:
                 if x < label_width and l_y < label_height:
                     selected_grid = grid_number
+                    selected_tile = None
                     break
 
         return selected_grid, selected_tile
@@ -1697,21 +1798,33 @@ class Viewport(QWidget):
 
     def mv_select_all_tiles(self):
         if self.selected_grid is not None:
-            self.gm.select_all_tiles(self.selected_grid)
-            if self.af.get_tracking_mode() == 1:
-                self.af.select_all_active_tiles()
-            self.add_to_main_log('CTRL: All tiles in grid %d selected.'
-                                 % self.selected_grid)
-            self.mv_update_after_tile_selection()
+            user_reply = QMessageBox.question(
+                self, 'Selecting all tiles in grid',
+                f'This will select all tiles in grid {self.selected_grid}. '
+                f'Proceed?',
+                QMessageBox.Ok | QMessageBox.Cancel)
+            if user_reply == QMessageBox.Ok:
+                self.gm.select_all_tiles(self.selected_grid)
+                if self.af.get_tracking_mode() == 1:
+                    self.af.select_all_active_tiles()
+                self.add_to_main_log('CTRL: All tiles in grid %d selected.'
+                                     % self.selected_grid)
+                self.mv_update_after_tile_selection()
 
     def mv_deselect_all_tiles(self):
        if self.selected_grid is not None:
-            self.gm.reset_active_tiles(self.selected_grid)
-            if self.af.get_tracking_mode() == 1:
-                self.af.reset_ref_tiles()
-            self.add_to_main_log('CTRL: All tiles in grid %d deselected.'
-                                 % self.selected_grid)
-            self.mv_update_after_tile_selection()
+            user_reply = QMessageBox.question(
+                self, 'Deselecting all tiles in grid',
+                f'This will deselect all tiles in grid {self.selected_grid}. '
+                f'Proceed?',
+                QMessageBox.Ok | QMessageBox.Cancel)
+            if user_reply == QMessageBox.Ok:
+                self.gm.reset_active_tiles(self.selected_grid)
+                if self.af.get_tracking_mode() == 1:
+                    self.af.reset_ref_tiles()
+                self.add_to_main_log('CTRL: All tiles in grid %d deselected.'
+                                     % self.selected_grid)
+                self.mv_update_after_tile_selection()
 
     def mv_toggle_tile_autofocus(self):
         if self.selected_grid is not None and self.selected_tile is not None:
