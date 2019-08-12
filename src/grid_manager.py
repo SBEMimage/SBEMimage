@@ -19,8 +19,7 @@ from statistics import mean
 from math import sqrt, radians, sin, cos
 import json
 import utils
-
-
+import numpy as np
 
 class GridManager(object):
 
@@ -112,16 +111,37 @@ class GridManager(object):
         target_grid_number):
         s = source_grid_number
         t = target_grid_number
+        sections = json.loads(self.cfg['magc']['sections'])
         
+        sourceSectionCenter = np.array(sections[str(s)]['center'])
+        targetSectionCenter = np.array(sections[str(t)]['center'])
+        
+        sourceSectionAngle = sections[str(s)]['angle'] % 360
+        targetSectionAngle = sections[str(t)]['angle'] % 360
+        
+        sourceGridCenter = np.array(self.cs.get_grid_origin_s(s))
+        sourceSectionGrid = sourceGridCenter - sourceSectionCenter
+        sourceSectionGridDistance = np.linalg.norm(sourceSectionGrid)
+        sourceSectionGridAngle = (np.angle(sourceSectionGrid[0] +
+            sourceSectionGrid[1] * 1j, deg = True) -
+            sourceSectionAngle) % 360
+        
+        print('sourceSectionAngle', sourceSectionAngle)
+        print('sourceSectionGridDistance', sourceSectionGridDistance)
+        print('sourceSectionGridAngle', sourceSectionGridAngle)
+        print('targetSectionAngle', targetSectionAngle, '\n')
+        
+        targetGridCenterComplex = np.dot(targetSectionCenter, [1,1j]) \
+            + sourceSectionGridDistance \
+            * np.exp(1j * np.radians(
+            (180-(180-targetSectionAngle + sourceSectionGridAngle)) % 360))
+        targetGridCenter = np.real(targetGridCenterComplex), np.imag(targetGridCenterComplex)
+        self.cs.set_grid_origin_s(t, targetGridCenter)
+
         # target location/rotation to implement when rotation ready
         # x_pos, y_pos = 
-        # self.cs.set_grid_origin_s(t, [xxx, yyy])
         # self.set_rotation(t, xxx)
         
-        # # probably these should not be changed ?
-        # self.set_origin_wd(t, self.get_origin_wd(s))
-        # self.initialize_wd_stig_map(t)
-
         self.set_grid_size(t, self.get_grid_size(s))
         self.set_overlap(t, self.get_overlap(s))
         self.set_row_shift(t, self.get_row_shift(s))

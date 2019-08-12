@@ -1617,7 +1617,8 @@ class ImportMagCDlg(QDialog):
         self.pushButton_import.rejected.connect(self.accept)
         store_res_list = [
             '%d × %d' % (res[0], res[1]) for res in self.sem.STORE_RES]
-        self.comboBox_tileSize.addItems(store_res_list)        
+        self.comboBox_tileSize.addItems(store_res_list)
+        self.comboBox_tileSize.setCurrentIndex(5)
         self.show()
 
     def add_to_main_log(self, msg):
