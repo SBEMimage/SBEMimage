@@ -985,6 +985,9 @@ class Viewport(QWidget):
             self.mv_qp.setBrush(QColor(0, 0, 0, 255))
             self.mv_qp.drawRect(0, 0, 140, 20)
             self.mv_qp.setPen(QPen(QColor(255, 0, 0), 1, Qt.SolidLine))
+            font = QFont()
+            font.setPixelSize(10)
+            self.mv_qp.setFont(font)
             self.mv_qp.drawText(5, 15, 'SIMULATION MODE')
         # Show current stage position:
         if self.show_stage_pos:
@@ -1229,76 +1232,88 @@ class Viewport(QWidget):
             topleft_vx, topleft_vy, width_px, height_px, resize_ratio,
             origin_vx, origin_vy, theta)
 
-        if visible:
-            # Rotate the painter if necessary:
-            if use_rotation:
-                # Translate painter to coordinates of grid origin:
-                self.mv_qp.translate(origin_vx, origin_vy)
-                self.mv_qp.rotate(theta)
-                # Translate to top-left corner:
-                self.mv_qp.translate(-self.gm.get_tile_width_d(grid_number)/2 * mv_scale,
-                                     -self.gm.get_tile_height_d(grid_number)/2 * mv_scale)
-                # Enable anti-aliasing in this case:
-                # self.mv_qp.setRenderHint(QPainter.Antialiasing)
-            else:
-                # Translate painter to coordinates of top-left corner:
-                self.mv_qp.translate(topleft_vx, topleft_vy)
+        if not visible:
+            return
 
-            if with_gaps:
-                # Use gapped tile grid, not rotated:
-                tile_map = self.gm.get_gapped_grid_map_p(grid_number)
-            else:
-                # Tile grid in pixels, not rotated:
-                tile_map = self.gm.get_grid_map_p(grid_number)
-            # active tiles in current grid:
-            active_tiles = self.gm.get_active_tiles(grid_number)
-            tile_width_v = self.gm.get_tile_width_d(grid_number) * mv_scale
-            tile_height_v = self.gm.get_tile_height_d(grid_number) * mv_scale
-            base_dir = self.cfg['acq']['base_dir']
-            font_size1 = int(tile_width_v/5)
-            font_size1 = utils.fit_in_range(font_size1, 2, 120)
-            font_size2 = int(tile_width_v/11)
-            font_size2 = utils.fit_in_range(font_size2, 1, 40)
+        # Rotate the painter if necessary:
+        if use_rotation:
+            # Translate painter to coordinates of grid origin:
+            self.mv_qp.translate(origin_vx, origin_vy)
+            self.mv_qp.rotate(theta)
+            # Translate to top-left corner:
+            self.mv_qp.translate(-self.gm.get_tile_width_d(grid_number)/2 * mv_scale,
+                                 -self.gm.get_tile_height_d(grid_number)/2 * mv_scale)
+            # Enable anti-aliasing in this case:
+            # self.mv_qp.setRenderHint(QPainter.Antialiasing)
+        else:
+            # Translate painter to coordinates of top-left corner:
+            self.mv_qp.translate(topleft_vx, topleft_vy)
 
-            if (show_previews
-                    and not self.fov_drag_active
-                    and not self.grid_drag_active
-                    and self.cs.get_mv_scale() > 1.4):
-                # Previews are disabled when FOV or grid is being dragged or
-                # when sufficiently zoomed out.
-                width_px = self.gm.get_tile_width_p(grid_number)
-                height_px = self.gm.get_tile_height_p(grid_number)
+        if with_gaps:
+            # Use gapped tile grid, not rotated:
+            tile_map = self.gm.get_gapped_grid_map_p(grid_number)
+        else:
+            # Tile grid in pixels, not rotated:
+            tile_map = self.gm.get_grid_map_p(grid_number)
+        # active tiles in current grid:
+        active_tiles = self.gm.get_active_tiles(grid_number)
+        tile_width_v = self.gm.get_tile_width_d(grid_number) * mv_scale
+        tile_height_v = self.gm.get_tile_height_d(grid_number) * mv_scale
+        base_dir = self.cfg['acq']['base_dir']
+        font_size1 = int(tile_width_v/5)
+        font_size1 = utils.fit_in_range(font_size1, 2, 120)
+        font_size2 = int(tile_width_v/11)
+        font_size2 = utils.fit_in_range(font_size2, 1, 40)
 
-                for tile in active_tiles:
-                    vx = tile_map[tile][0] * resize_ratio
-                    vy = tile_map[tile][1] * resize_ratio
-                    tile_visible = self.mv_element_is_visible(
-                        topleft_vx + vx, topleft_vy + vy,
-                        width_px, height_px, resize_ratio)
-                    if tile_visible:
-                        # load current tile preview:
-                        tile_preview_filename = (
-                            base_dir + '\\'
-                            + utils.get_tile_preview_save_path(grid_number, tile))
-                        if os.path.exists(tile_preview_filename):
-                            tile_img = QPixmap(tile_preview_filename)
-                            # Scale image from 512px to current tile width:
-                            tile_img = tile_img.scaledToWidth(tile_width_v)
-                            # Draw:
-                            self.mv_qp.drawPixmap(vx, vy, tile_img)
+        if (show_previews
+                and not self.fov_drag_active
+                and not self.grid_drag_active
+                and mv_scale > 1.4):
+            # Previews are disabled when FOV or grid is being dragged or
+            # when sufficiently zoomed out.
+            width_px = self.gm.get_tile_width_p(grid_number)
+            height_px = self.gm.get_tile_height_p(grid_number)
 
-            # Display grid lines
-            rows, cols = self.gm.get_grid_size(grid_number)
-            # Load grid colour:
-            rgb = self.gm.get_display_colour(grid_number)
-            grid_colour = QColor(rgb[0], rgb[1], rgb[2], 255)
-            indicator_colour = QColor(128, 0, 128, 80)
-            grid_pen = QPen(grid_colour, 1, Qt.SolidLine)
-            grid_brush_active_tile = QBrush(QColor(rgb[0], rgb[1], rgb[2], 40),
-                                            Qt.SolidPattern)
-            grid_brush_transparent = QBrush(QColor(255, 255, 255, 0),
-                                            Qt.SolidPattern)
-            font = QFont()
+            for tile in active_tiles:
+                vx = tile_map[tile][0] * resize_ratio
+                vy = tile_map[tile][1] * resize_ratio
+                tile_visible = self.mv_element_is_visible(
+                    topleft_vx + vx, topleft_vy + vy,
+                    width_px, height_px, resize_ratio)
+                if not tile_visible:
+                    continue
+                # load current tile preview:
+                tile_preview_filename = (
+                    base_dir + '\\'
+                    + utils.get_tile_preview_save_path(grid_number, tile))
+                if os.path.exists(tile_preview_filename):
+                    tile_img = QPixmap(tile_preview_filename)
+                    # Scale image from 512px to current tile width:
+                    tile_img = tile_img.scaledToWidth(tile_width_v)
+                    # Draw:
+                    self.mv_qp.drawPixmap(vx, vy, tile_img)
+
+        # Display grid lines
+        rows, cols = self.gm.get_grid_size(grid_number)
+        # Load grid colour:
+        rgb = self.gm.get_display_colour(grid_number)
+        grid_colour = QColor(rgb[0], rgb[1], rgb[2], 255)
+        indicator_colour = QColor(128, 0, 128, 80)
+        grid_pen = QPen(grid_colour, 1, Qt.SolidLine)
+        grid_brush_active_tile = QBrush(QColor(rgb[0], rgb[1], rgb[2], 40),
+                                        Qt.SolidPattern)
+        grid_brush_transparent = QBrush(QColor(255, 255, 255, 0),
+                                        Qt.SolidPattern)
+        font = QFont()
+
+        # Suppress labels when zoomed out or when user is moving a grid or
+        # panning the view, under the condition that there are >10 grids:
+        suppress_labels = (self.number_grids > 10
+                           and (mv_scale < 1.0
+                           or self.fov_drag_active
+                           or self.grid_drag_active))
+
+        if (tile_width_v * cols > 2 or tile_height_v * rows > 2):
             for tile in range(rows * cols):
                 self.mv_qp.setPen(grid_pen)
                 if tile in active_tiles:
@@ -1313,7 +1328,7 @@ class Viewport(QWidget):
                     self.mv_qp.drawRect(tile_map[tile][0] * resize_ratio,
                         tile_map[tile][1] * resize_ratio,
                         tile_width_v, tile_height_v)
-                if self.show_labels:
+                if self.show_labels and not suppress_labels:
                     if tile in active_tiles:
                         self.mv_qp.setPen(QColor(255, 255, 255))
                         font.setBold(True)
@@ -1392,29 +1407,34 @@ class Viewport(QWidget):
                             Qt.AlignVCenter | Qt.AlignHCenter,
                             'WD: {0:.6f}'.format(
                             self.gm.get_tile_wd(grid_number, tile) * 1000))
+        else:
+            # Show the grid as a single pixel:
+            self.mv_qp.setPen(grid_pen)
+            self.mv_qp.drawPoint(tile_map[0][0] * resize_ratio,
+                                 tile_map[0][1] * resize_ratio)
 
-            if self.show_labels:
-                fontsize = int(self.cs.get_mv_scale() * 8)
-                if fontsize < 12:
-                    fontsize = 12
+        if self.show_labels and not suppress_labels:
+            fontsize = int(self.cs.get_mv_scale() * 8)
+            if fontsize < 12:
+                fontsize = 12
 
-                font.setPixelSize(fontsize)
-                self.mv_qp.setFont(font)
-                self.mv_qp.setPen(grid_colour)
-                self.mv_qp.setBrush(grid_colour)
-                grid_label_rect = QRect(0, -int(4/3 * fontsize),
-                                        int(5.3 * fontsize), int(4/3 * fontsize))
-                self.mv_qp.drawRect(grid_label_rect)
-                if self.gm.get_display_colour_index(grid_number) in [1, 2, 3]:
-                    self.mv_qp.setPen(QColor(0, 0, 0))
-                else:
-                    self.mv_qp.setPen(QColor(255, 255, 255))
+            font.setPixelSize(fontsize)
+            self.mv_qp.setFont(font)
+            self.mv_qp.setPen(grid_colour)
+            self.mv_qp.setBrush(grid_colour)
+            grid_label_rect = QRect(0, -int(4/3 * fontsize),
+                                    int(5.3 * fontsize), int(4/3 * fontsize))
+            self.mv_qp.drawRect(grid_label_rect)
+            if self.gm.get_display_colour_index(grid_number) in [1, 2, 3]:
+                self.mv_qp.setPen(QColor(0, 0, 0))
+            else:
+                self.mv_qp.setPen(QColor(255, 255, 255))
 
-                self.mv_qp.drawText(grid_label_rect,
-                                    Qt.AlignVCenter | Qt.AlignHCenter,
-                                    'GRID %d' % grid_number)
-            # Reset painter (undo translation and rotation):
-            self.mv_qp.resetTransform()
+            self.mv_qp.drawText(grid_label_rect,
+                                Qt.AlignVCenter | Qt.AlignHCenter,
+                                'GRID %d' % grid_number)
+        # Reset painter (undo translation and rotation):
+        self.mv_qp.resetTransform()
 
 
 
