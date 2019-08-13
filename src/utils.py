@@ -309,7 +309,6 @@ def affineT(x_in, y_in, x_out, y_out):
 def applyAffineT(x_in, y_in, aff):
     input = np.array([ [x, y, 1] for (x,y) in zip(x_in, y_in)])
     output = np.dot(input, aff)
-    print(input, output.T)
     x_out, y_out = output.T[0:2]
     return x_out, y_out
     

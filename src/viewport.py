@@ -873,9 +873,10 @@ class Viewport(QWidget):
             action11.triggered.connect(self.mv_adjust_imported_image)
             action12 = menu.addAction('Delete imported image')
             action12.triggered.connect(self.mv_delete_imported_image)
+            print('self.selected_grid', self.selected_grid)
             #----- MagC items -----
             if (self.cfg['sys']['magc_mode'] == 'True'
-                and self.selected_grid):
+                and self.selected_grid is not None):
                 menu.addSeparator()
                 action13 = menu.addAction('MagC|Propagate grid properties to all sections')
                 action13.triggered.connect(self.mv_propagate_grid_all_sections)
