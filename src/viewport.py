@@ -838,68 +838,83 @@ class Viewport(QWidget):
                 selected = 'tile/OV'
 
             menu = QMenu()
-            action1 = menu.addAction(f'Load {selected} in Slice Viewer')
-            action1.triggered.connect(self.sv_load_selected)
-            action2 = menu.addAction(f'Load {selected} in Focus Tool')
-            action2.triggered.connect(self.mv_load_selected_in_ft)
-            action3 = menu.addAction(f'Load {selected} statistics')
-            action3.triggered.connect(self.m_load_selected)
+            action_sliceViewer = menu.addAction(
+                f'Load {selected} in Slice Viewer')
+            action_sliceViewer.triggered.connect(self.sv_load_selected)
+            action_focusTool = menu.addAction(f'Load {selected} in Focus Tool')
+            action_focusTool.triggered.connect(self.mv_load_selected_in_ft)
+            action_statistics = menu.addAction(f'Load {selected} statistics')
+            action_statistics.triggered.connect(self.m_load_selected)
             menu.addSeparator()
-            action4 = menu.addAction('Select all tiles ' + grid_str)
-            action4.triggered.connect(self.mv_select_all_tiles)
-            action5 = menu.addAction('Deselect all tiles ' + grid_str)
-            action5.triggered.connect(self.mv_deselect_all_tiles)
+            action_selectAll = menu.addAction('Select all tiles ' + grid_str)
+            action_selectAll.triggered.connect(self.mv_select_all_tiles)
+            action_deselectAll = menu.addAction(
+                'Deselect all tiles ' + grid_str)
+            action_deselectAll.triggered.connect(self.mv_deselect_all_tiles)
+            if self.selected_grid is not None:
+                action_changeRotation = menu.addAction(
+                    'Change rotation of ' + grid_str[3:])
+            else:
+                action_changeRotation = menu.addAction(
+                    'Change rotation of selected grid')
+            action_changeRotation.triggered.connect(
+                self.mv_change_grid_rotation)
             menu.addSeparator()
             if self.af.get_method() == 2:
-                action6 = menu.addAction(selected_for_autofocus
-                                         + ' focus tracking ref.')
+                action_selectAutofocus = menu.addAction(
+                    selected_for_autofocus + ' focus tracking ref.')
             else:
-                action6 = menu.addAction(selected_for_autofocus
-                                         + ' autofocus ref.')
-            action6.triggered.connect(self.mv_toggle_tile_autofocus)
-            action7 = menu.addAction(selected_for_gradient
-                                     + ' focus gradient ref.')
-            action7.triggered.connect(self.mv_toggle_tile_adaptive_focus)
+                action_selectAutofocus = menu.addAction(
+                    selected_for_autofocus + ' autofocus ref.')
+            action_selectAutofocus.triggered.connect(
+                self.mv_toggle_tile_autofocus)
+            action_selectGradient = menu.addAction(
+                selected_for_gradient + ' focus gradient ref.')
+            action_selectGradient.triggered.connect(
+                self.mv_toggle_tile_adaptive_focus)
             menu.addSeparator()
-            action8 = menu.addAction(current_pos_str)
-            action8.triggered.connect(self.mv_move_to_stage_pos)
-            action9 = menu.addAction('Set stub OV centre')
-            action9.triggered.connect(self.mv_set_stub_ov_centre)
+            action_move = menu.addAction(current_pos_str)
+            action_move.triggered.connect(self.mv_move_to_stage_pos)
+            action_stub = menu.addAction('Set stub OV centre')
+            action_stub.triggered.connect(self.mv_set_stub_ov_centre)
             menu.addSeparator()
-            action10 = menu.addAction('Import and place image')
-            action10.triggered.connect(self.mv_import_image)
-            action11 = menu.addAction('Adjust imported image')
-            action11.triggered.connect(self.mv_adjust_imported_image)
-            action12 = menu.addAction('Delete imported image')
-            action12.triggered.connect(self.mv_delete_imported_image)
+            action_import = menu.addAction('Import and place image')
+            action_import.triggered.connect(self.mv_import_image)
+            action_adjustImported = menu.addAction('Adjust imported image')
+            action_adjustImported.triggered.connect(
+                self.mv_adjust_imported_image)
+            action_deleteImported = menu.addAction('Delete imported image')
+            action_deleteImported.triggered.connect(
+                self.mv_delete_imported_image)
 
             if (self.selected_tile is None) and (self.selected_ov is None):
-                action1.setEnabled(False)
-                action2.setEnabled(False)
-                action3.setEnabled(False)
+                action_sliceViewer.setEnabled(False)
+                action_focusTool.setEnabled(False)
+                action_statistics.setEnabled(False)
             if self.selected_grid is None:
-                action4.setEnabled(False)
-                action5.setEnabled(False)
+                action_selectAll.setEnabled(False)
+                action_deselectAll.setEnabled(False)
+                action_changeRotation.setEnabled(False)
             if self.selected_tile is None:
-                action6.setEnabled(False)
-                action7.setEnabled(False)
+                action_selectAutofocus.setEnabled(False)
+                action_selectGradient.setEnabled(False)
             if self.af.get_tracking_mode() == 1:
-                action6.setEnabled(False)
+                action_selectAutofocus.setEnabled(False)
             if self.selected_imported is None:
-                action11.setEnabled(False)
+                action_adjustImported.setEnabled(False)
             if self.ovm.get_number_imported == 0:
-                action12.setEnabled(False)
+                action_deleteImported.setEnabled(False)
             if self.acq_in_progress:
-                action2.setEnabled(False)
-                action4.setEnabled(False)
-                action5.setEnabled(False)
-                action6.setEnabled(False)
-                action7.setEnabled(False)
-                action8.setEnabled(False)
-                action9.setEnabled(False)
+                action_focusTool.setEnabled(False)
+                action_selectAll.setEnabled(False)
+                action_deselectAll.setEnabled(False)
+                action_selectAutofocus.setEnabled(False)
+                action_selectGradient.setEnabled(False)
+                action_move.setEnabled(False)
+                action_stub.setEnabled(False)
             if self.cfg['sys']['simulation_mode'] == 'True':
-                action8.setEnabled(False)
-                action9.setEnabled(False)
+                action_move.setEnabled(False)
+                action_stub.setEnabled(False)
             menu.exec_(self.mapToGlobal(p))
 
     def mv_get_selected_stage_pos(self):
@@ -1829,6 +1844,9 @@ class Viewport(QWidget):
                 self.add_to_main_log('CTRL: All tiles in grid %d deselected.'
                                      % self.selected_grid)
                 self.mv_update_after_tile_selection()
+
+    def mv_change_grid_rotation(self):
+        self.transmit_cmd('CHANGE GRID ROTATION' + str(self.selected_grid))
 
     def mv_toggle_tile_autofocus(self):
         if self.selected_grid is not None and self.selected_tile is not None:
