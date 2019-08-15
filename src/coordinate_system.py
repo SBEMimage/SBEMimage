@@ -47,13 +47,12 @@ class CoordinateSystem():
         self.mv_dx_dy = (self.mv_centre_dx_dy[0] - 500 / self.mv_scale,
                          self.mv_centre_dx_dy[1] - 400 / self.mv_scale)
         # Load current stage parameters and calculate transformation factors:
-        self.load_stage_calibration()
+        self.apply_stage_calibration()
         self.load_stage_limits()
 
-    def load_stage_calibration(self):
-        """(Re)load rotation and scale parameters and compute
-            transformation factors; (re)load current stage motor limits.
-        """
+    def apply_stage_calibration(self):
+        """(Re)load rotation and scale parameters and compute rotation
+        matrix elements."""
         if self.cfg['sys']['use_microtome'] == 'True':
             device = 'microtome'
         else:
