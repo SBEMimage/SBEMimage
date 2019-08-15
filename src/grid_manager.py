@@ -111,6 +111,8 @@ class GridManager(object):
         target_grid_number):
         s = source_grid_number
         t = target_grid_number
+        if s == t:
+            return
         sections = json.loads(self.cfg['magc']['sections'])
         
         sourceSectionCenter = np.array(sections[str(s)]['center'])
@@ -119,28 +121,16 @@ class GridManager(object):
         sourceSectionAngle = sections[str(s)]['angle'] % 360
         targetSectionAngle = sections[str(t)]['angle'] % 360
         
-        sourceGridCenter = np.array(self.cs.get_grid_origin_s(s))
+        sourceGridRotation = self.get_rotation(s)
+        
+        sourceGridCenter = np.array(self.get_grid_center_s(s))
         sourceSectionGrid = sourceGridCenter - sourceSectionCenter
         sourceSectionGridDistance = np.linalg.norm(sourceSectionGrid)
-        sourceSectionGridAngle = (np.angle(sourceSectionGrid[0] +
-            sourceSectionGrid[1] * 1j, deg = True) -
-            sourceSectionAngle) % 360
+        sourceSectionGridAngle = np.angle(
+            np.dot(sourceSectionGrid, [1, 1j]), deg=True)
         
-        print('sourceSectionAngle', sourceSectionAngle)
-        print('sourceSectionGridDistance', sourceSectionGridDistance)
-        print('sourceSectionGridAngle', sourceSectionGridAngle)
-        print('targetSectionAngle', targetSectionAngle, '\n')
-        
-        targetGridCenterComplex = np.dot(targetSectionCenter, [1,1j]) \
-            + sourceSectionGridDistance \
-            * np.exp(1j * np.radians(
-            (180-(180-targetSectionAngle + sourceSectionGridAngle)) % 360))
-        targetGridCenter = np.real(targetGridCenterComplex), np.imag(targetGridCenterComplex)
-        self.cs.set_grid_origin_s(t, targetGridCenter)
-
-        # target location/rotation to implement when rotation ready
-        # x_pos, y_pos = 
-        # self.set_rotation(t, xxx)
+        new_grid_rotation = ((180-targetSectionAngle + sourceGridRotation - (180-sourceSectionAngle))) % 360
+        self.set_rotation(t, new_grid_rotation)
         
         self.set_grid_size(t, self.get_grid_size(s))
         self.set_overlap(t, self.get_overlap(s))
@@ -163,7 +153,57 @@ class GridManager(object):
         self.set_adaptive_focus_enabled(t, self.get_adaptive_focus_enabled(s))
         self.set_adaptive_focus_tiles(t, self.get_adaptive_focus_tiles(s))
         self.set_adaptive_focus_gradient(t, self.get_adaptive_focus_gradient(s))
+        
+        targetSectionGridAngle = sourceSectionGridAngle + sourceSectionAngle - targetSectionAngle
+        
+        targetGridCenterComplex = np.dot(targetSectionCenter, [1,1j]) \
+            + sourceSectionGridDistance \
+            * np.exp(1j * np.radians(targetSectionGridAngle))
+        targetGridCenter = np.real(targetGridCenterComplex), np.imag(targetGridCenterComplex)
+        self.set_grid_center_s(t, targetGridCenter)
+        
         self.calculate_grid_map(t)
+        
+    def set_grid_center_s(self, grid_number, center_s):
+        current_center = np.array(self.get_grid_center_s(grid_number))
+        current_origin = np.array(self.cs.get_grid_origin_s(grid_number))
+        new_origin = center_s + current_origin - current_center
+        self.cs.set_grid_origin_s(grid_number, new_origin)
+        
+    def get_grid_center_s(self, grid_number):
+        pixel_size = self.get_pixel_size(grid_number) / 1000
+        rotation = self.get_rotation(grid_number)
+
+        # origin is the center of the (0,0) tile
+        origin = self.cs.get_grid_origin_s(grid_number)
+        
+        # size of the grid 
+        size_px, size_py = self.get_grid_size_px_py(grid_number)
+        size_x = pixel_size * size_px
+        size_y = pixel_size * size_py
+        
+        # size of a tile
+        tile_size_px, tile_size_py = self.get_tile_size_px_py(grid_number)
+        tile_size_x = pixel_size * tile_size_px
+        tile_size_y = pixel_size * tile_size_py
+        
+        # distance along the grid axes from the center of tile (0,0) to the center of the grid
+        shift_v = (size_x - tile_size_x)/2. # conceptually: go to grid top-left corner, then go to center: -tile_size_x/2. + size_x/2.
+        shift_h = (size_y - tile_size_y)/2. # _v = _vertical
+        shift_norm = np.linalg.norm([shift_h, shift_v])
+ 
+        # angle between horizontal axis of the grid and axis going through center of the grid and center of tile (0,0)
+        shift_a = np.rad2deg(np.arctan2(shift_h , shift_v))
+        
+        # adding the shift to the origin
+        origin_c = np.dot(origin, [1, 1j]) # _c = _complex
+        shift_c = shift_norm * np.exp(1j * np.radians(shift_a + rotation))
+        center_c = origin_c + shift_c
+
+        center_x = np.real(center_c)
+        center_y = np.imag(center_c)
+        
+        return center_x, center_y        
         
     def delete_grid(self):
         # Delete last item from each grid variable:

@@ -150,6 +150,7 @@ class MainControls(QMainWindow):
                 '({0:.3f}).'.format(self.microtome.get_stage_z_prev_session())
                 + ' Please make sure that the Z position is correct.',
                 QMessageBox.Ok)
+
         # ------ MagC operations ------
         self.cfg['magc']['selected_sections'] = '[]'
         self.cfg['magc']['checked_sections'] = '[]'

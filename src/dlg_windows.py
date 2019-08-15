@@ -1685,14 +1685,14 @@ class ImportMagCDlg(QDialog):
                 self.gm.add_new_grid()
             for idx, section in sections.items():
                 if str(idx).isdigit(): # to exclude tissueROI and landmarks
-                    self.cs.set_grid_origin_s(idx, list(map(float, section['center'])))
-                    self.gm.set_rotation(idx, (180-float(section['angle'])) % 360)
                     self.gm.set_grid_size(idx,
                                           (self.spinBox_rows.value(),
                                           self.spinBox_cols.value()))
                     self.gm.set_tile_size_selector(idx, tile_size_selector)
                     self.gm.set_pixel_size(idx, pixel_size)
                     self.gm.calculate_grid_map(grid_number=idx)
+                    self.gm.set_rotation(idx, (180-float(section['angle'])) % 360)
+                    self.gm.set_grid_center_s(idx, list(map(float, section['center'])))
                     
                     # populate the sectionList
                     item1 = QStandardItem(str(idx))
@@ -1967,12 +1967,12 @@ class WaferCalibrationDlg(QDialog):
             y_landmarks_target_partial = [landmarks[str(i)]['target'][1]
                 for i in calibratedLandmarkIds]
 
-            waferTransform = utils.affineT(
+            waferTransform = utils.rigidT(
                 -x_landmarks_source_partial, y_landmarks_source_partial,
                 -x_landmarks_target_partial, y_landmarks_target_partial)
 
             # compute all targetLandmarks
-            x_target_updated_landmarks, y_target_updated_landmarks = utils.applyAffineT(
+            x_target_updated_landmarks, y_target_updated_landmarks = utils.applyRigidT(
                 -x_landmarks_source, y_landmarks_source, waferTransform)
 
             x_target_updated_landmarks = -x_target_updated_landmarks # x axis flipping on Merlin    
@@ -2031,7 +2031,7 @@ class WaferCalibrationDlg(QDialog):
             y_landmarks_target = [landmarks[str(i)]['target'][1]
                 for i in range(len(landmarks))]
         
-            waferTransform = utils.affineT(
+            waferTransform = utils.rigidT(
                 x_landmarks_source, y_landmarks_source,
                 x_landmarks_target, y_landmarks_target)
             
@@ -2041,10 +2041,10 @@ class WaferCalibrationDlg(QDialog):
             x_source = [section['center'][0] for section in sections]
             y_source = [section['center'][1] for section in sections]
             
-            x_target, y_target = utils.applyAffineT(-x_source, y_source, waferTransform)
+            x_target, y_target = utils.applyRigidT(-x_source, y_source, waferTransform)
             x_target = -x_target # x axis flipping on Merlin
             
-            transformAngle = utils.getAffineRotation(waferTransform)
+            transformAngle = utils.getRigidRotation(waferTransform)
             angles_target = [section['angle'] + transformAngle
                 for section in sections]
 
