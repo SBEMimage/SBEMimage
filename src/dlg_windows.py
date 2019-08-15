@@ -1268,6 +1268,74 @@ class AdaptiveFocusSelectionDlg(QDialog):
 
 #------------------------------------------------------------------------------
 
+class GridRotationDlg(QDialog):
+    """Change the rotation angle of a selected grid."""
+
+    def __init__(self, selected_grid, gm, main_window_queue, main_window_trigger):
+        self.selected_grid = selected_grid
+        self.gm = gm
+        self.main_window_queue = main_window_queue
+        self.main_window_trigger = main_window_trigger
+        super().__init__()
+        loadUi('..\\gui\\change_grid_rotation_dlg.ui', self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setFixedSize(self.size())
+        self.show()
+        self.label_description.setText(
+            f'Rotation of selected grid {self.selected_grid} in degrees:')
+
+        # Set initial values:
+        self.previous_angle = self.gm.get_rotation(selected_grid)
+        self.doubleSpinBox_angle.setValue(self.previous_angle)
+        # Slider value 0..719 (twice the angle in degrees) for 0.5 degree steps
+        self.horizontalSlider_angle.setValue(
+            self.doubleSpinBox_angle.value() * 2)
+
+        self.horizontalSlider_angle.valueChanged.connect(self.update_spinbox)
+        self.doubleSpinBox_angle.valueChanged.connect(self.update_slider)
+
+    def keyPressEvent(self, event):
+        # Catch KeyPressEvent when user presses Enter (otherwise dialog would exit.)
+        if event.key() == Qt.Key_Enter or event.key() == Qt.Key_Return:
+            event.accept()
+
+    def update_spinbox(self):
+        self.doubleSpinBox_angle.blockSignals(True)
+        self.doubleSpinBox_angle.setValue(
+            self.horizontalSlider_angle.value() / 2)
+        self.doubleSpinBox_angle.blockSignals(False)
+        self.update_grid()
+
+    def update_slider(self):
+        self.horizontalSlider_angle.blockSignals(True)
+        self.horizontalSlider_angle.setValue(
+            self.doubleSpinBox_angle.value() * 2)
+        self.horizontalSlider_angle.blockSignals(False)
+        self.update_grid()
+
+    def update_grid(self):
+        """Apply the new rotation angle and redraw the viewport"""
+        self.gm.set_rotation(
+            self.selected_grid, self.doubleSpinBox_angle.value())
+        # Emit signal to redraw:
+        self.main_window_queue.put('DRAW MV')
+        self.main_window_trigger.s.emit()
+
+    def reject(self):
+        # Revert to previous angle:
+        self.gm.set_rotation(self.selected_grid, self.previous_angle)
+        self.main_window_queue.put('DRAW MV')
+        self.main_window_trigger.s.emit()
+        super().reject()
+
+    def accept(self):
+        # Calculate new grid map with new rotation angle:
+        self.gm.calculate_grid_map(self.selected_grid)
+        super().accept()
+
+#------------------------------------------------------------------------------
+
 class AcqSettingsDlg(QDialog):
     """Let user adjust acquisition settings."""
 
