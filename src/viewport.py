@@ -18,6 +18,8 @@
 import os
 import datetime
 import numpy as np
+import threading
+from time import time, sleep
 from PIL import Image
 from math import log, sqrt, sin, cos, radians
 from statistics import mean
@@ -26,10 +28,15 @@ from PyQt5.uic import loadUi
 from PyQt5.QtWidgets import QWidget, QApplication, QMessageBox, QMenu
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QFont, QIcon, QPen, \
                         QBrush, QTransform
-from PyQt5.QtCore import Qt, QObject, QRect, QPoint, QSize
+from PyQt5.QtCore import Qt, QObject, QRect, QPoint, QSize, pyqtSignal
 
 import utils
 from dlg_windows import AdaptiveFocusSelectionDlg
+
+
+class Trigger(QObject):
+    """Custom signal for updating GUI from within running threads."""
+    s = pyqtSignal()
 
 
 class Viewport(QWidget):
@@ -75,6 +82,8 @@ class Viewport(QWidget):
         self.number_ov = self.ovm.get_number_ov()
         self.number_imported = self.ovm.get_number_imported()
         # for mouse operations (dragging, measuring):
+        self.doubleclick_registered = False
+        self.zooming_in_progress = False
         self.drag_origin = (0, 0)
         self.fov_drag_active = False
         self.tile_paint_mode_active = False
@@ -335,18 +344,7 @@ class Viewport(QWidget):
                 self.m_draw_reslice()
 
     def mouseDoubleClickEvent(self, event):
-        p = event.pos()
-        px, py = p.x() - self.WINDOW_MARGIN_X, p.y() - self.WINDOW_MARGIN_Y
-        if px in range(self.VIEWER_WIDTH) and py in range(self.VIEWER_HEIGHT):
-            if self.tabWidget.currentIndex() == 0:
-                self.mv_mouse_zoom(px, py, 2)
-            elif self.tabWidget.currentIndex() == 1:
-                # Disable native resolution:
-                self.cfg['viewport']['show_native_resolution'] = 'False'
-                self.horizontalSlider_SV.setEnabled(True)
-                self.checkBox_setNativeRes.setChecked(False)
-                # Zoom in:
-                self.sv_mouse_zoom(px, py, 2)
+        self.doubleclick_registered = True
 
     def mouseMoveEvent(self, event):
         p = event.pos()
@@ -437,7 +435,23 @@ class Viewport(QWidget):
     def mouseReleaseEvent(self, event):
         if not self.mv_measure_active:
             self.setCursor(Qt.ArrowCursor)
-        if (event.button() == Qt.LeftButton):
+        # Process doubleclick here:
+        if self.doubleclick_registered:
+            p = event.pos()
+            px, py = p.x() - self.WINDOW_MARGIN_X, p.y() - self.WINDOW_MARGIN_Y
+            if px in range(self.VIEWER_WIDTH) and py in range(self.VIEWER_HEIGHT):
+                if self.tabWidget.currentIndex() == 0:
+                    self.mv_mouse_zoom(px, py, 2)
+                elif self.tabWidget.currentIndex() == 1:
+                    # Disable native resolution:
+                    self.cfg['viewport']['show_native_resolution'] = 'False'
+                    self.horizontalSlider_SV.setEnabled(True)
+                    self.checkBox_setNativeRes.setChecked(False)
+                    # Zoom in:
+                    self.sv_mouse_zoom(px, py, 2)
+            self.doubleclick_registered = False
+
+        elif (event.button() == Qt.LeftButton):
             self.fov_drag_active = False
             if self.grid_drag_active:
                 self.grid_drag_active = False
@@ -945,7 +959,7 @@ class Viewport(QWidget):
         sx_pos, sy_pos = self.cs.convert_to_s((dx_pos, dy_pos))
         return (sx_pos, sy_pos)
 
-    def mv_draw(self):
+    def mv_draw(self, suppress_labels=False, suppress_previews=False):
         """Draw all elements on mosaic viewer canvas"""
         show_debris_area = self.cfg['debris']['show_detection_area'] == 'True'
         if self.ov_drag_active or self.grid_drag_active:
@@ -960,9 +974,10 @@ class Viewport(QWidget):
         # Place OV overviews over stub OV:
         if self.mv_current_ov == -1:
             for i in range(self.number_ov):
-                self.mv_place_overview(i, show_debris_area)
+                self.mv_place_overview(i, show_debris_area, suppress_labels)
         if self.mv_current_ov >= 0:
-            self.mv_place_overview(self.mv_current_ov, show_debris_area)
+            self.mv_place_overview(
+                self.mv_current_ov, show_debris_area, suppress_labels)
         # Tile preview mode:
         if self.mv_tile_preview_mode == 0:
             show_grid, show_previews, with_gaps = True, False, False
@@ -972,13 +987,15 @@ class Viewport(QWidget):
             show_grid, show_previews, with_gaps = False, True, False
         if self.mv_tile_preview_mode == 3:
             show_grid, show_previews, with_gaps = False, True, True
+        if suppress_previews:
+            show_previews = False
         if self.mv_current_grid == -1:
             for i in range(self.number_grids):
                 self.mv_place_grid(i, show_grid,
-                                show_previews, with_gaps)
+                                   show_previews, with_gaps, suppress_labels)
         if self.mv_current_grid >= 0:
             self.mv_place_grid(self.mv_current_grid, show_grid,
-                            show_previews, with_gaps)
+                               show_previews, with_gaps, suppress_labels)
         # Finally, show imported images:
         if self.show_imported and (self.number_imported > 0):
             for i in range(self.number_imported):
@@ -1144,12 +1161,14 @@ class Viewport(QWidget):
                 self.mv_qp.drawPixmap(vx_rel, vy_rel, cropped_resized_img)
                 self.mv_qp.setOpacity(1)
 
-    def mv_place_overview(self, ov_number, show_debris_area):
+    def mv_place_overview(self, ov_number, show_debris_area,
+                          suppress_labels=False):
         """Place OV overview image specified by ov_number into the mosaic
         viewer canvas. Crop and resize the image before placing it.
         """
         # Load, resize and crop OV for display
-        viewport_pixel_size = 1000 / self.cs.get_mv_scale()
+        mv_scale = self.cs.get_mv_scale()
+        viewport_pixel_size = 1000 / mv_scale
         ov_pixel_size = self.ovm.get_ov_pixel_size(ov_number)
         resize_ratio = ov_pixel_size / viewport_pixel_size
         # Load OV centre in SEM coordinates:
@@ -1205,7 +1224,14 @@ class Viewport(QWidget):
                                  vy + top_left_dy * resize_ratio - w3,
                                  width * resize_ratio + w4,
                                  height * resize_ratio + w4)
-            if self.show_labels:
+
+            if not suppress_labels:
+                suppress_labels = ((self.number_grids + self.number_ov) > 10
+                                   and (mv_scale < 1.0
+                                   or self.fov_drag_active
+                                   or self.grid_drag_active))
+
+            if self.show_labels and not suppress_labels:
                 font_size = int(self.cs.get_mv_scale() * 8)
                 if font_size < 12:
                     font_size = 12
@@ -1223,7 +1249,8 @@ class Viewport(QWidget):
                                     'OV %d' % ov_number)
 
     def mv_place_grid(self, grid_number, show_grid=True,
-                      show_previews=False, with_gaps=False):
+                      show_previews=False, with_gaps=False,
+                      suppress_labels=False):
         mv_scale = self.cs.get_mv_scale()
         dx, dy = self.cs.get_grid_origin_d(grid_number)
         # Coordinates of grid origin with respect to Viewport canvas:
@@ -1323,10 +1350,11 @@ class Viewport(QWidget):
 
         # Suppress labels when zoomed out or when user is moving a grid or
         # panning the view, under the condition that there are >10 grids:
-        suppress_labels = (self.number_grids > 10
-                           and (mv_scale < 1.0
-                           or self.fov_drag_active
-                           or self.grid_drag_active))
+        if not suppress_labels:
+            suppress_labels = ((self.number_grids + self.number_ov) > 10
+                               and (mv_scale < 1.0
+                               or self.fov_drag_active
+                               or self.grid_drag_active))
 
         if (tile_width_v * cols > 2 or tile_height_v * rows > 2):
             for tile in range(rows * cols):
@@ -1562,16 +1590,46 @@ class Viewport(QWidget):
             self.measure_complete = True
             self.mv_draw()
 
+    def mv_draw_zoom_delay(self):
+        """Redraw the viewport without suppressing labels/previews after at
+        least 0.3 seconds have passed since last mouse/slider zoom action."""
+        finish_trigger = Trigger()
+        finish_trigger.s.connect(self.mv_draw)
+        current_time = self.time_of_last_zoom_action
+        while (current_time - self.time_of_last_zoom_action < 0.3):
+            sleep(0.1)
+            current_time += 0.1
+        self.zooming_in_progress = False
+        finish_trigger.s.emit()
+
     def mv_adjust_scale(self):
+        self.time_of_last_zoom_action = time()
+        if not self.zooming_in_progress:
+            # Start thread to ensure viewport is drawn with labels and previews
+            # after zooming completed.
+            self.zooming_in_progress = True
+            mv_draw_zoom_delay_thread = threading.Thread(
+                target=self.mv_draw_zoom_delay,
+                args=())
+            mv_draw_zoom_delay_thread.start()
         # Recalculate scaling factor:
         new_mv_scale = (
             self.VIEWER_ZOOM_F1
             * (self.VIEWER_ZOOM_F2)**self.horizontalSlider_MV.value())
         self.cs.set_mv_scale(new_mv_scale)
         # Redraw viewport:
-        self.mv_draw()
+        self.mv_draw(suppress_labels=True, suppress_previews=True)
 
     def mv_mouse_zoom(self, px, py, factor):
+        self.time_of_last_zoom_action = time()
+        if not self.zooming_in_progress and not self.doubleclick_registered:
+            # Start thread to ensure viewport is drawn with labels and previews
+            # after zooming completed.
+            self.zooming_in_progress = True
+            mv_draw_zoom_delay_thread = threading.Thread(
+                target=self.mv_draw_zoom_delay,
+                args=())
+            mv_draw_zoom_delay_thread.start()
         # Recalculate scaling factor:
         old_mv_scale = self.cs.get_mv_scale()
         new_mv_scale = utils.fit_in_range(
@@ -1590,7 +1648,6 @@ class Viewport(QWidget):
         scale_diff = 1 / new_mv_scale - 1 / old_mv_scale
         new_centre_dx = current_centre_dx - x_shift * scale_diff
         new_centre_dy = current_centre_dy - y_shift * scale_diff
-
         new_centre_dx = utils.fit_in_range(
             new_centre_dx, self.VC_MIN_X, self.VC_MAX_X)
         new_centre_dy = utils.fit_in_range(
@@ -1598,7 +1655,13 @@ class Viewport(QWidget):
         # Set new mv_centre coordinates:
         self.cs.set_mv_centre_d((new_centre_dx, new_centre_dy))
         # Redraw viewport:
-        self.mv_draw()
+        if self.doubleclick_registered:
+            # Doubleclick is (usually) a single event: draw with labels/previews
+            self.mv_draw()
+        else:
+            # Continuous zoom with the mouse wheel: suppress labels and previews
+            # for smoother redrawing:
+            self.mv_draw(suppress_labels=True, suppress_previews=True)
 
     def mv_shift_fov(self, shift_vector):
         dx, dy = shift_vector
