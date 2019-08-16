@@ -511,21 +511,21 @@ class MainControls(QMainWindow):
                     self.add_to_log('3VIEW: Second attempt to initialize '
                                     'DigitalMicrograph API successful.')
 
-            # Update calibration of microtome stage:
+            # Update calibration of microtome stage for current EHT:
             self.calibration_found = (
                 self.microtome.update_stage_calibration(self.sem.get_eht()))
+            self.cs.apply_stage_calibration()
             if not self.calibration_found:
                 self.add_to_log(
                     'CTRL: Warning - No stage calibration found for current EHT.')
-            else:
-                self.cs.load_stage_calibration() # update coordinate transformations
 
         else:
             # No microtome - use SEM stage
             self.microtome = None
-            # Update calibration of SEM stage:
+            # Update calibration of SEM stage for current EHT:
             self.calibration_found = (
                 self.sem.update_stage_calibration(self.sem.get_eht()))
+            self.cs.apply_stage_calibration()
             if not self.calibration_found:
                 self.add_to_log(
                     'CTRL: Warning - No stage calibration found for current EHT.')
@@ -931,7 +931,7 @@ class MainControls(QMainWindow):
                 # Update stage calibration (EHT may have changed):
                 self.calibration_found = (
                     self.microtome.update_stage_calibration(self.sem.get_eht()))
-                self.cs.load_stage_calibration() # update coordinate transformations
+                self.cs.apply_stage_calibration()
             self.show_current_settings()
             # Electron dose may have changed:
             self.show_estimates()
@@ -961,7 +961,7 @@ class MainControls(QMainWindow):
     def open_calibration_dlg(self):
         dialog = CalibrationDlg(self.cfg, self.stage, self.sem)
         if dialog.exec_():
-            self.cs.load_stage_calibration() # update coordinate transformations
+            self.cs.apply_stage_calibration()
             if (self.cfg['debris']['auto_detection_area'] == 'True'):
                 self.ovm.update_all_ov_debris_detections_areas(self.gm)
             self.viewport.mv_draw()
