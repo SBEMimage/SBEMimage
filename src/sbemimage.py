@@ -16,9 +16,11 @@
 
 import os
 import sys
+import platform
 import ctypes
 from configparser import ConfigParser
 from PyQt5.QtWidgets import QApplication
+from PyQt5.QtCore import Qt
 import colorama # needed to suppress TIFFReadDirectory warnings in the console
 
 from dlg_windows import ConfigDlg
@@ -35,6 +37,17 @@ def main():
     Check if configuration can be loaded and if it's compatible with the
     current version of SBEMimage. If not, quit.
     """
+    # Check Windows version:
+    if not (platform.system() == 'Windows'
+            and platform.release() in ['7', '10']):
+        print('Error: This version of SBEMimage requires Windows 7 or 10. '
+              'Program aborted.\n')
+        os.system('cmd /k')
+        sys.exit()
+
+    if platform.release() == '10':
+        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+
     SBEMimage = QApplication(sys.argv)
     app_id = 'SBEMimage ' + VERSION
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(app_id)
