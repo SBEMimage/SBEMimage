@@ -163,6 +163,12 @@ class GridManager(object):
                  - (rows - 1) * self.overlap[grid_number])
         return width, height
 
+    def get_grid_size_dx_dy(self, grid_number):
+        width_p, height_p = self.get_grid_size_px_py(grid_number)
+        width_d = width_p * self.pixel_size[grid_number] / 1000
+        height_d = height_p * self.pixel_size[grid_number] / 1000
+        return width_d, height_d
+
     def set_grid_size(self, grid_number, size):
         if grid_number < len(self.size):
             if self.size[grid_number] != list(size):
@@ -191,6 +197,62 @@ class GridManager(object):
         else:
             self.rotation.append(rotation)
         self.cfg['grids']['rotation'] = str(self.rotation)
+
+    def rotate_around_grid_centre(self, grid_number, centre_dx, centre_dy):
+        """Update the grid origin before calculating the rotated tile map."""
+        # Calculate origin of the unrotated grid:
+        width_d, height_d = self.get_grid_size_dx_dy(grid_number)
+        tile_width_d = self.get_tile_width_d(grid_number)
+        tile_height_d = self.get_tile_height_d(grid_number)
+        origin_dx = centre_dx - width_d / 2 + tile_width_d / 2
+        origin_dy = centre_dy - height_d / 2 + tile_height_d / 2
+        # Rotate grid origin around grid centre:
+        theta = radians(self.get_rotation(grid_number))
+        if theta > 0:
+            origin_dx -= centre_dx
+            origin_dy -= centre_dy
+            origin_dx_rot = origin_dx * cos(theta) - origin_dy * sin(theta)
+            origin_dy_rot = origin_dx * sin(theta) + origin_dy * cos(theta)
+            origin_dx = origin_dx_rot + centre_dx
+            origin_dy = origin_dy_rot + centre_dy
+        # Update grid with the new origin:
+        self.cs.set_grid_origin_s(
+            grid_number, self.cs.convert_to_s((origin_dx, origin_dy)))
+        # Now calculate new grid map:
+        self.calculate_grid_map(grid_number)
+
+    def get_grid_centre_d(self, grid_number):
+        """Return the SEM coordinates of the centre of the specified grid."""
+        width_d, height_d = self.get_grid_size_dx_dy(grid_number)
+        origin_dx, origin_dy = self.cs.get_grid_origin_d(grid_number)
+        tile_width_d = self.get_tile_width_d(grid_number)
+        tile_height_d = self.get_tile_height_d(grid_number)
+        # Calculate centre coordinates of unrotated grid
+        centre_dx = origin_dx - tile_width_d / 2 + width_d / 2
+        centre_dy = origin_dy - tile_height_d / 2 + height_d / 2
+        theta = radians(self.get_rotation(grid_number))
+        if theta > 0:
+            # Rotate the centre (with origin as pivot)
+            centre_dx -= origin_dx
+            centre_dy -= origin_dy
+            centre_dx_rot = centre_dx * cos(theta) - centre_dy * sin(theta)
+            centre_dy_rot = centre_dx * sin(theta) + centre_dy * cos(theta)
+            centre_dx = centre_dx_rot + origin_dx
+            centre_dy = centre_dy_rot + origin_dy
+        return centre_dx, centre_dy
+
+    def get_grid_origin_s(self, grid_number):
+        """Get the origin of the grid in stage coordinates."""
+        # Note that the grid origins are managed in coordinate_system at the
+        # moment. After a planned refactoring, this functionalities will be
+        # found in grid_manager.py. For now, this function just redirects to
+        # the corresponding function in coordinate_system.py
+        return self.cs.get_grid_origin_s(grid_number)
+
+    def set_grid_origin_s(self, grid_number, s_coordinates):
+        """Set the origin of the grid in stage coordinates."""
+        # See note in get_grid_origin_s()
+        self.cs.set_grid_origin_s(grid_number, s_coordinates)
 
     def get_display_colour(self, grid_number):
         return utils.COLOUR_SELECTOR[self.display_colour[grid_number]]

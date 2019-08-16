@@ -1285,8 +1285,10 @@ class GridRotationDlg(QDialog):
         self.label_description.setText(
             f'Rotation of selected grid {self.selected_grid} in degrees:')
 
-        # Set initial values:
+        # Keep current angle and origin to enable undo option
         self.previous_angle = self.gm.get_rotation(selected_grid)
+        self.previous_origin = self.gm.get_grid_origin_s(selected_grid)
+        # Set initial values:
         self.doubleSpinBox_angle.setValue(self.previous_angle)
         # Slider value 0..719 (twice the angle in degrees) for 0.5 degree steps
         self.horizontalSlider_angle.setValue(
@@ -1316,15 +1318,27 @@ class GridRotationDlg(QDialog):
 
     def update_grid(self):
         """Apply the new rotation angle and redraw the viewport"""
-        self.gm.set_rotation(
-            self.selected_grid, self.doubleSpinBox_angle.value())
+        if self.radioButton_pivotCentre.isChecked():
+            # Get current centre of grid:
+            centre_dx, centre_dy = self.gm.get_grid_centre_d(self.selected_grid)
+            # Set new angle
+            self.gm.set_rotation(
+                self.selected_grid, self.doubleSpinBox_angle.value())
+            self.gm.rotate_around_grid_centre(
+                self.selected_grid, centre_dx, centre_dy)
+        else:
+            self.gm.set_rotation(
+                self.selected_grid, self.doubleSpinBox_angle.value())
+            self.gm.calculate_grid_map(self.selected_grid)
+
         # Emit signal to redraw:
         self.main_window_queue.put('DRAW MV')
         self.main_window_trigger.s.emit()
 
     def reject(self):
-        # Revert to previous angle:
+        # Revert to previous angle and origin:
         self.gm.set_rotation(self.selected_grid, self.previous_angle)
+        self.gm.set_grid_origin_s(self.selected_grid, self.previous_origin)
         self.main_window_queue.put('DRAW MV')
         self.main_window_trigger.s.emit()
         super().reject()
