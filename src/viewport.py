@@ -111,6 +111,7 @@ class Viewport(QWidget):
         if self.cfg['sys']['simulation_mode'] == 'True':
             self.pushButton_refreshOVs.setEnabled(False)
             self.pushButton_acquireStubOV.setEnabled(False)
+            self.checkBox_showStagePos.setEnabled(False)
 
     def deactivate(self):
         self.viewport_active = False
@@ -546,7 +547,10 @@ class Viewport(QWidget):
             self.cfg['viewport']['show_native_resolution'] == 'True')
         self.show_saturated_pixels = (
             self.cfg['viewport']['show_saturated_pixels'] == 'True')
+        # By default, stage position indicator is not visible. Can be activated
+        # by user in GUI
         self.show_stage_pos = False
+
         # Acq indicators:
         self.tile_indicator_on = False
         self.tile_indicator_pos = [None, None]
