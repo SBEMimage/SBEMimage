@@ -57,8 +57,9 @@ from dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                         PauseDlg, StubOVDlg, EHTDlg, GrabFrameDlg, \
                         FTSetParamsDlg, FTMoveDlg, AskUserDlg, \
                         ImportImageDlg, AdjustImageDlg, DeleteImageDlg, \
-                        ImportMagCDlg, UpdateDlg, CutDurationDlg, AboutBox, \
-                        ImportWaferImageDlg, WaferCalibrationDlg
+                        UpdateDlg, CutDurationDlg, GridRotationDlg, AboutBox, \
+                        ImportMagCDlg, ImportWaferImageDlg, WaferCalibrationDlg             
+                        
 
 
 class Trigger(QObject):
@@ -1034,6 +1035,13 @@ class MainControls(QMainWindow):
         self.show_estimates()
         self.viewport.mv_draw()
 
+    def open_change_grid_rotation_dlg(self, selected_grid):
+        dialog = GridRotationDlg(selected_grid, self.gm, self.acq_queue, self.acq_trigger)
+        if dialog.exec_():
+            if self.cfg['debris']['auto_detection_area'] == 'True':
+                self.ovm.update_all_ov_debris_detections_areas(self.gm)
+                self.viewport.mv_draw()
+
     def open_acq_settings_dlg(self):
         dialog = AcqSettingsDlg(self.cfg, self.stack)
         if dialog.exec_():
@@ -1358,6 +1366,9 @@ class MainControls(QMainWindow):
             self.open_adjust_image_dlg(selected_img)
         elif msg == 'DELETE IMPORTED IMG':
             self.open_delete_image_dlg()
+        elif msg[:20] == 'CHANGE GRID ROTATION':
+            selected_grid = int(msg[20:])
+            self.open_change_grid_rotation_dlg(selected_grid)
         else:
             # If msg is not a command, show it in log:
             self.textarea_log.appendPlainText(msg)
