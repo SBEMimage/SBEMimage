@@ -1690,8 +1690,8 @@ class ImportMagCDlg(QDialog):
                                           self.spinBox_cols.value()))
                     self.gm.set_tile_size_selector(idx, tile_size_selector)
                     self.gm.set_pixel_size(idx, pixel_size)
-                    self.gm.calculate_grid_map(grid_number=idx)
                     self.gm.select_all_tiles(idx)
+                    self.gm.calculate_grid_map(grid_number=idx)
                     self.gm.set_rotation(idx, (180-float(section['angle'])) % 360)
                     self.gm.set_grid_center_s(idx, list(map(float, section['center'])))
                     
