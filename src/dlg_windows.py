@@ -1276,6 +1276,7 @@ class GridRotationDlg(QDialog):
         self.gm = gm
         self.main_window_queue = main_window_queue
         self.main_window_trigger = main_window_trigger
+        self.rotation_in_progress = False
         super().__init__()
         loadUi('..\\gui\\change_grid_rotation_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
@@ -1318,6 +1319,15 @@ class GridRotationDlg(QDialog):
 
     def update_grid(self):
         """Apply the new rotation angle and redraw the viewport"""
+        self.time_of_last_rotation = time()
+        if not self.rotation_in_progress:
+            # Start thread to ensure viewport is drawn with labels and previews
+            # after rotation completed.
+            self.rotation_in_progress = True
+            update_viewport_with_delay_thread = threading.Thread(
+                target=self.update_viewport_with_delay,
+                args=())
+            update_viewport_with_delay_thread.start()
         if self.radioButton_pivotCentre.isChecked():
             # Get current centre of grid:
             centre_dx, centre_dy = self.gm.get_grid_centre_d(self.selected_grid)
@@ -1332,8 +1342,24 @@ class GridRotationDlg(QDialog):
             self.gm.calculate_grid_map(self.selected_grid)
 
         # Emit signal to redraw:
+        self.main_window_queue.put('DRAW MV NO LABELS')
+        self.main_window_trigger.s.emit()
+
+    def draw_with_labels(self):
         self.main_window_queue.put('DRAW MV')
         self.main_window_trigger.s.emit()
+
+    def update_viewport_with_delay(self):
+        """Redraw the viewport without suppressing labels/previews after at
+        least 0.3 seconds have passed since last update of the rotation angle."""
+        finish_trigger = Trigger()
+        finish_trigger.s.connect(self.draw_with_labels)
+        current_time = self.time_of_last_rotation
+        while (current_time - self.time_of_last_rotation < 0.3):
+            sleep(0.1)
+            current_time += 0.1
+        self.rotation_in_progress = False
+        finish_trigger.s.emit()
 
     def reject(self):
         # Revert to previous angle and origin:
