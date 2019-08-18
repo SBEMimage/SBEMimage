@@ -1031,35 +1031,12 @@ class Viewport(QWidget):
         # Show help panel:
         if self.help_panel_visible:
             self.mv_qp.drawPixmap(800, 310, self.mv_help_panel_img)
-
+        # Simulation mode indicator:
         if self.cfg['sys']['simulation_mode'] == 'True':
-            # Simulation mode indicator:
-            self.mv_qp.setPen(QPen(QColor(0, 0, 0), 1, Qt.SolidLine))
-            self.mv_qp.setBrush(QColor(0, 0, 0, 255))
-            self.mv_qp.drawRect(0, 0, 140, 20)
-            self.mv_qp.setPen(QPen(QColor(255, 0, 0), 1, Qt.SolidLine))
-            font = QFont()
-            font.setPixelSize(10)
-            self.mv_qp.setFont(font)
-            self.mv_qp.drawText(5, 15, 'SIMULATION MODE')
+            self.show_simulation_mode_indicator()
         # Show current stage position:
         if self.show_stage_pos:
-            # Coordinates within mv_qp:
-            stage_x_v, stage_y_v = self.cs.convert_to_v(self.cs.convert_to_d(
-                self.stage.get_last_known_xy()))
-            size = int(self.cs.get_mv_scale() * 5)
-            if size < 10:
-                size = 10
-            self.mv_qp.setPen(QPen(QColor(255, 0, 0), 2, Qt.SolidLine))
-            self.mv_qp.setBrush(QColor(255, 0, 0, 0))
-            self.mv_qp.drawEllipse(QPoint(stage_x_v, stage_y_v), size, size)
-            self.mv_qp.setBrush(QColor(255, 0, 0, 0))
-            self.mv_qp.drawEllipse(QPoint(stage_x_v, stage_y_v), int(size/2), int(size/2))
-            self.mv_qp.drawLine(stage_x_v - 1.25 * size, stage_y_v,
-                                stage_x_v + 1.25 * size, stage_y_v)
-            self.mv_qp.drawLine(stage_x_v, stage_y_v - 1.25 * size,
-                                stage_x_v, stage_y_v + 1.25 * size)
-
+            self.show_stage_position_indicator()
         self.mv_qp.end()
         # All elements have been drawn, show them:
         self.mosaic_viewer.setPixmap(self.mv_canvas)
@@ -1069,6 +1046,40 @@ class Viewport(QWidget):
             '{0:.1f}'.format(self.VIEWER_WIDTH / mv_scale)
             + ' µm × '
             + '{0:.1f}'.format(self.VIEWER_HEIGHT / mv_scale) + ' µm')
+
+    def show_simulation_mode_indicator(self):
+        """Disply simulation mode indicator on viewport canvas.
+        Painter must be activate when calling this method.
+        """
+        self.mv_qp.setPen(QPen(QColor(0, 0, 0), 1, Qt.SolidLine))
+        self.mv_qp.setBrush(QColor(0, 0, 0, 255))
+        self.mv_qp.drawRect(0, 0, 120, 20)
+        self.mv_qp.setPen(QPen(QColor(255, 0, 0), 1, Qt.SolidLine))
+        font = QFont()
+        font.setPixelSize(12)
+        self.mv_qp.setFont(font)
+        self.mv_qp.drawText(7, 15, 'SIMULATION MODE')
+
+    def show_stage_position_indicator(self):
+        """Paint red indicator at last known stage position.
+        Painter must be active when caling this method.
+        """
+        # Coordinates within mv_qp:
+        stage_x_v, stage_y_v = self.cs.convert_to_v(self.cs.convert_to_d(
+            self.stage.get_last_known_xy()))
+        size = int(self.cs.get_mv_scale() * 5)
+        if size < 10:
+            size = 10
+        self.mv_qp.setPen(QPen(QColor(255, 0, 0), 2, Qt.SolidLine))
+        self.mv_qp.setBrush(QColor(255, 0, 0, 0))
+        self.mv_qp.drawEllipse(QPoint(stage_x_v, stage_y_v), size, size)
+        self.mv_qp.setBrush(QColor(255, 0, 0, 0))
+        self.mv_qp.drawEllipse(QPoint(stage_x_v, stage_y_v),
+                               int(size/2), int(size/2))
+        self.mv_qp.drawLine(stage_x_v - 1.25 * size, stage_y_v,
+                            stage_x_v + 1.25 * size, stage_y_v)
+        self.mv_qp.drawLine(stage_x_v, stage_y_v - 1.25 * size,
+                            stage_x_v, stage_y_v + 1.25 * size)
 
     def mv_calculate_visible_area(self, vx, vy, w_px, h_px, resize_ratio):
         crop_area = QRect(0, 0, w_px, h_px)

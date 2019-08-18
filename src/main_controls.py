@@ -1333,6 +1333,8 @@ class MainControls(QMainWindow):
             self.viewport.mv_draw()
         elif msg == 'DRAW MV':
             self.viewport.mv_draw()
+        elif msg == 'DRAW MV NO LABELS':
+            self.viewport.mv_draw(suppress_labels=True, suppress_previews=True)
         elif msg[:6] == 'VP LOG':
             self.viewport.add_to_viewport_log(msg[6:])
         elif msg[:15] == 'GET CURRENT LOG':
