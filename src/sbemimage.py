@@ -27,8 +27,6 @@ import json
 from dlg_windows import ConfigDlg
 from config_template import process_cfg
 from main_controls import MainControls
-# import PyQt5
-# PyQt5.QtWidgets.QApplication.setAttribute(PyQt5.QtCore.Qt.AA_EnableHighDpiScaling, True)
 VERSION = '2.0 (R2019-07-09)'
 
 def main():
@@ -48,7 +46,7 @@ def main():
         sys.exit()
 
     if platform.release() == '10':
-        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, False)
 
     SBEMimage = QApplication(sys.argv)
     app_id = 'SBEMimage ' + VERSION

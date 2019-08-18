@@ -2139,6 +2139,22 @@ class WaferCalibrationDlg(QDialog):
             self.viewport.mv_draw()
             
             # todo: update wafer picture
+            landmarks_source_v = [self.cs.convert_to_v([x,y])
+                for (x,y) in 
+                zip(x_landmarks_source, y_landmarks_source)]
+            landmarks_target_v = [self.cs.convert_to_v([x,y])
+                for (x,y) in 
+                zip(x_landmarks_target, y_landmarks_target)]
+            
+            landmarks_source_v_x = [l[0] for l in landmarks_source_v]
+            landmarks_source_v_y = [l[1] for l in landmarks_source_v]
+
+            landmarks_target_v_x = [l[0] for l in landmarks_target_v]
+            landmarks_target_v_y = [l[1] for l in landmarks_target_v]
+            
+            waferTransform_v = utils.affineT(
+                x_landmarks_source, y_landmarks_source,
+                x_landmarks_target, y_landmarks_target)
                 
 
             self.cfg['magc']['wafer_calibrated'] = True
