@@ -1336,7 +1336,8 @@ class Viewport(QWidget):
                 vy = tile_map[tile][1] * resize_ratio
                 tile_visible = self.mv_element_is_visible(
                     topleft_vx + vx, topleft_vy + vy,
-                    width_px, height_px, resize_ratio)
+                    width_px, height_px, resize_ratio,
+                    origin_vx, origin_vy, theta)
                 if not tile_visible:
                     continue
                 # load current tile preview:
