@@ -74,7 +74,8 @@ class MainControls(QMainWindow):
         super().__init__()
         self.cfg = config
         self.syscfg = sysconfig
-        self.cfg_file = config_file # the file name
+        self.cfg_file = config_file
+        self.syscfg_file = self.cfg['sys']['sys_config_file']
         self.VERSION = VERSION
         self.calibration_found = None
 
@@ -122,7 +123,7 @@ class MainControls(QMainWindow):
             self.pushButton_resetAcq.setEnabled(True)
 
         print('\n\nReady.\n')
-        self.set_statusbar('Ready. Active configuration: ' + self.cfg_file)
+        self.set_statusbar('Ready.')
         if self.simulation_mode:
             self.add_to_log('CTRL: Simulation mode active.')
             QMessageBox.information(
@@ -921,8 +922,7 @@ class MainControls(QMainWindow):
             file.close()
             self.add_to_log('CTRL: Settings saved to disk.')
             # Show new config file name in status bar:
-            self.set_statusbar(
-                'Ready. Active configuration: %s' % self.cfg_file)
+            self.set_statusbar('Ready.')
 
     def open_sem_dlg(self):
         dialog = SEMSettingsDlg(self.sem)
@@ -1188,8 +1188,13 @@ class MainControls(QMainWindow):
         QApplication.processEvents()
 
     def set_statusbar(self, msg):
-        self.statusbar_msg = msg
-        self.statusBar().showMessage(msg)
+        """Set the status bar of the main controls window."""
+        # self.statusbar_msg is needed to override the status tips. See event()
+        self.statusbar_msg = (
+            msg 
+            + f' Active configuration: {self.cfg_file} /' 
+            + f' {self.syscfg_file}')
+        self.statusBar().showMessage(self.statusbar_msg)
 
     def set_status(self, text):
         """Set status label in GUI (acquisition panel)."""
@@ -1228,8 +1233,7 @@ class MainControls(QMainWindow):
                 'Approach cutting in progress...')
         elif msg == 'STATUS IDLE':
             self.set_status('')
-            self.set_statusbar(
-                'Ready. Active configuration: %s' % self.cfg_file)
+            self.set_statusbar('Ready.')
         elif msg == 'SWEEP SUCCESS':
             self.show_current_stage_z()
             self.sweep_success(True)
@@ -1491,8 +1495,7 @@ class MainControls(QMainWindow):
                 self.restrict_gui(True)
                 self.viewport.restrict_gui(True)
                 self.set_status('Busy.')
-                self.set_statusbar(
-                    'Overview acquisition in progress...')
+                self.set_statusbar('Overview acquisition in progress...')
                 # Start OV acquisition thread:
                 ov_acq_thread = threading.Thread(
                     target=acq_func.acquire_ov,
@@ -1524,8 +1527,7 @@ class MainControls(QMainWindow):
         self.restrict_gui(False)
         self.viewport.restrict_gui(False)
         self.set_status('')
-        self.set_statusbar(
-            'Ready. Active configuration: %s' % self.cfg_file)
+        self.set_statusbar('Ready.')
 
     def acquire_stub_ov_success(self, success):
         if success:
@@ -1559,8 +1561,7 @@ class MainControls(QMainWindow):
                             'acquisition.')
 
         self.set_status('')
-        self.set_statusbar(
-            'Ready. Active configuration: %s' % self.cfg_file)
+        self.set_statusbar('Ready.')
 
     def move_stage(self):
         target_pos = self.viewport.mv_get_selected_stage_pos()
@@ -1598,8 +1599,7 @@ class MainControls(QMainWindow):
         self.restrict_gui(False)
         self.viewport.restrict_gui(False)
         self.set_status('')
-        self.set_statusbar(
-            'Ready. Active configuration: ' + self.cfg_file)
+        self.set_statusbar('Ready.')
 
     def sweep(self):
         user_reply = QMessageBox.question(
@@ -1634,8 +1634,7 @@ class MainControls(QMainWindow):
         self.restrict_gui(False)
         self.viewport.restrict_gui(False)
         self.set_status('')
-        self.set_statusbar(
-            'Ready. Active configuration: ' + self.cfg_file)
+        self.set_statusbar('Ready.')
 
     def save_viewport(self):
         (file_name, user_edit) = QInputDialog.getText(
@@ -1877,9 +1876,7 @@ class MainControls(QMainWindow):
             self.show_estimates()
             # Indicate in GUI that stack is running now:
             self.set_status('Acquisition in progress')
-            self.set_statusbar(
-                'Acquisition in progress. Active configuration: '
-                + self.cfg_file)
+            self.set_statusbar('Acquisition in progress.')
 
             # Start the thread running the stack acquisition
             # All source code in stack_acquisition.py
@@ -1969,8 +1966,7 @@ class MainControls(QMainWindow):
     def acq_not_in_progress_update_gui(self):
         self.acq_in_progress = False
         self.set_status('')
-        self.set_statusbar(
-            'Ready. Active configuration: ' + self.cfg_file)
+        self.set_statusbar('Ready.')
         self.restrict_gui(False)
         self.viewport.restrict_gui(False)
         self.pushButton_startAcq.setEnabled(True)
