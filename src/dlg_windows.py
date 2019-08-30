@@ -22,6 +22,7 @@ import validators
 import csv
 import requests
 import shutil
+import yaml
 
 from random import random
 from time import sleep, time
@@ -1747,22 +1748,21 @@ class ImportMagCDlg(QDialog):
             self.add_to_main_log('MagC file not found')
         else:
             with open(file_name, 'r') as f:
-                sectionsJSON = json.load(f)
+                sectionsYAML = yaml.load(f)
             sections = {}
             landmarks = {}
-            for sectionJSON in sectionsJSON['shapes']:
-                sectionJSONClass, id = sectionJSON['label'].split('-')
-                if sectionJSONClass == 'tissue':
-                    sections[int(id)] = {
-                    'center': [1 * a for a in sectionJSON['center']],
-                    'angle': sectionJSON['angle']}
-                elif 'tissueROI' in sectionJSONClass:
-                    sections[sectionJSON['label']] = {
-                    'center': sectionJSON['center']}
-                elif 'landmark' in sectionJSONClass:
-                    landmarks[int(id)] = {
-                    'source': sectionJSON['points']}
-                
+            for sectionId, sectionXYA in sectionsYAML['tissue'].items():
+                sections[int(sectionId)] = {
+                'center': [float(a) for a in sectionXYA[:2]],
+                'angle': float(sectionXYA[2])}
+            if 'tissueROI' in sectionsYAML:
+                tissueROIIndex = int(list(sectionsYAML['tissueROI'].keys())[0])
+                sections['tissueROI-' + str(tissueROIIndex)] = {
+                'center': sectionsYAML['tissueROI'][tissueROIIndex]}
+            if 'landmarks' in sectionsYAML:
+                for landmarkId, landmarkXY in sectionsYAML['landmarks'].items():
+                    landmarks[int(landmarkId)] = {
+                    'source': landmarkXY}
             n_sections = len(sections)
             self.add_to_main_log(str(n_sections) + ' MagC sections have been loaded.')
             #-----------------------------
