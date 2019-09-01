@@ -895,7 +895,7 @@ class MainControls(QMainWindow):
         sectionListModel.removeRow(sectionListModel.rowCount()-1)
 
     def open_magc_wafer_calibration_dlg(self):
-        dialog = WaferCalibrationDlg(self.cfg, self.stage, self.ovm, self.cs, self.acq_queue, self.acq_trigger)
+        dialog = WaferCalibrationDlg(self.cfg, self.stage, self.ovm, self.cs, self.gm, self.viewport, self.acq_queue, self.acq_trigger)
         if dialog.exec_():
             pass
     
@@ -1075,7 +1075,7 @@ class MainControls(QMainWindow):
         gui_items = {
         'sectionList': self.tableView_magc_sectionList,
         }
-        dialog = ImportMagCDlg(self.cfg, self.gm, self.cs, self.stage, self.sem, gui_items, self.acq_trigger, self.acq_queue)
+        dialog = ImportMagCDlg(self.cfg, self.gm, self.cs, self.stage, self.sem, self.ovm, self.viewport, gui_items, self.acq_trigger, self.acq_queue)
         if dialog.exec_():
             # self.tabWidget.setTabEnabled(3, True)
             self.update_from_grid_dlg()

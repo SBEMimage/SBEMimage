@@ -20,6 +20,8 @@ import smtplib
 import socket
 import requests
 
+import numpy as np
+
 from time import sleep
 
 from email.mime.multipart import MIMEMultipart
@@ -350,7 +352,7 @@ def applyRigidT(x,y,coefs):
     return x_out,y_out
     
 def getRigidRotation(coefs):
-    return np.rad2deg(arctan2(coefs[0], coefs[1]))    
+    return np.rad2deg(np.arctan2(coefs[0], coefs[1]))    
 
 def getRigidScaling(coefs):
     return coefs[1]    
