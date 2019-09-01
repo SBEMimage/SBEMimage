@@ -318,7 +318,6 @@ def invertAffineT(aff):
 def getAffineRotation(aff):
     return np.rad2deg(np.arctan2(aff[1][0], aff[1][1]))
 
-    
 def rigidT(x_in,y_in,x_out,y_out):
     A_data = []
     for i in range(len(x_in)):
@@ -352,4 +351,7 @@ def applyRigidT(x,y,coefs):
     
 def getRigidRotation(coefs):
     return np.rad2deg(arctan2(coefs[0], coefs[1]))    
+
+def getRigidScaling(coefs):
+    return coefs[1]    
 # ------------------- End of functions for geometric transforms (MagC) -------------------

@@ -895,7 +895,7 @@ class MainControls(QMainWindow):
         sectionListModel.removeRow(sectionListModel.rowCount()-1)
 
     def open_magc_wafer_calibration_dlg(self):
-        dialog = WaferCalibrationDlg(self.cfg, self.stage, self.acq_queue, self.acq_trigger)
+        dialog = WaferCalibrationDlg(self.cfg, self.stage, self.ovm, self.cs, self.acq_queue, self.acq_trigger)
         if dialog.exec_():
             pass
     

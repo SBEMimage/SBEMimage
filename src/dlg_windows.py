@@ -1922,10 +1922,12 @@ class ImportWaferImageDlg(QDialog):
 class WaferCalibrationDlg(QDialog):
     """Wafer calibration."""
 
-    def __init__(self, config, stage, queue, trigger):
+    def __init__(self, config, stage, ovm, queue, trigger):
         super().__init__()
         self.cfg = config
         self.stage = stage
+        self.ovm = ovm
+        self.cs = cs
         self.trigger = trigger
         self.queue = queue
         loadUi(os.path.join('..', 'gui', 'wafer_calibration_dlg.ui'), self)
@@ -1946,7 +1948,7 @@ class WaferCalibrationDlg(QDialog):
         self.trigger.s.emit()    
         
     def initLandmarkList(self):
-
+    
         # initialize the landmarkTableModel (QTableView)
         landmarkModel = QStandardItemModel(0, 0)
         landmarkModel.setHorizontalHeaderItem(0, QStandardItem(''))
@@ -1962,6 +1964,8 @@ class WaferCalibrationDlg(QDialog):
         header = self.lTable.horizontalHeader()
         for i in range(8):
             header.setSectionResizeMode(i, QHeaderView.ResizeToContents)
+            
+        self.lTable.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         
         landmarkModel = self.lTable.model()
         landmarks = json.loads(self.cfg['magc']['landmarks'])
@@ -1980,9 +1984,9 @@ class WaferCalibrationDlg(QDialog):
             item6.setFixedSize(QSize(60, 40))
             item6.clicked.connect(self.goto_landmark(id))
             
-            if self.cfg['sys']['simulation_mode'] == 'True':
-                item5.setEnabled(False)
-                item6.setEnabled(False)
+            # if self.cfg['sys']['simulation_mode'] == 'True':
+                # item5.setEnabled(False)
+                # item6.setEnabled(False)
                 
             item7 = QPushButton('Clear')
             item7.setFixedSize(QSize(60, 40))
@@ -2031,6 +2035,7 @@ class WaferCalibrationDlg(QDialog):
     
     def set_landmark(self, row):
         def callback_set_landmark():
+            landmarks = json.loads(self.cfg['magc']['landmarks'])
             x,y = self.stage.get_xy()
             
             # update table
@@ -2045,21 +2050,20 @@ class WaferCalibrationDlg(QDialog):
             item4.setData(str(y))
             item4.setBackground(QColor(Qt.green))
             
-            # update cfg
-            self.cfg['magc']['landmarks'][str(row)]['target'] = json.dumps([x,y])
-            
+            # update landmarks
+            landmarks[str(row)]['target'] = [x,y]            
+
             # compute transform and update landmarks
             if len(calibratedLandmarkIds) > 1: # at least 2 landmarks needed
-                nLandmarks = len(self.cfg['magc']['landmarks'])
+                nLandmarks = len(landmarks)
                 calibratedLandmarkIds = [int(id) 
                     for id,landmark 
-                    in self.cfg['magc']['landmarks'].items()
+                    in landmarks.items()
                     if 'target' in landmark]
                 noncalibratedLandmarkIds = set(range(nLandmarks)) - set(calibratedLandmarkIds)
 
             # calculating the wafer transform from source to target. Using all possible landmarks available in the target (minimum 2)
 
-            landmarks = json.loads(self.cfg['magc']['landmarks'])
             x_landmarks_source = [landmarks[str(i)]['source'][0]
                 for i in range(nLandmarks)]
             y_landmarks_source = [landmarks[str(i)]['source'][1]
@@ -2078,7 +2082,7 @@ class WaferCalibrationDlg(QDialog):
 
             waferTransform = utils.rigidT(
                 -x_landmarks_source_partial, y_landmarks_source_partial,
-                -x_landmarks_target_partial, y_landmarks_target_partial)
+                -x_landmarks_target_partial, y_landmarks_target_partial)[0]
 
             # compute all targetLandmarks
             x_target_updated_landmarks, y_target_updated_landmarks = utils.applyRigidT(
@@ -2090,7 +2094,7 @@ class WaferCalibrationDlg(QDialog):
             for noncalibratedLandmarkId in noncalibratedLandmarkIds: 
                 x = x_target_updated_landmarks[noncalibratedLandmarkId]
                 y = y_target_updated_landmarks[noncalibratedLandmarkId]
-                self.cfg['magc']['landmarks'][noncalibratedLandmarkId]['target'] = json.loads([x,y])
+                landmarks[str(noncalibratedLandmarkId)]['target'] = [x,y]
 
                 item3 = self.lTable.model().item(noncalibratedLandmarkId, 3)
                 item3.setData(str(x))
@@ -2100,6 +2104,9 @@ class WaferCalibrationDlg(QDialog):
                 item4.setData(str(y))
                 item4.setBackground(QColor(Qt.yellow))
             
+            # update cfg
+            self.cfg['magc']['landmarks'] = json.dumps(landmarks)
+
         return callback_set_landmark
         
     def goto_landmark(self, row):
@@ -2117,6 +2124,7 @@ class WaferCalibrationDlg(QDialog):
     
     def validate_calibration(self):
         landmarks = json.loads(self.cfg['magc']['landmarks'])
+        sections = json.loads(self.cfg['magc']['sections'])
 
         nLandmarks = len(landmarks)
         calibratedLandmarkIds = [int(id) 
@@ -2142,7 +2150,7 @@ class WaferCalibrationDlg(QDialog):
         
             waferTransform = utils.rigidT(
                 x_landmarks_source, y_landmarks_source,
-                x_landmarks_target, y_landmarks_target)
+                x_landmarks_target, y_landmarks_target)[0]
             
             self.cfg['magc']['wafer_transform'] = json.dumps(waferTransform)
             
@@ -2164,26 +2172,55 @@ class WaferCalibrationDlg(QDialog):
                     x_source[grid_number], y_source[grid_number])
             self.viewport.mv_draw()
             
-            # todo: update wafer picture
-            landmarks_source_v = [self.cs.convert_to_v([x,y])
-                for (x,y) in 
-                zip(x_landmarks_source, y_landmarks_source)]
-            landmarks_target_v = [self.cs.convert_to_v([x,y])
-                for (x,y) in 
-                zip(x_landmarks_target, y_landmarks_target)]
+            # # # update wafer picture
+            # # landmarks_source_v = [self.cs.convert_to_v([x,y])
+                # # for (x,y) in 
+                # # zip(x_landmarks_source, y_landmarks_source)]
+            # # landmarks_target_v = [self.cs.convert_to_v([x,y])
+                # # for (x,y) in 
+                # # zip(x_landmarks_target, y_landmarks_target)]
             
-            landmarks_source_v_x = [l[0] for l in landmarks_source_v]
-            landmarks_source_v_y = [l[1] for l in landmarks_source_v]
+            # # landmarks_source_v_x = [l[0] for l in landmarks_source_v]
+            # # landmarks_source_v_y = [l[1] for l in landmarks_source_v]
 
-            landmarks_target_v_x = [l[0] for l in landmarks_target_v]
-            landmarks_target_v_y = [l[1] for l in landmarks_target_v]
+            # # landmarks_target_v_x = [l[0] for l in landmarks_target_v]
+            # # landmarks_target_v_y = [l[1] for l in landmarks_target_v]
             
-            waferTransform_v = utils.affineT(
-                x_landmarks_source, y_landmarks_source,
-                x_landmarks_target, y_landmarks_target)
+            # # waferTransform_v = utils.rigidT(
+                # # landmarks_source_v_x, landmarks_source_v_y,
+                # # landmarks_target_v_x, landmarks_target_v_y)[0]
                 
+            imported_img_file_list = self.ovm.get_imported_img_file_list()
+            wafer_img_number_list = [i for (i,f) in enumerate(imported_img_file_list)
+                if 'wafer' in os.path.basename(f)]
+            if len(wafer_img_number_list) != 1:
+                print('There should be only one imported image with "wafer" in its name')
+            else:
+                wafer_img_number = wafer_img_number_list[0]
+                waferTransformAngle = utils.getRigidRotation(waferTransform_v)
+                waferTransformScaling = utils.getRigidScaling(waferTransform_v)
+                
+                im_center_source_s = self.cs.get_imported_img_centre_s(wafer_img_number)
+                im_center_target_s = utils.applyRigidT(
+                    [im_center_source_s[0]],
+                    [im_center_source_s[1]],
+                    waferTransform)
 
+                # im_center_source_v = self.cs.convert_to_v(im_center_source_s)
+                # im_center_target_v = utils.applyRigidT(
+                    # [im_center_source_v[0]],
+                    # [im_center_source_v[1]],
+                    # waferTransform_v)
+                
+                self.ovm.set_imported_img_rotation(wafer_img_number, waferTransformAngle)
+                self.ovm.set_imported_img_pixel_size(wafer_img_number, waferTransformScaling)
+                # self.ovm.set_imported_img_size_px_py(self, img_number, px, py)
+                self.ovm.set_imported_img_centre_s(wafer_img_number, im_center_target_s)
+
+            
+            # update cfg
             self.cfg['magc']['wafer_calibrated'] = True
+            self.cfg['magc']['landmarks'] = json.dumps(landmarks)
 
     def accept(self):
         super().accept()
