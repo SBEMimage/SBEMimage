@@ -355,6 +355,8 @@ class MainControls(QMainWindow):
             self.pushButton_magc_addSection.setEnabled(False)
         self.pushButton_magc_deleteLastSection.clicked.connect(self.delete_last_section)
         self.waferCalibrationFlag.setStyleSheet('background-color: yellow')
+        # self.pushButton_magc_waferCalibration.setEnabled(False) # impractical because the button needs to be passed to WaferCalibrationDialog
+        
         #------- end of GUI for MagC tab ---------------------------------   
         
     def import_system_settings(self):
