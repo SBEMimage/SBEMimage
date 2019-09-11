@@ -1,8 +1,33 @@
+# close dialog when done
+# what to do with section checks
+# right click on grid to grid settings 
+# reflection left right in the display
 # what happens when reopening dialog ?
 # wafer calib not enabled before importing magc
 # why do some grids have negative rotations ?
-# the rotation of the wafer image is not set upon transform
-# transform of the grid centers is wrong
+
+# continue acquisition
+# started with offset correction active
+# in continue aquisition: uncheck knife properties
+# started to image at current position, did not go to grid 0
+
+
+# Exception in thread Thread-43:
+# Traceback (most recent call last):
+  # File "C:\Templier\Anaconda3\lib\threading.py", line 917, in _bootstrap_inner
+    # self.run()
+  # File "C:\Templier\Anaconda3\lib\threading.py", line 865, in run
+    # self._target(*self._args, **self._kwargs)
+  # File "C:\Templier\pytools\SBEMimage\src\stack_acquisition.py", line 930, in run
+    # self.handle_autofocus_adjustments(grid_number)
+  # File "C:\Templier\pytools\SBEMimage\src\stack_acquisition.py", line 1956, in handle_autofocus_adjustments
+    # self.af.get_ref_tile_average_wd_stig(grid_number))
+  # File "C:\Templier\pytools\SBEMimage\src\autofocus.py", line 108, in get_ref_tile_average_wd_stig
+    # wd = self.gm.get_tile_wd(grid, tile)
+  # File "C:\Templier\pytools\SBEMimage\src\grid_manager.py", line 520, in get_tile_wd
+    # return self.grid_map_wd_stig[grid_number][tile_number][0]
+# KeyError: 34
+
 
 # -*- coding: utf-8 -*-
 
@@ -2262,8 +2287,8 @@ class WaferCalibrationDlg(QDialog):
             
             x_target, y_target = utils.applyAffineT(x_source, y_source, waferTransform)
             
-            transformAngle = utils.getAffineRotation(waferTransform)
-            angles_target = [sections[str(k)]['angle'] - transformAngle
+            transformAngle = -utils.getAffineRotation(waferTransform)
+            angles_target = [(180 - sections[str(k)]['angle'] + transformAngle) % 360
                 for k in range(nSections)]
 
             # update grids
