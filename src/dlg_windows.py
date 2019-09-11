@@ -2244,11 +2244,11 @@ class WaferCalibrationDlg(QDialog):
             y_landmarks_target = [landmarks[str(i)]['target'][1]
                 for i in range(len(landmarks))]
         
-            print('x_landmarks_source, y_landmarks_source, x_landmarks_target, y_landmarks_target', x_landmarks_source, y_landmarks_source, x_andmarks_target, y_landmarks_target)
+            print('x_landmarks_source, y_landmarks_source, x_landmarks_target, y_landmarks_target', x_landmarks_source, y_landmarks_source, x_landmarks_target, y_landmarks_target)
         
             waferTransform = utils.affineT(
                 x_landmarks_source, y_landmarks_source,
-                x_landmarks_target, y_landmarks_target)[0]
+                x_landmarks_target, y_landmarks_target)
             
             print('waferTransform', waferTransform)
             self.cfg['magc']['wafer_transform'] = json.dumps(waferTransform.tolist())
@@ -2302,7 +2302,7 @@ class WaferCalibrationDlg(QDialog):
                 print('There should be exactly one imported image with "wafer" in its name')
             else:
                 wafer_img_number = wafer_img_number_list[0]
-                waferTransformAngle = utils.getAffineRotation(waferTransform)
+                waferTransformAngle = -utils.getAffineRotation(waferTransform)
                 waferTransformScaling = utils.getAffineScaling(waferTransform)
                 print('waferTransformScaling', waferTransformScaling)
                 print('waferTransformAngle', waferTransformAngle)
