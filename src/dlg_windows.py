@@ -2261,10 +2261,9 @@ class WaferCalibrationDlg(QDialog):
             y_source = np.array([sections[str(k)]['center'][1] for k in range(nSections)])
             
             x_target, y_target = utils.applyAffineT(x_source, y_source, waferTransform)
-            # x_target = -x_target # x axis flipping on Merlin
             
             transformAngle = utils.getAffineRotation(waferTransform)
-            angles_target = [sections[str(k)]['angle'] + transformAngle
+            angles_target = [sections[str(k)]['angle'] - transformAngle
                 for k in range(nSections)]
 
             # update grids
