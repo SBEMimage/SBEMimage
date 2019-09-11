@@ -1,8 +1,8 @@
-what happens when reopening dialog ?
-wafer calib not enabled before importing magc
-why do some grids have negative rotations ?
-the rotation of the wafer image is not set upon transform
-transform of the grid centers is wrong
+# what happens when reopening dialog ?
+# wafer calib not enabled before importing magc
+# why do some grids have negative rotations ?
+# the rotation of the wafer image is not set upon transform
+# transform of the grid centers is wrong
 
 # -*- coding: utf-8 -*-
 
@@ -2223,8 +2223,9 @@ class WaferCalibrationDlg(QDialog):
 
         nLandmarks = len(landmarks)
         calibratedLandmarkIds = [int(id) 
-            for id,landmark in landmarks.items()
-            if 'target' in landmark]
+            for id,landmark 
+            in landmarks.items()
+            if self.lTable.model().item(int(id), 0).background().color() == QColor(Qt.green)]
 
         if len(calibratedLandmarkIds) != nLandmarks:
             self.add_to_main_log(
@@ -2243,10 +2244,13 @@ class WaferCalibrationDlg(QDialog):
             y_landmarks_target = [landmarks[str(i)]['target'][1]
                 for i in range(len(landmarks))]
         
-            waferTransform = utils.rigidT(
+            print('x_landmarks_source, y_landmarks_source, x_landmarks_target, y_landmarks_target', x_landmarks_source, y_landmarks_source, x_andmarks_target, y_landmarks_target)
+        
+            waferTransform = utils.affineT(
                 x_landmarks_source, y_landmarks_source,
                 x_landmarks_target, y_landmarks_target)[0]
             
+            print('waferTransform', waferTransform)
             self.cfg['magc']['wafer_transform'] = json.dumps(waferTransform.tolist())
             
             # compute new grid locations (always transform from reference source)
@@ -2256,10 +2260,10 @@ class WaferCalibrationDlg(QDialog):
             x_source = np.array([sections[str(k)]['center'][0] for k in range(nSections)])
             y_source = np.array([sections[str(k)]['center'][1] for k in range(nSections)])
             
-            x_target, y_target = utils.applyRigidT(-x_source, y_source, waferTransform)
+            x_target, y_target = utils.applyAffineT(x_source, y_source, waferTransform)
             # x_target = -x_target # x axis flipping on Merlin
             
-            transformAngle = utils.getRigidRotation(waferTransform)
+            transformAngle = utils.getAffineRotation(waferTransform)
             angles_target = [sections[str(k)]['angle'] + transformAngle
                 for k in range(nSections)]
 
@@ -2298,12 +2302,12 @@ class WaferCalibrationDlg(QDialog):
                 print('There should be exactly one imported image with "wafer" in its name')
             else:
                 wafer_img_number = wafer_img_number_list[0]
-                waferTransformAngle = utils.getRigidRotation(waferTransform)
-                waferTransformScaling = utils.getRigidScaling(waferTransform)
+                waferTransformAngle = utils.getAffineRotation(waferTransform)
+                waferTransformScaling = utils.getAffineScaling(waferTransform)
                 print('waferTransformScaling', waferTransformScaling)
                 print('waferTransformAngle', waferTransformAngle)
                 im_center_source_s = self.cs.get_imported_img_centre_s(wafer_img_number)
-                im_center_target_s = utils.applyRigidT(
+                im_center_target_s = utils.applyAffineT(
                     [im_center_source_s[0]],
                     [im_center_source_s[1]],
                     waferTransform)
@@ -2320,8 +2324,9 @@ class WaferCalibrationDlg(QDialog):
                 # self.ovm.set_imported_img_size_px_py(self, img_number, px, py)
                 self.cs.set_imported_img_centre_s(wafer_img_number, im_center_target_s)
 
-            # self.viewport.mv_draw()
-            self.viewport.mv_refresh_overviews()
+                # update drawn image
+                self.viewport.mv_load_imported_image(wafer_img_number)
+                self.viewport.mv_draw()
             
             # update cfg
             self.cfg['magc']['wafer_calibrated'] = 'True'

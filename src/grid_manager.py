@@ -124,6 +124,14 @@ class GridManager(object):
         sourceGridRotation = self.get_rotation(s)
         
         sourceGridCenter = np.array(self.get_grid_center_s(s))
+        
+        if self.cfg['magc']['wafer_calibrated'] == 'True':
+            # transform back the grid coordinates in non-transformed coordinates
+            waferTransform = np.array(json.loads(self.cfg['magc']['wafer_transform']))
+            waferTransformInverse = utils.invertAffineT(waferTransform)
+            result = utils.applyAffineT([sourceGridCenter[0]], [sourceGridCenter[1]], waferTransformInverse)
+            sourceGridCenter = np.array(result[0][0], result[1][0])
+        
         sourceSectionGrid = sourceGridCenter - sourceSectionCenter
         sourceSectionGridDistance = np.linalg.norm(sourceSectionGrid)
         sourceSectionGridAngle = np.angle(
@@ -160,6 +168,13 @@ class GridManager(object):
             + sourceSectionGridDistance \
             * np.exp(1j * np.radians(targetSectionGridAngle))
         targetGridCenter = np.real(targetGridCenterComplex), np.imag(targetGridCenterComplex)
+        
+        if self.cfg['magc']['wafer_calibrated'] == 'True':
+            # transform the grid coordinates to wafer coordinates
+            waferTransform = np.array(json.loads(self.cfg['magc']['wafer_transform']))
+            result = utils.applyAffineT([targetGridCenter[0]], [targetGridCenter[1]], waferTransform)
+            targetGridCenter = np.array(result[0][0], result[1][0])
+        
         self.set_grid_center_s(t, targetGridCenter)
         
         self.calculate_grid_map(t)
