@@ -129,8 +129,10 @@ class GridManager(object):
             # transform back the grid coordinates in non-transformed coordinates
             waferTransform = np.array(json.loads(self.cfg['magc']['wafer_transform']))
             waferTransformInverse = utils.invertAffineT(waferTransform)
+            print('waferTransform, waferTransformInverse', waferTransform, waferTransformInverse)
             result = utils.applyAffineT([sourceGridCenter[0]], [sourceGridCenter[1]], waferTransformInverse)
-            sourceGridCenter = np.array(result[0][0], result[1][0])
+            sourceGridCenter = [result[0][0], result[1][0]]
+            print('result sourceGridCenter', result, sourceGridCenter)
         
         sourceSectionGrid = sourceGridCenter - sourceSectionCenter
         sourceSectionGridDistance = np.linalg.norm(sourceSectionGrid)
@@ -173,7 +175,8 @@ class GridManager(object):
             # transform the grid coordinates to wafer coordinates
             waferTransform = np.array(json.loads(self.cfg['magc']['wafer_transform']))
             result = utils.applyAffineT([targetGridCenter[0]], [targetGridCenter[1]], waferTransform)
-            targetGridCenter = np.array(result[0][0], result[1][0])
+            targetGridCenter = [result[0][0], result[1][0]]
+            print('result targetGridCenter', result, targetGridCenter)
         
         self.set_grid_center_s(t, targetGridCenter)
         

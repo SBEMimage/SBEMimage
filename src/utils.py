@@ -320,8 +320,10 @@ def invertAffineT(aff):
 def getAffineRotation(aff):
     return np.rad2deg(np.arctan2(aff[1][0], aff[1][1]))
     
-def getAffineScaling(aff): # conceptually wrong, but used only when a_00 = a_11 and no shear
-    return (aff[0][0] + aff[1][1])/2.
+def getAffineScaling(aff):
+    x_out, y_out = applyAffineT([0,1000], [0,1000], aff)
+    scaling = np.linalg.norm([x_out[1]-x_out[0], y_out[1]-y_out[0]])/np.linalg.norm([1000,1000])
+    return scaling
 
 def rigidT(x_in,y_in,x_out,y_out):
     A_data = []
