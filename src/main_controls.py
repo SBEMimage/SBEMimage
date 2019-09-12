@@ -354,8 +354,9 @@ class MainControls(QMainWindow):
         if self.cfg['magc']['wafer_calibrated'] == 'False':
             self.pushButton_magc_addSection.setEnabled(False)
         self.pushButton_magc_deleteLastSection.clicked.connect(self.delete_last_section)
+        
         self.waferCalibrationFlag.setStyleSheet('background-color: yellow')
-        # self.pushButton_magc_waferCalibration.setEnabled(False) # impractical because the button needs to be passed to WaferCalibrationDialog
+        self.pushButton_magc_waferCalibration.setEnabled(False)
         
         #------- end of GUI for MagC tab ---------------------------------   
         
@@ -848,6 +849,12 @@ class MainControls(QMainWindow):
         self.viewport.mv_draw()
         tableModel = self.tableView_magc_sectionList.model()
         tableModel.removeRows(0, tableModel.rowCount(), QModelIndex())
+        # unenable wafer calibration button
+        self.pushButton_magc_waferCalibration.setEnabled(False)
+        # change wafer flag
+        self.waferCalibrationFlag.setStyleSheet('background-color: yellow')
+        self.waferCalibrationFlag.setText('Wafer not calibrated')
+        
         
     def open_import_wafer_image(self):    
         target_dir = os.path.join(self.cfg['acq']['base_dir'], 'overviews', 'imported')
@@ -1345,6 +1352,13 @@ class MainControls(QMainWindow):
             self.viewport.add_to_viewport_log(msg[6:])
         elif msg[:15] == 'GET CURRENT LOG':
             self.write_current_log_to_file(msg[15:])
+        elif msg == 'MAGC WAFER CALIBRATED':
+            self.waferCalibrationFlag.setStyleSheet('background-color: green')
+            self.waferCalibrationFlag.setText('Wafer calibrated')
+        elif msg == 'MAGC ENABLE CALIBRATION':
+            self.pushButton_magc_waferCalibration.setEnabled(True)
+        elif msg == 'MAGC UNENABLE CALIBRATION':
+            self.pushButton_magc_waferCalibration.setEnabled(False)
         else:
             # If msg is not a command, show it in log:
             self.textarea_log.appendPlainText(msg)

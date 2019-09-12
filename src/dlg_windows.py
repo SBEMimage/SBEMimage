@@ -15,6 +15,8 @@
 # update flag in GUI upon calibration
 # pressing enter in grid dialog should update
 #--set ref tiles during propagation
+# add more tile sizes
+# wafer calibration flag should simply be the wafer calibration button
 
 
 
@@ -1908,6 +1910,10 @@ class ImportMagCDlg(QDialog):
             # xxx does importing a new magc file always require a wafer_calibration ?
             # ---------------------------------------
             
+            # enable wafer configuration button
+            self.queue.put('MAGC ENABLE CALIBRATION')
+            self.trigger.s.emit()
+            
         self.accept()
         
     def select_file(self):
@@ -2301,7 +2307,6 @@ class WaferCalibrationDlg(QDialog):
             print('self.gm.get_number_grids()', self.gm.get_number_grids())
             for grid_number in range(self.gm.get_number_grids()):
                 self.gm.set_rotation(grid_number, angles_target[grid_number])
-                print('x_source[grid_number]', x_source[grid_number])
                 self.cs.set_grid_origin_s(grid_number,
                     [x_target[grid_number], y_target[grid_number]])
             self.viewport.mv_draw()
@@ -2334,8 +2339,6 @@ class WaferCalibrationDlg(QDialog):
                 wafer_img_number = wafer_img_number_list[0]
                 waferTransformAngle = -utils.getAffineRotation(waferTransform)
                 waferTransformScaling = utils.getAffineScaling(waferTransform)
-                print('waferTransformScaling', waferTransformScaling)
-                print('waferTransformAngle', waferTransformAngle)
                 im_center_source_s = self.cs.get_imported_img_centre_s(wafer_img_number)
                 im_center_target_s = utils.applyAffineT(
                     [im_center_source_s[0]],
@@ -2361,6 +2364,11 @@ class WaferCalibrationDlg(QDialog):
             # update cfg
             self.cfg['magc']['wafer_calibrated'] = 'True'
             self.cfg['magc']['landmarks'] = json.dumps(landmarks)
+            
+            # update flag
+            self.queue.put('MAGC WAFER CALIBRATED')
+            self.trigger.s.emit()
+
 
     def accept(self):
         super().accept()
