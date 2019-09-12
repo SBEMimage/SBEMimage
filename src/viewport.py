@@ -2023,6 +2023,7 @@ class Viewport(QWidget):
         for selected_section in selected_sections:
             self.gm.propagate_source_grid_to_target_grid(clicked_section_number, selected_section)
         self.mv_draw()
+        self.transmit_cmd('SHOW CURRENT SETTINGS') # update statistics in GUI
         
     def mv_propagate_grid_all_sections(self):
         clicked_section_number = self.selected_grid
@@ -2031,6 +2032,7 @@ class Viewport(QWidget):
             self.gm.propagate_source_grid_to_target_grid(clicked_section_number,
             section)
         self.mv_draw()
+        self.transmit_cmd('SHOW CURRENT SETTINGS') # update statistics in GUI
         
 # =================== Below: Slice Viewer (sv) functions ======================
 

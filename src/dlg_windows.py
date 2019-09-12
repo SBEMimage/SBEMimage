@@ -6,10 +6,16 @@
 # wafer calib not enabled before importing magc
 # why do some grids have negative rotations ?
 
-# continue acquisition
 # started with offset correction active
 # in continue aquisition: uncheck knife properties
-# started to image at current position, did not go to grid 0
+# autofocus did not happen although ref focus tiles
+# scan rotation implemented ?
+    # yes but correct angle needs to be checked (180-x ?)
+# autostig delay is in slices ?
+# update flag in GUI upon calibration
+# pressing enter in grid dialog should update
+#--set ref tiles during propagation
+
 
 
 # Exception in thread Thread-43:

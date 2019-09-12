@@ -128,11 +128,9 @@ class GridManager(object):
         if self.cfg['magc']['wafer_calibrated'] == 'True':
             # transform back the grid coordinates in non-transformed coordinates
             waferTransform = np.array(json.loads(self.cfg['magc']['wafer_transform']))
-            waferTransformInverse = utils.invertAffineT(waferTransform)
-            print('waferTransform, waferTransformInverse', waferTransform, waferTransformInverse)
+            waferTransformInverse = utils.invertAffineT(waferTransform) # inefficient but ok for now
             result = utils.applyAffineT([sourceGridCenter[0]], [sourceGridCenter[1]], waferTransformInverse)
             sourceGridCenter = [result[0][0], result[1][0]]
-            print('result sourceGridCenter', result, sourceGridCenter)
         
         sourceSectionGrid = sourceGridCenter - sourceSectionCenter
         sourceSectionGridDistance = np.linalg.norm(sourceSectionGrid)
@@ -164,6 +162,32 @@ class GridManager(object):
         self.set_adaptive_focus_tiles(t, self.get_adaptive_focus_tiles(s))
         self.set_adaptive_focus_gradient(t, self.get_adaptive_focus_gradient(s))
         
+        ###############################################
+        # --- setting the autofocus reference tiles ---
+        ref_tile_list = json.loads(self.cfg['autofocus']['ref_tiles'])
+        # get ref tiles from source
+        source_ref_tiles = []
+        for tile_key in ref_tile_list:
+            grid, tile = tile_key.split('.')
+            grid, tile = int(grid), int(tile)
+            if grid == s:
+                source_ref_tiles.append(tile)
+        
+        # remove ref tiles from target
+        ref_tile_list = [key for key in ref_tile_list if
+            int(key.split('.')[0]) != t]
+        
+        # add source ref tiles to target
+        for source_ref_tile in source_ref_tiles:
+            ref_tile_list.append(str(t) + '.' + str(source_ref_tile))
+
+        # sort the tile list
+        ref_tile_list.sort()
+        
+        # save the new tile list
+        self.cfg['autofocus']['ref_tiles'] = json.dumps(ref_tile_list)
+        ###############################################
+        
         targetSectionGridAngle = sourceSectionGridAngle + sourceSectionAngle - targetSectionAngle
         
         targetGridCenterComplex = np.dot(targetSectionCenter, [1,1j]) \
@@ -176,7 +200,6 @@ class GridManager(object):
             waferTransform = np.array(json.loads(self.cfg['magc']['wafer_transform']))
             result = utils.applyAffineT([targetGridCenter[0]], [targetGridCenter[1]], waferTransform)
             targetGridCenter = [result[0][0], result[1][0]]
-            print('result targetGridCenter', result, targetGridCenter)
         
         self.set_grid_center_s(t, targetGridCenter)
         
