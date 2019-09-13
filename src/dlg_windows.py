@@ -1,6 +1,3 @@
-# right click on grid to grid settings
-
-
 # reflection left right in the display
 # what happens when reopening dialog ?
 # why do some grids have negative rotations ?
@@ -15,13 +12,6 @@
 # autostig delay is in slices ?
 # pressing enter in grid dialog should update
 # add more tile sizes
-#--wafer calibration flag should simply be the wafer calibration button
-#--set ref tiles during propagation
-#--update flag in GUI upon calibration
-#--wafer calib not enabled before importing magc
-#--close dialog when done
-
-
 
 # Exception in thread Thread-43:
 # Traceback (most recent call last):
@@ -964,9 +954,8 @@ class GridSettingsDlg(QDialog):
         # Set up grid selector:
         self.comboBox_gridSelector.addItems(self.gm.get_grid_str_list())
         if self.grid_number is not None:
-            self.comboBox_gridSelector.setCurrentIndex(self.grid_number)
-        else:
-            self.comboBox_gridSelector.setCurrentIndex(self.current_grid)
+            self.current_grid = self.grid_number
+        self.comboBox_gridSelector.setCurrentIndex(self.current_grid)
         self.comboBox_gridSelector.currentIndexChanged.connect(
             self.change_grid)
         # Set up colour selector:
@@ -1919,6 +1908,8 @@ class ImportMagCDlg(QDialog):
             
             # enable wafer configuration button
             self.queue.put('MAGC ENABLE CALIBRATION')
+            self.trigger.s.emit()
+            self.queue.put('MAGC WAFER NOT CALIBRATED')
             self.trigger.s.emit()
             
         self.accept()

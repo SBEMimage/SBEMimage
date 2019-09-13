@@ -355,7 +355,7 @@ class MainControls(QMainWindow):
             self.pushButton_magc_addSection.setEnabled(False)
         self.pushButton_magc_deleteLastSection.clicked.connect(self.delete_last_section)
         
-        self.pushButton_magc_waferCalibration.setStyleSheet('background-color: yellow')
+        self.pushButton_magc_waferCalibration.setStyleSheet('background-color: lightgray')
         self.pushButton_magc_waferCalibration.setEnabled(False)
         
         #------- end of GUI for MagC tab ---------------------------------   
@@ -852,7 +852,7 @@ class MainControls(QMainWindow):
         # unenable wafer calibration button
         self.pushButton_magc_waferCalibration.setEnabled(False)
         # change wafer flag
-        self.pushButton_magc_waferCalibration.setStyleSheet('background-color: yellow')
+        self.pushButton_magc_waferCalibration.setStyleSheet('background-color: lightgray')
         
     def open_import_wafer_image(self):    
         target_dir = os.path.join(self.cfg['acq']['base_dir'], 'overviews', 'imported')
@@ -1021,7 +1021,7 @@ class MainControls(QMainWindow):
             self.viewport.mv_load_all_imported_images()
             self.viewport.mv_draw()
 
-    def open_grid_dlg(self, grid_number = None):
+    def open_grid_dlg(self, grid_number=None):
         dialog = GridSettingsDlg(self.gm, self.sem, self.current_grid,
                                  self.cfg, self.acq_queue, self.acq_trigger,
                                  grid_number = grid_number)

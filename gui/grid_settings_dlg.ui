@@ -115,6 +115,9 @@
    <property name="text">
     <string>Save settings for grid NNN</string>
    </property>
+   <property name="default">
+    <bool>true</bool>
+   </property>
   </widget>
   <widget class="QGroupBox" name="groupBox_geometry">
    <property name="geometry">
