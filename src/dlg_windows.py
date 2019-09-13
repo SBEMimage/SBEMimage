@@ -1790,7 +1790,7 @@ class ImportMagCDlg(QDialog):
             self.add_to_main_log('MagC file not found')
         else:
             with open(file_name, 'r') as f:
-                sectionsYAML = yaml.load(f)
+                sectionsYAML = yaml.full_load(f)
             sections = {}
             landmarks = {}
             for sectionId, sectionXYA in sectionsYAML['tissue'].items():
