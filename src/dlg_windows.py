@@ -1,35 +1,3 @@
-# reflection left right in the display
-# what happens when reopening dialog ?
-# why do some grids have negative rotations ?
-# what to do with section checks
-
-# started with offset correction active?
-# in continue aquisition: uncheck knife properties
-    # more generally: many things to inactivate in MagC mode
-# autofocus did not happen although ref focus tiles
-# scan rotation implemented ?
-    # yes but correct angle needs to be checked (180-x ?)
-# autostig delay is in slices ?
-# pressing enter in grid dialog should update
-# add more tile sizes
-
-# Exception in thread Thread-43:
-# Traceback (most recent call last):
-  # File "C:\Templier\Anaconda3\lib\threading.py", line 917, in _bootstrap_inner
-    # self.run()
-  # File "C:\Templier\Anaconda3\lib\threading.py", line 865, in run
-    # self._target(*self._args, **self._kwargs)
-  # File "C:\Templier\pytools\SBEMimage\src\stack_acquisition.py", line 930, in run
-    # self.handle_autofocus_adjustments(grid_number)
-  # File "C:\Templier\pytools\SBEMimage\src\stack_acquisition.py", line 1956, in handle_autofocus_adjustments
-    # self.af.get_ref_tile_average_wd_stig(grid_number))
-  # File "C:\Templier\pytools\SBEMimage\src\autofocus.py", line 108, in get_ref_tile_average_wd_stig
-    # wd = self.gm.get_tile_wd(grid, tile)
-  # File "C:\Templier\pytools\SBEMimage\src\grid_manager.py", line 520, in get_tile_wd
-    # return self.grid_map_wd_stig[grid_number][tile_number][0]
-# KeyError: 34
-
-
 # -*- coding: utf-8 -*-
 
 #==============================================================================
@@ -1871,6 +1839,13 @@ class ImportMagCDlg(QDialog):
             
             sectionListModel = self.gui_items['sectionList'].model()
             sectionListModel.clear()
+            sectionListModel.setHorizontalHeaderItem(0, QStandardItem('Section'))
+            sectionListModel.setHorizontalHeaderItem(1, QStandardItem('State'))
+            header = self.gui_items['sectionList'].horizontalHeader()
+            for i in range(2):
+                header.setSectionResizeMode(i, QHeaderView.ResizeToContents)
+            header.setStretchLastSection(True)
+            
             self.gm.delete_all_grids()
             for section in range(n_sections):
                 self.gm.add_new_grid()

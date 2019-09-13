@@ -322,7 +322,7 @@ class MainControls(QMainWindow):
         #------- GUI for MagC tab ---------------------------------
         # initialize the sectionList (QTableView)
         sectionListModel = QStandardItemModel(0, 0)
-        sectionListModel.setHorizontalHeaderItem(0, QStandardItem('Sections'))
+        sectionListModel.setHorizontalHeaderItem(0, QStandardItem('Section'))
         sectionListModel.setHorizontalHeaderItem(1, QStandardItem('State'))
         self.tableView_magc_sectionList.setModel(sectionListModel)
         self.tableView_magc_sectionList.selectionModel().selectionChanged.connect(self.magc_actions_selected_sections_changed)
@@ -330,7 +330,7 @@ class MainControls(QMainWindow):
         header = self.tableView_magc_sectionList.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        # header.setStretchLastSection(True)
+        header.setStretchLastSection(True)
 
         self.tableView_magc_sectionList.doubleClicked.connect(self.double_clicked_section)
         
@@ -1028,8 +1028,6 @@ class MainControls(QMainWindow):
         # self.update_from_grid_dlg() is called when user saves settings
         # or adds/deletes grids.
         dialog.exec_()
-        
-        
 
     def update_from_grid_dlg(self):
         # Update selectors:
