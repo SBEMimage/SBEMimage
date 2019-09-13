@@ -1021,12 +1021,15 @@ class MainControls(QMainWindow):
             self.viewport.mv_load_all_imported_images()
             self.viewport.mv_draw()
 
-    def open_grid_dlg(self):
+    def open_grid_dlg(self, grid_number = None):
         dialog = GridSettingsDlg(self.gm, self.sem, self.current_grid,
-                                 self.cfg, self.acq_queue, self.acq_trigger)
+                                 self.cfg, self.acq_queue, self.acq_trigger,
+                                 grid_number = grid_number)
         # self.update_from_grid_dlg() is called when user saves settings
         # or adds/deletes grids.
         dialog.exec_()
+        
+        
 
     def update_from_grid_dlg(self):
         # Update selectors:
@@ -1390,6 +1393,9 @@ class MainControls(QMainWindow):
         elif msg[:20] == 'CHANGE GRID ROTATION':
             selected_grid = int(msg[20:])
             self.open_change_grid_rotation_dlg(selected_grid)
+        elif 'OPEN GRID SETTINGS' in msg:
+            grid_number = int(msg.split('INGS')[1])
+            self.open_grid_dlg(grid_number = grid_number)
         else:
             # If msg is not a command, show it in log:
             self.textarea_log.appendPlainText(msg)

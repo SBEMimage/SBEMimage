@@ -865,6 +865,9 @@ class Viewport(QWidget):
             action_statistics = menu.addAction(f'Load {selected} statistics')
             action_statistics.triggered.connect(self.m_load_selected)
             menu.addSeparator()
+            action_openGridSettings = menu.addAction(
+                f'Open settings of grid {self.selected_grid}')
+            action_openGridSettings.triggered.connect(self.mv_open_grid_settings)
             action_selectAll = menu.addAction('Select all tiles ' + grid_str)
             action_selectAll.triggered.connect(self.mv_select_all_tiles)
             action_deselectAll = menu.addAction(
@@ -1944,6 +1947,9 @@ class Viewport(QWidget):
     def mv_change_grid_rotation(self):
         self.transmit_cmd('CHANGE GRID ROTATION' + str(self.selected_grid))
 
+    def mv_open_grid_settings(self):    
+        self.transmit_cmd('OPEN GRID SETTINGS' + str(self.selected_grid))
+        
     def mv_toggle_tile_autofocus(self):
         if self.selected_grid is not None and self.selected_tile is not None:
             ref_tiles = self.af.get_ref_tiles()

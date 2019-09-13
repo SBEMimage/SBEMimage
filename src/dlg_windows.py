@@ -1,22 +1,25 @@
-# close dialog when done
-# what to do with section checks
-# right click on grid to grid settings 
+# right click on grid to grid settings
+
+
 # reflection left right in the display
 # what happens when reopening dialog ?
-# wafer calib not enabled before importing magc
 # why do some grids have negative rotations ?
+# what to do with section checks
 
-# started with offset correction active
+# started with offset correction active?
 # in continue aquisition: uncheck knife properties
+    # more generally: many things to inactivate in MagC mode
 # autofocus did not happen although ref focus tiles
 # scan rotation implemented ?
     # yes but correct angle needs to be checked (180-x ?)
 # autostig delay is in slices ?
-# update flag in GUI upon calibration
 # pressing enter in grid dialog should update
-#--set ref tiles during propagation
 # add more tile sizes
-# wafer calibration flag should simply be the wafer calibration button
+#--wafer calibration flag should simply be the wafer calibration button
+#--set ref tiles during propagation
+#--update flag in GUI upon calibration
+#--wafer calib not enabled before importing magc
+#--close dialog when done
 
 
 
@@ -944,7 +947,7 @@ class GridSettingsDlg(QDialog):
     """Let the user change all settings for each grid."""
 
     def __init__(self, grid_manager, sem, current_grid,
-                 config, main_window_queue, main_window_trigger):
+                 config, main_window_queue, main_window_trigger, grid_number):
         super().__init__()
         self.gm = grid_manager
         self.sem = sem
@@ -952,6 +955,7 @@ class GridSettingsDlg(QDialog):
         self.cfg = config
         self.main_window_queue = main_window_queue
         self.main_window_trigger = main_window_trigger
+        self.grid_number = grid_number
         loadUi('..\\gui\\grid_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -959,7 +963,10 @@ class GridSettingsDlg(QDialog):
         self.show()
         # Set up grid selector:
         self.comboBox_gridSelector.addItems(self.gm.get_grid_str_list())
-        self.comboBox_gridSelector.setCurrentIndex(self.current_grid)
+        if self.grid_number is not None:
+            self.comboBox_gridSelector.setCurrentIndex(self.grid_number)
+        else:
+            self.comboBox_gridSelector.setCurrentIndex(self.current_grid)
         self.comboBox_gridSelector.currentIndexChanged.connect(
             self.change_grid)
         # Set up colour selector:
@@ -2368,6 +2375,8 @@ class WaferCalibrationDlg(QDialog):
             # update flag
             self.queue.put('MAGC WAFER CALIBRATED')
             self.trigger.s.emit()
+            
+            self.accept()
 
 
     def accept(self):
