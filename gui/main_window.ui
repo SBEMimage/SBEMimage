@@ -2261,34 +2261,6 @@ Green: acquired</string>
        <string>Import MagC</string>
       </property>
      </widget>
-     <widget class="QLabel" name="waferCalibrationFlag">
-      <property name="enabled">
-       <bool>true</bool>
-      </property>
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>390</y>
-        <width>218</width>
-        <height>23</height>
-       </rect>
-      </property>
-      <property name="font">
-       <font>
-        <weight>75</weight>
-        <bold>true</bold>
-       </font>
-      </property>
-      <property name="autoFillBackground">
-       <bool>true</bool>
-      </property>
-      <property name="text">
-       <string>Wafer is not calibrated</string>
-      </property>
-      <property name="textInteractionFlags">
-       <set>Qt::NoTextInteraction</set>
-      </property>
-     </widget>
      <widget class="QPushButton" name="pushButton_magc_importWaferImage">
       <property name="geometry">
        <rect>
@@ -2403,7 +2375,6 @@ Wafer Image</string>
      <zorder>label_11</zorder>
      <zorder>line_2</zorder>
      <zorder>pushButton_magc_importMagc</zorder>
-     <zorder>waferCalibrationFlag</zorder>
      <zorder>pushButton_magc_importWaferImage</zorder>
      <zorder>pushButton_magc_resetMagc</zorder>
      <zorder>pushButton_magc_addSection</zorder>

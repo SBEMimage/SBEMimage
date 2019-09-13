@@ -355,7 +355,7 @@ class MainControls(QMainWindow):
             self.pushButton_magc_addSection.setEnabled(False)
         self.pushButton_magc_deleteLastSection.clicked.connect(self.delete_last_section)
         
-        self.waferCalibrationFlag.setStyleSheet('background-color: yellow')
+        self.pushButton_magc_waferCalibration.setStyleSheet('background-color: yellow')
         self.pushButton_magc_waferCalibration.setEnabled(False)
         
         #------- end of GUI for MagC tab ---------------------------------   
@@ -852,9 +852,7 @@ class MainControls(QMainWindow):
         # unenable wafer calibration button
         self.pushButton_magc_waferCalibration.setEnabled(False)
         # change wafer flag
-        self.waferCalibrationFlag.setStyleSheet('background-color: yellow')
-        self.waferCalibrationFlag.setText('Wafer not calibrated')
-        
+        self.pushButton_magc_waferCalibration.setStyleSheet('background-color: yellow')
         
     def open_import_wafer_image(self):    
         target_dir = os.path.join(self.cfg['acq']['base_dir'], 'overviews', 'imported')
@@ -1353,8 +1351,9 @@ class MainControls(QMainWindow):
         elif msg[:15] == 'GET CURRENT LOG':
             self.write_current_log_to_file(msg[15:])
         elif msg == 'MAGC WAFER CALIBRATED':
-            self.waferCalibrationFlag.setStyleSheet('background-color: green')
-            self.waferCalibrationFlag.setText('Wafer calibrated')
+            self.pushButton_magc_waferCalibration.setStyleSheet('background-color: green')
+        elif msg == 'MAGC WAFER NOT CALIBRATED':
+            self.pushButton_magc_waferCalibration.setStyleSheet('background-color: yellow')
         elif msg == 'MAGC ENABLE CALIBRATION':
             self.pushButton_magc_waferCalibration.setEnabled(True)
         elif msg == 'MAGC UNENABLE CALIBRATION':
