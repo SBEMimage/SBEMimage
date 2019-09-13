@@ -634,8 +634,11 @@ class Stack():
                 + ', Z:' + '{0:6.3f}'.format(self.stage_z_position))
 
             # Autofocus for this slice? (Method 0)
-            self.autofocus_stig_current_slice = (
-                self.af.is_active_current_slice(self.slice_counter))
+            if self.cfg['sys']['magc_mode'] == 'True':
+                self.autofocus_stig_current_slice = (True, True)
+            else:
+                self.autofocus_stig_current_slice = (
+                    self.af.is_active_current_slice(self.slice_counter))
 
             # For autofocus method 1, focus slightly up or down depending
             # on slice number:

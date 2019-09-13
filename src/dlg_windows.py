@@ -43,7 +43,7 @@ from PyQt5.QtGui import QPixmap, QIcon, QPalette, QColor, QFont, \
 from PyQt5.QtWidgets import QApplication, QDialog, QMessageBox, \
                             QFileDialog, QLineEdit, QDialogButtonBox, \
                             QHeaderView, QPushButton
-                            
+
 import utils
 import acq_func
 
@@ -958,7 +958,7 @@ class GridSettingsDlg(QDialog):
         # inactivating add grid in magc_mode (should be done in magc panel instead)
         if self.cfg['sys']['magc_mode'] == 'True':
             self.pushButton_addGrid.setEnabled(False)
-        
+
     def show_current_settings(self):
         self.comboBox_colourSelector.setCurrentIndex(
             self.gm.get_display_colour_index(self.current_grid))
@@ -1772,18 +1772,18 @@ class ImportMagCDlg(QDialog):
             n_sections = len([k for k in sections.keys() if str(k).isdigit()])
             self.add_to_main_log(str(n_sections) + ' MagC sections have been loaded.')
             #-----------------------------
-            
+
             #--------------------------------------
             # import wafer overview if file present
             dir_sections = os.path.dirname(os.path.normpath(file_name))
             im_names = [im_name for im_name in os.listdir(dir_sections) if
-                ('wafer' in im_name) and 
+                ('wafer' in im_name) and
                 (os.path.splitext(im_name)[1] in ['.tif', '.png'])]
             if im_names == []:
                 self.add_to_main_log('No wafer picture was found.')
             elif len(im_names) == 1:
                 im_path = os.path.normpath(os.path.join(dir_sections, im_names[0]))
-                
+
                 selection_success = True
                 selected_filename = os.path.basename(im_path)
                 timestamp = str(datetime.datetime.now())
@@ -1819,7 +1819,7 @@ class ImportMagCDlg(QDialog):
                         self.cs.set_imported_img_centre_s(
                             new_img_number,
                             [width//2, height//2])
-                        
+
                         self.viewport.mv_load_last_imported_image()
                         self.viewport.mv_draw()
 
@@ -1831,12 +1831,12 @@ class ImportMagCDlg(QDialog):
             else:
                 self.add_to_main_log('There are more than 1 picture available in the folder containing the .magc section description file. Please place only one wafer picture (.tif) in the folder.')
             #--------------------------------------
-            
+
             #---------------------------------------
             # populate the grids and the sectionList
             tile_size_selector = self.comboBox_tileSize.currentIndex()
             pixel_size = self.doubleSpinBox_pixelSize.value()
-            
+
             sectionListModel = self.gui_items['sectionList'].model()
             sectionListModel.clear()
             sectionListModel.setHorizontalHeaderItem(0, QStandardItem('Section'))
@@ -1845,7 +1845,7 @@ class ImportMagCDlg(QDialog):
             for i in range(2):
                 header.setSectionResizeMode(i, QHeaderView.ResizeToContents)
             header.setStretchLastSection(True)
-            
+
             self.gm.delete_all_grids()
             for section in range(n_sections):
                 self.gm.add_new_grid()
@@ -1860,7 +1860,7 @@ class ImportMagCDlg(QDialog):
                     self.gm.calculate_grid_map(grid_number=idx)
                     self.gm.set_rotation(idx, (180-float(section['angle'])) % 360)
                     self.gm.set_grid_center_s(idx, list(map(float, section['center'])))
-                    
+
                     # populate the sectionList
                     item1 = QStandardItem(str(idx))
                     item1.setCheckable(True)
@@ -1880,15 +1880,15 @@ class ImportMagCDlg(QDialog):
             self.cfg['magc']['landmarks'] = json.dumps(landmarks)
             # xxx does importing a new magc file always require a wafer_calibration ?
             # ---------------------------------------
-            
+
             # enable wafer configuration button
             self.queue.put('MAGC ENABLE CALIBRATION')
             self.trigger.s.emit()
             self.queue.put('MAGC WAFER NOT CALIBRATED')
             self.trigger.s.emit()
-            
+
         self.accept()
-        
+
     def select_file(self):
         # # start_path = 'C:\\'
         # # selected_file = str(QFileDialog.getOpenFileName(
@@ -1900,7 +1900,7 @@ class ImportMagCDlg(QDialog):
         if len(selected_file) > 0:
             selected_file = os.path.normpath(selected_file)
             self.lineEdit_fileName.setText(selected_file)
-    
+
     def accept(self):
         super(ImportMagCDlg, self).accept()
 
@@ -1980,7 +1980,7 @@ class ImportWaferImageDlg(QDialog):
 
         if selection_success:
             super().accept()
-        
+
 #------------------------------------------------------------------------------
 
 class WaferCalibrationDlg(QDialog):
@@ -2011,10 +2011,10 @@ class WaferCalibrationDlg(QDialog):
         msg = utils.format_log_entry(msg)
         # Send entry to main window via queue and trigger:
         self.queue.put(msg)
-        self.trigger.s.emit()    
-        
+        self.trigger.s.emit()
+
     def initLandmarkList(self):
-    
+
         # initialize the landmarkTableModel (QTableView)
         landmarkModel = QStandardItemModel(0, 0)
         landmarkModel.setHorizontalHeaderItem(0, QStandardItem(''))
@@ -2030,9 +2030,9 @@ class WaferCalibrationDlg(QDialog):
         header = self.lTable.horizontalHeader()
         for i in range(8):
             header.setSectionResizeMode(i, QHeaderView.ResizeToContents)
-            
+
         self.lTable.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-        
+
         landmarkModel = self.lTable.model()
         landmarks = json.loads(self.cfg['magc']['landmarks'])
         for id, (key,sourceTarget) in enumerate(landmarks.items()):
@@ -2041,120 +2041,120 @@ class WaferCalibrationDlg(QDialog):
             item1 = QStandardItem(str(sourceTarget['source'][0]))
 
             item2 = QStandardItem(str(sourceTarget['source'][1]))
-            
+
             item5 = QPushButton('Set')
             item5.setFixedSize(QSize(50, 40))
             item5.clicked.connect(self.set_landmark(id))
-            
+
             item6 = QPushButton('Go to')
             item6.setFixedSize(QSize(60, 40))
             item6.clicked.connect(self.goto_landmark(id))
-            
+
             if self.cfg['sys']['simulation_mode'] == 'True':
                 item5.setEnabled(False)
                 item6.setEnabled(False)
-                
+
             item7 = QPushButton('Clear')
             item7.setFixedSize(QSize(60, 40))
             item7.clicked.connect(self.clear_landmark(id))
-            
+
             if 'target' in sourceTarget:
                 item0.setBackground(QColor(Qt.green))
-                
+
                 item3 = QStandardItem(str(sourceTarget['target'][0]))
                 item3.setBackground(QColor(Qt.green))
-                
+
                 item4 = QStandardItem(str(sourceTarget['target'][1]))
                 item4.setBackground(QColor(Qt.green))
             else:
                 item0.setBackground(QColor(Qt.lightGray))
-                
+
                 item3 = QStandardItem('')
                 item3.setBackground(QColor(Qt.lightGray))
-                
+
                 item4 = QStandardItem('')
                 item4.setBackground(QColor(Qt.lightGray))
-                
+
                 item6.setEnabled(False)
                 item7.setEnabled(False)
-            
+
             item3.setCheckable(False)
             item4.setCheckable(False)
-            
+
             landmarkModel.appendRow([item0, item1, item2, item3, item4])
             self.lTable.setIndexWidget(landmarkModel.index(id, 5), item5)
             self.lTable.setIndexWidget(landmarkModel.index(id, 6), item6)
             self.lTable.setIndexWidget(landmarkModel.index(id, 7), item7)
-        
+
     def clear_landmark(self, row):
         def callback_clear_landmark():
             landmarks = json.loads(self.cfg['magc']['landmarks'])
             landmarkModel = self.lTable.model()
-            
+
             item3 = self.lTable.model().item(row, 3)
             item3.setData('', Qt.DisplayRole)
             item3.setBackground(QColor(Qt.lightGray))
-            
+
             item4 = self.lTable.model().item(row, 4)
             item4.setData('', Qt.DisplayRole)
             item4.setBackground(QColor(Qt.lightGray))
-            
+
             del landmarks[str(row)]['target']
- 
+
             # update table
             item0 = self.lTable.model().item(row, 0)
             item0.setBackground(QColor(Qt.lightGray))
-            
+
             item6 = self.lTable.indexWidget(landmarkModel.index(row, 6))
             item6.setEnabled(False)
-            
+
             item7 = self.lTable.indexWidget(landmarkModel.index(row, 7))
             item7.setEnabled(False)
- 
+
             # update cfg
             self.cfg['magc']['landmarks'] = json.dumps(landmarks)
-            
+
         return callback_clear_landmark
-    
+
     def set_landmark(self, row):
         def callback_set_landmark():
             landmarks = json.loads(self.cfg['magc']['landmarks'])
             x,y = self.stage.get_xy()
             print('xlandmark, ylandmark', x, y)
             landmarkModel = self.lTable.model()
-            
+
             # update table
             item0 = self.lTable.model().item(row, 0)
             item0.setBackground(QColor(Qt.green))
-            
+
             item3 = self.lTable.model().item(row, 3)
             item3.setData(str(x), Qt.DisplayRole)
             item3.setBackground(QColor(Qt.green))
-            
+
             item4 = self.lTable.model().item(row, 4)
             item4.setData(str(y), Qt.DisplayRole)
             item4.setBackground(QColor(Qt.green))
-            
+
             item6 = self.lTable.indexWidget(landmarkModel.index(row, 6))
             item6.setEnabled(True)
-            
+
             item7 = self.lTable.indexWidget(landmarkModel.index(row, 7))
             item7.setEnabled(True)
 
             # update landmarks
-            landmarks[str(row)]['target'] = [x,y]            
+            landmarks[str(row)]['target'] = [x,y]
 
             # compute transform and update landmarks
             nLandmarks = len(landmarks)
-            calibratedLandmarkIds = [int(id) 
-                for id,landmark 
+            calibratedLandmarkIds = [int(id)
+                for id,landmark
                 in landmarks.items()
                 # if 'target' in landmark]
                 if self.lTable.model().item(int(id), 0).background().color() == QColor(Qt.green)]
             noncalibratedLandmarkIds = set(range(nLandmarks)) - set(calibratedLandmarkIds)
             print('calibratedLandmarkIds', calibratedLandmarkIds)
-            
-            
+
+
             if len(calibratedLandmarkIds) > 1: # at least 2 landmarks needed
                 # calculating the wafer transform from source to target. Using all possible landmarks available in the target (minimum 2)
 
@@ -2162,13 +2162,13 @@ class WaferCalibrationDlg(QDialog):
                     for i in range(nLandmarks)])
                 y_landmarks_source = np.array([landmarks[str(i)]['source'][1]
                     for i in range(nLandmarks)])
-                    
+
                 # taking only the source landmarks for which there is a corresponding target landmark
                 x_landmarks_source_partial = np.array([landmarks[str(i)]['source'][0]
                     for i in calibratedLandmarkIds])
                 y_landmarks_source_partial = np.array([landmarks[str(i)]['source'][1]
                     for i in calibratedLandmarkIds])
-                    
+
                 x_landmarks_target_partial = np.array([landmarks[str(i)]['target'][0]
                     for i in calibratedLandmarkIds])
                 y_landmarks_target_partial = np.array([landmarks[str(i)]['target'][1]
@@ -2182,37 +2182,37 @@ class WaferCalibrationDlg(QDialog):
                 x_target_updated_landmarks, y_target_updated_landmarks = utils.applyRigidT(
                     x_landmarks_source, y_landmarks_source, waferTransform)
 
-                # x_target_updated_landmarks = -x_target_updated_landmarks # x axis flipping on Merlin    
-                    
+                # x_target_updated_landmarks = -x_target_updated_landmarks # x axis flipping on Merlin
+
                 # set the new target landmarks that were missing
-                for noncalibratedLandmarkId in noncalibratedLandmarkIds: 
+                for noncalibratedLandmarkId in noncalibratedLandmarkIds:
                     x = x_target_updated_landmarks[noncalibratedLandmarkId]
                     y = y_target_updated_landmarks[noncalibratedLandmarkId]
                     landmarks[str(noncalibratedLandmarkId)]['target'] = [x,y]
 
                     item0 = self.lTable.model().item(noncalibratedLandmarkId, 0)
                     item0.setBackground(QColor(Qt.yellow))
-                    
+
                     item3 = self.lTable.model().item(noncalibratedLandmarkId, 3)
                     item3.setData(str(x), Qt.DisplayRole)
                     item3.setBackground(QColor(Qt.yellow))
-                    
+
                     item4 = self.lTable.model().item(noncalibratedLandmarkId, 4)
                     item4.setData(str(y), Qt.DisplayRole)
                     item4.setBackground(QColor(Qt.yellow))
-                    
+
                     item6 = self.lTable.indexWidget(landmarkModel.index(noncalibratedLandmarkId, 6))
                     item6.setEnabled(True)
-                    
+
                     item7 = self.lTable.indexWidget(landmarkModel.index(noncalibratedLandmarkId, 7))
                     item7.setEnabled(True)
-                    
-                
+
+
             # update cfg
             self.cfg['magc']['landmarks'] = json.dumps(landmarks)
 
         return callback_set_landmark
-        
+
     def goto_landmark(self, row):
         def callback_goto_landmark():
             item3 = self.lTable.model().item(row, 3)
@@ -2226,14 +2226,14 @@ class WaferCalibrationDlg(QDialog):
             # self.cs.set_mv_centre_d(self.cs.get_grid_origin_d(grid_number=row))
             # self.viewport.mv_draw()
         return callback_goto_landmark
-    
+
     def validate_calibration(self):
         landmarks = json.loads(self.cfg['magc']['landmarks'])
         sections = json.loads(self.cfg['magc']['sections'])
 
         nLandmarks = len(landmarks)
-        calibratedLandmarkIds = [int(id) 
-            for id,landmark 
+        calibratedLandmarkIds = [int(id)
+            for id,landmark
             in landmarks.items()
             if self.lTable.model().item(int(id), 0).background().color() == QColor(Qt.green)]
 
@@ -2242,36 +2242,36 @@ class WaferCalibrationDlg(QDialog):
             '''
             Cannot validate wafer calibration: all target landmarks must be validated
             ''')
-            
+
         else:
             x_landmarks_source = [landmarks[str(i)]['source'][0]
                 for i in range(len(landmarks))]
             y_landmarks_source = [landmarks[str(i)]['source'][1]
                 for i in range(len(landmarks))]
-        
+
             x_landmarks_target = [landmarks[str(i)]['target'][0]
                 for i in range(len(landmarks))]
             y_landmarks_target = [landmarks[str(i)]['target'][1]
                 for i in range(len(landmarks))]
-        
+
             print('x_landmarks_source, y_landmarks_source, x_landmarks_target, y_landmarks_target', x_landmarks_source, y_landmarks_source, x_landmarks_target, y_landmarks_target)
-        
+
             waferTransform = utils.affineT(
                 x_landmarks_source, y_landmarks_source,
                 x_landmarks_target, y_landmarks_target)
-            
+
             print('waferTransform', waferTransform)
             self.cfg['magc']['wafer_transform'] = json.dumps(waferTransform.tolist())
-            
+
             # compute new grid locations (always transform from reference source)
             nSections = len([k for k in sections.keys() if str(k).isdigit()])
             print('nSections', nSections)
-            
+
             x_source = np.array([sections[str(k)]['center'][0] for k in range(nSections)])
             y_source = np.array([sections[str(k)]['center'][1] for k in range(nSections)])
-            
+
             x_target, y_target = utils.applyAffineT(x_source, y_source, waferTransform)
-            
+
             transformAngle = -utils.getAffineRotation(waferTransform)
             angles_target = [(180 - sections[str(k)]['angle'] + transformAngle) % 360
                 for k in range(nSections)]
@@ -2283,26 +2283,26 @@ class WaferCalibrationDlg(QDialog):
                 self.cs.set_grid_origin_s(grid_number,
                     [x_target[grid_number], y_target[grid_number]])
             self.viewport.mv_draw()
-            
+
             # # # update wafer picture
-            
+
             # # landmarks_source_v = [self.cs.convert_to_v([x,y])
-                # # for (x,y) in 
+                # # for (x,y) in
                 # # zip(x_landmarks_source, y_landmarks_source)]
             # # landmarks_target_v = [self.cs.convert_to_v([x,y])
-                # # for (x,y) in 
+                # # for (x,y) in
                 # # zip(x_landmarks_target, y_landmarks_target)]
-            
+
             # # landmarks_source_v_x = [l[0] for l in landmarks_source_v]
             # # landmarks_source_v_y = [l[1] for l in landmarks_source_v]
 
             # # landmarks_target_v_x = [l[0] for l in landmarks_target_v]
             # # landmarks_target_v_y = [l[1] for l in landmarks_target_v]
-            
+
             # # waferTransform_v = utils.rigidT(
                 # # landmarks_source_v_x, landmarks_source_v_y,
                 # # landmarks_target_v_x, landmarks_target_v_y)[0]
-                
+
             imported_img_file_list = self.ovm.get_imported_img_file_list()
             wafer_img_number_list = [i for (i,f) in enumerate(imported_img_file_list)
                 if 'wafer' in os.path.basename(f)]
@@ -2318,13 +2318,13 @@ class WaferCalibrationDlg(QDialog):
                     [im_center_source_s[1]],
                     waferTransform)
                 im_center_target_s = [float(a[0]) for a in im_center_target_s]
-                    
+
                 # im_center_source_v = self.cs.convert_to_v(im_center_source_s)
                 # im_center_target_v = utils.applyRigidT(
                     # [im_center_source_v[0]],
                     # [im_center_source_v[1]],
                     # waferTransform_v)
-                
+
                 self.ovm.set_imported_img_rotation(wafer_img_number, waferTransformAngle % 360)
                 self.ovm.set_imported_img_pixel_size(wafer_img_number, 1000 * waferTransformScaling)
                 # self.ovm.set_imported_img_size_px_py(self, img_number, px, py)
@@ -2333,15 +2333,15 @@ class WaferCalibrationDlg(QDialog):
                 # update drawn image
                 self.viewport.mv_load_imported_image(wafer_img_number)
                 self.viewport.mv_draw()
-            
+
             # update cfg
             self.cfg['magc']['wafer_calibrated'] = 'True'
             self.cfg['magc']['landmarks'] = json.dumps(landmarks)
-            
+
             # update flag
             self.queue.put('MAGC WAFER CALIBRATED')
             self.trigger.s.emit()
-            
+
             self.accept()
 
 
@@ -2746,7 +2746,7 @@ class AutofocusSettingsDlg(QDialog):
     """Adjust settings for the ZEISS autofocus, the heuristic autofocus,
     and tracking the focus/stig when refocusing manually."""
 
-    def __init__(self, autofocus, grid_manager):
+    def __init__(self, autofocus, grid_manager, magc_mode=False):
         super().__init__()
         self.af = autofocus
         self.gm = grid_manager
@@ -2797,6 +2797,12 @@ class AutofocusSettingsDlg(QDialog):
         rot, scale = self.af.get_heuristic_rot_scale()
         self.doubleSpinBox_stigRot.setValue(rot)
         self.doubleSpinBox_stigScale.setValue(scale)
+        # Disable some settings if MagC mode is active
+        if magc_mode:
+            self.radioButton_useHeuristic.setEnabled(False)
+            self.radioButton_useTrackingOnly.setEnabled(False)
+            self.comboBox_trackingMode.setEnabled(False)
+            self.spinBox_interval.setEnabled(False)
 
     def group_box_update(self):
         if self.radioButton_useSmartSEM.isChecked():

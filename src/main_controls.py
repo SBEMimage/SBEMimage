@@ -58,8 +58,8 @@ from dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                         FTSetParamsDlg, FTMoveDlg, AskUserDlg, \
                         ImportImageDlg, AdjustImageDlg, DeleteImageDlg, \
                         UpdateDlg, CutDurationDlg, GridRotationDlg, AboutBox, \
-                        ImportMagCDlg, ImportWaferImageDlg, WaferCalibrationDlg             
-                        
+                        ImportMagCDlg, ImportWaferImageDlg, WaferCalibrationDlg
+
 
 
 class Trigger(QObject):
@@ -333,7 +333,7 @@ class MainControls(QMainWindow):
         header.setStretchLastSection(True)
 
         self.tableView_magc_sectionList.doubleClicked.connect(self.double_clicked_section)
-        
+
         # set logo
         self.collectomeLogo.setScaledContents(True)
         self.collectomeLogo.setPixmap(QPixmap(os.path.join('..','img','magc','collectome_logo.png')))
@@ -354,12 +354,12 @@ class MainControls(QMainWindow):
         if self.cfg['magc']['wafer_calibrated'] == 'False':
             self.pushButton_magc_addSection.setEnabled(False)
         self.pushButton_magc_deleteLastSection.clicked.connect(self.delete_last_section)
-        
+
         self.pushButton_magc_waferCalibration.setStyleSheet('background-color: lightgray')
         self.pushButton_magc_waferCalibration.setEnabled(False)
-        
-        #------- end of GUI for MagC tab ---------------------------------   
-        
+
+        #------- end of GUI for MagC tab ---------------------------------
+
     def import_system_settings(self):
         """Import settings from the system configuration file."""
         # Device names
@@ -743,13 +743,13 @@ class MainControls(QMainWindow):
         selectedRows = [id.row() for id in tableView.selectedIndexes()]
         self.magc_set_check_rows(selectedRows, Qt.Checked)
         self.magc_update_checked_sections_to_config()
-        
+
     def magc_uncheck_selected(self):
         tableView = self.tableView_magc_sectionList
         selectedRows = [id.row() for id in tableView.selectedIndexes()]
         self.magc_set_check_rows(selectedRows, Qt.Unchecked)
         self.magc_update_checked_sections_to_config()
-        
+
     def magc_invert_selection(self):
         tableView = self.tableView_magc_sectionList
         selectedRows = [id.row() for id in tableView.selectedIndexes()]
@@ -766,7 +766,7 @@ class MainControls(QMainWindow):
             if item.checkState() == Qt.Checked:
                 checkedRows.append(r)
         self.magc_select_rows(checkedRows)
-        
+
     def magc_select_string_sections(self):
         userString = self.textEdit_magc_stringSections.toPlainText()
         indexes = utils.get_indexes_from_user_string(userString)
@@ -775,8 +775,8 @@ class MainControls(QMainWindow):
             self.tableView_magc_sectionList.verticalScrollBar().setValue(indexes[0])
             self.add_to_log('Custom section string selection: ' + userString)
         else:
-            self.add_to_log('Something wrong in your input. Use 2,5,3 or 2-30 or 2-30-5')       
-        
+            self.add_to_log('Something wrong in your input. Use 2,5,3 or 2-30 or 2-30-5')
+
     def magc_set_check_rows(self, rows, check_state):
         tableView = self.tableView_magc_sectionList
         model = tableView.model()
@@ -786,7 +786,7 @@ class MainControls(QMainWindow):
             item.setCheckState(check_state)
         model.blockSignals(False)
         self.tableView_magc_sectionList.setFocus()
-       
+
     def magc_select_rows(self, rows):
         tableView = self.tableView_magc_sectionList
         tableView.clearSelection()
@@ -798,7 +798,7 @@ class MainControls(QMainWindow):
             selection.merge(QItemSelection(index, index), QItemSelectionModel.Select)
         selectionModel.select(selection, QItemSelectionModel.Select)
         self.tableView_magc_sectionList.setFocus()
-        
+
     def magc_actions_selected_sections_changed(self, changedSelected, changedDeselected):
         # update color of selected/deselected sections
         for changedSelectedIndex in changedSelected.indexes():
@@ -827,7 +827,7 @@ class MainControls(QMainWindow):
         row = doubleClickedIndex.row()
         model = doubleClickedIndex.model()
         firstColumnIndex = model.index(row, 0)
-        sectionKey = int(model.data(firstColumnIndex)) # the index and the key of the section should in theory be the same, just in case 
+        sectionKey = int(model.data(firstColumnIndex)) # the index and the key of the section should in theory be the same, just in case
         self.cs.set_mv_centre_d(self.cs.get_grid_origin_d(grid_number=row))
         self.viewport.mv_draw()
         if self.cfg['magc']['wafer_calibrated'] == 'True':
@@ -853,8 +853,8 @@ class MainControls(QMainWindow):
         self.pushButton_magc_waferCalibration.setEnabled(False)
         # change wafer flag
         self.pushButton_magc_waferCalibration.setStyleSheet('background-color: lightgray')
-        
-    def open_import_wafer_image(self):    
+
+    def open_import_wafer_image(self):
         target_dir = os.path.join(self.cfg['acq']['base_dir'], 'overviews', 'imported')
         if not os.path.exists(target_dir):
             self.try_to_create_directory(target_dir)
@@ -862,25 +862,25 @@ class MainControls(QMainWindow):
         if dialog.exec_():
             self.viewport.mv_load_last_imported_image()
             self.viewport.mv_draw()
-        
+
     def add_section(self):
         self.gm.add_new_grid()
         grid_number = self.gm.get_number_grids() - 1
         self.cs.set_grid_origin_s(grid_number, list(*self.stage.get_xy()))
-        
+
         # set same properties as previous section if it exists
         if grid_number != 0:
             self.gm.set_rotation(grid_number,
                     self.gm.get_rotation(grid_number-1))
             self.gm.set_grid_size(grid_number,
                     *self.gm.get_grid_size(grid_number-1))
-            self.gm.set_tile_size_selector(grid_number, 
+            self.gm.set_tile_size_selector(grid_number,
                     self.gm.get_tile_size_selector(grid_number-1))
             self.gm.set_pixel_size(grid_number,
                     self.gm.get_pixel_size(grid_number-1))
         self.gm.calculate_grid_map(grid_number)
         self.update_from_grid_dlg()
-        
+
         # add section to the sectionList
         item1 = QStandardItem(str(grid_number))
         item1.setCheckable(True)
@@ -891,10 +891,10 @@ class MainControls(QMainWindow):
         tableView = self.tableView_magc_sectionList
         sectionListModel = tableView.model()
         sectionListModel.appendRow([item1, item2])
-        
+
     def delete_last_section(self):
         # remove grid
-        self.gm.delete_grid()        
+        self.gm.delete_grid()
         self.update_from_grid_dlg()
         # remove section from list
         tableView = self.tableView_magc_sectionList
@@ -905,11 +905,11 @@ class MainControls(QMainWindow):
         dialog = WaferCalibrationDlg(self.cfg, self.stage, self.ovm, self.cs, self.gm, self.viewport, self.acq_queue, self.acq_trigger)
         if dialog.exec_():
             pass
-    
-    
+
+
 #--------------- End of MagC tab------------------------------------
-    
-        
+
+
 # ============== Below: all methods that open dialog windows ==================
 
     def open_save_settings_new_file_dlg(self):
@@ -1074,7 +1074,7 @@ class MainControls(QMainWindow):
     def open_export_dlg(self):
         dialog = ExportDlg(self.cfg)
         dialog.exec_()
-        
+
     def open_update_dlg(self):
         dialog = UpdateDlg()
         dialog.exec_()
@@ -1114,7 +1114,9 @@ class MainControls(QMainWindow):
             self.img_inspector.update_monitoring_settings()
 
     def open_autofocus_dlg(self):
-        dialog = AutofocusSettingsDlg(self.af, self.gm)
+        dialog = AutofocusSettingsDlg(
+            self.af, self.gm,
+            self.cfg['sys']['magc_mode'] == 'True')
         if dialog.exec_():
             if self.af.get_method() == 2:
                 self.checkBox_useAutofocus.setText('Focus tracking')
@@ -1199,8 +1201,8 @@ class MainControls(QMainWindow):
         """Set the status bar of the main controls window."""
         # self.statusbar_msg is needed to override the status tips. See event()
         self.statusbar_msg = (
-            msg 
-            + f' Active configuration: {self.cfg_file} /' 
+            msg
+            + f' Active configuration: {self.cfg_file} /'
             + f' {self.syscfg_file}')
         self.statusBar().showMessage(self.statusbar_msg)
 

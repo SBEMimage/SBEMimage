@@ -67,6 +67,10 @@ class Autofocus():
         self.astgy_est = {}
         # Computed corrections:
         self.wd_stig_corr = {}
+        # If MagC mode active, enforce method and tracking mode:
+        if self.cfg['sys']['magc_mode'] == 'True':
+            self.set_method(0)         # SmartSEM autofocus
+            self.set_tracking_mode(0)  # Track selected, approx. others
 
     def is_active(self):
         return (self.cfg['acq']['use_autofocus'] == 'True')
