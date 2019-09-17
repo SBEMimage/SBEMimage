@@ -172,7 +172,6 @@ class GridManager(object):
             grid, tile = int(grid), int(tile)
             if grid == s:
                 source_ref_tiles.append(tile)
-        print('source', s, 'source_ref_tiles', source_ref_tiles, 'ref_tile_list', ref_tile_list)
         # remove ref tiles from target
         ref_tile_list = [key for key in ref_tile_list if
             int(key.split('.')[0]) != t]

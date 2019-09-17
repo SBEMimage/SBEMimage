@@ -46,7 +46,7 @@ def main():
         sys.exit()
 
     if platform.release() == '10':
-        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, False)
 
     SBEMimage = QApplication(sys.argv)
     app_id = 'SBEMimage ' + VERSION
