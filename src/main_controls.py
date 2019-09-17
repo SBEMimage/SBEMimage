@@ -854,6 +854,18 @@ class MainControls(QMainWindow):
         # change wafer flag
         self.pushButton_magc_waferCalibration.setStyleSheet('background-color: lightgray')
 
+        # # remove wafer image (broken, do not understand why ...)
+        # imported_img_file_list = self.ovm.get_imported_img_file_list()
+        # wafer_img_number_list = [i for (i,f) in enumerate(imported_img_file_list)
+            # if 'afer' in os.path.basename(f)]
+        # if len(wafer_img_number_list) != 1:
+            # print('Did not reset wafer image because more than one wafer image found')
+        # else:
+            # wafer_img_number = wafer_img_number_list[0]
+            # print('delete wafer image number', wafer_img_number)
+            # self.ovm.delete_imported_img(wafer_img_number)
+            # self.viewport.mv_draw()
+        
     def open_import_wafer_image(self):
         target_dir = os.path.join(self.cfg['acq']['base_dir'], 'overviews', 'imported')
         if not os.path.exists(target_dir):
