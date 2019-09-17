@@ -2028,6 +2028,9 @@ class Viewport(QWidget):
         selected_sections = json.loads(self.cfg['magc']['selected_sections'])
         for selected_section in selected_sections:
             self.gm.propagate_source_grid_to_target_grid(clicked_section_number, selected_section)
+        # update the autofocus tiles (done here because no access to autofocus from inside gm)
+        ref_tiles = json.loads(self.cfg['autofocus']['ref_tiles'])
+        self.af.set_ref_tiles(ref_tiles)
         self.mv_draw()
         self.transmit_cmd('SHOW CURRENT SETTINGS') # update statistics in GUI
         
@@ -2037,6 +2040,10 @@ class Viewport(QWidget):
         for section in range(section_number):
             self.gm.propagate_source_grid_to_target_grid(clicked_section_number,
             section)
+        # update the autofocus tiles (done here because no access to autofocus from inside gm)
+        ref_tiles = json.loads(self.cfg['autofocus']['ref_tiles'])
+        self.af.set_ref_tiles(ref_tiles)
+            
         self.mv_draw()
         self.transmit_cmd('SHOW CURRENT SETTINGS') # update statistics in GUI
         
