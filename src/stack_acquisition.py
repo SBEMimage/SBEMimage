@@ -1687,7 +1687,7 @@ class Stack():
             theta = self.gm.get_rotation(grid_number)
             if theta > 0:
                 # Enable scan rotation
-                self.sem.set_scan_rotation(360 - theta)
+                self.sem.set_scan_rotation(theta)
 
             # ===================== Grid acquisition loop =========================
             for tile_number in active_tiles:

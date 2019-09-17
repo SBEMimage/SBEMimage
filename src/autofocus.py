@@ -226,7 +226,7 @@ class Autofocus():
         msg = 'CTRL: SmartSEM AF did not run.'
         if autofocus or autostig:
             # Switch to autofocus settings:
-            self.sem.apply_frame_settings(0, self.pixel_size, 0.8)
+            self.sem.apply_frame_settings(0, self.pixel_size, 3.2)
             sleep(0.5)
             if autofocus and autostig:
                 # Perform combined autofocus + autostig:
