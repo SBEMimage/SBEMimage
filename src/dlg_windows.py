@@ -3237,8 +3237,8 @@ class GrabFrameDlg(QDialog):
     def save_frame(self):
         """Save the image currently visible in SmartSEM."""
         self.file_name = self.lineEdit_filename.text()
-        success = self.sem.save_frame(
-            self.cfg['acq']['base_dir'] + '\\' + self.file_name + '.tif')
+        success = self.sem.save_frame(os.path.join(
+            self.cfg['acq']['base_dir'], self.file_name + '.tif'))
         if success:
             self.add_to_log('CTRL: Single frame saved by user.')
             QMessageBox.information(

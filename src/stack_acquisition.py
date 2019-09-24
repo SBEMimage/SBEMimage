@@ -1582,7 +1582,6 @@ class Stack():
                         grid_number,
                         tile_number,
                         self.slice_counter))
-
                 if not load_error:
                     # Assume tile_accepted, check against various errors below
                     tile_accepted = True
