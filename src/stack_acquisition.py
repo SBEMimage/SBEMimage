@@ -1468,8 +1468,9 @@ class Stack():
 
         if self.cfg['sys']['magc_mode'] == 'True':
             autostig_delay = int(self.cfg['autofocus']['autostig_delay'])
-            self.autofocus_stig_current_slice[1] = (0 == 
-                grid_number % autostig_delay)
+            self.autofocus_stig_current_slice = (
+                self.autofocus_stig_current_slice[0],
+                0 == (grid_number % autostig_delay))
         
         # Criterion whether to retake image:
         retake_img = (

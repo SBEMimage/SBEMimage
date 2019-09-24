@@ -226,8 +226,11 @@ class Autofocus():
         msg = 'CTRL: SmartSEM AF did not run.'
         if autofocus or autostig:
             # Switch to autofocus settings:
-            self.sem.apply_frame_settings(0, self.pixel_size, 3.2)
+            self.sem.apply_frame_settings(0, self.pixel_size, 0.8)
+            # # unfreeze does not seem to help to change scanrate during autofocus
+            # self.sem.sem_api.Execute('CMD_UNFREEZE_ALL')
             sleep(0.5)
+            
             if autofocus and autostig:
                 if self.cfg['sys']['magc_mode'] == 'True':
                     # SmartSEM autofocus:
@@ -238,7 +241,9 @@ class Autofocus():
                     else:
                         msg = ('CTRL: ERROR during SmartSEM autofocus '
                                'procedure.')
-
+                    
+                    sleep(0.5)
+                    
                     # SmartSEM autostig:
                     success = self.sem.run_autostig()
                     if success:
@@ -248,6 +253,8 @@ class Autofocus():
                         msg = ('CTRL: ERROR during SmartSEM autostig '
                                'procedure.')
                                
+                    sleep(0.5)
+                    
                     # SmartSEM autofocus:
                     success = self.sem.run_autofocus()
                     if success:
