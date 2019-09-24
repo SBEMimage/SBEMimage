@@ -767,7 +767,7 @@ class Stack():
                 self.tiles_acquired = []
                 self.cfg['acq']['tiles_acquired'] = '[]'
 
-            # =================== Grid acquistion loop ========================
+            # =================== Grid acquisition loop ========================
             for grid_number in range(number_grids):
                 if self.error_state > 0 or self.pause_state == 1:
                         break
@@ -797,7 +797,7 @@ class Stack():
                     self.add_to_main_log(
                         'CTRL: Skip grid %d (intervallic acquisition)'
                         % grid_number)
-            # ================ Grid acquistion loop end =======================
+            # ================ Grid acquisition loop end =======================
 
             # Reset interruption info if affected grid acquired:
             if (self.pause_state != 1
@@ -1466,6 +1466,11 @@ class Stack():
         tile_selected = False  # meaning if False: tile discarded
         tile_skipped = False   # meaning if True: tile already acquired
 
+        if self.cfg['sys']['magc_mode'] == 'True':
+            autostig_delay = int(self.cfg['autofocus']['autostig_delay'])
+            self.autofocus_stig_current_slice[1] = (0 == 
+                grid_number % autostig_delay)
+        
         # Criterion whether to retake image:
         retake_img = (
             ([grid_number, tile_number] == self.acq_interrupted_at)

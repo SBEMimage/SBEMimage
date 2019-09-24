@@ -229,15 +229,44 @@ class Autofocus():
             self.sem.apply_frame_settings(0, self.pixel_size, 3.2)
             sleep(0.5)
             if autofocus and autostig:
-                # Perform combined autofocus + autostig:
-                # Call SmartSEM routine:
-                success = self.sem.run_autofocus_stig()
-                if success:
-                    msg = ('CTRL: Completed SmartSEM autofocus + '
-                           'autostig procedure.')
+                if self.cfg['sys']['magc_mode'] == 'True':
+                    # SmartSEM autofocus:
+                    success = self.sem.run_autofocus()
+                    if success:
+                        msg = ('CTRL: Completed SmartSEM autofocus '
+                               'procedure.')
+                    else:
+                        msg = ('CTRL: ERROR during SmartSEM autofocus '
+                               'procedure.')
+
+                    # SmartSEM autostig:
+                    success = self.sem.run_autostig()
+                    if success:
+                        msg = ('CTRL: Completed SmartSEM autostig '
+                               'procedure.')
+                    else:
+                        msg = ('CTRL: ERROR during SmartSEM autostig '
+                               'procedure.')
+                               
+                    # SmartSEM autofocus:
+                    success = self.sem.run_autofocus()
+                    if success:
+                        msg = ('CTRL: Completed SmartSEM autofocus '
+                               'procedure.')
+                    else:
+                        msg = ('CTRL: ERROR during SmartSEM autofocus '
+                               'procedure.')
+                
                 else:
-                    msg = ('CTRL: ERROR during SmartSEM autofocus + '
-                           'autostig procedure.')
+                    # Perform combined autofocus + autostig:
+                    # Call SmartSEM routine:
+                    success = self.sem.run_autofocus_stig()
+                    if success:
+                        msg = ('CTRL: Completed SmartSEM autofocus + '
+                               'autostig procedure.')
+                    else:
+                        msg = ('CTRL: ERROR during SmartSEM autofocus + '
+                               'autostig procedure.')
             elif autofocus:
                 # Call SmartSEM routine:
                 success = self.sem.run_autofocus()

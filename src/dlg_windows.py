@@ -2803,6 +2803,8 @@ class AutofocusSettingsDlg(QDialog):
             self.radioButton_useTrackingOnly.setEnabled(False)
             self.comboBox_trackingMode.setEnabled(False)
             self.spinBox_interval.setEnabled(False)
+            # make autostig interval work on grids instead of slices
+            self.label_fdp_4.setText('Autostig interval (grids) ')
 
     def group_box_update(self):
         if self.radioButton_useSmartSEM.isChecked():
