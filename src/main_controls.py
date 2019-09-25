@@ -57,16 +57,14 @@ from dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                         PauseDlg, StubOVDlg, EHTDlg, GrabFrameDlg, \
                         FTSetParamsDlg, FTMoveDlg, AskUserDlg, \
                         ImportImageDlg, AdjustImageDlg, DeleteImageDlg, \
-                        UpdateDlg, CutDurationDlg, GridRotationDlg, AboutBox, \
-                        ImportMagCDlg, ImportWaferImageDlg, WaferCalibrationDlg
+                        UpdateDlg, CutDurationDlg, GridRotationDlg, AboutBox
 
-
+from magc_controls import ImportMagCDlg, ImportWaferImageDlg, WaferCalibrationDlg
 
 class Trigger(QObject):
     # A custom signal for receiving updates and requests from the viewport
     # window and the stack acquisition thread
     s = pyqtSignal()
-
 
 class MainControls(QMainWindow):
 
