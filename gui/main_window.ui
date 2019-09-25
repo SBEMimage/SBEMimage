@@ -27,10 +27,10 @@
      </rect>
     </property>
     <property name="toolTip">
-     <string/>
+     <string>To enable the MagC module: set magc_mode = True in your config file</string>
     </property>
     <property name="currentIndex">
-     <number>0</number>
+     <number>3</number>
     </property>
     <widget class="QWidget" name="mainControls">
      <attribute name="title">
@@ -2135,19 +2135,6 @@ Green: acquired</string>
        <string>Deselect all</string>
       </property>
      </widget>
-     <widget class="QPushButton" name="pushButton_magc_startAcquisition">
-      <property name="geometry">
-       <rect>
-        <x>200</x>
-        <y>450</y>
-        <width>141</width>
-        <height>40</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>START</string>
-      </property>
-     </widget>
      <widget class="QPushButton" name="pushButton_magc_selectChecked">
       <property name="geometry">
        <rect>
@@ -2278,8 +2265,8 @@ Wafer Image</string>
      <widget class="QPushButton" name="pushButton_magc_resetMagc">
       <property name="geometry">
        <rect>
-        <x>0</x>
-        <y>250</y>
+        <x>10</x>
+        <y>130</y>
         <width>138</width>
         <height>40</height>
        </rect>
@@ -2369,7 +2356,6 @@ Wafer Image</string>
      <zorder>pushButton_magc_invertSelection</zorder>
      <zorder>pushButton_magc_selectAll</zorder>
      <zorder>pushButton_magc_deselectAll</zorder>
-     <zorder>pushButton_magc_startAcquisition</zorder>
      <zorder>pushButton_magc_selectChecked</zorder>
      <zorder>label_12</zorder>
      <zorder>label_11</zorder>
@@ -2616,6 +2602,9 @@ Wafer Image</string>
   <action name="actionImportMagCMetadata">
    <property name="text">
     <string>Import MagC metadata</string>
+   </property>
+   <property name="toolTip">
+    <string>To enable the MagC module: set magc_mode = True in your config file</string>
    </property>
   </action>
   <action name="actionCutDuration">

@@ -171,8 +171,6 @@ class MainControls(QMainWindow):
         self.setFixedSize(self.size())
         self.move(1120, 20)
         self.hide() # hide window until fully initialized
-        # # Disable MagC tab at start of the program:
-        # self.tabWidget.setTabEnabled(3, False)
         # Pushbuttons
         self.pushButton_SEMSettings.clicked.connect(self.open_sem_dlg)
         self.pushButton_SEMSettings.setIcon(QIcon('..\\img\\settings.png'))
@@ -249,8 +247,6 @@ class MainControls(QMainWindow):
             self.open_cut_duration_dlg)
         self.actionExport.triggered.connect(self.open_export_dlg)
         self.actionUpdate.triggered.connect(self.open_update_dlg)
-        self.actionImportMagCMetadata.triggered.connect(
-            self.open_magc_import_dlg)
         # Buttons for testing purposes (third tab)
         self.pushButton_testGetMag.clicked.connect(self.test_get_mag)
         self.pushButton_testSetMag.clicked.connect(self.test_set_mag)
@@ -320,6 +316,14 @@ class MainControls(QMainWindow):
             int(self.cfg['monitoring']['max_log_line_count']))
 
         #------- GUI for MagC tab ---------------------------------
+        # # Disable MagC tab at start of the program:
+        if self.cfg['sys']['magc_mode'] == 'False':
+            self.tabWidget.setTabEnabled(3, False)
+            self.actionImportMagCMetadata.setEnabled(False)
+            
+        self.actionImportMagCMetadata.triggered.connect(
+            self.open_magc_import_dlg)
+        
         # initialize the sectionList (QTableView)
         sectionListModel = QStandardItemModel(0, 0)
         sectionListModel.setHorizontalHeaderItem(0, QStandardItem('Section'))
