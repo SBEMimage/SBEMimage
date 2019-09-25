@@ -27,10 +27,10 @@
      </rect>
     </property>
     <property name="toolTip">
-     <string>To enable the MagC module: set magc_mode = True in your config file</string>
+     <string/>
     </property>
     <property name="currentIndex">
-     <number>3</number>
+     <number>0</number>
     </property>
     <widget class="QWidget" name="mainControls">
      <attribute name="title">
@@ -1943,6 +1943,9 @@
      <attribute name="title">
       <string>MagC</string>
      </attribute>
+     <attribute name="toolTip">
+      <string>To enable the MagC module: set magc_mode = True in your config file</string>
+     </attribute>
      <widget class="QTableView" name="tableView_magc_sectionList">
       <property name="enabled">
        <bool>true</bool>
@@ -2400,7 +2403,7 @@ Wafer Image</string>
      <x>0</x>
      <y>0</y>
      <width>700</width>
-     <height>36</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
