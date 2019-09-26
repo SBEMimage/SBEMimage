@@ -834,8 +834,8 @@ class MainControls(QMainWindow):
         self.viewport.mv_draw()
         if self.cfg['magc']['wafer_calibrated'] == 'True':
             self.add_to_log('Section ' + str(sectionKey) + ' has been double-clicked. Moving to section...')
-            grid_center = self.gm.get_grid_center_s(grid_number=row)
-            self.stage.move_to_xy(grid_origin)
+            grid_center_s = self.gm.get_grid_center_s(grid_number=row)
+            self.stage.move_to_xy(grid_center_s)
         else:
             self.add_to_log('Section ' + str(sectionKey) + ' has been double-clicked. Wafer is not calibrated, therefore no stage movement.')
     def reset_magc(self):

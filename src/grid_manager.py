@@ -378,23 +378,25 @@ class GridManager(object):
 
     def get_grid_center_d(self, grid_number):
         """Return the SEM coordinates of the centre of the specified grid."""
-        width_d, height_d = self.get_grid_size_dx_dy(grid_number)
-        origin_dx, origin_dy = self.cs.get_grid_origin_d(grid_number)
-        tile_width_d = self.get_tile_width_d(grid_number)
-        tile_height_d = self.get_tile_height_d(grid_number)
-        # Calculate centre coordinates of unrotated grid
-        centre_dx = origin_dx - tile_width_d / 2 + width_d / 2
-        centre_dy = origin_dy - tile_height_d / 2 + height_d / 2
-        theta = radians(self.get_rotation(grid_number))
-        if theta > 0:
-            # Rotate the centre (with origin as pivot)
-            centre_dx -= origin_dx
-            centre_dy -= origin_dy
-            centre_dx_rot = centre_dx * cos(theta) - centre_dy * sin(theta)
-            centre_dy_rot = centre_dx * sin(theta) + centre_dy * cos(theta)
-            centre_dx = centre_dx_rot + origin_dx
-            centre_dy = centre_dy_rot + origin_dy
-        return centre_dx, centre_dy
+        # width_d, height_d = self.get_grid_size_dx_dy(grid_number)
+        # origin_dx, origin_dy = self.cs.get_grid_origin_d(grid_number)
+        # tile_width_d = self.get_tile_width_d(grid_number)
+        # tile_height_d = self.get_tile_height_d(grid_number)
+        # # Calculate centre coordinates of unrotated grid
+        # centre_dx = origin_dx - tile_width_d / 2 + width_d / 2
+        # centre_dy = origin_dy - tile_height_d / 2 + height_d / 2
+        # theta = radians(self.get_rotation(grid_number))
+        # if theta > 0:
+            # # Rotate the centre (with origin as pivot)
+            # centre_dx -= origin_dx
+            # centre_dy -= origin_dy
+            # centre_dx_rot = centre_dx * cos(theta) - centre_dy * sin(theta)
+            # centre_dy_rot = centre_dx * sin(theta) + centre_dy * cos(theta)
+            # centre_dx = centre_dx_rot + origin_dx
+            # centre_dy = centre_dy_rot + origin_dy
+        grid_center_s = self.get_grid_center_s(grid_number)
+        grid_center_d = self.cs.convert_to_d(grid_center_s)
+        return grid_center_d[0], grid_center_d[1]
 
     def get_grid_origin_s(self, grid_number):
         """Get the origin of the grid in stage coordinates."""
