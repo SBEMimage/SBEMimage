@@ -1653,7 +1653,7 @@ class Stack():
         active_tiles = list(self.gm.get_active_tiles(grid_number))
 
         # WD and stig must be adjusted for each tile if adaptive focus active
-        # of if autofocus is used with "track all" or "best fit" option.
+        # or if autofocus is used with "track all" or "best fit" option.
         # Otherwise self.wd_current_grid, self.stig_x_current_grid,
         # and self.stig_y_current_grid are used.
         adjust_wd_stig_for_each_tile = (
@@ -1684,9 +1684,11 @@ class Stack():
 
             tile_width, tile_height = self.gm.get_tile_size_px_py(grid_number)
 
-            # Set WD and stig settings for the current grid and lock the settings:
+            # Set WD and stig settings for the current grid and lock the settings
             if not adjust_wd_stig_for_each_tile:
-                self.set_grid_wd_stig()
+                # magc: WD/stig is kept to the current values from grid to grid
+                if self.cfg['sys']['magc_mode'] == 'False':
+                    self.set_grid_wd_stig()
                 self.lock_wd_stig()
 
             theta = self.gm.get_rotation(grid_number)
