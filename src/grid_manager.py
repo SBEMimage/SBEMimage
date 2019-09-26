@@ -376,7 +376,7 @@ class GridManager(object):
         # Now calculate new grid map:
         self.calculate_grid_map(grid_number)
 
-    def get_grid_centre_d(self, grid_number):
+    def get_grid_center_d(self, grid_number):
         """Return the SEM coordinates of the centre of the specified grid."""
         width_d, height_d = self.get_grid_size_dx_dy(grid_number)
         origin_dx, origin_dy = self.cs.get_grid_origin_d(grid_number)

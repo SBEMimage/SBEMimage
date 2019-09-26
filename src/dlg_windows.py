@@ -1336,7 +1336,7 @@ class GridRotationDlg(QDialog):
             update_viewport_with_delay_thread.start()
         if self.radioButton_pivotCentre.isChecked():
             # Get current centre of grid:
-            centre_dx, centre_dy = self.gm.get_grid_centre_d(self.selected_grid)
+            centre_dx, centre_dy = self.gm.get_grid_center_d(self.selected_grid)
             # Set new angle
             self.gm.set_rotation(
                 self.selected_grid, self.doubleSpinBox_angle.value())
