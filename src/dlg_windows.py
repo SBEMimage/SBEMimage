@@ -899,16 +899,15 @@ class DeleteImageDlg(QDialog):
 class GridSettingsDlg(QDialog):
     """Let the user change all settings for each grid."""
 
-    def __init__(self, grid_manager, sem, current_grid,
-                 config, main_window_queue, main_window_trigger, grid_number):
+    def __init__(self, grid_manager, sem, selected_grid,
+                 config, main_window_queue, main_window_trigger):
         super().__init__()
         self.gm = grid_manager
         self.sem = sem
-        self.current_grid = current_grid
+        self.current_grid = selected_grid
         self.cfg = config
         self.main_window_queue = main_window_queue
         self.main_window_trigger = main_window_trigger
-        self.grid_number = grid_number
         loadUi('..\\gui\\grid_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -916,8 +915,6 @@ class GridSettingsDlg(QDialog):
         self.show()
         # Set up grid selector:
         self.comboBox_gridSelector.addItems(self.gm.get_grid_str_list())
-        if self.grid_number is not None:
-            self.current_grid = self.grid_number
         self.comboBox_gridSelector.setCurrentIndex(self.current_grid)
         self.comboBox_gridSelector.currentIndexChanged.connect(
             self.change_grid)
