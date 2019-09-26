@@ -12,7 +12,7 @@
    started. The window contains four tabs: (1) main controls, settings, stack
    progress and main log; (2) focus tool; (3) functions for testing/debugging;
    (4) MagC module.
-   The 'Main Controls' window is a QMainWindow, and it launches the Viewport 
+   The 'Main Controls' window is a QMainWindow, and it launches the Viewport
    window as a QWidget.
 """
 
@@ -83,7 +83,7 @@ class MainControls(QMainWindow):
         utils.show_progress_in_console(30)
         self.import_system_settings()
         self.initial_setup()
-        
+
         # MagC settings:
         if self.cfg['sys']['magc_mode'] == 'True':
             self.initialize_magc_settings()
@@ -697,7 +697,7 @@ class MainControls(QMainWindow):
     def initialize_magc_gui(self):
         self.actionImportMagCMetadata.triggered.connect(
         self.open_magc_import_dlg)
-        
+
         # initialize the sectionList (QTableView)
         sectionListModel = QStandardItemModel(0, 0)
         sectionListModel.setHorizontalHeaderItem(0, QStandardItem('Section'))
@@ -835,7 +835,7 @@ class MainControls(QMainWindow):
         model = doubleClickedIndex.model()
         firstColumnIndex = model.index(row, 0)
         sectionKey = int(model.data(firstColumnIndex)) # the index and the key of the section should in theory be the same, just in case
-        self.cs.set_mv_centre_d(self.gm.get_grid_center_d(grid_number=row))
+        self.cs.set_mv_centre_d(self.gm.get_grid_centre_d(grid_number=row))
         self.viewport.mv_draw()
         if self.cfg['magc']['wafer_calibrated'] == 'True':
             self.add_to_log('Section ' + str(sectionKey) + ' has been double-clicked. Moving to section...')
@@ -868,7 +868,7 @@ class MainControls(QMainWindow):
             # print('delete wafer image number', wafer_img_number)
             # self.ovm.delete_imported_img(wafer_img_number)
             # self.viewport.mv_draw()
-        
+
     def open_import_wafer_image(self):
         target_dir = os.path.join(self.cfg['acq']['base_dir'], 'overviews', 'imported')
         if not os.path.exists(target_dir):

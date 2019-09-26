@@ -81,7 +81,7 @@ class GridManager(object):
         self.set_pixel_size(new_grid_number, 10)
         self.set_dwell_time(new_grid_number, 0.8)
         self.set_dwell_time_selector(new_grid_number, 4)
-        
+
         # set colour
         if self.cfg['sys']['magc_mode'] == 'False':
             # Choose colour not already used:
@@ -92,7 +92,7 @@ class GridManager(object):
             self.set_display_colour(new_grid_number, new_colours[0])
         else: # use green by default in magc_mode
             self.set_display_colour(new_grid_number, 1)
-        
+
         self.set_origin_wd(new_grid_number, 0)
         self.set_acq_interval(new_grid_number, 1)
         self.set_acq_interval_offset(new_grid_number, 0)
@@ -114,32 +114,32 @@ class GridManager(object):
         if s == t:
             return
         sections = json.loads(self.cfg['magc']['sections'])
-        
+
         sourceSectionCenter = np.array(sections[str(s)]['center'])
         targetSectionCenter = np.array(sections[str(t)]['center'])
-        
+
         sourceSectionAngle = sections[str(s)]['angle'] % 360
         targetSectionAngle = sections[str(t)]['angle'] % 360
-        
+
         sourceGridRotation = self.get_rotation(s)
-        
+
         sourceGridCenter = np.array(self.get_grid_center_s(s))
-        
+
         if self.cfg['magc']['wafer_calibrated'] == 'True':
             # transform back the grid coordinates in non-transformed coordinates
             waferTransform = np.array(json.loads(self.cfg['magc']['wafer_transform']))
             waferTransformInverse = utils.invertAffineT(waferTransform) # inefficient but ok for now
             result = utils.applyAffineT([sourceGridCenter[0]], [sourceGridCenter[1]], waferTransformInverse)
             sourceGridCenter = [result[0][0], result[1][0]]
-        
+
         sourceSectionGrid = sourceGridCenter - sourceSectionCenter
         sourceSectionGridDistance = np.linalg.norm(sourceSectionGrid)
         sourceSectionGridAngle = np.angle(
             np.dot(sourceSectionGrid, [1, 1j]), deg=True)
-        
+
         new_grid_rotation = ((180-targetSectionAngle + sourceGridRotation - (180-sourceSectionAngle))) % 360
         self.set_rotation(t, new_grid_rotation)
-        
+
         self.set_grid_size(t, self.get_grid_size(s))
         self.set_overlap(t, self.get_overlap(s))
         self.set_row_shift(t, self.get_row_shift(s))
@@ -161,7 +161,7 @@ class GridManager(object):
         self.set_adaptive_focus_enabled(t, self.get_adaptive_focus_enabled(s))
         self.set_adaptive_focus_tiles(t, self.get_adaptive_focus_tiles(s))
         self.set_adaptive_focus_gradient(t, self.get_adaptive_focus_gradient(s))
-        
+
         ###############################################
         # --- setting the autofocus reference tiles ---
         ref_tile_list = json.loads(self.cfg['autofocus']['ref_tiles'])
@@ -175,67 +175,67 @@ class GridManager(object):
         # remove ref tiles from target
         ref_tile_list = [key for key in ref_tile_list if
             int(key.split('.')[0]) != t]
-        
+
         # add source ref tiles to target
         for source_ref_tile in source_ref_tiles:
             ref_tile_list.append(str(t) + '.' + str(source_ref_tile))
 
         # sort the tile list
         ref_tile_list.sort()
-        
+
         # save the new tile list
         self.cfg['autofocus']['ref_tiles'] = json.dumps(ref_tile_list)
-        
+
         ###############################################
-        
+
         targetSectionGridAngle = sourceSectionGridAngle + sourceSectionAngle - targetSectionAngle
-        
+
         targetGridCenterComplex = np.dot(targetSectionCenter, [1,1j]) \
             + sourceSectionGridDistance \
             * np.exp(1j * np.radians(targetSectionGridAngle))
         targetGridCenter = np.real(targetGridCenterComplex), np.imag(targetGridCenterComplex)
-        
+
         if self.cfg['magc']['wafer_calibrated'] == 'True':
             # transform the grid coordinates to wafer coordinates
             waferTransform = np.array(json.loads(self.cfg['magc']['wafer_transform']))
             result = utils.applyAffineT([targetGridCenter[0]], [targetGridCenter[1]], waferTransform)
             targetGridCenter = [result[0][0], result[1][0]]
-        
+
         self.set_grid_center_s(t, targetGridCenter)
-        
+
         self.calculate_grid_map(t)
-        
+
     def set_grid_center_s(self, grid_number, center_s):
         current_center = np.array(self.get_grid_center_s(grid_number))
         current_origin = np.array(self.cs.get_grid_origin_s(grid_number))
         new_origin = center_s + current_origin - current_center
         self.cs.set_grid_origin_s(grid_number, new_origin)
-        
+
     def get_grid_center_s(self, grid_number):
         pixel_size = self.get_pixel_size(grid_number) / 1000
         rotation = self.get_rotation(grid_number)
 
         # origin is the center of the (0,0) tile
         origin = self.cs.get_grid_origin_s(grid_number)
-        
-        # size of the grid 
+
+        # size of the grid
         size_px, size_py = self.get_grid_size_px_py(grid_number)
         size_x = pixel_size * size_px
         size_y = pixel_size * size_py
-        
+
         # size of a tile
         tile_size_px, tile_size_py = self.get_tile_size_px_py(grid_number)
         tile_size_x = pixel_size * tile_size_px
         tile_size_y = pixel_size * tile_size_py
-        
+
         # distance along the grid axes from the center of tile (0,0) to the center of the grid
         shift_v = (size_x - tile_size_x)/2. # conceptually: go to grid top-left corner, then go to center: -tile_size_x/2. + size_x/2.
         shift_h = (size_y - tile_size_y)/2. # _v = _vertical
         shift_norm = np.linalg.norm([shift_h, shift_v])
- 
+
         # angle between horizontal axis of the grid and axis going through center of the grid and center of tile (0,0)
         shift_a = np.rad2deg(np.arctan2(shift_h , shift_v))
-        
+
         # adding the shift to the origin
         origin_c = np.dot(origin, [1, 1j]) # _c = _complex
         shift_c = shift_norm * np.exp(1j * np.radians(shift_a + rotation))
@@ -243,9 +243,9 @@ class GridManager(object):
 
         center_x = np.real(center_c)
         center_y = np.imag(center_c)
-        
-        return center_x, center_y        
-        
+
+        return center_x, center_y
+
     def delete_grid(self):
         # Delete last item from each grid variable:
         self.cs.delete_grid_origin(self.number_grids - 1)
@@ -297,7 +297,7 @@ class GridManager(object):
     def delete_all_grids(self):
         for grid_number in range(self.number_grids):
             self.delete_grid()
-            
+
     def delete_all_but_last_grid(self):
         for grid_number in range(self.number_grids - 1):
             self.delete_grid()
@@ -376,27 +376,25 @@ class GridManager(object):
         # Now calculate new grid map:
         self.calculate_grid_map(grid_number)
 
-    def get_grid_center_d(self, grid_number):
+    def get_grid_centre_d(self, grid_number):
         """Return the SEM coordinates of the centre of the specified grid."""
-        # width_d, height_d = self.get_grid_size_dx_dy(grid_number)
-        # origin_dx, origin_dy = self.cs.get_grid_origin_d(grid_number)
-        # tile_width_d = self.get_tile_width_d(grid_number)
-        # tile_height_d = self.get_tile_height_d(grid_number)
-        # # Calculate centre coordinates of unrotated grid
-        # centre_dx = origin_dx - tile_width_d / 2 + width_d / 2
-        # centre_dy = origin_dy - tile_height_d / 2 + height_d / 2
-        # theta = radians(self.get_rotation(grid_number))
-        # if theta > 0:
-            # # Rotate the centre (with origin as pivot)
-            # centre_dx -= origin_dx
-            # centre_dy -= origin_dy
-            # centre_dx_rot = centre_dx * cos(theta) - centre_dy * sin(theta)
-            # centre_dy_rot = centre_dx * sin(theta) + centre_dy * cos(theta)
-            # centre_dx = centre_dx_rot + origin_dx
-            # centre_dy = centre_dy_rot + origin_dy
-        grid_center_s = self.get_grid_center_s(grid_number)
-        grid_center_d = self.cs.convert_to_d(grid_center_s)
-        return grid_center_d[0], grid_center_d[1]
+        width_d, height_d = self.get_grid_size_dx_dy(grid_number)
+        origin_dx, origin_dy = self.cs.get_grid_origin_d(grid_number)
+        tile_width_d = self.get_tile_width_d(grid_number)
+        tile_height_d = self.get_tile_height_d(grid_number)
+        # Calculate centre coordinates of unrotated grid
+        centre_dx = origin_dx - tile_width_d / 2 + width_d / 2
+        centre_dy = origin_dy - tile_height_d / 2 + height_d / 2
+        theta = radians(self.get_rotation(grid_number))
+        if theta > 0:
+            # Rotate the centre (with origin as pivot)
+            centre_dx -= origin_dx
+            centre_dy -= origin_dy
+            centre_dx_rot = centre_dx * cos(theta) - centre_dy * sin(theta)
+            centre_dy_rot = centre_dx * sin(theta) + centre_dy * cos(theta)
+            centre_dx = centre_dx_rot + origin_dx
+            centre_dy = centre_dy_rot + origin_dy
+        return centre_dx, centre_dy
 
     def get_grid_origin_s(self, grid_number):
         """Get the origin of the grid in stage coordinates."""
@@ -766,7 +764,7 @@ class GridManager(object):
 
     def get_adaptive_focus_enabled(self, grid_number):
         return self.af_active[grid_number]
-        
+
     def get_af_tile_str_list(self, grid_number):
         str_list = []
         for tile in self.af_tiles[grid_number]:
