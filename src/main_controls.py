@@ -843,6 +843,8 @@ class MainControls(QMainWindow):
             self.add_to_log('Section ' + str(sectionKey) + ' has been double-clicked. Moving to section...')
             grid_center_s = self.gm.get_grid_center_s(grid_number=row)
             self.stage.move_to_xy(grid_center_s)
+            theta = self.gm.get_rotation(row)
+            self.sem.set_scan_rotation(theta)
         else:
             self.add_to_log('Section ' + str(sectionKey) + ' has been double-clicked. Wafer is not calibrated, therefore no stage movement.')
     def reset_magc(self):
