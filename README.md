@@ -13,7 +13,8 @@ See also: https://groups.google.com/d/forum/sbemimage (a forum to be used for fu
 
 ## Authors / Contributing
 
-Lead developer: Benjamin Titze ([btitze](https://github.com/btitze)), Friedrich Miescher Institute for Biomedical Research, Basel, Switzerland.
+Benjamin Titze ([btitze](https://github.com/btitze)), Friedrich Miescher Institute for Biomedical Research, Basel, Switzerland (lead developer); Thomas Templier, EPFL (MagC); see also: https://github.com/SBEMimage/SBEMimage/graphs/contributors
+
 Development partner(s): EPFL, Lausanne, Switzerland (CIME/BioEM)
 
 Please contact benjamin.titze ÄT fmi.ch for feedback, bug reports, or if you are interested in contributing to the development of SBEMimage. Pull requests are welcome.
