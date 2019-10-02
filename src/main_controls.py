@@ -1,19 +1,19 @@
 # -*- coding: utf-8 -*-
 
-#==============================================================================
+# ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2016-2018 Benjamin Titze,
-#   Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2016-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
-#==============================================================================
+# ==============================================================================
 
 """This module controls the main window GUI, from which acquisitions are
-   started. The window contains three tabs: (1) main controls, settings, stack
-   progress and main log; (2) focus tool; (3) functions for testing/debugging.
-   This window is a QMainWindow and it launches the Viewport window as a
-   QWidget.
+   started. The window contains four tabs: (1) main controls, settings, stack
+   progress and main log; (2) focus tool; (3) functions for testing/debugging;
+   (4) MagC module.
+   The 'Main Controls' window is a QMainWindow, and it launches the Viewport
+   window as a QWidget.
 """
 
 import os
@@ -24,11 +24,14 @@ import json
 from time import sleep
 from queue import Queue
 
-from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import QObject, Qt, QRect, QSize, pyqtSignal, QEvent
+from PyQt5.QtWidgets import QApplication, QTableWidgetSelectionRange
+from PyQt5.QtCore import QObject, Qt, QRect, QSize, pyqtSignal, QEvent, \
+                        QItemSelection, QItemSelectionModel, QModelIndex
 from PyQt5.QtGui import QIcon, QPalette, QColor, QPixmap, QKeyEvent, \
-                        QStatusTipEvent
-from PyQt5.QtWidgets import QMainWindow, QMessageBox, QInputDialog, QLineEdit
+                        QStatusTipEvent, \
+                        QStandardItem, QStandardItemModel
+from PyQt5.QtWidgets import QMainWindow, QMessageBox, QInputDialog, QLineEdit, \
+                            QHeaderView
 from PyQt5.uic import loadUi
 
 import acq_func
@@ -56,12 +59,12 @@ from dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                         ImportImageDlg, AdjustImageDlg, DeleteImageDlg, \
                         UpdateDlg, CutDurationDlg, GridRotationDlg, AboutBox
 
+from magc_controls import ImportMagCDlg, ImportWaferImageDlg, WaferCalibrationDlg
 
 class Trigger(QObject):
     # A custom signal for receiving updates and requests from the viewport
     # window and the stack acquisition thread
     s = pyqtSignal()
-
 
 class MainControls(QMainWindow):
 
@@ -80,6 +83,11 @@ class MainControls(QMainWindow):
         utils.show_progress_in_console(30)
         self.import_system_settings()
         self.initial_setup()
+
+        # MagC settings:
+        if self.cfg['sys']['magc_mode'] == 'True':
+            self.initialize_magc_settings()
+
         # Display all settings read from config file:
         self.show_current_settings()
         self.show_current_stage_xy()
@@ -168,7 +176,8 @@ class MainControls(QMainWindow):
         self.pushButton_microtomeSettings.setIcon(
             QIcon('..\\img\\settings.png'))
         self.pushButton_microtomeSettings.setIconSize(QSize(16, 16))
-        self.pushButton_gridSettings.clicked.connect(self.open_grid_dlg)
+        self.pushButton_gridSettings.clicked.connect(
+            lambda: self.open_grid_dlg(self.current_grid))
         self.pushButton_gridSettings.setIcon(QIcon('..\\img\\settings.png'))
         self.pushButton_gridSettings.setIconSize(QSize(16, 16))
         self.pushButton_OVSettings.setIcon(QIcon('..\\img\\settings.png'))
@@ -204,7 +213,8 @@ class MainControls(QMainWindow):
         # Menu bar
         self.actionSEMSettings.triggered.connect(self.open_sem_dlg)
         self.actionMicrotomeSettings.triggered.connect(self.open_microtome_dlg)
-        self.actionGridSettings.triggered.connect(self.open_grid_dlg)
+        self.actionGridSettings.triggered.connect(
+            lambda: self.open_grid_dlg(self.current_grid))
         self.actionAcquisitionSettings.triggered.connect(
             self.open_acq_settings_dlg)
         self.actionMonitoringSettings.triggered.connect(
@@ -302,6 +312,13 @@ class MainControls(QMainWindow):
         # Limit the log to user-specified number of most recent lines:
         self.textarea_log.setMaximumBlockCount(
             int(self.cfg['monitoring']['max_log_line_count']))
+
+        if self.cfg['sys']['magc_mode'] == 'False':
+            # If not in MagC mode, disable MagC tab
+            self.tabWidget.setTabEnabled(3, False)
+            self.actionImportMagCMetadata.setEnabled(False)
+        else:
+            self.initialize_magc_gui()
 
     def import_system_settings(self):
         """Import settings from the system configuration file."""
@@ -671,6 +688,261 @@ class MainControls(QMainWindow):
         self.show_estimates()
         self.viewport.mv_draw()
 
+# ----------------------------- MagC tab ---------------------------------------
+
+    def initialize_magc_settings(self):
+        self.cfg['magc']['selected_sections'] = '[]'
+        self.cfg['magc']['checked_sections'] = '[]'
+        # for now, start of SBEMimage restarts all sections and wafer_calibration
+        self.cfg['magc']['wafer_calibrated'] = 'False'
+
+    def initialize_magc_gui(self):
+        self.actionImportMagCMetadata.triggered.connect(
+        self.open_magc_import_dlg)
+
+        # initialize the sectionList (QTableView)
+        sectionListModel = QStandardItemModel(0, 0)
+        sectionListModel.setHorizontalHeaderItem(0, QStandardItem('Section'))
+        sectionListModel.setHorizontalHeaderItem(1, QStandardItem('State'))
+        self.tableView_magc_sectionList.setModel(sectionListModel)
+        self.tableView_magc_sectionList.selectionModel().selectionChanged.connect(self.magc_actions_selected_sections_changed)
+
+        header = self.tableView_magc_sectionList.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        header.setStretchLastSection(True)
+
+        self.tableView_magc_sectionList.doubleClicked.connect(self.double_clicked_section)
+
+        # set logo
+        self.collectomeLogo.setScaledContents(True)
+        self.collectomeLogo.setPixmap(QPixmap(os.path.join('..','magc','img','collectome_logo.png')))
+
+        # initialize other MagC GUI items
+        self.pushButton_magc_importMagc.clicked.connect(self.open_magc_import_dlg)
+        self.pushButton_magc_waferCalibration.clicked.connect(self.open_magc_wafer_calibration_dlg)
+        self.pushButton_magc_resetMagc.clicked.connect(self.reset_magc)
+        self.pushButton_magc_selectAll.clicked.connect(self.magc_select_all)
+        self.pushButton_magc_deselectAll.clicked.connect(self.magc_deselect_all)
+        self.pushButton_magc_checkSelected.clicked.connect(self.magc_check_selected)
+        self.pushButton_magc_uncheckSelected.clicked.connect(self.magc_uncheck_selected)
+        self.pushButton_magc_invertSelection.clicked.connect(self.magc_invert_selection)
+        self.pushButton_magc_selectChecked.clicked.connect(self.magc_select_checked)
+        self.pushButton_magc_okStringSections.clicked.connect(self.magc_select_string_sections)
+        self.pushButton_magc_importWaferImage.clicked.connect(self.open_import_wafer_image)
+        self.pushButton_magc_addSection.clicked.connect(self.add_section)
+        if self.cfg['magc']['wafer_calibrated'] == 'False':
+            self.pushButton_magc_addSection.setEnabled(False)
+        self.pushButton_magc_deleteLastSection.clicked.connect(self.delete_last_section)
+
+        self.pushButton_magc_waferCalibration.setStyleSheet('background-color: lightgray')
+        self.pushButton_magc_waferCalibration.setEnabled(False)
+
+    def magc_select_all(self):
+        tableView = self.tableView_magc_sectionList
+        model = tableView.model()
+        self.magc_select_rows(range(model.rowCount()))
+
+    def magc_deselect_all(self):
+        tableView = self.tableView_magc_sectionList
+        tableView.clearSelection()
+
+    def magc_check_selected(self):
+        tableView = self.tableView_magc_sectionList
+        selectedRows = [id.row() for id in tableView.selectedIndexes()]
+        self.magc_set_check_rows(selectedRows, Qt.Checked)
+        self.magc_update_checked_sections_to_config()
+
+    def magc_uncheck_selected(self):
+        tableView = self.tableView_magc_sectionList
+        selectedRows = [id.row() for id in tableView.selectedIndexes()]
+        self.magc_set_check_rows(selectedRows, Qt.Unchecked)
+        self.magc_update_checked_sections_to_config()
+
+    def magc_invert_selection(self):
+        tableView = self.tableView_magc_sectionList
+        selectedRows = [id.row() for id in tableView.selectedIndexes()]
+        model = tableView.model()
+        rowsToSelect = set(range(model.rowCount())) - set(selectedRows)
+        self.magc_select_rows(rowsToSelect)
+
+    def magc_select_checked(self):
+        tableView = self.tableView_magc_sectionList
+        model = tableView.model()
+        checkedRows = []
+        for r in range(model.rowCount()):
+            item = model.item(r, 0)
+            if item.checkState() == Qt.Checked:
+                checkedRows.append(r)
+        self.magc_select_rows(checkedRows)
+
+    def magc_select_string_sections(self):
+        userString = self.textEdit_magc_stringSections.toPlainText()
+        indexes = utils.get_indexes_from_user_string(userString)
+        if indexes:
+            self.magc_select_rows(indexes)
+            self.tableView_magc_sectionList.verticalScrollBar().setValue(indexes[0])
+            self.add_to_log('Custom section string selection: ' + userString)
+        else:
+            self.add_to_log('Something wrong in your input. Use 2,5,3 or 2-30 or 2-30-5')
+
+    def magc_set_check_rows(self, rows, check_state):
+        tableView = self.tableView_magc_sectionList
+        model = tableView.model()
+        model.blockSignals(True) # prevent slowness
+        for row in rows:
+            item = model.item(row, 0)
+            item.setCheckState(check_state)
+        model.blockSignals(False)
+        self.tableView_magc_sectionList.setFocus()
+
+    def magc_select_rows(self, rows):
+        tableView = self.tableView_magc_sectionList
+        tableView.clearSelection()
+        model = tableView.model()
+        selectionModel = tableView.selectionModel()
+        selection = QItemSelection()
+        for row in rows:
+            index = model.index(row, 0)
+            selection.merge(QItemSelection(index, index), QItemSelectionModel.Select)
+        selectionModel.select(selection, QItemSelectionModel.Select)
+        self.tableView_magc_sectionList.setFocus()
+
+    def magc_actions_selected_sections_changed(self, changedSelected, changedDeselected):
+        # update color of selected/deselected sections
+        for changedSelectedIndex in changedSelected.indexes():
+            row = changedSelectedIndex.row()
+            self.gm.set_display_colour(grid_number=row, colour=0)
+        for changedDeselectedIndex in changedDeselected.indexes():
+            row = changedDeselectedIndex.row()
+            self.gm.set_display_colour(grid_number=row, colour=1)
+        self.viewport.mv_draw()
+        # update config
+        tableView = self.tableView_magc_sectionList
+        selectedRows = [id.row() for id in tableView.selectedIndexes()]
+        self.cfg['magc']['selected_sections'] = json.dumps(selectedRows)
+
+    def magc_update_checked_sections_to_config(self):
+        checkedSections = []
+        tableView = self.tableView_magc_sectionList
+        model = tableView.model()
+        for r in range(model.rowCount()):
+            item = model.item(r, 0)
+            if item.checkState() == Qt.Checked:
+                checkedSections.append(r)
+        self.cfg['magc']['checked_sections'] = str(checkedSections)
+
+    def double_clicked_section(self, doubleClickedIndex):
+        row = doubleClickedIndex.row()
+        model = doubleClickedIndex.model()
+        firstColumnIndex = model.index(row, 0)
+        sectionKey = int(model.data(firstColumnIndex)) # the index and the key of the section should in theory be the same, just in case
+        self.cs.set_mv_centre_d(self.gm.get_grid_centre_d(grid_number=row))
+        self.viewport.mv_draw()
+        if self.cfg['magc']['wafer_calibrated'] == 'True':
+            self.add_to_log('Section ' + str(sectionKey) + ' has been double-clicked. Moving to section...')
+            grid_center_s = self.gm.get_grid_center_s(grid_number=row)
+            self.stage.move_to_xy(grid_center_s)
+            theta = self.gm.get_rotation(row)
+            self.sem.set_scan_rotation(theta)
+        else:
+            self.add_to_log('Section ' + str(sectionKey) + ' has been double-clicked. Wafer is not calibrated, therefore no stage movement.')
+    def reset_magc(self):
+        self.cfg['magc']['wafer_calibrated'] = 'False'
+        self.cfg['magc']['selected_sections'] = '[]'
+        self.cfg['magc']['checked_sections'] = '[]'
+        self.gm.delete_all_but_last_grid()
+        self.viewport.update_grids()
+        self.viewport.mv_draw()
+        tableModel = self.tableView_magc_sectionList.model()
+        tableModel.removeRows(0, tableModel.rowCount(), QModelIndex())
+        # unenable wafer calibration button
+        self.pushButton_magc_waferCalibration.setEnabled(False)
+        # change wafer flag
+        self.pushButton_magc_waferCalibration.setStyleSheet('background-color: lightgray')
+
+        # # remove wafer image (broken, do not understand why ...)
+        # imported_img_file_list = self.ovm.get_imported_img_file_list()
+        # wafer_img_number_list = [i for (i,f) in enumerate(imported_img_file_list)
+            # if 'afer' in os.path.basename(f)]
+        # if len(wafer_img_number_list) != 1:
+            # print('Did not reset wafer image because more than one wafer image found')
+        # else:
+            # wafer_img_number = wafer_img_number_list[0]
+            # print('delete wafer image number', wafer_img_number)
+            # self.ovm.delete_imported_img(wafer_img_number)
+            # self.viewport.mv_draw()
+
+    def open_import_wafer_image(self):
+        target_dir = os.path.join(self.cfg['acq']['base_dir'], 'overviews', 'imported')
+        if not os.path.exists(target_dir):
+            self.try_to_create_directory(target_dir)
+        dialog = ImportWaferImageDlg(self.ovm, self.cs, target_dir)
+        if dialog.exec_():
+            self.viewport.mv_load_last_imported_image()
+            self.viewport.mv_draw()
+
+    def add_section(self):
+        self.gm.add_new_grid()
+        grid_number = self.gm.get_number_grids() - 1
+        self.cs.set_grid_origin_s(grid_number, list(*self.stage.get_xy()))
+
+        # set same properties as previous section if it exists
+        if grid_number != 0:
+            self.gm.set_rotation(grid_number,
+                    self.gm.get_rotation(grid_number-1))
+            self.gm.set_grid_size(grid_number,
+                    *self.gm.get_grid_size(grid_number-1))
+            self.gm.set_tile_size_selector(grid_number,
+                    self.gm.get_tile_size_selector(grid_number-1))
+            self.gm.set_pixel_size(grid_number,
+                    self.gm.get_pixel_size(grid_number-1))
+        self.gm.calculate_grid_map(grid_number)
+        self.update_from_grid_dlg()
+
+        # add section to the sectionList
+        item1 = QStandardItem(str(grid_number))
+        item1.setCheckable(True)
+        item2 = QStandardItem('')
+        item2.setBackground(color_not_acquired)
+        item2.setCheckable(False)
+        item2.setSelectable(False)
+        tableView = self.tableView_magc_sectionList
+        sectionListModel = tableView.model()
+        sectionListModel.appendRow([item1, item2])
+
+    def delete_last_section(self):
+        # remove grid
+        self.gm.delete_grid()
+        self.update_from_grid_dlg()
+        # remove section from list
+        tableView = self.tableView_magc_sectionList
+        sectionListModel = tableView.model()
+        sectionListModel.removeRow(sectionListModel.rowCount()-1)
+
+    def open_magc_import_dlg(self):
+        gui_items = {
+        'sectionList': self.tableView_magc_sectionList,
+        }
+        dialog = ImportMagCDlg(self.cfg, self.gm, self.cs, self.stage, self.sem, self.ovm, self.viewport, gui_items, self.acq_trigger, self.acq_queue)
+        if dialog.exec_():
+            # self.tabWidget.setTabEnabled(3, True)
+            self.update_from_grid_dlg()
+
+    def open_mag_calibration_dlg(self):
+        dialog = MagCalibrationDlg(self.sem, self.ovm)
+        if dialog.exec_():
+            # Show updated OV mag:
+            self.show_current_settings()
+
+    def open_magc_wafer_calibration_dlg(self):
+        dialog = WaferCalibrationDlg(self.cfg, self.stage, self.ovm, self.cs, self.gm, self.viewport, self.acq_queue, self.acq_trigger)
+        if dialog.exec_():
+            pass
+
+# --------------------------- End of MagC tab ----------------------------------
+
+
 # ============== Below: all methods that open dialog windows ==================
 
     def open_save_settings_new_file_dlg(self):
@@ -735,12 +1007,6 @@ class MainControls(QMainWindow):
                 self.ovm.update_all_ov_debris_detections_areas(self.gm)
             self.viewport.mv_draw()
 
-    def open_mag_calibration_dlg(self):
-        dialog = MagCalibrationDlg(self.sem, self.ovm)
-        if dialog.exec_():
-            # Show updated OV mag:
-            self.show_current_settings()
-
     def open_cut_duration_dlg(self):
         dialog = CutDurationDlg(self.microtome)
         dialog.exec_()
@@ -782,9 +1048,9 @@ class MainControls(QMainWindow):
             self.viewport.mv_load_all_imported_images()
             self.viewport.mv_draw()
 
-    def open_grid_dlg(self):
-        dialog = GridSettingsDlg(self.gm, self.sem, self.current_grid,
-                                 self.acq_queue, self.acq_trigger)
+    def open_grid_dlg(self, selected_grid):
+        dialog = GridSettingsDlg(self.gm, self.sem, selected_grid,
+                                 self.cfg, self.acq_queue, self.acq_trigger)
         # self.update_from_grid_dlg() is called when user saves settings
         # or adds/deletes grids.
         dialog.exec_()
@@ -865,7 +1131,9 @@ class MainControls(QMainWindow):
             self.img_inspector.update_monitoring_settings()
 
     def open_autofocus_dlg(self):
-        dialog = AutofocusSettingsDlg(self.af, self.gm)
+        dialog = AutofocusSettingsDlg(
+            self.af, self.gm,
+            self.cfg['sys']['magc_mode'] == 'True')
         if dialog.exec_():
             if self.af.get_method() == 2:
                 self.checkBox_useAutofocus.setText('Focus tracking')
@@ -950,8 +1218,8 @@ class MainControls(QMainWindow):
         """Set the status bar of the main controls window."""
         # self.statusbar_msg is needed to override the status tips. See event()
         self.statusbar_msg = (
-            msg 
-            + f' Active configuration: {self.cfg_file} /' 
+            msg
+            + f' Active configuration: {self.cfg_file} /'
             + f' {self.syscfg_file}')
         self.statusBar().showMessage(self.statusbar_msg)
 
@@ -1102,6 +1370,14 @@ class MainControls(QMainWindow):
             self.viewport.add_to_viewport_log(msg[6:])
         elif msg[:15] == 'GET CURRENT LOG':
             self.write_current_log_to_file(msg[15:])
+        elif msg == 'MAGC WAFER CALIBRATED':
+            self.pushButton_magc_waferCalibration.setStyleSheet('background-color: green')
+        elif msg == 'MAGC WAFER NOT CALIBRATED':
+            self.pushButton_magc_waferCalibration.setStyleSheet('background-color: yellow')
+        elif msg == 'MAGC ENABLE CALIBRATION':
+            self.pushButton_magc_waferCalibration.setEnabled(True)
+        elif msg == 'MAGC UNENABLE CALIBRATION':
+            self.pushButton_magc_waferCalibration.setEnabled(False)
         else:
             # If msg is not a command, show it in log:
             self.textarea_log.appendPlainText(msg)
@@ -1134,6 +1410,9 @@ class MainControls(QMainWindow):
         elif msg[:20] == 'CHANGE GRID ROTATION':
             selected_grid = int(msg[20:])
             self.open_change_grid_rotation_dlg(selected_grid)
+        elif 'OPEN GRID SETTINGS' in msg:
+            grid_number = int(msg.split('INGS')[1])
+            self.open_grid_dlg(grid_number)
         else:
             # If msg is not a command, show it in log:
             self.textarea_log.appendPlainText(msg)
@@ -1577,7 +1856,7 @@ class MainControls(QMainWindow):
             result = QMessageBox.question(
                 self, 'Initalizing plasma cleaner',
                 'Is the plasma cleaner GV10x DS connected and switched on?',
-			    QMessageBox.Yes| QMessageBox.No)
+                QMessageBox.Yes| QMessageBox.No)
             if result == QMessageBox.Yes:
                 self.plasma_cleaner = PlasmaCleaner(
                     self.cfg['sys']['plc_com_port'])
@@ -1667,12 +1946,12 @@ class MainControls(QMainWindow):
         """Reset the acquisition status."""
         result = QMessageBox.question(
                     self, 'Reset stack',
-			        'Are you sure you want to reset the stack? The slice '
+                    'Are you sure you want to reset the stack? The slice '
                     'counter and ∆z will be set to zero. If the '
                     'current acquisition is paused or interrupted, the '
                     'status information of the current slice will be '
                     'deleted.',
-			        QMessageBox.Yes| QMessageBox.No)
+                    QMessageBox.Yes| QMessageBox.No)
         if result == QMessageBox.Yes:
             self.add_to_log('CTRL: RESET command received.')
             self.stack.reset_acquisition()

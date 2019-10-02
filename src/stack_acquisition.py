@@ -634,8 +634,11 @@ class Stack():
                 + ', Z:' + '{0:6.3f}'.format(self.stage_z_position))
 
             # Autofocus for this slice? (Method 0)
-            self.autofocus_stig_current_slice = (
-                self.af.is_active_current_slice(self.slice_counter))
+            if self.cfg['sys']['magc_mode'] == 'True':
+                self.autofocus_stig_current_slice = (True, True)
+            else:
+                self.autofocus_stig_current_slice = (
+                    self.af.is_active_current_slice(self.slice_counter))
 
             # For autofocus method 1, focus slightly up or down depending
             # on slice number:
@@ -764,7 +767,7 @@ class Stack():
                 self.tiles_acquired = []
                 self.cfg['acq']['tiles_acquired'] = '[]'
 
-            # =================== Grid acquistion loop ========================
+            # =================== Grid acquisition loop ========================
             for grid_number in range(number_grids):
                 if self.error_state > 0 or self.pause_state == 1:
                         break
@@ -794,7 +797,7 @@ class Stack():
                     self.add_to_main_log(
                         'CTRL: Skip grid %d (intervallic acquisition)'
                         % grid_number)
-            # ================ Grid acquistion loop end =======================
+            # ================ Grid acquisition loop end =======================
 
             # Reset interruption info if affected grid acquired:
             if (self.pause_state != 1
@@ -1463,6 +1466,12 @@ class Stack():
         tile_selected = False  # meaning if False: tile discarded
         tile_skipped = False   # meaning if True: tile already acquired
 
+        if self.cfg['sys']['magc_mode'] == 'True':
+            autostig_delay = int(self.cfg['autofocus']['autostig_delay'])
+            self.autofocus_stig_current_slice = (
+                self.autofocus_stig_current_slice[0],
+                0 == (grid_number % autostig_delay))
+
         # Criterion whether to retake image:
         retake_img = (
             ([grid_number, tile_number] == self.acq_interrupted_at)
@@ -1573,7 +1582,6 @@ class Stack():
                         grid_number,
                         tile_number,
                         self.slice_counter))
-
                 if not load_error:
                     # Assume tile_accepted, check against various errors below
                     tile_accepted = True
@@ -1645,7 +1653,7 @@ class Stack():
         active_tiles = list(self.gm.get_active_tiles(grid_number))
 
         # WD and stig must be adjusted for each tile if adaptive focus active
-        # of if autofocus is used with "track all" or "best fit" option.
+        # or if autofocus is used with "track all" or "best fit" option.
         # Otherwise self.wd_current_grid, self.stig_x_current_grid,
         # and self.stig_y_current_grid are used.
         adjust_wd_stig_for_each_tile = (
@@ -1676,15 +1684,19 @@ class Stack():
 
             tile_width, tile_height = self.gm.get_tile_size_px_py(grid_number)
 
-            # Set WD and stig settings for the current grid and lock the settings:
+            # Set WD and stig settings for the current grid and lock the settings
             if not adjust_wd_stig_for_each_tile:
-                self.set_grid_wd_stig()
+                # magc: WD/stig is kept to the current values from grid to grid
+                if self.cfg['sys']['magc_mode'] == 'False':
+                    self.set_grid_wd_stig()
                 self.lock_wd_stig()
 
             theta = self.gm.get_rotation(grid_number)
+            if self.cfg['sys']['magc_mode'] == 'False':
+                theta = 360 - theta
             if theta > 0:
                 # Enable scan rotation
-                self.sem.set_scan_rotation(360 - theta)
+                self.sem.set_scan_rotation(theta)
 
             # ===================== Grid acquisition loop =========================
             for tile_number in active_tiles:

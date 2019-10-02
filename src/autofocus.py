@@ -1,20 +1,18 @@
 # -*- coding: utf-8 -*-
 
-#==============================================================================
+# ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2016-2018 Benjamin Titze,
-#   Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2016-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
-#==============================================================================
+# ==============================================================================
 
 """
 This module provides automatic focusing and stigmation. Two methods are
-implemented: (1) SmartSEM autofocus called in user-specified intervals on
-selected tiles. (2) Heuristic algorithm as used in Briggman et al., 2011,
-described in Binding et al., 2012; Method (2) is experimental, testing in
-progress.
+implemented: (1) SmartSEM autofocus, which is called in user-specified
+intervals on selected tiles. (2) Heuristic algorithm as used in Briggman
+et al., 2011, described in Binding et al., 2012.
 
 """
 
@@ -67,6 +65,10 @@ class Autofocus():
         self.astgy_est = {}
         # Computed corrections:
         self.wd_stig_corr = {}
+        # If MagC mode active, enforce method and tracking mode:
+        if self.cfg['sys']['magc_mode'] == 'True':
+            self.set_method(0)         # SmartSEM autofocus
+            self.set_tracking_mode(0)  # Track selected, approx. others
 
     def is_active(self):
         return (self.cfg['acq']['use_autofocus'] == 'True')
@@ -219,38 +221,48 @@ class Autofocus():
         self.ref_tiles = []
 
     def run_zeiss_af(self, autofocus=True, autostig=True):
+        """Call the SmartSEM autofocus and autostigmation routines
+        separately, or the combined routine, or no routine at all. Return a
+        message that the routine was completed or an error message if not.
+        """
+
         msg = 'CTRL: SmartSEM AF did not run.'
         if autofocus or autostig:
             # Switch to autofocus settings:
             self.sem.apply_frame_settings(0, self.pixel_size, 0.8)
+            # unfreeze does not seem to help to change scanrate during autofocus
+            # self.sem.sem_api.Execute('CMD_UNFREEZE_ALL')
             sleep(0.5)
+
             if autofocus and autostig:
-                # Perform combined autofocus + autostig:
-                # Call SmartSEM routine:
-                success = self.sem.run_autofocus_stig()
-                if success:
-                    msg = ('CTRL: Completed SmartSEM autofocus + '
-                           'autostig procedure.')
+                if self.cfg['sys']['magc_mode'] == 'True':
+                    # Run SmartSEM autofocus-autostig-autofocus sequence:
+                    msg = 'SmartSEM autofocus-autostig-autofocus (MagC)'
+                    success = self.sem.run_autofocus()
+                    sleep(0.5)
+                    if success:
+                        success = self.sem.run_autostig()
+                        sleep(0.5)
+                        if success:
+                            success = self.sem.run_autofocus()
                 else:
-                    msg = ('CTRL: ERROR during SmartSEM autofocus + '
-                           'autostig procedure.')
+                    msg = 'SmartSEM autofocus + autostig procedure'
+                    # Perform combined autofocus + autostig:
+                    success = self.sem.run_autofocus_stig()
             elif autofocus:
-                # Call SmartSEM routine:
+                msg = 'SmartSEM autofocus procedure'
+                # Call only SmartSEM autofocus routine:
                 success = self.sem.run_autofocus()
-                if success:
-                    msg = ('CTRL: Completed SmartSEM autofocus '
-                           'procedure.')
-                else:
-                    msg = ('CTRL: ERROR during SmartSEM autofocus '
-                           'procedure.')
             else:
+                msg = 'SmartSEM autostig procedure'
+                # Call only SmartSEM autostig routine:
                 success = self.sem.run_autostig()
-                if success:
-                    msg = ('CTRL: Completed SmartSEM autostig '
-                           'procedure.')
-                else:
-                    msg = ('CTRL: ERROR during SmartSEM autostig '
-                           'procedure.')
+
+        if success:
+            msg = 'CTRL: Completed ' + msg + '.'
+        else:
+            msg = 'CTRL: ERROR during ' + msg + '.'
+
         return msg
 
     # ===== Below: Heuristic autofocus =======

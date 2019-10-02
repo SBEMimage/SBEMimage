@@ -20,6 +20,9 @@ import numpy as np
 from imageio import imwrite
 from scipy.signal import medfilt2d
 from PIL import Image
+Image.MAX_IMAGE_PIXELS = None
+
+from time import sleep
 
 import utils
 
@@ -86,9 +89,9 @@ class ImageInspector(object):
         tile_selected = False
         try:
             img = Image.open(filename)
-        except:
+        except Exception as e:
+            print(repr(e))
             load_error = True
-
         if not load_error:
             img = np.array(img)
             height, width = img.shape[0], img.shape[1]
@@ -101,8 +104,8 @@ class ImageInspector(object):
             preview_img = Image.frombytes(
                 'L', (width, height),
                 img.tostring()).resize((512, 384), resample=2)
-            preview_img.save(
-                self.base_dir + '\\workspace\\' + tile_key + '.png')
+            preview_img.save(os.path.join(
+                self.base_dir, 'workspace', tile_key + '.png'))
 
             # calculate mean and stddev:
             mean = np.mean(img)

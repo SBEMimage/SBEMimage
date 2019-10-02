@@ -643,7 +643,8 @@ class SEM_SmartSEM(SEM):
             if timeout_counter > 60:
                 ret_val = 1
                 break
-        self.sem_api.Execute('CMD_FREEZE_ALL')
+        if self.cfg['sys']['magc_mode'] == 'False':
+            self.sem_api.Execute('CMD_FREEZE_ALL')
         # Error state is set in stack_acquisition.py when this function is
         # called via autofocus.py
         return (ret_val == 0)
@@ -661,7 +662,8 @@ class SEM_SmartSEM(SEM):
             if timeout_counter > 60:
                 ret_val = 1
                 break
-        self.sem_api.Execute('CMD_FREEZE_ALL')
+        if self.cfg['sys']['magc_mode'] == 'False':
+            self.sem_api.Execute('CMD_FREEZE_ALL')
         # Error state is set in stack_acquisition.py when this function is
         # called via autofocus.py
         return (ret_val == 0)

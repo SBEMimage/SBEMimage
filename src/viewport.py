@@ -17,6 +17,7 @@
 
 import os
 import datetime
+import json
 import numpy as np
 import threading
 from time import time, sleep
@@ -864,6 +865,13 @@ class Viewport(QWidget):
             action_statistics = menu.addAction(f'Load {selected} statistics')
             action_statistics.triggered.connect(self.m_load_selected)
             menu.addSeparator()
+            if self.selected_grid is not None:
+                action_openGridSettings = menu.addAction(
+                    f'Open settings of grid {self.selected_grid}')
+            else:
+                action_openGridSettings = menu.addAction(
+                    'Open settings of selected grid')
+            action_openGridSettings.triggered.connect(self.mv_open_grid_settings)
             action_selectAll = menu.addAction('Select all tiles ' + grid_str)
             action_selectAll.triggered.connect(self.mv_select_all_tiles)
             action_deselectAll = menu.addAction(
@@ -905,11 +913,22 @@ class Viewport(QWidget):
             action_deleteImported.triggered.connect(
                 self.mv_delete_imported_image)
 
+            #----- MagC items -----
+            if (self.cfg['sys']['magc_mode'] == 'True'
+                and self.selected_grid is not None):
+                menu.addSeparator()
+                action13 = menu.addAction('MagC|Propagate grid properties to all sections')
+                action13.triggered.connect(self.mv_propagate_grid_all_sections)
+                action14 = menu.addAction('MagC|Propagate grid properties to selected sections')
+                action14.triggered.connect(self.mv_propagate_grid_selected_sections)
+            #----- End of MagC items -----
+
             if (self.selected_tile is None) and (self.selected_ov is None):
                 action_sliceViewer.setEnabled(False)
                 action_focusTool.setEnabled(False)
                 action_statistics.setEnabled(False)
             if self.selected_grid is None:
+                action_openGridSettings.setEnabled(False)
                 action_selectAll.setEnabled(False)
                 action_deselectAll.setEnabled(False)
                 action_changeRotation.setEnabled(False)
@@ -975,6 +994,11 @@ class Viewport(QWidget):
         # First, show stub OV if option selected:
         if self.show_stub_ov and self.stub_ov_exists:
             self.mv_place_stub_overview()
+        # For MagC: show imported images before drawing grids
+        if (self.show_imported and self.number_imported > 0
+            and self.cfg['sys']['magc_mode'] == 'True'):
+            for i in range(self.number_imported):
+                self.mv_place_imported_img(i)
         # Place OV overviews over stub OV:
         if self.mv_current_ov == -1:
             for i in range(self.number_ov):
@@ -1001,7 +1025,8 @@ class Viewport(QWidget):
             self.mv_place_grid(self.mv_current_grid, show_grid,
                                show_previews, with_gaps, suppress_labels)
         # Finally, show imported images:
-        if self.show_imported and (self.number_imported > 0):
+        if (self.show_imported and self.number_imported > 0
+            and self.cfg['sys']['magc_mode'] == 'False'):
             for i in range(self.number_imported):
                 self.mv_place_imported_img(i)
         # Show stage boundaries (motor limits)
@@ -1927,6 +1952,9 @@ class Viewport(QWidget):
     def mv_change_grid_rotation(self):
         self.transmit_cmd('CHANGE GRID ROTATION' + str(self.selected_grid))
 
+    def mv_open_grid_settings(self):
+        self.transmit_cmd('OPEN GRID SETTINGS' + str(self.selected_grid))
+
     def mv_toggle_tile_autofocus(self):
         if self.selected_grid is not None and self.selected_tile is not None:
             ref_tiles = self.af.get_ref_tiles()
@@ -1999,6 +2027,38 @@ class Viewport(QWidget):
         self.cfg['viewport']['show_stub_ov'] = 'True'
         self.mv_load_stub_overview()
         self.mv_draw()
+
+    # --------------------- MagC functions in Viewport -------------------------
+
+    def mv_propagate_grid_selected_sections(self):
+        clicked_section_number = self.selected_grid
+        selected_sections = json.loads(self.cfg['magc']['selected_sections'])
+        for selected_section in selected_sections:
+            self.gm.propagate_source_grid_to_target_grid(clicked_section_number,
+                                                         selected_section)
+        # update the autofocus tiles
+        # (done here because no access to autofocus from inside gm)
+        ref_tiles = json.loads(self.cfg['autofocus']['ref_tiles'])
+        self.af.set_ref_tiles(ref_tiles)
+        self.mv_draw()
+        self.transmit_cmd('SHOW CURRENT SETTINGS') # update statistics in GUI
+
+    def mv_propagate_grid_all_sections(self):
+        clicked_section_number = self.selected_grid
+        section_number = self.gm.get_number_grids()
+        for section in range(section_number):
+            self.gm.propagate_source_grid_to_target_grid(clicked_section_number,
+                                                         section)
+        # update the autofocus tiles
+        # (done here because no access to autofocus from inside gm)
+        ref_tiles = json.loads(self.cfg['autofocus']['ref_tiles'])
+        self.af.set_ref_tiles(ref_tiles)
+
+        self.mv_draw()
+        self.transmit_cmd('SHOW CURRENT SETTINGS') # update statistics in GUI
+
+    # ------------------- End of MagC functions in Viewport --------------------
+
 
 # =================== Below: Slice Viewer (sv) functions ======================
 

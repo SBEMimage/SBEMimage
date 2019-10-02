@@ -43,7 +43,6 @@ from PyQt5.QtWidgets import QApplication, QDialog, QMessageBox, \
 import utils
 import acq_func
 
-
 class Trigger(QObject):
     """Custom signal for updating GUI from within running threads."""
     s = pyqtSignal()
@@ -900,12 +899,13 @@ class DeleteImageDlg(QDialog):
 class GridSettingsDlg(QDialog):
     """Let the user change all settings for each grid."""
 
-    def __init__(self, grid_manager, sem, current_grid,
-                 main_window_queue, main_window_trigger):
+    def __init__(self, grid_manager, sem, selected_grid,
+                 config, main_window_queue, main_window_trigger):
         super().__init__()
         self.gm = grid_manager
         self.sem = sem
-        self.current_grid = current_grid
+        self.current_grid = selected_grid
+        self.cfg = config
         self.main_window_queue = main_window_queue
         self.main_window_trigger = main_window_trigger
         loadUi('..\\gui\\grid_settings_dlg.ui', self)
@@ -947,6 +947,9 @@ class GridSettingsDlg(QDialog):
         self.update_buttons()
         self.show_current_settings()
         self.show_tile_size_and_dose()
+        # inactivating add grid in magc_mode (should be done in magc panel instead)
+        if self.cfg['sys']['magc_mode'] == 'True':
+            self.pushButton_addGrid.setEnabled(False)
 
     def show_current_settings(self):
         self.comboBox_colourSelector.setCurrentIndex(
@@ -1691,7 +1694,6 @@ class ExportDlg(QDialog):
         self.pushButton_export.setEnabled(True)
         QApplication.processEvents()
 
-#------------------------------------------------------------------------------
 
 class UpdateDlg(QDialog):
     """Update SBEMimage by downloading latest version from GitHub."""
@@ -2089,7 +2091,7 @@ class AutofocusSettingsDlg(QDialog):
     """Adjust settings for the ZEISS autofocus, the heuristic autofocus,
     and tracking the focus/stig when refocusing manually."""
 
-    def __init__(self, autofocus, grid_manager):
+    def __init__(self, autofocus, grid_manager, magc_mode=False):
         super().__init__()
         self.af = autofocus
         self.gm = grid_manager
@@ -2140,6 +2142,14 @@ class AutofocusSettingsDlg(QDialog):
         rot, scale = self.af.get_heuristic_rot_scale()
         self.doubleSpinBox_stigRot.setValue(rot)
         self.doubleSpinBox_stigScale.setValue(scale)
+        # Disable some settings if MagC mode is active
+        if magc_mode:
+            self.radioButton_useHeuristic.setEnabled(False)
+            self.radioButton_useTrackingOnly.setEnabled(False)
+            self.comboBox_trackingMode.setEnabled(False)
+            self.spinBox_interval.setEnabled(False)
+            # make autostig interval work on grids instead of slices
+            self.label_fdp_4.setText('Autostig interval (grids) ')
 
     def group_box_update(self):
         if self.radioButton_useSmartSEM.isChecked():
@@ -2572,8 +2582,8 @@ class GrabFrameDlg(QDialog):
     def save_frame(self):
         """Save the image currently visible in SmartSEM."""
         self.file_name = self.lineEdit_filename.text()
-        success = self.sem.save_frame(
-            self.cfg['acq']['base_dir'] + '\\' + self.file_name + '.tif')
+        success = self.sem.save_frame(os.path.join(
+            self.cfg['acq']['base_dir'], self.file_name + '.tif'))
         if success:
             self.add_to_log('CTRL: Single frame saved by user.')
             QMessageBox.information(
