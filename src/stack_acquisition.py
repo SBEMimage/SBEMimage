@@ -1471,7 +1471,7 @@ class Stack():
             self.autofocus_stig_current_slice = (
                 self.autofocus_stig_current_slice[0],
                 0 == (grid_number % autostig_delay))
-        
+
         # Criterion whether to retake image:
         retake_img = (
             ([grid_number, tile_number] == self.acq_interrupted_at)
@@ -1692,6 +1692,8 @@ class Stack():
                 self.lock_wd_stig()
 
             theta = self.gm.get_rotation(grid_number)
+            if self.cfg['sys']['magc_mode'] == 'False':
+                theta = 360 - theta
             if theta > 0:
                 # Enable scan rotation
                 self.sem.set_scan_rotation(theta)
