@@ -912,7 +912,7 @@ class Viewport(QWidget):
             action_deleteImported = menu.addAction('Delete imported image')
             action_deleteImported.triggered.connect(
                 self.mv_delete_imported_image)
-            
+
             #----- MagC items -----
             if (self.cfg['sys']['magc_mode'] == 'True'
                 and self.selected_grid is not None):
@@ -1952,9 +1952,9 @@ class Viewport(QWidget):
     def mv_change_grid_rotation(self):
         self.transmit_cmd('CHANGE GRID ROTATION' + str(self.selected_grid))
 
-    def mv_open_grid_settings(self):    
+    def mv_open_grid_settings(self):
         self.transmit_cmd('OPEN GRID SETTINGS' + str(self.selected_grid))
-        
+
     def mv_toggle_tile_autofocus(self):
         if self.selected_grid is not None and self.selected_tile is not None:
             ref_tiles = self.af.get_ref_tiles()
@@ -2028,30 +2028,38 @@ class Viewport(QWidget):
         self.mv_load_stub_overview()
         self.mv_draw()
 
+    # --------------------- MagC functions in Viewport -------------------------
+
     def mv_propagate_grid_selected_sections(self):
         clicked_section_number = self.selected_grid
         selected_sections = json.loads(self.cfg['magc']['selected_sections'])
         for selected_section in selected_sections:
-            self.gm.propagate_source_grid_to_target_grid(clicked_section_number, selected_section)
-        # update the autofocus tiles (done here because no access to autofocus from inside gm)
+            self.gm.propagate_source_grid_to_target_grid(clicked_section_number,
+                                                         selected_section)
+        # update the autofocus tiles
+        # (done here because no access to autofocus from inside gm)
         ref_tiles = json.loads(self.cfg['autofocus']['ref_tiles'])
         self.af.set_ref_tiles(ref_tiles)
         self.mv_draw()
         self.transmit_cmd('SHOW CURRENT SETTINGS') # update statistics in GUI
-        
+
     def mv_propagate_grid_all_sections(self):
         clicked_section_number = self.selected_grid
         section_number = self.gm.get_number_grids()
         for section in range(section_number):
             self.gm.propagate_source_grid_to_target_grid(clicked_section_number,
-            section)
-        # update the autofocus tiles (done here because no access to autofocus from inside gm)
+                                                         section)
+        # update the autofocus tiles
+        # (done here because no access to autofocus from inside gm)
         ref_tiles = json.loads(self.cfg['autofocus']['ref_tiles'])
         self.af.set_ref_tiles(ref_tiles)
-            
+
         self.mv_draw()
         self.transmit_cmd('SHOW CURRENT SETTINGS') # update statistics in GUI
-        
+
+    # ------------------- End of MagC functions in Viewport --------------------
+
+
 # =================== Below: Slice Viewer (sv) functions ======================
 
     def sv_initialize(self):
