@@ -716,7 +716,7 @@ class MainControls(QMainWindow):
 
         # set logo
         self.collectomeLogo.setScaledContents(True)
-        self.collectomeLogo.setPixmap(QPixmap(os.path.join('..','img','magc','collectome_logo.png')))
+        self.collectomeLogo.setPixmap(QPixmap(os.path.join('..','magc','img','collectome_logo.png')))
 
         # initialize other MagC GUI items
         self.pushButton_magc_importMagc.clicked.connect(self.open_magc_import_dlg)

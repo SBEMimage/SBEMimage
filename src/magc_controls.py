@@ -237,7 +237,7 @@ class ImportMagCDlg(QDialog):
                 # # start_path,
                 # # 'MagC files (*.magc)'
                 # # )[0])
-        selected_file = os.path.join('..', 'magc_433_sections.magc')
+        selected_file = os.path.join('..', 'magc', 'example', 'magc_433_sections.magc')
         if len(selected_file) > 0:
             selected_file = os.path.normpath(selected_file)
             self.lineEdit_fileName.setText(selected_file)
