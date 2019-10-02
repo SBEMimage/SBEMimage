@@ -981,7 +981,7 @@ class GridManager(object):
 
 # ----------------------------- MagC functions ---------------------------------
 
-def propagate_source_grid_to_target_grid(self, source_grid_number,
+    def propagate_source_grid_to_target_grid(self, source_grid_number,
         target_grid_number):
         s = source_grid_number
         t = target_grid_number
