@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 
-#==============================================================================
+# ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2016-2018 Benjamin Titze,
-#   Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2016-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
-#==============================================================================
+# ==============================================================================
 
 """This module manages the grids. It holds all the grid parameters and provides
    getter and setter access to other modules, adds and deletes grids,
@@ -60,10 +59,10 @@ class GridManager(object):
         new_grid_number = self.number_grids
         # Position new grid next to the previous grid (if it exists)
         if new_grid_number == 0:
-            x_pos, y_pos = 0,0
+            x_pos, y_pos = 0, 0
         else:
-            x_pos, y_pos = self.cs.get_grid_origin_s(new_grid_number-1)
-        self.cs.set_grid_origin_s(new_grid_number, [x_pos, y_pos+50])
+            x_pos, y_pos = self.cs.get_grid_origin_s(new_grid_number - 1)
+        self.cs.set_grid_origin_s(new_grid_number, [x_pos, y_pos + 50])
         self.set_grid_size(new_grid_number, [5, 5])
         self.set_rotation(new_grid_number, 0)
         self.set_overlap(new_grid_number, 200)
@@ -106,145 +105,6 @@ class GridManager(object):
         self.initialize_wd_stig_map(new_grid_number)
         self.number_grids += 1
         self.cfg['grids']['number_grids'] = str(self.number_grids)
-
-    def propagate_source_grid_to_target_grid(self, source_grid_number,
-        target_grid_number):
-        s = source_grid_number
-        t = target_grid_number
-        if s == t:
-            return
-        sections = json.loads(self.cfg['magc']['sections'])
-
-        sourceSectionCenter = np.array(sections[str(s)]['center'])
-        targetSectionCenter = np.array(sections[str(t)]['center'])
-
-        sourceSectionAngle = sections[str(s)]['angle'] % 360
-        targetSectionAngle = sections[str(t)]['angle'] % 360
-
-        sourceGridRotation = self.get_rotation(s)
-
-        sourceGridCenter = np.array(self.get_grid_center_s(s))
-
-        if self.cfg['magc']['wafer_calibrated'] == 'True':
-            # transform back the grid coordinates in non-transformed coordinates
-            waferTransform = np.array(json.loads(self.cfg['magc']['wafer_transform']))
-            waferTransformInverse = utils.invertAffineT(waferTransform) # inefficient but ok for now
-            result = utils.applyAffineT([sourceGridCenter[0]], [sourceGridCenter[1]], waferTransformInverse)
-            sourceGridCenter = [result[0][0], result[1][0]]
-
-        sourceSectionGrid = sourceGridCenter - sourceSectionCenter
-        sourceSectionGridDistance = np.linalg.norm(sourceSectionGrid)
-        sourceSectionGridAngle = np.angle(
-            np.dot(sourceSectionGrid, [1, 1j]), deg=True)
-
-        new_grid_rotation = ((180-targetSectionAngle + sourceGridRotation - (180-sourceSectionAngle))) % 360
-        self.set_rotation(t, new_grid_rotation)
-
-        self.set_grid_size(t, self.get_grid_size(s))
-        self.set_overlap(t, self.get_overlap(s))
-        self.set_row_shift(t, self.get_row_shift(s))
-        self.set_number_active_tiles(t, self.get_number_active_tiles(s))
-        self.set_active_tiles(t, self.get_active_tiles(s))
-        if len(self.sem.STORE_RES) > 4:
-            # Merlin
-            self.set_tile_size_px_py(t, self.get_tile_size_px_py(s))
-            self.set_tile_size_selector(t, self.get_tile_size_selector(s))
-        else:
-            # Sigma
-            self.set_tile_size_px_py(t, self.get_tile_size_px_py(s))
-            self.set_tile_size_selector(t, self.get_tile_size_selector(s))
-        self.set_pixel_size(t, self.get_pixel_size(s))
-        self.set_dwell_time(t, self.get_dwell_time(s))
-        self.set_dwell_time_selector(t, self.get_dwell_time_selector(s))
-        self.set_acq_interval(t, self.get_acq_interval(s))
-        self.set_acq_interval_offset(t, self.get_acq_interval_offset(s))
-        self.set_adaptive_focus_enabled(t, self.get_adaptive_focus_enabled(s))
-        self.set_adaptive_focus_tiles(t, self.get_adaptive_focus_tiles(s))
-        self.set_adaptive_focus_gradient(t, self.get_adaptive_focus_gradient(s))
-
-        ###############################################
-        # --- setting the autofocus reference tiles ---
-        ref_tile_list = json.loads(self.cfg['autofocus']['ref_tiles'])
-        # get ref tiles from source
-        source_ref_tiles = []
-        for tile_key in ref_tile_list:
-            grid, tile = tile_key.split('.')
-            grid, tile = int(grid), int(tile)
-            if grid == s:
-                source_ref_tiles.append(tile)
-        # remove ref tiles from target
-        ref_tile_list = [key for key in ref_tile_list if
-            int(key.split('.')[0]) != t]
-
-        # add source ref tiles to target
-        for source_ref_tile in source_ref_tiles:
-            ref_tile_list.append(str(t) + '.' + str(source_ref_tile))
-
-        # sort the tile list
-        ref_tile_list.sort()
-
-        # save the new tile list
-        self.cfg['autofocus']['ref_tiles'] = json.dumps(ref_tile_list)
-
-        ###############################################
-
-        targetSectionGridAngle = sourceSectionGridAngle + sourceSectionAngle - targetSectionAngle
-
-        targetGridCenterComplex = np.dot(targetSectionCenter, [1,1j]) \
-            + sourceSectionGridDistance \
-            * np.exp(1j * np.radians(targetSectionGridAngle))
-        targetGridCenter = np.real(targetGridCenterComplex), np.imag(targetGridCenterComplex)
-
-        if self.cfg['magc']['wafer_calibrated'] == 'True':
-            # transform the grid coordinates to wafer coordinates
-            waferTransform = np.array(json.loads(self.cfg['magc']['wafer_transform']))
-            result = utils.applyAffineT([targetGridCenter[0]], [targetGridCenter[1]], waferTransform)
-            targetGridCenter = [result[0][0], result[1][0]]
-
-        self.set_grid_center_s(t, targetGridCenter)
-
-        self.calculate_grid_map(t)
-
-    def set_grid_center_s(self, grid_number, center_s):
-        current_center = np.array(self.get_grid_center_s(grid_number))
-        current_origin = np.array(self.cs.get_grid_origin_s(grid_number))
-        new_origin = center_s + current_origin - current_center
-        self.cs.set_grid_origin_s(grid_number, new_origin)
-
-    def get_grid_center_s(self, grid_number):
-        pixel_size = self.get_pixel_size(grid_number) / 1000
-        rotation = self.get_rotation(grid_number)
-
-        # origin is the center of the (0,0) tile
-        origin = self.cs.get_grid_origin_s(grid_number)
-
-        # size of the grid
-        size_px, size_py = self.get_grid_size_px_py(grid_number)
-        size_x = pixel_size * size_px
-        size_y = pixel_size * size_py
-
-        # size of a tile
-        tile_size_px, tile_size_py = self.get_tile_size_px_py(grid_number)
-        tile_size_x = pixel_size * tile_size_px
-        tile_size_y = pixel_size * tile_size_py
-
-        # distance along the grid axes from the center of tile (0,0) to the center of the grid
-        shift_v = (size_x - tile_size_x)/2. # conceptually: go to grid top-left corner, then go to center: -tile_size_x/2. + size_x/2.
-        shift_h = (size_y - tile_size_y)/2. # _v = _vertical
-        shift_norm = np.linalg.norm([shift_h, shift_v])
-
-        # angle between horizontal axis of the grid and axis going through center of the grid and center of tile (0,0)
-        shift_a = np.rad2deg(np.arctan2(shift_h , shift_v))
-
-        # adding the shift to the origin
-        origin_c = np.dot(origin, [1, 1j]) # _c = _complex
-        shift_c = shift_norm * np.exp(1j * np.radians(shift_a + rotation))
-        center_c = origin_c + shift_c
-
-        center_x = np.real(center_c)
-        center_y = np.imag(center_c)
-
-        return center_x, center_y
 
     def delete_grid(self):
         # Delete last item from each grid variable:
@@ -293,14 +153,6 @@ class GridManager(object):
         # Number of grids:
         self.number_grids -= 1
         self.cfg['grids']['number_grids'] = str(self.number_grids)
-
-    def delete_all_grids(self):
-        for grid_number in range(self.number_grids):
-            self.delete_grid()
-
-    def delete_all_but_last_grid(self):
-        for grid_number in range(self.number_grids - 1):
-            self.delete_grid()
 
     def get_number_grids(self):
         return self.number_grids
@@ -500,7 +352,7 @@ class GridManager(object):
         self.cfg['grids']['pixel_size'] = str(self.pixel_size)
 
     def get_dwell_time(self, grid_number):
-            return self.dwell_time[grid_number]
+        return self.dwell_time[grid_number]
 
     def get_dwell_time_list(self):
         return self.dwell_time
@@ -761,9 +613,6 @@ class GridManager(object):
         else:
             self.af_active[grid_number] = 0
         self.cfg['grids']['use_adaptive_focus'] = str(self.af_active)
-
-    def get_adaptive_focus_enabled(self, grid_number):
-        return self.af_active[grid_number]
 
     def get_af_tile_str_list(self, grid_number):
         str_list = []
@@ -1129,3 +978,157 @@ class GridManager(object):
         max_dy, min_dy = max(points_y), min(points_y)
 
         return min_dx, max_dx, min_dy, max_dy
+
+# ----------------------------- MagC functions ---------------------------------
+
+def propagate_source_grid_to_target_grid(self, source_grid_number,
+        target_grid_number):
+        s = source_grid_number
+        t = target_grid_number
+        if s == t:
+            return
+        sections = json.loads(self.cfg['magc']['sections'])
+
+        sourceSectionCenter = np.array(sections[str(s)]['center'])
+        targetSectionCenter = np.array(sections[str(t)]['center'])
+
+        sourceSectionAngle = sections[str(s)]['angle'] % 360
+        targetSectionAngle = sections[str(t)]['angle'] % 360
+
+        sourceGridRotation = self.get_rotation(s)
+
+        sourceGridCenter = np.array(self.get_grid_center_s(s))
+
+        if self.cfg['magc']['wafer_calibrated'] == 'True':
+            # transform back the grid coordinates in non-transformed coordinates
+            waferTransform = np.array(json.loads(self.cfg['magc']['wafer_transform']))
+            waferTransformInverse = utils.invertAffineT(waferTransform) # inefficient but ok for now
+            result = utils.applyAffineT([sourceGridCenter[0]], [sourceGridCenter[1]], waferTransformInverse)
+            sourceGridCenter = [result[0][0], result[1][0]]
+
+        sourceSectionGrid = sourceGridCenter - sourceSectionCenter
+        sourceSectionGridDistance = np.linalg.norm(sourceSectionGrid)
+        sourceSectionGridAngle = np.angle(
+            np.dot(sourceSectionGrid, [1, 1j]), deg=True)
+
+        new_grid_rotation = ((180-targetSectionAngle + sourceGridRotation - (180-sourceSectionAngle))) % 360
+        self.set_rotation(t, new_grid_rotation)
+
+        self.set_grid_size(t, self.get_grid_size(s))
+        self.set_overlap(t, self.get_overlap(s))
+        self.set_row_shift(t, self.get_row_shift(s))
+        self.set_number_active_tiles(t, self.get_number_active_tiles(s))
+        self.set_active_tiles(t, self.get_active_tiles(s))
+        if len(self.sem.STORE_RES) > 4:
+            # Merlin
+            self.set_tile_size_px_py(t, self.get_tile_size_px_py(s))
+            self.set_tile_size_selector(t, self.get_tile_size_selector(s))
+        else:
+            # Sigma
+            self.set_tile_size_px_py(t, self.get_tile_size_px_py(s))
+            self.set_tile_size_selector(t, self.get_tile_size_selector(s))
+        self.set_pixel_size(t, self.get_pixel_size(s))
+        self.set_dwell_time(t, self.get_dwell_time(s))
+        self.set_dwell_time_selector(t, self.get_dwell_time_selector(s))
+        self.set_acq_interval(t, self.get_acq_interval(s))
+        self.set_acq_interval_offset(t, self.get_acq_interval_offset(s))
+        self.set_adaptive_focus_enabled(t, self.get_adaptive_focus_enabled(s))
+        self.set_adaptive_focus_tiles(t, self.get_adaptive_focus_tiles(s))
+        self.set_adaptive_focus_gradient(t, self.get_adaptive_focus_gradient(s))
+
+        ###############################################
+        # --- setting the autofocus reference tiles ---
+        ref_tile_list = json.loads(self.cfg['autofocus']['ref_tiles'])
+        # get ref tiles from source
+        source_ref_tiles = []
+        for tile_key in ref_tile_list:
+            grid, tile = tile_key.split('.')
+            grid, tile = int(grid), int(tile)
+            if grid == s:
+                source_ref_tiles.append(tile)
+        # remove ref tiles from target
+        ref_tile_list = [key for key in ref_tile_list if
+            int(key.split('.')[0]) != t]
+
+        # add source ref tiles to target
+        for source_ref_tile in source_ref_tiles:
+            ref_tile_list.append(str(t) + '.' + str(source_ref_tile))
+
+        # sort the tile list
+        ref_tile_list.sort()
+
+        # save the new tile list
+        self.cfg['autofocus']['ref_tiles'] = json.dumps(ref_tile_list)
+
+        ###############################################
+
+        targetSectionGridAngle = sourceSectionGridAngle + sourceSectionAngle - targetSectionAngle
+
+        targetGridCenterComplex = np.dot(targetSectionCenter, [1,1j]) \
+            + sourceSectionGridDistance \
+            * np.exp(1j * np.radians(targetSectionGridAngle))
+        targetGridCenter = np.real(targetGridCenterComplex), np.imag(targetGridCenterComplex)
+
+        if self.cfg['magc']['wafer_calibrated'] == 'True':
+            # transform the grid coordinates to wafer coordinates
+            waferTransform = np.array(json.loads(self.cfg['magc']['wafer_transform']))
+            result = utils.applyAffineT([targetGridCenter[0]], [targetGridCenter[1]], waferTransform)
+            targetGridCenter = [result[0][0], result[1][0]]
+
+        self.set_grid_center_s(t, targetGridCenter)
+
+        self.calculate_grid_map(t)
+
+    def get_adaptive_focus_enabled(self, grid_number):
+        return self.af_active[grid_number]
+
+    def set_grid_center_s(self, grid_number, center_s):
+        current_center = np.array(self.get_grid_center_s(grid_number))
+        current_origin = np.array(self.cs.get_grid_origin_s(grid_number))
+        new_origin = center_s + current_origin - current_center
+        self.cs.set_grid_origin_s(grid_number, new_origin)
+
+    def get_grid_center_s(self, grid_number):
+        pixel_size = self.get_pixel_size(grid_number) / 1000
+        rotation = self.get_rotation(grid_number)
+
+        # origin is the center of the (0,0) tile
+        origin = self.cs.get_grid_origin_s(grid_number)
+
+        # size of the grid
+        size_px, size_py = self.get_grid_size_px_py(grid_number)
+        size_x = pixel_size * size_px
+        size_y = pixel_size * size_py
+
+        # size of a tile
+        tile_size_px, tile_size_py = self.get_tile_size_px_py(grid_number)
+        tile_size_x = pixel_size * tile_size_px
+        tile_size_y = pixel_size * tile_size_py
+
+        # distance along the grid axes from the center of tile (0,0) to the center of the grid
+        shift_v = (size_x - tile_size_x)/2. # conceptually: go to grid top-left corner, then go to center: -tile_size_x/2. + size_x/2.
+        shift_h = (size_y - tile_size_y)/2. # _v = _vertical
+        shift_norm = np.linalg.norm([shift_h, shift_v])
+
+        # angle between horizontal axis of the grid and axis going through center of the grid and center of tile (0,0)
+        shift_a = np.rad2deg(np.arctan2(shift_h , shift_v))
+
+        # adding the shift to the origin
+        origin_c = np.dot(origin, [1, 1j]) # _c = _complex
+        shift_c = shift_norm * np.exp(1j * np.radians(shift_a + rotation))
+        center_c = origin_c + shift_c
+
+        center_x = np.real(center_c)
+        center_y = np.imag(center_c)
+
+        return center_x, center_y
+
+    def delete_all_grids(self):
+        for grid_number in range(self.number_grids):
+            self.delete_grid()
+
+    def delete_all_but_last_grid(self):
+        for grid_number in range(self.number_grids - 1):
+            self.delete_grid()
+
+# ------------------------- End of MagC functions ------------------------------
