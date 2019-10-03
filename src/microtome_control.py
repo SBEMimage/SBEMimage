@@ -323,7 +323,6 @@ class Microtome:
 class Microtome_3View(Microtome):
     """
     Refactored DM class which inherits basic functionality from MicrotomeBase.
-    TODO: untested.
     """
     def __init__(self, config, sysconfig):
         super().__init__(config, sysconfig)
@@ -658,3 +657,87 @@ class Microtome_3View(Microtome):
             os.remove('..\\dm\\DMcom.err')
         if os.path.isfile('..\\dm\\DMcom.wng'):
             os.remove('..\\dm\\DMcom.wng')
+
+
+class Microtome_katana(Microtome):
+    """
+    Class for ConnectomX katana microtome
+    """
+    def __init__(self, config, sysconfig):
+        super().__init__(config, sysconfig)
+        # Perform handshake and read initial X/Y/Z.
+        if not self.simulation_mode:
+            pass
+
+    def do_full_cut(self):
+        """Perform a full cut cycle. This is the only knife control function
+           used during stack acquisitions.
+        """
+        pass
+
+    def do_full_approach_cut(self):
+        """Perform a full cut cycle under the assumption that knife is
+           already neared."""
+        pass
+
+    def do_sweep(self, z_position):
+        """Perform a sweep by cutting slightly above the surface."""
+        pass
+
+    def cut(self):
+        # only used for testing
+        pass
+
+    def retract_knife(self):
+        # only used for testing
+        pass
+
+    def write_motor_speeds_to_script(self):
+        pass
+
+    def move_stage_to_x(self, x):
+        # only used for testing
+        pass
+
+    def move_stage_to_y(self, y):
+        # only used for testing
+        pass
+
+    def get_stage_xy(self, wait_interval=0.25):
+        """Get current XY coordinates"""
+        pass
+
+    def move_stage_to_xy(self, coordinates):
+        """Move stage to coordinates X/Y. This function is called during
+           acquisitions. It includes waiting times. The other move functions
+           below do not.
+        """
+        pass
+
+    def get_stage_z(self, wait_interval=0.5):
+        """Get current Z coordinate"""
+        pass
+
+    def get_stage_z_prev_session(self):
+        return self.z_prev_session
+
+    def move_stage_to_z(self, z, safe_mode=True):
+        """Move stage to new z position. Used during stack acquisition
+           before each cut and for sweeps."""
+        pass
+
+    def near_knife(self):
+        # only used for testing
+        pass
+
+    def clear_knife(self):
+        # only used for testing
+        pass
+
+    def check_for_cut_cycle_error(self):
+        pass
+
+    def reset_error_state(self):
+        self.error_state = 0
+        self.error_cause = ''
+        self.motor_warning = False

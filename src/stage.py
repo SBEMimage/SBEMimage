@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 
-#==============================================================================
+# ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2016-2018 Benjamin Titze,
-#   Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2016-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
-#==============================================================================
+# ==============================================================================
 
 """This class is a wrapper for generic stage functions.
 Depending on the initialization, either the microtome stage or the SEM stage
@@ -17,12 +16,21 @@ is used when carrying out the commands.
 class Stage():
 
     def __init__(self, sem, microtome, use_microtome=True):
+        self.microtome = microtome
         self.use_microtome = use_microtome
         # Select the stage to be used:
-        if use_microtome:
+        if use_microtome and microtome.device_name == 'Gatan 3View':
+            # Use microtome for X, Y, Z control
             self._stage = microtome
-        else:
+            self.use_microtome_z = True
+        elif use_microtome and microtome.device_name == 'ConnectomX katana':
+            # Use SEM stage for X, Y control, and microtome for Z control
             self._stage = sem
+            self.use_microtome_z = True
+        else:
+            # Use SEM stage for X, Y, Z control
+            self._stage = sem
+            self.use_microtome_z = False
 
     def get_x(self):
         return self._stage.get_stage_x()
@@ -31,13 +39,21 @@ class Stage():
         return self._stage.get_stage_y()
 
     def get_z(self):
-        return self._stage.get_stage_z()
+        if self.use_microtome_z:
+            return self.microtome.get_stage_z()
+        else:
+            return self._stage.get_stage_z()
 
     def get_xy(self):
         return self._stage.get_stage_xy()
 
     def get_xyz(self):
-        return self._stage.get_stage_xyz()
+        if self.use_microtome_z:
+            x, y = self._stage.get_stage_xy()
+            z = self.microtome.get_stage_z()
+            return x, y, z
+        else:
+            return self._stage.get_stage_xyz()
 
     def move_to_x(self, x):
         return self._stage.move_stage_to_x(x)
@@ -46,7 +62,10 @@ class Stage():
         return self._stage.move_stage_to_y(y)
 
     def move_to_z(self, z):
-        return self._stage.move_stage_to_z(z)
+        if self.use_microtome_z:
+            return self.microtome.move_stage_to_z(z)
+        else:
+            return self._stage.move_stage_to_z(z)
 
     def move_to_xy(self, coordinates):
         return self._stage.move_stage_to_xy(coordinates)
@@ -55,7 +74,10 @@ class Stage():
         return self._stage.get_last_known_xy()
 
     def get_last_known_z(self):
-        return self._stage.get_last_known_z()
+        if self.use_microtome_z:
+            return self.microtome.get_last_known_z()
+        else:
+            return self._stage.get_last_known_z()
 
     def get_error_state(self):
         return self._stage.get_error_state()
@@ -93,4 +115,5 @@ class Stage():
             return True
 
     def calculate_stage_move_duration(self, from_x, from_y, to_x, to_y):
-        return self._stage.calculate_stage_move_duration(from_x, from_y, to_x, to_y)
+        return self._stage.calculate_stage_move_duration(
+            from_x, from_y, to_x, to_y)

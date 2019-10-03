@@ -85,7 +85,9 @@ def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):
             for section in syscfg_template.sections():
                 for key in syscfg_template[section]:
                     if current_syscfg.has_option(section, key):
-                        syscfg_template[section][key] = current_syscfg[section][key]
+                        if key != 'recognized':
+                            syscfg_template[section][key] = (
+                                current_syscfg[section][key])
                     else:
                         syscfg_changed = True
 

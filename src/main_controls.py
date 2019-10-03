@@ -37,7 +37,7 @@ from PyQt5.uic import loadUi
 import acq_func
 import utils
 from sem_control import SEM_SmartSEM
-from microtome_control import Microtome_3View
+from microtome_control import Microtome_3View, Microtome_katana
 from stage import Stage
 from plasma_cleaner import PlasmaCleaner
 from stack_acquisition import Stack
@@ -483,6 +483,10 @@ class MainControls(QMainWindow):
             if not self.calibration_found:
                 self.add_to_log(
                     'CTRL: Warning - No stage calibration found for current EHT.')
+
+        elif (self.use_microtome
+              and self.cfg['microtome']['device'] == 'ConnectomX katana'):
+            self.microtome = Microtome_katana(self.cfg, self.syscfg)
 
         else:
             # No microtome - use SEM stage
