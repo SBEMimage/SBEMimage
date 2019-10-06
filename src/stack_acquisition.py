@@ -785,6 +785,12 @@ class Stack():
                             self.add_to_main_log('CTRL: Grid '
                                 + str(grid_number) + ' already acquired. '
                                 'Skipping. ')
+                        elif (self.cfg['sys']['magc_mode'] == 'True'
+                            and grid_number not in 
+                            json.loads(self.cfg['magc']['checked_sections'])):
+                                self.add_to_main_log('CTRL: Grid '
+                                    + str(grid_number) + ' not checked. '
+                                    'Skipping. ')
                         else:
                             if (self.af.is_active()
                                     and self.af.get_method() == 0

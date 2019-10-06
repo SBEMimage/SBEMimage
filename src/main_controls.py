@@ -698,7 +698,7 @@ class MainControls(QMainWindow):
 
     def initialize_magc_gui(self):
         self.actionImportMagCMetadata.triggered.connect(
-        self.open_magc_import_dlg)
+        self.magc_open_import_dlg)
 
         # initialize the sectionList (QTableView)
         sectionListModel = QStandardItemModel(0, 0)
@@ -712,16 +712,16 @@ class MainControls(QMainWindow):
         header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
         header.setStretchLastSection(True)
 
-        self.tableView_magc_sectionList.doubleClicked.connect(self.double_clicked_section)
+        self.tableView_magc_sectionList.doubleClicked.connect(self.magc_double_clicked_section)
 
         # set logo
         self.collectomeLogo.setScaledContents(True)
         self.collectomeLogo.setPixmap(QPixmap(os.path.join('..','magc','img','collectome_logo.png')))
 
         # initialize other MagC GUI items
-        self.pushButton_magc_importMagc.clicked.connect(self.open_magc_import_dlg)
-        self.pushButton_magc_waferCalibration.clicked.connect(self.open_magc_wafer_calibration_dlg)
-        self.pushButton_magc_resetMagc.clicked.connect(self.reset_magc)
+        self.pushButton_magc_importMagc.clicked.connect(self.magc_open_import_dlg)
+        self.pushButton_magc_waferCalibration.clicked.connect(self.magc_open_wafer_calibration_dlg)
+        self.pushButton_magc_resetMagc.clicked.connect(self.magc_reset)
         self.pushButton_magc_selectAll.clicked.connect(self.magc_select_all)
         self.pushButton_magc_deselectAll.clicked.connect(self.magc_deselect_all)
         self.pushButton_magc_checkSelected.clicked.connect(self.magc_check_selected)
@@ -729,11 +729,11 @@ class MainControls(QMainWindow):
         self.pushButton_magc_invertSelection.clicked.connect(self.magc_invert_selection)
         self.pushButton_magc_selectChecked.clicked.connect(self.magc_select_checked)
         self.pushButton_magc_okStringSections.clicked.connect(self.magc_select_string_sections)
-        self.pushButton_magc_importWaferImage.clicked.connect(self.open_import_wafer_image)
-        self.pushButton_magc_addSection.clicked.connect(self.add_section)
+        self.pushButton_magc_importWaferImage.clicked.connect(self.magc_open_import_wafer_image)
+        self.pushButton_magc_addSection.clicked.connect(self.magc_add_section)
         if self.cfg['magc']['wafer_calibrated'] == 'False':
             self.pushButton_magc_addSection.setEnabled(False)
-        self.pushButton_magc_deleteLastSection.clicked.connect(self.delete_last_section)
+        self.pushButton_magc_deleteLastSection.clicked.connect(self.magc_delete_last_section)
 
         self.pushButton_magc_waferCalibration.setStyleSheet('background-color: lightgray')
         self.pushButton_magc_waferCalibration.setEnabled(False)
@@ -831,8 +831,9 @@ class MainControls(QMainWindow):
             if item.checkState() == Qt.Checked:
                 checkedSections.append(r)
         self.cfg['magc']['checked_sections'] = str(checkedSections)
+        self.save_ini()
 
-    def double_clicked_section(self, doubleClickedIndex):
+    def magc_double_clicked_section(self, doubleClickedIndex):
         row = doubleClickedIndex.row()
         model = doubleClickedIndex.model()
         firstColumnIndex = model.index(row, 0)
@@ -847,7 +848,8 @@ class MainControls(QMainWindow):
             self.sem.set_scan_rotation(theta)
         else:
             self.add_to_log('Section ' + str(sectionKey) + ' has been double-clicked. Wafer is not calibrated, therefore no stage movement.')
-    def reset_magc(self):
+
+    def magc_reset(self):
         self.cfg['magc']['wafer_calibrated'] = 'False'
         self.cfg['magc']['selected_sections'] = '[]'
         self.cfg['magc']['checked_sections'] = '[]'
@@ -860,6 +862,7 @@ class MainControls(QMainWindow):
         self.pushButton_magc_waferCalibration.setEnabled(False)
         # change wafer flag
         self.pushButton_magc_waferCalibration.setStyleSheet('background-color: lightgray')
+        self.save_ini()
 
         # # remove wafer image (broken, do not understand why ...)
         # imported_img_file_list = self.ovm.get_imported_img_file_list()
@@ -873,7 +876,7 @@ class MainControls(QMainWindow):
             # self.ovm.delete_imported_img(wafer_img_number)
             # self.viewport.mv_draw()
 
-    def open_import_wafer_image(self):
+    def magc_open_import_wafer_image(self):
         target_dir = os.path.join(self.cfg['acq']['base_dir'], 'overviews', 'imported')
         if not os.path.exists(target_dir):
             self.try_to_create_directory(target_dir)
@@ -882,7 +885,7 @@ class MainControls(QMainWindow):
             self.viewport.mv_load_last_imported_image()
             self.viewport.mv_draw()
 
-    def add_section(self):
+    def magc_add_section(self):
         self.gm.add_new_grid()
         grid_number = self.gm.get_number_grids() - 1
         self.cs.set_grid_origin_s(grid_number, list(*self.stage.get_xy()))
@@ -911,16 +914,28 @@ class MainControls(QMainWindow):
         sectionListModel = tableView.model()
         sectionListModel.appendRow([item1, item2])
 
-    def delete_last_section(self):
+    def magc_delete_last_section(self):
         # remove grid
         self.gm.delete_grid()
         self.update_from_grid_dlg()
         # remove section from list
         tableView = self.tableView_magc_sectionList
         sectionListModel = tableView.model()
-        sectionListModel.removeRow(sectionListModel.rowCount()-1)
+        lastSectionNumber = sectionListModel.rowCount()-1
+        sectionListModel.removeRow(lastSectionNumber)
+        
+        selected_sections = json.loads(self.cfg['magc']['selected_sections'])
+        if lastSectionNumber in selected_sections:
+            selected_sections.remove(lastSectionNumber)
+            self.cfg['magc']['selected_sections'] = json.dumps(selected_sections)
 
-    def open_magc_import_dlg(self):
+        checked_sections = json.loads(self.cfg['magc']['checked_sections'])
+        if lastSectionNumber in checked_sections:
+            checked_sections.remove(lastSectionNumber)
+            self.cfg['magc']['checked_sections'] = json.dumps(checked_sections)
+        self.save_ini()
+            
+    def magc_open_import_dlg(self):
         gui_items = {
         'sectionList': self.tableView_magc_sectionList,
         }
@@ -929,13 +944,7 @@ class MainControls(QMainWindow):
             # self.tabWidget.setTabEnabled(3, True)
             self.update_from_grid_dlg()
 
-    def open_mag_calibration_dlg(self):
-        dialog = MagCalibrationDlg(self.sem, self.ovm)
-        if dialog.exec_():
-            # Show updated OV mag:
-            self.show_current_settings()
-
-    def open_magc_wafer_calibration_dlg(self):
+    def magc_open_wafer_calibration_dlg(self):
         dialog = WaferCalibrationDlg(self.cfg, self.stage, self.ovm, self.cs, self.gm, self.viewport, self.acq_queue, self.acq_trigger)
         if dialog.exec_():
             pass
@@ -944,6 +953,12 @@ class MainControls(QMainWindow):
 
 
 # ============== Below: all methods that open dialog windows ==================
+
+    def open_mag_calibration_dlg(self):
+        dialog = MagCalibrationDlg(self.sem, self.ovm)
+        if dialog.exec_():
+            # Show updated OV mag:
+            self.show_current_settings()
 
     def open_save_settings_new_file_dlg(self):
         dialog = SaveConfigDlg()
@@ -2050,6 +2065,10 @@ class MainControls(QMainWindow):
                 'the menu.',
                 QMessageBox.Ok)
 
+    def save_ini(self):
+        with open(os.path.join('..', 'cfg', self.cfg_file), 'w') as f:
+            self.cfg.write(f)
+                
     def closeEvent(self, event):
         if not self.acq_in_progress:
             result = QMessageBox.question(
