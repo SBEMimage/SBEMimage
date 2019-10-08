@@ -89,34 +89,38 @@ class ImportMagCDlg(QDialog):
         color_acquired = QColor(Qt.green)
         color_acquiring = QColor(Qt.yellow)
         #-----------------------------
-        # read sections from MagC JSON
-        file_name = self.lineEdit_fileName.text()
-        if not os.path.isfile(file_name):
+        # read sections from MagC yaml
+        file_path = os.path.normpath(
+            self.lineEdit_fileName.text())
+        if not os.path.isfile(file_path):
             self.add_to_main_log('MagC file not found')
         else:
-            with open(file_name, 'r') as f:
+            self.cfg['magc']['sections_path'] = file_path
+            with open(file_path, 'r') as f:
                 sectionsYAML = yaml.full_load(f)
-            sections = {}
-            landmarks = {}
-            for sectionId, sectionXYA in sectionsYAML['tissue'].items():
-                sections[int(sectionId)] = {
-                'center': [float(a) for a in sectionXYA[:2]],
-                'angle': float( (-sectionXYA[2] + 90) % 360)}
-            if 'tissueROI' in sectionsYAML:
-                tissueROIIndex = int(list(sectionsYAML['tissueROI'].keys())[0])
-                sections['tissueROI-' + str(tissueROIIndex)] = {
-                'center': sectionsYAML['tissueROI'][tissueROIIndex]}
-            if 'landmarks' in sectionsYAML:
-                for landmarkId, landmarkXY in sectionsYAML['landmarks'].items():
-                    landmarks[int(landmarkId)] = {
-                    'source': landmarkXY}
+            sections, landmarks = utils.sectionsYAML_to_sections_landmarks(
+                sectionsYAML)
+                
+            if 'sourceROIsUpdatedFromSBEMImage' in sectionsYAML:
+                result = QMessageBox.question(
+                    self, 'Section import',
+                    'Using section locations that have been previously updated in SBEMImage ?',
+                    QMessageBox.Yes| QMessageBox.No)
+                if result == QMessageBox.Yes:
+                    for sectionId, sectionXYA in \
+                        sectionsYAML['sourceROIsUpdatedFromSBEMImage'].items():
+                        sections[int(sectionId)] = {
+                        'center': [float(a) for a in sectionXYA[:2]],
+                        'angle': float( (-sectionXYA[2] + 90) % 360)}
+                    self.cfg['magc']['roi_mode'] =  'False'
+            
             n_sections = len([k for k in sections.keys() if str(k).isdigit()])
-            self.add_to_main_log(str(n_sections) + ' MagC sections have been loaded.')
+            self.add_to_main_log(str(n_sections) +
+                ' MagC sections have been loaded.')
             #-----------------------------
-
             #--------------------------------------
             # import wafer overview if file present
-            dir_sections = os.path.dirname(os.path.normpath(file_name))
+            dir_sections = os.path.dirname(os.path.normpath(file_path))
             im_names = [im_name for im_name in os.listdir(dir_sections) if
                 ('wafer' in im_name) and
                 (os.path.splitext(im_name)[1] in ['.tif', '.png'])]
@@ -220,6 +224,8 @@ class ImportMagCDlg(QDialog):
             self.cfg['magc']['checked_sections'] = '[]'
             self.cfg['magc']['landmarks'] = json.dumps(landmarks)
             # xxx does importing a new magc file always require a wafer_calibration ?
+            self.queue.put('SAVE INI')
+            self.trigger.s.emit()
             # ---------------------------------------
 
             # enable wafer configuration button
@@ -569,9 +575,10 @@ class WaferCalibrationDlg(QDialog):
         return callback_goto_landmark
 
     def validate_calibration(self):
-        landmarks = json.loads(self.cfg['magc']['landmarks'])
-        sections = json.loads(self.cfg['magc']['sections'])
-
+        with open(self.cfg['magc']['sections_path'], 'r') as f:
+            sections, landmarks = utils.sectionsYAML_to_sections_landmarks(
+            yaml.full_load(f))
+        
         nLandmarks = len(landmarks)
         calibratedLandmarkIds = [int(id)
             for id,landmark
@@ -585,14 +592,14 @@ class WaferCalibrationDlg(QDialog):
             ''')
 
         else:
-            x_landmarks_source = [landmarks[str(i)]['source'][0]
+            x_landmarks_source = [landmarks[i]['source'][0]
                 for i in range(len(landmarks))]
-            y_landmarks_source = [landmarks[str(i)]['source'][1]
+            y_landmarks_source = [landmarks[i]['source'][1]
                 for i in range(len(landmarks))]
 
-            x_landmarks_target = [landmarks[str(i)]['target'][0]
+            x_landmarks_target = [landmarks[i]['target'][0]
                 for i in range(len(landmarks))]
-            y_landmarks_target = [landmarks[str(i)]['target'][1]
+            y_landmarks_target = [landmarks[i]['target'][1]
                 for i in range(len(landmarks))]
 
             print('x_landmarks_source, y_landmarks_source, x_landmarks_target, y_landmarks_target', x_landmarks_source, y_landmarks_source, x_landmarks_target, y_landmarks_target)
@@ -608,13 +615,13 @@ class WaferCalibrationDlg(QDialog):
             nSections = len([k for k in sections.keys() if str(k).isdigit()])
             print('nSections', nSections)
 
-            x_source = np.array([sections[str(k)]['center'][0] for k in range(nSections)])
-            y_source = np.array([sections[str(k)]['center'][1] for k in range(nSections)])
+            x_source = np.array([sections[k]['center'][0] for k in range(nSections)])
+            y_source = np.array([sections[k]['center'][1] for k in range(nSections)])
 
             x_target, y_target = utils.applyAffineT(x_source, y_source, waferTransform)
 
             transformAngle = -utils.getAffineRotation(waferTransform)
-            angles_target = [(180 - sections[str(k)]['angle'] + transformAngle) % 360
+            angles_target = [(180 - sections[k]['angle'] + transformAngle) % 360
                 for k in range(nSections)]
 
             # update grids

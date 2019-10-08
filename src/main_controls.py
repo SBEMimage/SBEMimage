@@ -850,6 +850,7 @@ class MainControls(QMainWindow):
             self.add_to_log('Section ' + str(sectionKey) + ' has been double-clicked. Wafer is not calibrated, therefore no stage movement.')
 
     def magc_reset(self):
+        self.cfg['magc']['sections_path'] = ''
         self.cfg['magc']['wafer_calibrated'] = 'False'
         self.cfg['magc']['selected_sections'] = '[]'
         self.cfg['magc']['checked_sections'] = '[]'
@@ -1393,6 +1394,8 @@ class MainControls(QMainWindow):
             self.pushButton_magc_waferCalibration.setEnabled(True)
         elif msg == 'MAGC UNENABLE CALIBRATION':
             self.pushButton_magc_waferCalibration.setEnabled(False)
+        elif msg == 'SAVE INI':
+            self.save_ini()
         else:
             # If msg is not a command, show it in log:
             self.textarea_log.appendPlainText(msg)
@@ -1428,6 +1431,8 @@ class MainControls(QMainWindow):
         elif 'OPEN GRID SETTINGS' in msg:
             grid_number = int(msg.split('INGS')[1])
             self.open_grid_dlg(grid_number)
+        elif msg == 'SAVE INI':
+            self.save_ini()
         else:
             # If msg is not a command, show it in log:
             self.textarea_log.appendPlainText(msg)

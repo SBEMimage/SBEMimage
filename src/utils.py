@@ -364,3 +364,39 @@ def getRigidRotation(coefs):
 def getRigidScaling(coefs):
     return coefs[1]
 # -------------- End of functions for geometric transforms (MagC) --------------
+
+# ----------------- MagC utils ------------------
+def sectionsYAML_to_sections_landmarks(sectionsYAML):
+    sections = {}
+    landmarks = {}
+    for sectionId, sectionXYA in sectionsYAML['tissue'].items():
+        sections[int(sectionId)] = {
+        'center': [float(a) for a in sectionXYA[:2]],
+        'angle': float( (-sectionXYA[2] + 90) % 360)}
+    if 'tissueROI' in sectionsYAML:
+        tissueROIIndex = int(list(sectionsYAML['tissueROI'].keys())[0])
+        sections['tissueROI-' + str(tissueROIIndex)] = {
+        'center': sectionsYAML['tissueROI'][tissueROIIndex]}
+    if 'landmarks' in sectionsYAML:
+        for landmarkId, landmarkXY in sectionsYAML['landmarks'].items():
+            landmarks[int(landmarkId)] = {
+            'source': landmarkXY}
+    return sections, landmarks
+
+# # def sections_landmarks_to_sectionsYAML(sections, landmarks):
+    # # sectionsYAML = {}
+    # # sectionsYAML['landmarks'] = {}
+    # # sectionsYAML['tissue'] = {}
+    # # sectionsYAML['magnet'] = {}
+    # # sectionsYAML['tissueROI'] = {}
+    # # sectionsYAML['sourceROIsFromSbemimage'] = {}
+
+    # # for landmarkId, landmarkDic in enumerate(landmarks):
+        # # sectionsYAML['landmark'][landmarkId] = landmarkDic['source']
+    # # for tissueId, tissueDic in enumerate(sections):
+        # # sectionsYAML['tissue'][tissueId] = [
+            # # tissueDic['center'][0],
+            # # tissueDic['center'][1],
+            # # (-tissueDic['angle'] - 90) % 360]
+    
+# -------------- End of MagC utils --------------
