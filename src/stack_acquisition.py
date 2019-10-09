@@ -1938,7 +1938,7 @@ class Stack():
                     # Immediately pause and save interruption info
                     if not self.acq_paused:
                         self.pause_acquisition(1)
-                    self.save_interruption_point(grid_number, t)
+                    self.save_interruption_point(grid_number, tile)
                     break
 
     def perform_heuristic_autofocus(self, tile_key):
