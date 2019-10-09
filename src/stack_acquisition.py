@@ -778,6 +778,14 @@ class Stack():
                     self.add_to_main_log('CTRL: Grid ' + str(grid_number)
                                   + ', number of active tiles: '
                                   + str(num_active_tiles))
+                                  
+                    # in MagC use the grid autostig delay
+                    if self.cfg['sys']['magc_mode'] == 'True':
+                        autostig_delay = int(self.cfg['autofocus']['autostig_delay'])
+                        self.autofocus_stig_current_slice = (
+                            self.autofocus_stig_current_slice[0],
+                            0 == (grid_number % autostig_delay))
+                                  
                     if (num_active_tiles > 0
                         and not (self.pause_state == 1)
                         and (self.error_state == 0)):
@@ -1472,11 +1480,11 @@ class Stack():
         tile_selected = False  # meaning if False: tile discarded
         tile_skipped = False   # meaning if True: tile already acquired
 
-        if self.cfg['sys']['magc_mode'] == 'True':
-            autostig_delay = int(self.cfg['autofocus']['autostig_delay'])
-            self.autofocus_stig_current_slice = (
-                self.autofocus_stig_current_slice[0],
-                0 == (grid_number % autostig_delay))
+        # if self.cfg['sys']['magc_mode'] == 'True':
+            # autostig_delay = int(self.cfg['autofocus']['autostig_delay'])
+            # self.autofocus_stig_current_slice = (
+                # self.autofocus_stig_current_slice[0],
+                # 0 == (grid_number % autostig_delay))
 
         # Criterion whether to retake image:
         retake_img = (

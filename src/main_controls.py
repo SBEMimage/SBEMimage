@@ -1088,7 +1088,8 @@ class MainControls(QMainWindow):
         self.viewport.mv_draw()
 
     def open_change_grid_rotation_dlg(self, selected_grid):
-        dialog = GridRotationDlg(selected_grid, self.gm, self.acq_queue, self.acq_trigger)
+        dialog = GridRotationDlg(selected_grid, self.gm, self.cfg,
+            self.acq_queue, self.acq_trigger)
         if dialog.exec_():
             if self.cfg['debris']['auto_detection_area'] == 'True':
                 self.ovm.update_all_ov_debris_detections_areas(self.gm)

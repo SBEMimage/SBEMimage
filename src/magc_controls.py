@@ -575,9 +575,10 @@ class WaferCalibrationDlg(QDialog):
         return callback_goto_landmark
 
     def validate_calibration(self):
-        with open(self.cfg['magc']['sections_path'], 'r') as f:
-            sections = utils.sectionsYAML_to_sections_landmarks(
-            yaml.full_load(f))[0]
+        # with open(self.cfg['magc']['sections_path'], 'r') as f:
+            # sections = utils.sectionsYAML_to_sections_landmarks(
+            # yaml.full_load(f))[0]
+        sections = json.loads(self.cfg['magc']['sections'])
         landmarks = json.loads(self.cfg['magc']['landmarks'])        
         
         nLandmarks = len(landmarks)
@@ -616,20 +617,20 @@ class WaferCalibrationDlg(QDialog):
             nSections = len([k for k in sections.keys() if str(k).isdigit()])
             print('nSections', nSections)
 
-            x_source = np.array([sections[k]['center'][0] for k in range(nSections)])
-            y_source = np.array([sections[k]['center'][1] for k in range(nSections)])
+            x_source = np.array([sections[str(k)]['center'][0] for k in range(nSections)])
+            y_source = np.array([sections[str(k)]['center'][1] for k in range(nSections)])
 
             x_target, y_target = utils.applyAffineT(x_source, y_source, waferTransform)
 
             transformAngle = -utils.getAffineRotation(waferTransform)
-            angles_target = [(180 - sections[k]['angle'] + transformAngle) % 360
+            angles_target = [(180 - sections[str(k)]['angle'] + transformAngle) % 360
                 for k in range(nSections)]
 
             # update grids
             print('self.gm.get_number_grids()', self.gm.get_number_grids())
             for grid_number in range(self.gm.get_number_grids()):
                 self.gm.set_rotation(grid_number, angles_target[grid_number])
-                self.cs.set_grid_origin_s(grid_number,
+                self.gm.set_grid_center_s(grid_number,
                     [x_target[grid_number], y_target[grid_number]])
             self.viewport.mv_draw()
 
