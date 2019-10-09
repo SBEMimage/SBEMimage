@@ -1064,6 +1064,9 @@ class GridSettingsDlg(QDialog):
             self.main_window_trigger.s.emit()
 
     def save_current_settings(self):
+        if self.cfg['sys']['magc_mode'] == 'True':
+            grid_center = self.gm.get_grid_center_s(self.current_grid)
+            
         error_msg = ''
         self.gm.set_grid_size(self.current_grid,
                               (self.spinBox_rows.value(),
@@ -1105,13 +1108,14 @@ class GridSettingsDlg(QDialog):
         # Update wd/stig map:
         self.gm.initialize_wd_stig_map(self.current_grid)
         if self.cfg['sys']['magc_mode'] == 'True':
+            self.gm.set_grid_center_s(self.current_grid, grid_center)            
             self.gm.update_source_ROIs_from_grids()
         if error_msg:
             QMessageBox.warning(self, 'Error', error_msg, QMessageBox.Ok)
         else:
             self.main_window_queue.put('GRID SETTINGS CHANGED')
             self.main_window_trigger.s.emit()
-
+            
     def open_adaptive_focus_dlg(self):
         sub_dialog = AdaptiveFocusSettingsDlg(self.gm, self.current_grid)
         sub_dialog.exec_()
