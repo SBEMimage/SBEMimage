@@ -1983,7 +1983,8 @@ class Viewport(QWidget):
         self.gm.set_grid_center_s(grid_number, [x, y])
         self.gm.calculate_grid_map(grid_number)
         self.cfg['magc']['roi_mode'] = 'False'
-        self.gm.update_sections_from_grids()
+        self.gm.update_source_ROIs_from_grids()
+        self.mv_draw()
         
     def mv_toggle_tile_autofocus(self):
         if self.selected_grid is not None and self.selected_tile is not None:

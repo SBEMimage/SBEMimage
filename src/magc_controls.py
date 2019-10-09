@@ -576,8 +576,9 @@ class WaferCalibrationDlg(QDialog):
 
     def validate_calibration(self):
         with open(self.cfg['magc']['sections_path'], 'r') as f:
-            sections, landmarks = utils.sectionsYAML_to_sections_landmarks(
-            yaml.full_load(f))
+            sections = utils.sectionsYAML_to_sections_landmarks(
+            yaml.full_load(f))[0]
+        landmarks = json.loads(self.cfg['magc']['landmarks'])        
         
         nLandmarks = len(landmarks)
         calibratedLandmarkIds = [int(id)
@@ -592,14 +593,14 @@ class WaferCalibrationDlg(QDialog):
             ''')
 
         else:
-            x_landmarks_source = [landmarks[i]['source'][0]
+            x_landmarks_source = [landmarks[str(i)]['source'][0]
                 for i in range(len(landmarks))]
-            y_landmarks_source = [landmarks[i]['source'][1]
+            y_landmarks_source = [landmarks[str(i)]['source'][1]
                 for i in range(len(landmarks))]
 
-            x_landmarks_target = [landmarks[i]['target'][0]
+            x_landmarks_target = [landmarks[str(i)]['target'][0]
                 for i in range(len(landmarks))]
-            y_landmarks_target = [landmarks[i]['target'][1]
+            y_landmarks_target = [landmarks[str(i)]['target'][1]
                 for i in range(len(landmarks))]
 
             print('x_landmarks_source, y_landmarks_source, x_landmarks_target, y_landmarks_target', x_landmarks_source, y_landmarks_source, x_landmarks_target, y_landmarks_target)

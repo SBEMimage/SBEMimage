@@ -1153,7 +1153,7 @@ class GridManager(object):
                     [target_ROI[1]],
                     waferTransformInverse)
                 source_ROI = [result[0][0], result[1][0]]
-                source_ROI_angle = (-90 + target_ROI_angle - transformAngle) % 360
+                source_ROI_angle = (-90 + target_ROI_angle - transform_angle) % 360
             else:
                 source_ROI = target_ROI
                 source_ROI_angle = (-90 + target_ROI_angle) % 360
