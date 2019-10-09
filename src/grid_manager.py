@@ -178,9 +178,6 @@ class GridManager(object):
         return width_d, height_d
 
     def set_grid_size(self, grid_number, size):
-        if self.cfg['sys']['magc_mode'] == 'True':
-            grid_center = self.get_grid_center_s(grid_number)
-    
         if grid_number < len(self.size):
             if self.size[grid_number] != list(size):
                 self.update_active_tiles_to_new_grid_size(
@@ -190,9 +187,6 @@ class GridManager(object):
             self.size.append(list(size))
         self.cfg['grids']['size'] = str(self.size)
 
-        if self.cfg['sys']['magc_mode'] == 'True':
-            self.set_grid_center_s(grid_number, grid_center)
-            
     def get_number_rows(self, grid_number):
         return self.size[grid_number][0]
 
@@ -206,17 +200,11 @@ class GridManager(object):
         return self.rotation[grid_number]
 
     def set_rotation(self, grid_number, rotation):
-        if self.cfg['sys']['magc_mode'] == 'True':
-            grid_center = self.get_grid_center_s(grid_number)
-    
         if grid_number < len(self.rotation):
             self.rotation[grid_number] = rotation
         else:
             self.rotation.append(rotation)
         self.cfg['grids']['rotation'] = str(self.rotation)
-
-        if self.cfg['sys']['magc_mode'] == 'True':
-            self.set_grid_center_s(grid_number, grid_center)
 
     def rotate_around_grid_centre(self, grid_number, centre_dx, centre_dy):
         """Update the grid origin before calculating the rotated tile map."""
@@ -291,33 +279,21 @@ class GridManager(object):
         return self.overlap[grid_number]
 
     def set_overlap(self, grid_number, overlap):
-        if self.cfg['sys']['magc_mode'] == 'True':
-            grid_center = self.get_grid_center_s(grid_number)
-    
         if grid_number < len(self.overlap):
             self.overlap[grid_number] = overlap
         else:
             self.overlap.append(overlap)
         self.cfg['grids']['overlap'] = str(self.overlap)
 
-        if self.cfg['sys']['magc_mode'] == 'True':
-            self.set_grid_center_s(grid_number, grid_center)
-            
     def get_row_shift(self, grid_number):
         return self.row_shift[grid_number]
 
     def set_row_shift(self, grid_number, row_shift):
-        if self.cfg['sys']['magc_mode'] == 'True':
-            grid_center = self.get_grid_center_s(grid_number)
-    
         if grid_number < len(self.row_shift):
             self.row_shift[grid_number] = row_shift
         else:
             self.row_shift.append(row_shift)
         self.cfg['grids']['row_shift'] = str(self.row_shift)
-
-        if self.cfg['sys']['magc_mode'] == 'True':
-            self.set_grid_center_s(grid_number, grid_center)
 
     def get_tile_size_px_py(self, grid_number):
         return self.tile_size_px_py[grid_number]
@@ -326,9 +302,6 @@ class GridManager(object):
         return self.tile_size_selector[grid_number]
 
     def set_tile_size_selector(self, grid_number, selector):
-        if self.cfg['sys']['magc_mode'] == 'True':
-            grid_center = self.get_grid_center_s(grid_number)
-
         if grid_number < len(self.tile_size_selector):
             self.tile_size_selector[grid_number] = selector
         else:
@@ -340,9 +313,6 @@ class GridManager(object):
         else:
             self.tile_size_px_py.append(self.sem.STORE_RES[selector])
         self.cfg['grids']['tile_size_px_py'] = str(self.tile_size_px_py)
-
-        if self.cfg['sys']['magc_mode'] == 'True':
-            self.set_grid_center_s(grid_number, grid_center)
 
     def get_tile_width_p(self, grid_number):
         return self.tile_size_px_py[grid_number][0]
@@ -359,17 +329,11 @@ class GridManager(object):
                 * self.pixel_size[grid_number] / 1000)
 
     def set_tile_size_px_py(self, grid_number, tile_size_px_py):
-        if self.cfg['sys']['magc_mode'] == 'True':
-            grid_center = self.get_grid_center_s(grid_number)
-    
         if grid_number < len(self.tile_size_px_py):
             self.tile_size_px_py[grid_number] = tile_size_px_py
         else:
             self.tile_size_px_py.append(tile_size_px_py)
         self.cfg['grids']['tile_size_px_py'] = str(self.tile_size_px_py)
-
-        if self.cfg['sys']['magc_mode'] == 'True':
-            self.set_grid_center_s(grid_number, grid_center)
 
     def get_tile_position_d(self, grid_number, tile_number):
         return (self.grid_map_d[grid_number][tile_number][0],
@@ -382,17 +346,11 @@ class GridManager(object):
         return self.pixel_size
 
     def set_pixel_size(self, grid_number, pixel_size):
-        if self.cfg['sys']['magc_mode'] == 'True':
-            grid_center = self.get_grid_center_s(grid_number)
-            
         if grid_number < self.number_grids:
             self.pixel_size[grid_number] = pixel_size
         else:
             self.pixel_size.append(pixel_size)
         self.cfg['grids']['pixel_size'] = str(self.pixel_size)
-
-        if self.cfg['sys']['magc_mode'] == 'True':
-            self.set_grid_center_s(grid_number, grid_center)
 
     def get_dwell_time(self, grid_number):
         return self.dwell_time[grid_number]
