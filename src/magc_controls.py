@@ -183,11 +183,13 @@ class ImportMagCDlg(QDialog):
             pixel_size = self.doubleSpinBox_pixelSize.value()
             tile_overlap = self.doubleSpinBox_tileOverlap.value()
 
-            sectionListModel = self.gui_items['sectionList'].model()
+            sectionListView = self.gui_items['sectionList']
+            sectionListModel = sectionListView.model()
+            
             sectionListModel.clear()
             sectionListModel.setHorizontalHeaderItem(0, QStandardItem('Section'))
             sectionListModel.setHorizontalHeaderItem(1, QStandardItem('State'))
-            header = self.gui_items['sectionList'].horizontalHeader()
+            header = sectionListView.horizontalHeader()
             for i in range(2):
                 header.setSectionResizeMode(i, QHeaderView.ResizeToContents)
             header.setStretchLastSection(True)
@@ -216,6 +218,7 @@ class ImportMagCDlg(QDialog):
                     item2.setCheckable(False)
                     item2.setSelectable(False)
                     sectionListModel.appendRow([item1, item2])
+                    sectionListView.setRowHeight(idx, 40)
             #---------------------------------------
 
             #---------------------------------------
@@ -375,11 +378,14 @@ class WaferCalibrationDlg(QDialog):
         landmarkModel.setHorizontalHeaderItem(6, QStandardItem('Move'))
         landmarkModel.setHorizontalHeaderItem(7, QStandardItem('Clear'))
         self.lTable.setModel(landmarkModel)
-
+        
         header = self.lTable.horizontalHeader()
         for i in range(8):
-            header.setSectionResizeMode(i, QHeaderView.ResizeToContents)
+            if i not in [3,4]: # fixed width for target columns
+                header.setSectionResizeMode(i, QHeaderView.ResizeToContents)
 
+        self.lTable.setColumnWidth(3, 70)
+        self.lTable.setColumnWidth(4, 70)
         self.lTable.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
 
         landmarkModel = self.lTable.model()
