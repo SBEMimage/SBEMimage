@@ -24,7 +24,8 @@ import json
 from time import sleep
 from queue import Queue
 
-from PyQt5.QtWidgets import QApplication, QTableWidgetSelectionRange
+from PyQt5.QtWidgets import QApplication, QTableWidgetSelectionRange, \
+                            QAbstractItemView
 from PyQt5.QtCore import QObject, Qt, QRect, QSize, pyqtSignal, QEvent, \
                         QItemSelection, QItemSelectionModel, QModelIndex
 from PyQt5.QtGui import QIcon, QPalette, QColor, QPixmap, QKeyEvent, \
@@ -853,7 +854,7 @@ class MainControls(QMainWindow):
 
     def magc_set_section_state_in_table(self, msg):
         tableModel = self.tableView_magc_sectionList.model()
-        section_number, state = msg.split('-')[1:2]
+        section_number, state = msg.split('-')[1:]
         if state == 'acquiring':
             state_color = QColor(Qt.yellow)
         elif state == 'acquired':
@@ -862,6 +863,9 @@ class MainControls(QMainWindow):
             state_color = QColor(Qt.lightGray)
         item = tableModel.item(int(section_number), 1)
         item.setBackground(state_color)
+        index = tableModel.index(int(section_number), 1)
+        self.tableView_magc_sectionList.scrollTo(index,
+            QAbstractItemView.PositionAtCenter)
             
     def magc_reset(self):
         self.cfg['magc']['sections_path'] = ''
