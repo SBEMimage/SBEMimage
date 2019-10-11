@@ -1701,7 +1701,7 @@ class Stack():
             # Set WD and stig settings for the current grid and lock the settings
             if not adjust_wd_stig_for_each_tile:
                 # magc: WD/stig is kept to the current values from grid to grid
-                if not (self.cfg['sys']['magc_mode'] == 'True'):
+                if self.cfg['sys']['magc_mode'] == 'False':
                     self.set_grid_wd_stig()
                 self.lock_wd_stig()
 
@@ -1718,7 +1718,8 @@ class Stack():
                 tile_accepted = False
                 tile_id = str(grid_number) + '.' + str(tile_number)
                 # Individual WD/stig adjustment for tile, if necessary:
-                if adjust_wd_stig_for_each_tile:
+                if (adjust_wd_stig_for_each_tile
+                    and self.cfg['sys']['magc_mode'] == 'False'):
                     print('debug: -------------------------------- \
                         -------------- adjust_wd_stig_for_each_tile')
                     new_wd = self.gm.get_tile_wd(grid_number, tile_number)

@@ -206,9 +206,9 @@ class ImportMagCDlg(QDialog):
                     self.gm.set_pixel_size(idx, pixel_size)
                     self.gm.set_overlap(idx, tile_overlap)
                     self.gm.select_all_tiles(idx)
-                    self.gm.calculate_grid_map(grid_number=idx)
                     self.gm.set_rotation(idx, (180-float(section['angle'])) % 360)
                     self.gm.set_grid_center_s(idx, list(map(float, section['center'])))
+                    self.gm.calculate_grid_map(grid_number=idx)
 
                     # populate the sectionList
                     item1 = QStandardItem(str(idx))
@@ -640,6 +640,8 @@ class WaferCalibrationDlg(QDialog):
                 self.gm.set_rotation(grid_number, angles_target[grid_number])
                 self.gm.set_grid_center_s(grid_number,
                     [x_target[grid_number], y_target[grid_number]])
+                self.gm.calculate_grid_map(grid_number)
+
             self.viewport.mv_draw()
 
             # # # update wafer picture
