@@ -1678,6 +1678,12 @@ class Stack():
             self.add_to_main_log(
                 'CTRL: Starting acquisition of active '
                 'tiles in grid %d' % grid_number)
+            
+            if self.cfg['sys']['magc_mode'] == 'True':
+                grid_centre_d = self.gm.get_grid_centre_d(grid_number)
+                self.cs.set_mv_centre_d(grid_centre_d)
+                self.transmit_cmd('DRAW MV')
+            
             # Switch to specified settings of the current grid
             self.sem.apply_frame_settings(
                 self.gm.get_tile_size_selector(grid_number),
