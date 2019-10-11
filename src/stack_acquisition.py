@@ -1719,9 +1719,7 @@ class Stack():
                 tile_id = str(grid_number) + '.' + str(tile_number)
                 # Individual WD/stig adjustment for tile, if necessary:
                 if (adjust_wd_stig_for_each_tile
-                    and self.cfg['sys']['magc_mode'] == 'False'):
-                    print('debug: -------------------------------- \
-                        -------------- adjust_wd_stig_for_each_tile')
+                and self.cfg['sys']['magc_mode'] == 'False'):
                     new_wd = self.gm.get_tile_wd(grid_number, tile_number)
                     new_stig_xy = self.gm.get_tile_stig_xy(grid_number, tile_number)
                     self.sem.set_wd(new_wd)

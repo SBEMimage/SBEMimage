@@ -185,7 +185,6 @@ class ImageInspector(object):
             del preview_img
             del first_line
             del last_line
-            del img_reslice_line
             
         return (img, mean, stddev,
                 range_test_passed, slice_by_slice_test_passed,
