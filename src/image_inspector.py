@@ -24,6 +24,8 @@ Image.MAX_IMAGE_PIXELS = None
 
 from time import sleep
 
+import psutil
+
 import utils
 
 
@@ -87,6 +89,22 @@ class ImageInspector(object):
         grab_incomplete = False
         load_error = False
         tile_selected = False
+        
+        if (self.cfg['sys']['magc_mode'] == 'True'
+            and psutil.virtual_memory()[2] > 80):
+            print('### WARNING ### Memory usage ' + str(memory_usage)
+                + ' too high. The tiles are not checked any more')
+        
+            range_test_passed, slice_by_slice_test_passed = True, True
+            frozen_frame_error = False
+            grab_incomplete = False
+            load_error = False
+            tile_selected = True
+            return (np.zeros((1000,1000)), mean, stddev,
+                    range_test_passed, slice_by_slice_test_passed,
+                    tile_selected,
+                    load_error, grab_incomplete, frozen_frame_error)        
+        
         try:
             img = Image.open(filename)
         except Exception as e:
