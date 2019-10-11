@@ -1683,6 +1683,9 @@ class Stack():
                 grid_centre_d = self.gm.get_grid_centre_d(grid_number)
                 self.cs.set_mv_centre_d(grid_centre_d)
                 self.transmit_cmd('DRAW MV')
+                self.transmit_cmd('SET SECTION STATE GUI-'
+                    + str(grid_number)
+                    + '-acquiring')
             
             # Switch to specified settings of the current grid
             self.sem.apply_frame_settings(
@@ -1812,7 +1815,14 @@ class Stack():
                 # Empty the tile list since all tiles were acquired:
                 self.tiles_acquired = []
                 self.cfg['acq']['tiles_acquired'] = '[]'
-
+                
+                if self.cfg['sys']['magc_mode'] == 'True':
+                    grid_centre_d = self.gm.get_grid_centre_d(grid_number)
+                    self.cs.set_mv_centre_d(grid_centre_d)
+                    self.transmit_cmd('DRAW MV')
+                    self.transmit_cmd('SET SECTION STATE GUI-'
+                        + str(grid_number)
+                        + '-acquired')                
 
     def register_accepted_tile(self, save_path, grid_number, tile_number,
                                tile_width, tile_height):

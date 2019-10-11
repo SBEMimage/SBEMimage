@@ -851,6 +851,18 @@ class MainControls(QMainWindow):
         else:
             self.add_to_log('Section ' + str(sectionKey) + ' has been double-clicked. Wafer is not calibrated, therefore no stage movement.')
 
+    def magc_set_section_state_in_table(self, msg):
+        tableModel = self.tableView_magc_sectionList.model()
+        section_number, state = msg.split('-')[1:2]
+        if state == 'acquiring':
+            state_color = QColor(Qt.yellow)
+        elif state == 'acquired':
+            state_color = QColor(Qt.green)
+        else:
+            state_color = QColor(Qt.lightGray)
+        item = tableModel.item(int(section_number), 1)
+        item.setBackground(state_color)
+            
     def magc_reset(self):
         self.cfg['magc']['sections_path'] = ''
         self.cfg['magc']['wafer_calibrated'] = 'False'
@@ -1397,6 +1409,8 @@ class MainControls(QMainWindow):
             self.pushButton_magc_waferCalibration.setEnabled(True)
         elif msg == 'MAGC UNENABLE CALIBRATION':
             self.pushButton_magc_waferCalibration.setEnabled(False)
+        elif 'SET SECTION STATE' in msg:
+            self.magc_set_section_state_in_table(msg)
         elif msg == 'SAVE INI':
             self.save_ini()
         else:
