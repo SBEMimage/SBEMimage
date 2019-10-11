@@ -1712,7 +1712,7 @@ class Stack():
                 # Enable scan rotation
                 self.sem.set_scan_rotation(theta)
 
-            # ===================== Grid acquisition loop =========================
+            # ===================== Tile acquisition loop =========================
             for tile_number in active_tiles:
                 fail_counter = 0
                 tile_accepted = False
@@ -1795,7 +1795,7 @@ class Stack():
                 if self.pause_state == 1:
                     self.save_interruption_point(grid_number, tile_number)
                     break
-            # ================== End of grid acquisition loop =====================
+            # ================== End of tile acquisition loop =====================
 
             if theta > 0:
                 # Disable scan rotation
