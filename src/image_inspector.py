@@ -92,7 +92,8 @@ class ImageInspector(object):
         
         if (self.cfg['sys']['magc_mode'] == 'True'
             and psutil.virtual_memory()[2] > 80):
-            print('### WARNING ### Memory usage ' + str(memory_usage)
+            print('### WARNING ### Memory usage ' 
+                + str(psutil.virtual_memory()[2])
                 + ' too high. The tiles are not checked any more')
         
             range_test_passed, slice_by_slice_test_passed = True, True
