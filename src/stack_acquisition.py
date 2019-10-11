@@ -1778,6 +1778,7 @@ class Stack():
                         self.af.crop_tile_for_heuristic_af(
                             tile_img, tile_key)
                         self.heuristic_af_queue.append(tile_key)
+                        del tile_img
 
                 elif (not tile_selected
                       and not tile_skipped
