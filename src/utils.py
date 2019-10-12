@@ -297,6 +297,7 @@ def get_indexes_from_user_string(userString):
         splitIndexes = [int(splitIndex) for splitIndex in userString.split('-')
                         if splitIndex.isdigit()]
         if len(splitIndexes) == 2 or len(splitIndexes) == 3:
+            splitIndexes[-1] = splitIndexes[-1] + 1 # inclusive is more natural (2-5 = 2,3,4,5)
             return range(*splitIndexes)
     elif userString.isdigit():
         return [int(userString)]
