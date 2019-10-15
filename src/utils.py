@@ -302,6 +302,12 @@ def get_indexes_from_user_string(userString):
         return [int(userString)]
     return None
 
+def get_days_hours_minutes(duration_in_seconds):
+    minutes, seconds = divmod(int(duration_in_seconds), 60)
+    hours, minutes = divmod(minutes, 60)
+    days, hours = divmod(hours, 24)
+    return days, hours, minutes
+
 # ----------------- Functions for geometric transforms (MagC) ------------------
 def affineT(x_in, y_in, x_out, y_out):
     X = np.array([[x, y, 1] for (x,y) in zip(x_in, y_in)])

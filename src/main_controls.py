@@ -640,11 +640,8 @@ class MainControls(QMainWindow):
         # Get current estimates:
         (min_dose, max_dose, total_area, total_z, total_data,
         total_imaging, total_stage_moves, total_cutting,
-        date_estimate) = self.stack.calculate_estimates()
+        date_estimate, remaining_time) = self.stack.calculate_estimates()
         total_duration = total_imaging + total_stage_moves + total_cutting
-        minutes, seconds = divmod(int(total_duration), 60)
-        hours, minutes = divmod(minutes, 60)
-        days, hours = divmod(hours, 24)
         if min_dose == max_dose:
             self.label_dose.setText(
                 '{0:.1f}'.format(min_dose) + ' electrons per nm²')
@@ -654,6 +651,7 @@ class MainControls(QMainWindow):
                 + '{0:.1f}'.format(max_dose) + ' electrons per nm²')
         if total_duration == 0:
             total_duration = 1  # prevent division by zero
+        days, hours, minutes = utils.get_days_hours_minutes(total_duration)
         self.label_totalDuration.setText(
             f'{days} d {hours} h {minutes} min     '
             f'({total_imaging/total_duration * 100:.1f}% / '
@@ -662,7 +660,9 @@ class MainControls(QMainWindow):
         self.label_totalArea.setText('{0:.1f}'.format(total_area) + ' µm²')
         self.label_totalZ.setText('{0:.1f}'.format(total_z) + ' µm')
         self.label_totalData.setText('{0:.1f}'.format(total_data) + ' GB')
-        self.label_dateEstimate.setText(date_estimate)
+        days, hours, minutes = utils.get_days_hours_minutes(remaining_time)
+        self.label_dateEstimate.setText(
+            date_estimate + f'   ({days} d {hours} h {minutes} min remaining)')
 
     def update_acq_options(self):
         self.cfg['acq']['use_email_monitoring'] = str(
@@ -1968,6 +1968,7 @@ class MainControls(QMainWindow):
             self.pushButton_startAcq.setEnabled(True)
             self.label_sliceCounter.setText('---')
             self.progressBar.setValue(0)
+            self.show_estimates()
             self.acq_in_progress = False
             self.acq_paused = False
             self.pushButton_startAcq.setText('START')

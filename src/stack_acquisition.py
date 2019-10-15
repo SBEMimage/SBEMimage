@@ -343,14 +343,14 @@ class Stack():
         # Calculate date and time of completion
         now = datetime.datetime.now()
         fraction_completed = self.slice_counter / N
-        completion_date = now + relativedelta(
-            seconds=int(total_duration * (1 - fraction_completed)))
+        remaining_time = int(total_duration * (1 - fraction_completed))
+        completion_date = now + relativedelta(seconds=remaining_time)
         date_estimate = str(completion_date)[:19].replace(' ', ' at ')
 
         # Return all estimates, to be displayed in main window GUI:
         return (min_dose, max_dose, total_grid_area, total_z, total_data_in_GB,
                 total_imaging_time, total_stage_move_time, total_cut_time,
-                date_estimate)
+                date_estimate, remaining_time)
 
     def create_subdirectories(self, dir_list):
         """Create subdirectories given in dir_list in the base folder"""
