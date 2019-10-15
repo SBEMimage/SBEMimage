@@ -28,8 +28,11 @@
 """
 
 import os
-from time import sleep
 import json
+import serial
+
+from time import sleep
+
 import utils
 
 
@@ -687,7 +690,15 @@ class Microtome_katana(Microtome):
 
         # Open COM port, inialize motors and read initial Z position
         if not self.simulation_mode:
-            pass
+            self.com_port = serial.Serial()
+            self.com_port.port = self.selected_port
+            # TODO: add connection settings
+            try:
+                self.com_port.open()
+                self.connection_success = True
+                print('Connection to katana successful.')
+            except Exception as e:
+                print('Connection to katana failed: ' + repr(e))
 
     def do_full_cut(self):
         """Perform a full cut cycle. This is the only knife control function
