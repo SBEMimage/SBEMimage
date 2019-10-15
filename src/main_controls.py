@@ -2264,9 +2264,14 @@ class MainControls(QMainWindow):
             dialog = FTMoveDlg(self.microtome, self.cs, self.gm,
                                self.ft_selected_grid, self.ft_selected_tile,
                                self.ft_selected_ov)
-            dialog.exec_()
-            # Update stage position in main controls tab
-            self.show_current_stage_xy()
+            if dialog.exec_():
+                # Update stage position in main controls tab
+                self.show_current_stage_xy()
+                # Recentre at current stage position and redraw
+                self.cs.set_mv_centre_d(
+                    self.cs.convert_to_d(self.stage.get_last_known_xy()))
+                self.viewport.mv_draw()
+
         else:
             QMessageBox.information(
                 self, 'Select tile/OV',
