@@ -1435,6 +1435,9 @@ class MainControls(QMainWindow):
 
     def restrict_gui(self, b):
         """Disable GUI elements during acq or when program is busy."""
+        # Partially disable/enable the tests and the focus tool:
+        self.restrict_focus_tool_gui(b)
+        self.restrict_tests_gui(b)
         b ^= True
         # Settings buttons:
         self.pushButton_SEMSettings.setEnabled(b)
@@ -1451,7 +1454,6 @@ class MainControls(QMainWindow):
         self.checkBox_mirrorDrive.setEnabled(b)
         self.toolButton_mirrorDrive.setEnabled(b)
         self.checkBox_takeOV.setEnabled(b)
-
         self.toolButton_OVSettings.setEnabled(b)
         if self.plc_installed:
             self.checkBox_plasmaCleaner.setEnabled(b)
@@ -1459,11 +1461,32 @@ class MainControls(QMainWindow):
         # Start, reset buttons:
         self.pushButton_startAcq.setEnabled(b)
         self.pushButton_resetAcq.setEnabled(b)
-        # Disable/enable the communication tests and the focus tool:
-        self.tabWidget.setTabEnabled(1, b)
-        self.tabWidget.setTabEnabled(2, b)
         # Disable/enable menu
         self.menubar.setEnabled(b)
+
+    def restrict_focus_tool_gui(self, b):
+        b ^= True
+        self.pushButton_focusToolStart.setEnabled(b)
+        self.pushButton_focusToolMove.setEnabled(b)
+        self.checkBox_zoom.setEnabled(b)
+
+    def restrict_tests_gui(self, b):
+        b ^= True
+        self.pushButton_testGetMag.setEnabled(b)
+        self.pushButton_testSetMag.setEnabled(b)
+        self.pushButton_testGetFocus.setEnabled(b)
+        self.pushButton_testSetFocus.setEnabled(b)
+        self.pushButton_testRunAutofocus.setEnabled(b)
+        self.pushButton_testRunAutostig.setEnabled(b)
+        self.pushButton_testRunAutofocusStig.setEnabled(b)
+        self.pushButton_testZeissAPIVersion.setEnabled(b)
+        self.pushButton_testGetStage.setEnabled(b)
+        self.pushButton_testSetStage.setEnabled(b)
+        self.pushButton_testNearKnife.setEnabled(b)
+        self.pushButton_testClearKnife.setEnabled(b)
+        self.pushButton_testStopDMScript.setEnabled(b)
+        self.pushButton_testPlasmaCleaner.setEnabled(b)
+        self.pushButton_testMotors.setEnabled(b)
 
     def restrict_gui_for_simulation_mode(self):
         self.pushButton_SEMSettings.setEnabled(False)
@@ -1476,23 +1499,8 @@ class MainControls(QMainWindow):
         self.actionStageCalibration.setEnabled(False)
         self.actionPlasmaCleanerSettings.setEnabled(False)
         # Tests and focus tool:
-        self.pushButton_focusToolStart.setEnabled(False)
-        self.checkBox_zoom.setEnabled(False)
-        self.pushButton_testGetMag.setEnabled(False)
-        self.pushButton_testSetMag.setEnabled(False)
-        self.pushButton_testGetFocus.setEnabled(False)
-        self.pushButton_testSetFocus.setEnabled(False)
-        self.pushButton_testRunAutofocus.setEnabled(False)
-        self.pushButton_testRunAutostig.setEnabled(False)
-        self.pushButton_testRunAutofocusStig.setEnabled(False)
-        self.pushButton_testZeissAPIVersion.setEnabled(False)
-        self.pushButton_testGetStage.setEnabled(False)
-        self.pushButton_testSetStage.setEnabled(False)
-        self.pushButton_testNearKnife.setEnabled(False)
-        self.pushButton_testClearKnife.setEnabled(False)
-        self.pushButton_testStopDMScript.setEnabled(False)
-        self.pushButton_testPlasmaCleaner.setEnabled(False)
-        self.pushButton_testMotors.setEnabled(False)
+        self.restrict_focus_tool_gui(True)
+        self.restrict_tests_gui(True)
 
     def restrict_gui_for_sem_stage(self):
         self.pushButton_doApproach.setEnabled(False)
