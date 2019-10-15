@@ -2775,7 +2775,8 @@ class FTMoveDlg(QDialog):
                 QMessageBox.Ok)
         else:
             QMessageBox.information(self, 'Move complete',
-                'The stage has been moved to the selected position.',
+                'The stage has been moved to the selected position. '
+                'The Viewport will be updated after pressing OK.',
                 QMessageBox.Ok)
             super().accept()
         # Enable button again:

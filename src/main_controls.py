@@ -644,11 +644,8 @@ class MainControls(QMainWindow):
         # Get current estimates:
         (min_dose, max_dose, total_area, total_z, total_data,
         total_imaging, total_stage_moves, total_cutting,
-        date_estimate) = self.stack.calculate_estimates()
+        date_estimate, remaining_time) = self.stack.calculate_estimates()
         total_duration = total_imaging + total_stage_moves + total_cutting
-        minutes, seconds = divmod(int(total_duration), 60)
-        hours, minutes = divmod(minutes, 60)
-        days, hours = divmod(hours, 24)
         if min_dose == max_dose:
             self.label_dose.setText(
                 '{0:.1f}'.format(min_dose) + ' electrons per nm²')
@@ -658,6 +655,7 @@ class MainControls(QMainWindow):
                 + '{0:.1f}'.format(max_dose) + ' electrons per nm²')
         if total_duration == 0:
             total_duration = 1  # prevent division by zero
+        days, hours, minutes = utils.get_days_hours_minutes(total_duration)
         self.label_totalDuration.setText(
             f'{days} d {hours} h {minutes} min     '
             f'({total_imaging/total_duration * 100:.1f}% / '
@@ -666,7 +664,9 @@ class MainControls(QMainWindow):
         self.label_totalArea.setText('{0:.1f}'.format(total_area) + ' µm²')
         self.label_totalZ.setText('{0:.1f}'.format(total_z) + ' µm')
         self.label_totalData.setText('{0:.1f}'.format(total_data) + ' GB')
-        self.label_dateEstimate.setText(date_estimate)
+        days, hours, minutes = utils.get_days_hours_minutes(remaining_time)
+        self.label_dateEstimate.setText(
+            date_estimate + f'   ({days} d {hours} h {minutes} min remaining)')
 
     def update_acq_options(self):
         self.cfg['acq']['use_email_monitoring'] = str(
@@ -1439,6 +1439,9 @@ class MainControls(QMainWindow):
 
     def restrict_gui(self, b):
         """Disable GUI elements during acq or when program is busy."""
+        # Partially disable/enable the tests and the focus tool:
+        self.restrict_focus_tool_gui(b)
+        self.restrict_tests_gui(b)
         b ^= True
         # Settings buttons:
         self.pushButton_SEMSettings.setEnabled(b)
@@ -1455,7 +1458,6 @@ class MainControls(QMainWindow):
         self.checkBox_mirrorDrive.setEnabled(b)
         self.toolButton_mirrorDrive.setEnabled(b)
         self.checkBox_takeOV.setEnabled(b)
-
         self.toolButton_OVSettings.setEnabled(b)
         if self.plc_installed:
             self.checkBox_plasmaCleaner.setEnabled(b)
@@ -1463,11 +1465,32 @@ class MainControls(QMainWindow):
         # Start, reset buttons:
         self.pushButton_startAcq.setEnabled(b)
         self.pushButton_resetAcq.setEnabled(b)
-        # Disable/enable the communication tests and the focus tool:
-        self.tabWidget.setTabEnabled(1, b)
-        self.tabWidget.setTabEnabled(2, b)
         # Disable/enable menu
         self.menubar.setEnabled(b)
+
+    def restrict_focus_tool_gui(self, b):
+        b ^= True
+        self.pushButton_focusToolStart.setEnabled(b)
+        self.pushButton_focusToolMove.setEnabled(b)
+        self.checkBox_zoom.setEnabled(b)
+
+    def restrict_tests_gui(self, b):
+        b ^= True
+        self.pushButton_testGetMag.setEnabled(b)
+        self.pushButton_testSetMag.setEnabled(b)
+        self.pushButton_testGetFocus.setEnabled(b)
+        self.pushButton_testSetFocus.setEnabled(b)
+        self.pushButton_testRunAutofocus.setEnabled(b)
+        self.pushButton_testRunAutostig.setEnabled(b)
+        self.pushButton_testRunAutofocusStig.setEnabled(b)
+        self.pushButton_testZeissAPIVersion.setEnabled(b)
+        self.pushButton_testGetStage.setEnabled(b)
+        self.pushButton_testSetStage.setEnabled(b)
+        self.pushButton_testNearKnife.setEnabled(b)
+        self.pushButton_testClearKnife.setEnabled(b)
+        self.pushButton_testStopDMScript.setEnabled(b)
+        self.pushButton_testPlasmaCleaner.setEnabled(b)
+        self.pushButton_testMotors.setEnabled(b)
 
     def restrict_gui_for_simulation_mode(self):
         self.pushButton_SEMSettings.setEnabled(False)
@@ -1480,23 +1503,8 @@ class MainControls(QMainWindow):
         self.actionStageCalibration.setEnabled(False)
         self.actionPlasmaCleanerSettings.setEnabled(False)
         # Tests and focus tool:
-        self.pushButton_focusToolStart.setEnabled(False)
-        self.checkBox_zoom.setEnabled(False)
-        self.pushButton_testGetMag.setEnabled(False)
-        self.pushButton_testSetMag.setEnabled(False)
-        self.pushButton_testGetFocus.setEnabled(False)
-        self.pushButton_testSetFocus.setEnabled(False)
-        self.pushButton_testRunAutofocus.setEnabled(False)
-        self.pushButton_testRunAutostig.setEnabled(False)
-        self.pushButton_testRunAutofocusStig.setEnabled(False)
-        self.pushButton_testZeissAPIVersion.setEnabled(False)
-        self.pushButton_testGetStage.setEnabled(False)
-        self.pushButton_testSetStage.setEnabled(False)
-        self.pushButton_testNearKnife.setEnabled(False)
-        self.pushButton_testClearKnife.setEnabled(False)
-        self.pushButton_testStopDMScript.setEnabled(False)
-        self.pushButton_testPlasmaCleaner.setEnabled(False)
-        self.pushButton_testMotors.setEnabled(False)
+        self.restrict_focus_tool_gui(True)
+        self.restrict_tests_gui(True)
 
     def restrict_gui_for_sem_stage(self):
         self.pushButton_doApproach.setEnabled(False)
@@ -1964,6 +1972,7 @@ class MainControls(QMainWindow):
             self.pushButton_startAcq.setEnabled(True)
             self.label_sliceCounter.setText('---')
             self.progressBar.setValue(0)
+            self.show_estimates()
             self.acq_in_progress = False
             self.acq_paused = False
             self.pushButton_startAcq.setText('START')
@@ -2268,9 +2277,14 @@ class MainControls(QMainWindow):
             dialog = FTMoveDlg(self.microtome, self.cs, self.gm,
                                self.ft_selected_grid, self.ft_selected_tile,
                                self.ft_selected_ov)
-            dialog.exec_()
-            # Update stage position in main controls tab
-            self.show_current_stage_xy()
+            if dialog.exec_():
+                # Update stage position in main controls tab
+                self.show_current_stage_xy()
+                # Recentre at current stage position and redraw
+                self.cs.set_mv_centre_d(
+                    self.cs.convert_to_d(self.stage.get_last_known_xy()))
+                self.viewport.mv_draw()
+
         else:
             QMessageBox.information(
                 self, 'Select tile/OV',
@@ -2342,7 +2356,7 @@ class MainControls(QMainWindow):
             self.ft_acquire_stig_series(1)
 
     def ft_reset(self):
-        self.pushButton_focusToolStart.setText('Start')
+        self.pushButton_focusToolStart.setText('Run cycle')
         self.pushButton_focusToolStart.setEnabled(True)
         self.pushButton_focusToolMove.setEnabled(True)
         self.pushButton_focusToolSet.setEnabled(True)

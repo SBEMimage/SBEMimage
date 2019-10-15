@@ -27,7 +27,7 @@ from dlg_windows import ConfigDlg
 from config_template import process_cfg
 from main_controls import MainControls
 
-VERSION = '2.0 (R2019-07-09)'
+VERSION = '2.0 (R2019-10-15)'
 
 def main():
     """Load configuration and run QApplication.
