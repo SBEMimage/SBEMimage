@@ -2352,7 +2352,7 @@ class MainControls(QMainWindow):
             self.ft_acquire_stig_series(1)
 
     def ft_reset(self):
-        self.pushButton_focusToolStart.setText('Start')
+        self.pushButton_focusToolStart.setText('Run cycle')
         self.pushButton_focusToolStart.setEnabled(True)
         self.pushButton_focusToolMove.setEnabled(True)
         self.pushButton_focusToolSet.setEnabled(True)
