@@ -256,6 +256,31 @@ class MicrotomeSettingsDlg(QDialog):
 
 #------------------------------------------------------------------------------
 
+class KatanaSettingsDlg(QDialog):
+    """Adjust settings for the katana microtome."""
+
+    def __init__(self, microtome):
+        super().__init__()
+        self.microtome = microtome
+        loadUi('..\\gui\\katana_settings_dlg.ui', self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setFixedSize(self.size())
+        self.show()
+        # Set up COM port selector
+        self.comboBox_portSelector.addItems(utils.get_serial_ports())
+        self.comboBox_portSelector.setCurrentIndex(0)
+        self.comboBox_portSelector.currentIndexChanged.connect(
+            self.reconnect)
+
+    def reconnect(self):
+        pass
+
+    def accept(self):
+        super().accept()
+
+#------------------------------------------------------------------------------
+
 class CalibrationDlg(QDialog):
     """Calibrate the stage (rotation and scaling) and the motor speeds."""
 

@@ -22,6 +22,7 @@ import requests
 import numpy as np
 
 from time import sleep
+from serial.tools import list_ports
 
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
@@ -307,6 +308,9 @@ def get_days_hours_minutes(duration_in_seconds):
     hours, minutes = divmod(minutes, 60)
     days, hours = divmod(hours, 24)
     return days, hours, minutes
+
+def get_serial_ports():
+    return [port.device for port in list_ports.comports()]
 
 # ----------------- Functions for geometric transforms (MagC) ------------------
 def affineT(x_in, y_in, x_out, y_out):

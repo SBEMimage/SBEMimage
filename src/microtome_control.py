@@ -772,3 +772,7 @@ class Microtome_katana(Microtome):
         self.error_state = 0
         self.error_cause = ''
         self.motor_warning = False
+
+    def disconnect(self):
+        self.com_port.close()
+        print('katana: Connection closed.')
