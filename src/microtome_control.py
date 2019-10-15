@@ -1,27 +1,30 @@
 # -*- coding: utf-8 -*-
 
-#==============================================================================
+# ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2016-2018 Benjamin Titze,
-#   Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2016-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
 #==============================================================================
 
-"""This module controls the 3View hardware (motorized stage and knife) via
-   DigitalMicrograph.
-   The DM script SBEMimage_DMcom_GMS2.s must be running in DM.
+"""This module controls the microtome hardware (knife and motorized stage) via
+   DigitalMicrograph (3View) or a serial port (katana).
+
+   The DM script SBEMimage_DMcom_GMS2.s must be running in DM to send commands
+   to the 3View stage.
    Communication with Digital Micrograph (DM) is achieved by read/write file
    operations. The following files are used:
-      DMcom.trg - Trigger file
+      DMcom.trg:  Trigger file
                   Signals that a command is waiting to be read
-      DMcom.in - Command/parameter file
-                 Contains a command and (optional) up to two parameters
-      DMcom.out - Contains output/return value(s)
-      DMcom.err - This file signals that a critical error occured.
-      DMcom.ack - Acknowledges that a command has been received and processed.
-      DMcom.wng - Signals a warning (= error that could be resolved).
+      DMcom.in:   Command/parameter file
+                  Contains a command and (optional) up to two parameters
+      DMcom.out:  Contains output/return value(s)
+      DMcom.err:  This file signals that a critical error occured.
+      DMcom.ack:  Acknowledges that a command has been received and processed.
+      DMcom.wng:  Signals a warning (= error that could be resolved).
+
+   The katana microtome is operated via COM port commands.
 """
 
 import os
@@ -56,9 +59,16 @@ class Microtome:
         # must be set in DM before acquisition. Pre-acquisition dialog box
         # asks user to ensure the settings in cfg match the DM settings.
         self.knife_cut_speed = float(self.cfg['microtome']['knife_cut_speed'])
+        self.knife_fast_speed = float(self.cfg['microtome']['knife_fast_speed'])
         self.knife_retract_speed = float(
             self.cfg['microtome']['knife_retract_speed'])
+        self.knife_cut_start = int(self.cfg['microtome']['knife_cut_start'])
+        self.knife_cut_end = int(self.cfg['microtome']['knife_cut_end'])
         self.use_oscillation = bool(self.cfg['microtome']['knife_oscillation'])
+        self.oscillation_frequency = int(
+            self.cfg['microtome']['knife_osc_frequency'])
+        self.oscillation_amplitude = int(
+            self.cfg['microtome']['knife_osc_frequency'])
         # Full cut duration can currently only be changed in config file
         self.full_cut_duration = float(
             self.cfg['microtome']['full_cut_duration'])
@@ -661,11 +671,21 @@ class Microtome_3View(Microtome):
 
 class Microtome_katana(Microtome):
     """
-    Class for ConnectomX katana microtome
+    Class for ConnectomX katana microtome. This microtome provides cutting
+    functionality and controls the Z position. X and Y are controlled by the
+    SEM stage.
     """
+
     def __init__(self, config, sysconfig):
         super().__init__(config, sysconfig)
-        # Perform handshake and read initial X/Y/Z.
+        self.selected_port = sysconfig['device']['katana_com_port']
+        self.z_range_min, self.z_range_max = json.loads(
+            sysconfig['stage']['microtome_z_range'])
+        self.clear_position = int(sysconfig['knife']['katana_clear_position'])
+        self.retract_clearance = int(
+            sysconfig['knife']['katana_retract_clearance'])
+
+        # Open COM port, inialize motors and read initial Z position
         if not self.simulation_mode:
             pass
 
