@@ -267,14 +267,47 @@ class KatanaSettingsDlg(QDialog):
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
+
         # Set up COM port selector
         self.comboBox_portSelector.addItems(utils.get_serial_ports())
         self.comboBox_portSelector.setCurrentIndex(0)
         self.comboBox_portSelector.currentIndexChanged.connect(
             self.reconnect)
 
+        self.display_connection_status()
+        self.display_current_settings()
+
     def reconnect(self):
         pass
+
+    def display_connection_status(self):
+        # Show message in dialog whether or not katana is connected.
+        pal = QPalette(self.label_connectionStatus.palette())
+        if self.microtome.connected:
+            # Use red colour if not connected
+            pal.setColor(QPalette.WindowText, QColor(Qt.black))
+            self.label_connectionStatus.setPalette(pal)
+            self.label_connectionStatus.setText('katana microtome connected.')
+        else:
+            pal.setColor(QPalette.WindowText, QColor(Qt.red))
+            self.label_connectionStatus.setPalette(pal)
+            self.label_connectionStatus.setText('katana microtome is not connected.')
+
+    def display_current_settings(self):
+        # Speeds must be converted to microns/sec (* 1000)
+        self.spinBox_knifeCutSpeed.setValue(
+            self.microtome.get_knife_cut_speed() * 1000)
+        self.spinBox_knifeFastSpeed.setValue(
+            self.microtome.get_knife_fast_speed() * 1000)
+        self.spinBox_cutWindowStart.setValue(self.microtome.get_cut_window()[0])
+        self.spinBox_cutWindowEnd.setValue(self.microtome.get_cut_window()[1])
+
+        self.checkBox_useOscillation.setChecked(
+            self.microtome.is_oscillation_enabled())
+        self.spinBox_oscAmplitude.setValue(
+            self.microtome.get_oscillation_amplitude())
+        self.spinBox_oscFrequency.setValue(
+            self.microtome.get_oscillation_frequency())
 
     def accept(self):
         super().accept()

@@ -53,6 +53,8 @@ class Microtome:
         else:
             self.z_prev_session = float(
                 self.cfg['microtome']['last_known_z'])
+        self.z_range = json.loads(
+            self.syscfg['stage']['microtome_z_range'])
         self.error_state = 0
         self.error_cause = ''       # additional info on error
         self.motor_warning = False  # True when motors slower than expected
@@ -65,13 +67,13 @@ class Microtome:
         self.knife_fast_speed = float(self.cfg['microtome']['knife_fast_speed'])
         self.knife_retract_speed = float(
             self.cfg['microtome']['knife_retract_speed'])
-        self.knife_cut_start = int(self.cfg['microtome']['knife_cut_start'])
-        self.knife_cut_end = int(self.cfg['microtome']['knife_cut_end'])
+        self.cut_window_start = int(self.cfg['microtome']['knife_cut_start'])
+        self.cut_window_end = int(self.cfg['microtome']['knife_cut_end'])
         self.use_oscillation = bool(self.cfg['microtome']['knife_oscillation'])
         self.oscillation_frequency = int(
             self.cfg['microtome']['knife_osc_frequency'])
         self.oscillation_amplitude = int(
-            self.cfg['microtome']['knife_osc_frequency'])
+            self.cfg['microtome']['knife_osc_amplitude'])
         # Full cut duration can currently only be changed in config file
         self.full_cut_duration = float(
             self.cfg['microtome']['full_cut_duration'])
@@ -81,7 +83,6 @@ class Microtome:
             # If outside permitted range, set to 70 nm as default:
             self.sweep_distance = 70
             self.cfg['microtome']['sweep_distance'] = '70'
-
         # The following parameters can be set from SBEMimage GUI:
         self.stage_move_wait_interval = float(
             self.cfg['microtome']['stage_move_wait_interval'])
@@ -217,6 +218,9 @@ class Microtome:
            before each cut and for sweeps."""
         raise NotImplementedError
 
+    def get_stage_z_range(self):
+        return self.z_range
+
     def get_last_known_xy(self):
         return self.last_known_x, self.last_known_y
 
@@ -256,15 +260,32 @@ class Microtome:
 
     def set_knife_cut_speed(self, cut_speed):
         self.knife_cut_speed = cut_speed
-        self.cfg['microtome']['knife_cut_speed'] = '{0:.1f}'.format(cut_speed)
+        self.cfg['microtome']['knife_cut_speed'] = '{0:.2f}'.format(cut_speed)
 
     def get_knife_retract_speed(self):
         return self.knife_retract_speed
 
     def set_knife_retract_speed(self, retract_speed):
         self.knife_retract_speed = retract_speed
-        self.cfg['microtome']['knife_retract_speed'] = '{0:.1f}'.format(
+        self.cfg['microtome']['knife_retract_speed'] = '{0:.2f}'.format(
             retract_speed)
+
+    def get_knife_fast_speed(self):
+        return self.knife_fast_speed
+
+    def set_knife_fast_speed(fast_speed):
+        self.knife_fast_speed = fast_speed
+        self.cfg['microtome']['knife_fast_speed'] = '{0:.2f}'.format(
+            fast_speed)
+
+    def get_cut_window(self):
+        return self.cut_window_start, self.cut_window_end
+
+    def set_cut_window(start, end):
+        self.cut_window_start = int(start)
+        self.cut_window_end = int(end)
+        self.cfg['microtome']['knife_cut_start'] = str(self.cut_window_start)
+        self.cfg['microtome']['knife_cut_end'] = str(self.cut_window_end)
 
     def is_oscillation_enabled(self):
         return self.use_oscillation
@@ -272,6 +293,22 @@ class Microtome:
     def set_oscillation_enabled(self, status):
         self.use_oscillation = status
         self.cfg['microtome']['knife_oscillation'] = str(status)
+
+    def get_oscillation_frequency(self):
+        return self.oscillation_frequency
+
+    def set_oscillation_frequency(frequency):
+        self.oscillation_frequency = int(frequency)
+        self.cfg['microtome']['knife_osc_frequency'] = str(
+            self.oscillation_frequency)
+
+    def get_oscillation_amplitude(self):
+        return self.oscillation_amplitude
+
+    def set_oscillation_amplitude(amplitude):
+        self.oscillation_amplitude = int(amplitude)
+        self.cfg['microtome']['knife_osc_amplitude'] = str(
+            self.oscillation_amplitude)
 
     def get_stage_calibration(self):
         return self.stage_calibration
@@ -682,23 +719,26 @@ class Microtome_katana(Microtome):
     def __init__(self, config, sysconfig):
         super().__init__(config, sysconfig)
         self.selected_port = sysconfig['device']['katana_com_port']
-        self.z_range_min, self.z_range_max = json.loads(
-            sysconfig['stage']['microtome_z_range'])
         self.clear_position = int(sysconfig['knife']['katana_clear_position'])
         self.retract_clearance = int(
-            sysconfig['knife']['katana_retract_clearance'])
+            sysconfig['stage']['katana_retract_clearance'])
+        self.connected = False
+        # Try to connect with current selected port
+        self.connect()
 
-        # Open COM port, inialize motors and read initial Z position
+    def connect(self):
+        # Open COM port
         if not self.simulation_mode:
             self.com_port = serial.Serial()
             self.com_port.port = self.selected_port
             # TODO: add connection settings
             try:
                 self.com_port.open()
-                self.connection_success = True
-                print('Connection to katana successful.')
+                self.connected = True
+                # print('Connection to katana successful.')
             except Exception as e:
-                print('Connection to katana failed: ' + repr(e))
+                # print('Connection to katana failed: ' + repr(e))
+                pass
 
     def do_full_cut(self):
         """Perform a full cut cycle. This is the only knife control function
@@ -723,28 +763,6 @@ class Microtome_katana(Microtome):
         # only used for testing
         pass
 
-    def write_motor_speeds_to_script(self):
-        pass
-
-    def move_stage_to_x(self, x):
-        # only used for testing
-        pass
-
-    def move_stage_to_y(self, y):
-        # only used for testing
-        pass
-
-    def get_stage_xy(self, wait_interval=0.25):
-        """Get current XY coordinates"""
-        pass
-
-    def move_stage_to_xy(self, coordinates):
-        """Move stage to coordinates X/Y. This function is called during
-           acquisitions. It includes waiting times. The other move functions
-           below do not.
-        """
-        pass
-
     def get_stage_z(self, wait_interval=0.5):
         """Get current Z coordinate"""
         pass
@@ -764,6 +782,22 @@ class Microtome_katana(Microtome):
     def clear_knife(self):
         # only used for testing
         pass
+
+    def get_clear_position(self):
+        return self.clear_position
+
+    def set_clear_position(self, clear_position):
+        self.clear_position = int(clear_position)
+        self.sysconfig['knife']['katana_clear_position'] = str(
+            self.clear_position)
+
+    def get_retract_clearance(self):
+        return self.retract_clearance
+
+    def set_retract_clearance(self, retract_clearance):
+        self.retract_clearance = int(retract_clearance)
+        self.sysconfig['stage']['katana_retract_clearance'] = str(
+            self.retract_clearance)
 
     def check_for_cut_cycle_error(self):
         pass
