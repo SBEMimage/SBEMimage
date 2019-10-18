@@ -294,13 +294,15 @@ class KatanaSettingsDlg(QDialog):
             self.label_connectionStatus.setText('katana microtome is not connected.')
 
     def display_current_settings(self):
-        # Speeds must be converted to microns/sec (* 1000)
+        # Speeds are stored in mm/s, must be converted to microns/sec (* 1000)
+        # for display in spinBoxes
         self.spinBox_knifeCutSpeed.setValue(
             self.microtome.get_knife_cut_speed() * 1000)
         self.spinBox_knifeFastSpeed.setValue(
             self.microtome.get_knife_fast_speed() * 1000)
-        self.spinBox_cutWindowStart.setValue(self.microtome.get_cut_window()[0])
-        self.spinBox_cutWindowEnd.setValue(self.microtome.get_cut_window()[1])
+        cut_window_start, cut_window_end = self.microtome.get_cut_window()
+        self.spinBox_cutWindowStart.setValue(cut_window_start)
+        self.spinBox_cutWindowEnd.setValue(cut_window_end)
 
         self.checkBox_useOscillation.setChecked(
             self.microtome.is_oscillation_enabled())
@@ -309,8 +311,41 @@ class KatanaSettingsDlg(QDialog):
         self.spinBox_oscFrequency.setValue(
             self.microtome.get_oscillation_frequency())
 
+        self.doubleSpinBox_zPosition.setValue(self.microtome.get_stage_z())
+        z_range_min, z_range_max = self.microtome.get_stage_z_range()
+        self.doubleSpinBox_zRangeMin.setValue(z_range_min)
+        self.doubleSpinBox_zRangeMax.setValue(z_range_max)
+        # Retraction clearance is stored in nanometres, display in micrometres
+        self.doubleSpinBox_retractClearance.setValue(
+            self.microtome.get_retract_clearance() / 1000)
+
     def accept(self):
-        super().accept()
+        new_cut_speed = self.spinBox_knifeCutSpeed.value() / 1000  # mm/s
+        new_fast_speed = self.spinBox_knifeFastSpeed.value() / 1000
+        new_cut_start = self.spinBox_cutWindowStart.value()
+        new_cut_end = self.spinBox_cutWindowEnd.value()
+        new_osc_frequency = self.spinBox_oscFrequency.value()
+        new_osc_amplitude = self.spinBox_oscAmplitude. value()
+        # retract_clearance in nanometres
+        new_retract_clearance = (
+            self.doubleSpinBox_retractClearance.value() * 1000)
+        # End position of cut window must be smaller than start position:
+        if new_cut_end < new_cut_start:
+            self.microtome.set_knife_cut_speed(new_cut_speed)
+            self.microtome.set_knife_fast_speed(new_fast_speed)
+            self.microtome.set_cut_window(new_cut_start, new_cut_end)
+            self.microtome.set_oscillation_enabled(
+                self.checkBox_useOscillation.isChecked())
+            self.microtome.set_oscillation_frequency(new_osc_frequency)
+            self.microtome.set_oscillation_amplitude(new_osc_amplitude)
+            self.microtome.set_retract_clearance(new_retract_clearance)
+            super().accept()
+        else:
+            QMessageBox.warning(
+                self, 'Invalid input',
+                'The start position of the cutting window must be larger '
+                'than the end position.',
+                QMessageBox.Ok)
 
 #------------------------------------------------------------------------------
 

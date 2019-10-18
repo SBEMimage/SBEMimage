@@ -273,7 +273,7 @@ class Microtome:
     def get_knife_fast_speed(self):
         return self.knife_fast_speed
 
-    def set_knife_fast_speed(fast_speed):
+    def set_knife_fast_speed(self, fast_speed):
         self.knife_fast_speed = fast_speed
         self.cfg['microtome']['knife_fast_speed'] = '{0:.2f}'.format(
             fast_speed)
@@ -281,7 +281,7 @@ class Microtome:
     def get_cut_window(self):
         return self.cut_window_start, self.cut_window_end
 
-    def set_cut_window(start, end):
+    def set_cut_window(self, start, end):
         self.cut_window_start = int(start)
         self.cut_window_end = int(end)
         self.cfg['microtome']['knife_cut_start'] = str(self.cut_window_start)
@@ -297,7 +297,7 @@ class Microtome:
     def get_oscillation_frequency(self):
         return self.oscillation_frequency
 
-    def set_oscillation_frequency(frequency):
+    def set_oscillation_frequency(self, frequency):
         self.oscillation_frequency = int(frequency)
         self.cfg['microtome']['knife_osc_frequency'] = str(
             self.oscillation_frequency)
@@ -305,7 +305,7 @@ class Microtome:
     def get_oscillation_amplitude(self):
         return self.oscillation_amplitude
 
-    def set_oscillation_amplitude(amplitude):
+    def set_oscillation_amplitude(self, amplitude):
         self.oscillation_amplitude = int(amplitude)
         self.cfg['microtome']['knife_osc_amplitude'] = str(
             self.oscillation_amplitude)
@@ -765,7 +765,7 @@ class Microtome_katana(Microtome):
 
     def get_stage_z(self, wait_interval=0.5):
         """Get current Z coordinate"""
-        pass
+        return 999.999 # for testing
 
     def get_stage_z_prev_session(self):
         return self.z_prev_session
@@ -796,7 +796,7 @@ class Microtome_katana(Microtome):
 
     def set_retract_clearance(self, retract_clearance):
         self.retract_clearance = int(retract_clearance)
-        self.sysconfig['stage']['katana_retract_clearance'] = str(
+        self.syscfg['stage']['katana_retract_clearance'] = str(
             self.retract_clearance)
 
     def check_for_cut_cycle_error(self):

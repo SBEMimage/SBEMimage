@@ -60,7 +60,10 @@
      <string>Current Z position (µm):</string>
     </property>
    </widget>
-   <widget class="QDoubleSpinBox" name="doubleSpinBox">
+   <widget class="QDoubleSpinBox" name="doubleSpinBox_zPosition">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>210</x>
@@ -93,6 +96,9 @@
     </property>
    </widget>
    <widget class="QDoubleSpinBox" name="doubleSpinBox_zRangeMin">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>210</x>
@@ -112,6 +118,9 @@
     </property>
    </widget>
    <widget class="QDoubleSpinBox" name="doubleSpinBox_zRangeMax">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>291</x>
@@ -457,6 +466,20 @@
    </widget>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>comboBox_portSelector</tabstop>
+  <tabstop>spinBox_knifeCutSpeed</tabstop>
+  <tabstop>spinBox_knifeFastSpeed</tabstop>
+  <tabstop>spinBox_cutWindowStart</tabstop>
+  <tabstop>spinBox_cutWindowEnd</tabstop>
+  <tabstop>checkBox_useOscillation</tabstop>
+  <tabstop>spinBox_oscFrequency</tabstop>
+  <tabstop>spinBox_oscAmplitude</tabstop>
+  <tabstop>doubleSpinBox_zPosition</tabstop>
+  <tabstop>doubleSpinBox_zRangeMin</tabstop>
+  <tabstop>doubleSpinBox_zRangeMax</tabstop>
+  <tabstop>doubleSpinBox_retractClearance</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>
