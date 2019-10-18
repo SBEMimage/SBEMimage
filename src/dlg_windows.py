@@ -308,8 +308,8 @@ class KatanaSettingsDlg(QDialog):
             self.microtome.get_oscillation_amplitude())
         self.spinBox_oscFrequency.setValue(
             self.microtome.get_oscillation_frequency())
-
-        self.doubleSpinBox_zPosition.setValue(self.microtome.get_stage_z())
+        if not self.microtome.simulation_mode and self.microtome.connected: 
+            self.doubleSpinBox_zPosition.setValue(self.microtome.get_stage_z())
         z_range_min, z_range_max = self.microtome.get_stage_z_range()
         self.doubleSpinBox_zRangeMin.setValue(z_range_min)
         self.doubleSpinBox_zRangeMax.setValue(z_range_max)
