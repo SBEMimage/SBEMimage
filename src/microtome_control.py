@@ -259,24 +259,27 @@ class Microtome:
         return self.knife_cut_speed
 
     def set_knife_cut_speed(self, cut_speed):
-        self.knife_cut_speed = cut_speed
-        self.cfg['microtome']['knife_cut_speed'] = '{0:.2f}'.format(cut_speed)
+        """Set knife cut speed in micrometres/second."""
+        self.knife_cut_speed = int(cut_speed)
+        self.cfg['microtome']['knife_cut_speed'] = str(self.knife_cut_speed)
 
     def get_knife_retract_speed(self):
         return self.knife_retract_speed
 
     def set_knife_retract_speed(self, retract_speed):
-        self.knife_retract_speed = retract_speed
-        self.cfg['microtome']['knife_retract_speed'] = '{0:.2f}'.format(
-            retract_speed)
+        """Set knife retract speed in micrometres/second."""
+        self.knife_retract_speed = int(retract_speed)
+        self.cfg['microtome']['knife_retract_speed'] = str(
+            self.knife_retract_speed)
 
     def get_knife_fast_speed(self):
         return self.knife_fast_speed
 
     def set_knife_fast_speed(self, fast_speed):
-        self.knife_fast_speed = fast_speed
-        self.cfg['microtome']['knife_fast_speed'] = '{0:.2f}'.format(
-            fast_speed)
+        """Set knife fast speed in micrometres/second."""
+        self.knife_fast_speed = int(fast_speed)
+        self.cfg['microtome']['knife_fast_speed'] = str(
+            self.knife_fast_speed)
 
     def get_cut_window(self):
         return self.cut_window_start, self.cut_window_end

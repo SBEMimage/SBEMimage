@@ -294,12 +294,10 @@ class KatanaSettingsDlg(QDialog):
             self.label_connectionStatus.setText('katana microtome is not connected.')
 
     def display_current_settings(self):
-        # Speeds are stored in mm/s, must be converted to microns/sec (* 1000)
-        # for display in spinBoxes
         self.spinBox_knifeCutSpeed.setValue(
-            self.microtome.get_knife_cut_speed() * 1000)
+            self.microtome.get_knife_cut_speed())
         self.spinBox_knifeFastSpeed.setValue(
-            self.microtome.get_knife_fast_speed() * 1000)
+            self.microtome.get_knife_fast_speed())
         cut_window_start, cut_window_end = self.microtome.get_cut_window()
         self.spinBox_cutWindowStart.setValue(cut_window_start)
         self.spinBox_cutWindowEnd.setValue(cut_window_end)
@@ -320,8 +318,8 @@ class KatanaSettingsDlg(QDialog):
             self.microtome.get_retract_clearance() / 1000)
 
     def accept(self):
-        new_cut_speed = self.spinBox_knifeCutSpeed.value() / 1000  # mm/s
-        new_fast_speed = self.spinBox_knifeFastSpeed.value() / 1000
+        new_cut_speed = self.spinBox_knifeCutSpeed.value()
+        new_fast_speed = self.spinBox_knifeFastSpeed.value()
         new_cut_start = self.spinBox_cutWindowStart.value()
         new_cut_end = self.spinBox_cutWindowEnd.value()
         new_osc_frequency = self.spinBox_oscFrequency.value()
