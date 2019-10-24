@@ -14,9 +14,6 @@
    actually needed in SBEMimage have been implemented. The module has so far
    been tested with a ZEISS Merlin SEM, but should in principle (with minor
    modifications) work with all ZEISS SEMs that can be controlled via SmartSEM.
-
-   TODO: Make SEM() the parent class for SEM_Merlin(), SEM_Sigma() and
-   SEM_Quanta().
 """
 
 from time import sleep
@@ -26,7 +23,11 @@ import pythoncom
 import win32com.client   # required to access CZEMApi.ocx (Carl Zeiss EM API)
 from win32com.client import VARIANT  # necessary for API function calls
 
-class SEM():
+class SEM:
+    """Base class for remote SEM control. Implements minimum parameter handling.
+    Unimplemented methods raise a NotImplementedError - they must be implemented
+    in child classes.
+    """
 
     def __init__(self, config, sysconfig):
         self.cfg = config
@@ -73,24 +74,6 @@ class SEM():
             float(self.cfg['sem']['stage_rotation_angle_x']),
             float(self.cfg['sem']['stage_rotation_angle_y'])]
 
-        if not self.simulation_mode:
-            # Dispatch Merlin API (CZ EM API OLE Control):
-            # CZEMApi.ocx must be registered in the Windows registry!
-            # 'CZ.EMApiCtrl.1'  {71BD42C4-EBD3-11D0-AB3A-444553540000}
-            try:
-                self.sem_api = win32com.client.Dispatch('CZ.EMApiCtrl.1')
-                ret_val = self.sem_api.InitialiseRemoting()
-            except:
-                ret_val = 1
-            if ret_val != 0:    # In ZEISS API, response of '0' means success
-                self.error_state = 301
-                self.error_cause = (
-                    'sem.__init__: remote API control could not be initalized.')
-            elif config['sys']['use_microtome'] == 'False':
-                # Load SEM stage coordinates:
-                self.last_known_x, self.last_known_y, self.last_known_z = (
-                    self.get_stage_xyz())
-
     def load_system_constants(self):
         """Load all constant parameters from system config."""
         self.STORE_RES = json.loads(self.syscfg['sem']['store_res'])
@@ -114,6 +97,289 @@ class SEM():
         self.MAG_PX_SIZE_FACTOR = new_factor
         # Save in sysconfig:
         self.syscfg['sem']['mag_px_size_factor'] = str(new_factor)
+
+    def turn_eht_on(self):
+        raise NotImplementedError
+
+    def turn_eht_off(self):
+        raise NotImplementedError
+
+    def is_eht_on(self):
+        raise NotImplementedError
+
+    def is_eht_off(self):
+        raise NotImplementedError
+
+    def get_eht(self):
+        """Return the target EHT, which is not necessarily the current EHT
+           in SmartSEM
+        """
+        return self.eht
+
+    def set_eht(self, target_eht):
+        """Save the target EHT and set the EHT to this target value."""
+        # Save with two decimal digits:
+        self.cfg['sem']['eht'] = '{0:.2f}'.format(target_eht)
+        self.eht = float(self.cfg['sem']['eht'])
+        # Setting SEM to target EHT must be implemented in child class!
+
+    def get_beam_current(self):
+        """Return the target beam current, which is not necessarily the
+           current beam current in SmartSEM
+        """
+        return self.beam_current
+
+    def set_beam_current(self, target_current):
+        """Save the target beam current in pA and set the beam to this
+        target current.
+        """
+        self.beam_current = target_current
+        self.cfg['sem']['beam_current'] = str(target_current)
+        # Setting SEM to target beam current must be implemented in child class!
+
+    def apply_beam_settings(self):
+        """"Set the SEM to the target EHT voltage and beam current."""
+        raise NotImplementedError
+
+    def get_grab_settings(self):
+        return [self.grab_frame_size_selector,
+                self.grab_pixel_size,
+                self.grab_dwell_time]
+
+    def set_grab_settings(self, frame_size_selector, pixel_size, dwell_time):
+        self.grab_frame_size_selector = frame_size_selector
+        self.cfg['sem']['grab_frame_size_selector'] = str(
+            self.grab_frame_size_selector)
+        # Explicit storage of frame size in pixels:
+        self.cfg['sem']['grab_frame_size_xy'] = str(
+            self.STORE_RES[self.grab_frame_size_selector])
+        self.grab_pixel_size = pixel_size
+        self.cfg['sem']['grab_frame_pixel_size'] = str(
+            self.grab_pixel_size)
+        self.grab_dwell_time = dwell_time
+        self.cfg['sem']['grab_frame_dwell_time'] = str(
+            self.grab_dwell_time)
+
+    def apply_grab_settings(self):
+        raise NotImplementedError
+
+    def apply_frame_settings(self, frame_size_selector, pixel_size, dwell_time):
+        """Apply the frame settings (frame size, pixel size and dwell time)."""
+        raise NotImplementedError
+
+    def set_frame_size(self, frame_size_selector):
+        raise NotImplementedError
+
+    def get_mag(self):
+        raise NotImplementedError
+
+    def set_mag(self, target_mag):
+        raise NotImplementedError
+
+    def set_scan_rate(self, scan_rate_selector):
+        raise NotImplementedError
+
+    def set_dwell_time(self, dwell_time):
+        """Translates dwell time into scan rate and calls self.set_scan_rate()
+        """
+        raise NotImplementedError
+
+    def set_scan_rotation(self, angle):
+        """Set the scan rotation angle."""
+        raise NotImplementedError
+
+    def acquire_frame(self, save_path_filename, extra_delay=0):
+        """Acquire a full frame and save it to save_path_filename.
+           All imaging parameters must be applied BEFORE calling this function.
+           To avoid grabbing the image before it is acquired completely, an
+           additional waiting period after the cycle time may be necessary.
+           The delay specified in syscfg is added by default for
+           cycle times > 0.5 s.
+        """
+        raise NotImplementedError
+
+    def save_frame(self, save_path_filename):
+        """Save the frame currently displayed in SmartSEM."""
+        raise NotImplementedError
+
+    def get_wd(self):
+        """Return current working distance in metres."""
+        raise NotImplementedError
+
+    def set_wd(self, target_wd):
+        """Set working distance to target distance (in metres)."""
+        raise NotImplementedError
+
+    def get_stig_xy(self):
+        """Return XY stigmator parameters in %, as a tuple """
+        raise NotImplementedError
+
+    def set_stig_xy(self, target_stig_x, target_stig_y):
+        raise NotImplementedError
+
+    def get_stig_x(self):
+        raise NotImplementedError
+
+    def set_stig_x(self, target_stig_x):
+        raise NotImplementedError
+
+    def get_stig_y(self):
+        raise NotImplementedError
+
+    def set_stig_y(self, target_stig_y):
+        raise NotImplementedError
+
+    def set_beam_blanking(self, should_be_blanked):
+        raise NotImplementedError
+
+    def run_autofocus(self):
+        """Run ZEISS autofocus, break if it takes longer than 1 min."""
+        raise NotImplementedError
+
+    def run_autostig(self):
+        """Run ZEISS autostig, break if it takes longer than 1 min."""
+        raise NotImplementedError
+
+    def run_autofocus_stig(self):
+        """Run combined ZEISS autofocus and autostig, break if it takes
+           longer than 1 min.
+        """
+        raise NotImplementedError
+
+    def get_stage_x(self):
+        # Return in microns
+        raise NotImplementedError
+
+    def get_stage_y(self):
+        raise NotImplementedError
+
+    def get_stage_z(self):
+        raise NotImplementedError
+
+    def get_stage_xy(self):
+        raise NotImplementedError
+
+    def get_stage_xyz(self):
+        raise NotImplementedError
+
+    def get_last_known_xy(self):
+        return (self.last_known_x, self.last_known_y)
+
+    def get_last_known_z(self):
+        return self.last_known_z
+
+    def move_stage_to_x(self, x):
+        """Move stage to coordinate x, provided in microns"""
+        raise NotImplementedError
+
+    def move_stage_to_y(self, y):
+        """Move stage to coordinate y, provided in microns"""
+        raise NotImplementedError
+
+    def move_stage_to_z(self, z):
+        """Move stage to coordinate y, provided in microns"""
+        raise NotImplementedError
+
+    def move_stage_to_xy(self, coordinates):
+        """Move stage to coordinates x and y, provided in microns"""
+        raise NotImplementedError
+
+    def calculate_stage_move_duration(self, from_x, from_y, to_x, to_y):
+        """Calculate the duration of a stage move in seconds using the
+        motor speeds specified in the configuration.
+        """
+        duration_x = abs(to_x - from_x) / self.motor_speed_x
+        duration_y = abs(to_y - from_y) / self.motor_speed_y
+        return max(duration_x, duration_y) + self.stage_move_wait_interval
+
+    def get_stage_move_wait_interval(self):
+        return self.stage_move_wait_interval
+
+    def set_stage_move_wait_interval(self, wait_interval):
+        self.stage_move_wait_interval = wait_interval
+        self.cfg['sem']['stage_move_wait_interval'] = str(wait_interval)
+
+    def get_motor_speeds(self):
+        return (self.motor_speed_x, self.motor_speed_y)
+
+    def get_motor_limits(self):
+        return self.motor_limits
+
+    def get_stage_calibration(self):
+        return self.stage_calibration
+
+    def update_stage_calibration(self, eht):
+        eht = int(eht * 1000)  # Dict keys in system config use volts, not kV
+        success = True
+        try:
+            calibration_data = json.loads(
+                self.syscfg['stage']['sem_calibration_data'])
+            available_eht = [int(s) for s in calibration_data.keys()]
+        except:
+            available_eht = []
+            success = False
+
+        if success:
+            if eht in available_eht:
+                params = calibration_data[str(eht)]
+            else:
+                success = False
+                # Fallback option: nearest among the available EHT calibrations
+                new_eht = 1500
+                min_diff = abs(eht - 1500)
+                for eht_choice in available_eht:
+                    diff = abs(eht - eht_choice)
+                    if diff < min_diff:
+                        min_diff = diff
+                        new_eht = eht_choice
+                params = calibration_data[str(new_eht)]
+
+            self.cfg['sem']['stage_scale_factor_x'] = str(params[0])
+            self.cfg['sem']['stage_scale_factor_y'] = str(params[1])
+            self.cfg['sem']['stage_rotation_angle_x'] = str(params[2])
+            self.cfg['sem']['stage_rotation_angle_y'] = str(params[3])
+            self.stage_calibration = params
+        return success
+
+    def get_error_state(self):
+        return self.error_state
+
+    def get_error_cause(self):
+        return self.error_cause
+
+    def reset_error_state(self):
+        self.error_state = 0
+        self.error_cause = ''
+
+    def disconnect(self):
+        raise NotImplementedError
+
+
+class SEM_SmartSEM(SEM):
+    """Implements all method for remote control of ZEISS microscopes through
+    the SmartSEM remote control API.
+    """
+
+    def __init__(self, config, sysconfig):
+        super().__init__(config, sysconfig)
+        if not self.simulation_mode:
+            # Dispatch Merlin API (CZ EM API OLE Control):
+            # CZEMApi.ocx must be registered in the Windows registry!
+            # 'CZ.EMApiCtrl.1'  {71BD42C4-EBD3-11D0-AB3A-444553540000}
+            try:
+                self.sem_api = win32com.client.Dispatch('CZ.EMApiCtrl.1')
+                ret_val = self.sem_api.InitialiseRemoting()
+            except:
+                ret_val = 1
+            if ret_val != 0:   # In ZEISS API, response of '0' means success
+                self.error_state = 301
+                self.error_cause = (
+                    'sem.__init__: remote API control could not be'
+                    'initalized.')
+            elif config['sys']['use_microtome'] == 'False':
+                # Load SEM stage coordinates:
+                self.last_known_x, self.last_known_y, self.last_known_z = (
+                    self.get_stage_xyz())
 
     def turn_eht_on(self):
         ret_val = self.sem_api.Execute('CMD_BEAM_ON')
@@ -141,19 +407,9 @@ class SEM():
         # intermediate beam states between on and off.
         return (self.sem_api.Get('DP_RUNUPSTATE', 0)[1] == 'EHT Off')
 
-    def get_eht(self):
-        """Return the target EHT, which is not necessarily the current EHT
-           in SmartSEM
-        """
-        return self.eht
-
     def set_eht(self, target_eht):
-        """Save the target EHT and set the EHT in SmartSEM
-           to this target value.
-        """
-        # Save with two decimal digits:
-        self.cfg['sem']['eht'] = '{0:.2f}'.format(target_eht)
-        self.eht = float(self.cfg['sem']['eht'])
+        # Call method in parent class to change settings:
+        super().set_eht(target_eht)
         # target_eht given in kV
         variant = VARIANT(pythoncom.VT_R4, target_eht * 1000)
         ret_val = self.sem_api.Set('AP_MANUALKV', variant)[0]
@@ -164,18 +420,9 @@ class SEM():
             self.error_cause = 'sem.set_eht: command failed'
             return False
 
-    def get_beam_current(self):
-        """Return the target beam current, which is not necessarily the
-           current beam current in SmartSEM
-        """
-        return self.beam_current
-
     def set_beam_current(self, target_current):
-        """Save the target beam current in pA and set the beam in SmartSEM
-           to this target current.
-        """
-        self.beam_current = target_current
-        self.cfg['sem']['beam_current'] = str(target_current)
+        # Call method in parent class to change settings:
+        super().set_beam_current(target_current)
         # target_current given in pA
         variant = VARIANT(pythoncom.VT_R4, target_current * 10**(-12))
         ret_val = self.sem_api.Set('AP_IPROBE', variant)[0]
@@ -191,25 +438,6 @@ class SEM():
         ret_val1 = self.set_eht(self.eht)
         ret_val2 = self.set_beam_current(self.beam_current)
         return (ret_val1 and ret_val2)
-
-    def get_grab_settings(self):
-        return [self.grab_frame_size_selector,
-                self.grab_pixel_size,
-                self.grab_dwell_time]
-
-    def set_grab_settings(self, frame_size_selector, pixel_size, dwell_time):
-        self.grab_frame_size_selector = frame_size_selector
-        self.cfg['sem']['grab_frame_size_selector'] = str(
-            self.grab_frame_size_selector)
-        # Explicit storage of frame size in pixels:
-        self.cfg['sem']['grab_frame_size_xy'] = str(
-            self.STORE_RES[self.grab_frame_size_selector])
-        self.grab_pixel_size = pixel_size
-        self.cfg['sem']['grab_frame_pixel_size'] = str(
-            self.grab_pixel_size)
-        self.grab_dwell_time = dwell_time
-        self.cfg['sem']['grab_frame_dwell_time'] = str(
-            self.grab_dwell_time)
 
     def apply_grab_settings(self):
         self.apply_frame_settings(
@@ -278,6 +506,20 @@ class SEM():
         """Translates dwell time into scan rate and calls self.set_scan_rate()
         """
         return self.set_scan_rate(self.DWELL_TIME.index(dwell_time))
+
+    def set_scan_rotation(self, angle):
+        """Set the scan rotation angle.
+        Enable scan rotation for angles > 0.
+        """
+        if angle > 0:
+            enable_variant = VARIANT(pythoncom.VT_R4, 1)
+        else:
+            enable_variant = VARIANT(pythoncom.VT_R4, 0)
+        ret_val1 = self.sem_api.Set('DP_SCAN_ROT', enable_variant)[0]
+        variant_angle = VARIANT(pythoncom.VT_R4, angle)
+        ret_val2 = self.sem_api.Set('AP_SCANROTATION', variant_angle)[0]
+        sleep(0.5)
+        return ret_val1 == 0 and ret_val2 == 0
 
     def acquire_frame(self, save_path_filename, extra_delay=0):
         """Acquire a full frame and save it to save_path_filename.
@@ -401,7 +643,8 @@ class SEM():
             if timeout_counter > 60:
                 ret_val = 1
                 break
-        self.sem_api.Execute('CMD_FREEZE_ALL')
+        if self.cfg['sys']['magc_mode'] == 'False':
+            self.sem_api.Execute('CMD_FREEZE_ALL')
         # Error state is set in stack_acquisition.py when this function is
         # called via autofocus.py
         return (ret_val == 0)
@@ -419,7 +662,8 @@ class SEM():
             if timeout_counter > 60:
                 ret_val = 1
                 break
-        self.sem_api.Execute('CMD_FREEZE_ALL')
+        if self.cfg['sys']['magc_mode'] == 'False':
+            self.sem_api.Execute('CMD_FREEZE_ALL')
         # Error state is set in stack_acquisition.py when this function is
         # called via autofocus.py
         return (ret_val == 0)
@@ -468,12 +712,6 @@ class SEM():
             x * 10**6, y * 10**6, z * 10**6)
         return (self.last_known_x, self.last_known_y, self.last_known_z)
 
-    def get_last_known_xy(self):
-        return (self.last_known_x, self.last_known_y)
-
-    def get_last_known_z(self):
-        return self.last_known_z
-
     def move_stage_to_x(self, x):
         """Move stage to coordinate x, provided in microns"""
         x /= 10**6   # convert to metres
@@ -519,67 +757,8 @@ class SEM():
             sleep(0.2)
         sleep(3)  # for testing purposes
 
-    def get_stage_move_wait_interval(self):
-        return self.stage_move_wait_interval
-
-    def set_stage_move_wait_interval(self, wait_interval):
-        self.stage_move_wait_interval = wait_interval
-        self.cfg['sem']['stage_move_wait_interval'] = str(wait_interval)
-
-    def get_motor_speeds(self):
-        return (self.motor_speed_x, self.motor_speed_y)
-
-    def get_motor_limits(self):
-        return self.motor_limits
-
-    def get_stage_calibration(self):
-        return self.stage_calibration
-
-    def update_stage_calibration(self, eht):
-        eht = int(eht * 1000)  # Dict keys in system config use volts, not kV
-        success = True
-        try:
-            calibration_data = json.loads(
-                self.syscfg['stage']['sem_calibration_data'])
-            available_eht = [int(s) for s in calibration_data.keys()]
-        except:
-            available_eht = []
-            success = False
-
-        if success:
-            if eht in available_eht:
-                params = calibration_data[str(eht)]
-            else:
-                success = False
-                # Fallback option: nearest among the available EHT calibrations
-                new_eht = 1500
-                min_diff = abs(eht - 1500)
-                for eht_choice in available_eht:
-                    diff = abs(eht - eht_choice)
-                    if diff < min_diff:
-                        min_diff = diff
-                        new_eht = eht_choice
-                params = calibration_data[str(new_eht)]
-
-            self.cfg['sem']['stage_scale_factor_x'] = str(params[0])
-            self.cfg['sem']['stage_scale_factor_y'] = str(params[1])
-            self.cfg['sem']['stage_rotation_angle_x'] = str(params[2])
-            self.cfg['sem']['stage_rotation_angle_y'] = str(params[3])
-            self.stage_calibration = params
-        return success
-
     def show_about_box(self):
         self.sem_api.AboutBox()
-
-    def get_error_state(self):
-        return self.error_state
-
-    def get_error_cause(self):
-        return self.error_cause
-
-    def reset_error_state(self):
-        self.error_state = 0
-        self.error_cause = ''
 
     def disconnect(self):
         ret_val = self.sem_api.ClosingControl()

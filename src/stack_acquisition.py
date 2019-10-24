@@ -19,7 +19,7 @@ import json
 
 from time import sleep
 from PIL import Image
-from scipy.misc import imsave
+from imageio import imwrite
 from dateutil.relativedelta import relativedelta
 from PyQt5.QtWidgets import QMessageBox
 
@@ -193,85 +193,164 @@ class Stack():
         self.email_pw = pw
 
     def calculate_estimates(self):
-        """Calculate the current electron dose, the dimensions of
+        """Calculate the current electron dose (range), the dimensions of
         the stack, the estimated duration of the stack acquisition, the storage
-        requirements, and the estimated date of completion.
+        requirements, and the estimated time/date of completion.
+
+        Returns:
+            min_dose (float): Minimum electron dose of current stack setup
+                              (usually occurs during OV acquisition)
+            max_dose (float): Maximum electron dose of current stack setup
+                              (usually occurs during grid acquisition)
+            total_grid_area (float): Total area of selected tiles (in µm²)
+            total_z (float): Total Z depth of target number of slices in µm
+            total_data_in_GB (float): Size of the stack to be acquired (in GB)
+            total_imaging_time (float): Total raw imaging time
+            total_stage_move_time (float): Total duration of stage moves
+            total_cut_time (float): Total time for cuts with the knife
+            date_estimate (str): Date and time of expected completion
         """
         N = self.number_slices
-        if N == 0:
-            N = 1
+        if N == 0:    # 0 slices is a valid setting. It means: image the current
+            N = 1     # surface, but do not cut afterwards.
+        take_overviews = self.cfg['acq']['take_overviews'] == 'True'
         current = self.sem.get_beam_current()
         min_dose = max_dose = None
         total_cut_time = self.number_slices * self.full_cut_duration
-        total_ov_time = 0
-        total_grid_time = 0
-        total_area = 0
+        total_grid_area = 0
         total_data = 0
-        # The following stage move durations are rough estimates. TODO:
-        # Calculate precisely from the known distances and motor speeds.
-        avg_ov_stage_move_duration = (
-            5 + self.stage.get_stage_move_wait_interval())
-        avg_grid_stage_move_duration = (
-            0.5 + self.stage.get_stage_move_wait_interval())
+        total_stage_move_time = 0
+        total_imaging_time = 0
 
-        if self.cfg['acq']['take_overviews'] == 'True':
-            for ov_number in range(self.ovm.get_number_ov()):
-                dwell_time = self.ovm.get_ov_dwell_time(ov_number)
-                pixel_size = self.ovm.get_ov_pixel_size(ov_number)
-                dose = (current * 10**(-12) / (1.602 * 10**(-19))
-                        * dwell_time * 10**(-6) / (pixel_size**2))
-                if (min_dose is None) or (dose < min_dose):
-                    min_dose = dose
-                if (max_dose is None) or (dose > max_dose):
-                    max_dose = dose
-                ov_skip = self.ovm.get_ov_acq_interval(ov_number)
-                # add OV acq plus stage move duration to get total OV acq time:
-                total_ov_time += ((self.ovm.get_ov_cycle_time(ov_number)
-                                  + avg_ov_stage_move_duration)
-                                  * (N // ov_skip))
-                frame_size = (self.ovm.get_ov_width_p(ov_number)
-                              * self.ovm.get_ov_height_p(ov_number))
-                total_data += frame_size * (N // ov_skip)
+        max_offset_slice_number = max(
+            self.gm.get_max_acq_interval_offset(),
+            self.ovm.get_max_ov_acq_interval_offset())
+        max_interval_slice_number = max(
+            self.gm.get_max_acq_interval(),
+            self.ovm.get_max_ov_acq_interval())
 
+        # Calculate estimates until max_offset_slice_number, then starting from
+        # max_offset_slice_number for max_interval_slice_number, then
+        # extrapolate until target slice number N.
+
+        def calculate_for_slice_range(from_slice, to_slice):
+            """Run through stack (from_slice..to_slice) to calculate exact
+            raw imaging time, stage move durations, and amount of image data.
+            """
+            imaging_time = 0
+            stage_move_time = 0
+            amount_of_data = 0
+            # Start at stage position of OV 0
+            x0, y0 = self.cs.get_ov_centre_s(0)
+            for slice_counter in range(from_slice, to_slice):
+                if take_overviews:
+                    # Run through all overviews
+                    for ov_number in range(self.ovm.get_number_ov()):
+                        if self.ovm.is_slice_active(ov_number, slice_counter):
+                            x1, y1 = self.cs.get_ov_centre_s(ov_number)
+                            stage_move_time += (
+                                self.stage.calculate_stage_move_duration(
+                                    x0, y0, x1, y1))
+                            x0, y0 = x1, y1
+                            imaging_time += self.ovm.get_ov_cycle_time(ov_number)
+                            frame_size = (self.ovm.get_ov_width_p(ov_number)
+                                          * self.ovm.get_ov_height_p(ov_number))
+                            amount_of_data += frame_size
+                # Run through all grids
+                for grid_number in range(self.gm.get_number_grids()):
+                    if self.gm.is_slice_active(grid_number, slice_counter):
+                        for tile_number in self.gm.get_active_tiles(grid_number):
+                            x1, y1 = self.gm.get_tile_coordinates_s(
+                                grid_number, tile_number)
+                            stage_move_time += (
+                                self.stage.calculate_stage_move_duration(
+                                    x0, y0, x1, y1))
+                            x0, y0 = x1, y1
+                        number_active_tiles = self.gm.get_number_active_tiles(
+                            grid_number)
+                        imaging_time += (
+                            self.gm.get_tile_cycle_time(grid_number)
+                            * number_active_tiles)
+                        frame_size = (self.gm.get_tile_width_p(grid_number)
+                                      * self.gm.get_tile_height_p(grid_number))
+                        amount_of_data += frame_size * number_active_tiles
+                # Move back to starting position
+                if take_overviews:
+                    x1, y1 = self.cs.get_ov_centre_s(0)
+                    stage_move_time += (
+                        self.stage.calculate_stage_move_duration(
+                            x0, y0, x1, y1))
+                    x0, y0 = x1, y1
+
+            return imaging_time, stage_move_time, amount_of_data
+        # ========== End of calculate_for_slice_range() ==========
+
+        if N <= max_offset_slice_number + max_interval_slice_number:
+            # Calculate for all slices:
+            imaging_time_0, stage_move_time_0, amount_of_data_0 = (
+                calculate_for_slice_range(0, N))
+            imaging_time_1, stage_move_time_1, amount_of_data_1 = 0, 0, 0
+        else:
+            # First part (up to max_offset_slice_number):
+            imaging_time_0, stage_move_time_0, amount_of_data_0 = (
+                calculate_for_slice_range(0, max_offset_slice_number))
+            # Fraction of remaining slices that are acquired in regular intervals:
+            imaging_time_1, stage_move_time_1, amount_of_data_1 = (
+                calculate_for_slice_range(
+                    max_offset_slice_number,
+                    max_offset_slice_number + max_interval_slice_number))
+            # Extrapolate for the remaining number of slices:
+            if N > max_offset_slice_number + max_interval_slice_number:
+                factor = (N - max_offset_slice_number) / max_interval_slice_number
+                imaging_time_1 *= factor
+                stage_move_time_1 *= factor
+                amount_of_data_1 *= factor
+
+        total_imaging_time = imaging_time_0 + imaging_time_1
+        total_stage_move_time = stage_move_time_0 + stage_move_time_1
+        total_data = amount_of_data_0 + amount_of_data_1
+
+        # Calculate grid area and electron dose range
         for grid_number in range(self.gm.get_number_grids()):
+            number_active_tiles = self.gm.get_number_active_tiles(
+                grid_number)
+            total_grid_area += (number_active_tiles
+                                * self.gm.get_tile_width_d(grid_number)
+                                * self.gm.get_tile_height_d(grid_number))
             dwell_time = self.gm.get_dwell_time(grid_number)
             pixel_size = self.gm.get_pixel_size(grid_number)
-            dose = (current * 10**(-12) /
-                (1.602 * 10**(-19)) * dwell_time * 10**(-6) / (pixel_size**2))
+            dose = utils.calculate_electron_dose(current, dwell_time, pixel_size)
             if (min_dose is None) or (dose < min_dose):
                 min_dose = dose
             if (max_dose is None) or (dose > max_dose):
                 max_dose = dose
-            # add grid acq plus stage move duration to get total grid acq time:
-            grid_skip = self.gm.get_acq_interval(grid_number)
-            number_active_tiles = self.gm.get_number_active_tiles(grid_number)
-            total_grid_time += ((self.gm.get_tile_cycle_time(grid_number)
-                                + avg_grid_stage_move_duration)
-                                * number_active_tiles * (N // grid_skip))
-            total_area += (number_active_tiles
-                           * self.gm.get_tile_width_d(grid_number)
-                           * self.gm.get_tile_height_d(grid_number))
-            frame_size = (self.gm.get_tile_width_p(grid_number)
-                          * self.gm.get_tile_height_p(grid_number))
-            total_data += (frame_size * number_active_tiles
-                           * (N // grid_skip))
+
+        if take_overviews:
+            for ov_number in range(self.ovm.get_number_ov()):
+                dwell_time = self.ovm.get_ov_dwell_time(ov_number)
+                pixel_size = self.ovm.get_ov_pixel_size(ov_number)
+                dose = utils.calculate_electron_dose(
+                    current, dwell_time, pixel_size)
+                if (min_dose is None) or (dose < min_dose):
+                    min_dose = dose
+                if (max_dose is None) or (dose > max_dose):
+                    max_dose = dose
 
         total_z = (self.number_slices * self.slice_thickness) / 1000
-        total_duration = total_cut_time + total_ov_time + total_grid_time
         total_data_in_GB = total_data / (10**9)
+        total_duration = total_imaging_time + total_stage_move_time + total_cut_time
 
-        # calculate date and time of completion
+        # Calculate date and time of completion
         now = datetime.datetime.now()
-        if (self.slice_counter > 10) and (self.number_slices > 10):
-            fraction_completed = self.slice_counter / self.number_slices
-            completion_date = now + relativedelta(
-                seconds=int(total_duration * (1-fraction_completed)))
-            date_estimate = str(completion_date)[:19]
-        else:
-            date_estimate = '---'
+        fraction_completed = self.slice_counter / N
+        remaining_time = int(total_duration * (1 - fraction_completed))
+        completion_date = now + relativedelta(seconds=remaining_time)
+        date_estimate = str(completion_date)[:19].replace(' ', ' at ')
+
         # Return all estimates, to be displayed in main window GUI:
-        return (min_dose, max_dose, total_area, total_z,
-                total_duration, total_data_in_GB, date_estimate)
+        return (min_dose, max_dose, total_grid_area, total_z, total_data_in_GB,
+                total_imaging_time, total_stage_move_time, total_cut_time,
+                date_estimate, remaining_time)
 
     def create_subdirectories(self, dir_list):
         """Create subdirectories given in dir_list in the base folder"""
@@ -555,8 +634,11 @@ class Stack():
                 + ', Z:' + '{0:6.3f}'.format(self.stage_z_position))
 
             # Autofocus for this slice? (Method 0)
-            self.autofocus_stig_current_slice = (
-                self.af.is_active_current_slice(self.slice_counter))
+            if self.cfg['sys']['magc_mode'] == 'True':
+                self.autofocus_stig_current_slice = (True, True)
+            else:
+                self.autofocus_stig_current_slice = (
+                    self.af.is_active_current_slice(self.slice_counter))
 
             # For autofocus method 1, focus slightly up or down depending
             # on slice number:
@@ -685,7 +767,7 @@ class Stack():
                 self.tiles_acquired = []
                 self.cfg['acq']['tiles_acquired'] = '[]'
 
-            # =================== Grid acquistion loop ========================
+            # =================== Grid acquisition loop ========================
             for grid_number in range(number_grids):
                 if self.error_state > 0 or self.pause_state == 1:
                         break
@@ -696,6 +778,14 @@ class Stack():
                     self.add_to_main_log('CTRL: Grid ' + str(grid_number)
                                   + ', number of active tiles: '
                                   + str(num_active_tiles))
+                                  
+                    # in MagC use the grid autostig delay
+                    if self.cfg['sys']['magc_mode'] == 'True':
+                        autostig_delay = int(self.cfg['autofocus']['autostig_delay'])
+                        self.autofocus_stig_current_slice = (
+                            self.autofocus_stig_current_slice[0],
+                            0 == (grid_number % autostig_delay))
+                                  
                     if (num_active_tiles > 0
                         and not (self.pause_state == 1)
                         and (self.error_state == 0)):
@@ -703,6 +793,12 @@ class Stack():
                             self.add_to_main_log('CTRL: Grid '
                                 + str(grid_number) + ' already acquired. '
                                 'Skipping. ')
+                        elif (self.cfg['sys']['magc_mode'] == 'True'
+                            and grid_number not in 
+                            json.loads(self.cfg['magc']['checked_sections'])):
+                                self.add_to_main_log('CTRL: Grid '
+                                    + str(grid_number) + ' not checked. '
+                                    'Skipping. ')
                         else:
                             if (self.af.is_active()
                                     and self.af.get_method() == 0
@@ -715,7 +811,7 @@ class Stack():
                     self.add_to_main_log(
                         'CTRL: Skip grid %d (intervallic acquisition)'
                         % grid_number)
-            # ================ Grid acquistion loop end =======================
+            # ================ Grid acquisition loop end =======================
 
             # Reset interruption info if affected grid acquired:
             if (self.pause_state != 1
@@ -888,7 +984,8 @@ class Stack():
         # Close all log files:
         self.main_log_file.close()
         self.imagelist_file.close()
-        self.mirror_imagelist_file.close()
+        if self.use_mirror_drive:
+            self.mirror_imagelist_file.close()
         self.debris_log_file.close()
         self.error_log_file.close()
         self.metadata_file.close()
@@ -1252,7 +1349,7 @@ class Stack():
                         + ', SD:' + '{0:.2f}'.format(stddev))
                     workspace_save_path = (self.base_dir + '\\workspace\\OV'
                                            + str(ov_number).zfill(3) + '.bmp')
-                    imsave(workspace_save_path, ov_img)
+                    imwrite(workspace_save_path, ov_img)
                     self.ovm.update_ov_file_list(ov_number, workspace_save_path)
                     # Signal to update viewport:
                     self.transmit_cmd('MV UPDATE OV' + str(ov_number))
@@ -1383,6 +1480,12 @@ class Stack():
         tile_selected = False  # meaning if False: tile discarded
         tile_skipped = False   # meaning if True: tile already acquired
 
+        # if self.cfg['sys']['magc_mode'] == 'True':
+            # autostig_delay = int(self.cfg['autofocus']['autostig_delay'])
+            # self.autofocus_stig_current_slice = (
+                # self.autofocus_stig_current_slice[0],
+                # 0 == (grid_number % autostig_delay))
+
         # Criterion whether to retake image:
         retake_img = (
             ([grid_number, tile_number] == self.acq_interrupted_at)
@@ -1454,7 +1557,7 @@ class Stack():
                     *self.autofocus_stig_current_slice,
                     do_move, grid_number, tile_number)
                 # For tracking mode 0: Adjust wd/stig of other tiles:
-                if self.af.get_tracking_mode() == 0:
+                if self.error_state == 0 and self.af.get_tracking_mode() == 0:
                     self.af.approximate_tile_wd_stig(grid_number)
                     self.transmit_cmd('DRAW MV')
 
@@ -1493,44 +1596,44 @@ class Stack():
                         grid_number,
                         tile_number,
                         self.slice_counter))
-
                 if not load_error:
+                    # Assume tile_accepted, check against various errors below
+                    tile_accepted = True
                     self.add_to_main_log('CTRL: Tile ' + tile_id
                                   + ': M:' + '{0:.2f}'.format(mean)
                                   + ', SD:' + '{0:.2f}'.format(stddev))
                     # New thumbnail available, show it:
                     self.transmit_cmd('DRAW MV')
 
-                    tile_accepted = True
-                    # When monitoring enabled check if tile ok:
-                    if self.cfg['acq']['monitor_images'] == 'True':
-                        if not range_test_passed:
-                            tile_accepted = False
-                            self.error_state = 503
-                            self.add_to_main_log(
-                                'CTRL: Tile outside of permitted mean/SD '
-                                'range!')
-                        if (slice_by_slice_test_passed is not None
-                            and not slice_by_slice_test_passed):
-                            tile_accepted = False
-                            self.error_state = 504
-                            self.add_to_main_log(
-                                'CTRL: Tile above mean/SD slice-by-slice '
-                                'thresholds.')
-                    # Check for frozen or incomplete frames:
-                    if frozen_frame_error:
-                        tile_accepted = False
-                        self.error_state = 304
-                        self.add_to_main_log('CTRL: Tile ' + tile_id
-                            + ': SmartSEM frozen frame error!')
-                    elif grab_incomplete:
-                        tile_accepted = False
-                        self.error_state = 303
-                        self.add_to_main_log('CTRL: Tile ' + tile_id
-                            + ': SmartSEM grab incomplete error!')
                     if self.error_state in [505, 506, 507]:
                         # Don't accept tile if autofocus error has ocurred:
                         tile_accepted = False
+                    else:
+                        # Check for frozen or incomplete frames:
+                        if frozen_frame_error:
+                            tile_accepted = False
+                            self.error_state = 304
+                            self.add_to_main_log('CTRL: Tile ' + tile_id
+                                + ': SmartSEM frozen frame error!')
+                        elif grab_incomplete:
+                            tile_accepted = False
+                            self.error_state = 303
+                            self.add_to_main_log('CTRL: Tile ' + tile_id
+                                + ': SmartSEM grab incomplete error!')
+                        elif self.cfg['acq']['monitor_images'] == 'True':
+                            if not range_test_passed:
+                                tile_accepted = False
+                                self.error_state = 503
+                                self.add_to_main_log(
+                                    'CTRL: Tile outside of permitted mean/SD '
+                                    'range!')
+                            elif (slice_by_slice_test_passed is not None
+                                and not slice_by_slice_test_passed):
+                                tile_accepted = False
+                                self.error_state = 504
+                                self.add_to_main_log(
+                                    'CTRL: Tile above mean/SD slice-by-slice '
+                                    'thresholds.')
                 else:
                     tile_accepted = False
                     self.error_state = 404 # load error
@@ -1564,7 +1667,7 @@ class Stack():
         active_tiles = list(self.gm.get_active_tiles(grid_number))
 
         # WD and stig must be adjusted for each tile if adaptive focus active
-        # of if autofocus is used with "track all" or "best fit" option.
+        # or if autofocus is used with "track all" or "best fit" option.
         # Otherwise self.wd_current_grid, self.stig_x_current_grid,
         # and self.stig_y_current_grid are used.
         adjust_wd_stig_for_each_tile = (
@@ -1575,6 +1678,15 @@ class Stack():
             self.add_to_main_log(
                 'CTRL: Starting acquisition of active '
                 'tiles in grid %d' % grid_number)
+            
+            if self.cfg['sys']['magc_mode'] == 'True':
+                grid_centre_d = self.gm.get_grid_centre_d(grid_number)
+                self.cs.set_mv_centre_d(grid_centre_d)
+                self.transmit_cmd('DRAW MV')
+                self.transmit_cmd('SET SECTION STATE GUI-'
+                    + str(grid_number)
+                    + '-acquiring')
+            
             # Switch to specified settings of the current grid
             self.sem.apply_frame_settings(
                 self.gm.get_tile_size_selector(grid_number),
@@ -1595,18 +1707,28 @@ class Stack():
 
             tile_width, tile_height = self.gm.get_tile_size_px_py(grid_number)
 
-            # Set WD and stig settings for the current grid and lock the settings:
+            # Set WD and stig settings for the current grid and lock the settings
             if not adjust_wd_stig_for_each_tile:
-                self.set_grid_wd_stig()
+                # magc: WD/stig is kept to the current values from grid to grid
+                if self.cfg['sys']['magc_mode'] == 'False':
+                    self.set_grid_wd_stig()
                 self.lock_wd_stig()
 
-            # ===================== Grid acquisition loop =========================
+            theta = self.gm.get_rotation(grid_number)
+            if self.cfg['sys']['magc_mode'] == 'False':
+                theta = 360 - theta
+            if theta > 0:
+                # Enable scan rotation
+                self.sem.set_scan_rotation(theta)
+
+            # ===================== Tile acquisition loop =========================
             for tile_number in active_tiles:
                 fail_counter = 0
                 tile_accepted = False
                 tile_id = str(grid_number) + '.' + str(tile_number)
                 # Individual WD/stig adjustment for tile, if necessary:
-                if adjust_wd_stig_for_each_tile:
+                if (adjust_wd_stig_for_each_tile
+                and self.cfg['sys']['magc_mode'] == 'False'):
                     new_wd = self.gm.get_tile_wd(grid_number, tile_number)
                     new_stig_xy = self.gm.get_tile_stig_xy(grid_number, tile_number)
                     self.sem.set_wd(new_wd)
@@ -1663,6 +1785,7 @@ class Stack():
                         self.af.crop_tile_for_heuristic_af(
                             tile_img, tile_key)
                         self.heuristic_af_queue.append(tile_key)
+                        del tile_img
 
                 elif (not tile_selected
                       and not tile_skipped
@@ -1679,7 +1802,11 @@ class Stack():
                 if self.pause_state == 1:
                     self.save_interruption_point(grid_number, tile_number)
                     break
-            # ================== End of grid acquisition loop =====================
+            # ================== End of tile acquisition loop =====================
+
+            if theta > 0:
+                # Disable scan rotation
+                self.sem.set_scan_rotation(0)
 
             if len(active_tiles) == len(self.tiles_acquired):
                 # Grid is complete, add it to the grids_acquired list:
@@ -1688,7 +1815,14 @@ class Stack():
                 # Empty the tile list since all tiles were acquired:
                 self.tiles_acquired = []
                 self.cfg['acq']['tiles_acquired'] = '[]'
-
+                
+                if self.cfg['sys']['magc_mode'] == 'True':
+                    grid_centre_d = self.gm.get_grid_centre_d(grid_number)
+                    self.cs.set_mv_centre_d(grid_centre_d)
+                    self.transmit_cmd('DRAW MV')
+                    self.transmit_cmd('SET SECTION STATE GUI-'
+                        + str(grid_number)
+                        + '-acquired')                
 
     def register_accepted_tile(self, save_path, grid_number, tile_number,
                                tile_width, tile_height):
@@ -1784,6 +1918,8 @@ class Stack():
                 af_type = '(focus only)'
             elif do_stig:
                 af_type = '(stig only)'
+            wd = self.sem.get_wd()
+            sx, sy = self.sem.get_stig_xy()
             self.add_to_main_log('CTRL: Running SmartSEM AF procedure '
                                  + af_type + ' for tile '
                                  + str(grid_number) + '.' + str(tile_number))
@@ -1791,6 +1927,8 @@ class Stack():
             self.add_to_main_log(return_msg)
             if 'ERROR' in return_msg:
                 self.error_state = 505
+            elif not self.af.check_wd_stig_diff(wd, sx, sy):
+                self.error_state = 507
             else:
                 # Save settings for current tile:
                 self.gm.set_tile_wd(grid_number, tile_number, self.sem.get_wd())
@@ -1824,7 +1962,7 @@ class Stack():
                     # Immediately pause and save interruption info
                     if not self.acq_paused:
                         self.pause_acquisition(1)
-                    self.save_interruption_point(grid_number, t)
+                    self.save_interruption_point(grid_number, tile)
                     break
 
     def perform_heuristic_autofocus(self, tile_key):

@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>711</width>
+    <width>700</width>
     <height>950</height>
    </rect>
   </property>
@@ -25,6 +25,9 @@
       <width>691</width>
       <height>535</height>
      </rect>
+    </property>
+    <property name="toolTip">
+     <string/>
     </property>
     <property name="currentIndex">
      <number>0</number>
@@ -418,12 +421,12 @@
         <rect>
          <x>360</x>
          <y>100</y>
-         <width>121</width>
+         <width>301</width>
          <height>16</height>
         </rect>
        </property>
        <property name="text">
-        <string>Estimated total duration:</string>
+        <string>Estimated total duration (imaging / stage moves / cutting):</string>
        </property>
       </widget>
       <widget class="QLabel" name="label_dose">
@@ -496,20 +499,20 @@
         <rect>
          <x>360</x>
          <y>120</y>
-         <width>121</width>
+         <width>291</width>
          <height>16</height>
         </rect>
        </property>
        <property name="text">
-        <string>0 d 0 h 0 min</string>
+        <string>0 d 0 h 0 min    (000% / 000% / 000 %)</string>
        </property>
       </widget>
       <widget class="QLabel" name="label_totalData">
        <property name="geometry">
         <rect>
-         <x>500</x>
-         <y>120</y>
-         <width>141</width>
+         <x>560</x>
+         <y>75</y>
+         <width>81</width>
          <height>16</height>
         </rect>
        </property>
@@ -522,7 +525,7 @@
         <rect>
          <x>360</x>
          <y>165</y>
-         <width>231</width>
+         <width>301</width>
          <height>16</height>
         </rect>
        </property>
@@ -630,14 +633,14 @@
       <widget class="QLabel" name="label_6">
        <property name="geometry">
         <rect>
-         <x>500</x>
-         <y>100</y>
-         <width>141</width>
+         <x>560</x>
+         <y>55</y>
+         <width>71</width>
          <height>16</height>
         </rect>
        </property>
        <property name="text">
-        <string>Estimated data volume:</string>
+        <string>Data volume:</string>
        </property>
       </widget>
       <widget class="QLabel" name="label_dimensions_2">
@@ -650,7 +653,7 @@
         </rect>
        </property>
        <property name="text">
-        <string>Acquisition area in X-Y:</string>
+        <string>Tile acquisition area:</string>
        </property>
       </widget>
       <widget class="QLabel" name="label_totalArea">
@@ -658,12 +661,12 @@
         <rect>
          <x>360</x>
          <y>75</y>
-         <width>111</width>
+         <width>101</width>
          <height>16</height>
         </rect>
        </property>
        <property name="text">
-        <string>00000.0 µm</string>
+        <string>0000000.0 µm²</string>
        </property>
       </widget>
       <widget class="QCheckBox" name="checkBox_askUser">
@@ -881,22 +884,22 @@
       <widget class="QLabel" name="label_dimensions_3">
        <property name="geometry">
         <rect>
-         <x>500</x>
+         <x>480</x>
          <y>55</y>
-         <width>121</width>
+         <width>61</width>
          <height>16</height>
         </rect>
        </property>
        <property name="text">
-        <string>Total depth in Z:</string>
+        <string>Z depth:</string>
        </property>
       </widget>
       <widget class="QLabel" name="label_totalZ">
        <property name="geometry">
         <rect>
-         <x>500</x>
+         <x>480</x>
          <y>75</y>
-         <width>111</width>
+         <width>71</width>
          <height>16</height>
         </rect>
        </property>
@@ -1936,6 +1939,438 @@
       </widget>
      </widget>
     </widget>
+    <widget class="QWidget" name="tab">
+     <attribute name="title">
+      <string>MagC</string>
+     </attribute>
+     <attribute name="toolTip">
+      <string>To enable the MagC module: set magc_mode = True in your config file</string>
+     </attribute>
+     <widget class="QTableView" name="tableView_magc_sectionList">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
+      <property name="geometry">
+       <rect>
+        <x>350</x>
+        <y>10</y>
+        <width>181</width>
+        <height>481</height>
+       </rect>
+      </property>
+      <property name="palette">
+       <palette>
+        <active>
+         <colorrole role="Highlight">
+          <brush brushstyle="SolidPattern">
+           <color alpha="255">
+            <red>0</red>
+            <green>120</green>
+            <blue>215</blue>
+           </color>
+          </brush>
+         </colorrole>
+        </active>
+        <inactive>
+         <colorrole role="Highlight">
+          <brush brushstyle="SolidPattern">
+           <color alpha="255">
+            <red>0</red>
+            <green>120</green>
+            <blue>215</blue>
+           </color>
+          </brush>
+         </colorrole>
+        </inactive>
+        <disabled>
+         <colorrole role="Highlight">
+          <brush brushstyle="SolidPattern">
+           <color alpha="255">
+            <red>0</red>
+            <green>120</green>
+            <blue>215</blue>
+           </color>
+          </brush>
+         </colorrole>
+        </disabled>
+       </palette>
+      </property>
+      <property name="font">
+       <font>
+        <family>Calibri</family>
+        <weight>50</weight>
+        <bold>false</bold>
+       </font>
+      </property>
+      <property name="toolTip">
+       <string>Gray: not acquired 
+Yellow: currently acquiring 
+Green: acquired</string>
+      </property>
+      <property name="verticalScrollBarPolicy">
+       <enum>Qt::ScrollBarAlwaysOn</enum>
+      </property>
+      <property name="autoScroll">
+       <bool>true</bool>
+      </property>
+      <property name="editTriggers">
+       <set>QAbstractItemView::NoEditTriggers</set>
+      </property>
+      <property name="alternatingRowColors">
+       <bool>true</bool>
+      </property>
+      <attribute name="horizontalHeaderDefaultSectionSize">
+       <number>90</number>
+      </attribute>
+      <attribute name="verticalHeaderVisible">
+       <bool>false</bool>
+      </attribute>
+      <attribute name="verticalHeaderDefaultSectionSize">
+       <number>10</number>
+      </attribute>
+      <attribute name="verticalHeaderMinimumSectionSize">
+       <number>10</number>
+      </attribute>
+     </widget>
+     <widget class="QTextEdit" name="textEdit_magc_stringSections">
+      <property name="geometry">
+       <rect>
+        <x>540</x>
+        <y>170</y>
+        <width>101</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="toolTip">
+       <string>You can input 
+- a list: 2,5,3 
+- a range: 2-30 
+- a range with increment: 2-30-5</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_magc_okStringSections">
+      <property name="geometry">
+       <rect>
+        <x>650</x>
+        <y>170</y>
+        <width>31</width>
+        <height>40</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>OK</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_magc_checkSelected">
+      <property name="geometry">
+       <rect>
+        <x>540</x>
+        <y>230</y>
+        <width>141</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="text">
+       <string>Check</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_magc_uncheckSelected">
+      <property name="geometry">
+       <rect>
+        <x>540</x>
+        <y>270</y>
+        <width>141</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="text">
+       <string>Uncheck</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_magc_invertSelection">
+      <property name="geometry">
+       <rect>
+        <x>540</x>
+        <y>90</y>
+        <width>141</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Invert selection</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_magc_selectAll">
+      <property name="geometry">
+       <rect>
+        <x>540</x>
+        <y>10</y>
+        <width>141</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Select all</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_magc_deselectAll">
+      <property name="geometry">
+       <rect>
+        <x>540</x>
+        <y>50</y>
+        <width>141</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Deselect all</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_magc_selectChecked">
+      <property name="geometry">
+       <rect>
+        <x>540</x>
+        <y>130</y>
+        <width>141</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Select checked</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="collectomeLogo">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>450</y>
+        <width>141</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string/>
+      </property>
+      <property name="scaledContents">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_12">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>450</y>
+        <width>141</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>20</pointsize>
+        <weight>50</weight>
+        <bold>false</bold>
+        <underline>false</underline>
+        <kerning>true</kerning>
+       </font>
+      </property>
+      <property name="text">
+       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;a href=&quot;https://www.collectome.com&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:transparent;&quot;&gt;AAAAAAAAAAAAAAA&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+      </property>
+      <property name="textFormat">
+       <enum>Qt::AutoText</enum>
+      </property>
+      <property name="margin">
+       <number>0</number>
+      </property>
+      <property name="openExternalLinks">
+       <bool>true</bool>
+      </property>
+      <property name="textInteractionFlags">
+       <set>Qt::LinksAccessibleByKeyboard|Qt::LinksAccessibleByMouse</set>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_11">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>430</y>
+        <width>151</width>
+        <height>14</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>5</pointsize>
+       </font>
+      </property>
+      <property name="text">
+       <string>MagC module developed by</string>
+      </property>
+     </widget>
+     <widget class="Line" name="line_2">
+      <property name="geometry">
+       <rect>
+        <x>550</x>
+        <y>220</y>
+        <width>118</width>
+        <height>3</height>
+       </rect>
+      </property>
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_magc_importMagc">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>10</y>
+        <width>138</width>
+        <height>40</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="text">
+       <string>Import MagC</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_magc_importWaferImage">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>60</y>
+        <width>141</width>
+        <height>58</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Import 
+Wafer Image</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_magc_resetMagc">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>130</y>
+        <width>138</width>
+        <height>40</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <weight>50</weight>
+        <bold>false</bold>
+       </font>
+      </property>
+      <property name="text">
+       <string>Reset MagC</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_magc_addSection">
+      <property name="geometry">
+       <rect>
+        <x>540</x>
+        <y>320</y>
+        <width>141</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="toolTip">
+       <string>Requires wafer calibration</string>
+      </property>
+      <property name="text">
+       <string>Add section</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_magc_deleteLastSection">
+      <property name="geometry">
+       <rect>
+        <x>540</x>
+        <y>360</y>
+        <width>141</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>7</pointsize>
+       </font>
+      </property>
+      <property name="text">
+       <string>Delete last section</string>
+      </property>
+     </widget>
+     <widget class="Line" name="line_3">
+      <property name="geometry">
+       <rect>
+        <x>550</x>
+        <y>310</y>
+        <width>118</width>
+        <height>3</height>
+       </rect>
+      </property>
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_magc_waferCalibration">
+      <property name="geometry">
+       <rect>
+        <x>160</x>
+        <y>10</y>
+        <width>177</width>
+        <height>40</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="text">
+       <string>Wafer calibration</string>
+      </property>
+     </widget>
+     <zorder>collectomeLogo</zorder>
+     <zorder>tableView_magc_sectionList</zorder>
+     <zorder>textEdit_magc_stringSections</zorder>
+     <zorder>pushButton_magc_okStringSections</zorder>
+     <zorder>pushButton_magc_checkSelected</zorder>
+     <zorder>pushButton_magc_uncheckSelected</zorder>
+     <zorder>pushButton_magc_invertSelection</zorder>
+     <zorder>pushButton_magc_selectAll</zorder>
+     <zorder>pushButton_magc_deselectAll</zorder>
+     <zorder>pushButton_magc_selectChecked</zorder>
+     <zorder>label_12</zorder>
+     <zorder>label_11</zorder>
+     <zorder>line_2</zorder>
+     <zorder>pushButton_magc_importMagc</zorder>
+     <zorder>pushButton_magc_importWaferImage</zorder>
+     <zorder>pushButton_magc_resetMagc</zorder>
+     <zorder>pushButton_magc_addSection</zorder>
+     <zorder>pushButton_magc_deleteLastSection</zorder>
+     <zorder>line_3</zorder>
+     <zorder>pushButton_magc_waferCalibration</zorder>
+    </widget>
    </widget>
    <widget class="QPlainTextEdit" name="textarea_log">
     <property name="geometry">
@@ -1967,7 +2402,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>711</width>
+     <width>700</width>
      <height>21</height>
     </rect>
    </property>
@@ -2033,10 +2468,17 @@
     </property>
     <addaction name="actionUpdate"/>
    </widget>
+   <widget class="QMenu" name="menuImport">
+    <property name="title">
+     <string>Import</string>
+    </property>
+    <addaction name="actionImportMagCMetadata"/>
+   </widget>
    <addaction name="menuFile"/>
    <addaction name="menuSettings"/>
    <addaction name="menuConfiguration"/>
    <addaction name="menuCalibration"/>
+   <addaction name="menuImport"/>
    <addaction name="menuExport"/>
    <addaction name="menuUpdate"/>
    <addaction name="menuHelp"/>
@@ -2160,14 +2602,22 @@
     <string>Switch to X stage</string>
    </property>
   </action>
-  <action name="actionUpdate">
+  <action name="actionImportMagCMetadata">
    <property name="text">
-    <string>Update SBEMimage</string>
+    <string>Import MagC metadata</string>
+   </property>
+   <property name="toolTip">
+    <string>To enable the MagC module: set magc_mode = True in your config file</string>
    </property>
   </action>
   <action name="actionCutDuration">
    <property name="text">
     <string>Microtome cut duration</string>
+   </property>
+  </action>
+  <action name="actionUpdate">
+   <property name="text">
+    <string>Update SBEMimage</string>
    </property>
   </action>
  </widget>

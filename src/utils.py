@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 
-#==============================================================================
+# ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2016-2018 Benjamin Titze,
-#   Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2016-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
-#==============================================================================
+# ==============================================================================
 
 """This modules provides various constants and helper functions."""
 
@@ -20,6 +19,8 @@ import smtplib
 import socket
 import requests
 
+import numpy as np
+
 from time import sleep
 
 from email.mime.multipart import MIMEMultipart
@@ -27,7 +28,6 @@ from email.mime.base import MIMEBase
 from email.mime.text import MIMEText
 from email.utils import formatdate
 from email import encoders, message_from_string
-
 
 # Number of digits used to format image file names
 OV_DIGITS = 3         # up to 999 overview images
@@ -262,3 +262,148 @@ def suppress_console_warning():
     # Suppress TIFFReadDirectory warnings that otherwise flood console window
     print('\x1b[19;1H' + 80*' ' + '\x1b[19;1H', end='')
     print('\x1b[18;1H' + 80*' ' + '\x1b[18;1H', end='')
+
+def calculate_electron_dose(current, dwell_time, pixel_size):
+    """Calculate the electron dose.
+    The current is multiplied by the elementary charge of an electron
+    (1.602 * 10^−19 C) and the dwell time to obtain the total charge per pixel.
+    This charge is divided by the area of a single pixel.
+
+    Args:
+        current (float): beam current in pA
+        dwell_time (float): dwell time in microseconds
+        pixel_size (float): xy pixel size in nm
+
+    Returns:
+        dose (float): electron dose in electrons per nanometre
+    """
+    return (current * 10**(-12) / (1.602 * 10**(-19))
+            * dwell_time * 10**(-6) / (pixel_size**2))
+
+def get_indexes_from_user_string(userString):
+    '''inspired by the substackMaker of ImageJ \n
+    https://imagej.nih.gov/ij/developer/api/ij/plugin/SubstackMaker.html
+    Enter a range (2-30), a range with increment (2-30-2), or a list (2,5,3)
+    '''
+    userString = userString.replace(' ', '')
+    if ',' in userString and '.' in userString:
+        return None
+    elif ',' in userString:
+        splitIndexes = [int(splitIndex) for splitIndex in userString.split(',')
+                        if splitIndex.isdigit()]
+        if len(splitIndexes) > 0:
+            return splitIndexes
+    elif '-' in userString:
+        splitIndexes = [int(splitIndex) for splitIndex in userString.split('-')
+                        if splitIndex.isdigit()]
+        if len(splitIndexes) == 2 or len(splitIndexes) == 3:
+            splitIndexes[-1] = splitIndexes[-1] + 1 # inclusive is more natural (2-5 = 2,3,4,5)
+            return range(*splitIndexes)
+    elif userString.isdigit():
+        return [int(userString)]
+    return None
+
+def get_days_hours_minutes(duration_in_seconds):
+    minutes, seconds = divmod(int(duration_in_seconds), 60)
+    hours, minutes = divmod(minutes, 60)
+    days, hours = divmod(hours, 24)
+    return days, hours, minutes
+
+# ----------------- Functions for geometric transforms (MagC) ------------------
+def affineT(x_in, y_in, x_out, y_out):
+    X = np.array([[x, y, 1] for (x,y) in zip(x_in, y_in)])
+    Y = np.array([[x, y, 1] for (x,y) in zip(x_out, y_out)])
+    aff, res, rank, s = np.linalg.lstsq(X, Y)
+    return aff
+
+def applyAffineT(x_in, y_in, aff):
+    input = np.array([ [x, y, 1] for (x,y) in zip(x_in, y_in)])
+    output = np.dot(input, aff)
+    x_out, y_out = output.T[0:2]
+    return x_out, y_out
+
+def invertAffineT(aff):
+    return np.linalg.inv(aff)
+
+def getAffineRotation(aff):
+    return np.rad2deg(np.arctan2(aff[1][0], aff[1][1]))
+
+def getAffineScaling(aff):
+    x_out, y_out = applyAffineT([0,1000], [0,1000], aff)
+    scaling = (np.linalg.norm([x_out[1]-x_out[0], y_out[1]-y_out[0]])
+               / np.linalg.norm([1000,1000]))
+    return scaling
+
+def rigidT(x_in,y_in,x_out,y_out):
+    A_data = []
+    for i in range(len(x_in)):
+        A_data.append( [-y_in[i], x_in[i], 1, 0])
+        A_data.append( [x_in[i], y_in[i], 0, 1])
+
+    b_data = []
+    for i in range(len(x_out)):
+        b_data.append(x_out[i])
+        b_data.append(y_out[i])
+
+    A = np.matrix( A_data )
+    b = np.matrix( b_data ).T
+    # Solve
+    c = np.linalg.lstsq(A, b)[0].T
+    c = np.array(c)[0]
+
+    displacements = []
+    for i in range(len(x_in)):
+        displacements.append(np.sqrt(
+        np.square((c[1]*x_in[i] - c[0]*y_in[i] + c[2] - x_out[i]) +
+        np.square(c[1]*y_in[i] + c[0]*x_in[i] + c[3] - y_out[i]))))
+
+    return c, np.mean(displacements)
+
+def applyRigidT(x,y,coefs):
+    x,y = map(lambda x: np.array(x),[x,y])
+    x_out = coefs[1]*x - coefs[0]*y + coefs[2]
+    y_out = coefs[1]*y + coefs[0]*x + coefs[3]
+    return x_out,y_out
+
+def getRigidRotation(coefs):
+    return np.rad2deg(np.arctan2(coefs[0], coefs[1]))
+
+def getRigidScaling(coefs):
+    return coefs[1]
+# -------------- End of functions for geometric transforms (MagC) --------------
+
+# ----------------- MagC utils ------------------
+def sectionsYAML_to_sections_landmarks(sectionsYAML):
+    sections = {}
+    landmarks = {}
+    for sectionId, sectionXYA in sectionsYAML['tissue'].items():
+        sections[int(sectionId)] = {
+        'center': [float(a) for a in sectionXYA[:2]],
+        'angle': float( (-sectionXYA[2] + 90) % 360)}
+    if 'tissueROI' in sectionsYAML:
+        tissueROIIndex = int(list(sectionsYAML['tissueROI'].keys())[0])
+        sections['tissueROI-' + str(tissueROIIndex)] = {
+        'center': sectionsYAML['tissueROI'][tissueROIIndex]}
+    if 'landmarks' in sectionsYAML:
+        for landmarkId, landmarkXY in sectionsYAML['landmarks'].items():
+            landmarks[int(landmarkId)] = {
+            'source': landmarkXY}
+    return sections, landmarks
+
+# # def sections_landmarks_to_sectionsYAML(sections, landmarks):
+    # # sectionsYAML = {}
+    # # sectionsYAML['landmarks'] = {}
+    # # sectionsYAML['tissue'] = {}
+    # # sectionsYAML['magnet'] = {}
+    # # sectionsYAML['tissueROI'] = {}
+    # # sectionsYAML['sourceROIsFromSbemimage'] = {}
+
+    # # for landmarkId, landmarkDic in enumerate(landmarks):
+        # # sectionsYAML['landmark'][landmarkId] = landmarkDic['source']
+    # # for tissueId, tissueDic in enumerate(sections):
+        # # sectionsYAML['tissue'][tissueId] = [
+            # # tissueDic['center'][0],
+            # # tissueDic['center'][1],
+            # # (-tissueDic['angle'] - 90) % 360]
+    
+# -------------- End of MagC utils --------------

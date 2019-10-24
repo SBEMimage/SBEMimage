@@ -92,3 +92,5 @@ class Stage():
         else:
             return True
 
+    def calculate_stage_move_duration(self, from_x, from_y, to_x, to_y):
+        return self._stage.calculate_stage_move_duration(from_x, from_y, to_x, to_y)

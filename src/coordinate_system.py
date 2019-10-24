@@ -47,13 +47,12 @@ class CoordinateSystem():
         self.mv_dx_dy = (self.mv_centre_dx_dy[0] - 500 / self.mv_scale,
                          self.mv_centre_dx_dy[1] - 400 / self.mv_scale)
         # Load current stage parameters and calculate transformation factors:
-        self.load_stage_calibration()
+        self.apply_stage_calibration()
         self.load_stage_limits()
 
-    def load_stage_calibration(self):
-        """(Re)load rotation and scale parameters and compute
-            transformation factors; (re)load current stage motor limits.
-        """
+    def apply_stage_calibration(self):
+        """(Re)load rotation and scale parameters and compute rotation
+        matrix elements."""
         if self.cfg['sys']['use_microtome'] == 'True':
             device = 'microtome'
         else:
@@ -63,10 +62,22 @@ class CoordinateSystem():
         self.scale_x = float(self.cfg[device]['stage_scale_factor_x'])
         self.scale_y = float(self.cfg[device]['stage_scale_factor_y'])
         angle_diff = rot_x - rot_y
-        self.A = cos(rot_y) / cos(angle_diff)
-        self.B = sin(rot_x) / cos(angle_diff)
-        self.C = (-1) * sin(rot_y) / cos(angle_diff)
-        self.D = cos(rot_x) / cos(angle_diff)
+        if cos(angle_diff) == 0:
+            raise ValueError('Illegal values of the stage rotation angles. '
+                             'X and Y axes would coincide!')
+        # Elements of the rotation matrix are precomputed here to enable
+        # faster computation of the conversions between SEM and stage
+        # coordinates. The matrix elements only change if the user recalibrates
+        # the stage.
+        self.rot_mat_a = cos(rot_y) / cos(angle_diff)
+        self.rot_mat_b = -sin(rot_y) / cos(angle_diff)
+        self.rot_mat_c = sin(rot_x) / cos(angle_diff)
+        self.rot_mat_d = cos(rot_x) / cos(angle_diff)
+        self.rot_mat_determinant = (
+            self.rot_mat_a * self.rot_mat_d - self.rot_mat_b * self.rot_mat_c)
+        if self.rot_mat_determinant == 0:
+            raise ValueError('Illegal values of the stage rotation angles. '
+                             'Rotation matrix determinant is zero!')
 
     def load_stage_limits(self):
         if self.cfg['sys']['use_microtome'] == 'True':
@@ -80,21 +91,25 @@ class CoordinateSystem():
             int(self.cfg[device]['stage_max_y'])]
 
     def convert_to_s(self, d_coordinates):
-        """Convert SEM coordinates into stage coordinates"""
+        """Convert SEM coordinates into stage coordinates.
+        The SEM coordinates (dx, dy) are multiplied with the rotation matrix."""
         dx, dy = d_coordinates
-        stage_x = (dx * self.A + dy * self.C) * self.scale_x
-        stage_y = (dx * self.B + dy * self.D) * self.scale_y
-        return (stage_x, stage_y)
+        stage_x = (self.rot_mat_a * dx + self.rot_mat_b * dy) * self.scale_x
+        stage_y = (self.rot_mat_c * dx + self.rot_mat_d * dy) * self.scale_y
+        return stage_x, stage_y
 
     def convert_to_d(self, s_coordinates):
-        """Convert stage coordinates into SEM coordinates"""
+        """Convert stage coordinates into SEM coordinates.
+        The stage coordinates are multiplied with the inverse of the rotation
+        matrix."""
         stage_x, stage_y = s_coordinates
         stage_x /= self.scale_x
         stage_y /= self.scale_y
-        dx = ((stage_y + stage_x * (-self.D/self.C))/
-              (self.B + self.A * (-self.D/self.C)))
-        dy = ((stage_y - dx * self.B) / self.D)
-        return (dx, dy)
+        dx = ((self.rot_mat_d * stage_x - self.rot_mat_b * stage_y)
+              / self.rot_mat_determinant)
+        dy = ((-self.rot_mat_c * stage_x + self.rot_mat_a * stage_y)
+              / self.rot_mat_determinant)
+        return dx, dy
 
     def convert_to_v(self, d_coordinates):
         """Convert SEM coordinates into viewport window coordinates. """
