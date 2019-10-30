@@ -1629,13 +1629,14 @@ class ExportDlg(QDialog):
         self.pushButton_export.setText('Busy')
         self.pushButton_export.setEnabled(False)
         QApplication.processEvents()
+        base_dir = self.cfg['acq']['base_dir']
         start_slice = self.spinBox_fromSlice.value()
         end_slice = self.spinBox_untilSlice.value()
         # Read all imagelist files into memory:
         imagelist_str = []
         imagelist_data = []
-        file_list = glob.glob(self.cfg['acq']['base_dir']
-                              + '\\meta\\logs\\'  'imagelist*.txt')
+        file_list = glob.glob(os.path.join(base_dir,
+                                           'meta', 'logs', 'imagelist*.txt'))
         file_list.sort()
         for file in file_list:
             with open(file) as f:
@@ -1646,25 +1647,33 @@ class ExportDlg(QDialog):
             min_y = 1000000
             for line in imagelist_str:
                 elements = line.split(';')
-                z = int(elements[3])
-                if start_slice <= z <= end_slice:
+                # elements[0]: relative path to tile image
+                # elements[1]: x coordinate in nm
+                # elements[2]: y coordinate in nm
+                # elements[3]: z coordinate in nm
+                # elements[4]: slice number
+                slice_number = int(elements[4])
+                if start_slice <= slice_number <= end_slice:
                     x = int(elements[1])
                     if x < min_x:
                         min_x = x
                     y = int(elements[2])
                     if y < min_y:
                         min_y = y
-                    imagelist_data.append([elements[0], x, y, z])
-            # Subtract minimum values:
-            number_entries = len(imagelist_data)
-            for i in range(0, number_entries):
-                imagelist_data[i][1] -= min_x
-                imagelist_data[i][2] -= min_y
+                    imagelist_data.append([elements[0], x, y, slice_number])
+            # Subtract minimum values to obtain bounding box with (0, 0) as
+            # origin in top-left corner.
+            for item in imagelist_data:
+                item[1] -= min_x
+                item[2] -= min_y
             # Write to output file:
             try:
-                output_file = (self.cfg['acq']['base_dir'] +
-                               '\\trakem2_imagelist_slice' + str(start_slice) +
-                               'to' + str(end_slice) + '.txt')
+                output_file = os.path.join(base_dir,
+                                           'trakem2_imagelist_slice'
+                                           + str(start_slice)
+                                           + 'to'
+                                           + str(end_slice)
+                                           + '.txt')
                 with open(output_file, 'w') as f:
                     for item in imagelist_data:
                         f.write(item[0] + '\t'
@@ -1672,19 +1681,19 @@ class ExportDlg(QDialog):
                                 + str(item[2]) + '\t'
                                 + str(item[3]) + '\n')
             except:
-                QMessageBox.warning(self, 'Error',
-                        'An error ocurred while writing the output file.',
-                        QMessageBox.Ok)
+                QMessageBox.warning(
+                    self, 'Error',
+                    'An error ocurred while writing the output file.',
+                    QMessageBox.Ok)
             else:
                 QMessageBox.information(
-                        self, 'Export completed',
-                        'A total of ' + str(number_entries) + ' entries were '
-                        'processed.\n\nThe output file\n'
-                        'trakem2_imagelist_slice' + str(start_slice) +
-                        'to' + str(end_slice) + '.txt\n'
-                        'was written to the current base directory\n' +
-                        self.cfg['acq']['base_dir'] + '.',
-                        QMessageBox.Ok)
+                    self, 'Export completed',
+                    f'A total of {len(imagelist_data)} tile entries were '
+                    f'processed.\n\nThe output file\n'
+                    f'trakem2_imagelist_slice{start_slice}to{end_slice}.txt\n'
+                    f'was written to the current base directory\n'
+                    f'{base_dir}.',
+                    QMessageBox.Ok)
         else:
             QMessageBox.warning(
                 self, 'Error',
