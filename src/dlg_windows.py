@@ -1630,6 +1630,9 @@ class ExportDlg(QDialog):
         self.pushButton_export.setEnabled(False)
         QApplication.processEvents()
         base_dir = self.cfg['acq']['base_dir']
+        target_grid_number = (
+            str(self.spinBox_gridNumber.value()).zfill(utils.GRID_DIGITS))
+        pixel_size = self.doubleSpinBox_pixelSize.value()
         start_slice = self.spinBox_fromSlice.value()
         end_slice = self.spinBox_untilSlice.value()
         # Read all imagelist files into memory:
@@ -1653,11 +1656,13 @@ class ExportDlg(QDialog):
                 # elements[3]: z coordinate in nm
                 # elements[4]: slice number
                 slice_number = int(elements[4])
-                if start_slice <= slice_number <= end_slice:
-                    x = int(elements[1])
+                grid_number = elements[0][7:11]
+                if (start_slice <= slice_number <= end_slice
+                    and grid_number == target_grid_number):
+                    x = int(int(elements[1]) / pixel_size)
                     if x < min_x:
                         min_x = x
-                    y = int(elements[2])
+                    y = int(int(elements[2]) / pixel_size)
                     if y < min_y:
                         min_y = y
                     imagelist_data.append([elements[0], x, y, slice_number])
