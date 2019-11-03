@@ -1412,23 +1412,32 @@ class Stack():
         return ov_save_path, ov_accepted
 
     def save_debris_image(self, ov_file_name, sweep_counter):
-        debris_save_path = (self.base_dir
-                            + '\\overviews\\debris\\'
-                            + ov_file_name[ov_file_name.rfind('\\') + 1:-4]
-                            + '_' + str(sweep_counter) + '.tif')
-        # Copy current ov_file, TODO: error handling
-        shutil.copy(ov_file_name, debris_save_path)
-
+        debris_save_path = os.path.join(
+            self.base_dir, 'overviews', 'debris',
+            ov_file_name[ov_file_name.rfind('\\') + 1:-4]
+            + '_' + str(sweep_counter) + '.tif')
+        # Copy current ov_file to folder 'debris'
+        try:
+            shutil.copy(ov_file_name, debris_save_path)
+        except Exception as e:
+            self.add_to_main_log(
+                'CTRL: Warning: Unable to save rejected OV image, ' + str(e))
         if self.use_mirror_drive:
             self.mirror_files([debris_save_path])
 
     def save_rejected_tile(self, tile_save_path, fail_counter):
-        rejected_tile_save_path = (
-            self.base_dir + '\\tiles\\rejected\\'
-            + tile_save_path[tile_save_path.rfind('\\') + 1:-4]
+        rejected_tile_save_path = os.path.join(
+            self.base_dir, 'tiles', 'rejected',
+            tile_save_path[tile_save_path.rfind('\\') + 1:-4]
             + '_' + str(fail_counter) + '.tif')
-        # Move tile to folder 'rejected', TODO: error handling
-        shutil.copy(tile_save_path, rejected_tile_save_path)
+        # Copy tile to folder 'rejected'
+        try:
+            shutil.copy(tile_save_path, rejected_tile_save_path)
+        except Exception as e:
+            self.add_to_main_log(
+                'CTRL: Warning: Unable to save rejected tile image, ' + str(e))
+        if self.use_mirror_drive:
+            self.mirror_files([rejected_tile_save_path])
 
     def remove_debris(self):
         """Try to remove detected debris by sweeping the surface. Microtome must
