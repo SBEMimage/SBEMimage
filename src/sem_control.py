@@ -722,6 +722,7 @@ class SEM_SmartSEM(SEM):
         while self.sem_api.Get('DP_STAGE_IS') == 'Busy':
             sleep(0.2)
         sleep(3)  # for testing purposes
+        self.last_known_x = self.sem_api.GetStagePosition()[1] * 10**6
 
     def move_stage_to_y(self, y):
         """Move stage to coordinate y, provided in microns"""
@@ -733,6 +734,7 @@ class SEM_SmartSEM(SEM):
         while self.sem_api.Get('DP_STAGE_IS') == 'Busy':
             sleep(0.2)
         sleep(3)  # for testing purposes
+        self.last_known_y = self.sem_api.GetStagePosition()[2] * 10**6
 
     def move_stage_to_z(self, z):
         """Move stage to coordinate y, provided in microns"""
@@ -744,6 +746,7 @@ class SEM_SmartSEM(SEM):
         while self.sem_api.Get('DP_STAGE_IS') == 'Busy':
             sleep(0.2)
         sleep(3)  # for testing purposes
+        self.last_known_z = self.sem_api.GetStagePosition()[3] * 10**6
 
     def move_stage_to_xy(self, coordinates):
         """Move stage to coordinates x and y, provided in microns"""
@@ -756,6 +759,8 @@ class SEM_SmartSEM(SEM):
         while self.sem_api.Get('DP_STAGE_IS') == 'Busy':
             sleep(0.2)
         sleep(3)  # for testing purposes
+        new_x, new_y = self.sem_api.GetStagePosition()[1:3]
+        self.last_known_x, self.last_known_y = new_x * 10**6, new_y * 10**6
 
     def show_about_box(self):
         self.sem_api.AboutBox()
