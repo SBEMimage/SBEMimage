@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 
-#==============================================================================
+# ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2016-2018 Benjamin Titze,
-#   Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2018-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
-#==============================================================================
+# ==============================================================================
 
 """This module contains all dialog windows."""
 
@@ -2686,8 +2685,8 @@ class EHTDlg(QDialog):
 #------------------------------------------------------------------------------
 
 class FTSetParamsDlg(QDialog):
-    """Read working distance and stigmation values from user input or
-       from SmarSEM. Used for setting WD/STIG for individual tiles in
+    """Read working distance and stigmation parameters from user input or
+       from SmartSEM for setting WD/STIG for individual tiles/OVs in
        focus tool.
     """
 
