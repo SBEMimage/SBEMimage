@@ -54,9 +54,10 @@ class Microtome:
         # The following three parameters cannot be changed remotely,
         # must be set in DM before acquisition. Pre-acquisition dialog box
         # asks user to ensure the settings in cfg match the DM settings.
-        self.knife_cut_speed = float(self.cfg['microtome']['knife_cut_speed'])
-        self.knife_retract_speed = float(
-            self.cfg['microtome']['knife_retract_speed'])
+        self.knife_cut_speed = int(float(
+            self.cfg['microtome']['knife_cut_speed']))
+        self.knife_retract_speed = int(float(
+            self.cfg['microtome']['knife_retract_speed']))
         self.use_oscillation = bool(self.cfg['microtome']['knife_oscillation'])
         # Full cut duration can currently only be changed in config file
         self.full_cut_duration = float(

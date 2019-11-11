@@ -1548,9 +1548,9 @@ class PreStackDlg(QDialog):
         else:
             self.label_interruption.setText('None')
         self.doubleSpinBox_cutSpeed.setValue(
-            float(self.cfg['microtome']['knife_cut_speed']))
+            int(float(self.cfg['microtome']['knife_cut_speed'])) / 1000)
         self.doubleSpinBox_retractSpeed.setValue(
-            float(self.cfg['microtome']['knife_retract_speed']))
+            int(float(self.cfg['microtome']['knife_retract_speed'])) / 1000)
         self.doubleSpinBox_brightness.setValue(
             float(self.cfg['sem']['bsd_brightness']))
         self.doubleSpinBox_contrast.setValue(
@@ -1562,9 +1562,9 @@ class PreStackDlg(QDialog):
 
     def accept(self):
         self.cfg['microtome']['knife_cut_speed'] = str(
-            self.doubleSpinBox_cutSpeed.value())
+            int(self.doubleSpinBox_cutSpeed.value() * 1000))
         self.cfg['microtome']['knife_retract_speed'] = str(
-            self.doubleSpinBox_retractSpeed.value())
+            int(self.doubleSpinBox_retractSpeed.value() * 1000))
         self.cfg['sem']['bsd_contrast'] = str(
             self.doubleSpinBox_contrast.value())
         self.cfg['sem']['bsd_brightness'] = str(
