@@ -1060,14 +1060,22 @@ class Stack():
                 self.add_to_main_log('CTRL: Error notification email sent.')
             else:
                 self.add_to_main_log('CTRL: ERROR sending notification email.')
+
+        # Remove temporary log file of most recent entries:
+        try:
+            os.remove(self.recent_log_filename)
+        except Exception as e:
+            self.add_to_main_log('CTRL: ERROR while trying to remove '
+                                 'temporary file: ' + str(e))
+    
         # Tell main window that there was an error:
         self.transmit_cmd('ERROR PAUSE')
 
     def send_status_report(self):
         """Compile a status report and send it via e-mail."""
-        attachment_list = []
-        temp_file_list = []
-        missing_list = []
+        attachment_list = []  # files to be attached
+        temp_file_list = []   # files to be deleted after email is sent
+        missing_list = []     # files to be attached that could not be found
         tile_list = json.loads(self.cfg['monitoring']['watch_tiles'])
         ov_list = json.loads(self.cfg['monitoring']['watch_ov'])
         if self.cfg['monitoring']['send_logfile'] == 'True':
@@ -1075,6 +1083,7 @@ class Stack():
             self.transmit_cmd('GET CURRENT LOG' + self.recent_log_filename)
             sleep(0.5) # wait for file be written.
             attachment_list.append(self.recent_log_filename)
+            temp_file_list.append(self.recent_log_filename)
         if self.cfg['monitoring']['send_additional_logs'] == 'True':
             attachment_list.append(self.debris_log_filename)
             attachment_list.append(self.error_log_filename)
@@ -1182,7 +1191,11 @@ class Stack():
             self.add_to_main_log('CTRL: ERROR sending status report e-mail.')
         # clean up:
         for file in temp_file_list:
-            os.remove(file)
+            try:
+                os.remove(file)
+            except Exception as e:
+                self.add_to_main_log('CTRL: ERROR while trying to remove '
+                                     'temporary file: ' + str(e))
         self.report_requested = False
 
     def perform_cutting_sequence(self):
