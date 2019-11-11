@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 
-#==============================================================================
+# ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2016-2018 Benjamin Titze,
-#   Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2018-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
-#==============================================================================
+# ==============================================================================
 
 """This module controls the acquisition process."""
 
@@ -712,6 +711,14 @@ class Stack():
                                 elif sweep_counter == max_number_sweeps:
                                     sweep_limit = True
                         # ============= OV acquisition loop end ===============
+                        
+                        cycle_time_diff = (
+                            self.sem.additional_cycle_time 
+                            - self.sem.DEFAULT_DELAY)  
+                        if cycle_time_diff > 0.15:
+                            self.add_to_main_log(
+                                f'CTRL: Warning: OV {ov_number} cycle time was ' 
+                                f'{cycle_time_diff:.2f} s longer than expected.')
 
                         if (not ov_accepted
                             and self.error_state == 0
@@ -1053,14 +1060,22 @@ class Stack():
                 self.add_to_main_log('CTRL: Error notification email sent.')
             else:
                 self.add_to_main_log('CTRL: ERROR sending notification email.')
+
+        # Remove temporary log file of most recent entries:
+        try:
+            os.remove(self.recent_log_filename)
+        except Exception as e:
+            self.add_to_main_log('CTRL: ERROR while trying to remove '
+                                 'temporary file: ' + str(e))
+    
         # Tell main window that there was an error:
         self.transmit_cmd('ERROR PAUSE')
 
     def send_status_report(self):
         """Compile a status report and send it via e-mail."""
-        attachment_list = []
-        temp_file_list = []
-        missing_list = []
+        attachment_list = []  # files to be attached
+        temp_file_list = []   # files to be deleted after email is sent
+        missing_list = []     # files to be attached that could not be found
         tile_list = json.loads(self.cfg['monitoring']['watch_tiles'])
         ov_list = json.loads(self.cfg['monitoring']['watch_ov'])
         if self.cfg['monitoring']['send_logfile'] == 'True':
@@ -1068,6 +1083,7 @@ class Stack():
             self.transmit_cmd('GET CURRENT LOG' + self.recent_log_filename)
             sleep(0.5) # wait for file be written.
             attachment_list.append(self.recent_log_filename)
+            temp_file_list.append(self.recent_log_filename)
         if self.cfg['monitoring']['send_additional_logs'] == 'True':
             attachment_list.append(self.debris_log_filename)
             attachment_list.append(self.error_log_filename)
@@ -1175,7 +1191,11 @@ class Stack():
             self.add_to_main_log('CTRL: ERROR sending status report e-mail.')
         # clean up:
         for file in temp_file_list:
-            os.remove(file)
+            try:
+                os.remove(file)
+            except Exception as e:
+                self.add_to_main_log('CTRL: ERROR while trying to remove '
+                                     'temporary file: ' + str(e))
         self.report_requested = False
 
     def perform_cutting_sequence(self):
@@ -1412,23 +1432,32 @@ class Stack():
         return ov_save_path, ov_accepted
 
     def save_debris_image(self, ov_file_name, sweep_counter):
-        debris_save_path = (self.base_dir
-                            + '\\overviews\\debris\\'
-                            + ov_file_name[ov_file_name.rfind('\\') + 1:-4]
-                            + '_' + str(sweep_counter) + '.tif')
-        # Copy current ov_file, TODO: error handling
-        shutil.copy(ov_file_name, debris_save_path)
-
+        debris_save_path = os.path.join(
+            self.base_dir, 'overviews', 'debris',
+            ov_file_name[ov_file_name.rfind('\\') + 1:-4]
+            + '_' + str(sweep_counter) + '.tif')
+        # Copy current ov_file to folder 'debris'
+        try:
+            shutil.copy(ov_file_name, debris_save_path)
+        except Exception as e:
+            self.add_to_main_log(
+                'CTRL: Warning: Unable to save rejected OV image, ' + str(e))
         if self.use_mirror_drive:
             self.mirror_files([debris_save_path])
 
     def save_rejected_tile(self, tile_save_path, fail_counter):
-        rejected_tile_save_path = (
-            self.base_dir + '\\tiles\\rejected\\'
-            + tile_save_path[tile_save_path.rfind('\\') + 1:-4]
+        rejected_tile_save_path = os.path.join(
+            self.base_dir, 'tiles', 'rejected',
+            tile_save_path[tile_save_path.rfind('\\') + 1:-4]
             + '_' + str(fail_counter) + '.tif')
-        # Move tile to folder 'rejected', TODO: error handling
-        shutil.copy(tile_save_path, rejected_tile_save_path)
+        # Copy tile to folder 'rejected'
+        try:
+            shutil.copy(tile_save_path, rejected_tile_save_path)
+        except Exception as e:
+            self.add_to_main_log(
+                'CTRL: Warning: Unable to save rejected tile image, ' + str(e))
+        if self.use_mirror_drive:
+            self.mirror_files([rejected_tile_save_path])
 
     def remove_debris(self):
         """Try to remove detected debris by sweeping the surface. Microtome must
@@ -1778,6 +1807,13 @@ class Stack():
                     self.save_interruption_point(grid_number, tile_number)
                     break
             # ================== End of grid acquisition loop =====================
+
+            cycle_time_diff = (self.sem.additional_cycle_time 
+                               - self.sem.DEFAULT_DELAY)  
+            if cycle_time_diff > 0.15:
+                self.add_to_main_log(
+                    f'CTRL: Warning: Grid {grid_number} cycle time was ' 
+                    f'{cycle_time_diff:.2f} s longer than expected.')
 
             if theta > 0:
                 # Disable scan rotation

@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 
-#==============================================================================
+# ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2016-2018 Benjamin Titze,
-#   Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2018-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
-#==============================================================================
+# ==============================================================================
 
 """This module controls the viewport window, which consists of three tabs:
     - the viewport (mv)  [formerly called Mosaic Viewer, therefore 'mv']
@@ -593,9 +592,7 @@ class Viewport(QWidget):
             self.mv_toggle_help_panel)
         # Slider for zoom:
         self.horizontalSlider_MV.valueChanged.connect(self.mv_adjust_scale)
-        self.horizontalSlider_MV.setValue(
-            log(self.cs.get_mv_scale() / self.VIEWER_ZOOM_F1,
-                self.VIEWER_ZOOM_F2))
+        self.mv_adjust_zoom_slider(self.cs.get_mv_scale())
         # Tile Preview selector:
         self.comboBox_tilePreviewSelectorMV.addItems(
             ['Hide tile previews',
@@ -709,6 +706,12 @@ class Viewport(QWidget):
     def mv_toggle_show_stage_pos(self):
         self.show_stage_pos ^= True
         self.mv_draw()
+
+    def mv_activate_checkbox_show_stage_pos(self):
+        self.show_stage_pos = True
+        self.checkBox_showStagePos.blockSignals(True)
+        self.checkBox_showStagePos.setChecked(True)
+        self.checkBox_showStagePos.blockSignals(False)
 
     def mv_load_stage_limits(self):
         (self.min_sx, self.max_sx,
@@ -1643,6 +1646,12 @@ class Viewport(QWidget):
         self.zooming_in_progress = False
         finish_trigger.s.emit()
 
+    def mv_adjust_zoom_slider(self, new_mv_scale):
+        self.horizontalSlider_MV.blockSignals(True)
+        self.horizontalSlider_MV.setValue(
+            log(new_mv_scale / self.VIEWER_ZOOM_F1, self.VIEWER_ZOOM_F2))
+        self.horizontalSlider_MV.blockSignals(False)
+
     def mv_adjust_scale(self):
         self.time_of_last_zoom_action = time()
         if not self.zooming_in_progress:
@@ -1678,10 +1687,7 @@ class Viewport(QWidget):
             self.VIEWER_ZOOM_F1,
             self.VIEWER_ZOOM_F1 * (self.VIEWER_ZOOM_F2)**99)  # 99 is max slider value
         self.cs.set_mv_scale(new_mv_scale)
-        self.horizontalSlider_MV.blockSignals(True)
-        self.horizontalSlider_MV.setValue(
-            log(new_mv_scale / self.VIEWER_ZOOM_F1, self.VIEWER_ZOOM_F2))
-        self.horizontalSlider_MV.blockSignals(False)
+        self.mv_adjust_zoom_slider(new_mv_scale)        
         # Recentre, so that mouse position is preserved:
         current_centre_dx, current_centre_dy = self.cs.get_mv_centre_d()
         x_shift = px - 500

@@ -3,10 +3,10 @@
 # ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2016-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2018-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
-#==============================================================================
+# ==============================================================================
 
 """This module controls the microtome hardware (knife and motorized stage) via
    DigitalMicrograph (3View) or a serial port (katana).
@@ -63,10 +63,12 @@ class Microtome:
         # The following three parameters cannot be changed remotely,
         # must be set in DM before acquisition. Pre-acquisition dialog box
         # asks user to ensure the settings in cfg match the DM settings.
-        self.knife_cut_speed = float(self.cfg['microtome']['knife_cut_speed'])
-        self.knife_fast_speed = float(self.cfg['microtome']['knife_fast_speed'])
-        self.knife_retract_speed = float(
-            self.cfg['microtome']['knife_retract_speed'])
+        self.knife_cut_speed = int(float(
+            self.cfg['microtome']['knife_cut_speed']))
+        self.knife_fast_speed = int(float(
+            self.cfg['microtome']['knife_fast_speed']))
+        self.knife_retract_speed = int(float(
+            self.cfg['microtome']['knife_retract_speed']))
         self.cut_window_start = int(self.cfg['microtome']['knife_cut_start'])
         self.cut_window_end = int(self.cfg['microtome']['knife_cut_end'])
         self.use_oscillation = bool(self.cfg['microtome']['knife_oscillation'])
