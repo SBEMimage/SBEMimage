@@ -711,6 +711,14 @@ class Stack():
                                 elif sweep_counter == max_number_sweeps:
                                     sweep_limit = True
                         # ============= OV acquisition loop end ===============
+                        
+                        cycle_time_diff = (
+                            self.sem.additional_cycle_time 
+                            - self.sem.DEFAULT_DELAY)  
+                        if cycle_time_diff > 0.15:
+                            self.add_to_main_log(
+                                f'CTRL: Warning: OV {ov_number} cycle time was ' 
+                                f'{cycle_time_diff:.2f} s longer than expected.')
 
                         if (not ov_accepted
                             and self.error_state == 0
@@ -1786,6 +1794,13 @@ class Stack():
                     self.save_interruption_point(grid_number, tile_number)
                     break
             # ================== End of grid acquisition loop =====================
+
+            cycle_time_diff = (self.sem.additional_cycle_time 
+                               - self.sem.DEFAULT_DELAY)  
+            if cycle_time_diff > 0.15:
+                self.add_to_main_log(
+                    f'CTRL: Warning: Grid {grid_number} cycle time was ' 
+                    f'{cycle_time_diff:.2f} s longer than expected.')
 
             if theta > 0:
                 # Disable scan rotation

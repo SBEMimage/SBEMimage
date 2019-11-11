@@ -57,6 +57,7 @@ class SEM:
         # self.cycle_time holds the cycle time for the current frame settings,
         # will be set the first time when self.apply_frame_settings() is called.
         self.current_cycle_time = 0
+        self.additional_cycle_time = 0
         # Stage parameters:
         self.stage_move_wait_interval = float(
             self.cfg['sem']['stage_move_wait_interval'])
@@ -530,13 +531,19 @@ class SEM_SmartSEM(SEM):
         """
         self.sem_api.Execute('CMD_UNFREEZE_ALL')
         self.sem_api.Execute('CMD_FREEZE_ALL') # Assume 'freeze on end of frame'
+
+        self.additional_cycle_time = extra_delay
         if self.current_cycle_time > 0.5:
-            delay_after_cycle_time = self.DEFAULT_DELAY
-        else:
-            delay_after_cycle_time = 0
-        sleep(self.current_cycle_time + delay_after_cycle_time + extra_delay)
+            self.additional_cycle_time += self.DEFAULT_DELAY
+
+        sleep(self.current_cycle_time + self.additional_cycle_time)
         # This sleep interval could be used to carry out other operations in
         # parallel while waiting for the new image.
+        # Wait longer if necessary before grabbing image
+        while self.sem_api.Get('DP_FROZEN')[1] == 'Live':
+            sleep(0.1)
+            self.additional_cycle_time += 0.1
+            
         ret_val = self.sem_api.Grab(0, 0, 1024, 768, 0,
                                     save_path_filename)
         if ret_val == 0:
