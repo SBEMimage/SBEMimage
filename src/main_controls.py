@@ -37,7 +37,7 @@ from PyQt5.uic import loadUi
 import acq_func
 import utils
 from sem_control import SEM_SmartSEM
-from microtome_control import Microtome_3View
+from microtome_control import Microtome_3View, Microtome_katana
 from stage import Stage
 from plasma_cleaner import PlasmaCleaner
 from stack_acquisition import Stack
@@ -57,7 +57,8 @@ from dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                         PauseDlg, StubOVDlg, EHTDlg, GrabFrameDlg, \
                         FTSetParamsDlg, FTMoveDlg, AskUserDlg, \
                         ImportImageDlg, AdjustImageDlg, DeleteImageDlg, \
-                        UpdateDlg, CutDurationDlg, GridRotationDlg, AboutBox
+                        UpdateDlg, CutDurationDlg, GridRotationDlg, \
+                        KatanaSettingsDlg, AboutBox
 
 from magc_controls import ImportMagCDlg, ImportWaferImageDlg, WaferCalibrationDlg
 
@@ -483,6 +484,10 @@ class MainControls(QMainWindow):
             if not self.calibration_found:
                 self.add_to_log(
                     'CTRL: Warning - No stage calibration found for current EHT.')
+
+        elif (self.use_microtome
+              and self.cfg['microtome']['device'] == 'ConnectomX katana'):
+            self.microtome = Microtome_katana(self.cfg, self.syscfg)
 
         else:
             # No microtome - use SEM stage
@@ -990,14 +995,18 @@ class MainControls(QMainWindow):
                     QMessageBox.Ok)
 
     def open_microtome_dlg(self):
-        dialog = MicrotomeSettingsDlg(self.microtome, self.sem,
-                                      self.use_microtome)
-        if dialog.exec_():
-            self.cs.load_stage_limits()
-            self.viewport.mv_load_stage_limits()
-            self.show_current_settings()
-            self.show_estimates()
-            self.viewport.mv_draw()
+        if self.cfg['microtome']['device'] == 'Gatan 3View':
+            dialog = MicrotomeSettingsDlg(self.microtome, self.sem,
+                                          self.use_microtome)
+            if dialog.exec_():
+                self.cs.load_stage_limits()
+                self.viewport.mv_load_stage_limits()
+                self.show_current_settings()
+                self.show_estimates()
+                self.viewport.mv_draw()
+        elif self.cfg['microtome']['device'] == 'ConnectomX katana':
+            dialog = KatanaSettingsDlg(self.microtome)
+            dialog.exec_()
 
     def open_calibration_dlg(self):
         dialog = CalibrationDlg(self.cfg, self.stage, self.sem)
@@ -2069,9 +2078,13 @@ class MainControls(QMainWindow):
                 QMessageBox.Yes| QMessageBox.No)
             if result == QMessageBox.Yes:
                 if not self.simulation_mode:
-                    if self.use_microtome:
+                    if (self.use_microtome
+                        and self.cfg['microtome']['device'] == 'Gatan 3View'):
                         self.microtome.stop_script()
                         self.add_to_log('3VIEW: Disconnected from DM/3View.')
+                    elif (self.use_microtome
+                          and self.cfg['microtome']['device'] == 'ConnectomX katana'):
+                        self.microtome.disconnect()
                     sem_log_msg = self.sem.disconnect()
                     self.add_to_log('SEM: ' + sem_log_msg)
                 if self.plc_initialized:

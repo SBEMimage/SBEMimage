@@ -16,7 +16,7 @@
 # deleted from the default configuration files
 CFG_TEMPLATE_FILE = '..\\cfg\\default.ini'
 CFG_NUMBER_SECTIONS_CORE = 10
-CFG_NUMBER_KEYS_CORE = 194
+CFG_NUMBER_KEYS_CORE = 199
 
 CFG_NUMBER_SECTIONS_MAGC = 1 # magc
 CFG_NUMBER_KEYS_MAGC = 7 # [sys]:magc_mode,
@@ -29,7 +29,7 @@ CFG_NUMBER_KEYS = CFG_NUMBER_KEYS_CORE + CFG_NUMBER_KEYS_MAGC
 
 SYSCFG_TEMPLATE_FILE = '..\\cfg\\system.cfg'
 SYSCFG_NUMBER_SECTIONS = 7
-SYSCFG_NUMBER_KEYS = 24
+SYSCFG_NUMBER_KEYS = 28
 
 import os
 from configparser import ConfigParser
@@ -84,7 +84,9 @@ def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):
             for section in syscfg_template.sections():
                 for key in syscfg_template[section]:
                     if current_syscfg.has_option(section, key):
-                        syscfg_template[section][key] = current_syscfg[section][key]
+                        if key != 'recognized':
+                            syscfg_template[section][key] = (
+                                current_syscfg[section][key])
                     else:
                         syscfg_changed = True
 
