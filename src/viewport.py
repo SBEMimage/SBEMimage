@@ -2832,7 +2832,7 @@ class Viewport(QWidget):
         self.comboBox_tileSelectorM.clear()
         self.comboBox_tileSelectorM.addItems(
             ['Select tile']
-            + self.gm.get_active_tile_str_list(self.m_current_grid))
+            + self.gm.get_tile_str_list(self.m_current_grid))
         self.comboBox_tileSelectorM.setCurrentIndex(current_tile + 1)
         self.comboBox_tileSelectorM.blockSignals(False)
 
@@ -2904,13 +2904,7 @@ class Viewport(QWidget):
     def m_load_selected(self):
         self.m_from_stack = True
         self.radioButton_fromStack.setChecked(True)
-        active_tiles = self.gm.get_active_tiles(self.selected_grid)
-        if self.selected_tile in active_tiles:
-            self.selected_tile = active_tiles.index(self.selected_tile)
-        else:
-            self.selected_tile = None
-        if ((self.selected_grid is not None)
-            and (self.selected_tile is not None)):
+        if self.selected_grid is not None and self.selected_tile is not None:
             self.m_current_grid = self.selected_grid
             self.m_current_tile = self.selected_tile
             self.comboBox_gridSelectorM.blockSignals(True)
@@ -2940,23 +2934,20 @@ class Viewport(QWidget):
         self.m_show_statistics()
 
     def m_draw_reslice(self):
+        """Draw the reslice of the selected tile or OV."""
         filename = None
         if self.m_current_ov >= 0:
-            # get current data:
-            filename = (self.cfg['acq']['base_dir']
-                        + '\\workspace\\reslices\\r_OV'
-                        + str(self.m_current_ov).zfill(utils.OV_DIGITS)
-                        + '.png')
+            filename = os.path.join(
+                self.cfg['acq']['base_dir'], 'workspace', 'reslices', 
+                'r_OV' + str(self.m_current_ov).zfill(utils.OV_DIGITS) + '.png')
         elif self.m_current_tile >= 0:
-            active_tiles = self.gm.get_active_tiles(self.m_current_grid)
-            if self.m_current_tile < len(active_tiles):
-                tile_number = active_tiles[self.m_current_tile]
-                tile_key = ('g' + str(self.m_current_grid).zfill(utils.GRID_DIGITS)
-                            + '_t' + str(tile_number).zfill(utils.TILE_DIGITS))
-                filename = (self.cfg['acq']['base_dir']
-                            + '\\workspace\\reslices\\r_' + tile_key + '.png')
-            else:
-                filename = None
+            tile_key = ('g' + str(self.m_current_grid).zfill(utils.GRID_DIGITS)
+                        + '_t' + str(self.m_current_tile).zfill(utils.TILE_DIGITS))
+            filename = os.path.join(
+                self.cfg['acq']['base_dir'], 'workspace', 'reslices', 
+                'r_' + tile_key + '.png')
+        else:
+            filename = None
         canvas = self.reslice_canvas_template.copy()
         if filename is not None and os.path.isfile(filename):
             current_reslice = QPixmap(filename)
@@ -2985,7 +2976,7 @@ class Viewport(QWidget):
             else:
                 self.m_qp.drawText(260, 523,
                     'Tile ' + str(self.m_current_grid)
-                    + '.' + str(tile_number))
+                    + '.' + str(self.m_current_tile))
             self.m_qp.drawText(260, 543, 'Showing past ' + str(h) + ' slices')
             self.m_qp.end()
             self.reslice_view.setPixmap(canvas)
@@ -3016,20 +3007,17 @@ class Viewport(QWidget):
         filename = None
         if self.m_current_ov >= 0:
             # get current data:
-            filename = (self.cfg['acq']['base_dir']
-                        + '\\meta\\stats\\OV'
-                        + str(self.m_current_ov).zfill(utils.OV_DIGITS)
-                        + '.dat')
+            filename = os.path.join(
+                self.cfg['acq']['base_dir'], 'meta', 'stats', 
+                'OV' + str(self.m_current_ov).zfill(utils.OV_DIGITS) + '.dat')
         elif self.m_current_tile >= 0:
-            active_tiles = self.gm.get_active_tiles(self.m_current_grid)
-            if self.m_current_tile < len(active_tiles):
-                tile_number = active_tiles[self.m_current_tile]
-                tile_key = ('g' + str(self.m_current_grid).zfill(utils.GRID_DIGITS)
-                            + '_t' + str(tile_number).zfill(utils.TILE_DIGITS))
-                filename = (self.cfg['acq']['base_dir']
-                            + '\\meta\\stats\\' + tile_key + '.dat')
-            else:
-                filename = None
+            tile_key = ('g' + str(self.m_current_grid).zfill(utils.GRID_DIGITS)
+                        + '_t' + str(self.m_current_tile).zfill(utils.TILE_DIGITS))
+            filename = os.path.join(
+                self.cfg['acq']['base_dir'], 'meta', 'stats',
+                tile_key + '.dat')
+        else:
+            filename = None
         if filename is not None and os.path.isfile(filename):
             with open(filename, 'r') as file:
                 for line in file:
@@ -3038,7 +3026,7 @@ class Viewport(QWidget):
                     slice_number_list.append(int(values[0]))
                     mean_list.append(float(values[1]))
                     stddev_list.append(float(values[2]))
-            # Shorten the lists to last 150 entries if larger than 150:
+            # Shorten the lists to last 165 entries if larger than 165:
             N = len(mean_list)
             if N > 165:
                 mean_list = mean_list[-165:]
@@ -3203,20 +3191,16 @@ class Viewport(QWidget):
         slice_number = None
         if self.m_from_stack:
             success = False
-            path = ''
+            path = None
             if self.m_current_ov >= 0:
-                path = (base_dir + '\\overviews\\ov'
-                        + str(self.m_current_ov).zfill(utils.OV_DIGITS))
-
+                path = os.path.join(
+                    base_dir, 'overviews', 
+                    'ov' + str(self.m_current_ov).zfill(utils.OV_DIGITS))
             elif self.m_current_tile >= 0:
-                active_tiles = self.gm.get_active_tiles(self.m_current_grid)
-                if self.m_current_tile < len(active_tiles):
-                    tile_number = active_tiles[self.m_current_tile]
-                    path = (base_dir + '\\tiles\\g'
-                            + str(self.m_current_grid).zfill(utils.GRID_DIGITS)
-                            + '\\t' + str(tile_number).zfill(utils.TILE_DIGITS))
-                else:
-                    path = None
+                path = os.path.join(
+                    base_dir, 'tiles', 
+                    'g' + str(self.m_current_grid).zfill(utils.GRID_DIGITS)
+                    + '\\t' + str(self.m_current_tile).zfill(utils.TILE_DIGITS))
 
             if path is not None and os.path.exists(path):
                 filenames = next(os.walk(path))[2]
@@ -3224,19 +3208,20 @@ class Viewport(QWidget):
                     filenames = filenames[-165:]
                 if filenames:
                     if self.m_selected_slice_number is None:
-                        selected_file = path + '\\' + filenames[-1]
+                        selected_file = os.path.join(path, filenames[-1])
                     else:
                         slice_number_str = (
                             's' + str(self.m_selected_slice_number).zfill(
                                 utils.SLICE_DIGITS))
                         for filename in filenames:
                             if slice_number_str in filename:
-                                selected_file = path + '\\' + filename
+                                selected_file = os.path.join(path, filename)
                                 break
 
         else:
             # Use current image in SmartSEM
-            selected_file = base_dir + '\\workspace\\current_frame.tif'
+            selected_file = os.path.join(
+                base_dir, 'workspace', 'current_frame.tif')
             self.sem.save_frame(selected_file)
             self.m_reset_view()
             self.m_tab_populated = False
@@ -3279,7 +3264,7 @@ class Viewport(QWidget):
                     self.m_qp.drawText(
                         280, 50,
                         'Tile ' + str(self.m_current_grid)
-                        + '.' + str(tile_number)
+                        + '.' + str(self.m_current_tile)
                         + ', slice ' + str(slice_number))
 
             else:
