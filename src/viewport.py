@@ -2157,7 +2157,7 @@ class Viewport(QWidget):
         self.comboBox_tileSelectorSV.clear()
         self.comboBox_tileSelectorSV.addItems(
             ['Select tile']
-            + self.gm.get_active_tile_str_list(self.sv_current_grid))
+            + self.gm.get_tile_str_list(self.sv_current_grid))
         self.comboBox_tileSelectorSV.setCurrentIndex(current_tile + 1)
         self.comboBox_tileSelectorSV.blockSignals(False)
 
@@ -2334,14 +2334,7 @@ class Viewport(QWidget):
             self.sv_load_slices()
 
     def sv_load_selected(self):
-        # use active tiles!!
-        active_tiles = self.gm.get_active_tiles(self.selected_grid)
-        if self.selected_tile in active_tiles:
-            self.selected_tile = active_tiles.index(self.selected_tile)
-        else:
-            self.selected_tile = None
-        if ((self.selected_grid is not None)
-            and (self.selected_tile is not None)):
+        if self.selected_grid is not None and self.selected_tile is not None:
             self.sv_current_grid = self.selected_grid
             self.sv_current_tile = self.selected_tile
             self.comboBox_gridSelectorSV.blockSignals(True)
@@ -2399,36 +2392,30 @@ class Viewport(QWidget):
         base_dir = self.cfg['acq']['base_dir']
         stack_name = base_dir[base_dir.rfind('\\') + 1:]
 
-        slices_loaded = False
         if self.sv_current_ov >= 0:
-            for i in range(0, -self.max_slices, -1):
-                filename = (base_dir + '\\'
-                            + utils.get_ov_save_path(
-                            stack_name, self.sv_current_ov, start_slice + i))
+            for i in range(self.max_slices):
+                filename = os.path.join(
+                    base_dir, utils.get_ov_save_path(
+                        stack_name, self.sv_current_ov, start_slice - i))
                 if os.path.isfile(filename):
                     self.slice_view_images.append(QPixmap(filename))
-                    slices_loaded = True
                     utils.suppress_console_warning()
-
             self.sv_set_native_resolution()
             self.sv_draw()
         elif self.sv_current_tile >= 0:
-            selected_tile = self.gm.get_active_tiles(
-                self.sv_current_grid)[self.sv_current_tile]
-            for i in range(0, -self.max_slices, -1):
-                filename = (base_dir + '\\'
-                            + utils.get_tile_save_path(
-                            stack_name, self.sv_current_grid, selected_tile,
-                            start_slice + i))
+            for i in range(self.max_slices):
+                filename = os.path.join(
+                    base_dir, utils.get_tile_save_path(
+                        stack_name, self.sv_current_grid, self.sv_current_tile,
+                        start_slice - i))
                 if os.path.isfile(filename):
-                    slices_loaded = True
                     self.slice_view_images.append(QPixmap(filename))
                     utils.suppress_console_warning()
             self.sv_set_native_resolution()
             # Draw the current slice:
             self.sv_draw()
 
-        if not slices_loaded:
+        if not self.slice_view_images:
             self.sv_qp.begin(self.sv_canvas)
             self.sv_qp.setPen(QColor(255, 255, 255))
             self.sv_qp.setBrush(QColor(0, 0, 0))
