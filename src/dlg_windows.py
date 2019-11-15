@@ -1486,6 +1486,8 @@ class AcqSettingsDlg(QDialog):
         self.pushButton_selectDir.setIconSize(QSize(16, 16))
         # Display current settings:
         self.lineEdit_baseDir.setText(self.cfg['acq']['base_dir'])
+        self.lineEdit_baseDir.textChanged.connect(self.update_stack_name)
+        self.update_stack_name()
         self.new_base_dir = ''
         self.spinBox_sliceThickness.setValue(self.stack.get_slice_thickness())
         self.spinBox_numberSlices.setValue(self.stack.get_number_slices())
@@ -1518,21 +1520,61 @@ class AcqSettingsDlg(QDialog):
             start_path = self.cfg['acq']['base_dir'][:3]
         else:
             start_path = 'C:\\'
-        self.new_base_dir = str(QFileDialog.getExistingDirectory(
-                                self, 'Select Directory',
-                                start_path,
-                                QFileDialog.ShowDirsOnly)).replace('/', '\\')
-        self.lineEdit_baseDir.setText(self.new_base_dir)
+        self.lineEdit_baseDir.setText(
+            str(QFileDialog.getExistingDirectory(
+                self, 'Select Directory',
+                start_path,
+                QFileDialog.ShowDirsOnly)).replace('/', '\\'))
 
     def update_server_lineedit(self):
         self.lineEdit_projectName.setEnabled(
             self.checkBox_sendMetaData.isChecked())
 
+    def update_stack_name(self):
+        base_dir = self.lineEdit_baseDir.text().rstrip(r'\/ ')
+        self.label_stackName.setText(base_dir[base_dir.rfind('\\') + 1:])
+
     def accept(self):
         success = True
-        self.new_base_dir = (
-            self.lineEdit_baseDir.text().replace(' ', '_').replace('/', '\\'))
-        self.lineEdit_baseDir.setText(self.new_base_dir)
+        selected_dir = self.lineEdit_baseDir.text()
+        # Remove trailing slashes and whitespace
+        modified_dir = selected_dir.rstrip(r'\/ ')
+        # Replace spaces and forward slashes
+        modified_dir = modified_dir.replace(' ', '_').replace('/', '\\')
+        # Notify user if directory was modified
+        if modified_dir != selected_dir:
+            self.lineEdit_baseDir.setText(modified_dir)
+            self.update_stack_name()
+            QMessageBox.information(
+                self, 'Base directory name modified',
+                'The selected base directory was modified by removing '
+                'trailing slashes and whitespace and replacing spaces with '
+                'underscores and forward slashes with backslashes.',
+                QMessageBox.Ok)
+        # Check if path contains a drive letter
+        reg = re.compile('^[a-zA-Z]:\\\$')
+        if not reg.match(modified_dir[:3]):
+            success = False
+            QMessageBox.warning(
+                self, 'Error',
+                'Please specify the full path to the base directory. It '
+                'must begin with a drive letter, for example: "D:\\..."',
+                QMessageBox.Ok)
+        else:
+            # If workspace directory does not yet exist, create it to test
+            # whether path is valid and accessible
+            workspace_dir = os.path.join(modified_dir, 'workspace')
+            try:
+                if not os.path.exists(workspace_dir):
+                    os.makedirs(workspace_dir)
+            except Exception as e:
+                success = False
+                QMessageBox.warning(
+                    self, 'Error',
+                    'The selected base directory is invalid or '
+                    'inaccessible: ' + str(e),
+                    QMessageBox.Ok)
+
         if 5 <= self.spinBox_sliceThickness.value() <= 200:
             self.stack.set_slice_thickness(self.spinBox_sliceThickness.value())
         number_slices = self.spinBox_numberSlices.value()
@@ -1562,16 +1604,8 @@ class AcqSettingsDlg(QDialog):
                 'Slice counter must be smaller than or equal to '
                 'target number of slices.', QMessageBox.Ok)
             success = False
-        reg = re.compile('^[a-zA-Z]:\\\$')
-        if not reg.match(self.lineEdit_baseDir.text()[:3]):
-            QMessageBox.warning(
-                self, 'Error',
-                'Please specify the full path to the base directory. It must '
-                'begin with a drive letter, for example: "D:\\..."',
-                QMessageBox.Ok)
-            success = False
         if success:
-            self.cfg['acq']['base_dir'] = self.new_base_dir
+            self.cfg['acq']['base_dir'] = modified_dir
             super().accept()
 
 #------------------------------------------------------------------------------

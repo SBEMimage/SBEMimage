@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>271</width>
-    <height>462</height>
+    <width>301</width>
+    <height>483</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -28,8 +28,8 @@
   <widget class="QDialogButtonBox" name="buttonBox">
    <property name="geometry">
     <rect>
-     <x>60</x>
-     <y>426</y>
+     <x>90</x>
+     <y>446</y>
      <width>201</width>
      <height>32</height>
     </rect>
@@ -48,7 +48,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>180</y>
+     <y>200</y>
      <width>131</width>
      <height>20</height>
     </rect>
@@ -75,7 +75,7 @@
     <rect>
      <x>10</x>
      <y>30</y>
-     <width>211</width>
+     <width>241</width>
      <height>23</height>
     </rect>
    </property>
@@ -83,7 +83,7 @@
   <widget class="QPushButton" name="pushButton_selectDir">
    <property name="geometry">
     <rect>
-     <x>230</x>
+     <x>260</x>
      <y>30</y>
      <width>30</width>
      <height>23</height>
@@ -97,8 +97,8 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>276</y>
-     <width>251</width>
+     <y>296</y>
+     <width>281</width>
      <height>16</height>
     </rect>
    </property>
@@ -110,7 +110,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>100</y>
+     <y>120</y>
      <width>161</width>
      <height>20</height>
     </rect>
@@ -123,7 +123,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>70</y>
+     <y>90</y>
      <width>161</width>
      <height>20</height>
     </rect>
@@ -135,8 +135,8 @@
   <widget class="QSpinBox" name="spinBox_numberSlices">
    <property name="geometry">
     <rect>
-     <x>190</x>
-     <y>100</y>
+     <x>220</x>
+     <y>120</y>
      <width>71</width>
      <height>22</height>
     </rect>
@@ -154,8 +154,8 @@
   <widget class="QSpinBox" name="spinBox_sliceThickness">
    <property name="geometry">
     <rect>
-     <x>190</x>
-     <y>70</y>
+     <x>220</x>
+     <y>90</y>
      <width>71</width>
      <height>22</height>
     </rect>
@@ -176,8 +176,8 @@
   <widget class="QSpinBox" name="spinBox_sliceCounter">
    <property name="geometry">
     <rect>
-     <x>190</x>
-     <y>180</y>
+     <x>220</x>
+     <y>200</y>
      <width>71</width>
      <height>22</height>
     </rect>
@@ -190,33 +190,33 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>130</y>
-     <width>251</width>
+     <y>150</y>
+     <width>291</width>
      <height>20</height>
     </rect>
    </property>
    <property name="text">
-    <string>Choose &quot;0&quot; for target number of slices to image</string>
+    <string>Set target number of slices to '0' to image the current</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_expl0_2">
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>150</y>
+     <y>170</y>
      <width>251</width>
      <height>20</height>
     </rect>
    </property>
    <property name="text">
-    <string>the current sample surface once, without cutting.</string>
+    <string>sample surface once with no subsequent cut.</string>
    </property>
   </widget>
   <widget class="QCheckBox" name="checkBox_sendMetaData">
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>296</y>
+     <y>316</y>
      <width>251</width>
      <height>17</height>
     </rect>
@@ -235,8 +235,8 @@
    <property name="geometry">
     <rect>
      <x>80</x>
-     <y>326</y>
-     <width>181</width>
+     <y>346</y>
+     <width>211</width>
      <height>23</height>
     </rect>
    </property>
@@ -245,7 +245,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>246</y>
+     <y>266</y>
      <width>251</width>
      <height>20</height>
     </rect>
@@ -270,8 +270,8 @@
    <property name="geometry">
     <rect>
      <x>80</x>
-     <y>386</y>
-     <width>181</width>
+     <y>406</y>
+     <width>211</width>
      <height>23</height>
     </rect>
    </property>
@@ -280,7 +280,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>390</y>
+     <y>410</y>
      <width>71</width>
      <height>16</height>
     </rect>
@@ -293,7 +293,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>330</y>
+     <y>350</y>
      <width>71</width>
      <height>16</height>
     </rect>
@@ -309,8 +309,8 @@
    <property name="geometry">
     <rect>
      <x>80</x>
-     <y>356</y>
-     <width>181</width>
+     <y>376</y>
+     <width>211</width>
      <height>23</height>
     </rect>
    </property>
@@ -319,7 +319,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>360</y>
+     <y>380</y>
      <width>71</width>
      <height>16</height>
     </rect>
@@ -332,7 +332,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>210</y>
+     <y>230</y>
      <width>171</width>
      <height>20</height>
     </rect>
@@ -344,8 +344,8 @@
   <widget class="QDoubleSpinBox" name="doubleSpinBox_zDiff">
    <property name="geometry">
     <rect>
-     <x>190</x>
-     <y>210</y>
+     <x>220</x>
+     <y>230</y>
      <width>71</width>
      <height>22</height>
     </rect>
@@ -358,6 +358,38 @@
    </property>
    <property name="value">
     <double>0.000000000000000</double>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_st_2">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>60</y>
+     <width>61</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Stack name:</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_stackName">
+   <property name="geometry">
+    <rect>
+     <x>80</x>
+     <y>60</y>
+     <width>211</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <weight>75</weight>
+     <bold>true</bold>
+    </font>
+   </property>
+   <property name="text">
+    <string>MyStackName</string>
    </property>
   </widget>
   <zorder>buttonBox</zorder>
@@ -383,6 +415,8 @@
   <zorder>label_3</zorder>
   <zorder>label_csn_2</zorder>
   <zorder>doubleSpinBox_zDiff</zorder>
+  <zorder>label_st_2</zorder>
+  <zorder>label_stackName</zorder>
  </widget>
  <tabstops>
   <tabstop>lineEdit_baseDir</tabstop>

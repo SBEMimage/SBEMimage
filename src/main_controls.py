@@ -1092,10 +1092,6 @@ class MainControls(QMainWindow):
             self.show_estimates()
             self.img_inspector.update_acq_settings()
             self.update_stack_progress()   # Slice number may have changed.
-            # If workspace directory does not yet exist, create it:
-            workspace_dir = self.cfg['acq']['base_dir'] + '\\workspace'
-            if not os.path.exists(workspace_dir):
-                self.try_to_create_directory(workspace_dir)
 
     def open_pre_stack_dlg(self):
         # Calculate new estimates first, then open dialog:

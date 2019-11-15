@@ -132,6 +132,8 @@ class Stack():
         self.imap_server = self.cfg['sys']['email_imap']
         self.user_email_addresses = [self.cfg['monitoring']['user_email'],
                                      self.cfg['monitoring']['cc_user_email']]
+        # Remove trailing slashes and whitespace from base directory string
+        self.cfg['acq']['base_dir'] = self.cfg['acq']['base_dir'].rstrip(r'\/ ')
         self.base_dir = self.cfg['acq']['base_dir']
         # Extract the name of the stack from the base directory:
         self.stack_name = self.base_dir[self.base_dir.rfind('\\') + 1:]
