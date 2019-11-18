@@ -140,8 +140,8 @@ class Stack():
         self.viewport_filename = None
         # Mirror drive: same folder, only drive letter changes:
         self.mirror_drive = self.cfg['sys']['mirror_drive']
-        self.mirror_drive_directory = (self.cfg['sys']['mirror_drive']
-                                       + self.base_dir[2:])
+        self.mirror_drive_directory = os.path.join(
+            self.cfg['sys']['mirror_drive'], self.base_dir[2:])
         # Metadata to server:
         self.metadata_server = (self.cfg['sys']['metadata_server_url']
                                  + '/project/'
@@ -182,6 +182,14 @@ class Stack():
         self.user_reply = None
         self.user_reply_received = False
         self.image_rejected_by_user = False
+
+        # Log file handles:
+        self.main_log_file = None
+        self.imagelist_file = None
+        self.mirror_imagelist_file = None
+        self.debris_log_file = None
+        self.error_log_file = None
+        self.metadata_file = None
 
     def get_remote_password(self):
         return self.email_pw
@@ -357,47 +365,57 @@ class Stack():
         """Create subdirectories given in dir_list in the base folder"""
         try:
             for dir_name in dir_list:
-                new_dir = self.base_dir + '\\' + dir_name
+                new_dir = os.path.join(self.base_dir, dir_name)
                 if not os.path.exists(new_dir):
                     os.makedirs(new_dir)
             return True
-        except:
+        except Exception as e:
+            # Show message in main log via queue and trigger:
+            self.queue.put(utils.format_log_entry(
+                'CTRL: Error while creating subdirectories: ' + str(e)))
+            self.trigger.s.emit()
             return False
 
     def mirror_subdirectories(self, dir_list):
         """Mirror subdirectories given in dir_list"""
         try:
             for dir_name in dir_list:
-                new_mirror_dir = self.mirror_drive_directory + '\\' + dir_name
+                new_mirror_dir = os.path.join(
+                    self.mirror_drive_directory, dir_name)
                 if not os.path.exists(new_mirror_dir):
                     os.makedirs(new_mirror_dir)
             return True
-        except:
+        except Exception as e:
+            # Show message in main log via queue and trigger:
+            self.queue.put(utils.format_log_entry(
+                'CTRL: Error while mirroring subdirectories: ' + str(e)))
             return False
 
     def mirror_files(self, file_list):
-        """Copy files given in file_list to mirror drive, keep path."""
+        """Copy files given in file_list to mirror drive, keep relative path."""
         try:
             for file_name in file_list:
-                dst_file_name = self.mirror_drive + file_name[2:]
+                dst_file_name = os.path.join(self.mirror_drive, file_name[2:])
                 shutil.copy(file_name, dst_file_name)
-        except:
+        except Exception as e:
             # Log in viewport window:
             log_str = (str(self.slice_counter) + ': WARNING ('
                        + 'Could not mirror file(s))')
-            self.error_log_file.write(log_str + '\n')
+
+            self.error_log_file.write(log_str + ': ' + str(e) + '\n')
             # Signal to main window to update log in viewport:
             self.transmit_cmd('VP LOG' + log_str)
             sleep(2)
             # Try again:
             try:
                 for file_name in file_list:
-                    dst_file_name = self.mirror_drive + file_name[2:]
+                    dst_file_name = os.path.join(
+                        self.mirror_drive, file_name[2:])
                     shutil.copy(file_name, dst_file_name)
-            except:
-                self.add_to_main_log('CTRL: Copying file(s) to mirror '
-                                     'drive failed.')
-                self.pause_acquisition(2)
+            except Exception as e:
+                self.add_to_main_log(
+                    'CTRL: Copying file(s) to mirror drive failed: ' + str(e))
+                self.pause_acquisition(1)
                 self.error_state = 402
 
     def set_up_acq_subdirectories(self):
@@ -417,14 +435,16 @@ class Stack():
         ]
         # Add subdirectories for overviews, grids, tiles:
         for ov_number in range(self.ovm.get_number_ov()):
-            ov_dir = 'overviews\\ov' + str(ov_number).zfill(utils.OV_DIGITS)
+            ov_dir = os.path.join(
+                'overviews', 'ov' + str(ov_number).zfill(utils.OV_DIGITS))
             subdirectory_list.append(ov_dir)
         for grid_number in range(self.gm.get_number_grids()):
-            grid_dir = 'tiles\\g' + str(grid_number).zfill(utils.GRID_DIGITS)
+            grid_dir = os.path.join(
+                'tiles', 'g' + str(grid_number).zfill(utils.GRID_DIGITS))
             subdirectory_list.append(grid_dir)
             for tile_number in self.gm.get_active_tiles(grid_number):
-                tile_dir = grid_dir + '\\t' + str(
-                    tile_number).zfill(utils.TILE_DIGITS)
+                tile_dir = os.path.join(
+                    grid_dir, 't' + str(tile_number).zfill(utils.TILE_DIGITS))
                 subdirectory_list.append(tile_dir)
         # Create the directories:
         success = self.create_subdirectories(subdirectory_list)
@@ -434,7 +454,7 @@ class Stack():
         elif self.use_mirror_drive:
             success = self.mirror_subdirectories(subdirectory_list)
             if not success:
-                self.pause_acquisition(2)
+                self.pause_acquisition(1)
                 self.error_state = 402
 
     def set_up_acq_logs(self):
@@ -442,61 +462,77 @@ class Stack():
         # Get timestamp for this run:
         timestamp = str(datetime.datetime.now())[:22].translate(
             {ord(i):None for i in ' :.'})
-        # Save current configuration file with timestamp in log folder:
-        config_filename = (self.base_dir + '\\meta\\logs\\config_'
-                           + timestamp + '.txt')
-        f = open(config_filename, 'w')
-        self.cfg.write(f)
-        f.close()
-        # Save current grid setup:
-        gridmap_filename = self.gm.save_grid_setup(timestamp)
-        # Create main log file:
-        self.main_log_filename = (self.base_dir + '\\meta\\logs\\'
-                                  + 'log_' + timestamp + '.txt')
-        # Log file for most recent entries (used for status report):
-        self.recent_log_filename = (self.base_dir + '\\meta\\logs\\'
-                                    + 'log_' + timestamp + '_mostrecent.txt')
-        # A buffer_size of 1 ensures that all log entries are immediately
-        # written to disk:
-        buffer_size = 1
-        self.main_log_file = open(self.main_log_filename, 'w', buffer_size)
-        # Set up imagelist file:
-        self.imagelist_filename = (self.base_dir + '\\meta\\logs\\'
-                                   + 'imagelist_' + timestamp + '.txt')
-        self.imagelist_file = open(self.imagelist_filename, 'w', buffer_size)
-        # Log files for debris and errors:
-        self.debris_log_filename = (self.base_dir + '\\meta\\logs\\'
-                                    + 'debris_log_' + timestamp + '.txt')
-        self.debris_log_file = open(self.debris_log_filename,
-                                    'w', buffer_size)
-        self.error_log_filename = (self.base_dir + '\\meta\\logs\\'
-                                   + 'error_log_' + timestamp + '.txt')
-        self.error_log_file = open(self.error_log_filename, 'w', buffer_size)
 
-        self.metadata_filename = (self.base_dir + '\\meta\\logs\\'
-                                    + 'metadata_' + timestamp + '.txt')
-        self.metadata_file = open(self.metadata_filename, 'w', buffer_size)
-
-        # Note that the config file and the gridmap file are only saved once
-        # in the beginning of the acquisition. The other log files are updated
-        # continously during the acq.
-        log_file_list = [
-            config_filename,
-            gridmap_filename,
-            self.main_log_filename,
-            self.imagelist_filename,
-            self.debris_log_filename,
-            self.error_log_filename,
-            self.metadata_filename
-        ]
-        # Copy all log files to mirror drive:
-        if self.use_mirror_drive:
-            self.mirror_files(log_file_list)
-            # Handle for imagelist file on mirror drive:
-            self.mirror_imagelist_file = open(
-                self.mirror_drive
-                + self.imagelist_filename[2:],
-                'w', buffer_size)
+        try:
+            # Note that the config file and the gridmap file are only saved once
+            # before starting an acquisition run. The other log files are
+            # updated continously during the acq.
+            # Save current configuration file with timestamp in log folder:
+            config_filename = os.path.join(
+                self.base_dir, 'meta', 'logs', 'config_' + timestamp + '.txt')
+            with open(config_filename, 'w') as f:
+                self.cfg.write(f)
+            # Save current grid setup:
+            gridmap_filename = self.gm.save_grid_setup(timestamp)
+            # Create main log file:
+            self.main_log_filename = os.path.join(
+                self.base_dir, 'meta', 'logs', 'log_' + timestamp + '.txt')
+            # Log file for most recent entries (used for status report):
+            self.recent_log_filename = os.path.join(
+                self.base_dir, 'meta', 'logs',
+                'log_' + timestamp + '_mostrecent.txt')
+            # A buffer_size of 1 ensures that all log entries are immediately
+            # written to disk:
+            buffer_size = 1
+            self.main_log_file = open(self.main_log_filename, 'w', buffer_size)
+            # Set up imagelist file:
+            self.imagelist_filename = os.path.join(
+                self.base_dir, 'meta', 'logs',
+                'imagelist_' + timestamp + '.txt')
+            self.imagelist_file = open(self.imagelist_filename,
+                                       'w', buffer_size)
+            # Log files for debris and errors:
+            self.debris_log_filename = os.path.join(
+                self.base_dir, 'meta', 'logs',
+                'debris_log_' + timestamp + '.txt')
+            self.debris_log_file = open(self.debris_log_filename,
+                                        'w', buffer_size)
+            self.error_log_filename = os.path.join(
+                self.base_dir, 'meta', 'logs',
+                'error_log_' + timestamp + '.txt')
+            self.error_log_file = open(self.error_log_filename,
+                                       'w', buffer_size)
+            self.metadata_filename = os.path.join(
+                self.base_dir, 'meta', 'logs', 'metadata_' + timestamp + '.txt')
+            self.metadata_file = open(self.metadata_filename, 'w', buffer_size)
+        except Exception as e:
+            # Show message in main log via queue and trigger:
+            self.queue.put(utils.format_log_entry(
+                'CTRL: Error while setting up log files: ' + str(e)))
+            self.pause_acquisition(1)
+            self.error_state = 401
+        else:
+            if self.use_mirror_drive:
+                # Copy all log files to mirror drive:
+                self.mirror_files([
+                    config_filename,
+                    gridmap_filename,
+                    self.main_log_filename,
+                    self.imagelist_filename,
+                    self.debris_log_filename,
+                    self.error_log_filename,
+                    self.metadata_filename])
+                # File handle for imagelist file on mirror drive:
+                try:
+                    self.mirror_imagelist_file = open(os.path.join(
+                        self.mirror_drive, self.imagelist_filename[2:]),
+                        'w', buffer_size)
+                except Exception as e:
+                    self.add_to_main_log(
+                        'CTRL: Error while opening imagelist file on mirror '
+                        'drive: ' + str(e))
+                    self.pause_acquisition(1)
+                    self.error_state = 402
 
 # ===================== STACK ACQUISITION THREAD run() ========================
 
@@ -713,13 +749,13 @@ class Stack():
                                 elif sweep_counter == max_number_sweeps:
                                     sweep_limit = True
                         # ============= OV acquisition loop end ===============
-                        
+
                         cycle_time_diff = (
-                            self.sem.additional_cycle_time 
-                            - self.sem.DEFAULT_DELAY)  
+                            self.sem.additional_cycle_time
+                            - self.sem.DEFAULT_DELAY)
                         if cycle_time_diff > 0.15:
                             self.add_to_main_log(
-                                f'CTRL: Warning: OV {ov_number} cycle time was ' 
+                                f'CTRL: Warning: OV {ov_number} cycle time was '
                                 f'{cycle_time_diff:.2f} s longer than expected.')
 
                         if (not ov_accepted
@@ -869,7 +905,7 @@ class Stack():
                             # Send notification email:
                             msg_subject = ('Stack ' + self.stack_name
                                            + ' PAUSED remotely')
-                            success = utils.send_email(
+                            success, error_msg = utils.send_email(
                                 self.smtp_server,
                                 self.email_account,
                                 self.user_email_addresses,
@@ -880,7 +916,8 @@ class Stack():
                                 'CTRL: Notification e-mail sent.')
                         else:
                             self.add_to_main_log(
-                                'CTRL: ERROR sending notification email.')
+                                'CTRL: ERROR sending notification email: '
+                                + error_msg)
                         self.transmit_cmd('REMOTE STOP')
                     if command == 'SHOWMESSAGE':
                         self.transmit_cmd('SHOW MSG' + msg)
@@ -954,16 +991,18 @@ class Stack():
             if use_email_monitoring:
                 # Send notification email:
                 msg_subject = 'Stack ' + self.stack_name + ' COMPLETED.'
-                success = utils.send_email(self.smtp_server,
-                                           self.email_account,
-                                           self.user_email_addresses,
-                                           msg_subject,
-                                           '')
+                success, error_msg = utils.send_email(
+                    self.smtp_server,
+                    self.email_account,
+                    self.user_email_addresses,
+                    msg_subject,
+                    '')
                 if success:
                     self.add_to_main_log('CTRL: Notification e-mail sent.')
                 else:
                     self.add_to_main_log(
-                        'CTRL: ERROR sending notification email.')
+                        'CTRL: ERROR sending notification email: ',
+                        error_msg)
             if self.eht_off_after_stack:
                 self.sem.turn_eht_off()
                 self.add_to_main_log(
@@ -974,22 +1013,29 @@ class Stack():
 
         # Update acquisition status:
         self.transmit_cmd('ACQ NOT IN PROGRESS')
+
         # Write last entry in log and close log file.
         self.main_log_file.write('*** END OF LOG ***\n')
-        # Close all log files:
-        self.main_log_file.close()
-        self.imagelist_file.close()
-        if self.use_mirror_drive:
-            self.mirror_imagelist_file.close()
-        self.debris_log_file.close()
-        self.error_log_file.close()
-        self.metadata_file.close()
-        # Finally, copy files to mirror drive:
+
+        # Copy files to mirror drive:
         if self.use_mirror_drive:
             self.mirror_files([self.main_log_filename,
                                self.debris_log_filename,
                                self.error_log_filename,
                                self.metadata_filename])
+        # Close all log files:
+        if self.main_log_file is not None:
+            self.main_log_file.close()
+        if self.imagelist_file is not None:
+            self.imagelist_file.close()
+        if self.use_mirror_drive and self.mirror_imagelist_file is not None:
+            self.mirror_imagelist_file.close()
+        if self.debris_log_file is not None:
+            self.debris_log_file.close()
+        if self.error_log_file is not None:
+            self.error_log_file.close()
+        if self.metadata_file is not None:
+            self.metadata_file.close()
 
     # =============== END OF STACK ACQUISITION THREAD run() ===================
 
@@ -1008,13 +1054,15 @@ class Stack():
                              'Command received',
                              '')
             self.pause_acquisition(2)
-            success = utils.send_email(self.smtp_server,
-                                       self.email_account,
-                                       self.user_email_addresses,
-                                       'Remote stop',
-                                       'The acquisition was paused remotely.')
+            success, error_msg = utils.send_email(
+                self.smtp_server,
+                self.email_account,
+                self.user_email_addresses,
+                'Remote stop',
+                'The acquisition was paused remotely.')
             if not success:
-                self.add_to_log('CTRL: Error sending confirmation email.')
+                self.add_to_log('CTRL: Error sending confirmation email: '
+                                + error_msg)
             self.transmit_cmd('REMOTE STOP')
         if command in ['continue', 'start', 'restart']:
             pass
@@ -1052,16 +1100,18 @@ class Stack():
                 attachment_list = [self.recent_log_filename]
             msg_subject = ('Stack ' + self.stack_name + ': slice '
                            + str(self.slice_counter) + ', ERROR')
-            success = utils.send_email(self.smtp_server,
-                                       self.email_account,
-                                       self.user_email_addresses,
-                                       msg_subject,
-                                       error_str,
-                                       attachment_list)
+            success, error_msg = utils.send_email(
+                self.smtp_server,
+                self.email_account,
+                self.user_email_addresses,
+                msg_subject,
+                error_str,
+                attachment_list)
             if success:
                 self.add_to_main_log('CTRL: Error notification email sent.')
             else:
-                self.add_to_main_log('CTRL: ERROR sending notification email.')
+                self.add_to_main_log('CTRL: ERROR sending notification email: '
+                                     + error_msg)
 
         # Remove temporary log file of most recent entries:
         try:
@@ -1069,7 +1119,7 @@ class Stack():
         except Exception as e:
             self.add_to_main_log('CTRL: ERROR while trying to remove '
                                  'temporary file: ' + str(e))
-    
+
         # Tell main window that there was an error:
         self.transmit_cmd('ERROR PAUSE')
 
@@ -1181,16 +1231,17 @@ class Stack():
             for file in missing_list:
                 msg_text += (file + '\n')
 
-        success = utils.send_email(self.smtp_server,
-                                   self.email_account,
-                                   self.user_email_addresses,
-                                   msg_subject,
-                                   msg_text,
-                                   attachment_list)
+        success, error_msg = utils.send_email(self.smtp_server,
+                                              self.email_account,
+                                              self.user_email_addresses,
+                                              msg_subject,
+                                              msg_text,
+                                              attachment_list)
         if success:
             self.add_to_main_log('CTRL: Status report e-mail sent.')
         else:
-            self.add_to_main_log('CTRL: ERROR sending status report e-mail.')
+            self.add_to_main_log('CTRL: ERROR sending status report e-mail: '
+                                 + error_msg)
         # clean up:
         for file in temp_file_list:
             try:
@@ -1810,11 +1861,11 @@ class Stack():
                     break
             # ================== End of grid acquisition loop =====================
 
-            cycle_time_diff = (self.sem.additional_cycle_time 
-                               - self.sem.DEFAULT_DELAY)  
+            cycle_time_diff = (self.sem.additional_cycle_time
+                               - self.sem.DEFAULT_DELAY)
             if cycle_time_diff > 0.15:
                 self.add_to_main_log(
-                    f'CTRL: Warning: Grid {grid_number} cycle time was ' 
+                    f'CTRL: Warning: Grid {grid_number} cycle time was '
                     f'{cycle_time_diff:.2f} s longer than expected.')
 
             if theta > 0:

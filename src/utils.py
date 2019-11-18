@@ -186,10 +186,9 @@ def send_email(smtp_server, sender, recipients, subject, main_text, files=[]):
         #mail_server = smtplib.SMTP_SSL(smtp_server)
         mail_server.sendmail(sender, recipients, msg.as_string())
         mail_server.quit()
-        return True
-    except (socket.error, smtplib.SMTPException) as exc:
-        print(exc)
-        return False
+        return True, None
+    except Exception as e:
+        return False, str(e)
 
 def get_remote_command(imap_server, email_account, email_pw, allowed_senders):
     try:

@@ -1783,7 +1783,7 @@ class MainControls(QMainWindow):
     def test_send_email(self):
         """Send test e-mail to the primary user."""
         self.add_to_log('CTRL: Trying to send test e-mail.')
-        success = utils.send_email(
+        success, error_msg = utils.send_email(
             smtp_server=self.cfg['sys']['email_smtp'],
             sender=self.cfg['sys']['email_account'],
             recipients=[self.cfg['monitoring']['user_email']],
@@ -1805,7 +1805,8 @@ class MainControls(QMainWindow):
                 self, 'E-mail test failed',
                 'A error occurred while trying to send a test e-mail to '
                 + self.cfg['monitoring']['user_email'] + ' via '
-                + self.cfg['sys']['email_smtp'],
+                + self.cfg['sys']['email_smtp']
+                + ': ' + error_msg,
                 QMessageBox.Ok)
 
     def test_plasma_cleaner(self):
@@ -2155,14 +2156,14 @@ class MainControls(QMainWindow):
         self.ft_selected_ov = -1
         self.ft_selected_wd = None
         self.ft_selected_stig_x = None
-        self.ft_selected_stig_y = None 
+        self.ft_selected_stig_y = None
         self.ft_cycle_counter = 0
         self.ft_zoom = False
 
-        # self.ft_locations: Focus locations around the centre of the selected 
-        # tile / starting position. The first cycle uses the centre coordinates. 
-        # For the following cycles, the stage is moved to neighbouring locations 
-        # in a clockwise direction to avoid (re)focusing on the same area of 
+        # self.ft_locations: Focus locations around the centre of the selected
+        # tile / starting position. The first cycle uses the centre coordinates.
+        # For the following cycles, the stage is moved to neighbouring locations
+        # in a clockwise direction to avoid (re)focusing on the same area of
         # the sample.
         self.ft_locations = [
             (0, 0),
@@ -2195,8 +2196,8 @@ class MainControls(QMainWindow):
         self.img_focusToolViewer.setPixmap(blank)
 
     def ft_start(self):
-        """Run the through-focus cycle: (1) Move to selected tile or OV. 
-        (2) Acquire image series at specified settings. (3) Let user select 
+        """Run the through-focus cycle: (1) Move to selected tile or OV.
+        (2) Acquire image series at specified settings. (3) Let user select
         the best image.
         """
         if self.ft_mode == 0: # User has clicked on "Run cycle"
@@ -2205,12 +2206,12 @@ class MainControls(QMainWindow):
             else:
                 QMessageBox.information(
                     self, 'Select target tile/OV',
-                    'Before starting a through-focus cycle, you must select a ' 
+                    'Before starting a through-focus cycle, you must select a '
                     'tile or an overview image.',
                     QMessageBox.Ok)
 
-        elif self.ft_mode == 1: 
-            # User has clicked 'Done' to select the best focus from the acquired 
+        elif self.ft_mode == 1:
+            # User has clicked 'Done' to select the best focus from the acquired
             # images. The selected working distance is saved for this tile/OV.
             self.ft_selected_wd += self.ft_fdeltas[self.ft_index]
             self.sem.set_wd(self.ft_selected_wd)
@@ -2227,8 +2228,8 @@ class MainControls(QMainWindow):
                 self.viewport.mv_draw()
             self.ft_reset()
 
-        elif self.ft_mode == 2: 
-            # User has clicked 'Done' to select the best stigmation (X) 
+        elif self.ft_mode == 2:
+            # User has clicked 'Done' to select the best stigmation (X)
             # parameter. The selected stig_x parameter is saved.
             self.ft_selected_stig_x += self.ft_sdeltas[self.ft_index]
             self.sem.set_stig_x(self.ft_selected_stig_x)
@@ -2241,8 +2242,8 @@ class MainControls(QMainWindow):
                                         self.ft_selected_stig_x)
             self.ft_reset()
 
-        elif self.ft_mode == 3: 
-            # User has clicked 'Done' to select the best stigmation (Y) 
+        elif self.ft_mode == 3:
+            # User has clicked 'Done' to select the best stigmation (Y)
             # parameter. The selected stig_y parameter is saved.
             self.ft_selected_stig_y += self.ft_sdeltas[self.ft_index]
             self.sem.set_stig_y(self.ft_selected_stig_y)
@@ -2296,14 +2297,14 @@ class MainControls(QMainWindow):
         else:
             QMessageBox.information(
                 self, 'Select target tile/OV',
-                'To manually set WD/stigmation parameters, you must first ' 
+                'To manually set WD/stigmation parameters, you must first '
                 'select a tile or an overview.',
                 QMessageBox.Ok)
 
     def ft_show_updated_stage_position(self):
         # Update stage position in main controls tab
         self.show_current_stage_xy()
-        # Activate stage position indicator if not active already 
+        # Activate stage position indicator if not active already
         if not self.viewport.show_stage_pos:
             self.viewport.mv_activate_checkbox_show_stage_pos()
         # Set zoom
@@ -2315,18 +2316,18 @@ class MainControls(QMainWindow):
         self.viewport.mv_draw()
 
     def ft_open_move_dlg(self):
-        """Open dialog box to let user manually move to the stage position of 
-        the currently selected tile/OV without acquiring a through-focus 
-        series. This can be used to move to a tile position to focus with the 
+        """Open dialog box to let user manually move to the stage position of
+        the currently selected tile/OV without acquiring a through-focus
+        series. This can be used to move to a tile position to focus with the
         SEM control software and then manually set the tile/OV to the new focus
-        parameters.""" 
+        parameters."""
         if (self.ft_selected_tile >=0) or (self.ft_selected_ov >= 0):
             dialog = FTMoveDlg(self.microtome, self.cs, self.gm,
                                self.ft_selected_grid, self.ft_selected_tile,
                                self.ft_selected_ov)
             if dialog.exec_():
                 self.ft_cycle_counter = 0
-                self.ft_show_updated_stage_position()        
+                self.ft_show_updated_stage_position()
         else:
             QMessageBox.information(
                 self, 'Select tile/OV',
@@ -2335,7 +2336,7 @@ class MainControls(QMainWindow):
                 QMessageBox.Ok)
 
     def ft_run_cycle(self):
-        """Restrict the GUI, read the cycle parameters from the GUI, and 
+        """Restrict the GUI, read the cycle parameters from the GUI, and
         launch the cycle (stage move followed by through-focus acquisition)
         in a thread."""
         self.pushButton_focusToolStart.setText('Busy')
@@ -2378,8 +2379,8 @@ class MainControls(QMainWindow):
         elif self.ft_selected_tile >= 0:
             stage_x, stage_y = self.gm.get_tile_coordinates_d(
                 self.ft_selected_grid, self.ft_selected_tile)
-        # Get the shifts for the current focus area and add them to the centre 
-        # coordinates in the SEM coordinate system. Then convert to stage 
+        # Get the shifts for the current focus area and add them to the centre
+        # coordinates in the SEM coordinate system. Then convert to stage
         # coordinates and move.
         delta_x, delta_y = self.ft_locations[self.ft_cycle_counter]
         stage_x += delta_x * self.ft_pixel_size/1000
@@ -2661,7 +2662,7 @@ class MainControls(QMainWindow):
         self.ft_clear_display()
 
     def ft_set_selection_from_mv(self):
-        """Load the tile/OV selected in the viewport with mouse click and 
+        """Load the tile/OV selected in the viewport with mouse click and
         context menu."""
         selected_ov = self.viewport.mv_get_selected_ov()
         selected_grid = self.viewport.mv_get_selected_grid()
