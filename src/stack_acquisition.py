@@ -1112,13 +1112,12 @@ class Stack():
             else:
                 self.add_to_main_log('CTRL: ERROR sending notification email: '
                                      + error_msg)
-
-        # Remove temporary log file of most recent entries:
-        try:
-            os.remove(self.recent_log_filename)
-        except Exception as e:
-            self.add_to_main_log('CTRL: ERROR while trying to remove '
-                                 'temporary file: ' + str(e))
+            # Remove temporary log file of most recent entries:
+            try:
+                os.remove(self.recent_log_filename)
+            except Exception as e:
+                self.add_to_main_log('CTRL: ERROR while trying to remove '
+                                     'temporary file: ' + str(e))
 
         # Tell main window that there was an error:
         self.transmit_cmd('ERROR PAUSE')
