@@ -1727,6 +1727,20 @@ class Stack():
         return (tile_img, relative_save_path, save_path,
                 tile_accepted, tile_skipped, tile_selected)
 
+    def handle_frozen_frame(self, grid_number):
+        """Workaround when a frame in the grid specified by grid_number is 
+        frozen in SmartSEM and no further frames can be acquired ('frozen frame 
+        error'): Try to 'unfreeze' by switching to a different store resolution 
+        and then back to the grid's original store resolution."""
+        target_store_res = self.gm.get_tile_size_selector(grid_number)
+        if target_store_res == 0:  
+            self.sem.set_frame_size(1)
+        else:
+            self.sem.set_frame_size(0)
+        sleep(1)
+        # Back to previous store resolution:
+        self.sem.set_frame_size(target_store_res)
+
     def acquire_grid(self, grid_number):
         """Acquire all active tiles of grid specified by grid_number"""
 
@@ -1803,14 +1817,17 @@ class Stack():
                         self.save_rejected_tile(save_path, fail_counter)
                         # Try again, problem may disappear:
                         fail_counter += 1
-                        if fail_counter == 3:
-                            # Pause after third failed attempt
+                        if fail_counter == 2:
+                            # Pause after second failed attempt
                             self.pause_acquisition(1)
                         else:
                             # Remove the file to avoid overwrite error:
                             os.remove(save_path)
+                            # Try to solve frozen frame problem:
+                            # if self.error_state == 304:
+                            #    self.handle_frozen_frame(grid_number)
                             self.add_to_main_log(
-                            'CTRL: Trying again to image tile.')
+                                'CTRL: Trying again to image tile.')
                             # Reset error state:
                             self.error_state = 0
                     elif self.error_state > 0:
