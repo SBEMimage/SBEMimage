@@ -1806,7 +1806,7 @@ class Stack():
                     self.sem.set_stig_xy(*new_stig_xy)
                     self.log_wd_stig(new_wd, new_stig_xy[0], new_stig_xy[1])
                 # Acquire the current tile, up to three attempts:
-                while not tile_accepted and fail_counter < 3:
+                while not tile_accepted and fail_counter < 2:
                     (tile_img, relative_save_path, save_path,
                      tile_accepted, tile_skipped, tile_selected) = (
                         self.acquire_tile(grid_number, tile_number))
@@ -1821,7 +1821,12 @@ class Stack():
                             self.pause_acquisition(1)
                         else:
                             # Remove the file to avoid overwrite error:
-                            os.remove(save_path)
+                            try:
+                                os.remove(save_path)
+                            except Exception as e:
+                                self.add_to_main_log(
+                                    'CTRL: Tile image file could not be '
+                                    'removed: ' + str(e))
                             # Try to solve frozen frame problem:
                             # if self.error_state == 304:
                             #    self.handle_frozen_frame(grid_number)
