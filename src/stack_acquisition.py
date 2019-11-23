@@ -2025,17 +2025,17 @@ class Stack():
         autofocus_tiles = self.af.get_ref_tiles_in_grid(grid_number)
         active_tiles = self.gm.get_active_tiles(grid_number)
         # Perform Zeiss autofocus for non-active autofocus tiles:
-        for tile in autofocus_tiles:
-            if tile not in active_tiles:
+        for tile_number in autofocus_tiles:
+            if tile_number not in active_tiles:
                 do_move = True
                 self.perform_zeiss_autofocus(
                     *self.autofocus_stig_current_slice,
-                    do_move, grid_number, tile)
+                    do_move, grid_number, tile_number)
                 if self.error_state != 0 or self.pause_state == 1:
                     # Immediately pause and save interruption info
                     if not self.acq_paused:
                         self.pause_acquisition(1)
-                    self.save_interruption_point(grid_number, t)
+                    self.save_interruption_point(grid_number, tile_number)
                     break
 
     def perform_heuristic_autofocus(self, tile_key):
