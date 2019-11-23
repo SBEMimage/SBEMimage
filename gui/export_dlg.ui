@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>201</width>
-    <height>299</height>
+    <height>379</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -29,7 +29,7 @@
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>260</y>
+     <y>340</y>
      <width>171</width>
      <height>32</height>
     </rect>
@@ -51,7 +51,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>200</y>
+     <y>280</y>
      <width>181</width>
      <height>16</height>
     </rect>
@@ -64,7 +64,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>220</y>
+     <y>300</y>
      <width>181</width>
      <height>23</height>
     </rect>
@@ -80,7 +80,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>180</y>
+     <y>260</y>
      <width>181</width>
      <height>20</height>
     </rect>
@@ -127,8 +127,8 @@
   <widget class="QSpinBox" name="spinBox_fromSlice">
    <property name="geometry">
     <rect>
-     <x>70</x>
-     <y>120</y>
+     <x>90</x>
+     <y>190</y>
      <width>71</width>
      <height>22</height>
     </rect>
@@ -140,8 +140,8 @@
   <widget class="QSpinBox" name="spinBox_untilSlice">
    <property name="geometry">
     <rect>
-     <x>70</x>
-     <y>150</y>
+     <x>90</x>
+     <y>220</y>
      <width>71</width>
      <height>22</height>
     </rect>
@@ -154,7 +154,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>120</y>
+     <y>190</y>
      <width>61</width>
      <height>16</height>
     </rect>
@@ -167,7 +167,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>150</y>
+     <y>220</y>
      <width>51</width>
      <height>16</height>
     </rect>
@@ -207,12 +207,73 @@
     <rect>
      <x>10</x>
      <y>90</y>
-     <width>131</width>
+     <width>181</width>
      <height>16</height>
     </rect>
    </property>
    <property name="text">
-    <string>base directory.</string>
+    <string>base directory for the specified grid.</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_8">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>130</y>
+     <width>71</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Grid number:</string>
+   </property>
+  </widget>
+  <widget class="QSpinBox" name="spinBox_gridNumber">
+   <property name="geometry">
+    <rect>
+     <x>90</x>
+     <y>130</y>
+     <width>71</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="maximum">
+    <number>99999</number>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_9">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>160</y>
+     <width>81</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Pixel size (nm):</string>
+   </property>
+  </widget>
+  <widget class="QDoubleSpinBox" name="doubleSpinBox_pixelSize">
+   <property name="geometry">
+    <rect>
+     <x>90</x>
+     <y>160</y>
+     <width>71</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="decimals">
+    <number>1</number>
+   </property>
+   <property name="minimum">
+    <double>1.000000000000000</double>
+   </property>
+   <property name="maximum">
+    <double>10000.000000000000000</double>
+   </property>
+   <property name="value">
+    <double>10.000000000000000</double>
    </property>
   </widget>
  </widget>

@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 
-#==============================================================================
+# ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2016-2018 Benjamin Titze,
-#   Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2018-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
-#==============================================================================
+# ==============================================================================
 
 """This module contains all dialog windows."""
 
@@ -253,6 +252,97 @@ class MicrotomeSettingsDlg(QDialog):
             self.sem.set_stage_move_wait_interval(
                 self.doubleSpinBox_waitInterval.value())
         super().accept()
+
+#------------------------------------------------------------------------------
+
+class KatanaSettingsDlg(QDialog):
+    """Adjust settings for the katana microtome."""
+
+    def __init__(self, microtome):
+        super().__init__()
+        self.microtome = microtome
+        loadUi('..\\gui\\katana_settings_dlg.ui', self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setFixedSize(self.size())
+        self.show()
+
+        # Set up COM port selector
+        self.comboBox_portSelector.addItems(utils.get_serial_ports())
+        self.comboBox_portSelector.setCurrentIndex(0)
+        self.comboBox_portSelector.currentIndexChanged.connect(
+            self.reconnect)
+
+        self.display_connection_status()
+        self.display_current_settings()
+
+    def reconnect(self):
+        pass
+
+    def display_connection_status(self):
+        # Show message in dialog whether or not katana is connected.
+        pal = QPalette(self.label_connectionStatus.palette())
+        if self.microtome.connected:
+            # Use red colour if not connected
+            pal.setColor(QPalette.WindowText, QColor(Qt.black))
+            self.label_connectionStatus.setPalette(pal)
+            self.label_connectionStatus.setText('katana microtome connected.')
+        else:
+            pal.setColor(QPalette.WindowText, QColor(Qt.red))
+            self.label_connectionStatus.setPalette(pal)
+            self.label_connectionStatus.setText('katana microtome is not connected.')
+
+    def display_current_settings(self):
+        self.spinBox_knifeCutSpeed.setValue(
+            self.microtome.get_knife_cut_speed())
+        self.spinBox_knifeFastSpeed.setValue(
+            self.microtome.get_knife_fast_speed())
+        cut_window_start, cut_window_end = self.microtome.get_cut_window()
+        self.spinBox_cutWindowStart.setValue(cut_window_start)
+        self.spinBox_cutWindowEnd.setValue(cut_window_end)
+
+        self.checkBox_useOscillation.setChecked(
+            self.microtome.is_oscillation_enabled())
+        self.spinBox_oscAmplitude.setValue(
+            self.microtome.get_oscillation_amplitude())
+        self.spinBox_oscFrequency.setValue(
+            self.microtome.get_oscillation_frequency())
+        if not self.microtome.simulation_mode and self.microtome.connected: 
+            self.doubleSpinBox_zPosition.setValue(self.microtome.get_stage_z())
+        z_range_min, z_range_max = self.microtome.get_stage_z_range()
+        self.doubleSpinBox_zRangeMin.setValue(z_range_min)
+        self.doubleSpinBox_zRangeMax.setValue(z_range_max)
+        # Retraction clearance is stored in nanometres, display in micrometres
+        self.doubleSpinBox_retractClearance.setValue(
+            self.microtome.get_retract_clearance() / 1000)
+
+    def accept(self):
+        new_cut_speed = self.spinBox_knifeCutSpeed.value()
+        new_fast_speed = self.spinBox_knifeFastSpeed.value()
+        new_cut_start = self.spinBox_cutWindowStart.value()
+        new_cut_end = self.spinBox_cutWindowEnd.value()
+        new_osc_frequency = self.spinBox_oscFrequency.value()
+        new_osc_amplitude = self.spinBox_oscAmplitude. value()
+        # retract_clearance in nanometres
+        new_retract_clearance = (
+            self.doubleSpinBox_retractClearance.value() * 1000)
+        # End position of cut window must be smaller than start position:
+        if new_cut_end < new_cut_start:
+            self.microtome.set_knife_cut_speed(new_cut_speed)
+            self.microtome.set_knife_fast_speed(new_fast_speed)
+            self.microtome.set_cut_window(new_cut_start, new_cut_end)
+            self.microtome.set_oscillation_enabled(
+                self.checkBox_useOscillation.isChecked())
+            self.microtome.set_oscillation_frequency(new_osc_frequency)
+            self.microtome.set_oscillation_amplitude(new_osc_amplitude)
+            self.microtome.set_retract_clearance(new_retract_clearance)
+            super().accept()
+        else:
+            QMessageBox.warning(
+                self, 'Invalid input',
+                'The start position of the cutting window must be larger '
+                'than the end position.',
+                QMessageBox.Ok)
 
 #------------------------------------------------------------------------------
 
@@ -1405,6 +1495,8 @@ class AcqSettingsDlg(QDialog):
         self.pushButton_selectDir.setIconSize(QSize(16, 16))
         # Display current settings:
         self.lineEdit_baseDir.setText(self.cfg['acq']['base_dir'])
+        self.lineEdit_baseDir.textChanged.connect(self.update_stack_name)
+        self.update_stack_name()
         self.new_base_dir = ''
         self.spinBox_sliceThickness.setValue(self.stack.get_slice_thickness())
         self.spinBox_numberSlices.setValue(self.stack.get_number_slices())
@@ -1437,21 +1529,61 @@ class AcqSettingsDlg(QDialog):
             start_path = self.cfg['acq']['base_dir'][:3]
         else:
             start_path = 'C:\\'
-        self.new_base_dir = str(QFileDialog.getExistingDirectory(
-                                self, 'Select Directory',
-                                start_path,
-                                QFileDialog.ShowDirsOnly)).replace('/', '\\')
-        self.lineEdit_baseDir.setText(self.new_base_dir)
+        self.lineEdit_baseDir.setText(
+            str(QFileDialog.getExistingDirectory(
+                self, 'Select Directory',
+                start_path,
+                QFileDialog.ShowDirsOnly)).replace('/', '\\'))
 
     def update_server_lineedit(self):
         self.lineEdit_projectName.setEnabled(
             self.checkBox_sendMetaData.isChecked())
 
+    def update_stack_name(self):
+        base_dir = self.lineEdit_baseDir.text().rstrip(r'\/ ')
+        self.label_stackName.setText(base_dir[base_dir.rfind('\\') + 1:])
+
     def accept(self):
         success = True
-        self.new_base_dir = (
-            self.lineEdit_baseDir.text().replace(' ', '_').replace('/', '\\'))
-        self.lineEdit_baseDir.setText(self.new_base_dir)
+        selected_dir = self.lineEdit_baseDir.text()
+        # Remove trailing slashes and whitespace
+        modified_dir = selected_dir.rstrip(r'\/ ')
+        # Replace spaces and forward slashes
+        modified_dir = modified_dir.replace(' ', '_').replace('/', '\\')
+        # Notify user if directory was modified
+        if modified_dir != selected_dir:
+            self.lineEdit_baseDir.setText(modified_dir)
+            self.update_stack_name()
+            QMessageBox.information(
+                self, 'Base directory name modified',
+                'The selected base directory was modified by removing '
+                'trailing slashes and whitespace and replacing spaces with '
+                'underscores and forward slashes with backslashes.',
+                QMessageBox.Ok)
+        # Check if path contains a drive letter
+        reg = re.compile('^[a-zA-Z]:\\\$')
+        if not reg.match(modified_dir[:3]):
+            success = False
+            QMessageBox.warning(
+                self, 'Error',
+                'Please specify the full path to the base directory. It '
+                'must begin with a drive letter, for example: "D:\\..."',
+                QMessageBox.Ok)
+        else:
+            # If workspace directory does not yet exist, create it to test
+            # whether path is valid and accessible
+            workspace_dir = os.path.join(modified_dir, 'workspace')
+            try:
+                if not os.path.exists(workspace_dir):
+                    os.makedirs(workspace_dir)
+            except Exception as e:
+                success = False
+                QMessageBox.warning(
+                    self, 'Error',
+                    'The selected base directory is invalid or '
+                    'inaccessible: ' + str(e),
+                    QMessageBox.Ok)
+
         if 5 <= self.spinBox_sliceThickness.value() <= 200:
             self.stack.set_slice_thickness(self.spinBox_sliceThickness.value())
         number_slices = self.spinBox_numberSlices.value()
@@ -1481,16 +1613,8 @@ class AcqSettingsDlg(QDialog):
                 'Slice counter must be smaller than or equal to '
                 'target number of slices.', QMessageBox.Ok)
             success = False
-        reg = re.compile('^[a-zA-Z]:\\\$')
-        if not reg.match(self.lineEdit_baseDir.text()[:3]):
-            QMessageBox.warning(
-                self, 'Error',
-                'Please specify the full path to the base directory. It must '
-                'begin with a drive letter, for example: "D:\\..."',
-                QMessageBox.Ok)
-            success = False
         if success:
-            self.cfg['acq']['base_dir'] = self.new_base_dir
+            self.cfg['acq']['base_dir'] = modified_dir
             super().accept()
 
 #------------------------------------------------------------------------------
@@ -1558,9 +1682,9 @@ class PreStackDlg(QDialog):
         else:
             self.label_interruption.setText('None')
         self.doubleSpinBox_cutSpeed.setValue(
-            float(self.cfg['microtome']['knife_cut_speed']))
+            int(float(self.cfg['microtome']['knife_cut_speed'])) / 1000)
         self.doubleSpinBox_retractSpeed.setValue(
-            float(self.cfg['microtome']['knife_retract_speed']))
+            int(float(self.cfg['microtome']['knife_retract_speed'])) / 1000)
         self.doubleSpinBox_brightness.setValue(
             float(self.cfg['sem']['bsd_brightness']))
         self.doubleSpinBox_contrast.setValue(
@@ -1572,9 +1696,9 @@ class PreStackDlg(QDialog):
 
     def accept(self):
         self.cfg['microtome']['knife_cut_speed'] = str(
-            self.doubleSpinBox_cutSpeed.value())
+            int(self.doubleSpinBox_cutSpeed.value() * 1000))
         self.cfg['microtome']['knife_retract_speed'] = str(
-            self.doubleSpinBox_retractSpeed.value())
+            int(self.doubleSpinBox_retractSpeed.value() * 1000))
         self.cfg['sem']['bsd_contrast'] = str(
             self.doubleSpinBox_contrast.value())
         self.cfg['sem']['bsd_brightness'] = str(
@@ -1638,13 +1762,17 @@ class ExportDlg(QDialog):
         self.pushButton_export.setText('Busy')
         self.pushButton_export.setEnabled(False)
         QApplication.processEvents()
+        base_dir = self.cfg['acq']['base_dir']
+        target_grid_number = (
+            str(self.spinBox_gridNumber.value()).zfill(utils.GRID_DIGITS))
+        pixel_size = self.doubleSpinBox_pixelSize.value()
         start_slice = self.spinBox_fromSlice.value()
         end_slice = self.spinBox_untilSlice.value()
         # Read all imagelist files into memory:
         imagelist_str = []
         imagelist_data = []
-        file_list = glob.glob(self.cfg['acq']['base_dir']
-                              + '\\meta\\logs\\'  'imagelist*.txt')
+        file_list = glob.glob(os.path.join(base_dir,
+                                           'meta', 'logs', 'imagelist*.txt'))
         file_list.sort()
         for file in file_list:
             with open(file) as f:
@@ -1655,25 +1783,35 @@ class ExportDlg(QDialog):
             min_y = 1000000
             for line in imagelist_str:
                 elements = line.split(';')
-                z = int(elements[3])
-                if start_slice <= z <= end_slice:
-                    x = int(elements[1])
+                # elements[0]: relative path to tile image
+                # elements[1]: x coordinate in nm
+                # elements[2]: y coordinate in nm
+                # elements[3]: z coordinate in nm
+                # elements[4]: slice number
+                slice_number = int(elements[4])
+                grid_number = elements[0][7:11]
+                if (start_slice <= slice_number <= end_slice
+                    and grid_number == target_grid_number):
+                    x = int(int(elements[1]) / pixel_size)
                     if x < min_x:
                         min_x = x
-                    y = int(elements[2])
+                    y = int(int(elements[2]) / pixel_size)
                     if y < min_y:
                         min_y = y
-                    imagelist_data.append([elements[0], x, y, z])
-            # Subtract minimum values:
-            number_entries = len(imagelist_data)
-            for i in range(0, number_entries):
-                imagelist_data[i][1] -= min_x
-                imagelist_data[i][2] -= min_y
+                    imagelist_data.append([elements[0], x, y, slice_number])
+            # Subtract minimum values to obtain bounding box with (0, 0) as
+            # origin in top-left corner.
+            for item in imagelist_data:
+                item[1] -= min_x
+                item[2] -= min_y
             # Write to output file:
             try:
-                output_file = (self.cfg['acq']['base_dir'] +
-                               '\\trakem2_imagelist_slice' + str(start_slice) +
-                               'to' + str(end_slice) + '.txt')
+                output_file = os.path.join(base_dir,
+                                           'trakem2_imagelist_slice'
+                                           + str(start_slice)
+                                           + 'to'
+                                           + str(end_slice)
+                                           + '.txt')
                 with open(output_file, 'w') as f:
                     for item in imagelist_data:
                         f.write(item[0] + '\t'
@@ -1681,19 +1819,19 @@ class ExportDlg(QDialog):
                                 + str(item[2]) + '\t'
                                 + str(item[3]) + '\n')
             except:
-                QMessageBox.warning(self, 'Error',
-                        'An error ocurred while writing the output file.',
-                        QMessageBox.Ok)
+                QMessageBox.warning(
+                    self, 'Error',
+                    'An error ocurred while writing the output file.',
+                    QMessageBox.Ok)
             else:
                 QMessageBox.information(
-                        self, 'Export completed',
-                        'A total of ' + str(number_entries) + ' entries were '
-                        'processed.\n\nThe output file\n'
-                        'trakem2_imagelist_slice' + str(start_slice) +
-                        'to' + str(end_slice) + '.txt\n'
-                        'was written to the current base directory\n' +
-                        self.cfg['acq']['base_dir'] + '.',
-                        QMessageBox.Ok)
+                    self, 'Export completed',
+                    f'A total of {len(imagelist_data)} tile entries were '
+                    f'processed.\n\nThe output file\n'
+                    f'trakem2_imagelist_slice{start_slice}to{end_slice}.txt\n'
+                    f'was written to the current base directory\n'
+                    f'{base_dir}.',
+                    QMessageBox.Ok)
         else:
             QMessageBox.warning(
                 self, 'Error',
@@ -2681,8 +2819,8 @@ class EHTDlg(QDialog):
 #------------------------------------------------------------------------------
 
 class FTSetParamsDlg(QDialog):
-    """Read working distance and stigmation values from user input or
-       from SmarSEM. Used for setting WD/STIG for individual tiles in
+    """Read working distance and stigmation parameters from user input or
+       from SmartSEM for setting WD/STIG for individual tiles/OVs in
        focus tool.
     """
 
@@ -2784,7 +2922,8 @@ class FTMoveDlg(QDialog):
                 QMessageBox.Ok)
         else:
             QMessageBox.information(self, 'Move complete',
-                'The stage has been moved to the selected position.',
+                'The stage has been moved to the selected position. '
+                'The Viewport will be updated after pressing OK.',
                 QMessageBox.Ok)
             super().accept()
         # Enable button again:

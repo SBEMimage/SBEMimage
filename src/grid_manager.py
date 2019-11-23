@@ -3,7 +3,7 @@
 # ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2016-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2018-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
@@ -14,11 +14,12 @@
    TODO: Refactor (use inner class Grid)
 """
 
-from statistics import mean
-from math import sqrt, radians, sin, cos
+import os
 import json
 import utils
 import numpy as np
+from statistics import mean
+from math import sqrt, radians, sin, cos
 import yaml
 
 class GridManager(object):
@@ -799,17 +800,19 @@ class GridManager(object):
         return gapped_tile_map
 
     def save_grid_setup(self, timestamp):
-        # This assumes that base directory and logs subdirectory have already been created
-        file_name = self.cfg['acq']['base_dir'] + '\\meta\\logs\\' + \
-                    'gridmap_' + timestamp + '.txt'
-        grid_map_file = open(file_name, 'w')
-        for i in range(self.number_grids):
-            for t in range(self.size[i][0] * self.size[i][1]):
-                grid_map_file.write(str(i) + '.' + str(t) + ';' +
-                                    str(self.grid_map_p[i][t][0]) + ';' +
-                                    str(self.grid_map_p[i][t][1]) + ';' +
-                                    str(self.grid_map_d[i][t][2]) + '\n')
-        grid_map_file.close()
+        """Save the current grid setup in a text file in the meta\logs folder.
+        This assumes that base directory and logs subdirectory have already
+        been created."""
+        file_name = os.path.join(
+            self.cfg['acq']['base_dir'],
+            'meta', 'logs', 'gridmap_' + timestamp + '.txt')
+        with open(file_name, 'w') as grid_map_file:
+            for i in range(self.number_grids):
+                for t in range(self.size[i][0] * self.size[i][1]):
+                    grid_map_file.write(str(i) + '.' + str(t) + ';' +
+                                        str(self.grid_map_p[i][t][0]) + ';' +
+                                        str(self.grid_map_p[i][t][1]) + ';' +
+                                        str(self.grid_map_d[i][t][2]) + '\n')
         return file_name
 
     def load_wd_stig_data_from_config(self):

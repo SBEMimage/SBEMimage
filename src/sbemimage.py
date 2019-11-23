@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-#==============================================================================
+# ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2016-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
-#   Author(s): B. Titze (benjamin.titze@fmi.ch)
+#   (c) 2018-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
+#   Author(s): B. Titze (benjamin.titze@fmi.ch),
+#   https://github.com/SBEMimage/SBEMimage/graphs/contributors
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
-#==============================================================================
+# ==============================================================================
 
 """SBEMimage.py launches the application.
    Use 'python SBEMimage.py' or call the batch file SBEMimage.bat.
@@ -27,7 +28,7 @@ from dlg_windows import ConfigDlg
 from config_template import process_cfg
 from main_controls import MainControls
 
-VERSION = '2.0 (R2019-07-09)'
+VERSION = '2.0 (R2019-11-07)'
 
 def main():
     """Load configuration and run QApplication.

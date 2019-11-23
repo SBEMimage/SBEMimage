@@ -3,7 +3,7 @@
 # ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2016-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2018-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
@@ -22,6 +22,7 @@ import requests
 import numpy as np
 
 from time import sleep
+from serial.tools import list_ports
 
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
@@ -185,10 +186,9 @@ def send_email(smtp_server, sender, recipients, subject, main_text, files=[]):
         #mail_server = smtplib.SMTP_SSL(smtp_server)
         mail_server.sendmail(sender, recipients, msg.as_string())
         mail_server.quit()
-        return True
-    except (socket.error, smtplib.SMTPException) as exc:
-        print(exc)
-        return False
+        return True, None
+    except Exception as e:
+        return False, str(e)
 
 def get_remote_command(imap_server, email_account, email_pw, allowed_senders):
     try:
@@ -302,6 +302,15 @@ def get_indexes_from_user_string(userString):
     elif userString.isdigit():
         return [int(userString)]
     return None
+
+def get_days_hours_minutes(duration_in_seconds):
+    minutes, seconds = divmod(int(duration_in_seconds), 60)
+    hours, minutes = divmod(minutes, 60)
+    days, hours = divmod(hours, 24)
+    return days, hours, minutes
+
+def get_serial_ports():
+    return [port.device for port in list_ports.comports()]
 
 # ----------------- Functions for geometric transforms (MagC) ------------------
 def affineT(x_in, y_in, x_out, y_out):

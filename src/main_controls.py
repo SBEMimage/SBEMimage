@@ -3,7 +3,7 @@
 # ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2016-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2018-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
@@ -38,7 +38,7 @@ from PyQt5.uic import loadUi
 import acq_func
 import utils
 from sem_control import SEM_SmartSEM
-from microtome_control import Microtome_3View
+from microtome_control import Microtome_3View, Microtome_katana
 from stage import Stage
 from plasma_cleaner import PlasmaCleaner
 from stack_acquisition import Stack
@@ -58,7 +58,8 @@ from dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                         PauseDlg, StubOVDlg, EHTDlg, GrabFrameDlg, \
                         FTSetParamsDlg, FTMoveDlg, AskUserDlg, \
                         ImportImageDlg, AdjustImageDlg, DeleteImageDlg, \
-                        UpdateDlg, CutDurationDlg, GridRotationDlg, AboutBox
+                        UpdateDlg, CutDurationDlg, GridRotationDlg, \
+                        KatanaSettingsDlg, AboutBox
 
 from magc_controls import ImportMagCDlg, ImportWaferImageDlg, WaferCalibrationDlg
 
@@ -485,6 +486,10 @@ class MainControls(QMainWindow):
                 self.add_to_log(
                     'CTRL: Warning - No stage calibration found for current EHT.')
 
+        elif (self.use_microtome
+              and self.cfg['microtome']['device'] == 'ConnectomX katana'):
+            self.microtome = Microtome_katana(self.cfg, self.syscfg)
+
         else:
             # No microtome - use SEM stage
             self.microtome = None
@@ -641,11 +646,8 @@ class MainControls(QMainWindow):
         # Get current estimates:
         (min_dose, max_dose, total_area, total_z, total_data,
         total_imaging, total_stage_moves, total_cutting,
-        date_estimate) = self.stack.calculate_estimates()
+        date_estimate, remaining_time) = self.stack.calculate_estimates()
         total_duration = total_imaging + total_stage_moves + total_cutting
-        minutes, seconds = divmod(int(total_duration), 60)
-        hours, minutes = divmod(minutes, 60)
-        days, hours = divmod(hours, 24)
         if min_dose == max_dose:
             self.label_dose.setText(
                 '{0:.1f}'.format(min_dose) + ' electrons per nm²')
@@ -655,6 +657,7 @@ class MainControls(QMainWindow):
                 + '{0:.1f}'.format(max_dose) + ' electrons per nm²')
         if total_duration == 0:
             total_duration = 1  # prevent division by zero
+        days, hours, minutes = utils.get_days_hours_minutes(total_duration)
         self.label_totalDuration.setText(
             f'{days} d {hours} h {minutes} min     '
             f'({total_imaging/total_duration * 100:.1f}% / '
@@ -663,7 +666,9 @@ class MainControls(QMainWindow):
         self.label_totalArea.setText('{0:.1f}'.format(total_area) + ' µm²')
         self.label_totalZ.setText('{0:.1f}'.format(total_z) + ' µm')
         self.label_totalData.setText('{0:.1f}'.format(total_data) + ' GB')
-        self.label_dateEstimate.setText(date_estimate)
+        days, hours, minutes = utils.get_days_hours_minutes(remaining_time)
+        self.label_dateEstimate.setText(
+            date_estimate + f'   ({days} d {hours} h {minutes} min remaining)')
 
     def update_acq_options(self):
         self.cfg['acq']['use_email_monitoring'] = str(
@@ -1024,14 +1029,18 @@ class MainControls(QMainWindow):
                     QMessageBox.Ok)
 
     def open_microtome_dlg(self):
-        dialog = MicrotomeSettingsDlg(self.microtome, self.sem,
-                                      self.use_microtome)
-        if dialog.exec_():
-            self.cs.load_stage_limits()
-            self.viewport.mv_load_stage_limits()
-            self.show_current_settings()
-            self.show_estimates()
-            self.viewport.mv_draw()
+        if self.cfg['microtome']['device'] == 'Gatan 3View':
+            dialog = MicrotomeSettingsDlg(self.microtome, self.sem,
+                                          self.use_microtome)
+            if dialog.exec_():
+                self.cs.load_stage_limits()
+                self.viewport.mv_load_stage_limits()
+                self.show_current_settings()
+                self.show_estimates()
+                self.viewport.mv_draw()
+        elif self.cfg['microtome']['device'] == 'ConnectomX katana':
+            dialog = KatanaSettingsDlg(self.microtome)
+            dialog.exec_()
 
     def open_calibration_dlg(self):
         dialog = CalibrationDlg(self.cfg, self.stage, self.sem)
@@ -1118,10 +1127,6 @@ class MainControls(QMainWindow):
             self.show_estimates()
             self.img_inspector.update_acq_settings()
             self.update_stack_progress()   # Slice number may have changed.
-            # If workspace directory does not yet exist, create it:
-            workspace_dir = self.cfg['acq']['base_dir'] + '\\workspace'
-            if not os.path.exists(workspace_dir):
-                self.try_to_create_directory(workspace_dir)
 
     def open_pre_stack_dlg(self):
         # Calculate new estimates first, then open dialog:
@@ -1328,6 +1333,8 @@ class MainControls(QMainWindow):
                 QMessageBox.Ok)
         elif msg == 'UPDATE XY':
             self.show_current_stage_xy()
+        elif msg == 'UPDATE XY FT':
+            self.ft_show_updated_stage_position()
         elif msg == 'UPDATE Z':
             self.show_current_stage_z()
         elif msg == 'UPDATE PROGRESS':
@@ -1476,6 +1483,9 @@ class MainControls(QMainWindow):
 
     def restrict_gui(self, b):
         """Disable GUI elements during acq or when program is busy."""
+        # Partially disable/enable the tests and the focus tool:
+        self.restrict_focus_tool_gui(b)
+        self.restrict_tests_gui(b)
         b ^= True
         # Settings buttons:
         self.pushButton_SEMSettings.setEnabled(b)
@@ -1492,7 +1502,6 @@ class MainControls(QMainWindow):
         self.checkBox_mirrorDrive.setEnabled(b)
         self.toolButton_mirrorDrive.setEnabled(b)
         self.checkBox_takeOV.setEnabled(b)
-
         self.toolButton_OVSettings.setEnabled(b)
         if self.plc_installed:
             self.checkBox_plasmaCleaner.setEnabled(b)
@@ -1500,11 +1509,32 @@ class MainControls(QMainWindow):
         # Start, reset buttons:
         self.pushButton_startAcq.setEnabled(b)
         self.pushButton_resetAcq.setEnabled(b)
-        # Disable/enable the communication tests and the focus tool:
-        self.tabWidget.setTabEnabled(1, b)
-        self.tabWidget.setTabEnabled(2, b)
         # Disable/enable menu
         self.menubar.setEnabled(b)
+
+    def restrict_focus_tool_gui(self, b):
+        b ^= True
+        self.pushButton_focusToolStart.setEnabled(b)
+        self.pushButton_focusToolMove.setEnabled(b)
+        self.checkBox_zoom.setEnabled(b)
+
+    def restrict_tests_gui(self, b):
+        b ^= True
+        self.pushButton_testGetMag.setEnabled(b)
+        self.pushButton_testSetMag.setEnabled(b)
+        self.pushButton_testGetFocus.setEnabled(b)
+        self.pushButton_testSetFocus.setEnabled(b)
+        self.pushButton_testRunAutofocus.setEnabled(b)
+        self.pushButton_testRunAutostig.setEnabled(b)
+        self.pushButton_testRunAutofocusStig.setEnabled(b)
+        self.pushButton_testZeissAPIVersion.setEnabled(b)
+        self.pushButton_testGetStage.setEnabled(b)
+        self.pushButton_testSetStage.setEnabled(b)
+        self.pushButton_testNearKnife.setEnabled(b)
+        self.pushButton_testClearKnife.setEnabled(b)
+        self.pushButton_testStopDMScript.setEnabled(b)
+        self.pushButton_testPlasmaCleaner.setEnabled(b)
+        self.pushButton_testMotors.setEnabled(b)
 
     def restrict_gui_for_simulation_mode(self):
         self.pushButton_SEMSettings.setEnabled(False)
@@ -1517,23 +1547,8 @@ class MainControls(QMainWindow):
         self.actionStageCalibration.setEnabled(False)
         self.actionPlasmaCleanerSettings.setEnabled(False)
         # Tests and focus tool:
-        self.pushButton_focusToolStart.setEnabled(False)
-        self.checkBox_zoom.setEnabled(False)
-        self.pushButton_testGetMag.setEnabled(False)
-        self.pushButton_testSetMag.setEnabled(False)
-        self.pushButton_testGetFocus.setEnabled(False)
-        self.pushButton_testSetFocus.setEnabled(False)
-        self.pushButton_testRunAutofocus.setEnabled(False)
-        self.pushButton_testRunAutostig.setEnabled(False)
-        self.pushButton_testRunAutofocusStig.setEnabled(False)
-        self.pushButton_testZeissAPIVersion.setEnabled(False)
-        self.pushButton_testGetStage.setEnabled(False)
-        self.pushButton_testSetStage.setEnabled(False)
-        self.pushButton_testNearKnife.setEnabled(False)
-        self.pushButton_testClearKnife.setEnabled(False)
-        self.pushButton_testStopDMScript.setEnabled(False)
-        self.pushButton_testPlasmaCleaner.setEnabled(False)
-        self.pushButton_testMotors.setEnabled(False)
+        self.restrict_focus_tool_gui(True)
+        self.restrict_tests_gui(True)
 
     def restrict_gui_for_sem_stage(self):
         self.pushButton_doApproach.setEnabled(False)
@@ -1809,7 +1824,7 @@ class MainControls(QMainWindow):
     def test_send_email(self):
         """Send test e-mail to the primary user."""
         self.add_to_log('CTRL: Trying to send test e-mail.')
-        success = utils.send_email(
+        success, error_msg = utils.send_email(
             smtp_server=self.cfg['sys']['email_smtp'],
             sender=self.cfg['sys']['email_account'],
             recipients=[self.cfg['monitoring']['user_email']],
@@ -1831,7 +1846,8 @@ class MainControls(QMainWindow):
                 self, 'E-mail test failed',
                 'A error occurred while trying to send a test e-mail to '
                 + self.cfg['monitoring']['user_email'] + ' via '
-                + self.cfg['sys']['email_smtp'],
+                + self.cfg['sys']['email_smtp']
+                + ': ' + error_msg,
                 QMessageBox.Ok)
 
     def test_plasma_cleaner(self):
@@ -2001,6 +2017,7 @@ class MainControls(QMainWindow):
             self.pushButton_startAcq.setEnabled(True)
             self.label_sliceCounter.setText('---')
             self.progressBar.setValue(0)
+            self.show_estimates()
             self.acq_in_progress = False
             self.acq_paused = False
             self.pushButton_startAcq.setText('START')
@@ -2103,9 +2120,13 @@ class MainControls(QMainWindow):
                 QMessageBox.Yes| QMessageBox.No)
             if result == QMessageBox.Yes:
                 if not self.simulation_mode:
-                    if self.use_microtome:
+                    if (self.use_microtome
+                        and self.cfg['microtome']['device'] == 'Gatan 3View'):
                         self.microtome.stop_script()
                         self.add_to_log('3VIEW: Disconnected from DM/3View.')
+                    elif (self.use_microtome
+                          and self.cfg['microtome']['device'] == 'ConnectomX katana'):
+                        self.microtome.disconnect()
                     sem_log_msg = self.sem.disconnect()
                     self.add_to_log('SEM: ' + sem_log_msg)
                 if self.plc_initialized:
@@ -2169,25 +2190,43 @@ class MainControls(QMainWindow):
                 QMessageBox.Ok)
             event.ignore()
 
-# ===================== Below: Focus Tool (ft) functions ======================
+# ===================== Below: Focus Tool (ft) functions =======================
 
     def ft_initialize(self):
+        """Initialize the Focus Tool's control variables and GUI elements."""
         # Focus tool (ft) control variables
-        self.ft_mode = 0
+        self.ft_mode = 0  # see ft_start() for explanation
         self.ft_selected_grid = 0
-        self.ft_selected_tile = -1
+        self.ft_selected_tile = -1  # -1: none selected
         self.ft_selected_ov = -1
         self.ft_selected_wd = None
         self.ft_selected_stig_x = None
         self.ft_selected_stig_y = None
-        self.ft_counter = 0
+        self.ft_cycle_counter = 0
         self.ft_zoom = False
-        # Focus tool start and set buttons:
+
+        # self.ft_locations: Focus locations around the centre of the selected
+        # tile / starting position. The first cycle uses the centre coordinates.
+        # For the following cycles, the stage is moved to neighbouring locations
+        # in a clockwise direction to avoid (re)focusing on the same area of
+        # the sample.
+        self.ft_locations = [
+            (0, 0),
+            (600, 0),
+            (600, 450),
+            (0, 450),
+            (-600, 450),
+            (-600, 0),
+            (-600, -450),
+            (0, 450),
+            (600, 450)]
+
+        # Focus tool buttons
         self.pushButton_focusToolStart.clicked.connect(self.ft_start)
         self.pushButton_focusToolMove.clicked.connect(self.ft_open_move_dlg)
         self.pushButton_focusToolSet.clicked.connect(
             self.ft_open_set_params_dlg)
-        # Default pixel size:
+        # Default pixel size is 6 nm.
         self.spinBox_ftPixelSize.setValue(6)
         # Selectors
         self.ft_update_grid_selector()
@@ -2202,24 +2241,26 @@ class MainControls(QMainWindow):
         self.img_focusToolViewer.setPixmap(blank)
 
     def ft_start(self):
-        """ Run the tool: (1) Move to selected tile or OV. (2) Acquire image
-        series at specified settings. (3) Let user select the best image
+        """Run the through-focus cycle: (1) Move to selected tile or OV.
+        (2) Acquire image series at specified settings. (3) Let user select
+        the best image.
         """
-        if self.ft_mode == 0: # User has clicked on "Start"
+        if self.ft_mode == 0: # User has clicked on "Run cycle"
             if (self.ft_selected_tile >=0) or (self.ft_selected_ov >= 0):
                 self.ft_run_cycle()
             else:
                 QMessageBox.information(
                     self, 'Select target tile/OV',
-                    'Before using this tool, you have to select a tile or '
-                    'an overview image.',
+                    'Before starting a through-focus cycle, you must select a '
+                    'tile or an overview image.',
                     QMessageBox.Ok)
 
-        elif self.ft_mode == 1: # User has selected best focus
-            # Set WD as selected by user:
+        elif self.ft_mode == 1:
+            # User has clicked 'Done' to select the best focus from the acquired
+            # images. The selected working distance is saved for this tile/OV.
             self.ft_selected_wd += self.ft_fdeltas[self.ft_index]
             self.sem.set_wd(self.ft_selected_wd)
-            # Save wd for OV or in tile grid:
+            # Save working distance for OV or in tile grid:
             if self.ft_selected_ov >= 0:
                 self.ovm.set_ov_wd(self.ft_selected_ov, self.ft_selected_wd)
             elif self.ft_selected_tile >= 0:
@@ -2232,11 +2273,11 @@ class MainControls(QMainWindow):
                 self.viewport.mv_draw()
             self.ft_reset()
 
-        elif self.ft_mode == 2: # User has selected best stigmation in X
-            # Set StigX as selected by user:
+        elif self.ft_mode == 2:
+            # User has clicked 'Done' to select the best stigmation (X)
+            # parameter. The selected stig_x parameter is saved.
             self.ft_selected_stig_x += self.ft_sdeltas[self.ft_index]
             self.sem.set_stig_x(self.ft_selected_stig_x)
-            # Save StigX for OV or in tile grid:
             if self.ft_selected_ov >= 0:
                 self.ovm.set_ov_stig_x(
                     self.ft_selected_ov, self.ft_selected_stig_x)
@@ -2246,11 +2287,11 @@ class MainControls(QMainWindow):
                                         self.ft_selected_stig_x)
             self.ft_reset()
 
-        elif self.ft_mode == 3: # User has selected best stigmation in Y
-            # Set StigY as selected by user:
+        elif self.ft_mode == 3:
+            # User has clicked 'Done' to select the best stigmation (Y)
+            # parameter. The selected stig_y parameter is saved.
             self.ft_selected_stig_y += self.ft_sdeltas[self.ft_index]
             self.sem.set_stig_y(self.ft_selected_stig_y)
-            # Save StigX for OV or in tile grid:
             if self.ft_selected_ov >= 0:
                 self.ovm.set_ov_stig_y(
                     self.ft_selected_ov, self.ft_selected_stig_y)
@@ -2261,6 +2302,8 @@ class MainControls(QMainWindow):
             self.ft_reset()
 
     def ft_open_set_params_dlg(self):
+        """Open a dialog box to let user manually set the working distance and
+        stigmation x/y for the selected tile/OV."""
         if (self.ft_selected_tile >=0) or (self.ft_selected_ov >= 0):
             dialog = FTSetParamsDlg(self.sem, self.ft_selected_wd,
                                     self.ft_selected_stig_x,
@@ -2296,22 +2339,40 @@ class MainControls(QMainWindow):
                 self.sem.set_wd(self.ft_selected_wd)
                 self.sem.set_stig_xy(
                     self.ft_selected_stig_x, self.ft_selected_stig_y)
-
         else:
             QMessageBox.information(
                 self, 'Select target tile/OV',
-                'To set specific WD/stigmation values, you have to select '
-                'a tile or an overview.',
+                'To manually set WD/stigmation parameters, you must first '
+                'select a tile or an overview.',
                 QMessageBox.Ok)
 
+    def ft_show_updated_stage_position(self):
+        # Update stage position in main controls tab
+        self.show_current_stage_xy()
+        # Activate stage position indicator if not active already
+        if not self.viewport.show_stage_pos:
+            self.viewport.mv_activate_checkbox_show_stage_pos()
+        # Set zoom
+        self.cs.set_mv_scale(8)
+        self.viewport.mv_adjust_zoom_slider(8)
+        # Recentre at current stage position and redraw
+        self.cs.set_mv_centre_d(
+            self.cs.convert_to_d(self.stage.get_last_known_xy()))
+        self.viewport.mv_draw()
+
     def ft_open_move_dlg(self):
+        """Open dialog box to let user manually move to the stage position of
+        the currently selected tile/OV without acquiring a through-focus
+        series. This can be used to move to a tile position to focus with the
+        SEM control software and then manually set the tile/OV to the new focus
+        parameters."""
         if (self.ft_selected_tile >=0) or (self.ft_selected_ov >= 0):
             dialog = FTMoveDlg(self.microtome, self.cs, self.gm,
                                self.ft_selected_grid, self.ft_selected_tile,
                                self.ft_selected_ov)
-            dialog.exec_()
-            # Update stage position in main controls tab
-            self.show_current_stage_xy()
+            if dialog.exec_():
+                self.ft_cycle_counter = 0
+                self.ft_show_updated_stage_position()
         else:
             QMessageBox.information(
                 self, 'Select tile/OV',
@@ -2320,6 +2381,9 @@ class MainControls(QMainWindow):
                 QMessageBox.Ok)
 
     def ft_run_cycle(self):
+        """Restrict the GUI, read the cycle parameters from the GUI, and
+        launch the cycle (stage move followed by through-focus acquisition)
+        in a thread."""
         self.pushButton_focusToolStart.setText('Busy')
         self.pushButton_focusToolStart.setEnabled(False)
         self.pushButton_focusToolMove.setEnabled(False)
@@ -2343,47 +2407,64 @@ class MainControls(QMainWindow):
         # Use current WD/Stig if selected working distance == 0:
         if self.ft_selected_wd == 0:
             self.ft_selected_wd = self.sem.get_wd()
-            self.ft_selected_stig_x, self.ft_selected_stig_y = self.sem.get_stig_xy()
-
+            self.ft_selected_stig_x, self.ft_selected_stig_y = (
+                self.sem.get_stig_xy())
         self.ft_pixel_size = self.spinBox_ftPixelSize.value()
         self.ft_slider_delta = self.verticalSlider_ftDelta.value() + 1
-        blank_img = QPixmap(512, 384)
-        blank_img.fill(QColor(0, 0, 0))
-        self.img_focusToolViewer.setPixmap(blank_img)
+        self.ft_clear_display()
         QApplication.processEvents()
-        ft_thread = threading.Thread(target=self.ft_acq_series_thread)
+        ft_thread = threading.Thread(target=self.ft_move_and_acq_thread)
         ft_thread.start()
 
-    def ft_acq_series_thread(self):
-        # Move to stage pos of selected tile:
+    def ft_move_and_acq_thread(self):
+        """Move to the target stage position with error handling, then acquire
+        through-focus series."""
         if self.ft_selected_ov >= 0:
-            # Use overview selection:
-            stage_x, stage_y = self.cs.get_ov_centre_s(self.ft_selected_ov)
+            stage_x, stage_y = self.cs.get_ov_centre_d(self.ft_selected_ov)
         elif self.ft_selected_tile >= 0:
-            stage_x, stage_y = self.gm.get_tile_coordinates_s(
+            stage_x, stage_y = self.gm.get_tile_coordinates_d(
                 self.ft_selected_grid, self.ft_selected_tile)
-        # Move stage:
-        stage_x += self.ft_counter * 800 * self.ft_pixel_size/1000
-        stage_y += self.ft_counter * 800 * self.ft_pixel_size/1000
-        # Move in thread:
+        # Get the shifts for the current focus area and add them to the centre
+        # coordinates in the SEM coordinate system. Then convert to stage
+        # coordinates and move.
+        delta_x, delta_y = self.ft_locations[self.ft_cycle_counter]
+        stage_x += delta_x * self.ft_pixel_size/1000
+        stage_y += delta_y * self.ft_pixel_size/1000
+        stage_x, stage_y = self.cs.convert_to_s((stage_x, stage_y))
+        move_success = True
         self.stage.move_to_xy((stage_x, stage_y))
+        if self.stage.get_error_state() > 0:
+            self.stage.reset_error_state()
+            # Try again
+            sleep(2)
+            self.stage.move_to_xy((stage_x, stage_y))
+            if self.stage.get_error_state() > 0:
+                move_success = False
+                self.add_to_log('CTRL: Stage failed to move to selected tile '
+                                'for focus tool cycle.')
+        self.acq_queue.put('UPDATE XY FT')
+        self.acq_trigger.s.emit() # need to use signal because running in thread
+        if move_success:
+            if self.radioButton_focus.isChecked():
+                self.ft_delta = (
+                    0.00000004 * self.ft_slider_delta * self.ft_pixel_size)
+                self.ft_acquire_focus_series()
 
-        if self.radioButton_focus.isChecked():
-            self.ft_delta = (
-                0.00000004 * self.ft_slider_delta * self.ft_pixel_size)
-            self.ft_acquire_focus_series()
+            if self.radioButton_stigX.isChecked():
+                self.ft_delta = (
+                    0.008 * self.ft_slider_delta * self.ft_pixel_size)
+                self.ft_acquire_stig_series(0)
 
-        if self.radioButton_stigX.isChecked():
-            self.ft_delta = (
-                0.008 * self.ft_slider_delta * self.ft_pixel_size)
-            self.ft_acquire_stig_series(0)
-
-        if self.radioButton_stigY.isChecked():
-            self.ft_delta = 0.008 * self.ft_slider_delta * self.ft_pixel_size
-            self.ft_acquire_stig_series(1)
+            if self.radioButton_stigY.isChecked():
+                self.ft_delta = (
+                    0.008 * self.ft_slider_delta * self.ft_pixel_size)
+                self.ft_acquire_stig_series(1)
+        else:
+            self.ft_reset()
 
     def ft_reset(self):
-        self.pushButton_focusToolStart.setText('Start')
+        """Reset focus tool GUI to starting configuration."""
+        self.pushButton_focusToolStart.setText('Run cycle')
         self.pushButton_focusToolStart.setEnabled(True)
         self.pushButton_focusToolMove.setEnabled(True)
         self.pushButton_focusToolSet.setEnabled(True)
@@ -2408,14 +2489,14 @@ class MainControls(QMainWindow):
     def ft_series_complete(self):
         self.pushButton_focusToolStart.setText('Done')
         self.pushButton_focusToolStart.setEnabled(True)
-        # Stage position may have changed. Update in main controls tab
-        self.show_current_stage_xy()
         # Increase counter to move to fresh area for next cycle:
-        self.ft_counter += 1
-        if self.ft_counter > 10:
-            self.ft_counter = 0
+        self.ft_cycle_counter += 1
+        # Go back to the centre after a full clockwise cycle
+        if self.ft_cycle_counter > 8:
+            self.ft_cycle_counter = 0
 
     def ft_acquire_focus_series(self):
+        """Acquire through-focus series."""
         self.sem.apply_frame_settings(1, self.ft_pixel_size, 0.8)
         self.sem.set_beam_blanking(0)
         self.ft_series_img = []
@@ -2426,18 +2507,21 @@ class MainControls(QMainWindow):
             self.sem.set_wd(self.ft_selected_wd + self.ft_fdeltas[i])
             self.ft_series_wd_values.append(
                 self.ft_selected_wd + self.ft_fdeltas[i])
-            filename = (self.cfg['acq']['base_dir']
-                        + '\\workspace\\ft' + str(i) + '.bmp')
+            filename = os.path.join(
+                self.cfg['acq']['base_dir'],
+                'workspace', 'ft' + str(i) + '.bmp')
             self.sem.acquire_frame(filename)
             self.ft_series_img.append(QPixmap(filename))
         self.sem.set_beam_blanking(1)
-        # Display current focus:
+        # Display image with current focus:
         self.ft_index = 4
         self.ft_display_during_cycle()
         self.ft_mode = 1
         self.ft_series_complete()
 
     def ft_acquire_stig_series(self, xy_choice):
+        """Acquire image series with incrementally changing XY stigmation
+        parameters."""
         self.sem.apply_frame_settings(1, self.ft_pixel_size, 0.8)
         self.sem.set_beam_blanking(0)
         self.ft_series_img = []
@@ -2456,12 +2540,13 @@ class MainControls(QMainWindow):
                     self.ft_selected_stig_y + self.ft_sdeltas[i])
                 self.ft_series_stig_y_values.append(
                     self.ft_selected_stig_y + self.ft_sdeltas[i])
-            filename = (self.cfg['acq']['base_dir']
-                        + '\\workspace\\ft' + str(i) + '.bmp')
+            filename = os.path.join(
+                self.cfg['acq']['base_dir'],
+                'workspace', 'ft' + str(i) + '.bmp')
             self.sem.acquire_frame(filename)
             self.ft_series_img.append(QPixmap(filename))
         self.sem.set_beam_blanking(1)
-        # Display at current stigmation setting:
+        # Display image at current stigmation setting:
         self.ft_index = 4
         self.ft_display_during_cycle()
         if xy_choice == 0:
@@ -2582,9 +2667,7 @@ class MainControls(QMainWindow):
             self.ft_selected_tile = current_selection
         # show current focus and stig:
         if self.ft_selected_tile >= 0:
-            #self.ft_selected_wd = self.sem.get_wd()
             self.ft_update_ov_selector(-1)
-            #if self.gm.is_adaptive_focus_active(self.ft_selected_grid):
             self.ft_selected_wd = self.gm.get_tile_wd(
                 self.ft_selected_grid, self.ft_selected_tile)
             self.ft_selected_stig_x, self.ft_selected_stig_y = (
@@ -2604,6 +2687,7 @@ class MainControls(QMainWindow):
                 'Adaptive focus active in this grid.')
         else:
             self.label_AFnotification.setText('')
+        self.ft_cycle_counter = 0
         # Clear current image:
         self.ft_clear_display()
 
@@ -2618,10 +2702,13 @@ class MainControls(QMainWindow):
             self.ft_update_stig_display()
         elif self.ft_selected_tile == -1:
             self.ft_clear_wd_stig_display()
+        self.ft_cycle_counter = 0
         # Clear current image:
         self.ft_clear_display()
 
     def ft_set_selection_from_mv(self):
+        """Load the tile/OV selected in the viewport with mouse click and
+        context menu."""
         selected_ov = self.viewport.mv_get_selected_ov()
         selected_grid = self.viewport.mv_get_selected_grid()
         selected_tile = self.viewport.mv_get_selected_tile()
@@ -2661,9 +2748,10 @@ class MainControls(QMainWindow):
         self.ft_clear_display()
         # Switch to Focus Tool tab:
         self.tabWidget.setCurrentIndex(1)
+        self.ft_cycle_counter = 0
 
     def ft_toggle_zoom(self):
-        self.ft_zoom = self.ft_zoom == False
+        self.ft_zoom ^= True
         if self.ft_mode > 0:
             self.ft_display_during_cycle()
 
@@ -2671,13 +2759,12 @@ class MainControls(QMainWindow):
         if (type(event) == QKeyEvent) and (self.tabWidget.currentIndex() == 1):
             if event.key() == Qt.Key_PageUp:
                 self.ft_move_up()
-            if event.key() == Qt.Key_PageDown:
+            elif event.key() == Qt.Key_PageDown:
                 self.ft_move_down()
 
     def wheelEvent(self, event):
         if self.tabWidget.currentIndex() == 1:
-            #print('Wheel event', event.angleDelta())
             if event.angleDelta().y() > 0:
                 self.ft_move_up()
-            if event.angleDelta().y() < 0:
+            elif event.angleDelta().y() < 0:
                 self.ft_move_down()
