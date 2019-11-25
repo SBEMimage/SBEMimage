@@ -901,7 +901,7 @@ class Viewport(QWidget):
                     'Change rotation of selected grid')
             action_changeRotation.triggered.connect(
                 self.mv_change_grid_rotation)
-            if self.cfg['sys']['magc_mode']:
+            if self.cfg['sys']['magc_mode'] == 'True':
                 action_moveGridCurrentStage = menu.addAction(
                     f'Move grid {self.selected_grid} to current stage position')
                 action_moveGridCurrentStage.triggered.connect(
