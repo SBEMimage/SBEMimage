@@ -100,14 +100,14 @@ class ImportMagCDlg(QDialog):
             sections, landmarks = utils.sectionsYAML_to_sections_landmarks(
                 sectionsYAML)
                 
-            if 'sourceROIsUpdatedFromSBEMImage' in sectionsYAML:
+            if 'sourceROIsUpdatedFromSBEMimage' in sectionsYAML:
                 result = QMessageBox.question(
                     self, 'Section import',
                     'Using section locations that have been previously updated in SBEMImage ?',
                     QMessageBox.Yes| QMessageBox.No)
                 if result == QMessageBox.Yes:
                     for sectionId, sectionXYA in \
-                        sectionsYAML['sourceROIsUpdatedFromSBEMImage'].items():
+                        sectionsYAML['sourceROIsUpdatedFromSBEMimage'].items():
                         sections[int(sectionId)] = {
                         'center': [float(a) for a in sectionXYA[:2]],
                         'angle': float( (-sectionXYA[2] + 90) % 360)}

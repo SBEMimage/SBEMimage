@@ -3482,7 +3482,7 @@ tissueROI:
   426:
   - 3083
   - 2560
-sourceROIsUpdatedFromSBEMImage:
+sourceROIsUpdatedFromSBEMimage:
   0:
   - 2545.396090047986
   - 2032.0171311252961

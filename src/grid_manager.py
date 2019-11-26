@@ -1143,7 +1143,7 @@ class GridManager(object):
         sections_path = self.cfg['magc']['sections_path']
         with open(sections_path, 'r') as f:
             sections_yaml = yaml.full_load(f)
-        sections_yaml['sourceROIsUpdatedFromSBEMImage'] = {}
+        sections_yaml['sourceROIsUpdatedFromSBEMimage'] = {}
 
         for grid_number in range(self.number_grids):
             target_ROI = self.get_grid_center_s(grid_number)
@@ -1160,7 +1160,7 @@ class GridManager(object):
             else:
                 source_ROI = target_ROI
                 source_ROI_angle = (-90 + target_ROI_angle) % 360
-            sections_yaml['sourceROIsUpdatedFromSBEMImage'][grid_number] = [
+            sections_yaml['sourceROIsUpdatedFromSBEMimage'][grid_number] = [
                 float(source_ROI[0]),
                 float(source_ROI[1]),
                 float(source_ROI_angle)]
