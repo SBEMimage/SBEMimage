@@ -23,6 +23,8 @@ Image.MAX_IMAGE_PIXELS = None
 
 from time import sleep
 
+import psutil
+
 import utils
 
 
@@ -86,6 +88,23 @@ class ImageInspector(object):
         grab_incomplete = False
         load_error = False
         tile_selected = False
+        
+        if (self.cfg['sys']['magc_mode'] == 'True'
+            and psutil.virtual_memory()[2] > 50):
+            print('### WARNING ### Memory usage ' 
+                + str(psutil.virtual_memory()[2])
+                + ' too high. The tiles are not checked any more')
+        
+            range_test_passed, slice_by_slice_test_passed = True, True
+            frozen_frame_error = False
+            grab_incomplete = False
+            load_error = False
+            tile_selected = True
+            return (np.zeros((1000,1000)), mean, stddev,
+                    range_test_passed, slice_by_slice_test_passed,
+                    tile_selected,
+                    load_error, grab_incomplete, frozen_frame_error)        
+        
         try:
             img = Image.open(filename)
         except Exception as e:
@@ -100,12 +119,13 @@ class ImageInspector(object):
             tile_key_short = str(grid_number) + '.' + str(tile_number)
 
             # Save preview image:
+            img_tostring = img.tostring()
             preview_img = Image.frombytes(
                 'L', (width, height),
-                img.tostring()).resize((512, 384), resample=2)
+                img_tostring).resize((512, 384), resample=2)
             preview_img.save(os.path.join(
                 self.base_dir, 'workspace', tile_key + '.png'))
-
+                
             # calculate mean and stddev:
             mean = np.mean(img)
             stddev = np.std(img)
@@ -129,9 +149,9 @@ class ImageInspector(object):
 
             # Save reslice line in memory. Take a 400-px line from the centre
             # of the image. This works for all frame resolutions.
-            self.tile_reslice_line[tile_key] = (
-                img[int(height/2):int(height/2)+1,
-                    int(width/2)-200:int(width/2)+200])
+            img_reslice_line = img[int(height/2):int(height/2)+1,
+                int(width/2)-200:int(width/2)+200]
+            self.tile_reslice_line[tile_key] = (img_reslice_line)
 
             # Save mean and std in memory:
             # Add key to dictionary if tile is new:
@@ -178,7 +198,12 @@ class ImageInspector(object):
             # acquisition or discarded:
             # ...
             tile_selected = True
-
+            
+            del img_tostring
+            del preview_img
+            del first_line
+            del final_line
+            
         return (img, mean, stddev,
                 range_test_passed, slice_by_slice_test_passed,
                 tile_selected,

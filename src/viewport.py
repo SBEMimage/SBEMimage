@@ -33,6 +33,7 @@ from PyQt5.QtCore import Qt, QObject, QRect, QPoint, QSize, pyqtSignal
 import utils
 from dlg_windows import AdaptiveFocusSelectionDlg
 
+import yaml
 
 class Trigger(QObject):
     """Custom signal for updating GUI from within running threads."""
@@ -375,6 +376,7 @@ class Viewport(QWidget):
             self.drag_origin = (px, py)
             self.mv_reposition_grid(drag_vector)
             self.mv_draw()
+            
         elif self.ov_drag_active:
             self.setCursor(Qt.SizeAllCursor)
             drag_vector = (px - self.drag_origin[0],
@@ -465,6 +467,17 @@ class Viewport(QWidget):
                     # Restore origin coordinates:
                     self.cs.set_grid_origin_s(
                         self.selected_grid, self.stage_pos_backup)
+
+                # ------ MagC code ------
+                elif self.cfg['sys']['magc_mode'] == 'True':
+                    # in magc_mode, save the new grid location back
+                    # to the source magc sections
+                    self.gm.update_source_ROIs_from_grids()
+                    # deactivate roi_mode because grid manually moved
+                    self.cfg['magc']['roi_mode'] = 'False'
+                    self.transmit_cmd('SAVE INI')
+                # ------ End of MagC code ------
+                
             if self.ov_drag_active:
                 self.ov_drag_active = False
                 user_reply = QMessageBox.question(
@@ -888,6 +901,15 @@ class Viewport(QWidget):
                     'Change rotation of selected grid')
             action_changeRotation.triggered.connect(
                 self.mv_change_grid_rotation)
+            if self.cfg['sys']['magc_mode'] == 'True':
+                action_moveGridCurrentStage = menu.addAction(
+                    f'Move grid {self.selected_grid} to current stage position')
+                action_moveGridCurrentStage.triggered.connect(
+                    self.mv_move_grid_current_stage)
+                if not ((self.selected_grid is not None)
+                    and self.cfg['magc']['wafer_calibrated'] == 'True'):
+                    action_moveGridCurrentStage.setEnabled(False)
+                    
             menu.addSeparator()
             if self.af.get_method() == 2:
                 action_selectAutofocus = menu.addAction(
@@ -1961,6 +1983,15 @@ class Viewport(QWidget):
     def mv_open_grid_settings(self):
         self.transmit_cmd('OPEN GRID SETTINGS' + str(self.selected_grid))
 
+    def mv_move_grid_current_stage(self):
+        grid_number = self.selected_grid
+        x, y = self.stage.get_xy()
+        self.gm.set_grid_center_s(grid_number, [x, y])
+        self.gm.calculate_grid_map(grid_number)
+        self.cfg['magc']['roi_mode'] = 'False'
+        self.gm.update_source_ROIs_from_grids()
+        self.mv_draw()
+        
     def mv_toggle_tile_autofocus(self):
         if self.selected_grid is not None and self.selected_tile is not None:
             ref_tiles = self.af.get_ref_tiles()
@@ -2039,9 +2070,19 @@ class Viewport(QWidget):
     def mv_propagate_grid_selected_sections(self):
         clicked_section_number = self.selected_grid
         selected_sections = json.loads(self.cfg['magc']['selected_sections'])
+        
+        # load original sections from file which might be different from
+        # the grids adjusted in SBEMImage
+        with open(self.cfg['magc']['sections_path'], 'r') as f:
+            sections, landmarks = utils.sectionsYAML_to_sections_landmarks(
+            yaml.full_load(f))
+        
         for selected_section in selected_sections:
-            self.gm.propagate_source_grid_to_target_grid(clicked_section_number,
-                                                         selected_section)
+            self.gm.propagate_source_grid_to_target_grid(
+                clicked_section_number, 
+                selected_section,
+                sections)
+        self.gm.update_source_ROIs_from_grids()
         # update the autofocus tiles
         # (done here because no access to autofocus from inside gm)
         ref_tiles = json.loads(self.cfg['autofocus']['ref_tiles'])
@@ -2052,9 +2093,19 @@ class Viewport(QWidget):
     def mv_propagate_grid_all_sections(self):
         clicked_section_number = self.selected_grid
         section_number = self.gm.get_number_grids()
+
+        # load original sections from file which might be different from
+        # the grids adjusted in SBEMImage
+        with open(self.cfg['magc']['sections_path'], 'r') as f:
+            sections, landmarks = utils.sectionsYAML_to_sections_landmarks(
+            yaml.full_load(f))
         for section in range(section_number):
-            self.gm.propagate_source_grid_to_target_grid(clicked_section_number,
-                                                         section)
+            self.gm.propagate_source_grid_to_target_grid(
+                clicked_section_number,
+                section,
+                sections)
+                
+        self.gm.update_source_ROIs_from_grids()
         # update the autofocus tiles
         # (done here because no access to autofocus from inside gm)
         ref_tiles = json.loads(self.cfg['autofocus']['ref_tiles'])

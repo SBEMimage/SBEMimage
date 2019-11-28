@@ -1,0 +1,2 @@
+*.magc text -diff
+*.magc linguist-generated=true
