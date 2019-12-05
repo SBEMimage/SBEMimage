@@ -13,3 +13,4 @@ scikit-image
 imreg_dft
 imageio
 pyyaml
+psutil
