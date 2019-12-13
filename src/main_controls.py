@@ -54,7 +54,7 @@ from dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                         ImageMonitoringSettingsDlg, AcqSettingsDlg, \
                         SaveConfigDlg, PlasmaCleanerDlg, OVSettingsDlg, \
                         ApproachDlg, MirrorDriveDlg, ExportDlg, MotorTestDlg, \
-                        CalibrationDlg, MagCalibrationDlg, PreStackDlg, \
+                        StageCalibrationDlg, MagCalibrationDlg, PreStackDlg, \
                         PauseDlg, StubOVDlg, EHTDlg, GrabFrameDlg, \
                         FTSetParamsDlg, FTMoveDlg, AskUserDlg, \
                         ImportImageDlg, AdjustImageDlg, DeleteImageDlg, \
@@ -871,7 +871,7 @@ class MainControls(QMainWindow):
         index = tableModel.index(int(section_number), 1)
         self.tableView_magc_sectionList.scrollTo(index,
             QAbstractItemView.PositionAtCenter)
-            
+
     def magc_reset(self):
         self.cfg['magc']['sections_path'] = ''
         self.cfg['magc']['wafer_calibrated'] = 'False'
@@ -947,7 +947,7 @@ class MainControls(QMainWindow):
         sectionListModel = tableView.model()
         lastSectionNumber = sectionListModel.rowCount()-1
         sectionListModel.removeRow(lastSectionNumber)
-        
+
         selected_sections = json.loads(self.cfg['magc']['selected_sections'])
         if lastSectionNumber in selected_sections:
             selected_sections.remove(lastSectionNumber)
@@ -958,7 +958,7 @@ class MainControls(QMainWindow):
             checked_sections.remove(lastSectionNumber)
             self.cfg['magc']['checked_sections'] = json.dumps(checked_sections)
         self.save_ini()
-            
+
     def magc_open_import_dlg(self):
         gui_items = {
         'sectionList': self.tableView_magc_sectionList,
@@ -1043,7 +1043,7 @@ class MainControls(QMainWindow):
             dialog.exec_()
 
     def open_calibration_dlg(self):
-        dialog = CalibrationDlg(self.cfg, self.stage, self.sem)
+        dialog = StageCalibrationDlg(self.cfg, self.stage, self.sem)
         if dialog.exec_():
             self.cs.apply_stage_calibration()
             if (self.cfg['debris']['auto_detection_area'] == 'True'):
@@ -2111,7 +2111,7 @@ class MainControls(QMainWindow):
     def save_ini(self):
         with open(os.path.join('..', 'cfg', self.cfg_file), 'w') as f:
             self.cfg.write(f)
-                
+
     def closeEvent(self, event):
         if not self.acq_in_progress:
             result = QMessageBox.question(

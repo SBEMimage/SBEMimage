@@ -307,7 +307,7 @@ class KatanaSettingsDlg(QDialog):
             self.microtome.get_oscillation_amplitude())
         self.spinBox_oscFrequency.setValue(
             self.microtome.get_oscillation_frequency())
-        if not self.microtome.simulation_mode and self.microtome.connected: 
+        if not self.microtome.simulation_mode and self.microtome.connected:
             self.doubleSpinBox_zPosition.setValue(self.microtome.get_stage_z())
         z_range_min, z_range_max = self.microtome.get_stage_z_range()
         self.doubleSpinBox_zRangeMin.setValue(z_range_min)
@@ -346,7 +346,7 @@ class KatanaSettingsDlg(QDialog):
 
 #------------------------------------------------------------------------------
 
-class CalibrationDlg(QDialog):
+class StageCalibrationDlg(QDialog):
     """Calibrate the stage (rotation and scaling) and the motor speeds."""
 
     def __init__(self, config, stage, sem):
@@ -363,7 +363,7 @@ class CalibrationDlg(QDialog):
         self.update_calc_trigger.s.connect(self.update_log)
         self.calc_exception = None
         self.busy = False
-        loadUi('..\\gui\\calibration_dlg.ui', self)
+        loadUi('..\\gui\\stage_calibration_dlg.ui', self)
 
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -380,11 +380,14 @@ class CalibrationDlg(QDialog):
         speed_x, speed_y = self.stage.get_motor_speeds()
         self.doubleSpinBox_motorSpeedX.setValue(speed_x)
         self.doubleSpinBox_motorSpeedY.setValue(speed_y)
+        self.comboBox_dwellTime.addItems(map(str, self.sem.DWELL_TIME))
+        self.comboBox_dwellTime.setCurrentIndex(4)
+        self.comboBox_package.addItems(['imreg_dft', 'skimage'])
         self.pushButton_startImageAcq.clicked.connect(
             self.start_calibration_procedure)
         if config['sys']['simulation_mode'] == 'True':
             self.pushButton_startImageAcq.setEnabled(False)
-
+        self.pushButton_helpCalibration.clicked.connect(self.show_help)
         self.pushButton_calcStage.clicked.connect(
             self.calculate_stage_parameters_from_user_input)
         self.pushButton_calcMotor.clicked.connect(
@@ -407,18 +410,46 @@ class CalibrationDlg(QDialog):
             self.doubleSpinBox_motorSpeedX.setValue(motor_speed_x)
             self.doubleSpinBox_motorSpeedY.setValue(motor_speed_y)
 
+    def show_help(self):
+        QMessageBox.information(
+            self, 'Stage calibration procedure',
+            'If you click on "Start automatic calibration", '
+            'three images will be acquired and saved in the current base '
+            'directory: start.tif, shift_x.tif, shift_y.tif. '
+            'You can set the pixel size and dwell time for these images and '
+            'specify how far the stage should move along the X and the Y axis. '
+            'The X/Y moves must be small enough to allow some overlap between '
+            'the test images. The frame size is set automatically. '
+            'Make sure that structure is visible in the images, and that the '
+            'beam is focused.\n'
+            'The current stage position will be used as the starting '
+            'position. The recommended starting position is the centre of the '
+            'stage (0, 0).\n'
+            'Shift vectors between the acquired images will be computed using '
+            'a function from the selected package (imreg_dft or skimage). '
+            'Angles and scale factors will then be computed from these '
+            'shifts.\n\n'
+            'Alternatively, you can manually provide the pixel shifts by '
+            'looking at the calibration images start.tif, shift_x.tif, and '
+            'shift_y.tif and measuring the difference (with ImageJ, for '
+            'example) in the XY pixel position for some feature in the image. '
+            'Click on "Calculate" to calculate the calibration parameters '
+            'from these shifts.',
+            QMessageBox.Ok)
+
     def start_calibration_procedure(self):
         """Acquire three images to be used for the stage calibration"""
         # TODO: error handling!
         reply = QMessageBox.information(
             self, 'Start calibration procedure',
-            'Three images will be acquired and saved in the base '
+            'This will acquire three images and save them in the current base '
             'directory: start.tif, shift_x.tif, shift_y.tif. '
             'Structure must be visible in the images, and the beam must be '
             'focused.\nThe current stage position will be used as the starting '
             'position. The recommended starting position is the centre of the '
             'stage (0, 0). Angles and scale factors will be computed from the '
-            'shifts between the acquired test images.',
+            'shifts between the acquired test images.\n'
+            'Proceed?',
             QMessageBox.Ok | QMessageBox.Cancel)
         if reply == QMessageBox.Ok:
             # Show update in text field:
@@ -437,13 +468,17 @@ class CalibrationDlg(QDialog):
         """
         shift = self.spinBox_shift.value()
         pixel_size = self.spinBox_pixelsize.value()
+        dwell_time = self.sem.DWELL_TIME[self.comboBox_dwellTime.currentIndex()]
         # Use frame size 4 if available, otherwise 3:
         if len(self.sem.STORE_RES) > 4:
             # Merlin
-            self.sem.apply_frame_settings(4, pixel_size, 0.8)
+            frame_size_selector = 4
         else:
             # Sigma
-            self.sem.apply_frame_settings(3, pixel_size, 0.8)
+            frame_size_selector = 3
+
+        self.sem.apply_frame_settings(
+            frame_size_selector, pixel_size, dwell_time)
 
         start_x, start_y = self.stage.get_xy()
         # First image:
@@ -460,28 +495,31 @@ class CalibrationDlg(QDialog):
         self.stage.move_to_xy((start_x, start_y))
         # Show in log that calculations begin:
         self.update_calc_trigger.s.emit()
-        # Load images and calculate shifts:
-        start_img = imread(self.base_dir + '\\start.tif', as_grey=True)
-        shift_x_img = imread(self.base_dir + '\\shift_x.tif', as_grey=True)
-        shift_y_img = imread(self.base_dir + '\\shift_y.tif', as_grey=True)
-        #         Shift vector (in pixels) required to register ``target_image`` with
-        #         ``src_image``.  Axis ordering is consistent with numpy (e.g. Z, Y, X)
+        # Load images
+        start_img = imread(self.base_dir + '\\start.tif', as_gray=True)
+        shift_x_img = imread(self.base_dir + '\\shift_x.tif', as_gray=True)
+        shift_y_img = imread(self.base_dir + '\\shift_y.tif', as_gray=True)
         self.calc_exception = None
+
         try:
-            # [::-1] -> obey (x, y) order in GUI
-            # x_shift_xyz = register_translation(start_img, shift_x_img)[0][::-1]
-            # y_shift_xyz = register_translation(start_img, shift_y_img)[0][::-1]
-            x_shift_alt = translation(start_img, shift_x_img, filter_pcorr=3)["tvec"][::-1]
-            y_shift_alt = translation(start_img, shift_y_img, filter_pcorr=3)["tvec"][::-1]
-            # print(x_shift_xyz, x_shift_alt, y_shift_xyz, y_shift_alt)
-            self.x_shift_vector = [x_shift_alt[0], x_shift_alt[1]]
-            self.y_shift_vector = [y_shift_alt[0], y_shift_alt[1]]
+            if self.comboBox_package.currentIndex() == 0:  # imreg_dft selected
+                # [::-1] to use x, y, z order
+                x_shift = translation(
+                    start_img, shift_x_img, filter_pcorr=3)['tvec'][::-1]
+                y_shift = translation(
+                    start_img, shift_y_img, filter_pcorr=3)['tvec'][::-1]
+            else:  # use skimage.register_translation
+                x_shift = register_translation(start_img, shift_x_img)[0][::-1]
+                y_shift = register_translation(start_img, shift_y_img)[0][::-1]
+            self.x_shift_vector = [x_shift[0], x_shift[1]]
+            self.y_shift_vector = [y_shift[0], y_shift[1]]
         except Exception as e:
             self.calc_exception = e
         self.finish_trigger.s.emit()
 
     def update_log(self):
-        self.plainTextEdit_calibLog.appendPlainText('Now computing pixel shifts...')
+        self.plainTextEdit_calibLog.appendPlainText(
+            'Now computing pixel shifts...')
 
     def process_results(self):
         self.pushButton_startImageAcq.setText('Start')
@@ -541,10 +579,11 @@ class CalibrationDlg(QDialog):
         self.busy = False
         user_choice = QMessageBox.information(
             self, 'Calculated parameters',
-            'Results:\nRotation X: ' + '{0:.5f}'.format(rot_x)
-            + ';\nRotation Y: ' + '{0:.5f}'.format(rot_y)
-            + '\nScale factor X: ' + '{0:.5f}'.format(scale_x)
+            'Results:\n'
+            + 'Scale factor X: ' + '{0:.5f}'.format(scale_x)
             + ';\nScale factor Y: ' + '{0:.5f}'.format(scale_y)
+            + '\nRotation X: ' + '{0:.5f}'.format(rot_x)
+            + ';\nRotation Y: ' + '{0:.5f}'.format(rot_y)
             + '\n\nDo you want to use these values?',
             QMessageBox.Ok | QMessageBox.Cancel)
         if user_choice == QMessageBox.Ok:
@@ -1156,7 +1195,7 @@ class GridSettingsDlg(QDialog):
     def save_current_settings(self):
         if self.cfg['sys']['magc_mode'] == 'True':
             grid_center = self.gm.get_grid_center_s(self.current_grid)
-            
+
         error_msg = ''
         self.gm.set_grid_size(self.current_grid,
                               (self.spinBox_rows.value(),
@@ -1198,14 +1237,14 @@ class GridSettingsDlg(QDialog):
         # Update wd/stig map:
         self.gm.initialize_wd_stig_map(self.current_grid)
         if self.cfg['sys']['magc_mode'] == 'True':
-            self.gm.set_grid_center_s(self.current_grid, grid_center)            
+            self.gm.set_grid_center_s(self.current_grid, grid_center)
             self.gm.update_source_ROIs_from_grids()
         if error_msg:
             QMessageBox.warning(self, 'Error', error_msg, QMessageBox.Ok)
         else:
             self.main_window_queue.put('GRID SETTINGS CHANGED')
             self.main_window_trigger.s.emit()
-            
+
     def open_adaptive_focus_dlg(self):
         sub_dialog = AdaptiveFocusSettingsDlg(self.gm, self.current_grid)
         sub_dialog.exec_()
