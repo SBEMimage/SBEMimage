@@ -2228,6 +2228,9 @@ class MainControls(QMainWindow):
             self.ft_open_set_params_dlg)
         # Default pixel size is 6 nm.
         self.spinBox_ftPixelSize.setValue(6)
+        # Default dwell time is dwell time selector 4
+        self.comboBox_dwellTime.addItems(map(str, self.sem.DWELL_TIME))
+        self.comboBox_dwellTime.setCurrentIndex(4)
         # Selectors
         self.ft_update_grid_selector()
         self.ft_update_tile_selector()
@@ -2410,6 +2413,8 @@ class MainControls(QMainWindow):
             self.ft_selected_stig_x, self.ft_selected_stig_y = (
                 self.sem.get_stig_xy())
         self.ft_pixel_size = self.spinBox_ftPixelSize.value()
+        self.ft_dwell_time = self.sem.DWELL_TIME[
+            self.comboBox_dwellTime.currentIndex()]
         self.ft_slider_delta = self.verticalSlider_ftDelta.value() + 1
         self.ft_clear_display()
         QApplication.processEvents()
@@ -2497,7 +2502,8 @@ class MainControls(QMainWindow):
 
     def ft_acquire_focus_series(self):
         """Acquire through-focus series."""
-        self.sem.apply_frame_settings(1, self.ft_pixel_size, 0.8)
+        self.sem.apply_frame_settings(
+            1, self.ft_pixel_size, self.ft_dwell_time)
         self.sem.set_beam_blanking(0)
         self.ft_series_img = []
         self.ft_series_wd_values = []
@@ -2522,7 +2528,8 @@ class MainControls(QMainWindow):
     def ft_acquire_stig_series(self, xy_choice):
         """Acquire image series with incrementally changing XY stigmation
         parameters."""
-        self.sem.apply_frame_settings(1, self.ft_pixel_size, 0.8)
+        self.sem.apply_frame_settings(
+            1, self.ft_pixel_size, self.ft_dwell_time)
         self.sem.set_beam_blanking(0)
         self.ft_series_img = []
         self.ft_series_stig_x_values = []
