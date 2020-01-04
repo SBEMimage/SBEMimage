@@ -3,7 +3,7 @@
 # ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2018-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
@@ -11,20 +11,10 @@
 """This module controls the microtome hardware (knife and motorized stage) via
    DigitalMicrograph (3View) or a serial port (katana).
 
-   The DM script SBEMimage_DMcom_GMS2.s must be running in DM to send commands
-   to the 3View stage.
-   Communication with Digital Micrograph (DM) is achieved by read/write file
-   operations. The following files are used:
-      DMcom.trg:  Trigger file
-                  Signals that a command is waiting to be read
-      DMcom.in:   Command/parameter file
-                  Contains a command and (optional) up to two parameters
-      DMcom.out:  Contains output/return value(s)
-      DMcom.err:  This file signals that a critical error occured.
-      DMcom.ack:  Acknowledges that a command has been received and processed.
-      DMcom.wng:  Signals a warning (= error that could be resolved).
-
-   The katana microtome is operated via COM port commands.
+                Microtome (base class)
+                  /                \
+                 /                  \
+         Microtome_3View     Microtome_katana
 """
 
 import os
@@ -38,68 +28,105 @@ import utils
 
 class Microtome:
     """
-    Base class for microtome control. It implements minimum config/parameter handling
-    and interactions with GUI. Undefined methods have to be implemented in the child class.
+    Base class for microtome control. It implements minimum config/parameter
+    handling. Undefined methods have to be implemented in the child class,
+    otherwise NotImplementedError is raised.
     """
     def __init__(self, config, sysconfig):
         self.cfg = config
         self.syscfg = sysconfig
+        self.error_state = 0
+        self.error_cause = ''
+        self.motor_warning = False  # True when motors slower than expected
+        # The following variables contain the last known (verified) position
+        # of the microtome stage in X, Y, Z.
         self.last_known_x = None
         self.last_known_y = None
         self.last_known_z = None
+        # self.prev_known_z stores the previous Z coordinate. It is used to
+        # ensure that Z moves cannot be larger than 200 nm in safe mode.
         self.prev_known_z = None
-        if self.cfg['microtome']['last_known_z'] == 'None':
+        # self.z_prev_session stores the last known Z coordinate at the end of
+        # the previous session associated with the current user configuration.
+        if self.cfg['microtome']['last_known_z'].lower() == 'none':
             self.z_prev_session = None
         else:
-            self.z_prev_session = float(
-                self.cfg['microtome']['last_known_z'])
-        self.z_range = json.loads(
-            self.syscfg['stage']['microtome_z_range'])
-        self.error_state = 0
-        self.error_cause = ''       # additional info on error
-        self.motor_warning = False  # True when motors slower than expected
+            try:
+                self.z_prev_session = float(
+                    self.cfg['microtome']['last_known_z'])
+            except Exception as e:
+                self.error_state = 701
+                self.error_cause = str(e)
+                return
+        try:
+            self.z_range = json.loads(
+                self.syscfg['stage']['microtome_z_range'])
+        except Exception as e:
+            self.error_state = 701
+            self.error_cause = str(e)
+            return
         self.device_name = self.cfg['microtome']['device']
-        self.simulation_mode = self.cfg['sys']['simulation_mode'] == 'True'
-        # The following three parameters cannot be changed remotely,
-        # must be set in DM before acquisition. Pre-acquisition dialog box
-        # asks user to ensure the settings in cfg match the DM settings.
-        self.knife_cut_speed = int(float(
-            self.cfg['microtome']['knife_cut_speed']))
-        self.knife_fast_speed = int(float(
-            self.cfg['microtome']['knife_fast_speed']))
-        self.knife_retract_speed = int(float(
-            self.cfg['microtome']['knife_retract_speed']))
-        self.cut_window_start = int(self.cfg['microtome']['knife_cut_start'])
-        self.cut_window_end = int(self.cfg['microtome']['knife_cut_end'])
-        self.use_oscillation = bool(self.cfg['microtome']['knife_oscillation'])
-        self.oscillation_frequency = int(
-            self.cfg['microtome']['knife_osc_frequency'])
-        self.oscillation_amplitude = int(
-            self.cfg['microtome']['knife_osc_amplitude'])
-        # Full cut duration can currently only be changed in config file
-        self.full_cut_duration = float(
-            self.cfg['microtome']['full_cut_duration'])
-        # Sweep distance can currently only be changed in config file
-        self.sweep_distance = int(self.cfg['microtome']['sweep_distance'])
-        if (self.sweep_distance < 30) or (self.sweep_distance > 1000):
-            # If outside permitted range, set to 70 nm as default:
-            self.sweep_distance = 70
-            self.cfg['microtome']['sweep_distance'] = '70'
-        # The following parameters can be set from SBEMimage GUI:
-        self.stage_move_wait_interval = float(
-            self.cfg['microtome']['stage_move_wait_interval'])
-        self.motor_speed_x = float(self.cfg['microtome']['motor_speed_x'])
-        self.motor_speed_y = float(self.cfg['microtome']['motor_speed_y'])
-        self.motor_limits = [
-            int(self.cfg['microtome']['stage_min_x']),
-            int(self.cfg['microtome']['stage_max_x']),
-            int(self.cfg['microtome']['stage_min_y']),
-            int(self.cfg['microtome']['stage_max_y'])]
-        self.stage_calibration = [
-            float(self.cfg['microtome']['stage_scale_factor_x']),
-            float(self.cfg['microtome']['stage_scale_factor_y']),
-            float(self.cfg['microtome']['stage_rotation_angle_x']),
-            float(self.cfg['microtome']['stage_rotation_angle_y'])]
+        self.simulation_mode = (
+            self.cfg['sys']['simulation_mode'].lower() == 'true')
+        self.use_oscillation = (
+            self.cfg['microtome']['knife_oscillation'].lower() == 'true')
+
+        # Catch errors that occur while reading configuration and converting
+        # the string values into floats or integers
+        try:
+            # Knife cut speed in nm/s
+            self.knife_cut_speed = int(float(
+                self.cfg['microtome']['knife_cut_speed']))
+            # Knife cut speed for fast cutting, typically for approach, nm/s
+            self.knife_fast_speed = int(float(
+                self.cfg['microtome']['knife_fast_speed']))
+            # Knife retract speed in nm/s
+            self.knife_retract_speed = int(float(
+                self.cfg['microtome']['knife_retract_speed']))
+            # Start and end position of cutting window, in nm
+            self.cut_window_start = int(float(
+                self.cfg['microtome']['knife_cut_start']))
+            self.cut_window_end = int(float(
+                self.cfg['microtome']['knife_cut_end']))
+            # Knife oscillation frequency in Hz
+            self.oscillation_frequency = int(float(
+                self.cfg['microtome']['knife_osc_frequency']))
+            # Knife oscillation amplitude in nm
+            self.oscillation_amplitude = int(float(
+                self.cfg['microtome']['knife_osc_amplitude']))
+            # Duration of a full cut cycle in seconds
+            self.full_cut_duration = float(
+                self.cfg['microtome']['full_cut_duration'])
+            # Sweep distance (lowering of Z position in nm before sweep)
+            self.sweep_distance = int(float(
+                self.cfg['microtome']['sweep_distance']))
+            if (self.sweep_distance < 30) or (self.sweep_distance > 1000):
+                # If outside permitted range, set to 70 nm as default
+                self.sweep_distance = 70
+                self.cfg['microtome']['sweep_distance'] = '70'
+            # self.stage_move_wait_interval is the amount of time in seconds
+            # that SBEMimage waits after a stage move before taking an image.
+            self.stage_move_wait_interval = float(
+                self.cfg['microtome']['stage_move_wait_interval'])
+            # XY motor speeds in microns per second
+            self.motor_speed_x = float(self.cfg['microtome']['motor_speed_x'])
+            self.motor_speed_y = float(self.cfg['microtome']['motor_speed_y'])
+            # XY motor limits in microns
+            self.motor_limits = [
+                int(float(self.cfg['microtome']['stage_min_x'])),
+                int(float(self.cfg['microtome']['stage_max_x'])),
+                int(float(self.cfg['microtome']['stage_min_y'])),
+                int(float(self.cfg['microtome']['stage_max_y']))]
+            # Calibration parameters of the microtome XY stage if it has a stage,
+            # otherwise SEM stage is used
+            self.stage_calibration = [
+                float(self.cfg['microtome']['stage_scale_factor_x']),
+                float(self.cfg['microtome']['stage_scale_factor_y']),
+                float(self.cfg['microtome']['stage_rotation_angle_x']),
+                float(self.cfg['microtome']['stage_rotation_angle_y'])]
+        except Exception as e:
+            self.error_state = 701
+            self.error_cause = str(e)
 
     def do_full_cut(self):
         """Perform a full cut cycle. This is the only knife control function
@@ -377,13 +404,32 @@ class Microtome:
 
 class Microtome_3View(Microtome):
     """
-    Refactored DM class which inherits basic functionality from MicrotomeBase.
+    This class contains the methods to control a 3View microtome via
+    DigitalMicrograph (DM).
+    The DM script SBEMimage_DMcom_GMS2.s (or SBEMimage_DMcom_GMS3.s for GMS3)
+    must be running in DM to receive commands from SBEMimage and transmit them
+    to the 3View stage.
+    Communication with DM is achieved by read/write file operations.
+    The following files are used:
+      DMcom.trg:  Trigger file
+                  Its existence signals that a command is waiting to be read.
+      DMcom.in:   Command/parameter file
+                  Contains a command and (optional) up to two parameters
+      DMcom.out:  Contains output/return value(s)
+      DMcom.err:  This file signals that a critical error occured.
+      DMcom.ack:  Acknowledges that a command has been received and processed.
+      DMcom.wng:  Signals a warning (= error that could be resolved).
+
+    The parameters ... cannot be changed remotely, they must be set in DM
+    before the acquisition starts. The pre-acquisition dialog box asks user
+    to ensure the settings in the configuration match the DM settings.
+
     """
+
     def __init__(self, config, sysconfig):
         super().__init__(config, sysconfig)
-
         # Perform handshake and read initial X/Y/Z.
-        if not self.simulation_mode:
+        if not self.simulation_mode and self.error_state == 0:
             self._send_dm_command('Handshake')
             # DM script should react to trigger file by reading command file
             # usually within <0.1 s.
@@ -718,7 +764,7 @@ class Microtome_katana(Microtome):
     """
     Class for ConnectomX katana microtome. This microtome provides cutting
     functionality and controls the Z position. X and Y are controlled by the
-    SEM stage.
+    SEM stage. The microtome hardware is controlled via COM port commands.
     """
 
     def __init__(self, config, sysconfig):

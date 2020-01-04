@@ -93,7 +93,10 @@ class Stack():
             508: 'Metadata server error',
 
             # First digit 6: reserved for user-defined errors
-            601: 'Test case error'
+            601: 'Test case error',
+
+            # First digit 7: error in configuration
+            701: 'Configuration error'
         }
 
         self.acq_setup()
@@ -823,14 +826,14 @@ class Stack():
                     self.add_to_main_log('CTRL: Grid ' + str(grid_number)
                                   + ', number of active tiles: '
                                   + str(num_active_tiles))
-                                  
+
                     # in MagC use the grid autostig delay
                     if self.cfg['sys']['magc_mode'] == 'True':
                         autostig_delay = int(self.cfg['autofocus']['autostig_delay'])
                         self.autofocus_stig_current_slice = (
                             self.autofocus_stig_current_slice[0],
                             0 == (grid_number % autostig_delay))
-                                  
+
                     if (num_active_tiles > 0
                         and not (self.pause_state == 1)
                         and (self.error_state == 0)):
@@ -839,7 +842,7 @@ class Stack():
                                 + str(grid_number) + ' already acquired. '
                                 'Skipping. ')
                         elif (self.cfg['sys']['magc_mode'] == 'True'
-                            and grid_number not in 
+                            and grid_number not in
                             json.loads(self.cfg['magc']['checked_sections'])):
                                 self.add_to_main_log('CTRL: Grid '
                                     + str(grid_number) + ' not checked. '
@@ -1741,12 +1744,12 @@ class Stack():
                 tile_accepted, tile_skipped, tile_selected)
 
     def handle_frozen_frame(self, grid_number):
-        """Workaround when a frame in the grid specified by grid_number is 
-        frozen in SmartSEM and no further frames can be acquired ('frozen frame 
-        error'): Try to 'unfreeze' by switching to a different store resolution 
+        """Workaround when a frame in the grid specified by grid_number is
+        frozen in SmartSEM and no further frames can be acquired ('frozen frame
+        error'): Try to 'unfreeze' by switching to a different store resolution
         and then back to the grid's original store resolution."""
         target_store_res = self.gm.get_tile_size_selector(grid_number)
-        if target_store_res == 0:  
+        if target_store_res == 0:
             self.sem.set_frame_size(1)
         else:
             self.sem.set_frame_size(0)
@@ -1773,7 +1776,7 @@ class Stack():
             self.add_to_main_log(
                 'CTRL: Starting acquisition of active '
                 'tiles in grid %d' % grid_number)
-            
+
             if self.cfg['sys']['magc_mode'] == 'True':
                 grid_centre_d = self.gm.get_grid_centre_d(grid_number)
                 self.cs.set_mv_centre_d(grid_centre_d)
@@ -1781,7 +1784,7 @@ class Stack():
                 self.transmit_cmd('SET SECTION STATE GUI-'
                     + str(grid_number)
                     + '-acquiring')
-            
+
             # Switch to specified settings of the current grid
             self.sem.apply_frame_settings(
                 self.gm.get_tile_size_selector(grid_number),
@@ -1925,14 +1928,14 @@ class Stack():
                 # Empty the tile list since all tiles were acquired:
                 self.tiles_acquired = []
                 self.cfg['acq']['tiles_acquired'] = '[]'
-                
+
                 if self.cfg['sys']['magc_mode'] == 'True':
                     grid_centre_d = self.gm.get_grid_centre_d(grid_number)
                     self.cs.set_mv_centre_d(grid_centre_d)
                     self.transmit_cmd('DRAW MV')
                     self.transmit_cmd('SET SECTION STATE GUI-'
                         + str(grid_number)
-                        + '-acquired')                
+                        + '-acquired')
 
     def register_accepted_tile(self, save_path, grid_number, tile_number,
                                tile_width, tile_height):

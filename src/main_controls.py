@@ -17,6 +17,7 @@
 """
 
 import os
+import sys
 import threading
 import shutil
 import json
@@ -502,6 +503,18 @@ class MainControls(QMainWindow):
                     'CTRL: Warning - No stage calibration found for current EHT.')
             # Restrict GUI: microtome functions are not available:
             self.restrict_gui_for_sem_stage()
+
+        if self.microtome is not None and self.microtome.error_state == 701:
+            self.add_to_log('3VIEW: Error loading microtome configuration.')
+            QMessageBox.warning(
+                self, 'Error loading microtome configuration',
+                'While loading the microtome settings SBEMimage encountered the '
+                'following error: \n'
+                + self.microtome.error_cause
+                + '\nPlease inspect the configuration file(s). SBEMimage will '
+                'be closed.' ,
+                QMessageBox.Ok)
+            self.close()
 
         utils.show_progress_in_console(70)
         # Stage instance:
@@ -2113,7 +2126,13 @@ class MainControls(QMainWindow):
             self.cfg.write(f)
 
     def closeEvent(self, event):
-        if not self.acq_in_progress:
+        if self.microtome.error_state == 701:
+            if self.sem is not None:
+                self.sem.disconnect()
+            print('\n\nError in configuration file. Aborted.\n')
+            event.accept()
+            sys.exit()
+        elif not self.acq_in_progress:
             result = QMessageBox.question(
                 self, 'Exit',
                 'Are you sure you want to exit the program?',
