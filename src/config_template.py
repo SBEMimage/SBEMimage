@@ -16,11 +16,11 @@
 # deleted from the default configuration files
 CFG_TEMPLATE_FILE = '..\\cfg\\default.ini'
 CFG_NUMBER_SECTIONS_CORE = 10
-CFG_NUMBER_KEYS_CORE = 199
+CFG_NUMBER_KEYS_CORE = 200
 
 CFG_NUMBER_SECTIONS_MAGC = 1 # magc
 CFG_NUMBER_KEYS_MAGC = 9 # [sys]:magc_mode,
-                    # [magc]:sections_path, ROI_mode, 
+                    # [magc]:sections_path, ROI_mode,
                     # source_sections,selected_sections,
                     # checked_sections, wafer_calibrated,
                     # landmarks, wafer_transform,
