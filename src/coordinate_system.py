@@ -29,7 +29,6 @@ class CoordinateSystem():
         self.CS_PIXEL_SIZE = 10
         # Current positions of grids, overviews, the stub overview,
         # and imported images:
-        self.grid_origin_sx_sy = json.loads(self.cfg['grids']['origin_sx_sy'])
         self.ov_centre_sx_sy = json.loads(
             self.cfg['overviews']['ov_centre_sx_sy'])
         self.stub_ov_centre_sx_sy = json.loads(
@@ -115,36 +114,6 @@ class CoordinateSystem():
         dx, dy = d_coordinates
         return (int((dx - self.mv_dx_dy[0]) * self.mv_scale),
                 int((dy - self.mv_dx_dy[1]) * self.mv_scale))
-
-    def get_grid_origin_s(self, grid_number):
-        return self.grid_origin_sx_sy[grid_number]
-
-    def set_grid_origin_s(self, grid_number, s_coordinates):
-        if grid_number < len(self.grid_origin_sx_sy):
-            self.grid_origin_sx_sy[grid_number] = list(s_coordinates)
-        else:
-            self.grid_origin_sx_sy.append(list(s_coordinates))
-        self.cfg['grids']['origin_sx_sy'] = str(self.grid_origin_sx_sy)
-
-    def get_grid_origin_d(self, grid_number):
-        return self.convert_to_d(self.grid_origin_sx_sy[grid_number])
-
-    def get_grid_origin_p(self, grid_number):
-        dx, dy = self.get_grid_origin_d(grid_number)
-        # Divide by pixel size to get pixel coordinates
-        return (int(dx * 1000 / self.CS_PIXEL_SIZE),
-                int(dy * 1000 / self.CS_PIXEL_SIZE))
-
-    def delete_grid_origin(self, grid_number):
-        if grid_number < len(self.grid_origin_sx_sy):
-            del self.grid_origin_sx_sy[grid_number]
-            self.cfg['grids']['origin_sx_sy'] = str(self.grid_origin_sx_sy)
-
-    def add_grid_origin_s(self, grid_number, s_coordinates):
-        # Adds the tiling origin's stage coordinates to the
-        # coordinates given as parameter:
-        return (self.grid_origin_sx_sy[grid_number][0] + s_coordinates[0],
-                self.grid_origin_sx_sy[grid_number][1] + s_coordinates[1])
 
     def set_ov_centre_s(self, ov_number, s_coordinates):
         if ov_number < len(self.ov_centre_sx_sy):

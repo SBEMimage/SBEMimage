@@ -633,7 +633,7 @@ class MainControls(QMainWindow):
         else:
             self.label_debrisDetectionArea.setText('-')
         # Grid parameters
-        grid_origin = self.cs.get_grid_origin_s(self.current_grid)
+        grid_origin = self.gm.get_grid_origin_s(self.current_grid)
         grid_origin_str = ('X: {0:.3f}'.format(grid_origin[0])
                            + ', Y: {0:.3f}'.format(grid_origin[1]))
         self.label_gridOrigin.setText(grid_origin_str)
@@ -865,7 +865,7 @@ class MainControls(QMainWindow):
             theta = self.gm.get_rotation(row)
             self.sem.set_scan_rotation(theta)
             # set stage
-            grid_center_s = self.gm.get_grid_center_s(grid_number=row)
+            grid_center_s = self.gm.get_grid_centre_s(grid_number=row)
             self.stage.move_to_xy(grid_center_s)
         else:
             self.add_to_log('Section ' + str(sectionKey) + ' has been double-clicked. Wafer is not calibrated, therefore no stage movement.')
@@ -1002,7 +1002,7 @@ class MainControls(QMainWindow):
         if dialog.exec_():
             if self.cfg['sys']['sys_config_file'] == 'system.cfg':
                 self.cfg['sys']['sys_config_file'] = 'this_system.cfg'
-            self.gm.save_wd_stig_data_to_cfg()
+            self.gm.save_to_cfg()
             self.cfg_file = dialog.get_file_name()
             # Write all settings to disk
             file = open('..\\cfg\\' + self.cfg_file, 'w')
@@ -1919,6 +1919,7 @@ class MainControls(QMainWindow):
         # Used for custom tests...
         pass
 
+
 # =============================================================================
 
     def initialize_plasma_cleaner(self):
@@ -2100,8 +2101,8 @@ class MainControls(QMainWindow):
             if self.cfg['sys']['sys_config_file'] == 'system.cfg':
                 # Preserve system.cfg as template, rename:
                 self.cfg['sys']['sys_config_file'] = 'this_system.cfg'
-            # Save current WD/STIG data to config:
-            self.gm.save_wd_stig_data_to_cfg()
+            # Save current grid and WD/STIG data to config:
+            self.gm.save_to_cfg()
             # Write config to disk:
             cfgfile = open('..\\cfg\\' + self.cfg_file, 'w')
             self.cfg.write(cfgfile)

@@ -291,7 +291,7 @@ class Viewport(QWidget):
                     self.grid_drag_active = True
                     self.drag_origin = (px, py)
                     # Save coordinates in case user wants to undo:
-                    self.stage_pos_backup = self.cs.get_grid_origin_s(
+                    self.stage_pos_backup = self.gm.get_grid_origin_s(
                         self.selected_grid)
 
             # Check if ctrl+alt keys are pressed -> Move imported image:
@@ -376,7 +376,7 @@ class Viewport(QWidget):
             self.drag_origin = (px, py)
             self.mv_reposition_grid(drag_vector)
             self.mv_draw()
-            
+
         elif self.ov_drag_active:
             self.setCursor(Qt.SizeAllCursor)
             drag_vector = (px - self.drag_origin[0],
@@ -465,7 +465,7 @@ class Viewport(QWidget):
                     QMessageBox.Ok | QMessageBox.Cancel)
                 if user_reply == QMessageBox.Cancel:
                     # Restore origin coordinates:
-                    self.cs.set_grid_origin_s(
+                    self.gm.set_grid_origin_s(
                         self.selected_grid, self.stage_pos_backup)
 
                 # ------ MagC code ------
@@ -477,7 +477,7 @@ class Viewport(QWidget):
                     self.cfg['magc']['roi_mode'] = 'False'
                     self.transmit_cmd('SAVE INI')
                 # ------ End of MagC code ------
-                
+
             if self.ov_drag_active:
                 self.ov_drag_active = False
                 user_reply = QMessageBox.question(
@@ -909,7 +909,7 @@ class Viewport(QWidget):
                 if not ((self.selected_grid is not None)
                     and self.cfg['magc']['wafer_calibrated'] == 'True'):
                     action_moveGridCurrentStage.setEnabled(False)
-                    
+
             menu.addSeparator()
             if self.af.get_method() == 2:
                 action_selectAutofocus = menu.addAction(
@@ -1317,7 +1317,7 @@ class Viewport(QWidget):
                       show_previews=False, with_gaps=False,
                       suppress_labels=False):
         mv_scale = self.cs.get_mv_scale()
-        dx, dy = self.cs.get_grid_origin_d(grid_number)
+        dx, dy = self.gm.get_grid_origin_d(grid_number)
         # Coordinates of grid origin with respect to Viewport canvas:
         origin_vx, origin_vy = self.cs.convert_to_v((dx, dy))
 
@@ -1709,7 +1709,7 @@ class Viewport(QWidget):
             self.VIEWER_ZOOM_F1,
             self.VIEWER_ZOOM_F1 * (self.VIEWER_ZOOM_F2)**99)  # 99 is max slider value
         self.cs.set_mv_scale(new_mv_scale)
-        self.mv_adjust_zoom_slider(new_mv_scale)        
+        self.mv_adjust_zoom_slider(new_mv_scale)
         # Recentre, so that mouse position is preserved:
         current_centre_dx, current_centre_dy = self.cs.get_mv_centre_d()
         x_shift = px - 500
@@ -1776,13 +1776,13 @@ class Viewport(QWidget):
         dx, dy = shift_vector
         # current position:
         (old_grid_origin_dx, old_grid_origin_dy) = \
-            self.cs.get_grid_origin_d(self.selected_grid)
+            self.gm.get_grid_origin_d(self.selected_grid)
         mv_scale = self.cs.get_mv_scale()
         # Move tiling along shift vector:
         new_grid_origin_dx = old_grid_origin_dx + dx / mv_scale
         new_grid_origin_dy = old_grid_origin_dy + dy / mv_scale
         # Set new origin:
-        self.cs.set_grid_origin_s(self.selected_grid,
+        self.gm.set_grid_origin_s(self.selected_grid,
             self.cs.convert_to_s((new_grid_origin_dx, new_grid_origin_dy)))
 
     def mv_get_current_grid(self):
@@ -1817,7 +1817,7 @@ class Viewport(QWidget):
         # position. Check grids with a higher grid number first.
         for grid_number in grid_range:
             # Calculate origin of the grid with respect to viewport canvas
-            dx, dy = self.cs.get_grid_origin_d(grid_number)
+            dx, dy = self.gm.get_grid_origin_d(grid_number)
             grid_origin_vx, grid_origin_vy = self.cs.convert_to_v((dx, dy))
             mv_scale = self.cs.get_mv_scale()
             pixel_size = self.gm.get_pixel_size(grid_number)
@@ -1986,12 +1986,12 @@ class Viewport(QWidget):
     def mv_move_grid_current_stage(self):
         grid_number = self.selected_grid
         x, y = self.stage.get_xy()
-        self.gm.set_grid_center_s(grid_number, [x, y])
+        self.gm.set_grid_centre_s(grid_number, [x, y])
         self.gm.calculate_grid_map(grid_number)
         self.cfg['magc']['roi_mode'] = 'False'
         self.gm.update_source_ROIs_from_grids()
         self.mv_draw()
-        
+
     def mv_toggle_tile_autofocus(self):
         if self.selected_grid is not None and self.selected_tile is not None:
             ref_tiles = self.af.get_ref_tiles()
@@ -2070,16 +2070,16 @@ class Viewport(QWidget):
     def mv_propagate_grid_selected_sections(self):
         clicked_section_number = self.selected_grid
         selected_sections = json.loads(self.cfg['magc']['selected_sections'])
-        
+
         # load original sections from file which might be different from
         # the grids adjusted in SBEMImage
         with open(self.cfg['magc']['sections_path'], 'r') as f:
             sections, landmarks = utils.sectionsYAML_to_sections_landmarks(
             yaml.full_load(f))
-        
+
         for selected_section in selected_sections:
             self.gm.propagate_source_grid_to_target_grid(
-                clicked_section_number, 
+                clicked_section_number,
                 selected_section,
                 sections)
         self.gm.update_source_ROIs_from_grids()
@@ -2104,7 +2104,7 @@ class Viewport(QWidget):
                 clicked_section_number,
                 section,
                 sections)
-                
+
         self.gm.update_source_ROIs_from_grids()
         # update the autofocus tiles
         # (done here because no access to autofocus from inside gm)
@@ -2976,13 +2976,13 @@ class Viewport(QWidget):
         filename = None
         if self.m_current_ov >= 0:
             filename = os.path.join(
-                self.cfg['acq']['base_dir'], 'workspace', 'reslices', 
+                self.cfg['acq']['base_dir'], 'workspace', 'reslices',
                 'r_OV' + str(self.m_current_ov).zfill(utils.OV_DIGITS) + '.png')
         elif self.m_current_tile >= 0:
             tile_key = ('g' + str(self.m_current_grid).zfill(utils.GRID_DIGITS)
                         + '_t' + str(self.m_current_tile).zfill(utils.TILE_DIGITS))
             filename = os.path.join(
-                self.cfg['acq']['base_dir'], 'workspace', 'reslices', 
+                self.cfg['acq']['base_dir'], 'workspace', 'reslices',
                 'r_' + tile_key + '.png')
         else:
             filename = None
@@ -3046,7 +3046,7 @@ class Viewport(QWidget):
         if self.m_current_ov >= 0:
             # get current data:
             filename = os.path.join(
-                self.cfg['acq']['base_dir'], 'meta', 'stats', 
+                self.cfg['acq']['base_dir'], 'meta', 'stats',
                 'OV' + str(self.m_current_ov).zfill(utils.OV_DIGITS) + '.dat')
         elif self.m_current_tile >= 0:
             tile_key = ('g' + str(self.m_current_grid).zfill(utils.GRID_DIGITS)
@@ -3232,11 +3232,11 @@ class Viewport(QWidget):
             path = None
             if self.m_current_ov >= 0:
                 path = os.path.join(
-                    base_dir, 'overviews', 
+                    base_dir, 'overviews',
                     'ov' + str(self.m_current_ov).zfill(utils.OV_DIGITS))
             elif self.m_current_tile >= 0:
                 path = os.path.join(
-                    base_dir, 'tiles', 
+                    base_dir, 'tiles',
                     'g' + str(self.m_current_grid).zfill(utils.GRID_DIGITS)
                     + '\\t' + str(self.m_current_tile).zfill(utils.TILE_DIGITS))
 

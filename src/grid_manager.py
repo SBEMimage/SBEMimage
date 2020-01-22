@@ -72,24 +72,31 @@ class Grid:
         self.use_wd_gradient = use_wd_gradient
         self.wd_gradient_tiles = wd_gradient_tiles
         self.wd_gradient_params = wd_gradient_params
-        # Create list of tile objects
-        self.__tiles = [Tile() for i in range(self.number_tiles)]
+        self.initialize_tiles()
         # Calculate pixel and SEM coordinates
         self.calculate_tile_positions()
         # Set active tiles and wd_gradient_tiles
         for tile_number in self.active_tiles:
-            self.__tiles[tile_number].tile_active = True
+            self.tiles[tile_number].tile_active = True
         for tile_number in self.wd_gradient_tiles:
             # Unselected gradient tiles are set to -1, therefore check if >= 0
             if tile_number >= 0:
-                self.__tiles[tile_number].grad_ref_tile = True
+                self.tiles[tile_number].grad_ref_tile = True
 
     def __getitem__(self, index):
         """Return the Tile object selected by index."""
         if index < self.number_tiles:
-            return self.__tiles[index]
+            return self.tiles[index]
         else:
             return None
+
+    def __setitem__(self, index, item):
+        if index < self.number_tiles:
+            self.tiles[index] = item
+
+    def initialize_tiles(self):
+        # Create list of tile objects
+        self.tiles = [Tile() for i in range(self.number_tiles)]
 
     def calculate_tile_positions(self):
         # Calculate tile positions in pixel coordinates (unrotated), and in
@@ -109,30 +116,30 @@ class Grid:
                 x_shift = self.row_shift * (y_pos % 2)
                 x_coord += x_shift
                 # Save position (non-rotated)
-                self.__tiles[tile_number].px_py = [x_coord, y_coord]
+                self.tiles[tile_number].px_py = [x_coord, y_coord]
                 if theta > 0:
                     # Rotate coordinates
                     x_coord_rot = x_coord * cos(theta) - y_coord * sin(theta)
                     y_coord_rot = x_coord * sin(theta) + y_coord * cos(theta)
                     x_coord, y_coord = x_coord_rot, y_coord_rot
                 # Save SEM coordinates in microns (includes rotation)
-                self.__tiles[tile_number].dx_dy = [
+                self.tiles[tile_number].dx_dy = [
                     x_coord * self.pixel_size / 1000,
                     y_coord * self.pixel_size / 1000]
 
     def get_grid_map_p(self):
-        return [self.__tiles[t].px_py for t in range(self.number_tiles)]
+        return [self.tiles[t].px_py for t in range(self.number_tiles)]
 
     def get_grid_map_d(self):
-        return [self.__tiles[t].dx_dy for t in range(self.number_tiles)]
+        return [self.tiles[t].dx_dy for t in range(self.number_tiles)]
 
     def set_wd(self, wd):
-        for tile in self.__tiles:
+        for tile in self.tiles:
             tile.wd = wd
 
     def average_wd(self):
         wd_list = []
-        for tile in self.__tiles:
+        for tile in self.tiles:
             if tile.wd > 0:
                 wd_list.append(tile.wd)
         if wd_list:
@@ -141,13 +148,13 @@ class Grid:
             return None
 
     def set_stig_xy(self, stig_xy):
-        for tile in self.__tiles:
+        for tile in self.tiles:
             tile.stig_xy = stig_xy
 
     def average_stig_xy(self):
         stig_x_list = []
         stig_y_list = []
-        for tile in self.__tiles:
+        for tile in self.tiles:
             if tile.wd > 0:
                 # A working distance of 0 means that focus parameters have
                 # not been set for this tile and it can be disregarded.
@@ -160,8 +167,8 @@ class Grid:
 
     def distance_between_tiles(self, tile_number1, tile_number2):
         """Compute the distance between two tile centres in microns."""
-        dx1, dy1 = self.__tiles[tile_number1].dx_dy
-        dx2, dy2 = self.__tiles[tile_number2].dx_dy
+        dx1, dy1 = self.tiles[tile_number1].dx_dy
+        dx2, dy2 = self.tiles[tile_number2].dx_dy
         return sqrt((dx1 - dx2)**2 + (dy1 - dy2)**2)
 
 
@@ -192,12 +199,12 @@ class GridManager:
         acq_interval = json.loads(self.cfg['grids']['acq_interval'])
         acq_interval_offset = json.loads(
             self.cfg['grids']['acq_interval_offset'])
+        use_wd_gradient = json.loads(
+            self.cfg['grids']['use_adaptive_focus'])
         wd_gradient_tiles = json.loads(
             self.cfg['grids']['adaptive_focus_tiles'])
         wd_gradient_params = json.loads(
             self.cfg['grids']['adaptive_focus_gradient'])
-        use_wd_gradient = json.loads(
-            self.cfg['grids']['use_adaptive_focus'])
 
         # Create a list of grid objects
         self.__grids = []
@@ -211,6 +218,95 @@ class GridManager:
                         wd_gradient_tiles[i], wd_gradient_params[i])
             self.__grids.append(grid)
 
+
+    def save_to_cfg(self):
+        """Save current grid configuration to ConfigParser object self.cfg."""
+        self.cfg['grids']['number_grids'] = str(self.number_grids)
+
+        origin_sx_sy = []
+        rotation = []
+        size = []
+        overlap = []
+        row_shift = []
+        grid_active = []
+        active_tiles = []
+        tile_size_px_py = []
+        tile_size_selector = []
+        pixel_size = []
+        dwell_time = []
+        dwell_time_selector = []
+        display_colour = []
+        origin_wd = []
+        acq_interval = []
+        acq_interval_offset = []
+        wd_gradient_tiles = []
+        wd_gradient_params = []
+        use_wd_gradient = []
+
+        for grid in self.__grids:
+            origin_sx_sy.append(grid.origin_sx_sy)
+            rotation.append(grid.rotation)
+            size.append(grid.size)
+            overlap.append(grid.overlap)
+            row_shift.append(grid.row_shift)
+            grid_active.append(int(grid.grid_active))
+            active_tiles.append(grid.active_tiles)
+            tile_size_px_py.append(grid.tile_size_px_py)
+            tile_size_selector.append(grid.tile_size_selector)
+            pixel_size.append(grid.pixel_size)
+            dwell_time.append(grid.dwell_time)
+            dwell_time_selector.append(grid.dwell_time_selector)
+            display_colour.append(grid.display_colour)
+            # origin_wd.append(grid.origin_wd)
+            origin_wd.append(0)
+            acq_interval.append(grid.acq_interval)
+            acq_interval_offset.append(grid.acq_interval_offset)
+            use_wd_gradient.append(int(grid.use_wd_gradient))
+            wd_gradient_tiles.append(grid.wd_gradient_tiles)
+            wd_gradient_params.append(grid.wd_gradient_params)
+
+
+        self.cfg['grids']['origin_sx_sy'] = str(origin_sx_sy)
+        self.cfg['grids']['rotation'] = str(rotation)
+        self.cfg['grids']['size'] = str(size)
+        self.cfg['grids']['overlap'] = str(overlap)
+        self.cfg['grids']['row_shift'] = str(row_shift)
+        self.cfg['grids']['grid_active'] = str(grid_active)
+        self.cfg['grids']['active_tiles'] = str(active_tiles)
+        self.cfg['grids']['tile_size_px_py'] = str(tile_size_px_py)
+        self.cfg['grids']['tile_size_selector'] = str(tile_size_selector)
+        self.cfg['grids']['pixel_size'] = str(pixel_size)
+        self.cfg['grids']['dwell_time'] = str(dwell_time)
+        self.cfg['grids']['dwell_time_selector'] = str(dwell_time_selector)
+        self.cfg['grids']['display_colour'] = str(display_colour)
+        self.cfg['grids']['origin_wd'] = str(origin_wd)
+        self.cfg['grids']['acq_interval'] = str(acq_interval)
+        self.cfg['grids']['acq_interval_offset'] = str(acq_interval_offset)
+        self.cfg['grids']['use_adaptive_focus'] = str(use_wd_gradient)
+        self.cfg['grids']['adaptive_focus_tiles'] = str(wd_gradient_tiles)
+        self.cfg['grids']['adaptive_focus_gradient'] = str(
+            wd_gradient_params)
+
+        # Save the working distances and stigmation parameters of those tiles
+        # that are active and/or selected for the autofocus and/or the
+        # working distance gradient.
+        wd_stig_dict = {}
+        for g in range(self.number_grids):
+            for t in range(self.__grids[g].number_tiles):
+                tile_key = str(g) + '.' + str(t)
+                if (self.__grids[g][t].wd > 0
+                    and (self.__grids[g][t].tile_active
+                         or self.__grids[g][t].af_ref_tile
+                         or self.__grids[g][t].grad_ref_tile)):
+                    # Only save tiles with WD != 0 which are active or
+                    # selected for autofocus or wd gradient.
+                    wd_stig_dict[tile_key] = [
+                        round(self.__grids[g][t].wd, 9),  # WD
+                        round(self.__grids[g][t].stig_xy[0], 6),  # Stig X
+                        round(self.__grids[g][t].stig_xy[1], 6)   # Stig Y
+                    ]
+        # Save as JSON string in config:
+        self.cfg['grids']['wd_stig_params'] = json.dumps(wd_stig_dict)
 
     def add_new_grid(self):
         new_grid_number = self.number_grids
@@ -245,7 +341,6 @@ class GridManager:
         self.__grids.append(new_grid)
         self.number_grids += 1
 
-
     def delete_grid(self):
         self.number_grids -= 1
         del self.__grids[-1]
@@ -253,15 +348,41 @@ class GridManager:
     def get_number_grids(self):
         return self.number_grids
 
-    def set_grid_origin_s(self, grid_number, s_coordinates):
-        """Set the origin of the grid in stage coordinates."""
-        self.__grids[grid_number].origin_sx_sy = list(s_coordinates)
-
     def get_grid_origin_s(self, grid_number):
         return self.__grids[grid_number].origin_sx_sy
 
     def get_grid_origin_d(self, grid_number):
         return self.cs.convert_to_d(self.__grids[grid_number].origin_sx_sy)
+
+    def get_grid_origin_p(self, grid_number):
+        dx, dy = self.get_grid_origin_d(grid_number)
+        # Divide by pixel size to get pixel coordinates
+        return (int(dx * 1000 / self.cs.CS_PIXEL_SIZE),
+                int(dy * 1000 / self.cs.CS_PIXEL_SIZE))
+
+    def set_grid_origin_s(self, grid_number, s_coordinates):
+        """Set the origin of the grid in stage coordinates."""
+        self.__grids[grid_number].origin_sx_sy = list(s_coordinates)
+
+    def add_grid_origin_s(self, grid_number, s_coordinates):
+        # Adds the grid origin's stage coordinates to the
+        # coordinates given as parameter:
+        diff_x, diff_y = s_coordinates
+        origin_x, origin_y = self.get_grid_origin_s(grid_number)
+        return (origin_x + diff_x, origin_y + diff_y)
+
+    def set_grid_centre_s(self, grid_number, new_centre):
+        new_x, new_y = new_centre
+        old_x, old_y = self.get_grid_centre_s(grid_number)
+        print('Old grid centre: ', old_x, old_y)
+        origin_x, origin_y = self.get_grid_origin_s(grid_number)
+        print('Old grid origin: ', origin_x, origin_y)
+
+        self.set_grid_origin_s(grid_number,
+            [origin_x + new_x - old_x, origin_y + new_y - old_y])
+
+    def get_grid_centre_s(self, grid_number):
+        return self.cs.convert_to_s(self.get_grid_centre_d(grid_number))
 
     def get_grid_centre_d(self, grid_number):
         """Return the SEM coordinates of the centre of the specified grid."""
@@ -284,7 +405,8 @@ class GridManager:
         return centre_dx, centre_dy
 
     def rotate_around_grid_centre(self, grid_number, centre_dx, centre_dy):
-        """Update the grid origin before calculating the rotated tile map."""
+        """Update the grid origin after rotating the grid around the
+        grid centre by the specified rotation angle."""
         # Calculate origin of the unrotated grid:
         width_d, height_d = self.get_grid_size_dx_dy(grid_number)
         tile_width_d = self.get_tile_width_d(grid_number)
@@ -303,7 +425,10 @@ class GridManager:
         # Update grid with the new origin:
         self.set_grid_origin_s(
             grid_number, self.cs.convert_to_s((origin_dx, origin_dy)))
-        # Now calculate new tile positions:
+
+    def update_tile_positions(self, grid_number):
+        """Calculate new tile positions after grid has been
+        modified, rotated."""
         self.__grids[grid_number].calculate_tile_positions()
 
     def get_grid_size(self, grid_number):
@@ -325,12 +450,41 @@ class GridManager:
         height_d = height_p * self.__grids[grid_number].pixel_size / 1000
         return width_d, height_d
 
-    def set_grid_size(self, grid_number, size):
+    def set_grid_size(self, grid_number, new_size):
+        """Change the size (rows, cols) of the specified grid. Preserve
+        current pattern of actives tiles and tile parameters when grid
+        is extended."""
         if grid_number < self.number_grids:
-            if self.__grids[grid_number].size != list(size):
-                self.update_active_tiles_to_new_grid_size(
-                    grid_number, list(size))
-                self.__grids[grid_number].size = list(size)
+            if self.__grids[grid_number].size != list(new_size):
+                old_rows, old_cols = self.__grids[grid_number].size
+                old_number_tiles = old_rows * old_cols
+                new_rows, new_cols = new_size
+                new_number_tiles = new_rows * new_cols
+                self.__grids[grid_number].size = list(new_size)
+                self.__grids[grid_number].number_tiles = new_number_tiles
+                # Save old tile objects
+                old_tiles = self.__grids[grid_number].tiles
+                # Initialize new tile list
+                self.__grids[grid_number].initialize_tiles()
+                new_active_tiles = []
+                new_wd_gradient_tiles = []
+                # Preserve locations of active tiles and settings
+                for t in range(old_number_tiles):
+                    # Calculate coordinate in grid of old size:
+                    x_pos = t % old_cols
+                    y_pos = t // old_cols
+                    # Calculate tile number in new grid:
+                    if (x_pos < new_cols) and (y_pos < new_rows):
+                        new_t = x_pos + y_pos * new_cols
+                        # Use tile from previous grid at the new position
+                        self.__grids[grid_number][new_t] = old_tiles[t]
+                        if self.__grids[grid_number][new_t].tile_active:
+                            new_active_tiles.append(new_t)
+                        if self.__grids[grid_number][new_t].grad_ref_tile:
+                            new_wd_gradient_tiles.append(new_t)
+                self.__grids[grid_number].active_tiles = new_active_tiles
+                self.__grids[grid_number].wd_gradient_tiles = (
+                    new_wd_gradient_tiles)
 
     def get_number_rows(self, grid_number):
         return self.__grids[grid_number].size[0]
@@ -533,7 +687,7 @@ class GridManager:
 
     def set_acq_interval(self, grid_number, interval):
         if grid_number < self.number_grids:
-           self.__grids[grid_number].acq_interval = acq_interval
+           self.__grids[grid_number].acq_interval = interval
 
     def get_acq_interval_offset(self, grid_number):
         return self.__grids[grid_number].acq_interval_offset
@@ -607,40 +761,6 @@ class GridManager:
             else:
                 str_list.append('No tile selected')
         return str_list
-
-    def update_active_tiles_to_new_grid_size(self, grid_number, new_size):
-        current_rows, current_cols = self.__grids[grid_number].size
-        new_rows, new_cols = new_size
-        new_active_tiles = []
-        # Calculate new active tiles or delete active tiles if no longer in grid
-        for tile_number in self.__grids[grid_number].active_tiles:
-            # Calculate coordinate in grid of current size:
-            x_pos = tile_number % current_cols
-            y_pos = tile_number // current_cols
-            # Calculate tile number in new grid:
-            if (x_pos < new_cols) and (y_pos < new_rows):
-                new_tile_number = x_pos + y_pos * new_cols
-                new_active_tiles.append(new_tile_number)
-        # Save new active tiles:
-        self.__grids[grid_number].active_tiles = new_active_tiles
-
-    def initialize_all_grid_maps(self):
-        # TODO: delete
-        # Inititalize data structures:
-        self.grid_map_d = [{} for i in range(self.number_grids)]
-        self.grid_map_p = [{} for i in range(self.number_grids)]
-        self.grid_map_wd_stig = [{} for i in range(self.number_grids)]
-        # Calculate the tile positions
-        for grid_number in range(self.number_grids):
-            self.calculate_grid_map(grid_number)
-            self.initialize_wd_stig_map(grid_number)
-        # Initalize working distances and stig parameters and load available
-        # parameters from config:
-        self.load_wd_stig_data_from_config()
-        # If adaptive focus active, calculate gradient:
-        for grid_number in range(self.number_grids):
-            if self.is_adaptive_focus_active(grid_number):
-                self.calculate_focus_gradient(grid_number)
 
     def set_stig_for_grid(self, grid_number, stig_x, stig_y):
         """Set all tiles to specified stig_xy."""
@@ -744,8 +864,8 @@ class GridManager:
                         str(self.__grids[g][t].tile_active) + '\n')
         return file_name
 
-    def load_wd_stig_data_from_config(self):
-        wd_stig_dict = json.loads(self.cfg['grids']['wd_stig_data'])
+    def load_wd_stig_params_from_config(self):
+        wd_stig_dict = json.loads(self.cfg['grids']['wd_stig_params'])
         for tile_key in wd_stig_dict:
             g_str, t_str = tile_key.split('.')
             g, t = int(g_str), int(t_str)
@@ -753,27 +873,11 @@ class GridManager:
             self.__grids[g][t].wd = wd_stig_xy[0]
             self.__grids[g][t].stig_xy = [wd_stig_xy[1], wd_stig_xy[2]]
 
-    def save_wd_stig_data_to_cfg(self):
-        """Save the working distances and stigmation parameters of those tiles
-        that are active and/or selected for the autofocus and/or the
-        working distance gradient."""
-        wd_stig_dict = {}
-        for g in range(self.number_grids):
-            for t in range(self.__grids[g].number_tiles):
-                tile_key = str(g) + '.' + str(t)
-                if (self.__grids[g][t].wd > 0
-                    and (self.__grids[g][t].tile_active
-                         or self.__grids[g][t].af_ref_tile
-                         or self.__grids[g][t].grad_ref_tile)):
-                    # Only save tiles with WD != 0 which are active or
-                    # selected for autofocus or wd gradient.
-                    wd_stig_dict[tile_key] = [
-                        round(self.__girds[g][t].wd, 9),  # WD
-                        round(self.__girds[g][t].stig_xy[0], 6),  # Stig X
-                        round(self.__girds[g][t].stig_xy[1], 6)   # Stig Y
-                    ]
-        # Save as JSON string in config:
-        self.cfg['grids']['wd_stig_data'] = json.dumps(wd_stig_dict)
+    def reset_wd_stig_params(self, grid_number):
+        for tile in self.__grids[grid_number].tiles:
+            if tile.wd > 0:
+                tile.wd = 0
+                tile.stig_xy = [0, 0]
 
     def sort_acq_order(self, grid_number):
         # Use snake pattern to minimize number of long motor moves:
@@ -843,7 +947,7 @@ class GridManager:
         # TODO
         sx_sy = self.cs.convert_to_s(
             tuple(self.__grids[grid_number][tile_number].dx_dy))
-        return self.cs.add_grid_origin_s(grid_number, sx_sy)
+        return self.add_grid_origin_s(grid_number, sx_sy)
 
     def reset_active_tiles(self, grid_number):
         for tile_number in range(self.__grids[grid_number].number_tiles):
@@ -908,13 +1012,17 @@ class GridManager:
 
         sourceGridRotation = self.get_rotation(s)
 
-        sourceGridCenter = np.array(self.get_grid_center_s(s))
+        sourceGridCenter = np.array(self.get_grid_centre_s(s))
 
         if self.cfg['magc']['wafer_calibrated'] == 'True':
             # transform back the grid coordinates in non-transformed coordinates
-            waferTransform = np.array(json.loads(self.cfg['magc']['wafer_transform']))
-            waferTransformInverse = utils.invertAffineT(waferTransform) # inefficient but ok for now
-            result = utils.applyAffineT([sourceGridCenter[0]], [sourceGridCenter[1]], waferTransformInverse)
+            waferTransform = np.array(
+                json.loads(self.cfg['magc']['wafer_transform']))
+            # inefficient but ok for now:
+            waferTransformInverse = utils.invertAffineT(waferTransform)
+            result = utils.applyAffineT(
+                [sourceGridCenter[0]], [sourceGridCenter[1]],
+                waferTransformInverse)
             sourceGridCenter = [result[0][0], result[1][0]]
 
         sourceSectionGrid = sourceGridCenter - sourceSectionCenter
@@ -922,7 +1030,8 @@ class GridManager:
         sourceSectionGridAngle = np.angle(
             np.dot(sourceSectionGrid, [1, 1j]), deg=True)
 
-        new_grid_rotation = ((180-targetSectionAngle + sourceGridRotation - (180-sourceSectionAngle))) % 360
+        new_grid_rotation = (((180-targetSectionAngle + sourceGridRotation -
+                             (180-sourceSectionAngle))) % 360)
         self.set_rotation(t, new_grid_rotation)
 
         self.set_grid_size(t, self.get_grid_size(s))
@@ -973,67 +1082,25 @@ class GridManager:
 
         ###############################################
 
-        targetSectionGridAngle = sourceSectionGridAngle + sourceSectionAngle - targetSectionAngle
+        targetSectionGridAngle = (
+            sourceSectionGridAngle + sourceSectionAngle - targetSectionAngle)
 
         targetGridCenterComplex = np.dot(targetSectionCenter, [1,1j]) \
             + sourceSectionGridDistance \
             * np.exp(1j * np.radians(targetSectionGridAngle))
-        targetGridCenter = np.real(targetGridCenterComplex), np.imag(targetGridCenterComplex)
+        targetGridCenter = (
+            np.real(targetGridCenterComplex), np.imag(targetGridCenterComplex))
 
         if self.cfg['magc']['wafer_calibrated'] == 'True':
             # transform the grid coordinates to wafer coordinates
-            waferTransform = np.array(json.loads(self.cfg['magc']['wafer_transform']))
-            result = utils.applyAffineT([targetGridCenter[0]], [targetGridCenter[1]], waferTransform)
+            waferTransform = np.array(
+                json.loads(self.cfg['magc']['wafer_transform']))
+            result = utils.applyAffineT(
+                [targetGridCenter[0]], [targetGridCenter[1]], waferTransform)
             targetGridCenter = [result[0][0], result[1][0]]
 
-        self.set_grid_center_s(t, targetGridCenter)
-
-        self.calculate_grid_map(t)
-
-    def set_grid_center_s(self, grid_number, center_s):
-        current_center = np.array(self.get_grid_center_s(grid_number))
-        current_origin = np.array(self.cs.get_grid_origin_s(grid_number))
-        new_origin = center_s + current_origin - current_center
-        self.cs.set_grid_origin_s(grid_number, new_origin)
-
-    def get_grid_center_s(self, grid_number):
-        pixel_size = self.get_pixel_size(grid_number) / 1000
-        rotation = self.get_rotation(grid_number)
-
-        # origin is the center of the (0,0) tile
-        origin = self.cs.get_grid_origin_s(grid_number)
-
-        # size of the grid
-        size_px, size_py = self.get_grid_size_px_py(grid_number)
-        size_x = pixel_size * size_px
-        size_y = pixel_size * size_py
-
-        # size of a tile
-        tile_size_px, tile_size_py = self.get_tile_size_px_py(grid_number)
-        tile_size_x = pixel_size * tile_size_px
-        tile_size_y = pixel_size * tile_size_py
-
-        # distance along the grid axes from the center of tile (0,0) to the center of the grid
-        shift_v = (size_x - tile_size_x)/2. # conceptually: go to grid top-left corner, then go to center: -tile_size_x/2. + size_x/2.
-        shift_h = (size_y - tile_size_y)/2. # _v = _vertical
-        shift_norm = np.linalg.norm([shift_h, shift_v])
-
-        # angle between horizontal axis of the grid and axis going through center of the grid and center of tile (0,0)
-        shift_a = np.rad2deg(np.arctan2(shift_h , shift_v))
-
-        # adding the shift to the origin
-        origin_c = np.dot(origin, [1, 1j]) # _c = _complex
-        shift_c = shift_norm * np.exp(1j * np.radians(shift_a + rotation))
-        center_c = origin_c + shift_c
-
-        center_x = np.real(center_c)
-        center_y = np.imag(center_c)
-
-        return center_x, center_y
-
-    def delete_all_grids(self):
-        for grid_number in range(self.number_grids):
-            self.delete_grid()
+        self.set_grid_centre_s(t, targetGridCenter)
+        self.update_tile_positions(t)
 
     def delete_all_but_last_grid(self):
         for grid_number in range(self.number_grids - 1):
@@ -1041,7 +1108,8 @@ class GridManager:
 
     def update_source_ROIs_from_grids(self):
         if self.cfg['magc']['wafer_calibrated'] == 'True':
-            waferTransform = np.array(json.loads(self.cfg['magc']['wafer_transform']))
+            waferTransform = np.array(json.loads(
+                self.cfg['magc']['wafer_transform']))
             waferTransformInverse = utils.invertAffineT(waferTransform)
             transform_angle = -utils.getAffineRotation(waferTransform)
 
@@ -1051,17 +1119,19 @@ class GridManager:
         sections_yaml['sourceROIsUpdatedFromSBEMimage'] = {}
 
         for grid_number in range(self.number_grids):
-            target_ROI = self.get_grid_center_s(grid_number)
+            target_ROI = self.get_grid_centre_s(grid_number)
             target_ROI_angle = self.get_rotation(grid_number)
 
             if self.cfg['magc']['wafer_calibrated'] == 'True':
-                # transform back the grid coordinates in non-transformed coordinates
+                # transform back the grid coordinates
+                # in non-transformed coordinates
                 result = utils.applyAffineT(
                     [target_ROI[0]],
                     [target_ROI[1]],
                     waferTransformInverse)
                 source_ROI = [result[0][0], result[1][0]]
-                source_ROI_angle = (-90 + target_ROI_angle - transform_angle) % 360
+                source_ROI_angle = (
+                    (-90 + target_ROI_angle - transform_angle) % 360)
             else:
                 source_ROI = target_ROI
                 source_ROI_angle = (-90 + target_ROI_angle) % 360
