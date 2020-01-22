@@ -15,18 +15,9 @@
 # The following constants must be updated if entries are added to or
 # deleted from the default configuration files
 CFG_TEMPLATE_FILE = '..\\cfg\\default.ini'
-CFG_NUMBER_SECTIONS_CORE = 10
-CFG_NUMBER_KEYS_CORE = 200
 
-CFG_NUMBER_SECTIONS_MAGC = 1 # magc
-CFG_NUMBER_KEYS_MAGC = 9 # [sys]:magc_mode,
-                    # [magc]:sections_path, ROI_mode,
-                    # source_sections,selected_sections,
-                    # checked_sections, wafer_calibrated,
-                    # landmarks, wafer_transform,
-
-CFG_NUMBER_SECTIONS = CFG_NUMBER_SECTIONS_CORE + CFG_NUMBER_SECTIONS_MAGC
-CFG_NUMBER_KEYS = CFG_NUMBER_KEYS_CORE + CFG_NUMBER_KEYS_MAGC
+CFG_NUMBER_SECTIONS = 11
+CFG_NUMBER_KEYS = 208
 
 SYSCFG_TEMPLATE_FILE = '..\\cfg\\system.cfg'
 SYSCFG_NUMBER_SECTIONS = 7
