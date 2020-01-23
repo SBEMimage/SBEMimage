@@ -2290,7 +2290,7 @@ class MainControls(QMainWindow):
                 self.gm.set_tile_wd(self.ft_selected_grid,
                                     self.ft_selected_tile,
                                     self.ft_selected_wd)
-                if self.gm.is_adaptive_focus_active(self.ft_selected_grid):
+                if self.gm.is_wd_gradient_active(self.ft_selected_grid):
                     # Recalculate with new wd:
                     self.gm.calculate_focus_gradient(self.ft_selected_grid)
                 self.viewport.mv_draw()
@@ -2354,9 +2354,9 @@ class MainControls(QMainWindow):
                         self.ft_selected_tile,
                         self.ft_selected_stig_x,
                         self.ft_selected_stig_y)
-                    if self.gm.is_adaptive_focus_active(self.ft_selected_grid):
+                    if self.gm.is_wd_gradient_active(self.ft_selected_grid):
                         # Recalculate with new wd:
-                        self.gm.calculate_focus_gradient(self.ft_selected_grid)
+                        self.gm.calculate_wd_gradient(self.ft_selected_grid)
                     self.viewport.mv_draw()
                 # Also set SEM to new values:
                 self.sem.set_wd(self.ft_selected_wd)
@@ -2645,11 +2645,11 @@ class MainControls(QMainWindow):
     def ft_update_tile_selector(self, current_tile=-1):
         self.comboBox_selectTileFT.blockSignals(True)
         self.comboBox_selectTileFT.clear()
-        # If adaptive focus activated for selected grid, only show af_tiles!
-        if self.gm.is_adaptive_focus_active(self.ft_selected_grid):
+        # If wd gradient activated for selected grid, only show reference tiles!
+        if self.gm.is_wd_gradient_active(self.ft_selected_grid):
             self.comboBox_selectTileFT.addItems(
                 ['Select tile']
-                + self.gm.get_af_tile_str_list(self.ft_selected_grid))
+                + self.gm.get_wd_gradient_ref_tile_str_list(self.ft_selected_grid))
             self.label_AFnotification.setText(
                 'Adaptive focus active in this grid.')
         else:
@@ -2659,9 +2659,9 @@ class MainControls(QMainWindow):
             self.label_AFnotification.setText('')
 
         self.comboBox_selectTileFT.setCurrentIndex(current_tile + 1)
-        if (self.gm.is_adaptive_focus_active(self.ft_selected_grid)
+        if (self.gm.is_wd_gradient_active(self.ft_selected_grid)
             and current_tile >= 0):
-            self.ft_selected_tile = self.gm.get_adaptive_focus_tiles(
+            self.ft_selected_tile = self.gm.get_wd_gradient_ref_tiles(
                 self.ft_selected_grid)[current_tile]
         else:
             self.ft_selected_tile = current_tile
@@ -2688,9 +2688,9 @@ class MainControls(QMainWindow):
 
     def ft_load_selected_tile(self):
         current_selection = self.comboBox_selectTileFT.currentIndex() - 1
-        if (self.gm.is_adaptive_focus_active(self.ft_selected_grid)
+        if (self.gm.is_wd_gradient_active(self.ft_selected_grid)
             and current_selection >= 0):
-            self.ft_selected_tile = self.gm.get_adaptive_focus_tiles(
+            self.ft_selected_tile = self.gm.get_wd_gradient_ref_tiles(
                 self.ft_selected_grid)[current_selection]
         else:
             self.ft_selected_tile = current_selection
@@ -2711,7 +2711,7 @@ class MainControls(QMainWindow):
                 self.ft_selected_grid, self.ft_selected_tile)):
             self.label_AFnotification.setText(
                 'WD/STIG of selected tile are being tracked.')
-        elif self.gm.is_adaptive_focus_active(self.ft_selected_grid):
+        elif self.gm.is_wd_gradient_active(self.ft_selected_grid):
             self.label_AFnotification.setText(
                 'Adaptive focus active in this grid.')
         else:
@@ -2743,8 +2743,8 @@ class MainControls(QMainWindow):
         selected_tile = self.viewport.mv_get_selected_tile()
         if (selected_grid is not None) and (selected_tile is not None):
             self.ft_selected_grid = selected_grid
-            if self.gm.is_adaptive_focus_active(selected_grid):
-                af_tiles = self.gm.get_adaptive_focus_tiles(selected_grid)
+            if self.gm.is_wd_gradient_active(selected_grid):
+                af_tiles = self.gm.get_wd_gradient_ref_tiles(selected_grid)
                 if selected_tile in af_tiles:
                     self.ft_selected_tile = af_tiles.index(selected_tile)
                 else:

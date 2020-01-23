@@ -31,7 +31,7 @@ from PyQt5.QtGui import QPixmap, QPainter, QColor, QFont, QIcon, QPen, \
 from PyQt5.QtCore import Qt, QObject, QRect, QPoint, QSize, pyqtSignal
 
 import utils
-from dlg_windows import AdaptiveFocusSelectionDlg
+from dlg_windows import FocusGradientTileSelectionDlg
 
 import yaml
 
@@ -857,7 +857,7 @@ class Viewport(QWidget):
                     selected_for_autofocus = (
                         f'Select tile {self.selected_grid}.'
                         f'{self.selected_tile} as')
-                if self.gm.is_adaptive_focus_tile(
+                if self.gm.is_wd_gradient_ref_tile(
                     self.selected_grid, self.selected_tile):
                     selected_for_gradient = (
                         f'Deselect tile {self.selected_grid}.'
@@ -922,7 +922,7 @@ class Viewport(QWidget):
             action_selectGradient = menu.addAction(
                 selected_for_gradient + ' focus gradient ref.')
             action_selectGradient.triggered.connect(
-                self.mv_toggle_tile_adaptive_focus)
+                self.mv_toggle_wd_gradient_ref_tile)
             menu.addSeparator()
             action_move = menu.addAction(current_pos_str)
             action_move.triggered.connect(self.mv_move_to_stage_pos)
@@ -1469,8 +1469,8 @@ class Viewport(QWidget):
                         2 * tile_width_v, 2 * tile_height_v)
 
                     show_grad_label = (
-                        self.gm.is_adaptive_focus_tile(grid_number, tile)
-                        and self.gm.is_adaptive_focus_active(grid_number))
+                        self.gm.is_wd_gradient_ref_tile(grid_number, tile)
+                        and self.gm.is_wd_gradient_active(grid_number))
                     show_af_label = (
                         self.af.is_ref_tile(grid_number, tile)
                         and self.af.is_active()
@@ -2003,18 +2003,18 @@ class Viewport(QWidget):
             self.af.set_ref_tiles(ref_tiles)
             self.mv_draw()
 
-    def mv_toggle_tile_adaptive_focus(self):
+    def mv_toggle_wd_gradient_ref_tile(self):
         if self.selected_grid is not None and self.selected_tile is not None:
-            af_tiles = self.gm.get_adaptive_focus_tiles(self.selected_grid)
+            af_tiles = self.gm.get_wd_gradient_ref_tiles(self.selected_grid)
             if self.selected_tile in af_tiles:
                 af_tiles[af_tiles.index(self.selected_tile)] = -1
             else:
                 # Let user choose the intended relative position of the tile:
-                dialog = AdaptiveFocusSelectionDlg(af_tiles)
+                dialog = FocusGradientTileSelectionDlg(af_tiles)
                 if dialog.exec_():
                     if dialog.selected is not None:
                         af_tiles[dialog.selected] = self.selected_tile
-            self.gm.set_adaptive_focus_tiles(self.selected_grid, af_tiles)
+            self.gm.set_wd_gradient_ref_tiles(self.selected_grid, af_tiles)
             self.transmit_cmd('UPDATE FT TILE SELECTOR')
             self.mv_draw()
 

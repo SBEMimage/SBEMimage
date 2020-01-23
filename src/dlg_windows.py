@@ -1064,8 +1064,8 @@ class GridSettingsDlg(QDialog):
         self.doubleSpinBox_pixelSize.valueChanged.connect(
             self.show_tile_size_and_dose)
         # Adaptive focus tool button:
-        self.toolButton_adaptiveFocus.clicked.connect(
-            self.open_adaptive_focus_dlg)
+        self.toolButton_focusGradient.clicked.connect(
+            self.open_focus_gradient_dlg)
         # Reset wd/stig parameters:
         self.pushButton_resetFocusParams.clicked.connect(
             self.reset_wd_stig_params)
@@ -1084,8 +1084,8 @@ class GridSettingsDlg(QDialog):
         self.comboBox_colourSelector.setCurrentIndex(
             self.gm.get_display_colour_index(self.current_grid))
         # Adaptive focus:
-        self.checkBox_adaptiveFocus.setChecked(
-            self.gm.is_adaptive_focus_active(self.current_grid))
+        self.checkBox_focusGradient.setChecked(
+            self.gm.is_wd_gradient_active(self.current_grid))
 
         self.spinBox_rows.setValue(self.gm.get_number_rows(self.current_grid))
         self.spinBox_cols.setValue(self.gm.get_number_cols(self.current_grid))
@@ -1219,10 +1219,10 @@ class GridSettingsDlg(QDialog):
                          'range (0 .. frame width).')
         self.gm.set_display_colour(
             self.current_grid, self.comboBox_colourSelector.currentIndex())
-        self.gm.set_adaptive_focus_enabled(self.current_grid,
-            self.checkBox_adaptiveFocus.isChecked())
-        if self.checkBox_adaptiveFocus.isChecked():
-            self.gm.calculate_focus_gradient(self.current_grid)
+        self.gm.set_wd_gradient_enabled(self.current_grid,
+            self.checkBox_focusGradient.isChecked())
+        if self.checkBox_focusGradient.isChecked():
+            self.gm.calculate_wd_gradient(self.current_grid)
         # Acquisition parameters:
         self.gm.set_pixel_size(self.current_grid,
             self.doubleSpinBox_pixelSize.value())
@@ -1243,55 +1243,55 @@ class GridSettingsDlg(QDialog):
             self.main_window_queue.put('GRID SETTINGS CHANGED')
             self.main_window_trigger.s.emit()
 
-    def open_adaptive_focus_dlg(self):
-        sub_dialog = AdaptiveFocusSettingsDlg(self.gm, self.current_grid)
+    def open_focus_gradient_dlg(self):
+        sub_dialog = FocusGradientSettingsDlg(self.gm, self.current_grid)
         sub_dialog.exec_()
 
 #------------------------------------------------------------------------------
 
-class AdaptiveFocusSettingsDlg(QDialog):
-    """Select the tiles to calculate the gradient for the adaptive focus."""
+class FocusGradientSettingsDlg(QDialog):
+    """Select the tiles to calculate the working distance gradient."""
 
     def __init__(self, gm, current_grid):
         super().__init__()
         self.gm = gm
         self.current_grid = current_grid
-        loadUi('..\\gui\\adaptive_focus_settings_dlg.ui', self)
+        loadUi('..\\gui\\wd_gradient_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
         self.lineEdit_currentGrid.setText('Grid ' + str(current_grid))
         self.grid_illustration.setPixmap(QPixmap('..\\img\\grid.png'))
-        self.af_tiles = self.gm.get_adaptive_focus_tiles(self.current_grid)
-        # Backup variable for currently selected adaptive focus tiles:
-        self.prev_af_tiles = self.af_tiles.copy()
-        # Set up tile selectors for adaptive focus tiles:
+        self.ref_tiles = self.gm.get_wd_gradient_ref_tiles(self.current_grid)
+        # Backup variable for currently selected reference tiles:
+        self.prev_ref_tiles = self.ref_tiles.copy()
+        # Set up tile selectors for the reference tiles:
         number_of_tiles = self.gm.get_number_tiles(self.current_grid)
         tile_list_str = ['-']
         for tile in range(number_of_tiles):
             tile_list_str.append(str(tile))
         for i in range(3):
-            if self.af_tiles[i] >= number_of_tiles:
-                self.af_tiles[i] = -1
+            if self.ref_tiles[i] >= number_of_tiles:
+                self.ref_tiles[i] = -1
 
         self.comboBox_tileUpperLeft.blockSignals(True)
         self.comboBox_tileUpperLeft.addItems(tile_list_str)
-        self.comboBox_tileUpperLeft.setCurrentIndex(self.af_tiles[0] + 1)
+        self.comboBox_tileUpperLeft.setCurrentIndex(self.ref_tiles[0] + 1)
         self.comboBox_tileUpperLeft.currentIndexChanged.connect(
             self.update_settings)
         self.comboBox_tileUpperLeft.blockSignals(False)
 
         self.comboBox_tileUpperRight.blockSignals(True)
         self.comboBox_tileUpperRight.addItems(tile_list_str)
-        self.comboBox_tileUpperRight.setCurrentIndex(self.af_tiles[1] + 1)
+        self.comboBox_tileUpperRight.setCurrentIndex(self.ref_tiles[1] + 1)
         self.comboBox_tileUpperRight.currentIndexChanged.connect(
             self.update_settings)
         self.comboBox_tileUpperRight.blockSignals(False)
 
         self.comboBox_tileLowerLeft.blockSignals(True)
         self.comboBox_tileLowerLeft.addItems(tile_list_str)
-        self.comboBox_tileLowerLeft.setCurrentIndex(self.af_tiles[2] + 1)
+        self.comboBox_tileLowerLeft.setCurrentIndex(self.ref_tiles[2] + 1)
         self.comboBox_tileLowerLeft.currentIndexChanged.connect(
             self.update_settings)
         self.comboBox_tileLowerLeft.blockSignals(False)
@@ -1302,50 +1302,50 @@ class AdaptiveFocusSettingsDlg(QDialog):
         """Get selected working distances and calculate origin WD and
            gradient if possible.
         """
-        self.af_tiles[0] = self.comboBox_tileUpperLeft.currentIndex() - 1
-        self.af_tiles[1] = self.comboBox_tileUpperRight.currentIndex() - 1
-        self.af_tiles[2] = self.comboBox_tileLowerLeft.currentIndex() - 1
+        self.ref_tiles[0] = self.comboBox_tileUpperLeft.currentIndex() - 1
+        self.ref_tiles[1] = self.comboBox_tileUpperRight.currentIndex() - 1
+        self.ref_tiles[2] = self.comboBox_tileLowerLeft.currentIndex() - 1
 
-        if self.af_tiles[0] >= 0:
-            self.label_t1.setText('Tile ' + str(self.af_tiles[0]) + ':')
-            wd = self.gm.get_tile_wd(self.current_grid, self.af_tiles[0])
+        if self.ref_tiles[0] >= 0:
+            self.label_t1.setText('Tile ' + str(self.ref_tiles[0]) + ':')
+            wd = self.gm.get_tile_wd(self.current_grid, self.ref_tiles[0])
             self.doubleSpinBox_t1.setValue(wd * 1000)
         else:
             self.label_t1.setText('Tile (-) :')
             self.doubleSpinBox_t1.setValue(0)
-        if self.af_tiles[1] >= 0:
-            self.label_t2.setText('Tile ' + str(self.af_tiles[1]) + ':')
-            wd = self.gm.get_tile_wd(self.current_grid, self.af_tiles[1])
+        if self.ref_tiles[1] >= 0:
+            self.label_t2.setText('Tile ' + str(self.ref_tiles[1]) + ':')
+            wd = self.gm.get_tile_wd(self.current_grid, self.ref_tiles[1])
             self.doubleSpinBox_t2.setValue(wd * 1000)
         else:
             self.label_t2.setText('Tile (-) :')
             self.doubleSpinBox_t2.setValue(0)
-        if self.af_tiles[2] >= 0:
-            self.label_t3.setText('Tile ' + str(self.af_tiles[2]) + ':')
-            wd = self.gm.get_tile_wd(self.current_grid, self.af_tiles[2])
+        if self.ref_tiles[2] >= 0:
+            self.label_t3.setText('Tile ' + str(self.ref_tiles[2]) + ':')
+            wd = self.gm.get_tile_wd(self.current_grid, self.ref_tiles[2])
             self.doubleSpinBox_t3.setValue(wd * 1000)
         else:
             self.label_t3.setText('Tile (-) :')
             self.doubleSpinBox_t3.setValue(0)
 
-        self.gm.set_adaptive_focus_tiles(self.current_grid, self.af_tiles)
+        self.gm.set_wd_gradient_ref_tiles(self.current_grid, self.ref_tiles)
         # Try to calculate focus map:
-        self.af_success = self.gm.calculate_focus_gradient(self.current_grid)
-        if self.af_success:
-            grad = self.gm.get_adaptive_focus_gradient(self.current_grid)
-            wd = self.gm.get_tile_wd(self.current_grid, 0)
+        self.success = self.gm.calculate_wd_gradient(self.current_grid)
+        if self.success:
+            params = self.gm.get_wd_gradient_params(self.current_grid)
+            print(params)
             current_status_str = (
-                'WD: ' + '{0:.6f}'.format(wd * 1000)
+                'WD: ' + '{:.6f}'.format(params[0] * 1000)
                 + ' mm;\n' + chr(8710)
-                + 'x: ' + '{0:.6f}'.format(grad[0] * 1000)
-                + '; ' + chr(8710) + 'y: ' + '{0:.6f}'.format(grad[1] * 1000))
+                + 'x: ' + '{:.6f}'.format(params[1] * 1000)
+                + '; ' + chr(8710) + 'y: ' + '{:.6f}'.format(params[2] * 1000))
         else:
             current_status_str = 'Insufficient or incorrect tile selection'
 
         self.textEdit_originGradients.setText(current_status_str)
 
     def accept(self):
-        if self.af_success:
+        if self.success:
             super().accept()
         else:
             QMessageBox.warning(
@@ -1356,34 +1356,34 @@ class AdaptiveFocusSettingsDlg(QDialog):
 
     def reject(self):
         # Restore previous selection:
-        self.gm.set_adaptive_focus_tiles(self.current_grid, self.prev_af_tiles)
+        self.gm.set_wd_gradient_ref_tiles(self.current_grid, self.prev_ref_tiles)
         # Recalculate with previous setting:
-        self.gm.calculate_focus_gradient(self.current_grid)
+        self.gm.calculate_wd_gradient(self.current_grid)
         super().reject()
 
 #------------------------------------------------------------------------------
 
-class AdaptiveFocusSelectionDlg(QDialog):
+class FocusGradientTileSelectionDlg(QDialog):
 
-    def __init__(self, current_af_tiles):
+    def __init__(self, current_ref_tiles):
         super().__init__()
         self.selected = None
-        loadUi('..\\gui\\adaptive_focus_selection_dlg.ui', self)
+        loadUi('..\\gui\\wd_gradient_tile_selection_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
         self.grid_illustration.setPixmap(QPixmap('..\\img\\grid.png'))
-        if current_af_tiles[0] >= 0:
-            self.pushButton_pos0.setText(str(current_af_tiles[0]))
+        if current_ref_tiles[0] >= 0:
+            self.pushButton_pos0.setText(str(current_ref_tiles[0]))
         else:
             self.pushButton_pos0.setText('-')
-        if current_af_tiles[1] >= 0:
-            self.pushButton_pos1.setText(str(current_af_tiles[1]))
+        if current_ref_tiles[1] >= 0:
+            self.pushButton_pos1.setText(str(current_ref_tiles[1]))
         else:
             self.pushButton_pos1.setText('-')
-        if current_af_tiles[2] >= 0:
-            self.pushButton_pos2.setText(str(current_af_tiles[2]))
+        if current_ref_tiles[2] >= 0:
+            self.pushButton_pos2.setText(str(current_ref_tiles[2]))
         else:
             self.pushButton_pos2.setText('-')
         self.pushButton_pos0.clicked.connect(self.select_pos0)
@@ -1698,11 +1698,11 @@ class PreStackDlg(QDialog):
                 self.label_autofocusActive.setText('Active (heuristic)')
         else:
             self.label_autofocusActive.setText('Inactive')
-        if self.gm.is_adaptive_focus_active():
-            self.label_adaptiveActive.setFont(boldFont)
-            self.label_adaptiveActive.setText('Active')
+        if self.gm.is_wd_gradient_active():
+            self.label_gradientActive.setFont(boldFont)
+            self.label_gradientActive.setText('Active')
         else:
-            self.label_adaptiveActive.setText('Inactive')
+            self.label_gradientActive.setText('Inactive')
         if (self.gm.is_intervallic_acq_active()
             or self.ovm.is_intervallic_acq_active()):
             self.label_intervallicActive.setFont(boldFont)

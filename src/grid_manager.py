@@ -3,7 +3,7 @@
 # ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2018-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
@@ -27,7 +27,7 @@ class Tile:
 
     def __init__(self, px_py=[0, 0], dx_dy=[0, 0], sx_sy=[0, 0],
                  wd=0, stig_xy=[0, 0], tile_active=False,
-                 af_ref_tile=False, grad_ref_tile=False):
+                 af_ref_tile=False, wd_grad_ref_tile=False):
         # Relative pixel coordinates, unrotated: Upper left (origin) tile: 0, 0
         self.px_py = px_py
         # Actual SEM coordinates (distances as shown in SEM images)
@@ -41,7 +41,7 @@ class Tile:
         self.stig_xy = stig_xy
         self.tile_active = tile_active
         self.af_ref_tile = af_ref_tile
-        self.grad_ref_tile = grad_ref_tile
+        self.wd_grad_ref_tile = wd_grad_ref_tile
 
 class Grid:
 
@@ -50,7 +50,7 @@ class Grid:
                  tile_size_px_py=[4096, 3072], tile_size_selector=4,
                  pixel_size=10.0, dwell_time=0.8, dwell_time_selector=4,
                  display_colour=0, acq_interval=1, acq_interval_offset=0,
-                 use_wd_gradient=True, wd_gradient_tiles=[-1, -1, -1],
+                 use_wd_gradient=True, wd_gradient_ref_tiles=[-1, -1, -1],
                  wd_gradient_params=[0, 0, 0]):
         # The origin of the grid is the stage position of tile 0.
         self.origin_sx_sy = origin_sx_sy
@@ -70,18 +70,18 @@ class Grid:
         self.acq_interval = acq_interval
         self.acq_interval_offset = acq_interval_offset
         self.use_wd_gradient = use_wd_gradient
-        self.wd_gradient_tiles = wd_gradient_tiles
+        self.wd_gradient_ref_tiles = wd_gradient_ref_tiles
         self.wd_gradient_params = wd_gradient_params
         self.initialize_tiles()
         # Calculate pixel and SEM coordinates
         self.calculate_tile_positions()
-        # Set active tiles and wd_gradient_tiles
+        # Set active tiles and wd_gradient_ref_tiles
         for tile_number in self.active_tiles:
             self.tiles[tile_number].tile_active = True
-        for tile_number in self.wd_gradient_tiles:
+        for tile_number in self.wd_gradient_ref_tiles:
             # Unselected gradient tiles are set to -1, therefore check if >= 0
             if tile_number >= 0:
-                self.tiles[tile_number].grad_ref_tile = True
+                self.tiles[tile_number].wd_grad_ref_tile = True
 
     def __getitem__(self, index):
         """Return the Tile object selected by index."""
@@ -126,6 +126,56 @@ class Grid:
                 self.tiles[tile_number].dx_dy = [
                     x_coord * self.pixel_size / 1000,
                     y_coord * self.pixel_size / 1000]
+
+    def calculate_wd_gradient(self):
+        """Calculate the working distance gradient for this grid using
+        the three reference tiles."""
+        success = True
+        ref_tiles = self.wd_gradient_ref_tiles
+        if ref_tiles[0] >= 0:
+            row_length = self.size[1]
+            row0 = ref_tiles[0] // row_length
+            row1 = ref_tiles[1] // row_length
+            # Tile1 must be right of Tile0 and in the same row:
+            if (ref_tiles[1] > ref_tiles[0]) and (row0 == row1):
+                x_diff = ref_tiles[1] - ref_tiles[0]
+                slope_x = (self.tiles[ref_tiles[0]].wd
+                           - self.tiles[ref_tiles[1]].wd)/x_diff
+            else:
+                success = False
+            # Tile3 must be below Tile0 and in the same column:
+            col0 = ref_tiles[0] % row_length
+            col2 = ref_tiles[2] % row_length
+            if (ref_tiles[2] > ref_tiles[0]) and (col0 == col2):
+                y_diff = (ref_tiles[2] - ref_tiles[0]) // row_length
+                slope_y = (self.tiles[ref_tiles[0]].wd
+                           - self.tiles[ref_tiles[2]].wd)/y_diff
+            else:
+                success = False
+
+            if success:
+                self.wd_gradient_params[1] = round(slope_x, 12)
+                self.wd_gradient_params[2] = round(slope_y, 12)
+                # Calculate wd at the origin of the grid:
+                x_diff_origin = ref_tiles[0] % row_length
+                y_diff_origin = ref_tiles[0] // row_length
+                wd_at_origin = round(
+                    self.tiles[ref_tiles[0]].wd
+                    - (x_diff_origin * slope_x)
+                    - (y_diff_origin * slope_y), 9)
+                self.wd_gradient_params[0] = wd_at_origin
+
+                # Update wd for full grid:
+                for y_pos in range(self.size[0]):
+                    for x_pos in range(self.size[1]):
+                        tile_number = y_pos * row_length + x_pos
+                        self.tiles[tile_number].wd = (
+                            wd_at_origin
+                            + x_pos * slope_x
+                            + y_pos * slope_y)
+        else:
+            success = False
+        return success
 
     def get_grid_map_p(self):
         return [self.tiles[t].px_py for t in range(self.number_tiles)]
@@ -200,11 +250,11 @@ class GridManager:
         acq_interval_offset = json.loads(
             self.cfg['grids']['acq_interval_offset'])
         use_wd_gradient = json.loads(
-            self.cfg['grids']['use_adaptive_focus'])
-        wd_gradient_tiles = json.loads(
-            self.cfg['grids']['adaptive_focus_tiles'])
+            self.cfg['grids']['use_wd_gradient'])
+        wd_gradient_ref_tiles = json.loads(
+            self.cfg['grids']['wd_gradient_ref_tiles'])
         wd_gradient_params = json.loads(
-            self.cfg['grids']['adaptive_focus_gradient'])
+            self.cfg['grids']['wd_gradient_params'])
 
         # Create a list of grid objects
         self.__grids = []
@@ -215,9 +265,16 @@ class GridManager:
                         pixel_size[i], dwell_time[i], dwell_time_selector[i],
                         display_colour[i], acq_interval[i],
                         acq_interval_offset[i], use_wd_gradient[i]==1,
-                        wd_gradient_tiles[i], wd_gradient_params[i])
+                        wd_gradient_ref_tiles[i], wd_gradient_params[i])
             self.__grids.append(grid)
 
+        # Load wd_stig_params
+        wd_stig_dict = json.loads(self.cfg['grids']['wd_stig_params'])
+        for tile_key, wd_stig_xy in wd_stig_dict.items():
+            g_str, t_str = tile_key.split('.')
+            g, t = int(g_str), int(t_str)
+            self.__grids[g][t].wd = wd_stig_xy[0]
+            self.__grids[g][t].stig_xy = [wd_stig_xy[1], wd_stig_xy[2]]
 
     def save_to_cfg(self):
         """Save current grid configuration to ConfigParser object self.cfg."""
@@ -239,7 +296,7 @@ class GridManager:
         origin_wd = []
         acq_interval = []
         acq_interval_offset = []
-        wd_gradient_tiles = []
+        wd_gradient_ref_tiles = []
         wd_gradient_params = []
         use_wd_gradient = []
 
@@ -262,7 +319,7 @@ class GridManager:
             acq_interval.append(grid.acq_interval)
             acq_interval_offset.append(grid.acq_interval_offset)
             use_wd_gradient.append(int(grid.use_wd_gradient))
-            wd_gradient_tiles.append(grid.wd_gradient_tiles)
+            wd_gradient_ref_tiles.append(grid.wd_gradient_ref_tiles)
             wd_gradient_params.append(grid.wd_gradient_params)
 
 
@@ -282,9 +339,9 @@ class GridManager:
         self.cfg['grids']['origin_wd'] = str(origin_wd)
         self.cfg['grids']['acq_interval'] = str(acq_interval)
         self.cfg['grids']['acq_interval_offset'] = str(acq_interval_offset)
-        self.cfg['grids']['use_adaptive_focus'] = str(use_wd_gradient)
-        self.cfg['grids']['adaptive_focus_tiles'] = str(wd_gradient_tiles)
-        self.cfg['grids']['adaptive_focus_gradient'] = str(
+        self.cfg['grids']['use_wd_gradient'] = str(use_wd_gradient)
+        self.cfg['grids']['wd_gradient_ref_tiles'] = str(wd_gradient_ref_tiles)
+        self.cfg['grids']['wd_gradient_params'] = str(
             wd_gradient_params)
 
         # Save the working distances and stigmation parameters of those tiles
@@ -297,7 +354,7 @@ class GridManager:
                 if (self.__grids[g][t].wd > 0
                     and (self.__grids[g][t].tile_active
                          or self.__grids[g][t].af_ref_tile
-                         or self.__grids[g][t].grad_ref_tile)):
+                         or self.__grids[g][t].wd_grad_ref_tile)):
                     # Only save tiles with WD != 0 which are active or
                     # selected for autofocus or wd gradient.
                     wd_stig_dict[tile_key] = [
@@ -336,7 +393,7 @@ class GridManager:
                         dwell_time=0.8, dwell_tile_selector=4,
                         display_colour=display_colour, acq_interval=1,
                         acq_interval_offset=0, use_wd_gradient=False,
-                        wd_gradient_tiles=[-1, -1, -1],
+                        wd_gradient_ref_tiles=[-1, -1, -1],
                         wd_gradient_params=[0, 0, 0])
         self.__grids.append(new_grid)
         self.number_grids += 1
@@ -467,7 +524,7 @@ class GridManager:
                 # Initialize new tile list
                 self.__grids[grid_number].initialize_tiles()
                 new_active_tiles = []
-                new_wd_gradient_tiles = []
+                new_wd_gradient_ref_tiles = []
                 # Preserve locations of active tiles and settings
                 for t in range(old_number_tiles):
                     # Calculate coordinate in grid of old size:
@@ -480,11 +537,11 @@ class GridManager:
                         self.__grids[grid_number][new_t] = old_tiles[t]
                         if self.__grids[grid_number][new_t].tile_active:
                             new_active_tiles.append(new_t)
-                        if self.__grids[grid_number][new_t].grad_ref_tile:
-                            new_wd_gradient_tiles.append(new_t)
+                        if self.__grids[grid_number][new_t].wd_grad_ref_tile:
+                            new_wd_gradient_ref_tiles.append(new_t)
                 self.__grids[grid_number].active_tiles = new_active_tiles
-                self.__grids[grid_number].wd_gradient_tiles = (
-                    new_wd_gradient_tiles)
+                self.__grids[grid_number].wd_gradient_ref_tiles = (
+                    new_wd_gradient_ref_tiles)
 
     def get_number_rows(self, grid_number):
         return self.__grids[grid_number].size[0]
@@ -723,24 +780,24 @@ class GridManager:
             self.__grids[grid_number].dwell_time)
         return (self.sem.CYCLE_TIME[size_selector][scan_speed] + 0.2)
 
-    def get_adaptive_focus_tiles(self, grid_number):
-        return self.__grids[grid_number].wd_gradient_tiles
+    def get_wd_gradient_ref_tiles(self, grid_number):
+        return self.__grids[grid_number].wd_gradient_ref_tiles
 
-    def set_adaptive_focus_tiles(self, grid_number, tiles):
+    def set_wd_gradient_ref_tiles(self, grid_number, tiles):
         if grid_number < self.number_grids:
-            self.__grids[grid_number].wd_gradient_tiles = tiles
+            self.__grids[grid_number].wd_gradient_ref_tiles = tiles
 
-    def is_adaptive_focus_tile(self, grid_number, tile_number):
-        return (tile_number in self.__grids[grid_number].wd_gradient_tiles)
+    def is_wd_gradient_ref_tile(self, grid_number, tile_number):
+        return (tile_number in self.__grids[grid_number].wd_gradient_ref_tiles)
 
-    def get_adaptive_focus_gradient(self, grid_number):
-        return self.__grids[grid_number].wd_gradient
+    def get_wd_gradient_params(self, grid_number):
+        return self.__grids[grid_number].wd_gradient_params
 
-    def set_adaptive_focus_gradient(self, grid_number, gradient):
+    def set_wd_gradient_params(self, grid_number, params):
         if grid_number < self.number_grids:
-            self.__grids[grid_number].wd_gradient = gradient
+            self.__grids[grid_number].wd_gradient_params = params
 
-    def is_adaptive_focus_active(self, grid_number=-1):
+    def is_wd_gradient_active(self, grid_number=-1):
         if grid_number == -1:
             for grid_number in range(self.number_grids):
                 if self.__grids[grid_number].use_wd_gradient:
@@ -749,13 +806,13 @@ class GridManager:
         else:
             return self.__grids[grid_number].use_wd_gradient
 
-    def set_adaptive_focus_enabled(self, grid_number, status_enabled):
+    def set_wd_gradient_enabled(self, grid_number, status_enabled):
         if grid_number < self.number_grids:
             self.__grids[grid_number].use_wd_gradient = status_enabled
 
-    def get_af_tile_str_list(self, grid_number):
+    def get_wd_gradient_ref_tile_str_list(self, grid_number):
         str_list = []
-        for tile in self.__grids[grid_number].wd_gradient_tiles:
+        for tile in self.__grids[grid_number].wd_gradient_ref_tiles:
             if tile >= 0:
                 str_list.append('Tile %d' % tile)
             else:
@@ -774,59 +831,8 @@ class GridManager:
                 self.__grids[grid_number][tile_number].wd = wd
                 self.__grids[grid_number][tile_number].stig_xy = [stig_x, stig_y]
 
-    def calculate_focus_gradient(self, grid_number):
-        # TODO: rewrite this
-        success = True
-        af_tiles = self.af_tiles[grid_number]
-        if af_tiles[0] >= 0:
-            row_length = self.size[grid_number][1]
-            row0 = af_tiles[0] // row_length
-            row1 = af_tiles[1] // row_length
-            # Tile1 must be right of Tile0 and in the same row:
-            if (af_tiles[1] > af_tiles[0]) and (row0 == row1):
-                x_diff = af_tiles[1] - af_tiles[0]
-                wd_delta_x = (
-                    self.grid_map_wd_stig[grid_number][af_tiles[1]][0]
-                    - self.grid_map_wd_stig[grid_number][af_tiles[0]][0])/x_diff
-            else:
-                success = False
-            # Tile3 must be below Tile0 and in the same column:
-            col0 = af_tiles[0] % row_length
-            col2 = af_tiles[2] % row_length
-            if (af_tiles[2] > af_tiles[0]) and (col0 == col2):
-                y_diff = (af_tiles[2] - af_tiles[0]) // row_length
-                wd_delta_y = (
-                    self.grid_map_wd_stig[grid_number][af_tiles[2]][0]
-                    - self.grid_map_wd_stig[grid_number][af_tiles[0]][0])/y_diff
-            else:
-                success = False
-
-            if success:
-                self.af_gradient[grid_number] = [
-                    round(wd_delta_x, 12),
-                    round(wd_delta_y, 12)]
-                self.cfg['grids']['adaptive_focus_gradient'] = str(
-                    self.af_gradient)
-                # Calculate wd at the origin of the tiling:
-                x_diff_origin = af_tiles[0] % row_length
-                y_diff_origin = af_tiles[0] // row_length
-                self.origin_wd[grid_number] = round(
-                      self.grid_map_wd_stig[grid_number][af_tiles[0]][0]
-                      - (x_diff_origin * wd_delta_x)
-                      - (y_diff_origin * wd_delta_y), 9)
-                self.cfg['grids']['origin_wd'] = str(self.origin_wd)
-
-                # Update wd for full grid:
-                for y_pos in range(0, self.size[grid_number][0]):
-                    for x_pos in range(0, self.size[grid_number][1]):
-                        tile_number = y_pos * row_length + x_pos
-                        self.grid_map_wd_stig[grid_number][tile_number][0] = (
-                                self.origin_wd[grid_number]
-                                + x_pos * wd_delta_x
-                                + y_pos * wd_delta_y)
-        else:
-            success = False
-        return success
+    def calculate_wd_gradient(self, grid_number):
+        return self.__grids[grid_number].calculate_wd_gradient()
 
     def get_gapped_grid_map_p(self, grid_number):
         """Return unrotated grid map in pixel coordinates with gaps between
@@ -863,15 +869,6 @@ class GridManager:
                         str(self.__grids[g][t].dx_dy[1]) + ';' +
                         str(self.__grids[g][t].tile_active) + '\n')
         return file_name
-
-    def load_wd_stig_params_from_config(self):
-        wd_stig_dict = json.loads(self.cfg['grids']['wd_stig_params'])
-        for tile_key in wd_stig_dict:
-            g_str, t_str = tile_key.split('.')
-            g, t = int(g_str), int(t_str)
-            wd_stig_xy = wd_stig_dict[tile_key]
-            self.__grids[g][t].wd = wd_stig_xy[0]
-            self.__grids[g][t].stig_xy = [wd_stig_xy[1], wd_stig_xy[2]]
 
     def reset_wd_stig_params(self, grid_number):
         for tile in self.__grids[grid_number].tiles:
