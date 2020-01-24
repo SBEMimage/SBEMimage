@@ -561,10 +561,10 @@
      </rect>
     </property>
     <property name="text">
-     <string>Adaptive focus: </string>
+     <string>Focus gradient: </string>
     </property>
    </widget>
-   <widget class="QLabel" name="label_adaptiveActive">
+   <widget class="QLabel" name="label_gradientActive">
     <property name="geometry">
      <rect>
       <x>90</x>

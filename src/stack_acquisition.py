@@ -157,7 +157,7 @@ class Stack():
         # detection and monitoring can be enabled/disabled during a run
         self.use_mirror_drive = (self.cfg['sys']['use_mirror_drive'] == 'True')
         self.take_overviews = (self.cfg['acq']['take_overviews'] == 'True')
-        self.use_adaptive_focus = False
+        self.use_wd_gradient = False
 
         # autofocus and autostig interval status:
         self.autofocus_stig_current_slice = (False, False)
@@ -584,8 +584,8 @@ class Stack():
             'slice_thickness': self.slice_thickness,
             'grids': grid_list,
             'grid_origins': [],
-            'pixel_sizes': self.gm.get_pixel_size_list(),
-            'dwell_times': self.gm.get_dwell_time_list(),
+            'pixel_sizes': [],
+            'dwell_times': [],
             'contrast': float(self.cfg['sem']['bsd_contrast']),
             'brightness': float(self.cfg['sem']['bsd_brightness']),
             'email_addresses: ': [self.cfg['monitoring']['user_email'],
@@ -611,14 +611,14 @@ class Stack():
         sleep(1)
 
         for grid_number in range(number_grids):
-            if not self.gm.is_adaptive_focus_active(grid_number):
+            if not self.gm.is_wd_gradient_active(grid_number):
                 self.gm.set_initial_wd_stig_for_grid(grid_number,
                                                      self.wd_current_grid,
                                                      self.stig_x_current_grid,
                                                      self.stig_y_current_grid)
             else:
-                # Set stig values to current settings for each tile if adaptive
-                # focus used
+                # Set stig values to current settings for each tile if
+                # focus gradient used
                 self.gm.set_stig_for_grid(grid_number,
                                           self.stig_x_current_grid,
                                           self.stig_y_current_grid)
@@ -1760,16 +1760,16 @@ class Stack():
     def acquire_grid(self, grid_number):
         """Acquire all active tiles of grid specified by grid_number"""
 
-        self.use_adaptive_focus = self.gm.is_adaptive_focus_active(grid_number)
+        self.use_wd_gradient = self.gm.is_wd_gradient_active(grid_number)
         # Get size and active tiles  (using list() to get a copy)
         active_tiles = list(self.gm.get_active_tiles(grid_number))
 
-        # WD and stig must be adjusted for each tile if adaptive focus active
+        # WD and stig must be adjusted for each tile if focus gradient is active
         # or if autofocus is used with "track all" or "best fit" option.
         # Otherwise self.wd_current_grid, self.stig_x_current_grid,
         # and self.stig_y_current_grid are used.
         adjust_wd_stig_for_each_tile = (
-            self.use_adaptive_focus
+            self.use_wd_gradient
             or (self.af.is_active() and self.af.get_tracking_mode() < 2))
 
         if self.pause_state != 1:
@@ -2135,7 +2135,7 @@ class Stack():
             and self.af.get_tracking_mode() == 0):
             self.af.approximate_tile_wd_stig(grid_number)
 
-        # If adaptive focus active, adjust focus for grid(s):
+        # If focus gradient active, adjust focus for grid(s):
         # TODO
 
     def lock_wd_stig(self):

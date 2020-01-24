@@ -663,7 +663,7 @@ class GridManager:
     def get_average_grid_wd(self, grid_number):
         return self.__grids[grid_number].average_wd()
 
-    def get_distance_between_tiles(self, grid, tile1, tile2):
+    def get_distance_between_tiles(self, grid_number, tile1, tile2):
         return self.__grids[grid_number].distance_between_tiles(tile1, tile2)
 
     def get_tile_stig_xy(self, grid_number, tile_number):
@@ -720,7 +720,7 @@ class GridManager:
         # Count all active tiles across all grids:
         sum_active_tiles = 0
         for grid_number in range(self.number_grids):
-            sum_active_tiles += self.__grids[grid_number].number_active_tiles
+            sum_active_tiles += len(self.__grids[grid_number].active_tiles)
         return sum_active_tiles
 
     def get_active_tile_str_list(self, grid_number):
