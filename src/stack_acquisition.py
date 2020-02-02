@@ -3,7 +3,7 @@
 # ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2018-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
@@ -38,7 +38,7 @@ class Stack():
         self.gm = grid_manager
         self.cs = coordinate_system
         self.img_inspector = image_inspector
-        self.af = autofocus
+        self.autofocus = autofocus
         self.queue = acq_queue
         self.trigger = acq_trigger
 
@@ -674,16 +674,15 @@ class Stack():
                 self.autofocus_stig_current_slice = (True, True)
             else:
                 self.autofocus_stig_current_slice = (
-                    self.af.is_active_current_slice(self.slice_counter))
+                    self.autofocus.current_slice_active(self.slice_counter))
 
             # For autofocus method 1, focus slightly up or down depending
             # on slice number:
-            if self.af.is_active() and self.af.get_method() == 1:
+            if self.autofocus.active() and self.autofocus.method == 1:
                 sign = 1 if self.slice_counter % 2 else -1
-                deltas = self.af.get_heuristic_deltas()
-                self.wd_delta = sign * deltas[0]
-                self.stig_x_delta = sign * deltas[1]
-                self.stig_y_delta = sign * deltas[2]
+                self.wd_delta = sign * self.autofocus.wd_delta
+                self.stig_x_delta = sign * self.autofocus.stig_x_delta
+                self.stig_y_delta = sign * self.autofocus.stig_y_delta
                 self.add_to_main_log('CTRL: Heuristic autofocus active.')
                 self.add_to_main_log(
                     'CTRL: DIFF_WD: {0:+.4f}'.format(self.wd_delta * 1000)
@@ -843,8 +842,8 @@ class Stack():
                                     + str(grid_index) + ' not checked. '
                                     'Skipping. ')
                         else:
-                            if (self.af.is_active()
-                                    and self.af.get_method() == 0
+                            if (self.autofocus.active()
+                                    and self.autofocus.method == 0
                                     and (self.autofocus_stig_current_slice[0]
                                     or self.autofocus_stig_current_slice[1])):
                                 self.do_autofocus_before_grid_acq(grid_index)
@@ -986,11 +985,11 @@ class Stack():
 
         # ===================== END OF ACQUISITION LOOP =======================
 
-        if self.af.is_active():
+        if self.autofocus.active():
             for grid_index in range(number_grids):
                 self.handle_autofocus_adjustments(grid_index)
             self.transmit_cmd('DRAW MV')
-            if self.af.get_method() == 1:
+            if self.autofocus.method == 1:
                 self.wd_delta, self.stig_x_delta, self.stig_y_delta = 0, 0, 0
                 self.set_grid_wd_stig()
 
@@ -1299,7 +1298,7 @@ class Stack():
                 self.process_heuristic_af_queue()
                 # Apply all corrections to tiles:
                 self.add_to_main_log('CTRL: Applying corrections to WD/STIG')
-                self.af.apply_heuristic_tile_corrections()
+                self.autofocus.apply_heuristic_tile_corrections()
             else:
                 sleep(self.full_cut_duration)
             duration_exceeded = self.microtome.check_for_cut_cycle_error()
@@ -1626,17 +1625,17 @@ class Stack():
             self.transmit_cmd('UPDATE XY')
 
             # Perform autofocus (method 0, SmartSEM) on current tile?
-            if (self.af.is_active() and self.af.get_method() == 0
-                    and self.af.is_tile_selected(grid_index, tile_index)
+            if (self.autofocus.active() and self.autofocus.method == 0
+                    and self.gm[grid_index][tile_index].autofocus_active
                     and (self.autofocus_stig_current_slice[0] or
                          self.autofocus_stig_current_slice[1])):
                 do_move = False  # already at tile stage position
-                self.perform_zeiss_autofocus(
+                self.perform_zeiss_af(
                     *self.autofocus_stig_current_slice,
                     do_move, grid_index, tile_index)
                 # For tracking mode 0: Adjust wd/stig of other tiles:
-                if self.error_state == 0 and self.af.get_tracking_mode() == 0:
-                    self.af.approximate_tile_wd_stig(grid_index)
+                if self.error_state == 0 and self.autofocus.tracking_mode == 0:
+                    self.autofocus.approximate_wd_stig_in_grid(grid_index)
                     self.transmit_cmd('DRAW MV')
 
             # Check mag if locked:
@@ -1764,7 +1763,7 @@ class Stack():
         # and self.stig_y_current_grid are used.
         adjust_wd_stig_for_each_tile = (
             self.use_wd_gradient
-            or (self.af.is_active() and self.af.get_tracking_mode() < 2))
+            or (self.autofocus.active() and self.autofocus.tracking_mode < 2))
 
         if self.pause_state != 1:
             self.add_to_main_log(
@@ -1879,10 +1878,10 @@ class Stack():
 
                     # If heuristic autofocus enabled and tile selected as
                     # reference tile, prepare tile for processing:
-                    if (self.af.is_active() and self.af.get_method() == 1
-                            and self.af.is_tile_selected(grid_index, tile_index)):
+                    if (self.autofocus.active() and self.autofocus.method == 1
+                            and self.gm[grid_index][tile_index].autofocus_active):
                         tile_key = str(grid_index) + '.' + str(tile_index)
-                        self.af.crop_tile_for_heuristic_af(
+                        self.autofocus.crop_tile_for_heuristic_af(
                             tile_img, tile_key)
                         self.heuristic_af_queue.append(tile_key)
                         del tile_img
@@ -2029,11 +2028,11 @@ class Stack():
             self.add_to_main_log('CTRL: Running SmartSEM AF procedure '
                                  + af_type + ' for tile '
                                  + str(grid_index) + '.' + str(tile_index))
-            return_msg = self.af.run_zeiss_af(do_focus, do_stig)
+            return_msg = self.autofocus.run_zeiss_autofocus(do_focus, do_stig)
             self.add_to_main_log(return_msg)
             if 'ERROR' in return_msg:
                 self.error_state = 505
-            elif not self.af.check_wd_stig_diff(wd, sx, sy):
+            elif not self.autofocus.wd_stig_diff_below_max(wd, sx, sy):
                 self.error_state = 507
             else:
                 # Save settings for current tile:
@@ -2055,10 +2054,10 @@ class Stack():
     def do_autofocus_before_grid_acq(self, grid_index):
         """If non-active tiles are selected for the SmartSEM autofocus, call the
         autofocus on them one by one before the grid acquisition starts."""
-        autofocus_tiles = self.af.get_ref_tiles_in_grid(grid_index)
+        autofocus_ref_tiles = self.gm[grid_index].autofocus_ref_tiles
         active_tiles = self.gm[grid_index].active_tiles
         # Perform Zeiss autofocus for non-active autofocus tiles:
-        for tile_index in autofocus_tiles:
+        for tile_index in autofocus_ref_tiles:
             if tile_index not in active_tiles:
                 do_move = True
                 self.perform_zeiss_autofocus(
@@ -2074,9 +2073,9 @@ class Stack():
     def perform_heuristic_autofocus(self, tile_key):
         self.add_to_main_log('CTRL: Processing tile %s for '
             'heuristic autofocus ' %tile_key)
-        self.af.process_image_for_heuristic_af(tile_key)
+        self.autofocus.process_image_for_heuristic_af(tile_key)
         wd_corr, sx_corr, sy_corr, within_range = (
-            self.af.get_heuristic_corrections(tile_key))
+            self.autofocus.get_heuristic_corrections(tile_key))
         if wd_corr is not None:
             self.add_to_main_log('CTRL: New corrections: '
                                  + '{0:.6f}, '.format(wd_corr)
@@ -2092,18 +2091,22 @@ class Stack():
     def handle_autofocus_adjustments(self, grid_index):
         # Apply average WD/STIG from reference tiles
         # if tracking mode "Average" is selected:
-        if self.af.is_active() and self.af.get_tracking_mode() == 2:
-            if self.af.get_method() == 0:
+        if self.autofocus.active() and self.autofocus.tracking_mode == 2:
+            if self.autofocus.method == 0:
                 self.add_to_main_log(
                     'CTRL: Applying average WD/STIG parameters '
                     '(SmartSEM autofocus).')
-            elif self.af.get_method() == 1:
+            elif self.autofocus.method == 1:
                 self.add_to_main_log(
                     'CTRL: Applying average WD/STIG parameters '
                     '(heuristic autofocus).')
             # Compute new grid average for WD and STIG:
-            avg_grid_wd, avg_grid_stig_x, avg_grid_stig_y = (
-                self.af.get_ref_tile_average_wd_stig(grid_index))
+            avg_grid_wd = (
+                self.gm[grid_index].average_wd_of_autofocus_ref_tiles())
+
+            avg_grid_stig_x, avg_grid_stig_y = (
+                self.gm[grid_index].average_stig_xy_of_autofocus_ref_tiles())
+
             if (avg_grid_wd is not None
                     and avg_grid_stig_x is not None
                     and avg_grid_stig_y is not None):
@@ -2125,9 +2128,9 @@ class Stack():
         # If "Individual + Approximate" mode selected - approximate the working
         # distances and stig parameters for all non-autofocus tiles that are
         # active:
-        if (self.af.is_active()
-            and self.af.get_tracking_mode() == 0):
-            self.af.approximate_tile_wd_stig(grid_index)
+        if (self.autofocus.active()
+            and self.autofocus.tracking_mode == 0):
+            self.autofocus.approximate_wd_stig_in_grid(grid_index)
 
         # If focus gradient active, adjust focus for grid(s):
         # TODO

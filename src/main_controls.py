@@ -102,7 +102,7 @@ class MainControls(QMainWindow):
         QApplication.processEvents()
         # Initialize viewport window:
         self.viewport = Viewport(self.cfg, self.sem, self.stage,
-                                 self.ovm, self.gm, self.cs, self.af,
+                                 self.ovm, self.gm, self.cs, self.autofocus,
                                  self.viewport_trigger,
                                  self.viewport_queue)
         self.viewport.show()
@@ -530,13 +530,13 @@ class MainControls(QMainWindow):
         self.img_inspector = ImageInspector(self.cfg, self.ovm)
 
         # Set up autofocus instance:
-        self.af = Autofocus(self.cfg, self.sem, self.gm,
-                            self.acq_queue, self.acq_trigger)
+        self.autofocus = Autofocus(self.cfg, self.sem, self.gm,
+                                   self.acq_queue, self.acq_trigger)
         # Finally, the stack instance:
         self.stack = Stack(self.cfg,
                            self.sem, self.microtome, self.stage,
                            self.ovm, self.gm, self.cs,
-                           self.img_inspector, self.af,
+                           self.img_inspector, self.autofocus,
                            self.acq_queue, self.acq_trigger)
 
     def try_to_create_directory(self, new_directory):
@@ -1000,17 +1000,8 @@ class MainControls(QMainWindow):
         if dialog.exec_():
             if self.cfg['sys']['sys_config_file'] == 'system.cfg':
                 self.cfg['sys']['sys_config_file'] = 'this_system.cfg'
-            self.gm.save_to_cfg()
             self.cfg_file = dialog.get_file_name()
-            # Write all settings to disk
-            file = open('..\\cfg\\' + self.cfg_file, 'w')
-            self.cfg.write(file)
-            file.close()
-            # also save system settings:
-            file = open('..\\cfg\\' + self.cfg['sys']['sys_config_file'], 'w')
-            self.syscfg.write(file)
-            file.close()
-            self.add_to_log('CTRL: Settings saved to disk.')
+            self.save_config_to_disk()
             # Show new config file name in status bar:
             self.set_statusbar('Ready.')
 
@@ -1183,10 +1174,10 @@ class MainControls(QMainWindow):
 
     def open_autofocus_dlg(self):
         dialog = AutofocusSettingsDlg(
-            self.af, self.gm,
+            self.autofocus, self.gm,
             self.cfg['sys']['magc_mode'] == 'True')
         if dialog.exec_():
-            if self.af.get_method() == 2:
+            if self.autofocus.method == 2:
                 self.checkBox_useAutofocus.setText('Focus tracking')
             else:
                 self.checkBox_useAutofocus.setText('Autofocus')
@@ -1917,7 +1908,6 @@ class MainControls(QMainWindow):
         # Used for custom tests...
         pass
 
-
 # =============================================================================
 
     def initialize_plasma_cleaner(self):
@@ -2099,18 +2089,7 @@ class MainControls(QMainWindow):
             if self.cfg['sys']['sys_config_file'] == 'system.cfg':
                 # Preserve system.cfg as template, rename:
                 self.cfg['sys']['sys_config_file'] = 'this_system.cfg'
-            # Save current grid and WD/STIG data to config:
-            self.gm.save_to_cfg()
-            # Write config to disk:
-            cfgfile = open('..\\cfg\\' + self.cfg_file, 'w')
-            self.cfg.write(cfgfile)
-            cfgfile.close()
-            # Also save system settings:
-            syscfgfile = open('..\\cfg\\'
-                              + self.cfg['sys']['sys_config_file'], 'w')
-            self.syscfg.write(syscfgfile)
-            syscfgfile.close()
-            self.add_to_log('CTRL: Settings saved to disk.')
+            self.save_config_to_disk()
         elif not self.acq_in_progress:
             QMessageBox.information(
                 self, 'Cannot save configuration',
@@ -2120,9 +2099,20 @@ class MainControls(QMainWindow):
                 'the menu.',
                 QMessageBox.Ok)
 
-    def save_ini(self):
+    def save_config_to_disk(self):
+        """Save the updated ConfigParser objects for the user and the
+        system configuration to disk."""
+        # Save current status of grid_manager and other modules
+        self.gm.save_to_cfg()
+        self.autofocus.save_to_cfg()
+        # Write config to disk:
         with open(os.path.join('..', 'cfg', self.cfg_file), 'w') as f:
             self.cfg.write(f)
+        # Also save system settings:
+        with open(os.path.join(
+            '..', 'cfg', self.cfg['sys']['sys_config_file']), 'w') as f:
+            self.syscfg.write(f)
+        self.add_to_log('CTRL: Settings saved to disk.')
 
     def closeEvent(self, event):
         if self.microtome.error_state == 701:
@@ -2702,8 +2692,9 @@ class MainControls(QMainWindow):
         elif self.ft_selected_ov == -1:
             self.ft_clear_wd_stig_display()
 
-        if (self.af.is_active() and self.af.is_ref_tile(
-                self.ft_selected_grid, self.ft_selected_tile)):
+        if (self.autofocus.active()
+            and self.gm[self.ft_selected_grid][
+                        self.ft_selected_tile].autofocus_active):
             self.label_AFnotification.setText(
                 'WD/STIG of selected tile are being tracked.')
         elif self.gm[self.ft_selected_grid].use_wd_gradient:

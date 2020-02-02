@@ -252,14 +252,13 @@ class Grid:
     @centre_sx_sy.setter
     def centre_sx_sy(self, sx_sy):
         new_x, new_y = sx_sy
-        old_x, old_y = self._centre_sx_sy
+        old_x, old_y = self.centre_sx_sy
         origin_x, origin_y = self._origin_sx_sy
         self.origin_sx_sy = [
             origin_x + new_x - old_x, origin_y + new_y - old_y]
-
     @property
     def centre_dx_dy(self):
-        return self.cs.convert_to_d(self._centre_sx_sy)
+        return self.cs.convert_to_d(self.centre_sx_sy)
 
     def rotate_around_grid_centre(self, centre_dx, centre_dy):
         """Update the grid origin after rotating the grid around the
@@ -408,14 +407,6 @@ class Grid:
         if selector < len(self.sem.DWELL_TIME):
             self.dwell_time = self.sem.DWELL_TIME[selector]
 
-    def active_tile_key_list(self):
-        active_tile_key_list = []
-        for grid_index in range(self.number_grids):
-            for tile_index in self.active_tiles:
-                active_tile_key_list.append(
-                    str(grid_index) + '.' + str(tile_index))
-        return active_tile_key_list
-
     def number_active_tiles(self):
         return len(self.active_tiles)
 
@@ -466,6 +457,16 @@ class Grid:
         else:
             return None
 
+    def average_wd_of_autofocus_ref_tiles(self):
+        wd_list = []
+        for tile in self.__tiles:
+            if tile.autofocus_active:
+                wd_list.append(tile.wd)
+        if wd_list:
+            return mean(wd_list)
+        else:
+            return None
+
     def set_stig_xy_for_all_tiles(self, stig_xy):
         """Set the same stigmation parameters for all tiles in the grid."""
         for tile in self.__tiles:
@@ -486,6 +487,19 @@ class Grid:
             return mean(stig_x_list), mean(stig_y_list)
         else:
             return None, None
+
+    def average_stig_xy_of_autofocus_ref_tiles(self):
+        stig_x_list = []
+        stig_y_list = []
+        for tile in self.__tiles:
+            if tile.autofocus_active:
+                stig_x, stig_y = tile.stig_xy
+                stig_x_list.append(stig_x)
+                stig_y_list.append(stig_y)
+        if stig_x_list and stig_y_list:
+            return [mean(stig_x_list), mean(stig_y_list)]
+        else:
+            return [None, None]
 
     def reset_wd_stig_xy(self):
         for tile in self.__tiles:
@@ -584,6 +598,14 @@ class Grid:
         scan_speed = self.sem.DWELL_TIME.index(self.dwell_time)
         return self.sem.CYCLE_TIME[size_selector][scan_speed] + 0.2
 
+    def autofocus_ref_tiles(self):
+        """Return tile indices of autofocus ref tiles in this grid."""
+        autofocus_ref_tiles = []
+        for tile_index in self.number_tiles:
+            if self.__tiles[tile_index].autofocus_active:
+                autofocus_ref_tiles.append(tile_index)
+        return autofocus_ref_tiles
+
 
 class GridManager:
 
@@ -633,13 +655,20 @@ class GridManager:
                         wd_gradient_params[i])
             self.__grids.append(grid)
 
-        # Load wd_stig_params
+        # Load working distance and stigmation parameters
         wd_stig_dict = json.loads(self.cfg['grids']['wd_stig_params'])
         for tile_key, wd_stig_xy in wd_stig_dict.items():
             g_str, t_str = tile_key.split('.')
             g, t = int(g_str), int(t_str)
             self.__grids[g][t].wd = wd_stig_xy[0]
             self.__grids[g][t].stig_xy = [wd_stig_xy[1], wd_stig_xy[2]]
+
+        # Load autofocus reference tiles
+        self._autofocus_ref_tiles = json.loads(
+            self.cfg['autofocus']['ref_tiles'])
+        for tile_key in self._autofocus_ref_tiles:
+            g, t = (int(s) for s in tile_key.split('.'))
+            self.__grids[g][t].autofocus_active = True
 
     def __getitem__(self, grid_index):
         """Return the Grid object selected by index."""
@@ -701,8 +730,8 @@ class GridManager:
                 tile_key = str(g) + '.' + str(t)
                 if (self.__grids[g][t].wd > 0
                     and (self.__grids[g][t].tile_active
-                         or self.__grids[g][t].af_ref_tile
-                         or self.__grids[g][t].wd_grad_ref_tile)):
+                         or self.__grids[g][t].autofocus_active
+                         or self.__grids[g][t].wd_grad_active)):
                     # Only save tiles with WD != 0 which are active or
                     # selected for autofocus or wd gradient.
                     wd_stig_dict[tile_key] = [
@@ -712,6 +741,9 @@ class GridManager:
                     ]
         # Save as JSON string in config:
         self.cfg['grids']['wd_stig_params'] = json.dumps(wd_stig_dict)
+        # Also save list of autofocus reference tiles.
+        self.cfg['autofocus']['ref_tiles'] = json.dumps(
+            self.autofocus_ref_tiles)
 
     def add_new_grid(self):
         """Add new grid with default parameters. A new grid is always added
@@ -758,6 +790,13 @@ class GridManager:
         self.number_grids -= 1
         del self.__grids[-1]
 
+    def delete_all_grids_above_index(self, grid_index):
+        """Delete all grids with an index > grid_index. The grid with index 0
+        cannot be deleted."""
+        if grid_index >= 0:
+            self.number_grids = grid_index + 1
+            del self.__grids[self.number_grids:]
+
     def tile_position_for_registration(self, grid_index, tile_index):
         """Provide tile location (upper left corner of tile) in nanometres.
         TODO: What is the best way to deal with grid rotations?
@@ -774,6 +813,14 @@ class GridManager:
         for grid in self.__grids:
             sum_active_tiles += grid.number_active_tiles()
         return sum_active_tiles
+
+    def active_tile_key_list(self):
+        tile_key_list = []
+        for g in range(self.number_grids):
+            for t in self.__grids[g].active_tiles:
+                if self.__grids[g][t].tile_active:
+                    tile_key_list.append(str(g) + '.' + str(t))
+        return tile_key_list
 
     def grid_selector_list(self):
         return ['Grid %d' % g for g in range(self.number_grids)]
@@ -829,6 +876,40 @@ class GridManager:
                         str(self.__grids[g][t].px_py[0]) + ';' +
                         str(self.__grids[g][t].px_py[1]) + '\n')
         return file_name
+
+    def delete_all_autofocus_ref_tiles(self):
+        self._autofocus_ref_tiles = []
+        for g in range(self.number_grids):
+            for t in range(self.__grids[g].number_tiles):
+                self.__grids[g][t].autofocus_active = False
+
+    @property
+    def autofocus_ref_tiles(self):
+        """Return updated list of autofocus_ref_tiles."""
+        self._autofocus_ref_tiles = []
+        for g in range(self.number_grids):
+            for t in range(self.__grids[g].number_tiles):
+                if self.__grids[g][t].autofocus_active:
+                    self._autofocus_ref_tiles.append(str(g) + '.' + str(t))
+        return self._autofocus_ref_tiles
+
+    @autofocus_ref_tiles.setter
+    def autofocus_ref_tiles(self, new_ref_tiles):
+        """Set new autofocus reference tiles and update entries in Tile
+        objects."""
+        self.delete_all_autofocus_ref_tiles()
+        self._autofocus_ref_tiles = new_ref_tiles
+        for tile_key in self._autofocus_ref_tiles:
+            g, t = (int(s) for s in tile_key.split('.'))
+            self.__grids[g][t].autofocus_active = True
+
+    def make_all_active_tiles_autofocus_ref_tiles(self):
+        self.delete_all_autofocus_ref_tiles()
+        for g in range(self.number_grids):
+            for t in self.__grids[g].active_tiles:
+                self._autofocus_ref_tiles.append(str(g) + '.' + str(t))
+                self.__grids[g][t].autofocus_active = True
+
 
 # ----------------------------- MagC functions ---------------------------------
 
@@ -937,9 +1018,7 @@ class GridManager:
         self.set_grid_centre_s(t, targetGridCenter)
         self.update_tile_positions(t)
 
-    def delete_all_but_last_grid(self):
-        for grid_number in range(self.number_grids - 1):
-            self.delete_grid()
+
 
     def update_source_ROIs_from_grids(self):
         if self.cfg['magc']['wafer_calibrated'] == 'True':

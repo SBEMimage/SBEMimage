@@ -2274,18 +2274,18 @@ class AutofocusSettingsDlg(QDialog):
 
     def __init__(self, autofocus, grid_manager, magc_mode=False):
         super().__init__()
-        self.af = autofocus
+        self.autofocus = autofocus
         self.gm = grid_manager
         loadUi('..\\gui\\autofocus_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
-        if self.af.get_method() == 0:
+        if self.autofocus.method == 0:
             self.radioButton_useSmartSEM.setChecked(True)
-        elif self.af.get_method() == 1:
+        elif self.autofocus.method == 1:
             self.radioButton_useHeuristic.setChecked(True)
-        elif self.af.get_method() == 2:
+        elif self.autofocus.method == 2:
             self.radioButton_useTrackingOnly.setChecked(True)
         self.radioButton_useSmartSEM.toggled.connect(self.group_box_update)
         self.radioButton_useHeuristic.toggled.connect(self.group_box_update)
@@ -2293,36 +2293,41 @@ class AutofocusSettingsDlg(QDialog):
         self.group_box_update()
         # General settings
         self.lineEdit_refTiles.setText(
-            str(self.af.get_ref_tiles())[1:-1].replace('\'', ''))
-        if self.af.get_tracking_mode() == 1:
+            str(self.gm.autofocus_ref_tiles)[1:-1].replace('\'', ''))
+        if self.autofocus.tracking_mode == 1:
             self.lineEdit_refTiles.setEnabled(False)
-        max_diff = self.af.get_max_wd_stig_diff()
-        self.doubleSpinBox_maxWDDiff.setValue(max_diff[0] * 1000000)
-        self.doubleSpinBox_maxStigXDiff.setValue(max_diff[1])
-        self.doubleSpinBox_maxStigYDiff.setValue(max_diff[2])
+        self.doubleSpinBox_maxWDDiff.setValue(
+            self.autofocus.max_wd_diff * 1000000)
+        self.doubleSpinBox_maxStigXDiff.setValue(
+            self.autofocus.max_stig_x_diff)
+        self.doubleSpinBox_maxStigYDiff.setValue(
+            self.autofocus.max_stig_y_diff)
         self.comboBox_trackingMode.addItems(['Track selected, approx. others',
                                              'Track all active tiles',
                                              'Average over selected'])
         self.comboBox_trackingMode.setCurrentIndex(
-            self.af.get_tracking_mode())
+            self.autofocus.tracking_mode)
         self.comboBox_trackingMode.currentIndexChanged.connect(
             self.change_tracking_mode)
         # SmartSEM autofocus
-        self.spinBox_interval.setValue(self.af.get_interval())
-        self.spinBox_autostigDelay.setValue(self.af.get_autostig_delay())
-        self.doubleSpinBox_pixelSize.setValue(self.af.get_pixel_size())
+        self.spinBox_interval.setValue(self.autofocus.interval)
+        self.spinBox_autostigDelay.setValue(self.autofocus.autostig_delay)
+        self.doubleSpinBox_pixelSize.setValue(self.autofocus.pixel_size)
         # For heuristic autofocus:
-        deltas = self.af.get_heuristic_deltas()
-        self.doubleSpinBox_wdDiff.setValue(deltas[0] * 1000000)
-        self.doubleSpinBox_stigXDiff.setValue(deltas[1])
-        self.doubleSpinBox_stigYDiff.setValue(deltas[2])
-        calib = self.af.get_heuristic_calibration()
-        self.doubleSpinBox_focusCalib.setValue(calib[0])
-        self.doubleSpinBox_stigXCalib.setValue(calib[1])
-        self.doubleSpinBox_stigYCalib.setValue(calib[2])
-        rot, scale = self.af.get_heuristic_rot_scale()
-        self.doubleSpinBox_stigRot.setValue(rot)
-        self.doubleSpinBox_stigScale.setValue(scale)
+        self.doubleSpinBox_wdDiff.setValue(
+            self.autofocus.wd_delta * 1000000)
+        self.doubleSpinBox_stigXDiff.setValue(
+            self.autofocus.stig_x_delta)
+        self.doubleSpinBox_stigYDiff.setValue(
+            self.autofocus.stig_y_delta)
+        self.doubleSpinBox_focusCalib.setValue(
+            self.autofocus.heuristic_calibration[0])
+        self.doubleSpinBox_stigXCalib.setValue(
+            self.autofocus.heuristic_calibration[1])
+        self.doubleSpinBox_stigYCalib.setValue(
+            self.autofocus.heuristic_calibration[2])
+        self.doubleSpinBox_stigRot.setValue(self.autofocus.rot_angle)
+        self.doubleSpinBox_stigScale.setValue(self.autofocus.scale_factor)
         # Disable some settings if MagC mode is active
         if magc_mode:
             self.radioButton_useHeuristic.setEnabled(False)
@@ -2361,8 +2366,8 @@ class AutofocusSettingsDlg(QDialog):
                 'Continue?',
                 QMessageBox.Ok, QMessageBox.Cancel)
             if response == QMessageBox.Ok:
-                self.lineEdit_refTiles.setText(str(
-                    self.gm.active_tile_selector_list())[1:-1].replace('\'', ''))
+                self.lineEdit_refTiles.setText(
+                    str(self.gm.active_tile_key_list())[1:-1].replace('\'', ''))
                 self.lineEdit_refTiles.setEnabled(False)
             else:
                 # Revert to tracking mode 0:
@@ -2375,38 +2380,38 @@ class AutofocusSettingsDlg(QDialog):
     def accept(self):
         error_str = ''
         if self.radioButton_useSmartSEM.isChecked():
-            self.af.set_method(0)
+            self.autofocus.method = 0
         elif self.radioButton_useHeuristic.isChecked():
-            self.af.set_method(1)
+            self.autofocus.method = 1
         elif self.radioButton_useTrackingOnly.isChecked():
-            self.af.set_method(2)
+            self.autofocus.method = 2
 
         success, tile_list = utils.validate_tile_list(
             self.lineEdit_refTiles.text())
         if success:
-            self.af.set_ref_tiles(tile_list)
+            self.gm.autofocus_ref_tiles = tile_list
         else:
             error_str = 'List of selected tiles badly formatted.'
-        self.af.set_tracking_mode(
+        self.autofocus.tracking_mode = (
             self.comboBox_trackingMode.currentIndex())
-        max_diffs = [self.doubleSpinBox_maxWDDiff.value() / 1000000,
-                     self.doubleSpinBox_maxStigXDiff.value(),
-                     self.doubleSpinBox_maxStigYDiff.value()]
-        self.af.set_max_wd_stig_diff(max_diffs)
-        self.af.set_interval(self.spinBox_interval.value())
-        self.af.set_autostig_delay(self.spinBox_autostigDelay.value())
-        self.af.set_pixel_size(self.doubleSpinBox_pixelSize.value())
-        deltas = [self.doubleSpinBox_wdDiff.value() / 1000000,
-                  self.doubleSpinBox_stigXDiff.value(),
-                  self.doubleSpinBox_stigYDiff.value()]
-        self.af.set_heuristic_deltas(deltas)
-        self.af.set_heuristic_calibration(
-            [self.doubleSpinBox_focusCalib.value(),
-             self.doubleSpinBox_stigXCalib.value(),
-             self.doubleSpinBox_stigYCalib.value()])
-        self.af.set_heuristic_rot_scale(
-            [self.doubleSpinBox_stigRot.value(),
-             self.doubleSpinBox_stigScale.value()])
+        self.autofocus.max_wd_diff = (
+            self.doubleSpinBox_maxWDDiff.value() / 1000000)
+        self.autofocus.max_stig_x_diff = (
+            self.doubleSpinBox_maxStigXDiff.value())
+        self.autofocus.max_stig_y_diff = (
+            self.doubleSpinBox_maxStigYDiff.value())
+        self.autofocus.interval = self.spinBox_interval.value()
+        self.autofocus.autostig_delay = self.spinBox_autostigDelay.value()
+        self.autofocus.pixel_size = self.doubleSpinBox_pixelSize.value()
+        self.autofocus.wd_delta = self.doubleSpinBox_wdDiff.value() / 1000000
+        self.autofocus.stig_x_delta = self.doubleSpinBox_stigXDiff.value()
+        self.autofocus.stig_y_delta = self.doubleSpinBox_stigYDiff.value()
+        self.autofocus.heuristic_calibration = [
+            self.doubleSpinBox_focusCalib.value(),
+            self.doubleSpinBox_stigXCalib.value(),
+            self.doubleSpinBox_stigYCalib.value()]
+        self.autofocus.rot_angle = self.doubleSpinBox_stigRot.value()
+        self.autofocus.scale_factor = self.doubleSpinBox_stigScale.value()
         if not error_str:
             super().accept()
         else:

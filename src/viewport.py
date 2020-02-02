@@ -62,7 +62,7 @@ class Viewport(QWidget):
         self.gm = grid_manager
         self.ovm = ov_manager
         self.cs = coordinate_system
-        self.af = autofocus
+        self.autofocus = autofocus
         self.trigger = trigger
         self.queue = queue
         # Set limits for viewport panning:
@@ -253,9 +253,9 @@ class Viewport(QWidget):
                             new_tile_status = self.gm[
                                 self.selected_grid].toggle_active_tile(
                                 self.selected_tile)
-                            if self.af.get_tracking_mode() == 1:
-                                self.af.toggle_ref_tile(self.selected_grid,
-                                                        self.selected_tile)
+                            if self.autofocus.tracking_mode == 1:
+                                self.gm[self.selected_grid][
+                                        self.selected_tile].autofocus_active ^= True
                             self.add_to_main_log(
                                 f'Tile {self.selected_grid}.'
                                 f'{self.selected_tile}{new_tile_status}')
@@ -267,9 +267,9 @@ class Viewport(QWidget):
                         # first toggle current tile:
                         self.gm[self.selected_grid].toggle_active_tile(
                             self.selected_tile)
-                        if self.af.get_tracking_mode() == 1:
-                            self.af.toggle_ref_tile(self.selected_grid,
-                                                    self.selected_tile)
+                        if self.autofocus.tracking_mode == 1:
+                            self.gm[self.selected_grid][
+                                    self.selected_tile].autofocus_active ^= True
                         self.mv_draw()
                         # Then enter paint mode until mouse button released.
                         self.tile_paint_mode_active = True
@@ -417,9 +417,9 @@ class Viewport(QWidget):
                     or self.selected_grid != prev_selected_grid):
                         self.gm[self.selected_grid].toggle_active_tile(
                             self.selected_tile)
-                        if self.af.get_tracking_mode() == 1:
-                            self.af.toggle_ref_tile(self.selected_grid,
-                                                    self.selected_tile)
+                        if self.autofocus.tracking_mode == 1:
+                            self.gm[self.selected_grid][
+                                    self.selected_tile].autofocus_active ^= True
                         self.mv_draw()
             else:
                 # Disable paint mode when mouse moved beyond grid edge.
@@ -850,7 +850,8 @@ class Viewport(QWidget):
             selected_for_autofocus = selected_for_gradient = 'Select/deselect as'
             if self.selected_grid is not None and self.selected_tile is not None:
                 selected = f'tile {self.selected_grid}.{self.selected_tile}'
-                if self.af.is_ref_tile(self.selected_grid, self.selected_tile):
+                if self.gm[self.selected_grid][
+                           self.selected_tile].autofocus_active:
                     selected_for_autofocus = (
                         f'Deselect tile {self.selected_grid}.'
                         f'{self.selected_tile} as')
@@ -912,7 +913,7 @@ class Viewport(QWidget):
                     action_moveGridCurrentStage.setEnabled(False)
 
             menu.addSeparator()
-            if self.af.get_method() == 2:
+            if self.autofocus.method == 2:
                 action_selectAutofocus = menu.addAction(
                     selected_for_autofocus + ' focus tracking ref.')
             else:
@@ -961,7 +962,7 @@ class Viewport(QWidget):
             if self.selected_tile is None:
                 action_selectAutofocus.setEnabled(False)
                 action_selectGradient.setEnabled(False)
-            if self.af.get_tracking_mode() == 1:
+            if self.autofocus.tracking_mode == 1:
                 action_selectAutofocus.setEnabled(False)
             if self.selected_imported is None:
                 action_adjustImported.setEnabled(False)
@@ -1474,13 +1475,13 @@ class Viewport(QWidget):
                         self.gm[grid_index][tile].wd_grad_active
                         and self.gm[grid_index].use_wd_gradient)
                     show_af_label = (
-                        self.af.is_ref_tile(grid_index, tile)
-                        and self.af.is_active()
-                        and self.af.get_method() < 2)
+                        self.gm[grid_index][tile].autofocus_active
+                        and self.autofocus.active()
+                        and self.autofocus.method < 2)
                     show_tracking_label = (
-                        self.af.is_ref_tile(grid_index, tile)
-                        and self.af.is_active()
-                        and self.af.get_method() == 2)
+                        self.gm[grid_index][tile].autofocus_active
+                        and self.autofocus.active()
+                        and self.autofocus.method == 2)
 
                     if show_grad_label and show_af_label:
                         self.mv_qp.drawText(position_rect,
@@ -1958,8 +1959,8 @@ class Viewport(QWidget):
                 QMessageBox.Ok | QMessageBox.Cancel)
             if user_reply == QMessageBox.Ok:
                 self.gm[self.selected_grid].activate_all_tiles()
-                if self.af.get_tracking_mode() == 1:
-                    self.af.select_all_active_tiles()
+                if self.autofocus.tracking_mode == 1:
+                    self.gm.make_all_active_tiles_autofocus_ref_tiles()
                 self.add_to_main_log('CTRL: All tiles in grid %d selected.'
                                      % self.selected_grid)
                 self.mv_update_after_tile_selection()
@@ -1973,9 +1974,9 @@ class Viewport(QWidget):
                 QMessageBox.Ok | QMessageBox.Cancel)
             if user_reply == QMessageBox.Ok:
                 self.gm[self.selected_grid].deactivate_all_tiles()
-                if self.af.get_tracking_mode() == 1:
-                    self.af.reset_ref_tiles()
-                self.add_to_main_log('CTRL: All tiles in grid %d deselected.'
+                if self.autofocus.tracking_mode == 1:
+                    self.gm.delete_all_autofocus_ref_tiles()
+                self.add_to_main_log('CTRL: All tiles in grid %d deactivated.'
                                      % self.selected_grid)
                 self.mv_update_after_tile_selection()
 
@@ -1996,13 +1997,8 @@ class Viewport(QWidget):
 
     def mv_toggle_tile_autofocus(self):
         if self.selected_grid is not None and self.selected_tile is not None:
-            ref_tiles = self.af.get_ref_tiles()
-            tile_id = str(self.selected_grid) + '.' + str(self.selected_tile)
-            if tile_id in ref_tiles:
-                ref_tiles.remove(tile_id)
-            else:
-                ref_tiles.append(tile_id)
-            self.af.set_ref_tiles(ref_tiles)
+            self.gm[self.selected_grid][
+                    self.selected_tile].autofocus_active ^= True
             self.mv_draw()
 
     def mv_toggle_wd_gradient_ref_tile(self):
