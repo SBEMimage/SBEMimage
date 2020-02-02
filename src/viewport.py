@@ -79,7 +79,7 @@ class Viewport(QWidget):
         # Shared control variables:
         self.acq_in_progress = False
         self.viewport_active = True
-        self.number_grids = self.gm.get_number_grids()
+        self.number_grids = self.gm.number_grids
         self.number_ov = self.ovm.get_number_ov()
         self.number_imported = self.ovm.get_number_imported()
         # for mouse operations (dragging, measuring):
@@ -127,7 +127,7 @@ class Viewport(QWidget):
         self.radioButton_fromSEM.setEnabled(b)
 
     def update_grids(self):
-        self.number_grids = self.gm.get_number_grids()
+        self.number_grids = self.gm.number_grids
         self.mv_current_grid = -1
         self.cfg['viewport']['mv_current_grid'] = '-1'
         if self.sv_current_grid >= self.number_grids:
@@ -250,20 +250,23 @@ class Viewport(QWidget):
                             'the current grid is completed.',
                             QMessageBox.Ok | QMessageBox.Cancel)
                         if user_reply == QMessageBox.Ok:
-                            msg = self.gm.toggle_tile(self.selected_grid,
-                                                      self.selected_tile)
+                            new_tile_status = self.gm[
+                                self.selected_grid].toggle_active_tile(
+                                self.selected_tile)
                             if self.af.get_tracking_mode() == 1:
                                 self.af.toggle_ref_tile(self.selected_grid,
                                                         self.selected_tile)
-                            self.add_to_main_log(msg)
+                            self.add_to_main_log(
+                                f'Tile {self.selected_grid}.'
+                                f'{self.selected_tile}{new_tile_status}')
                             self.mv_update_after_tile_selection()
                             # Make sure folder exists:
                             self.transmit_cmd('ADD TILE FOLDER')
                     else:
                         # If no acquisition in progress,
                         # first toggle current tile:
-                        self.gm.toggle_tile(self.selected_grid,
-                                            self.selected_tile)
+                        self.gm[self.selected_grid].toggle_active_tile(
+                            self.selected_tile)
                         if self.af.get_tracking_mode() == 1:
                             self.af.toggle_ref_tile(self.selected_grid,
                                                     self.selected_tile)
@@ -291,8 +294,7 @@ class Viewport(QWidget):
                     self.grid_drag_active = True
                     self.drag_origin = (px, py)
                     # Save coordinates in case user wants to undo:
-                    self.stage_pos_backup = self.gm.get_grid_origin_s(
-                        self.selected_grid)
+                    self.stage_pos_backup = self.gm[self.selected_grid].origin_sx_sy
 
             # Check if ctrl+alt keys are pressed -> Move imported image:
             elif ((self.tabWidget.currentIndex() == 0)
@@ -413,8 +415,8 @@ class Viewport(QWidget):
                 if ((self.selected_grid == prev_selected_grid
                      and self.selected_tile != prev_selected_tile)
                     or self.selected_grid != prev_selected_grid):
-                        self.gm.toggle_tile(self.selected_grid,
-                                            self.selected_tile)
+                        self.gm[self.selected_grid].toggle_active_tile(
+                            self.selected_tile)
                         if self.af.get_tracking_mode() == 1:
                             self.af.toggle_ref_tile(self.selected_grid,
                                                     self.selected_tile)
@@ -465,8 +467,7 @@ class Viewport(QWidget):
                     QMessageBox.Ok | QMessageBox.Cancel)
                 if user_reply == QMessageBox.Cancel:
                     # Restore origin coordinates:
-                    self.gm.set_grid_origin_s(
-                        self.selected_grid, self.stage_pos_backup)
+                    self.gm[self.selected_grid].origin_sx_sy = self.stage_pos_backup
 
                 # ------ MagC code ------
                 elif self.cfg['sys']['magc_mode'] == 'True':
@@ -647,7 +648,7 @@ class Viewport(QWidget):
         self.comboBox_gridSelectorMV.blockSignals(True)
         self.comboBox_gridSelectorMV.clear()
         self.comboBox_gridSelectorMV.addItems(
-            ['Hide grids', 'All grids'] + self.gm.get_grid_str_list())
+            ['Hide grids', 'All grids'] + self.gm.grid_selector_list())
         self.comboBox_gridSelectorMV.setCurrentIndex(current_grid + 2)
         self.comboBox_gridSelectorMV.blockSignals(False)
 
@@ -857,8 +858,8 @@ class Viewport(QWidget):
                     selected_for_autofocus = (
                         f'Select tile {self.selected_grid}.'
                         f'{self.selected_tile} as')
-                if self.gm.is_wd_gradient_ref_tile(
-                    self.selected_grid, self.selected_tile):
+                if self.gm[self.selected_grid][
+                           self.selected_tile].wd_grad_active:
                     selected_for_gradient = (
                         f'Deselect tile {self.selected_grid}.'
                         f'{self.selected_tile} as')
@@ -889,10 +890,10 @@ class Viewport(QWidget):
                     'Open settings of selected grid')
             action_openGridSettings.triggered.connect(self.mv_open_grid_settings)
             action_selectAll = menu.addAction('Select all tiles ' + grid_str)
-            action_selectAll.triggered.connect(self.mv_select_all_tiles)
+            action_selectAll.triggered.connect(self.mv_activate_all_tiles)
             action_deselectAll = menu.addAction(
                 'Deselect all tiles ' + grid_str)
-            action_deselectAll.triggered.connect(self.mv_deselect_all_tiles)
+            action_deselectAll.triggered.connect(self.mv_deactivate_all_tiles)
             if self.selected_grid is not None:
                 action_changeRotation = menu.addAction(
                     'Change rotation of ' + grid_str[3:])
@@ -1317,22 +1318,23 @@ class Viewport(QWidget):
                       show_previews=False, with_gaps=False,
                       suppress_labels=False):
         mv_scale = self.cs.get_mv_scale()
-        dx, dy = self.gm.get_grid_origin_d(grid_number)
+        dx, dy = self.gm[grid_number].origin_dx_dy
         # Coordinates of grid origin with respect to Viewport canvas:
         origin_vx, origin_vy = self.cs.convert_to_v((dx, dy))
 
         # Calculate top-left corner of the tile grid:
-        dx -= self.gm.get_tile_width_d(grid_number)/2
-        dy -= self.gm.get_tile_height_d(grid_number)/2
+        dx -= self.gm[grid_number].tile_width_d()/2
+        dy -= self.gm[grid_number].tile_height_d()/2
         topleft_vx, topleft_vy = self.cs.convert_to_v((dx, dy))
 
-        width_px, height_px = self.gm.get_grid_size_px_py(grid_number)
+        width_px = self.gm[grid_number].width_p()
+        height_px = self.gm[grid_number].height_p()
 
         viewport_pixel_size = 1000 / mv_scale
-        grid_pixel_size = self.gm.get_pixel_size(grid_number)
+        grid_pixel_size = self.gm[grid_number].pixel_size
         resize_ratio = grid_pixel_size / viewport_pixel_size
 
-        theta = self.gm.get_rotation(grid_number)
+        theta = self.gm[grid_number].rotation
         use_rotation = theta > 0
 
         visible = self.mv_element_is_visible(
@@ -1348,8 +1350,8 @@ class Viewport(QWidget):
             self.mv_qp.translate(origin_vx, origin_vy)
             self.mv_qp.rotate(theta)
             # Translate to top-left corner:
-            self.mv_qp.translate(-self.gm.get_tile_width_d(grid_number)/2 * mv_scale,
-                                 -self.gm.get_tile_height_d(grid_number)/2 * mv_scale)
+            self.mv_qp.translate(-self.gm[grid_number].tile_width_d()/2 * mv_scale,
+                                 -self.gm[grid_number].tile_height_d()/2 * mv_scale)
             # Enable anti-aliasing in this case:
             # self.mv_qp.setRenderHint(QPainter.Antialiasing)
         else:
@@ -1358,14 +1360,14 @@ class Viewport(QWidget):
 
         if with_gaps:
             # Use gapped tile grid, not rotated:
-            tile_map = self.gm.get_gapped_grid_map_p(grid_number)
+            tile_map = self.gm[grid_number].gapped_tile_positions_p()
         else:
             # Tile grid in pixels, not rotated:
-            tile_map = self.gm.get_grid_map_p(grid_number)
+            tile_map = self.gm[grid_number].tile_positions_p()
         # active tiles in current grid:
-        active_tiles = self.gm.get_active_tiles(grid_number)
-        tile_width_v = self.gm.get_tile_width_d(grid_number) * mv_scale
-        tile_height_v = self.gm.get_tile_height_d(grid_number) * mv_scale
+        active_tiles = self.gm[grid_number].active_tiles
+        tile_width_v = self.gm[grid_number].tile_width_d() * mv_scale
+        tile_height_v = self.gm[grid_number].tile_height_d() * mv_scale
         base_dir = self.cfg['acq']['base_dir']
         font_size1 = int(tile_width_v/5)
         font_size1 = utils.fit_in_range(font_size1, 2, 120)
@@ -1378,8 +1380,8 @@ class Viewport(QWidget):
                 and mv_scale > 1.4):
             # Previews are disabled when FOV or grid is being dragged or
             # when sufficiently zoomed out.
-            width_px = self.gm.get_tile_width_p(grid_number)
-            height_px = self.gm.get_tile_height_p(grid_number)
+            width_px = self.gm[grid_number].tile_width_p()
+            height_px = self.gm[grid_number].tile_height_p()
 
             for tile in active_tiles:
                 vx = tile_map[tile][0] * resize_ratio
@@ -1402,9 +1404,9 @@ class Viewport(QWidget):
                     self.mv_qp.drawPixmap(vx, vy, tile_img)
 
         # Display grid lines
-        rows, cols = self.gm.get_grid_size(grid_number)
+        rows, cols = self.gm[grid_number].size
         # Load grid colour:
-        rgb = self.gm.get_display_colour(grid_number)
+        rgb = self.gm[grid_number].display_colour_rgb()
         grid_colour = QColor(rgb[0], rgb[1], rgb[2], 255)
         indicator_colour = QColor(128, 0, 128, 80)
         grid_pen = QPen(grid_colour, 1, Qt.SolidLine)
@@ -1469,8 +1471,8 @@ class Viewport(QWidget):
                         2 * tile_width_v, 2 * tile_height_v)
 
                     show_grad_label = (
-                        self.gm.is_wd_gradient_ref_tile(grid_number, tile)
-                        and self.gm.is_wd_gradient_active(grid_number))
+                        self.gm[grid_number][tile].wd_grad_active
+                        and self.gm[grid_number].use_wd_gradient)
                     show_af_label = (
                         self.af.is_ref_tile(grid_number, tile)
                         and self.af.is_active()
@@ -1503,7 +1505,7 @@ class Viewport(QWidget):
 
                     font.setBold(False)
                     self.mv_qp.setFont(font)
-                    if (self.gm.get_tile_wd(grid_number, tile) != 0
+                    if (self.gm[grid_number][tile].wd > 0
                         and (tile in active_tiles or show_grad_label
                         or show_af_label or show_tracking_label)):
                         position_rect = QRect(
@@ -1515,7 +1517,7 @@ class Viewport(QWidget):
                             position_rect,
                             Qt.AlignVCenter | Qt.AlignHCenter,
                             'WD: {0:.6f}'.format(
-                            self.gm.get_tile_wd(grid_number, tile) * 1000))
+                            self.gm[grid_number][tile].wd * 1000))
         else:
             # Show the grid as a single pixel:
             self.mv_qp.setPen(grid_pen)
@@ -1534,7 +1536,7 @@ class Viewport(QWidget):
             grid_label_rect = QRect(0, -int(4/3 * fontsize),
                                     int(5.3 * fontsize), int(4/3 * fontsize))
             self.mv_qp.drawRect(grid_label_rect)
-            if self.gm.get_display_colour_index(grid_number) in [1, 2, 3]:
+            if self.gm[grid_number].display_colour in [1, 2, 3]:
                 self.mv_qp.setPen(QColor(0, 0, 0))
             else:
                 self.mv_qp.setPen(QColor(255, 255, 255))
@@ -1775,14 +1777,14 @@ class Viewport(QWidget):
     def mv_reposition_grid(self, shift_vector):
         dx, dy = shift_vector
         # current position:
-        (old_grid_origin_dx, old_grid_origin_dy) = \
-            self.gm.get_grid_origin_d(self.selected_grid)
+        old_grid_origin_dx, old_grid_origin_dy = (
+            self.gm[self.selected_grid].origin_dx_dy)
         mv_scale = self.cs.get_mv_scale()
         # Move tiling along shift vector:
         new_grid_origin_dx = old_grid_origin_dx + dx / mv_scale
         new_grid_origin_dy = old_grid_origin_dy + dy / mv_scale
         # Set new origin:
-        self.gm.set_grid_origin_s(self.selected_grid,
+        self.gm[self.selected_grid].origin_sx_sy = (
             self.cs.convert_to_s((new_grid_origin_dx, new_grid_origin_dy)))
 
     def mv_get_current_grid(self):
@@ -1817,30 +1819,30 @@ class Viewport(QWidget):
         # position. Check grids with a higher grid number first.
         for grid_number in grid_range:
             # Calculate origin of the grid with respect to viewport canvas
-            dx, dy = self.gm.get_grid_origin_d(grid_number)
+            dx, dy = self.gm[grid_number].origin_dx_dy
             grid_origin_vx, grid_origin_vy = self.cs.convert_to_v((dx, dy))
             mv_scale = self.cs.get_mv_scale()
-            pixel_size = self.gm.get_pixel_size(grid_number)
+            pixel_size = self.gm[grid_number].pixel_size
             # Calculate top-left corner of unrotated grid
-            dx -= self.gm.get_tile_width_d(grid_number)/2
-            dy -= self.gm.get_tile_height_d(grid_number)/2
+            dx -= self.gm[grid_number].tile_width_d()/2
+            dy -= self.gm[grid_number].tile_height_d()/2
             grid_topleft_vx, grid_topleft_vy = self.cs.convert_to_v((dx, dy))
-            cols = self.gm.get_number_cols(grid_number)
-            rows = self.gm.get_number_rows(grid_number)
-            overlap = self.gm.get_overlap(grid_number)
-            tile_width_p = self.gm.get_tile_width_p(grid_number)
-            tile_height_p = self.gm.get_tile_height_p(grid_number)
+            cols = self.gm[grid_number].number_cols()
+            rows = self.gm[grid_number].number_rows()
+            overlap = self.gm[grid_number].overlap
+            tile_width_p = self.gm[grid_number].tile_width_p()
+            tile_height_p = self.gm[grid_number].tile_height_p()
             # Tile width in viewport pixels taking overlap into account
             tile_width_v = ((tile_width_p - overlap) * pixel_size
                             / 1000 * mv_scale)
             tile_height_v = ((tile_height_p - overlap) * pixel_size
                              / 1000 * mv_scale)
             # Row shift in viewport pixels
-            shift_v = (self.gm.get_row_shift(grid_number) * pixel_size
+            shift_v = (self.gm[grid_number].row_shift * pixel_size
                        / 1000 * mv_scale)
             # Mouse click position relative to top-left corner of grid
             x, y = px - grid_topleft_vx, py - grid_topleft_vy
-            theta = radians(self.gm.get_rotation(grid_number))
+            theta = radians(self.gm[grid_number].rotation)
             if theta > 0:
                 # Rotate the mouse click coordinates if grid is rotated.
                 # Use grid origin as pivot:
@@ -1947,30 +1949,30 @@ class Viewport(QWidget):
                             break
         return selected_imported
 
-    def mv_select_all_tiles(self):
+    def mv_activate_all_tiles(self):
         if self.selected_grid is not None:
             user_reply = QMessageBox.question(
-                self, 'Selecting all tiles in grid',
-                f'This will select all tiles in grid {self.selected_grid}. '
+                self, 'Set all tiles in grid to "active"',
+                f'This will activate all tiles in grid {self.selected_grid}. '
                 f'Proceed?',
                 QMessageBox.Ok | QMessageBox.Cancel)
             if user_reply == QMessageBox.Ok:
-                self.gm.select_all_tiles(self.selected_grid)
+                self.gm[self.selected_grid].activate_all_tiles()
                 if self.af.get_tracking_mode() == 1:
                     self.af.select_all_active_tiles()
                 self.add_to_main_log('CTRL: All tiles in grid %d selected.'
                                      % self.selected_grid)
                 self.mv_update_after_tile_selection()
 
-    def mv_deselect_all_tiles(self):
+    def mv_deactivate_all_tiles(self):
        if self.selected_grid is not None:
             user_reply = QMessageBox.question(
-                self, 'Deselecting all tiles in grid',
-                f'This will deselect all tiles in grid {self.selected_grid}. '
+                self, 'Deactivating all tiles in grid',
+                f'This will deactivate all tiles in grid {self.selected_grid}. '
                 f'Proceed?',
                 QMessageBox.Ok | QMessageBox.Cancel)
             if user_reply == QMessageBox.Ok:
-                self.gm.reset_active_tiles(self.selected_grid)
+                self.gm[self.selected_grid].deactivate_all_tiles()
                 if self.af.get_tracking_mode() == 1:
                     self.af.reset_ref_tiles()
                 self.add_to_main_log('CTRL: All tiles in grid %d deselected.'
@@ -1986,8 +1988,8 @@ class Viewport(QWidget):
     def mv_move_grid_current_stage(self):
         grid_number = self.selected_grid
         x, y = self.stage.get_xy()
-        self.gm.set_grid_centre_s(grid_number, [x, y])
-        self.gm.calculate_grid_map(grid_number)
+        self.gm[grid_number].centre_sx_sy = [x, y]
+        self.gm[grid_number].update_tile_positions()
         self.cfg['magc']['roi_mode'] = 'False'
         self.gm.update_source_ROIs_from_grids()
         self.mv_draw()
@@ -2005,16 +2007,16 @@ class Viewport(QWidget):
 
     def mv_toggle_wd_gradient_ref_tile(self):
         if self.selected_grid is not None and self.selected_tile is not None:
-            af_tiles = self.gm.get_wd_gradient_ref_tiles(self.selected_grid)
-            if self.selected_tile in af_tiles:
-                af_tiles[af_tiles.index(self.selected_tile)] = -1
+            ref_tiles = self.gm[self.selected_grid].wd_gradient_ref_tiles
+            if self.selected_tile in ref_tiles:
+                ref_tiles[ref_tiles.index(self.selected_tile)] = -1
             else:
                 # Let user choose the intended relative position of the tile:
-                dialog = FocusGradientTileSelectionDlg(af_tiles)
+                dialog = FocusGradientTileSelectionDlg(ref_tiles)
                 if dialog.exec_():
                     if dialog.selected is not None:
-                        af_tiles[dialog.selected] = self.selected_tile
-            self.gm.set_wd_gradient_ref_tiles(self.selected_grid, af_tiles)
+                        ref_tiles[dialog.selected] = self.selected_tile
+            self.gm[self.selected_grid].wd_gradient_ref_tiles = ref_tiles
             self.transmit_cmd('UPDATE FT TILE SELECTOR')
             self.mv_draw()
 
@@ -2092,7 +2094,7 @@ class Viewport(QWidget):
 
     def mv_propagate_grid_all_sections(self):
         clicked_section_number = self.selected_grid
-        section_number = self.gm.get_number_grids()
+        section_number = self.gm.number_grids
 
         # load original sections from file which might be different from
         # the grids adjusted in SBEMImage
@@ -2199,7 +2201,7 @@ class Viewport(QWidget):
             current_grid = 0
         self.comboBox_gridSelectorSV.blockSignals(True)
         self.comboBox_gridSelectorSV.clear()
-        self.comboBox_gridSelectorSV.addItems(self.gm.get_grid_str_list())
+        self.comboBox_gridSelectorSV.addItems(self.gm.grid_selector_list())
         self.comboBox_gridSelectorSV.setCurrentIndex(current_grid)
         self.comboBox_gridSelectorSV.blockSignals(False)
 
@@ -2208,7 +2210,7 @@ class Viewport(QWidget):
         self.comboBox_tileSelectorSV.clear()
         self.comboBox_tileSelectorSV.addItems(
             ['Select tile']
-            + self.gm.get_tile_str_list(self.sv_current_grid))
+            + self.gm[self.sv_current_grid].tile_selector_list())
         self.comboBox_tileSelectorSV.setCurrentIndex(current_tile + 1)
         self.comboBox_tileSelectorSV.blockSignals(False)
 
@@ -2498,7 +2500,7 @@ class Viewport(QWidget):
         elif self.sv_current_tile >= 0:
             previous_scaling = self.sv_scale_tile
             # Tile pixel size:
-            tile_pixel_size = self.gm.get_pixel_size(self.sv_current_grid)
+            tile_pixel_size = self.gm[self.sv_current_grid].pixel_size
             self.sv_scale_tile = self.VIEWER_WIDTH / tile_pixel_size
             ratio = self.sv_scale_tile/previous_scaling
             current_offset_x = int(self.cfg['viewport']['sv_offset_x_tile'])
@@ -2545,7 +2547,7 @@ class Viewport(QWidget):
             resize_ratio = ov_pixel_size / viewport_pixel_size
         else:
             viewport_pixel_size = 1000 / self.sv_scale_tile
-            tile_pixel_size = self.gm.get_pixel_size(self.sv_current_grid)
+            tile_pixel_size = self.gm[self.sv_current_grid].pixel_size
             resize_ratio = tile_pixel_size / viewport_pixel_size
 
         if len(self.slice_view_images) > 0:
@@ -2668,9 +2670,9 @@ class Viewport(QWidget):
             current_offset_y = int(self.cfg['viewport']['sv_offset_y_tile'])
             new_offset_x = current_offset_x - dx
             new_offset_y = current_offset_y - dy
-            width, height = self.gm.get_tile_size_px_py(self.sv_current_grid)
+            width, height = self.gm[self.sv_current_grid].tile_size
             viewport_pixel_size = 1000 / self.sv_scale_tile
-            tile_pixel_size = self.gm.get_pixel_size(self.sv_current_grid)
+            tile_pixel_size = self.gm[self.sv_current_grid].pixel_size
             resize_ratio = tile_pixel_size / viewport_pixel_size
             if self.sv_img_within_boundaries(new_offset_x, new_offset_y,
                                              width, height, resize_ratio):
@@ -2728,9 +2730,9 @@ class Viewport(QWidget):
             self.horizontalSlider_SV.blockSignals(True)
             self.horizontalSlider_SV.setValue(0)
             self.horizontalSlider_SV.blockSignals(False)
-            width, height = self.gm.get_tile_size_px_py(self.sv_current_grid)
+            width, height = self.gm[self.sv_current_grid].tile_size
             viewport_pixel_size = 1000 / self.sv_scale_tile
-            tile_pixel_size = self.gm.get_pixel_size(self.sv_current_grid)
+            tile_pixel_size = self.gm[self.sv_current_grid].pixel_size
             resize_ratio = tile_pixel_size / viewport_pixel_size
             self.cfg['viewport']['sv_offset_x_tile'] = str(
                 int(500 - (width/2) * resize_ratio))
@@ -2859,7 +2861,7 @@ class Viewport(QWidget):
             current_grid = 0
         self.comboBox_gridSelectorM.blockSignals(True)
         self.comboBox_gridSelectorM.clear()
-        self.comboBox_gridSelectorM.addItems(self.gm.get_grid_str_list())
+        self.comboBox_gridSelectorM.addItems(self.gm.grid_selector_list())
         self.comboBox_gridSelectorM.setCurrentIndex(current_grid)
         self.comboBox_gridSelectorM.blockSignals(False)
 
@@ -2870,7 +2872,7 @@ class Viewport(QWidget):
         self.comboBox_tileSelectorM.clear()
         self.comboBox_tileSelectorM.addItems(
             ['Select tile']
-            + self.gm.get_tile_str_list(self.m_current_grid))
+            + self.gm[self.m_current_grid].tile_selector_list())
         self.comboBox_tileSelectorM.setCurrentIndex(current_tile + 1)
         self.comboBox_tileSelectorM.blockSignals(False)
 

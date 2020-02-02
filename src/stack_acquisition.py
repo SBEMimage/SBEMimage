@@ -235,10 +235,10 @@ class Stack():
         total_imaging_time = 0
 
         max_offset_slice_number = max(
-            self.gm.get_max_acq_interval_offset(),
+            self.gm.max_acq_interval_offset(),
             self.ovm.get_max_ov_acq_interval_offset())
         max_interval_slice_number = max(
-            self.gm.get_max_acq_interval(),
+            self.gm.max_acq_interval(),
             self.ovm.get_max_ov_acq_interval())
 
         # Calculate estimates until max_offset_slice_number, then starting from
@@ -269,22 +269,21 @@ class Stack():
                                           * self.ovm.get_ov_height_p(ov_number))
                             amount_of_data += frame_size
                 # Run through all grids
-                for grid_number in range(self.gm.get_number_grids()):
-                    if self.gm.is_slice_active(grid_number, slice_counter):
-                        for tile_number in self.gm.get_active_tiles(grid_number):
-                            x1, y1 = self.gm.get_tile_coordinates_s(
-                                grid_number, tile_number)
+                for grid_number in range(self.gm.number_grids):
+                    if self.gm[grid_number].slice_active(slice_counter):
+                        for tile_number in self.gm[grid_number].active_tiles:
+                            x1, y1 = self.gm[grid_number][tile_number].sx_sy
                             stage_move_time += (
                                 self.stage.calculate_stage_move_duration(
                                     x0, y0, x1, y1))
                             x0, y0 = x1, y1
-                        number_active_tiles = self.gm.get_number_active_tiles(
-                            grid_number)
+                        number_active_tiles = (
+                            self.gm[grid_number].number_active_tiles())
                         imaging_time += (
-                            self.gm.get_tile_cycle_time(grid_number)
+                            self.gm[grid_number].tile_cycle_time()
                             * number_active_tiles)
-                        frame_size = (self.gm.get_tile_width_p(grid_number)
-                                      * self.gm.get_tile_height_p(grid_number))
+                        frame_size = (self.gm[grid_number].tile_width_p()
+                                      * self.gm[grid_number].tile_height_p())
                         amount_of_data += frame_size * number_active_tiles
                 # Move back to starting position
                 if take_overviews:
@@ -323,14 +322,13 @@ class Stack():
         total_data = amount_of_data_0 + amount_of_data_1
 
         # Calculate grid area and electron dose range
-        for grid_number in range(self.gm.get_number_grids()):
-            number_active_tiles = self.gm.get_number_active_tiles(
-                grid_number)
+        for grid_number in range(self.gm.number_grids):
+            number_active_tiles = self.gm[grid_number].number_active_tiles()
             total_grid_area += (number_active_tiles
-                                * self.gm.get_tile_width_d(grid_number)
-                                * self.gm.get_tile_height_d(grid_number))
-            dwell_time = self.gm.get_dwell_time(grid_number)
-            pixel_size = self.gm.get_pixel_size(grid_number)
+                                * self.gm[grid_number].tile_width_d()
+                                * self.gm[grid_number].tile_height_d())
+            dwell_time = self.gm[grid_number].dwell_time
+            pixel_size = self.gm[grid_number].pixel_size
             dose = utils.calculate_electron_dose(current, dwell_time, pixel_size)
             if (min_dose is None) or (dose < min_dose):
                 min_dose = dose
@@ -441,11 +439,11 @@ class Stack():
             ov_dir = os.path.join(
                 'overviews', 'ov' + str(ov_number).zfill(utils.OV_DIGITS))
             subdirectory_list.append(ov_dir)
-        for grid_number in range(self.gm.get_number_grids()):
+        for grid_number in range(self.gm.number_grids):
             grid_dir = os.path.join(
                 'tiles', 'g' + str(grid_number).zfill(utils.GRID_DIGITS))
             subdirectory_list.append(grid_dir)
-            for tile_number in self.gm.get_active_tiles(grid_number):
+            for tile_number in self.gm[grid_number].active_tiles:
                 tile_dir = os.path.join(
                     grid_dir, 't' + str(tile_number).zfill(utils.TILE_DIGITS))
                 subdirectory_list.append(tile_dir)
@@ -476,7 +474,7 @@ class Stack():
             with open(config_filename, 'w') as f:
                 self.cfg.write(f)
             # Save current grid setup:
-            gridmap_filename = self.gm.save_grid_setup(timestamp)
+            gridmap_filename = self.gm.save_tile_positions_to_disk(timestamp)
             # Create main log file:
             self.main_log_filename = os.path.join(
                 self.base_dir, 'meta', 'logs', 'log_' + timestamp + '.txt')
@@ -556,7 +554,7 @@ class Stack():
             self.add_to_main_log('CTRL: Stack started.')
 
         number_ov = self.ovm.get_number_ov()
-        number_grids = self.gm.get_number_grids()
+        number_grids = self.gm.number_grids
         self.first_ov = [True] * number_ov
         self.img_inspector.reset_tile_stats()
 
@@ -611,17 +609,15 @@ class Stack():
         sleep(1)
 
         for grid_number in range(number_grids):
-            if not self.gm.is_wd_gradient_active(grid_number):
-                self.gm.set_initial_wd_stig_for_grid(grid_number,
-                                                     self.wd_current_grid,
-                                                     self.stig_x_current_grid,
-                                                     self.stig_y_current_grid)
+            if not self.gm[grid_number].wd_gradient_active():
+                self.gm[grid_number].set_wd_stig_xy_for_uninitialized_tiles(
+                    self.wd_current_grid,
+                    [self.stig_x_current_grid, self.stig_y_current_grid])
             else:
                 # Set stig values to current settings for each tile if
                 # focus gradient used
-                self.gm.set_stig_for_grid(grid_number,
-                                          self.stig_x_current_grid,
-                                          self.stig_y_current_grid)
+                self.gm[grid_number].set_stig_xy_for_all_tiles(
+                    [self.stig_x_current_grid, self.stig_y_current_grid])
 
         for ov_number in range(number_ov):
             self.ovm.set_ov_wd(ov_number, 0)
@@ -820,9 +816,8 @@ class Stack():
                 if self.error_state > 0 or self.pause_state == 1:
                         break
 
-                if self.gm.is_slice_active(grid_number, self.slice_counter):
-                    num_active_tiles = self.gm.get_number_active_tiles(
-                        grid_number)
+                if self.gm[grid_number].slice_active(self.slice_counter):
+                    num_active_tiles = self.gm[grid_number].number_active_tiles
                     self.add_to_main_log('CTRL: Grid ' + str(grid_number)
                                   + ', number of active tiles: '
                                   + str(num_active_tiles))
@@ -1577,8 +1572,7 @@ class Stack():
         # Check if file already exists:
         if (not os.path.isfile(save_path) or retake_img):
             # Read target coordinates for current tile:
-            stage_x, stage_y = self.gm.get_tile_coordinates_s(
-                grid_number, tile_number)
+            stage_x, stage_y = self.gm[grid_number][tile_number].sx_sy
             # Move to that position:
             self.add_to_main_log('3VIEW: Moving stage to position '
                           'of tile %s' % tile_id)
@@ -1748,7 +1742,7 @@ class Stack():
         frozen in SmartSEM and no further frames can be acquired ('frozen frame
         error'): Try to 'unfreeze' by switching to a different store resolution
         and then back to the grid's original store resolution."""
-        target_store_res = self.gm.get_tile_size_selector(grid_number)
+        target_store_res = self.gm[grid_number].tile_size_selector()
         if target_store_res == 0:
             self.sem.set_frame_size(1)
         else:
@@ -1760,9 +1754,9 @@ class Stack():
     def acquire_grid(self, grid_number):
         """Acquire all active tiles of grid specified by grid_number"""
 
-        self.use_wd_gradient = self.gm.is_wd_gradient_active(grid_number)
+        self.use_wd_gradient = self.gm[grid_number].wd_gradient_active()
         # Get size and active tiles  (using list() to get a copy)
-        active_tiles = list(self.gm.get_active_tiles(grid_number))
+        active_tiles = list(self.gm[grid_number].active_tiles)
 
         # WD and stig must be adjusted for each tile if focus gradient is active
         # or if autofocus is used with "track all" or "best fit" option.
@@ -1778,7 +1772,7 @@ class Stack():
                 'tiles in grid %d' % grid_number)
 
             if self.cfg['sys']['magc_mode'] == 'True':
-                grid_centre_d = self.gm.get_grid_centre_d(grid_number)
+                grid_centre_d = self.gm[grid_number].centre_dx_dy
                 self.cs.set_mv_centre_d(grid_centre_d)
                 self.transmit_cmd('DRAW MV')
                 self.transmit_cmd('SET SECTION STATE GUI-'
@@ -1787,9 +1781,9 @@ class Stack():
 
             # Switch to specified settings of the current grid
             self.sem.apply_frame_settings(
-                self.gm.get_tile_size_selector(grid_number),
-                self.gm.get_pixel_size(grid_number),
-                self.gm.get_dwell_time(grid_number))
+                self.gm[grid_number].tile_size_selector,
+                self.gm[grid_number].pixel_size,
+                self.gm[grid_number].dwell_time)
 
             # Delay necessary for Gemini? (change of mag)
             sleep(0.2)
@@ -1803,7 +1797,7 @@ class Stack():
                     if not (tile in active_tiles):
                         self.tiles_acquired.remove(tile)
 
-            tile_width, tile_height = self.gm.get_tile_size_px_py(grid_number)
+            tile_width, tile_height = self.gm[grid_number].tile_size
 
             # Set WD and stig settings for the current grid and lock the settings
             if not adjust_wd_stig_for_each_tile:
@@ -1812,7 +1806,7 @@ class Stack():
                     self.set_grid_wd_stig()
                 self.lock_wd_stig()
 
-            theta = self.gm.get_rotation(grid_number)
+            theta = self.gm[grid_number].rotation
             if self.cfg['sys']['magc_mode'] == 'False':
                 theta = 360 - theta
             if theta > 0:
@@ -1827,8 +1821,8 @@ class Stack():
                 # Individual WD/stig adjustment for tile, if necessary:
                 if (adjust_wd_stig_for_each_tile
                 and self.cfg['sys']['magc_mode'] == 'False'):
-                    new_wd = self.gm.get_tile_wd(grid_number, tile_number)
-                    new_stig_xy = self.gm.get_tile_stig_xy(grid_number, tile_number)
+                    new_wd = self.gm[grid_number][tile_number].wd
+                    new_stig_xy = self.gm[grid_number][tile_number].stig_xy
                     self.sem.set_wd(new_wd)
                     self.sem.set_stig_xy(*new_stig_xy)
                     self.log_wd_stig(new_wd, new_stig_xy[0], new_stig_xy[1])
@@ -1930,7 +1924,7 @@ class Stack():
                 self.cfg['acq']['tiles_acquired'] = '[]'
 
                 if self.cfg['sys']['magc_mode'] == 'True':
-                    grid_centre_d = self.gm.get_grid_centre_d(grid_number)
+                    grid_centre_d = self.gm[grid_number].centre_dx_dy
                     self.cs.set_mv_centre_d(grid_centre_d)
                     self.transmit_cmd('DRAW MV')
                     self.transmit_cmd('SET SECTION STATE GUI-'
@@ -1946,7 +1940,7 @@ class Stack():
         tile_id = utils.get_tile_id(grid_number, tile_number,
                                     self.slice_counter)
         global_x, global_y = (
-            self.gm.get_tile_coordinates_for_registration(
+            self.gm.tile_position_for_registration(
                 grid_number, tile_number))
         global_z = int(self.total_z_diff * 1000)
         tileinfo_str = (save_path + ';'
@@ -1991,8 +1985,7 @@ class Stack():
         """
         if do_move:
             # Read target coordinates for current tile:
-            stage_x, stage_y = self.gm.get_tile_coordinates_s(
-                grid_number, tile_number)
+            stage_x, stage_y = self.gm[grid_number][tile_number].sx_sy
             # Move to that position:
             self.add_to_main_log(
                 '3VIEW: Moving stage to position of tile '
@@ -2044,18 +2037,18 @@ class Stack():
                 self.error_state = 507
             else:
                 # Save settings for current tile:
-                self.gm.set_tile_wd(grid_number, tile_number, self.sem.get_wd())
-                self.gm.set_tile_stig_xy(grid_number, tile_number,
-                                        *self.sem.get_stig_xy())
+                self.gm[grid_number][tile_number].wd = self.sem.get_wd()
+                self.gm[grid_number][tile_number].stig_xy = list(
+                    self.sem.get_stig_xy())
 
                 # Show updated WD in viewport:
                 self.transmit_cmd('DRAW MV')
 
             # Restore grid settings for tile acquisition:
             self.sem.apply_frame_settings(
-                self.gm.get_tile_size_selector(grid_number),
-                self.gm.get_pixel_size(grid_number),
-                self.gm.get_dwell_time(grid_number))
+                self.gm[grid_number].tile_size_selector,
+                self.gm[grid_number].pixel_size,
+                self.gm[grid_number].dwell_time)
             # Delay necessary for Gemini (change of mag):
             sleep(0.2)
 
@@ -2063,7 +2056,7 @@ class Stack():
         """If non-active tiles are selected for the SmartSEM autofocus, call the
         autofocus on them one by one before the grid acquisition starts."""
         autofocus_tiles = self.af.get_ref_tiles_in_grid(grid_number)
-        active_tiles = self.gm.get_active_tiles(grid_number)
+        active_tiles = self.gm[grid_number].active_tiles
         # Perform Zeiss autofocus for non-active autofocus tiles:
         for tile_number in autofocus_tiles:
             if tile_number not in active_tiles:
@@ -2120,8 +2113,9 @@ class Stack():
                 self.stig_x_current_grid = avg_grid_stig_x
                 self.stig_y_current_grid = avg_grid_stig_y
                 # Update grid:
-                self.gm.set_wd_stig_for_grid(
-                    grid_number, avg_grid_wd, avg_grid_stig_x, avg_grid_stig_y)
+                self.gm[grid_number].set_wd_for_all_tiles(avg_grid_wd)
+                self.gm[grid_number].set_stig_xy_for_all_tiles(
+                    [avg_grid_stig_x, avg_grid_stig_y])
                 #else:
                 #    self.add_to_main_log(
                 #        'CTRL: Error: Difference in WD/STIG too large.')

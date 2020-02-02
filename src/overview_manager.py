@@ -18,7 +18,7 @@ import json
 import utils
 
 
-class OverviewManager(object):
+class OverviewManager:
 
     def __init__(self, config, sem, coordinate_system):
         self.cfg = config
@@ -612,10 +612,10 @@ class OverviewManager(object):
             top_left_dx_min, top_left_dy_min = None, None
             bottom_right_dx_max, bottom_right_dy_max = None, None
             # Check all grids for active tile overlap with OV
-            for grid_number in range(gm.get_number_grids()):
-                for tile_number in gm.get_active_tiles(grid_number):
+            for grid_number in range(gm.number_grids):
+                for tile_number in gm[grid_number].active_tiles:
                     (min_dx, max_dx, min_dy, max_dy) = (
-                        gm.get_tile_bounding_box(grid_number, tile_number))
+                        gm[grid_number].tile_bounding_box(tile_number))
                     # Is tile within OV?
                     overlap = not (min_dx >= ov_bottom_right_dx
                                    or min_dy >= ov_bottom_right_dy

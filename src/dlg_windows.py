@@ -1043,7 +1043,7 @@ class GridSettingsDlg(QDialog):
         self.setFixedSize(self.size())
         self.show()
         # Set up grid selector:
-        self.comboBox_gridSelector.addItems(self.gm.get_grid_str_list())
+        self.comboBox_gridSelector.addItems(self.gm.grid_selector_list())
         self.comboBox_gridSelector.setCurrentIndex(self.current_grid)
         self.comboBox_gridSelector.currentIndexChanged.connect(
             self.change_grid)
@@ -1082,28 +1082,28 @@ class GridSettingsDlg(QDialog):
 
     def show_current_settings(self):
         self.comboBox_colourSelector.setCurrentIndex(
-            self.gm.get_display_colour_index(self.current_grid))
+            self.gm[self.current_grid].display_colour)
         # Adaptive focus:
         self.checkBox_focusGradient.setChecked(
-            self.gm.is_wd_gradient_active(self.current_grid))
+            self.gm[self.current_grid].use_wd_gradient)
 
-        self.spinBox_rows.setValue(self.gm.get_number_rows(self.current_grid))
-        self.spinBox_cols.setValue(self.gm.get_number_cols(self.current_grid))
-        self.spinBox_overlap.setValue(self.gm.get_overlap(self.current_grid))
+        self.spinBox_rows.setValue(self.gm[self.current_grid].number_rows())
+        self.spinBox_cols.setValue(self.gm[self.current_grid].number_cols())
+        self.spinBox_overlap.setValue(self.gm[self.current_grid].overlap)
         self.doubleSpinBox_rotation.setValue(
-            self.gm.get_rotation(self.current_grid))
-        self.spinBox_shift.setValue(self.gm.get_row_shift(self.current_grid))
+            self.gm[self.current_grid].rotation)
+        self.spinBox_shift.setValue(self.gm[self.current_grid].row_shift)
 
         self.doubleSpinBox_pixelSize.setValue(
-            self.gm.get_pixel_size(self.current_grid))
+            self.gm[self.current_grid].pixel_size)
         self.comboBox_tileSize.setCurrentIndex(
-            self.gm.get_tile_size_selector(self.current_grid))
+            self.gm[self.current_grid].tile_size_selector)
         self.comboBox_dwellTime.setCurrentIndex(
-            self.gm.get_dwell_time_selector(self.current_grid))
+            self.gm[self.current_grid].dwell_time_selector)
         self.spinBox_acqInterval.setValue(
-            self.gm.get_acq_interval(self.current_grid))
+            self.gm[self.current_grid].acq_interval)
         self.spinBox_acqIntervalOffset.setValue(
-            self.gm.get_acq_interval_offset(self.current_grid))
+            self.gm[self.current_grid].acq_interval_offset)
 
     def show_tile_size_and_dose(self):
         """Calculate and display the tile size and the dose for the current
@@ -1139,18 +1139,18 @@ class GridSettingsDlg(QDialog):
             self.pushButton_deleteGrid.setEnabled(False)
         else:
             self.pushButton_deleteGrid.setEnabled(
-                self.current_grid == self.gm.get_number_grids() - 1)
+                self.current_grid == (self.gm.number_grids - 1))
         self.pushButton_save.setText(
             'Save settings for grid %d' % self.current_grid)
         self.pushButton_deleteGrid.setText('Delete grid %d' % self.current_grid)
 
     def add_grid(self):
         self.gm.add_new_grid()
-        self.current_grid = self.gm.get_number_grids() - 1
+        self.current_grid = self.gm.number_grids - 1
         # Update grid selector:
         self.comboBox_gridSelector.blockSignals(True)
         self.comboBox_gridSelector.clear()
-        self.comboBox_gridSelector.addItems(self.gm.get_grid_str_list())
+        self.comboBox_gridSelector.addItems(self.gm.grid_selector_list())
         self.comboBox_gridSelector.setCurrentIndex(self.current_grid)
         self.comboBox_gridSelector.blockSignals(False)
         self.update_buttons()
@@ -1167,11 +1167,11 @@ class GridSettingsDlg(QDialog):
                         QMessageBox.Ok | QMessageBox.Cancel)
         if user_reply == QMessageBox.Ok:
             self.gm.delete_grid()
-            self.current_grid = self.gm.get_number_grids() - 1
+            self.current_grid = self.gm.number_grids - 1
             # Update grid selector:
             self.comboBox_gridSelector.blockSignals(True)
             self.comboBox_gridSelector.clear()
-            self.comboBox_gridSelector.addItems(self.gm.get_grid_str_list())
+            self.comboBox_gridSelector.addItems(self.gm.grid_selector_list())
             self.comboBox_gridSelector.setCurrentIndex(self.current_grid)
             self.comboBox_gridSelector.blockSignals(False)
             self.update_buttons()
@@ -1188,54 +1188,54 @@ class GridSettingsDlg(QDialog):
             f'Proceed?',
             QMessageBox.Ok | QMessageBox.Cancel)
         if user_reply == QMessageBox.Ok:
-            self.gm.reset_wd_stig_params(self.current_grid)
+            self.gm[self.current_grid].set_wd_for_all_tiles(0)
+            self.gm[self.current_grid].set_stig_xy_for_all_tiles([0, 0])
             self.main_window_queue.put('GRID SETTINGS CHANGED')
             self.main_window_trigger.s.emit()
 
     def save_current_settings(self):
         if self.cfg['sys']['magc_mode'] == 'True':
-            grid_center = self.gm.get_grid_centre_s(self.current_grid)
+            grid_center = self.gm[self.current_grid].centre_sx_sy
 
         error_msg = ''
-        self.gm.set_grid_size(self.current_grid,
-                              (self.spinBox_rows.value(),
-                              self.spinBox_cols.value()))
-        self.gm.set_tile_size_selector(self.current_grid,
-                                       self.comboBox_tileSize.currentIndex())
-        tile_width_p = self.gm.get_tile_width_p(self.current_grid)
+        self.gm[self.current_grid].size = [self.spinBox_rows.value(),
+                                           self.spinBox_cols.value()]
+        self.gm[self.current_grid].tile_size_selector = (
+            self.comboBox_tileSize.currentIndex())
+        tile_width_p = self.gm[self.current_grid].tile_width_p()
         input_overlap = self.spinBox_overlap.value()
         input_shift = self.spinBox_shift.value()
         if -0.3 * tile_width_p <= input_overlap < 0.3 * tile_width_p:
-            self.gm.set_overlap(self.current_grid, input_overlap)
+            self.gm[self.current_grid].overlap = input_overlap
         else:
             error_msg = ('Overlap outside of allowed '
                          'range (-30% .. 30% frame width).')
-        self.gm.set_rotation(
-            self.current_grid, self.doubleSpinBox_rotation.value())
+        self.gm[self.current_grid].rotation = (
+            self.doubleSpinBox_rotation.value())
         if 0 <= input_shift <= tile_width_p:
-            self.gm.set_row_shift(self.current_grid, input_shift)
+            self.gm[self.current_grid].row_shift = input_shift
         else:
             error_msg = ('Row shift outside of allowed '
                          'range (0 .. frame width).')
-        self.gm.set_display_colour(
-            self.current_grid, self.comboBox_colourSelector.currentIndex())
-        self.gm.set_wd_gradient_enabled(self.current_grid,
+        self.gm[self.current_grid].display_colour = (
+            self.comboBox_colourSelector.currentIndex())
+        self.gm[self.current_grid].use_wd_gradient = (
             self.checkBox_focusGradient.isChecked())
         if self.checkBox_focusGradient.isChecked():
-            self.gm.calculate_wd_gradient(self.current_grid)
+            self.gm[self.current_grid].calculate_wd_gradient()
         # Acquisition parameters:
-        self.gm.set_pixel_size(self.current_grid,
+        self.gm[self.current_grid].pixel_size = (
             self.doubleSpinBox_pixelSize.value())
-        self.gm.set_dwell_time_selector(self.current_grid,
+        self.gm[self.current_grid].dwell_time_selector = (
             self.comboBox_dwellTime.currentIndex())
-        self.gm.set_acq_interval(
-            self.current_grid, self.spinBox_acqInterval.value())
-        self.gm.set_acq_interval_offset(
-            self.current_grid, self.spinBox_acqIntervalOffset.value())
+        self.gm[self.current_grid].acq_interval = (
+            self.spinBox_acqInterval.value())
+        self.gm[self.current_grid].acq_interval_offset = (
+            self.spinBox_acqIntervalOffset.value())
         # Recalculate grid:
-        self.gm.update_tile_positions(self.current_grid)
+        self.gm[self.current_grid].update_tile_positions()
         if self.cfg['sys']['magc_mode'] == 'True':
-            self.gm.set_grid_centre_s(self.current_grid, grid_center)
+            self.gm[self.current_grid].centre_sx_sy = grid_center
             self.gm.update_source_ROIs_from_grids()
         if error_msg:
             QMessageBox.warning(self, 'Error', error_msg, QMessageBox.Ok)
@@ -1263,11 +1263,11 @@ class FocusGradientSettingsDlg(QDialog):
         self.show()
         self.lineEdit_currentGrid.setText('Grid ' + str(current_grid))
         self.grid_illustration.setPixmap(QPixmap('..\\img\\grid.png'))
-        self.ref_tiles = self.gm.get_wd_gradient_ref_tiles(self.current_grid)
+        self.ref_tiles = self.gm[self.current_grid].wd_gradient_ref_tiles
         # Backup variable for currently selected reference tiles:
         self.prev_ref_tiles = self.ref_tiles.copy()
         # Set up tile selectors for the reference tiles:
-        number_of_tiles = self.gm.get_number_tiles(self.current_grid)
+        number_of_tiles = self.gm[self.current_grid].number_tiles
         tile_list_str = ['-']
         for tile in range(number_of_tiles):
             tile_list_str.append(str(tile))
@@ -1308,32 +1308,32 @@ class FocusGradientSettingsDlg(QDialog):
 
         if self.ref_tiles[0] >= 0:
             self.label_t1.setText('Tile ' + str(self.ref_tiles[0]) + ':')
-            wd = self.gm.get_tile_wd(self.current_grid, self.ref_tiles[0])
+            wd = self.gm[self.current_grid][self.ref_tiles[0]].wd
             self.doubleSpinBox_t1.setValue(wd * 1000)
         else:
             self.label_t1.setText('Tile (-) :')
             self.doubleSpinBox_t1.setValue(0)
         if self.ref_tiles[1] >= 0:
             self.label_t2.setText('Tile ' + str(self.ref_tiles[1]) + ':')
-            wd = self.gm.get_tile_wd(self.current_grid, self.ref_tiles[1])
+            wd = self.gm[self.current_grid][self.ref_tiles[1]].wd
             self.doubleSpinBox_t2.setValue(wd * 1000)
         else:
             self.label_t2.setText('Tile (-) :')
             self.doubleSpinBox_t2.setValue(0)
         if self.ref_tiles[2] >= 0:
             self.label_t3.setText('Tile ' + str(self.ref_tiles[2]) + ':')
-            wd = self.gm.get_tile_wd(self.current_grid, self.ref_tiles[2])
+            wd = self.gm[self.current_grid][self.ref_tiles[2]].wd
             self.doubleSpinBox_t3.setValue(wd * 1000)
         else:
             self.label_t3.setText('Tile (-) :')
             self.doubleSpinBox_t3.setValue(0)
 
-        self.gm.set_wd_gradient_ref_tiles(self.current_grid, self.ref_tiles)
+        self.gm[self.current_grid].wd_gradient_ref_tiles = self.ref_tiles
         # Try to calculate focus map:
-        self.success = self.gm.calculate_wd_gradient(self.current_grid)
+        self.success = self.gm[self.current_grid].calculate_wd_gradient()
         if self.success:
-            params = self.gm.get_wd_gradient_params(self.current_grid)
-            print(params)
+            params = self.gm[self.current_grid].wd_gradient_params
+            # print(params)
             current_status_str = (
                 'WD: ' + '{:.6f}'.format(params[0] * 1000)
                 + ' mm;\n' + chr(8710)
@@ -1356,9 +1356,9 @@ class FocusGradientSettingsDlg(QDialog):
 
     def reject(self):
         # Restore previous selection:
-        self.gm.set_wd_gradient_ref_tiles(self.current_grid, self.prev_ref_tiles)
+        self.gm[self.current_grid].wd_gradient_ref_tiles = self.prev_ref_tiles
         # Recalculate with previous setting:
-        self.gm.calculate_wd_gradient(self.current_grid)
+        self.gm[self.current_grid].calculate_wd_gradient()
         super().reject()
 
 #------------------------------------------------------------------------------
@@ -1424,8 +1424,8 @@ class GridRotationDlg(QDialog):
             f'Rotation of selected grid {self.selected_grid} in degrees:')
 
         # Keep current angle and origin to enable undo option
-        self.previous_angle = self.gm.get_rotation(selected_grid)
-        self.previous_origin = self.gm.get_grid_origin_s(selected_grid)
+        self.previous_angle = self.gm[selected_grid].rotation
+        self.previous_origin_sx_sy = self.gm[selected_grid].origin_sx_sy
         # Set initial values:
         self.doubleSpinBox_angle.setValue(self.previous_angle)
         # Slider value 0..719 (twice the angle in degrees) for 0.5 degree steps
@@ -1467,16 +1467,14 @@ class GridRotationDlg(QDialog):
             update_viewport_with_delay_thread.start()
         if self.radioButton_pivotCentre.isChecked():
             # Get current centre of grid:
-            centre_dx, centre_dy = self.gm.get_grid_centre_d(self.selected_grid)
+            centre_dx, centre_dy = self.gm[self.selected_grid].centre_dx_dy
             # Set new angle
-            self.gm.set_rotation(
-                self.selected_grid, self.doubleSpinBox_angle.value())
-            self.gm.rotate_around_grid_centre(
-                self.selected_grid, centre_dx, centre_dy)
+            self.gm[self.selected_grid].rotation = self.doubleSpinBox_angle.value()
+            self.gm[self.selected_grid].rotate_around_grid_centre(centre_dx, centre_dy)
         else:
-            self.gm.set_rotation(
-                self.selected_grid, self.doubleSpinBox_angle.value())
-
+            self.gm[self.selected_grid].rotation = self.doubleSpinBox_angle.value()
+        # Update tile positions:
+        self.gm[self.selected_grid].update_tile_positions()
         # Emit signal to redraw:
         self.main_window_queue.put('DRAW MV NO LABELS')
         self.main_window_trigger.s.emit()
@@ -1499,15 +1497,15 @@ class GridRotationDlg(QDialog):
 
     def reject(self):
         # Revert to previous angle and origin:
-        self.gm.set_rotation(self.selected_grid, self.previous_angle)
-        self.gm.set_grid_origin_s(self.selected_grid, self.previous_origin)
+        self.gm[self.selected_grid].rotation = self.previous_angle
+        self.gm[self.selected_grid].origin_sx_sy = self.previous_origin_sx_sy
         self.main_window_queue.put('DRAW MV')
         self.main_window_trigger.s.emit()
         super().reject()
 
     def accept(self):
         # Calculate new grid map with new rotation angle:
-        self.gm.update_tile_positions(self.selected_grid)
+        self.gm[self.selected_grid].update_tile_positions()
         if self.cfg['sys']['magc_mode'] == 'True':
             self.gm.update_source_ROIs_from_grids()
         super().accept()
@@ -1688,7 +1686,7 @@ class PreStackDlg(QDialog):
             self.cfg['overviews']['number_ov'] + ' overview(s), '
             + self.cfg['grids']['number_grids'] + ' grid(s);')
         self.label_totalActiveTiles.setText(
-            str(self.gm.get_total_number_active_tiles()) + ' active tile(s)')
+            str(self.gm.total_number_active_tiles()) + ' active tile(s)')
         if self.cfg['acq']['use_autofocus'] == 'True':
             if int(self.cfg['autofocus']['method']) == 0:
                 self.label_autofocusActive.setFont(boldFont)
@@ -1698,12 +1696,12 @@ class PreStackDlg(QDialog):
                 self.label_autofocusActive.setText('Active (heuristic)')
         else:
             self.label_autofocusActive.setText('Inactive')
-        if self.gm.is_wd_gradient_active():
+        if self.gm.wd_gradient_active():
             self.label_gradientActive.setFont(boldFont)
             self.label_gradientActive.setText('Active')
         else:
             self.label_gradientActive.setText('Inactive')
-        if (self.gm.is_intervallic_acq_active()
+        if (self.gm.intervallic_acq_active()
             or self.ovm.is_intervallic_acq_active()):
             self.label_intervallicActive.setFont(boldFont)
             self.label_intervallicActive.setText('Active')
@@ -2364,7 +2362,7 @@ class AutofocusSettingsDlg(QDialog):
                 QMessageBox.Ok, QMessageBox.Cancel)
             if response == QMessageBox.Ok:
                 self.lineEdit_refTiles.setText(str(
-                    self.gm.get_active_tile_key_list())[1:-1].replace('\'', ''))
+                    self.gm.active_tile_selector_list())[1:-1].replace('\'', ''))
                 self.lineEdit_refTiles.setEnabled(False)
             else:
                 # Revert to tracking mode 0:
@@ -2940,8 +2938,7 @@ class FTMoveDlg(QDialog):
         if self.ov_number >= 0:
             stage_x, stage_y = self.cs.get_ov_centre_s(self.ov_number)
         elif self.tile_number >= 0:
-            stage_x, stage_y = self.gm.get_tile_coordinates_s(
-                self.grid_number, self.tile_number)
+            stage_x, stage_y = self.gm[self.grid_number][self.tile_number].sx_sy
         # Now move the stage
         self.microtome.move_stage_to_xy((stage_x, stage_y))
         if self.microtome.get_error_state() > 0:

@@ -552,14 +552,14 @@ class MainControls(QMainWindow):
 
     def update_main_controls_grid_selector(self, current_grid=0):
         """Update the combo box for grid selection in the main window."""
-        if current_grid >= self.gm.get_number_grids():
+        if current_grid >= self.gm.number_grids:
             current_grid = 0
         self.comboBox_gridSelector.blockSignals(True)
         self.comboBox_gridSelector.clear()
-        grid_list_str = self.gm.get_grid_str_list()
-        for i in range(self.gm.get_number_grids()):
+        grid_list_str = self.gm.grid_selector_list()
+        for i in range(self.gm.number_grids):
             colour_icon = QPixmap(18, 9)
-            rgb = self.gm.get_display_colour(i)
+            rgb = self.gm[i].display_colour_rgb()
             colour_icon.fill(QColor(rgb[0], rgb[1], rgb[2]))
             self.comboBox_gridSelector.addItem(
                 QIcon(colour_icon), '   ' + grid_list_str[i])
@@ -606,13 +606,13 @@ class MainControls(QMainWindow):
             + str(self.sem.get_beam_current()) + ' pA')
         # Show dwell time, pixel size, and frame size for current grid:
         self.label_tileDwellTime.setText(
-            str(self.gm.get_dwell_time(self.current_grid)) + ' µs')
+            str(self.gm[self.current_grid].dwell_time) + ' µs')
         self.label_tilePixelSize.setText(
-            str(self.gm.get_pixel_size(self.current_grid)) + ' nm')
+            str(self.gm[self.current_grid].pixel_size) + ' nm')
         self.label_tileSize.setText(
-            str(self.gm.get_tile_width_p(self.current_grid))
+            str(self.gm[self.current_grid].tile_width_p())
             + ' × '
-            + str(self.gm.get_tile_height_p(self.current_grid)))
+            + str(self.gm[self.current_grid].tile_height_p()))
         # Show settings for current OV:
         self.label_OVDwellTime.setText(
             str(self.ovm.get_ov_dwell_time(self.current_ov)) + ' µs')
@@ -633,16 +633,16 @@ class MainControls(QMainWindow):
         else:
             self.label_debrisDetectionArea.setText('-')
         # Grid parameters
-        grid_origin = self.gm.get_grid_origin_s(self.current_grid)
+        grid_origin = self.gm[self.current_grid].origin_sx_sy
         grid_origin_str = ('X: {0:.3f}'.format(grid_origin[0])
                            + ', Y: {0:.3f}'.format(grid_origin[1]))
         self.label_gridOrigin.setText(grid_origin_str)
         # Tile grid parameters:
-        grid_size = self.gm.get_grid_size(self.current_grid)
+        grid_size = self.gm[self.current_grid].size
         self.label_gridSize.setText(str(grid_size[0]) + ' × ' +
                                     str(grid_size[1]))
         self.label_numberActiveTiles.setText(
-            str(self.gm.get_number_active_tiles(self.current_grid)))
+            str(self.gm[self.current_grid].number_active_tiles()))
         # Acquisition parameters
         self.lineEdit_baseDir.setText(self.cfg['acq']['base_dir'])
         self.label_numberSlices.setText(self.cfg['acq']['number_slices'])
@@ -831,10 +831,10 @@ class MainControls(QMainWindow):
         # update color of selected/deselected sections
         for changedSelectedIndex in changedSelected.indexes():
             row = changedSelectedIndex.row()
-            self.gm.set_display_colour(grid_number=row, colour=0)
+            self.gm[row].display_colour = 0
         for changedDeselectedIndex in changedDeselected.indexes():
             row = changedDeselectedIndex.row()
-            self.gm.set_display_colour(grid_number=row, colour=1)
+            self.gm[row].display_colour = 1
         self.viewport.mv_draw()
         # update config
         tableView = self.tableView_magc_sectionList
@@ -857,15 +857,15 @@ class MainControls(QMainWindow):
         model = doubleClickedIndex.model()
         firstColumnIndex = model.index(row, 0)
         sectionKey = int(model.data(firstColumnIndex)) # the index and the key of the section should in theory be the same, just in case
-        self.cs.set_mv_centre_d(self.gm.get_grid_centre_d(grid_number=row))
+        self.cs.set_mv_centre_d(self.gm[row].centre_dx_dy)
         self.viewport.mv_draw()
         if self.cfg['magc']['wafer_calibrated'] == 'True':
             self.add_to_log('Section ' + str(sectionKey) + ' has been double-clicked. Moving to section...')
             # set scan rotation
-            theta = self.gm.get_rotation(row)
+            theta = self.gm[row].rotation
             self.sem.set_scan_rotation(theta)
             # set stage
-            grid_center_s = self.gm.get_grid_centre_s(grid_number=row)
+            grid_center_s = self.gm[row].centre_sx_sy
             self.stage.move_to_xy(grid_center_s)
         else:
             self.add_to_log('Section ' + str(sectionKey) + ' has been double-clicked. Wafer is not calibrated, therefore no stage movement.')
@@ -924,20 +924,18 @@ class MainControls(QMainWindow):
 
     def magc_add_section(self):
         self.gm.add_new_grid()
-        grid_number = self.gm.get_number_grids() - 1
-        self.cs.set_grid_origin_s(grid_number, list(*self.stage.get_xy()))
+        grid_number = self.gm.number_grids - 1
+        self.gm[grid_number].origin_sx_sy = list(*self.stage.get_xy())
 
         # set same properties as previous section if it exists
         if grid_number != 0:
-            self.gm.set_rotation(grid_number,
-                    self.gm.get_rotation(grid_number-1))
-            self.gm.set_grid_size(grid_number,
-                    *self.gm.get_grid_size(grid_number-1))
-            self.gm.set_tile_size_selector(grid_number,
-                    self.gm.get_tile_size_selector(grid_number-1))
-            self.gm.set_pixel_size(grid_number,
-                    self.gm.get_pixel_size(grid_number-1))
-        self.gm.calculate_grid_map(grid_number)
+            self.gm[grid_number].rotation = self.gm[grid_number-1].rotation
+            self.gm[grid_number].size = self.gm[grid_number-1].size
+            self.gm[grid_number].tile_size_selector = (
+                self.gm[grid_number-1].tile_size_selector)
+            self.gm[grid_number].pixel_size = self.gm[grid_number-1].pixel_size
+
+        self.gm[grid_number].update_tile_positions()
         self.update_from_grid_dlg()
 
         # add section to the sectionList
@@ -2287,12 +2285,11 @@ class MainControls(QMainWindow):
             if self.ft_selected_ov >= 0:
                 self.ovm.set_ov_wd(self.ft_selected_ov, self.ft_selected_wd)
             elif self.ft_selected_tile >= 0:
-                self.gm.set_tile_wd(self.ft_selected_grid,
-                                    self.ft_selected_tile,
-                                    self.ft_selected_wd)
-                if self.gm.is_wd_gradient_active(self.ft_selected_grid):
+                self.gm[self.ft_selected_grid][self.ft_selected_tile].wd = (
+                    self.ft_selected_wd)
+                if self.gm[self.ft_selected_grid].wd_gradient_active():
                     # Recalculate with new wd:
-                    self.gm.calculate_focus_gradient(self.ft_selected_grid)
+                    self.gm[self.ft_selected_grid].calculate_wd_gradient()
                 self.viewport.mv_draw()
             self.ft_reset()
 
@@ -2305,9 +2302,9 @@ class MainControls(QMainWindow):
                 self.ovm.set_ov_stig_x(
                     self.ft_selected_ov, self.ft_selected_stig_x)
             elif self.ft_selected_tile >= 0:
-                self.gm.set_tile_stig_x(self.ft_selected_grid,
-                                        self.ft_selected_tile,
-                                        self.ft_selected_stig_x)
+                self.gm[self.ft_selected_grid][
+                        self.ft_selected_tile].stig_xy[0] = (
+                    self.ft_selected_stig_x)
             self.ft_reset()
 
         elif self.ft_mode == 3:
@@ -2319,9 +2316,9 @@ class MainControls(QMainWindow):
                 self.ovm.set_ov_stig_y(
                     self.ft_selected_ov, self.ft_selected_stig_y)
             elif self.ft_selected_tile >= 0:
-                self.gm.set_tile_stig_y(self.ft_selected_grid,
-                                        self.ft_selected_tile,
-                                        self.ft_selected_stig_y)
+                self.gm[self.ft_selected_grid][
+                        self.ft_selected_tile].stig_xy[1] = (
+                    self.ft_selected_stig_y)
             self.ft_reset()
 
     def ft_open_set_params_dlg(self):
@@ -2346,17 +2343,14 @@ class MainControls(QMainWindow):
                                             self.ft_selected_stig_x,
                                             self.ft_selected_stig_y)
                 elif self.ft_selected_tile >= 0:
-                    self.gm.set_tile_wd(self.ft_selected_grid,
-                                        self.ft_selected_tile,
-                                        self.ft_selected_wd)
-                    self.gm.set_tile_stig_xy(
-                        self.ft_selected_grid,
-                        self.ft_selected_tile,
-                        self.ft_selected_stig_x,
-                        self.ft_selected_stig_y)
-                    if self.gm.is_wd_gradient_active(self.ft_selected_grid):
+                    self.gm[self.ft_selected_grid][self.ft_selected_tile].wd = (
+                        self.ft_selected_wd)
+                    self.gm[self.ft_selected_grid][
+                            self.ft_selected_tile].stig_xy = (
+                        [self.ft_selected_stig_x, self.ft_selected_stig_y])
+                    if self.gm[self.ft_selected_grid].wd_gradient_active():
                         # Recalculate with new wd:
-                        self.gm.calculate_wd_gradient(self.ft_selected_grid)
+                        self.gm[self.ft_selected_grid].calculate_wd_gradient()
                     self.viewport.mv_draw()
                 # Also set SEM to new values:
                 self.sem.set_wd(self.ft_selected_wd)
@@ -2448,8 +2442,8 @@ class MainControls(QMainWindow):
         if self.ft_selected_ov >= 0:
             stage_x, stage_y = self.cs.get_ov_centre_d(self.ft_selected_ov)
         elif self.ft_selected_tile >= 0:
-            stage_x, stage_y = self.gm.get_tile_coordinates_d(
-                self.ft_selected_grid, self.ft_selected_tile)
+            stage_x, stage_y = self.cs.convert_to_d(
+                self.gm[self.ft_selected_grid][self.ft_selected_tile].sx_sy)
         # Get the shifts for the current focus area and add them to the centre
         # coordinates in the SEM coordinate system. Then convert to stage
         # coordinates and move.
@@ -2631,11 +2625,11 @@ class MainControls(QMainWindow):
         self.lineEdit_currentStigY.setText('')
 
     def ft_update_grid_selector(self, current_grid=0):
-        if current_grid >= self.gm.get_number_grids():
+        if current_grid >= self.gm.number_grids:
             current_grid = 0
         self.comboBox_selectGridFT.blockSignals(True)
         self.comboBox_selectGridFT.clear()
-        self.comboBox_selectGridFT.addItems(self.gm.get_grid_str_list())
+        self.comboBox_selectGridFT.addItems(self.gm.grid_selector_list())
         self.comboBox_selectGridFT.setCurrentIndex(current_grid)
         self.ft_selected_grid = current_grid
         self.comboBox_selectGridFT.currentIndexChanged.connect(
@@ -2646,23 +2640,24 @@ class MainControls(QMainWindow):
         self.comboBox_selectTileFT.blockSignals(True)
         self.comboBox_selectTileFT.clear()
         # If wd gradient activated for selected grid, only show reference tiles!
-        if self.gm.is_wd_gradient_active(self.ft_selected_grid):
+        if self.gm[self.ft_selected_grid].use_wd_gradient:
             self.comboBox_selectTileFT.addItems(
                 ['Select tile']
-                + self.gm.get_wd_gradient_ref_tile_str_list(self.ft_selected_grid))
+                + self.gm[self.ft_selected_grid].wd_gradient_ref_tile_selector_list())
             self.label_AFnotification.setText(
                 'Adaptive focus active in this grid.')
         else:
             self.comboBox_selectTileFT.addItems(
                 ['Select tile']
-                + self.gm.get_tile_str_list(self.ft_selected_grid))
+                + self.gm[self.ft_selected_grid].tile_selector_list())
             self.label_AFnotification.setText('')
 
         self.comboBox_selectTileFT.setCurrentIndex(current_tile + 1)
-        if (self.gm.is_wd_gradient_active(self.ft_selected_grid)
+        if (self.gm[self.ft_selected_grid].use_wd_gradient
             and current_tile >= 0):
-            self.ft_selected_tile = self.gm.get_wd_gradient_ref_tiles(
-                self.ft_selected_grid)[current_tile]
+            self.ft_selected_tile = (
+                self.gm[self.ft_selected_grid].wd_gradient_ref_tiles[
+                    current_tile])
         else:
             self.ft_selected_tile = current_tile
         self.comboBox_selectTileFT.currentIndexChanged.connect(
@@ -2688,20 +2683,20 @@ class MainControls(QMainWindow):
 
     def ft_load_selected_tile(self):
         current_selection = self.comboBox_selectTileFT.currentIndex() - 1
-        if (self.gm.is_wd_gradient_active(self.ft_selected_grid)
+        if (self.gm[self.ft_selected_grid].use_wd_gradient
             and current_selection >= 0):
-            self.ft_selected_tile = self.gm.get_wd_gradient_ref_tiles(
-                self.ft_selected_grid)[current_selection]
+            self.ft_selected_tile = (
+                self.gm[self.ft_selected_grid].wd_gradient_ref_tiles[
+                    current_selection])
         else:
             self.ft_selected_tile = current_selection
         # show current focus and stig:
         if self.ft_selected_tile >= 0:
             self.ft_update_ov_selector(-1)
-            self.ft_selected_wd = self.gm.get_tile_wd(
-                self.ft_selected_grid, self.ft_selected_tile)
+            self.ft_selected_wd = (
+                self.gm[self.ft_selected_grid][self.ft_selected_tile].wd)
             self.ft_selected_stig_x, self.ft_selected_stig_y = (
-                self.gm.get_tile_stig_xy(
-                    self.ft_selected_grid, self.ft_selected_tile))
+                self.gm[self.ft_selected_grid][self.ft_selected_tile].stig_xy)
             self.ft_update_wd_display()
             self.ft_update_stig_display()
         elif self.ft_selected_ov == -1:
@@ -2711,7 +2706,7 @@ class MainControls(QMainWindow):
                 self.ft_selected_grid, self.ft_selected_tile)):
             self.label_AFnotification.setText(
                 'WD/STIG of selected tile are being tracked.')
-        elif self.gm.is_wd_gradient_active(self.ft_selected_grid):
+        elif self.gm[self.ft_selected_grid].use_wd_gradient:
             self.label_AFnotification.setText(
                 'Adaptive focus active in this grid.')
         else:
@@ -2743,8 +2738,8 @@ class MainControls(QMainWindow):
         selected_tile = self.viewport.mv_get_selected_tile()
         if (selected_grid is not None) and (selected_tile is not None):
             self.ft_selected_grid = selected_grid
-            if self.gm.is_wd_gradient_active(selected_grid):
-                af_tiles = self.gm.get_wd_gradient_ref_tiles(selected_grid)
+            if self.gm[selected_grid].use_wd_gradient:
+                af_tiles = self.gm[selected_grid].wd_gradient_ref_tiles
                 if selected_tile in af_tiles:
                     self.ft_selected_tile = af_tiles.index(selected_tile)
                 else:
