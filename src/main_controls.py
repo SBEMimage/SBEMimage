@@ -924,22 +924,22 @@ class MainControls(QMainWindow):
 
     def magc_add_section(self):
         self.gm.add_new_grid()
-        grid_number = self.gm.number_grids - 1
-        self.gm[grid_number].origin_sx_sy = list(*self.stage.get_xy())
+        grid_index = self.gm.number_grids - 1
+        self.gm[grid_index].origin_sx_sy = list(*self.stage.get_xy())
 
         # set same properties as previous section if it exists
-        if grid_number != 0:
-            self.gm[grid_number].rotation = self.gm[grid_number-1].rotation
-            self.gm[grid_number].size = self.gm[grid_number-1].size
-            self.gm[grid_number].tile_size_selector = (
-                self.gm[grid_number-1].tile_size_selector)
-            self.gm[grid_number].pixel_size = self.gm[grid_number-1].pixel_size
+        if grid_index != 0:
+            self.gm[grid_index].rotation = self.gm[grid_index-1].rotation
+            self.gm[grid_index].size = self.gm[grid_index-1].size
+            self.gm[grid_index].tile_size_selector = (
+                self.gm[grid_index-1].tile_size_selector)
+            self.gm[grid_index].pixel_size = self.gm[grid_index-1].pixel_size
 
-        self.gm[grid_number].update_tile_positions()
+        self.gm[grid_index].update_tile_positions()
         self.update_from_grid_dlg()
 
         # add section to the sectionList
-        item1 = QStandardItem(str(grid_number))
+        item1 = QStandardItem(str(grid_index))
         item1.setCheckable(True)
         item2 = QStandardItem('')
         item2.setBackground(color_not_acquired)
@@ -1468,8 +1468,8 @@ class MainControls(QMainWindow):
             selected_grid = int(msg[20:])
             self.open_change_grid_rotation_dlg(selected_grid)
         elif 'OPEN GRID SETTINGS' in msg:
-            grid_number = int(msg.split('INGS')[1])
-            self.open_grid_dlg(grid_number)
+            grid_index = int(msg.split('INGS')[1])
+            self.open_grid_dlg(grid_index)
         elif msg == 'SAVE INI':
             self.save_ini()
         else:

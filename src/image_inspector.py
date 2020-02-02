@@ -80,7 +80,7 @@ class ImageInspector(object):
         self.tile_stddev_threshold = float(
             self.cfg['monitoring']['tile_stddev_threshold'])
 
-    def process_tile(self, filename, grid_number, tile_number, slice_number):
+    def process_tile(self, filename, grid_index, tile_index, slice_number):
         img = None
         mean, stddev = 0, 0
         range_test_passed, slice_by_slice_test_passed = False, False
@@ -88,13 +88,13 @@ class ImageInspector(object):
         grab_incomplete = False
         load_error = False
         tile_selected = False
-        
+
         if (self.cfg['sys']['magc_mode'] == 'True'
             and psutil.virtual_memory()[2] > 50):
-            print('### WARNING ### Memory usage ' 
+            print('### WARNING ### Memory usage '
                 + str(psutil.virtual_memory()[2])
                 + ' too high. The tiles are not checked any more')
-        
+
             range_test_passed, slice_by_slice_test_passed = True, True
             frozen_frame_error = False
             grab_incomplete = False
@@ -103,8 +103,8 @@ class ImageInspector(object):
             return (np.zeros((1000,1000)), mean, stddev,
                     range_test_passed, slice_by_slice_test_passed,
                     tile_selected,
-                    load_error, grab_incomplete, frozen_frame_error)        
-        
+                    load_error, grab_incomplete, frozen_frame_error)
+
         try:
             img = Image.open(filename)
         except Exception as e:
@@ -114,9 +114,9 @@ class ImageInspector(object):
             img = np.array(img)
             height, width = img.shape[0], img.shape[1]
 
-            tile_key = ('g' + str(grid_number).zfill(utils.GRID_DIGITS)
-                        + '_' + 't' + str(tile_number).zfill(utils.TILE_DIGITS))
-            tile_key_short = str(grid_number) + '.' + str(tile_number)
+            tile_key = ('g' + str(grid_index).zfill(utils.GRID_DIGITS)
+                        + '_' + 't' + str(tile_index).zfill(utils.TILE_DIGITS))
+            tile_key_short = str(grid_index) + '.' + str(tile_index)
 
             # Save preview image:
             img_tostring = img.tostring()
@@ -125,7 +125,7 @@ class ImageInspector(object):
                 img_tostring).resize((512, 384), resample=2)
             preview_img.save(os.path.join(
                 self.base_dir, 'workspace', tile_key + '.png'))
-                
+
             # calculate mean and stddev:
             mean = np.mean(img)
             stddev = np.std(img)
@@ -198,22 +198,22 @@ class ImageInspector(object):
             # acquisition or discarded:
             # ...
             tile_selected = True
-            
+
             del img_tostring
             del preview_img
             del first_line
             del final_line
-            
+
         return (img, mean, stddev,
                 range_test_passed, slice_by_slice_test_passed,
                 tile_selected,
                 load_error, grab_incomplete, frozen_frame_error)
 
-    def save_tile_stats(self, grid_number, tile_number, slice_number):
+    def save_tile_stats(self, grid_index, tile_index, slice_number):
         """Write mean and SD of specified tile to disk."""
         success = True
-        tile_key = ('g' + str(grid_number).zfill(utils.GRID_DIGITS)
-                    + '_' + 't' + str(tile_number).zfill(utils.TILE_DIGITS))
+        tile_key = ('g' + str(grid_index).zfill(utils.GRID_DIGITS)
+                    + '_' + 't' + str(tile_index).zfill(utils.TILE_DIGITS))
         if tile_key in self.tile_means and tile_key in self.tile_stddevs:
             stats_filename = os.path.join(
                 self.base_dir, 'meta', 'stats', tile_key + '.dat')
@@ -230,10 +230,10 @@ class ImageInspector(object):
             success = False # mean/SD not available
         return success
 
-    def save_tile_reslice(self, grid_number, tile_number):
+    def save_tile_reslice(self, grid_index, tile_index):
         """Write reslice line of specified tile to disk."""
-        tile_key = ('g' + str(grid_number).zfill(utils.GRID_DIGITS)
-                    + '_' + 't' + str(tile_number).zfill(utils.TILE_DIGITS))
+        tile_key = ('g' + str(grid_index).zfill(utils.GRID_DIGITS)
+                    + '_' + 't' + str(tile_index).zfill(utils.TILE_DIGITS))
         success = True
         if (tile_key in self.tile_reslice_line
             and self.tile_reslice_line[tile_key].shape[1] == 400):

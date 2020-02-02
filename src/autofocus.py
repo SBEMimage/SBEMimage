@@ -83,30 +83,30 @@ class Autofocus():
     def get_ref_tiles(self):
         return self.ref_tiles
 
-    def get_ref_tiles_in_grid(self, grid_number):
+    def get_ref_tiles_in_grid(self, grid_index):
         tile_list = []
         for tile_key in self.ref_tiles:
             grid, tile = tile_key.split('.')
             grid, tile = int(grid), int(tile)
-            if grid == grid_number:
+            if grid == grid_index:
                 tile_list.append(tile)
         return tile_list
 
-    def is_ref_tile(self, grid_number, tile_number):
-        return tile_number in self.get_ref_tiles_in_grid(grid_number)
+    def is_ref_tile(self, grid_index, tile_index):
+        return tile_index in self.get_ref_tiles_in_grid(grid_index)
 
     def set_ref_tiles(self, ref_tile_list):
         self.ref_tiles = ref_tile_list
         self.cfg['autofocus']['ref_tiles'] = json.dumps(ref_tile_list)
 
-    def get_ref_tile_average_wd_stig(self, grid_number):
+    def get_ref_tile_average_wd_stig(self, grid_index):
         wd_list = []
         stig_x_list = []
         stig_y_list = []
         for ref_tile in self.ref_tiles:
             grid, tile = ref_tile.split('.')
             grid, tile = int(grid), int(tile)
-            if grid == grid_number:
+            if grid == grid_index:
                 wd = self.gm.get_tile_wd(grid, tile)
                 wd_list.append(wd)
                 stig_x, stig_y = self.gm.get_tile_stig_xy(grid, tile)
@@ -117,36 +117,36 @@ class Autofocus():
         else:
             return None, None, None
 
-    def approximate_tile_wd_stig(self, grid_number):
+    def approximate_tile_wd_stig(self, grid_index):
         """Approximate the working distance and stigmation parameters for all
         non-selected active tiles. Simple approach for now: use the settings
         of the nearest (selected) neighbour."""
-        active_tiles = self.gm.get_active_tiles(grid_number)
-        autofocus_tiles = self.get_ref_tiles_in_grid(grid_number)
+        active_tiles = self.gm.get_active_tiles(grid_index)
+        autofocus_tiles = self.get_ref_tiles_in_grid(grid_index)
         if active_tiles and autofocus_tiles:
             for tile in active_tiles:
                 min_dist = 10**6
                 nearest = None
                 for af_tile in autofocus_tiles:
                     dist = self.gm.get_distance_between_tiles(
-                        grid_number, tile, af_tile)
+                        grid_index, tile, af_tile)
                     if dist < min_dist:
                         min_dist = dist
                         nearest = af_tile
                 # Set focus parameters for current tile to nearest autofocus tile:
                 self.gm.set_tile_wd(
-                    grid_number, tile,
-                    self.gm.get_tile_wd(grid_number, nearest))
+                    grid_index, tile,
+                    self.gm.get_tile_wd(grid_index, nearest))
                 self.gm.set_tile_stig_xy(
-                    grid_number, tile,
-                    *self.gm.get_tile_stig_xy(grid_number, nearest))
+                    grid_index, tile,
+                    *self.gm.get_tile_stig_xy(grid_index, nearest))
 
-    def is_ref_tile(self, grid_number, tile_number):
-        tile_key = str(grid_number) + '.' + str(tile_number)
+    def is_ref_tile(self, grid_index, tile_index):
+        tile_key = str(grid_index) + '.' + str(tile_index)
         return (tile_key in self.ref_tiles)
 
-    def toggle_ref_tile(self, grid_number, tile_number):
-        tile_key = str(grid_number) + '.' + str(tile_number)
+    def toggle_ref_tile(self, grid_index, tile_index):
+        tile_key = str(grid_index) + '.' + str(tile_index)
         if tile_key in self.ref_tiles:
             self.ref_tiles.remove(tile_key)
         else:
@@ -204,8 +204,8 @@ class Autofocus():
                 (slice_counter - self.autostig_delay) % self.interval) == 0)
         return (autofocus_current_slice, autostig_current_slice)
 
-    def is_tile_selected(self, grid_number, tile_number):
-        grid_tile_str = str(grid_number) + '.' + str(tile_number)
+    def is_tile_selected(self, grid_index, tile_index):
+        grid_tile_str = str(grid_index) + '.' + str(tile_index)
         return (grid_tile_str in self.ref_tiles)
 
     def select_all_active_tiles(self):
@@ -353,13 +353,13 @@ class Autofocus():
         else:
             return None, None, None, False
 
-    def get_heuristic_average_grid_correction(self, grid_number):
+    def get_heuristic_average_grid_correction(self, grid_index):
         wd_corr = []
         stig_x_corr = []
         stig_y_corr = []
         for tile_key in self.wd_stig_corr:
             g = int(tile_key.split('.')[0])
-            if g == grid_number:
+            if g == grid_index:
                 wd_corr.append(self.wd_stig_corr[tile_key][0])
                 stig_x_corr.append(self.wd_stig_corr[tile_key][1])
                 stig_y_corr.append(self.wd_stig_corr[tile_key][2])

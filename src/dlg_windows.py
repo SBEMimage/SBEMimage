@@ -1797,7 +1797,7 @@ class ExportDlg(QDialog):
         self.pushButton_export.setEnabled(False)
         QApplication.processEvents()
         base_dir = self.cfg['acq']['base_dir']
-        target_grid_number = (
+        target_grid_index = (
             str(self.spinBox_gridNumber.value()).zfill(utils.GRID_DIGITS))
         pixel_size = self.doubleSpinBox_pixelSize.value()
         start_slice = self.spinBox_fromSlice.value()
@@ -1823,9 +1823,9 @@ class ExportDlg(QDialog):
                 # elements[3]: z coordinate in nm
                 # elements[4]: slice number
                 slice_number = int(elements[4])
-                grid_number = elements[0][7:11]
+                grid_index = elements[0][7:11]
                 if (start_slice <= slice_number <= end_slice
-                    and grid_number == target_grid_number):
+                    and grid_index == target_grid_index):
                     x = int(int(elements[1]) / pixel_size)
                     if x < min_x:
                         min_x = x
@@ -2903,14 +2903,14 @@ class FTMoveDlg(QDialog):
     """Move the stage to the selected tile or OV position."""
 
     def __init__(self, microtome, coordinate_system, grid_manager,
-                 grid_number, tile_number, ov_number):
+                 grid_index, tile_index, ov_number):
         super().__init__()
         self.microtome = microtome
         self.cs = coordinate_system
         self.gm = grid_manager
         self.ov_number = ov_number
-        self.grid_number = grid_number
-        self.tile_number = tile_number
+        self.grid_index = grid_index
+        self.tile_index = tile_index
         self.error = False
         self.finish_trigger = Trigger()
         self.finish_trigger.s.connect(self.move_completed)
@@ -2922,9 +2922,9 @@ class FTMoveDlg(QDialog):
         self.pushButton_move.clicked.connect(self.start_move)
         if ov_number >= 0:
             self.label_moveTarget.setText('OV ' + str(ov_number))
-        elif (grid_number >= 0) and (tile_number >= 0):
+        elif (grid_index >= 0) and (tile_index >= 0):
             self.label_moveTarget.setText(
-                'Grid: %d, Tile: %d' % (grid_number, tile_number))
+                'Grid: %d, Tile: %d' % (grid_index, tile_index))
 
     def start_move(self):
         self.error = False
@@ -2937,8 +2937,8 @@ class FTMoveDlg(QDialog):
         # Load target coordinates
         if self.ov_number >= 0:
             stage_x, stage_y = self.cs.get_ov_centre_s(self.ov_number)
-        elif self.tile_number >= 0:
-            stage_x, stage_y = self.gm[self.grid_number][self.tile_number].sx_sy
+        elif self.tile_index >= 0:
+            stage_x, stage_y = self.gm[self.grid_index][self.tile_number].sx_sy
         # Now move the stage
         self.microtome.move_stage_to_xy((stage_x, stage_y))
         if self.microtome.get_error_state() > 0:

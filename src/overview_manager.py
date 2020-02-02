@@ -612,10 +612,10 @@ class OverviewManager:
             top_left_dx_min, top_left_dy_min = None, None
             bottom_right_dx_max, bottom_right_dy_max = None, None
             # Check all grids for active tile overlap with OV
-            for grid_number in range(gm.number_grids):
-                for tile_number in gm[grid_number].active_tiles:
+            for grid_index in range(gm.number_grids):
+                for tile_index in gm[grid_index].active_tiles:
                     (min_dx, max_dx, min_dy, max_dy) = (
-                        gm[grid_number].tile_bounding_box(tile_number))
+                        gm[grid_index].tile_bounding_box(tile_index))
                     # Is tile within OV?
                     overlap = not (min_dx >= ov_bottom_right_dx
                                    or min_dy >= ov_bottom_right_dy

@@ -707,9 +707,9 @@ class Viewport(QWidget):
         self.cfg['viewport']['show_imported'] = str(self.show_imported)
         self.mv_draw()
 
-    def mv_toggle_tile_acq_indicator(self, grid_number, tile_number):
+    def mv_toggle_tile_acq_indicator(self, grid_index, tile_index):
         self.tile_indicator_on ^= True
-        self.tile_indicator_pos = [grid_number, tile_number]
+        self.tile_indicator_pos = [grid_index, tile_index]
         self.mv_draw()
 
     def mv_toggle_ov_acq_indicator(self, ov_number):
@@ -1314,27 +1314,27 @@ class Viewport(QWidget):
                                     Qt.AlignVCenter | Qt.AlignHCenter,
                                     'OV %d' % ov_number)
 
-    def mv_place_grid(self, grid_number, show_grid=True,
+    def mv_place_grid(self, grid_index, show_grid=True,
                       show_previews=False, with_gaps=False,
                       suppress_labels=False):
         mv_scale = self.cs.get_mv_scale()
-        dx, dy = self.gm[grid_number].origin_dx_dy
+        dx, dy = self.gm[grid_index].origin_dx_dy
         # Coordinates of grid origin with respect to Viewport canvas:
         origin_vx, origin_vy = self.cs.convert_to_v((dx, dy))
 
         # Calculate top-left corner of the tile grid:
-        dx -= self.gm[grid_number].tile_width_d()/2
-        dy -= self.gm[grid_number].tile_height_d()/2
+        dx -= self.gm[grid_index].tile_width_d()/2
+        dy -= self.gm[grid_index].tile_height_d()/2
         topleft_vx, topleft_vy = self.cs.convert_to_v((dx, dy))
 
-        width_px = self.gm[grid_number].width_p()
-        height_px = self.gm[grid_number].height_p()
+        width_px = self.gm[grid_index].width_p()
+        height_px = self.gm[grid_index].height_p()
 
         viewport_pixel_size = 1000 / mv_scale
-        grid_pixel_size = self.gm[grid_number].pixel_size
+        grid_pixel_size = self.gm[grid_index].pixel_size
         resize_ratio = grid_pixel_size / viewport_pixel_size
 
-        theta = self.gm[grid_number].rotation
+        theta = self.gm[grid_index].rotation
         use_rotation = theta > 0
 
         visible = self.mv_element_is_visible(
@@ -1350,8 +1350,8 @@ class Viewport(QWidget):
             self.mv_qp.translate(origin_vx, origin_vy)
             self.mv_qp.rotate(theta)
             # Translate to top-left corner:
-            self.mv_qp.translate(-self.gm[grid_number].tile_width_d()/2 * mv_scale,
-                                 -self.gm[grid_number].tile_height_d()/2 * mv_scale)
+            self.mv_qp.translate(-self.gm[grid_index].tile_width_d()/2 * mv_scale,
+                                 -self.gm[grid_index].tile_height_d()/2 * mv_scale)
             # Enable anti-aliasing in this case:
             # self.mv_qp.setRenderHint(QPainter.Antialiasing)
         else:
@@ -1360,14 +1360,14 @@ class Viewport(QWidget):
 
         if with_gaps:
             # Use gapped tile grid, not rotated:
-            tile_map = self.gm[grid_number].gapped_tile_positions_p()
+            tile_map = self.gm[grid_index].gapped_tile_positions_p()
         else:
             # Tile grid in pixels, not rotated:
-            tile_map = self.gm[grid_number].tile_positions_p()
+            tile_map = self.gm[grid_index].tile_positions_p()
         # active tiles in current grid:
-        active_tiles = self.gm[grid_number].active_tiles
-        tile_width_v = self.gm[grid_number].tile_width_d() * mv_scale
-        tile_height_v = self.gm[grid_number].tile_height_d() * mv_scale
+        active_tiles = self.gm[grid_index].active_tiles
+        tile_width_v = self.gm[grid_index].tile_width_d() * mv_scale
+        tile_height_v = self.gm[grid_index].tile_height_d() * mv_scale
         base_dir = self.cfg['acq']['base_dir']
         font_size1 = int(tile_width_v/5)
         font_size1 = utils.fit_in_range(font_size1, 2, 120)
@@ -1380,8 +1380,8 @@ class Viewport(QWidget):
                 and mv_scale > 1.4):
             # Previews are disabled when FOV or grid is being dragged or
             # when sufficiently zoomed out.
-            width_px = self.gm[grid_number].tile_width_p()
-            height_px = self.gm[grid_number].tile_height_p()
+            width_px = self.gm[grid_index].tile_width_p()
+            height_px = self.gm[grid_index].tile_height_p()
 
             for tile in active_tiles:
                 vx = tile_map[tile][0] * resize_ratio
@@ -1395,7 +1395,7 @@ class Viewport(QWidget):
                 # load current tile preview:
                 tile_preview_filename = (
                     base_dir + '\\'
-                    + utils.get_tile_preview_save_path(grid_number, tile))
+                    + utils.get_tile_preview_save_path(grid_index, tile))
                 if os.path.exists(tile_preview_filename):
                     tile_img = QPixmap(tile_preview_filename)
                     # Scale image from 512px to current tile width:
@@ -1404,9 +1404,9 @@ class Viewport(QWidget):
                     self.mv_qp.drawPixmap(vx, vy, tile_img)
 
         # Display grid lines
-        rows, cols = self.gm[grid_number].size
+        rows, cols = self.gm[grid_index].size
         # Load grid colour:
-        rgb = self.gm[grid_number].display_colour_rgb()
+        rgb = self.gm[grid_index].display_colour_rgb()
         grid_colour = QColor(rgb[0], rgb[1], rgb[2], 255)
         indicator_colour = QColor(128, 0, 128, 80)
         grid_pen = QPen(grid_colour, 1, Qt.SolidLine)
@@ -1431,7 +1431,7 @@ class Viewport(QWidget):
                     self.mv_qp.setBrush(grid_brush_active_tile)
                 else:
                     self.mv_qp.setBrush(grid_brush_transparent)
-                if ((self.tile_indicator_pos == [grid_number, tile])
+                if ((self.tile_indicator_pos == [grid_index, tile])
                     and self.tile_indicator_on):
                     self.mv_qp.setBrush(indicator_colour)
                 # tile rectangles
@@ -1471,14 +1471,14 @@ class Viewport(QWidget):
                         2 * tile_width_v, 2 * tile_height_v)
 
                     show_grad_label = (
-                        self.gm[grid_number][tile].wd_grad_active
-                        and self.gm[grid_number].use_wd_gradient)
+                        self.gm[grid_index][tile].wd_grad_active
+                        and self.gm[grid_index].use_wd_gradient)
                     show_af_label = (
-                        self.af.is_ref_tile(grid_number, tile)
+                        self.af.is_ref_tile(grid_index, tile)
                         and self.af.is_active()
                         and self.af.get_method() < 2)
                     show_tracking_label = (
-                        self.af.is_ref_tile(grid_number, tile)
+                        self.af.is_ref_tile(grid_index, tile)
                         and self.af.is_active()
                         and self.af.get_method() == 2)
 
@@ -1505,7 +1505,7 @@ class Viewport(QWidget):
 
                     font.setBold(False)
                     self.mv_qp.setFont(font)
-                    if (self.gm[grid_number][tile].wd > 0
+                    if (self.gm[grid_index][tile].wd > 0
                         and (tile in active_tiles or show_grad_label
                         or show_af_label or show_tracking_label)):
                         position_rect = QRect(
@@ -1517,7 +1517,7 @@ class Viewport(QWidget):
                             position_rect,
                             Qt.AlignVCenter | Qt.AlignHCenter,
                             'WD: {0:.6f}'.format(
-                            self.gm[grid_number][tile].wd * 1000))
+                            self.gm[grid_index][tile].wd * 1000))
         else:
             # Show the grid as a single pixel:
             self.mv_qp.setPen(grid_pen)
@@ -1536,14 +1536,14 @@ class Viewport(QWidget):
             grid_label_rect = QRect(0, -int(4/3 * fontsize),
                                     int(5.3 * fontsize), int(4/3 * fontsize))
             self.mv_qp.drawRect(grid_label_rect)
-            if self.gm[grid_number].display_colour in [1, 2, 3]:
+            if self.gm[grid_index].display_colour in [1, 2, 3]:
                 self.mv_qp.setPen(QColor(0, 0, 0))
             else:
                 self.mv_qp.setPen(QColor(255, 255, 255))
 
             self.mv_qp.drawText(grid_label_rect,
                                 Qt.AlignVCenter | Qt.AlignHCenter,
-                                'GRID %d' % grid_number)
+                                'GRID %d' % grid_index)
         # Reset painter (undo translation and rotation):
         self.mv_qp.resetTransform()
 
@@ -1817,32 +1817,32 @@ class Viewport(QWidget):
 
         # Go through all visible grids to check for overlap with mouse click
         # position. Check grids with a higher grid number first.
-        for grid_number in grid_range:
+        for grid_index in grid_range:
             # Calculate origin of the grid with respect to viewport canvas
-            dx, dy = self.gm[grid_number].origin_dx_dy
+            dx, dy = self.gm[grid_index].origin_dx_dy
             grid_origin_vx, grid_origin_vy = self.cs.convert_to_v((dx, dy))
             mv_scale = self.cs.get_mv_scale()
-            pixel_size = self.gm[grid_number].pixel_size
+            pixel_size = self.gm[grid_index].pixel_size
             # Calculate top-left corner of unrotated grid
-            dx -= self.gm[grid_number].tile_width_d()/2
-            dy -= self.gm[grid_number].tile_height_d()/2
+            dx -= self.gm[grid_index].tile_width_d()/2
+            dy -= self.gm[grid_index].tile_height_d()/2
             grid_topleft_vx, grid_topleft_vy = self.cs.convert_to_v((dx, dy))
-            cols = self.gm[grid_number].number_cols()
-            rows = self.gm[grid_number].number_rows()
-            overlap = self.gm[grid_number].overlap
-            tile_width_p = self.gm[grid_number].tile_width_p()
-            tile_height_p = self.gm[grid_number].tile_height_p()
+            cols = self.gm[grid_index].number_cols()
+            rows = self.gm[grid_index].number_rows()
+            overlap = self.gm[grid_index].overlap
+            tile_width_p = self.gm[grid_index].tile_width_p()
+            tile_height_p = self.gm[grid_index].tile_height_p()
             # Tile width in viewport pixels taking overlap into account
             tile_width_v = ((tile_width_p - overlap) * pixel_size
                             / 1000 * mv_scale)
             tile_height_v = ((tile_height_p - overlap) * pixel_size
                              / 1000 * mv_scale)
             # Row shift in viewport pixels
-            shift_v = (self.gm[grid_number].row_shift * pixel_size
+            shift_v = (self.gm[grid_index].row_shift * pixel_size
                        / 1000 * mv_scale)
             # Mouse click position relative to top-left corner of grid
             x, y = px - grid_topleft_vx, py - grid_topleft_vy
-            theta = radians(self.gm[grid_number].rotation)
+            theta = radians(self.gm[grid_index].rotation)
             if theta > 0:
                 # Rotate the mouse click coordinates if grid is rotated.
                 # Use grid origin as pivot:
@@ -1866,7 +1866,7 @@ class Viewport(QWidget):
                     i = cols
                 if (i < cols) and (j < rows):
                     selected_tile = int(i + j * cols)
-                    selected_grid = grid_number
+                    selected_grid = grid_index
                     break
             # Also check whether grid label clicked. This selects only the grid
             # and not a specific tile.
@@ -1878,7 +1878,7 @@ class Viewport(QWidget):
             l_y = y + label_height
             if x >= 0 and l_y >= 0 and selected_grid is None:
                 if x < label_width and l_y < label_height:
-                    selected_grid = grid_number
+                    selected_grid = grid_index
                     selected_tile = None
                     break
 
@@ -1986,10 +1986,10 @@ class Viewport(QWidget):
         self.transmit_cmd('OPEN GRID SETTINGS' + str(self.selected_grid))
 
     def mv_move_grid_current_stage(self):
-        grid_number = self.selected_grid
+        grid_index = self.selected_grid
         x, y = self.stage.get_xy()
-        self.gm[grid_number].centre_sx_sy = [x, y]
-        self.gm[grid_number].update_tile_positions()
+        self.gm[grid_index].centre_sx_sy = [x, y]
+        self.gm[grid_index].update_tile_positions()
         self.cfg['magc']['roi_mode'] = 'False'
         self.gm.update_source_ROIs_from_grids()
         self.mv_draw()

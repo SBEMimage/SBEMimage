@@ -114,30 +114,30 @@ def get_ov_debris_save_path(stack_name, ov_number, slice_counter, sw_counter):
             + '_' + str(sw_counter)
             + '.tif')
 
-def get_tile_save_path(stack_name, grid_number, tile_number, slice_counter):
-    return ('tiles\\g' + str(grid_number).zfill(GRID_DIGITS)
-            + '\\t' + str(tile_number).zfill(TILE_DIGITS)
+def get_tile_save_path(stack_name, grid_index, tile_index, slice_counter):
+    return ('tiles\\g' + str(grid_index).zfill(GRID_DIGITS)
+            + '\\t' + str(tile_index).zfill(TILE_DIGITS)
             + '\\' + stack_name
-            + '_g' + str(grid_number).zfill(GRID_DIGITS)
-            + '_t' + str(tile_number).zfill(TILE_DIGITS)
+            + '_g' + str(grid_index).zfill(GRID_DIGITS)
+            + '_t' + str(tile_index).zfill(TILE_DIGITS)
             + '_s' + str(slice_counter).zfill(SLICE_DIGITS)
             + '.tif')
 
-def get_tile_preview_save_path(grid_number, tile_number):
-    return ('workspace\\g' + str(grid_number).zfill(GRID_DIGITS)
-            + '_t' + str(tile_number).zfill(TILE_DIGITS) + '.png')
+def get_tile_preview_save_path(grid_index, tile_index):
+    return ('workspace\\g' + str(grid_index).zfill(GRID_DIGITS)
+            + '_t' + str(tile_index).zfill(TILE_DIGITS) + '.png')
 
-def get_tile_reslice_save_path(grid_number, tile_number):
-    return ('workspace\\reslices\\r_g' + str(grid_number).zfill(GRID_DIGITS)
-            + '_t' + str(tile_number).zfill(TILE_DIGITS) + '.png')
+def get_tile_reslice_save_path(grid_index, tile_index):
+    return ('workspace\\reslices\\r_g' + str(grid_index).zfill(GRID_DIGITS)
+            + '_t' + str(tile_index).zfill(TILE_DIGITS) + '.png')
 
 def get_ov_reslice_save_path(ov_number):
     return ('workspace\\reslices\\r_OV'
             + str(ov_number).zfill(OV_DIGITS) + '.png')
 
-def get_tile_id(grid_number, tile_number, slice_number):
-    return (str(grid_number).zfill(GRID_DIGITS)
-            + '.' + str(tile_number).zfill(TILE_DIGITS)
+def get_tile_id(grid_index, tile_index, slice_number):
+    return (str(grid_index).zfill(GRID_DIGITS)
+            + '.' + str(tile_index).zfill(TILE_DIGITS)
             + '.' + str(slice_number).zfill(SLICE_DIGITS))
 
 def validate_tile_list(input_str):
@@ -408,5 +408,5 @@ def sectionsYAML_to_sections_landmarks(sectionsYAML):
             # # tissueDic['center'][0],
             # # tissueDic['center'][1],
             # # (-tissueDic['angle'] - 90) % 360]
-    
+
 # -------------- End of MagC utils --------------
