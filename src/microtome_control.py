@@ -36,8 +36,38 @@ class Microtome:
         self.cfg = config
         self.syscfg = sysconfig
         self.error_state = 0
-        self.error_cause = ''
+        self.error_info = ''
         self.motor_warning = False  # True when motors slower than expected
+        # Load device name and other settings from sysconfig. These
+        # settings overwrite the settings in config.
+        recognized_devices = json.loads(self.syscfg['device']['recognized'])
+        try:
+            self.cfg['microtome']['device'] = (
+                recognized_devices[int(self.syscfg['device']['microtome'])])
+        except:
+            self.cfg['microtome']['device'] = 'NOT RECOGNIZED'
+        self.device_name = self.cfg['microtome']['device']
+        # Get microtome stage limits from system cfg file
+        stage_limits = json.loads(
+            self.syscfg['stage']['microtome_stage_limits'])
+        # self.stage_limits contains the XY stage limits in microns as integers.
+        self.stage_limits = [
+            int(float(self.cfg['microtome']['stage_min_x'])),
+            int(float(self.cfg['microtome']['stage_max_x'])),
+            int(float(self.cfg['microtome']['stage_min_y'])),
+            int(float(self.cfg['microtome']['stage_max_y']))]
+        # Get microtome motor speeds from system cfg file
+        motor_speed = json.loads(self.syscfg['stage']['microtome_motor_speed'])
+        self.cfg['microtome']['motor_speed_x'] = str(motor_speed[0])
+        self.cfg['microtome']['motor_speed_y'] = str(motor_speed[1])
+        # XY motor speeds in microns per second
+        self.motor_speed_x = float(self.cfg['microtome']['motor_speed_x'])
+        self.motor_speed_y = float(self.cfg['microtome']['motor_speed_y'])
+        # Some knife settings are set in system config:
+        self.cfg['microtome']['full_cut_duration'] = (
+            self.syscfg['knife']['full_cut_duration'])
+        self.cfg['microtome']['sweep_distance'] = (
+            self.syscfg['knife']['sweep_distance'])
         # The following variables contain the last known (verified) position
         # of the microtome stage in X, Y, Z.
         self.last_known_x = None
@@ -46,26 +76,25 @@ class Microtome:
         # self.prev_known_z stores the previous Z coordinate. It is used to
         # ensure that Z moves cannot be larger than 200 nm in safe mode.
         self.prev_known_z = None
-        # self.z_prev_session stores the last known Z coordinate at the end of
+        # self.stage_z_prev_session stores the last known Z coordinate at the end of
         # the previous session associated with the current user configuration.
         if self.cfg['microtome']['last_known_z'].lower() == 'none':
-            self.z_prev_session = None
+            self.stage_z_prev_session = None
         else:
             try:
-                self.z_prev_session = float(
+                self.stage_z_prev_session = float(
                     self.cfg['microtome']['last_known_z'])
             except Exception as e:
                 self.error_state = 701
-                self.error_cause = str(e)
+                self.error_info = str(e)
                 return
         try:
             self.z_range = json.loads(
                 self.syscfg['stage']['microtome_z_range'])
         except Exception as e:
             self.error_state = 701
-            self.error_cause = str(e)
+            self.error_info = str(e)
             return
-        self.device_name = self.cfg['microtome']['device']
         self.simulation_mode = (
             self.cfg['sys']['simulation_mode'].lower() == 'true')
         self.use_oscillation = (
@@ -108,25 +137,40 @@ class Microtome:
             # that SBEMimage waits after a stage move before taking an image.
             self.stage_move_wait_interval = float(
                 self.cfg['microtome']['stage_move_wait_interval'])
-            # XY motor speeds in microns per second
-            self.motor_speed_x = float(self.cfg['microtome']['motor_speed_x'])
-            self.motor_speed_y = float(self.cfg['microtome']['motor_speed_y'])
-            # XY motor limits in microns
-            self.motor_limits = [
-                int(float(self.cfg['microtome']['stage_min_x'])),
-                int(float(self.cfg['microtome']['stage_max_x'])),
-                int(float(self.cfg['microtome']['stage_min_y'])),
-                int(float(self.cfg['microtome']['stage_max_y']))]
-            # Calibration parameters of the microtome XY stage if it has a stage,
-            # otherwise SEM stage is used
-            self.stage_calibration = [
-                float(self.cfg['microtome']['stage_scale_factor_x']),
-                float(self.cfg['microtome']['stage_scale_factor_y']),
-                float(self.cfg['microtome']['stage_rotation_angle_x']),
-                float(self.cfg['microtome']['stage_rotation_angle_y'])]
+
         except Exception as e:
             self.error_state = 701
-            self.error_cause = str(e)
+            self.error_info = str(e)
+
+    def save_to_cfg(self):
+        self.cfg['microtome']['stage_move_wait_interval'] = str(
+            self.stage_move_wait_interval)
+        self.cfg['microtome']['stage_min_x'] = str(self.stage_limits[0])
+        self.cfg['microtome']['stage_max_x'] = str(self.stage_limits[1])
+        self.cfg['microtome']['stage_min_y'] = str(self.stage_limits[2])
+        self.cfg['microtome']['stage_max_y'] = str(self.stage_limits[3])
+        # Save data in sysconfig:
+        self.syscfg['stage']['microtome_stage_limits'] = str(self.stage_limits)
+
+        self.cfg['microtome']['knife_cut_speed'] = str(int(
+            self.knife_cut_speed))
+        self.cfg['microtome']['knife_retract_speed'] = str(int(
+            self.knife_retract_speed))
+        self.cfg['microtome']['knife_fast_speed'] = str(int(
+            self.knife_fast_speed))
+        self.cfg['microtome']['knife_cut_start'] = str(int(
+            self.cut_window_start))
+        self.cfg['microtome']['knife_cut_end'] = str(int(
+            self.cut_window_end))
+        self.cfg['microtome']['knife_oscillation'] = str(self.use_oscillation)
+        self.cfg['microtome']['knife_osc_frequency'] = str(int(
+            self.oscillation_frequency))
+        self.cfg['microtome']['knife_osc_amplitude'] = str(int(
+            self.oscillation_amplitude))
+
+        self.cfg['microtome']['full_cut_duration'] = str(self.full_cut_duration)
+        # Also save duration in sysconfig:
+        self.syscfg['knife']['full_cut_duration'] = str(self.full_cut_duration)
 
     def do_full_cut(self):
         """Perform a full cut cycle. This is the only knife control function
@@ -144,7 +188,7 @@ class Microtome:
         if (((self.sweep_distance < 30) or (self.sweep_distance > 1000))
                 and self.error_state == 0):
             self.error_state = 205
-            self.error_cause = 'microtome.do_sweep: sweep distance out of range'
+            self.error_info = 'microtome.do_sweep: sweep distance out of range'
         elif self.error_state == 0:
             raise NotImplementedError
 
@@ -155,9 +199,6 @@ class Microtome:
     def retract_knife(self):
         # only used for testing
         raise NotImplementedError
-
-    def get_motor_speeds(self):
-        return self.motor_speed_x, self.motor_speed_y
 
     def set_motor_speeds(self, motor_speed_x, motor_speed_y):
         self.motor_speed_x = motor_speed_x
@@ -172,25 +213,6 @@ class Microtome:
     def write_motor_speeds_to_script(self):
         raise NotImplementedError
 
-    def get_stage_move_wait_interval(self):
-        return self.stage_move_wait_interval
-
-    def set_stage_move_wait_interval(self, wait_interval):
-        self.stage_move_wait_interval = wait_interval
-        self.cfg['microtome']['stage_move_wait_interval'] = str(wait_interval)
-
-    def get_motor_limits(self):
-        return self.motor_limits
-
-    def set_motor_limits(self, limits):
-        self.motor_limits = limits
-        self.cfg['microtome']['stage_min_x'] = str(limits[0])
-        self.cfg['microtome']['stage_max_x'] = str(limits[1])
-        self.cfg['microtome']['stage_min_y'] = str(limits[2])
-        self.cfg['microtome']['stage_max_y'] = str(limits[3])
-        # Save data in sysconfig:
-        self.syscfg['stage']['microtome_motor_limits'] = str(self.motor_limits)
-
     def move_stage_to_x(self, x):
         # only used for testing
         raise NotImplementedError
@@ -199,7 +221,7 @@ class Microtome:
         # only used for testing
         raise NotImplementedError
 
-    def calculate_rel_stage_move_duration(self, target_x, target_y):
+    def rel_stage_move_duration(self, target_x, target_y):
         """Use the last known position and the given target position
            to calculate how much time it will take for the motors to move
            to target position. Add self.stage_move_wait_interval.
@@ -208,7 +230,7 @@ class Microtome:
         duration_y = abs(target_y - self.last_known_y) / self.motor_speed_y
         return max(duration_x, duration_y) + self.stage_move_wait_interval
 
-    def calculate_stage_move_duration(self, from_x, from_y, to_x, to_y):
+    def stage_move_duration(self, from_x, from_y, to_x, to_y):
         duration_x = abs(to_x - from_x) / self.motor_speed_x
         duration_y = abs(to_y - from_y) / self.motor_speed_y
         return max(duration_x, duration_y) + self.stage_move_wait_interval
@@ -239,25 +261,10 @@ class Microtome:
         """Get current Z coordinate from DM"""
         raise NotImplementedError
 
-    def get_stage_z_prev_session(self):
-        return self.z_prev_session
-
     def move_stage_to_z(self, z, safe_mode=True):
         """Move stage to new z position. Used during stack acquisition
            before each cut and for sweeps."""
         raise NotImplementedError
-
-    def get_stage_z_range(self):
-        return self.z_range
-
-    def get_last_known_xy(self):
-        return self.last_known_x, self.last_known_y
-
-    def get_last_known_z(self):
-        return self.last_known_z
-
-    def get_prev_known_z(self):
-        return self.prev_known_z
 
     def stop_script(self):
         raise NotImplementedError
@@ -273,133 +280,6 @@ class Microtome:
 
     def reset_error_state(self):
         raise NotImplementedError
-
-    def get_error_state(self):
-        # Return current error_state
-        return self.error_state
-
-    def get_error_cause(self):
-        return self.error_cause
-
-    def motor_warning_received(self):
-        return self.motor_warning
-
-    def get_knife_cut_speed(self):
-        return self.knife_cut_speed
-
-    def set_knife_cut_speed(self, cut_speed):
-        """Set knife cut speed in micrometres/second."""
-        self.knife_cut_speed = int(cut_speed)
-        self.cfg['microtome']['knife_cut_speed'] = str(self.knife_cut_speed)
-
-    def get_knife_retract_speed(self):
-        return self.knife_retract_speed
-
-    def set_knife_retract_speed(self, retract_speed):
-        """Set knife retract speed in micrometres/second."""
-        self.knife_retract_speed = int(retract_speed)
-        self.cfg['microtome']['knife_retract_speed'] = str(
-            self.knife_retract_speed)
-
-    def get_knife_fast_speed(self):
-        return self.knife_fast_speed
-
-    def set_knife_fast_speed(self, fast_speed):
-        """Set knife fast speed in micrometres/second."""
-        self.knife_fast_speed = int(fast_speed)
-        self.cfg['microtome']['knife_fast_speed'] = str(
-            self.knife_fast_speed)
-
-    def get_cut_window(self):
-        return self.cut_window_start, self.cut_window_end
-
-    def set_cut_window(self, start, end):
-        self.cut_window_start = int(start)
-        self.cut_window_end = int(end)
-        self.cfg['microtome']['knife_cut_start'] = str(self.cut_window_start)
-        self.cfg['microtome']['knife_cut_end'] = str(self.cut_window_end)
-
-    def is_oscillation_enabled(self):
-        return self.use_oscillation
-
-    def set_oscillation_enabled(self, status):
-        self.use_oscillation = status
-        self.cfg['microtome']['knife_oscillation'] = str(status)
-
-    def get_oscillation_frequency(self):
-        return self.oscillation_frequency
-
-    def set_oscillation_frequency(self, frequency):
-        self.oscillation_frequency = int(frequency)
-        self.cfg['microtome']['knife_osc_frequency'] = str(
-            self.oscillation_frequency)
-
-    def get_oscillation_amplitude(self):
-        return self.oscillation_amplitude
-
-    def set_oscillation_amplitude(self, amplitude):
-        self.oscillation_amplitude = int(amplitude)
-        self.cfg['microtome']['knife_osc_amplitude'] = str(
-            self.oscillation_amplitude)
-
-    def get_stage_calibration(self):
-        return self.stage_calibration
-
-    def set_stage_calibration(self, eht, params):
-        self.stage_calibration = params
-        self.cfg['microtome']['stage_scale_factor_x'] = str(params[0])
-        self.cfg['microtome']['stage_scale_factor_y'] = str(params[1])
-        self.cfg['microtome']['stage_rotation_angle_x'] = str(params[2])
-        self.cfg['microtome']['stage_rotation_angle_y'] = str(params[3])
-        # Save data in sysconfig:
-        calibration_data = json.loads(self.syscfg['stage']['microtome_calibration_data'])
-        eht = int(eht * 1000)  # Dict keys in system config use volts, not kV
-        calibration_data[str(eht)] = params
-        self.syscfg['stage']['microtome_calibration_data'] = json.dumps(calibration_data)
-
-    def update_stage_calibration(self, eht):
-        eht = int(eht * 1000)  # Dict keys in system config use volts, not kV
-        success = True
-        try:
-            calibration_data = json.loads(
-                self.syscfg['stage']['microtome_calibration_data'])
-            available_eht = [int(s) for s in calibration_data.keys()]
-        except:
-            available_eht = []
-            success = False
-
-        if success:
-            if eht in available_eht:
-                params = calibration_data[str(eht)]
-            else:
-                success = False
-                # Fallback option: nearest among the available EHT calibrations
-                new_eht = 1500
-                min_diff = abs(eht - 1500)
-                for eht_choice in available_eht:
-                    diff = abs(eht - eht_choice)
-                    if diff < min_diff:
-                        min_diff = diff
-                        new_eht = eht_choice
-                params = calibration_data[str(new_eht)]
-            self.cfg['microtome']['stage_scale_factor_x'] = str(params[0])
-            self.cfg['microtome']['stage_scale_factor_y'] = str(params[1])
-            self.cfg['microtome']['stage_rotation_angle_x'] = str(params[2])
-            self.cfg['microtome']['stage_rotation_angle_y'] = str(params[3])
-            self.stage_calibration = params
-        return success
-
-    def get_full_cut_duration(self):
-        return self.full_cut_duration
-
-    def set_full_cut_duration(self, cut_duration):
-        self.full_cut_duration = cut_duration
-        self.cfg['microtome']['full_cut_duration'] = str(cut_duration)
-        # Save duration in sysconfig:
-        self.syscfg['knife']['full_cut_duration'] = str(cut_duration)
-
-    def get_sweep_distance(self):
-        return self.sweep_distance
 
 
 class Microtome_3View(Microtome):
@@ -441,27 +321,27 @@ class Microtome_3View(Microtome):
                 if ((current_x is None) or (current_y is None)
                         or (current_z is None)):
                     self.error_state = 101
-                    self.error_cause = ('microtome.__init__: could not read '
+                    self.error_info = ('microtome.__init__: could not read '
                                         'initial stage position')
                 elif current_z < 0:
                     self.error_state = 101
-                    self.error_cause = ('microtome.__init__: stage z position '
+                    self.error_info = ('microtome.__init__: stage z position '
                                         'must not be negative.')
                 # Check if z coordinate matches z from previous session:
-                elif (self.z_prev_session is not None
-                      and abs(current_z - self.z_prev_session) > 0.01):
+                elif (self.stage_z_prev_session is not None
+                      and abs(current_z - self.stage_z_prev_session) > 0.01):
                     self.error_state = 206
-                    self.error_cause = ('microtome.__init__: stage z position '
+                    self.error_info = ('microtome.__init__: stage z position '
                                         'mismatch')
                 # Update motor speed calibration in DM script:
                 success = self.write_motor_speeds_to_script()
                 if not success and self.error_state == 0:
                     self.error_state = 101
-                    self.error_cause = ('microtome.__init__: could not set '
+                    self.error_info = ('microtome.__init__: could not set '
                                         'motor speed calibration')
             else:
                 self.error_state = 101
-                self.error_cause = 'microtome.__init__: handshake failed'
+                self.error_info = 'microtome.__init__: handshake failed'
 
     def _send_dm_command(self, cmd, set_values=[]):
         """Send a command to the DM script."""
@@ -481,11 +361,11 @@ class Microtome_3View(Microtome):
                 trg_file.close()
             elif self.error_state == 0:
                 self.error_state = 102
-                self.error_cause = ('microtome._send_dm_command: could not '
+                self.error_info = ('microtome._send_dm_command: could not '
                                     'create trigger file')
         elif self.error_state == 0:
             self.error_state = 102
-            self.error_cause = ('microtome._send_dm_command: could not write '
+            self.error_info = ('microtome._send_dm_command: could not write '
                                 'to command file')
 
     def _read_dm_return_values(self):
@@ -498,7 +378,7 @@ class Microtome_3View(Microtome):
             return_file.close()
         elif self.error_state == 0:
             self.error_state = 104
-            self.error_cause = ('microtome._read_dm_return_values: could not '
+            self.error_info = ('microtome._read_dm_return_values: could not '
                                 'read from return file')
         if return_values == []:
             return_values = [None, None]
@@ -543,7 +423,7 @@ class Microtome_3View(Microtome):
         if (((self.sweep_distance < 30) or (self.sweep_distance > 1000))
                 and self.error_state == 0):
             self.error_state = 205
-            self.error_cause = 'microtome.do_sweep: sweep distance out of range'
+            self.error_info = 'microtome.do_sweep: sweep distance out of range'
         elif self.error_state == 0:
             # Move to new z position:
             sweep_z_position = z_position - (self.sweep_distance / 1000)
@@ -560,12 +440,12 @@ class Microtome_3View(Microtome):
                 # Cutting error?
                 if os.path.isfile('..\\dm\\DMcom.err'):
                     self.error_state = 205
-                    self.error_cause = ('microtome.do_sweep: error during '
+                    self.error_info = ('microtome.do_sweep: error during '
                                         'cutting cycle')
                 elif not os.path.isfile('..\\dm\\DMcom.ac2'):
                     # Cut cycle was not carried out:
                     self.error_state = 103
-                    self.error_cause = ('microtome.do_sweep: command not '
+                    self.error_info = ('microtome.do_sweep: command not '
                                         'processed by DM script')
 
             # Move to previous z position (before sweep):
@@ -638,7 +518,7 @@ class Microtome_3View(Microtome):
         self._send_dm_command('MicrotomeStage_SetPositionXY_Confirm', [x, y])
         sleep(0.2)
         # Wait for the time it takes the motors to move:
-        move_duration = self.calculate_rel_stage_move_duration(x, y)
+        move_duration = self.rel_stage_move_duration(x, y)
         sleep(move_duration + 0.1)
         # Is there a problem with the motors or was the command not executed?
         if os.path.isfile('..\\dm\\DMcom.ack'):
@@ -652,12 +532,12 @@ class Microtome_3View(Microtome):
         elif os.path.isfile('..\\dm\\DMcom.err') and self.error_state == 0:
             # Error: motors did not reach the target position!
             self.error_state = 201
-            self.error_cause = ('microtome.move_stage_to_xy: did not reach '
+            self.error_info = ('microtome.move_stage_to_xy: did not reach '
                                 'target xy position')
         elif self.error_state == 0:
             # If neither .ack nor .err exist, the command was not processed:
             self.error_state = 103
-            self.error_cause = ('microtome.move_stage_to_xy: command not '
+            self.error_info = ('microtome.move_stage_to_xy: command not '
                                 'processed by DM script')
 
     def get_stage_z(self, wait_interval=0.5):
@@ -680,9 +560,6 @@ class Microtome_3View(Microtome):
             self.cfg['microtome']['last_known_z'] = str(z)
         return z
 
-    def get_stage_z_prev_session(self):
-        return self.z_prev_session
-
     def move_stage_to_z(self, z, safe_mode=True):
         """Move stage to new z position. Used during stack acquisition
            before each cut and for sweeps."""
@@ -692,7 +569,7 @@ class Microtome_3View(Microtome):
                 and self.error_state == 0 and safe_mode):
             # Z should not move more than ~200 nm during stack acq!
             self.error_state = 203
-            self.error_cause = ('microtome.move_stage_to_z: Z move too '
+            self.error_info = ('microtome.move_stage_to_z: Z move too '
                                 'large (> 200 nm)')
         else:
             self._send_dm_command('MicrotomeStage_SetPositionZ_Confirm', [z])
@@ -706,12 +583,12 @@ class Microtome_3View(Microtome):
             elif os.path.isfile('..\\dm\\DMcom.err') and self.error_state == 0:
                 # There was an error during the move!
                 self.error_state = 202
-                self.error_cause = ('microtome.move_stage_to_z: did not reach '
+                self.error_info = ('microtome.move_stage_to_z: did not reach '
                                     'target z position')
             elif self.error_state == 0:
                 # If neither .ack nor .err exist, the command was not processed:
                 self.error_state = 103
-                self.error_cause = ('move_stage_to_z: command not processed '
+                self.error_info = ('move_stage_to_z: command not processed '
                                     'by DM script')
 
     def stop_script(self):
@@ -733,12 +610,12 @@ class Microtome_3View(Microtome):
         # Check if error ocurred during self.do_full_cut():
         if self.error_state == 0 and os.path.isfile('..\\dm\\DMcom.err'):
             self.error_state = 204
-            self.error_cause = ('microtome.do_full_cut: error during '
+            self.error_info = ('microtome.do_full_cut: error during '
                                 'cutting cycle')
         elif not os.path.isfile('..\\dm\\DMcom.ac2'):
             # Cut cycle was not carried out within the specified time limit.
             self.error_state = 103
-            self.error_cause = ('microtome.do_full_cut: command not '
+            self.error_info = ('microtome.do_full_cut: command not '
                                 'processed by DM script')
             duration_exceeded = True
             # Wait another 10 sec maximum:
@@ -746,13 +623,13 @@ class Microtome_3View(Microtome):
                 sleep(1)
                 if os.path.isfile('..\\dm\\DMcom.ac2'):
                     self.error_state = 0
-                    self.error_cause = ''
+                    self.error_info = ''
                     break
         return duration_exceeded
 
     def reset_error_state(self):
         self.error_state = 0
-        self.error_cause = ''
+        self.error_info = ''
         self.motor_warning = False
         if os.path.isfile('..\\dm\\DMcom.err'):
             os.remove('..\\dm\\DMcom.err')
@@ -1002,7 +879,7 @@ class Microtome_katana(Microtome):
         return z
 
     def get_stage_z_prev_session(self):
-        return self.z_prev_session
+        return self.stage_z_prev_session
 
     def move_stage_to_z(self, z, speed, safe_mode=True):
         """Move to specified Z position, and block until it is reached."""
@@ -1046,7 +923,7 @@ class Microtome_katana(Microtome):
 
     def reset_error_state(self):
         self.error_state = 0
-        self.error_cause = ''
+        self.error_info = ''
         self.motor_warning = False
 
     def disconnect(self):

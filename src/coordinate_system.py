@@ -8,14 +8,20 @@
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
 
-"""This module maintains the internal coordinate systems and reference points
-   and provides conversion functionality.
-   Letter abbreviations for coordinate systems:
-       s - SBEM stage in microns. Motor origin: (0, 0)
-       d - SEM coordinates as displayed in SmartSEM (in microns),
-           origin (0, 0) coincides with stage origin
-       p - Same as d, but in 10-nm pixels
-       v - Pixel coordinates within Viewport window (X:0..1000, Y:0..800)
+"""This module maintains the coordinate systems and the stage calibration, and
+   provides conversion functionality.
+   One-letter abbreviations for type of coordinates use in this module and
+   everywhere else in SBEMimage code:
+       s - Microtome or SEM stage in microns. Stage origin at (0, 0)
+           _s, sx, sy, sx_sy
+       d - SEM coordinates in microns, origin (0, 0) coincides with stage origin
+           _d, dx, dy, dx_dy
+       [p - Same as d, but in 10-nm pixels; perhaps obsolete]
+       v - Pixel coordinates within Viewport window (vx: 0..1000, vy: 0..800)
+           _v, vx, vy, vx_vy
+
+       TODO: Location management of overviews, stubs, ... to be moved to
+       OverviewManager
 """
 
 from math import sin, cos
@@ -23,12 +29,13 @@ import json
 
 class CoordinateSystem():
 
-    def __init__(self, config):
+    def __init__(self, config, sysconfig):
         self.cfg = config
+        self.syscfg = sysconfig
         # The pixel size of the global coordinate system is fixed at 10 nm:
-        self.CS_PIXEL_SIZE = 10
-        # Current positions of grids, overviews, the stub overview,
-        # and imported images:
+        self.CS_PIXEL_SIZE = 10   # This may become obsolete.
+        # Current positions of overviews, the stub overview,
+        # and imported images (this will be moved to OverviewManager):
         self.ov_centre_sx_sy = json.loads(
             self.cfg['overviews']['ov_centre_sx_sy'])
         self.stub_ov_centre_sx_sy = json.loads(
@@ -44,21 +51,73 @@ class CoordinateSystem():
         # Upper left corner of visible window
         self.mv_dx_dy = (self.mv_centre_dx_dy[0] - 500 / self.mv_scale,
                          self.mv_centre_dx_dy[1] - 400 / self.mv_scale)
-        # Load current stage parameters and calculate transformation factors:
+        # Load current stage calibration and calculate transformation factors
+        initial_eht = float(self.cfg['sem']['eht'])
+        self.calibration_found = False
+        self.load_stage_calibration(initial_eht)
         self.apply_stage_calibration()
-        self.load_stage_limits()
+
+    def save_to_cfg(self):
+        self.cfg['overviews']['ov_centre_sx_sy'] = str(
+            self.ov_centre_sx_sy)
+        self.cfg['overviews']['stub_ov_centre_sx_sy'] = str(
+            self.stub_ov_centre_sx_sy)
+        self.cfg['overviews']['stub_ov_origin_sx_sy'] = str(
+            self.stub_ov_origin_sx_sy)
+        self.cfg['overviews']['imported_centre_sx_sy'] = str(
+            self.imported_img_centre_sx_sy)
+        self.cfg['viewport']['mv_centre_dx_dy'] = str(self.mv_centre_dx_dy)
+        self.cfg['viewport']['mv_scale'] = str(self.mv_scale)
+
+        if self.cfg['sys']['use_microtome'].lower() == 'true':
+            type_of_stage = 'microtome'
+        else:
+            type_of_stage = 'sem'
+        self.cfg[type_of_stage]['stage_scale_factor_x'] = str(
+            self.stage_calibration[0])
+        self.cfg[type_of_stage]['stage_scale_factor_y'] = str(
+            self.stage_calibration[1])
+        self.cfg[type_of_stage]['stage_rotation_angle_x'] = str(
+            self.stage_calibration[2])
+        self.cfg[type_of_stage]['stage_rotation_angle_y'] = str(
+            self.stage_calibration[3])
+
+    def load_stage_calibration(self, eht):
+        eht = int(eht * 1000)  # Dict keys in system config use volts, not kV
+        if self.cfg['sys']['use_microtome'].lower() == 'true':
+            type_of_stage = 'microtome'
+        else:
+            type_of_stage = 'sem'
+        try:
+            calibration_params = json.loads(
+                self.syscfg['stage'][type_of_stage + '_calibration_params'])
+            available_eht = [int(s) for s in calibration_params.keys()]
+        except:
+            raise Exception(
+                'Missing or corrupt calibration data. '
+                'Check system configuration!')
+        if eht in available_eht:
+            self.stage_calibration = calibration_params[str(eht)]
+            self.calibration_found = True
+        else:
+            # Fallback option: nearest among the available EHT calibrations
+            new_eht = 1500
+            min_diff = abs(eht - 1500)
+            for eht_choice in available_eht:
+                diff = abs(eht - eht_choice)
+                if diff < min_diff:
+                    min_diff = diff
+                    new_eht = eht_choice
+            self.stage_calibration = calibration_params[str(new_eht)]
+            self.calibration_found = False
 
     def apply_stage_calibration(self):
         """(Re)load rotation and scale parameters and compute rotation
         matrix elements."""
-        if self.cfg['sys']['use_microtome'] == 'True':
-            device = 'microtome'
-        else:
-            device = 'sem'
-        rot_x = float(self.cfg[device]['stage_rotation_angle_x'])
-        rot_y = float(self.cfg[device]['stage_rotation_angle_y'])
-        self.scale_x = float(self.cfg[device]['stage_scale_factor_x'])
-        self.scale_y = float(self.cfg[device]['stage_scale_factor_y'])
+        self.scale_x = float(self.stage_calibration[0])
+        self.scale_y = float(self.stage_calibration[1])
+        rot_x = float(self.stage_calibration[2])
+        rot_y = float(self.stage_calibration[3])
         angle_diff = rot_x - rot_y
         if cos(angle_diff) == 0:
             raise ValueError('Illegal values of the stage rotation angles. '
@@ -77,29 +136,33 @@ class CoordinateSystem():
             raise ValueError('Illegal values of the stage rotation angles. '
                              'Rotation matrix determinant is zero!')
 
-    def load_stage_limits(self):
-        if self.cfg['sys']['use_microtome'] == 'True':
-            device = 'microtome'
+    def save_stage_calibration(self, eht, new_stage_calibration):
+        self.stage_calibration = new_stage_calibration
+        # Save in system configuration
+        if self.cfg['sys']['use_microtome'].lower() == 'true':
+            type_of_stage = 'microtome'
         else:
-            device = 'sem'
-        self.stage_limits = [
-            int(self.cfg[device]['stage_min_x']),
-            int(self.cfg[device]['stage_max_x']),
-            int(self.cfg[device]['stage_min_y']),
-            int(self.cfg[device]['stage_max_y'])]
+            type_of_stage = 'sem'
+        calibration_params = json.loads(
+            self.syscfg['stage'][type_of_stage + '_calibration_params'])
+        eht = int(eht * 1000)  # Dict keys in system config use volts, not kV
+        calibration_params[str(eht)] = self.stage_calibration
+        self.syscfg['stage'][type_of_stage + '_calibration_data'] = json.dumps(
+            calibration_params)
 
     def convert_to_s(self, d_coordinates):
-        """Convert SEM coordinates into stage coordinates.
-        The SEM coordinates (dx, dy) are multiplied with the rotation matrix."""
+        """Convert SEM XY coordinates provided as a tuple or list into stage
+        coordinates. The SEM coordinates (dx, dy) are multiplied with the
+        rotation matrix."""
         dx, dy = d_coordinates
         stage_x = (self.rot_mat_a * dx + self.rot_mat_b * dy) * self.scale_x
         stage_y = (self.rot_mat_c * dx + self.rot_mat_d * dy) * self.scale_y
         return stage_x, stage_y
 
     def convert_to_d(self, s_coordinates):
-        """Convert stage coordinates into SEM coordinates.
-        The stage coordinates are multiplied with the inverse of the rotation
-        matrix."""
+        """Convert stage XY coordinates provided as a tuple or list into
+        SEM coordinates. The stage coordinates are multiplied with the
+        inverse of the rotation matrix."""
         stage_x, stage_y = s_coordinates
         stage_x /= self.scale_x
         stage_y /= self.scale_y
@@ -110,10 +173,32 @@ class CoordinateSystem():
         return dx, dy
 
     def convert_to_v(self, d_coordinates):
-        """Convert SEM coordinates into viewport window coordinates. """
+        """Convert SEM XY coordinates into Viewport window coordinates.
+        These coordinates in units of pixels specify an object's location
+        relative to the Viewport origin """
         dx, dy = d_coordinates
         return (int((dx - self.mv_dx_dy[0]) * self.mv_scale),
                 int((dy - self.mv_dx_dy[1]) * self.mv_scale))
+
+    def get_mv_centre_d(self):
+        return self.mv_centre_dx_dy
+
+    def set_mv_centre_d(self, d_coordinates):
+        self.mv_centre_dx_dy = list(d_coordinates)
+        self.cfg['viewport']['mv_centre_dx_dy'] = str(self.mv_centre_dx_dy)
+        # Recalculate upper left corner of visible window:
+        self.mv_dx_dy = (self.mv_centre_dx_dy[0] - 500 / self.mv_scale,
+                         self.mv_centre_dx_dy[1] - 400 / self.mv_scale)
+
+    def get_mv_scale(self):
+        return self.mv_scale
+
+    def set_mv_scale(self, new_scale):
+        self.mv_scale = new_scale
+        self.cfg['viewport']['mv_scale'] = str(new_scale)
+        # Recalculate upper left corner of visible window
+        self.mv_dx_dy = (self.mv_centre_dx_dy[0] - 500 / self.mv_scale,
+                         self.mv_centre_dx_dy[1] - 400 / self.mv_scale)
 
     def set_ov_centre_s(self, ov_number, s_coordinates):
         if ov_number < len(self.ov_centre_sx_sy):
@@ -178,43 +263,3 @@ class CoordinateSystem():
             del self.imported_img_centre_sx_sy[img_number]
             self.cfg['overviews']['imported_centre_sx_sy'] = str(
                 self.imported_img_centre_sx_sy)
-
-    def get_mv_centre_d(self):
-        return self.mv_centre_dx_dy
-
-    def set_mv_centre_d(self, d_coordinates):
-        self.mv_centre_dx_dy = list(d_coordinates)
-        self.cfg['viewport']['mv_centre_dx_dy'] = str(self.mv_centre_dx_dy)
-        # Recalculate upper left corner of visible window:
-        self.mv_dx_dy = (self.mv_centre_dx_dy[0] - 500 / self.mv_scale,
-                         self.mv_centre_dx_dy[1] - 400 / self.mv_scale)
-
-    def get_mv_scale(self):
-        return self.mv_scale
-
-    def set_mv_scale(self, new_scale):
-        self.mv_scale = new_scale
-        self.cfg['viewport']['mv_scale'] = str(new_scale)
-        # Recalculate upper left corner of visible window
-        self.mv_dx_dy = (self.mv_centre_dx_dy[0] - 500 / self.mv_scale,
-                         self.mv_centre_dx_dy[1] - 400 / self.mv_scale)
-
-    def get_stage_limits(self):
-        return self.stage_limits
-
-    def get_dx_dy_range(self):
-        min_sx, max_sx, min_sy, max_sy = self.stage_limits
-        dx = [0, 0, 0, 0]
-        dy = [0, 0, 0, 0]
-        dx[0], dy[0] = self.convert_to_d((min_sx, min_sy))
-        dx[1], dy[1] = self.convert_to_d((max_sx, min_sy))
-        dx[2], dy[2] = self.convert_to_d((max_sx, max_sy))
-        dx[3], dy[3] = self.convert_to_d((min_sx, max_sy))
-        return min(dx), max(dx), min(dy), max(dy)
-
-    def is_within_stage_limits(self, s_coordinates):
-        within_x = (
-            self.stage_limits[0] <= s_coordinates[0] <= self.stage_limits[1])
-        within_y = (
-            self.stage_limits[2] <= s_coordinates[1] <= self.stage_limits[3])
-        return within_x and within_y

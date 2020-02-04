@@ -67,7 +67,7 @@ class Viewport(QWidget):
         self.queue = queue
         # Set limits for viewport panning:
         self.VC_MIN_X, self.VC_MAX_X, self.VC_MIN_Y, self.VC_MAX_Y = (
-            self.cs.get_dx_dy_range())
+            self.mv_dx_dy_range())
         # Set zoom parameters depending on which stage is selected:
         if self.cfg['sys']['use_microtome'] == 'True':
             self.VIEWER_ZOOM_F1 = 0.2
@@ -729,7 +729,7 @@ class Viewport(QWidget):
 
     def mv_load_stage_limits(self):
         (self.min_sx, self.max_sx,
-            self.min_sy, self.max_sy) = self.cs.get_stage_limits()
+            self.min_sy, self.max_sy) = self.stage.limits
 
     def mv_load_all_overviews(self):
         """Load the images specified in the OV file list into memory """
@@ -1009,6 +1009,16 @@ class Viewport(QWidget):
         sx_pos, sy_pos = self.cs.convert_to_s((dx_pos, dy_pos))
         return (sx_pos, sy_pos)
 
+    def mv_dx_dy_range(self):
+        min_sx, max_sx, min_sy, max_sy = self.stage.limits
+        dx = [0, 0, 0, 0]
+        dy = [0, 0, 0, 0]
+        dx[0], dy[0] = self.cs.convert_to_d((min_sx, min_sy))
+        dx[1], dy[1] = self.cs.convert_to_d((max_sx, min_sy))
+        dx[2], dy[2] = self.cs.convert_to_d((max_sx, max_sy))
+        dx[3], dy[3] = self.cs.convert_to_d((min_sx, max_sy))
+        return min(dx), max(dx), min(dy), max(dy)
+
     def mv_draw(self, suppress_labels=False, suppress_previews=False):
         """Draw all elements on mosaic viewer canvas"""
         show_debris_area = self.cfg['debris']['show_detection_area'] == 'True'
@@ -1101,7 +1111,7 @@ class Viewport(QWidget):
         """
         # Coordinates within mv_qp:
         stage_x_v, stage_y_v = self.cs.convert_to_v(self.cs.convert_to_d(
-            self.stage.get_last_known_xy()))
+            self.stage.last_known_xy))
         size = int(self.cs.get_mv_scale() * 5)
         if size < 10:
             size = 10

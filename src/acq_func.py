@@ -39,7 +39,7 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, cs, queue, trigger):
         # Move to OV stage coordinates:
         stage.move_to_xy(cs.get_ov_centre_s(i))
         # Check to see if error ocurred:
-        if stage.get_error_state() > 0:
+        if stage.error_state > 0:
             success = False
             stage.reset_error_state()
         if success:
@@ -127,7 +127,7 @@ def acquire_stub_ov(base_dir, slice_counter, sem, stage, pos, size_selector,
             stage.move_to_xy((target_x, target_y))
 
             # Check to see if error ocurred:
-            if stage.get_error_state() > 0:
+            if stage.error_state > 0:
                 success = False
                 stage.reset_error_state()
             else:
@@ -179,7 +179,7 @@ def sweep(microtome, queue, trigger):
     z_position = microtome.get_stage_z(wait_interval=1)
     if (z_position is not None) and (z_position >= 0):
         microtome.do_sweep(z_position)
-        if microtome.get_error_state() > 0:
+        if microtome.error_state > 0:
             success = False
             microtome.reset_error_state()
     else:
@@ -199,7 +199,7 @@ def move(stage, target_pos, queue, trigger):
     trigger.s.emit()
     success = True
     stage.move_to_xy(target_pos)
-    if stage.get_error_state() > 0:
+    if stage.error_state > 0:
         success = False
         stage.reset_error_state()
     if success:

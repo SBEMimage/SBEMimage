@@ -3,14 +3,16 @@
 # ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2018-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
 
-"""This class is a wrapper for generic stage functions.
-Depending on the initialization, either the microtome stage or the SEM stage
-is used when carrying out the commands.
+"""This class is a wrapper for generic stage functions. Within the SBEMimage
+acquisition loop and in other SBEMimage modules, commands like this can be used
+to control the stage: self.stage.get_x(), self.stage.move_to_xy()...
+Depending on the initialization, either the microtome stage or the SEM stage or
+some other custom stage will be used when carrying out the commands.
 """
 
 class Stage():
@@ -70,43 +72,46 @@ class Stage():
     def move_to_xy(self, coordinates):
         return self._stage.move_stage_to_xy(coordinates)
 
-    def get_last_known_xy(self):
-        return self._stage.get_last_known_xy()
+    @property
+    def last_known_xy(self):
+        return self._stage.last_known_x, self._stage.last_known_y
 
-    def get_last_known_z(self):
+    @property
+    def last_known_z(self):
         if self.use_microtome_z:
-            return self.microtome.get_last_known_z()
+            return self.microtome.last_known_z
         else:
-            return self._stage.get_last_known_z()
+            return self._stage.last_known_z
 
-    def get_error_state(self):
-        return self._stage.get_error_state()
+    @property
+    def error_state(self):
+        return self._stage.error_state
 
-    def get_error_cause(self):
-        return self._stage.get_error_cause()
+    @error_state.setter
+    def error_state(self, new_error_state):
+        self._stage.error_state = new_error_state
 
-    def reset_error_state(self):
-        self._stage.reset_error_state()
+    @property
+    def error_info(self):
+        return self._stage.error_info
 
-    def get_stage_move_wait_interval(self):
-        return self._stage.get_stage_move_wait_interval()
+    @property
+    def stage_move_wait_interval(self):
+        return self._stage.stage_move_wait_interval
 
-    def set_stage_move_wait_interval(self, wait_interval):
-        return self._stage.set_stage_move_wait_interval(wait_interval)
+    @stage_move_wait_interval.setter
+    def stage_move_wait_interval(self, wait_interval):
+        self._stage.stage_move_wait_interval = wait_interval
 
-    def get_stage_calibration(self):
-        return self._stage.get_stage_calibration()
+    @property
+    def motor_speeds(self):
+        return self._stage.motor_speeds
 
-    def set_stage_calibration(self, current_eht, stage_params):
+    @motor_speeds.setter
+    def motor_speeds(self, motor_speed_x, motor_speed_y):
         if self.use_microtome:
-            return self._stage.set_stage_calibration(current_eht, stage_params)
-
-    def get_motor_speeds(self):
-        return self._stage.get_motor_speeds()
-
-    def set_motor_speeds(self, motor_speed_x, motor_speed_y):
-        if self.use_microtome:
-            return self._stage.set_motor_speeds(motor_speed_x, motor_speed_y)
+            self._stage.motor_speed_x = motor_speed_x
+            self._stage.motor_speed_y = motor_speed_y
 
     def update_motor_speed(self):
         if self.use_microtome:
@@ -114,6 +119,17 @@ class Stage():
         else:
             return True
 
-    def calculate_stage_move_duration(self, from_x, from_y, to_x, to_y):
-        return self._stage.calculate_stage_move_duration(
+    def stage_move_duration(self, from_x, from_y, to_x, to_y):
+        return self._stage.stage_move_duration(
             from_x, from_y, to_x, to_y)
+    @property
+    def limits(self):
+        return self._stage.stage_limits
+
+    def pos_within_limits(self, s_coordinates):
+        """Return True if s_coordinates are located within the motor limits
+        of the current stage."""
+        limits = self._stage.stage_limits
+        within_x = limits[0] <= s_coordinates[0] <= limits[1]
+        within_y = limits[2] <= s_coordinates[1] <= limits[3]
+        return within_x and within_y

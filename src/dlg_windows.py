@@ -184,10 +184,12 @@ class SEMSettingsDlg(QDialog):
 class MicrotomeSettingsDlg(QDialog):
     """Adjust stage motor limits and wait interval after stage moves."""
 
-    def __init__(self, microtome, sem, microtome_active=True):
+    def __init__(self, microtome, sem, coordinate_system,
+                 microtome_active=True):
         super().__init__()
         self.microtome = microtome
         self.sem = sem
+        self.cs = coordinate_system
         self.microtom_active = microtome_active
         loadUi('..\\gui\\microtome_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
@@ -199,17 +201,17 @@ class MicrotomeSettingsDlg(QDialog):
             self.label_selectedStage.setText('Microtome stage active.')
             # Display settings that can only be changed in DM:
             self.lineEdit_knifeCutSpeed.setText(
-                str(self.microtome.get_knife_cut_speed()))
+                str(self.microtome.knife_cut_speed))
             self.lineEdit_knifeRetractSpeed.setText(
-                str(self.microtome.get_knife_retract_speed()))
+                str(self.microtome.knife_retract_speed))
             self.checkBox_useOscillation.setChecked(
-                self.microtome.is_oscillation_enabled())
+                self.microtome.use_oscillation)
             # Settings changeable in GUI:
             self.doubleSpinBox_waitInterval.setValue(
-                self.microtome.get_stage_move_wait_interval())
-            current_motor_limits = self.microtome.get_motor_limits()
-            current_calibration = self.microtome.get_stage_calibration()
-            speed_x, speed_y = self.microtome.get_motor_speeds()
+                self.microtome.stage_move_wait_interval)
+            current_motor_limits = self.microtome.stage_limits
+            current_calibration = self.cs.stage_calibration
+            speed_x, speed_y = self.microtome.motor_speeds
         else:
             self.label_selectedStage.setText('SEM stage active.')
             # Display stage limits. Not editable for SEM.
@@ -222,11 +224,10 @@ class MicrotomeSettingsDlg(QDialog):
             self.spinBox_stageMinY.setEnabled(False)
             self.spinBox_stageMaxY.setEnabled(False)
             current_motor_limits = self.sem.get_motor_limits()
-            current_calibration = self.sem.get_stage_calibration()
+            current_calibration = self.cs.stage_calibration
             speed_x, speed_y = self.sem.get_motor_speeds()
             self.doubleSpinBox_waitInterval.setValue(
                 self.sem.get_stage_move_wait_interval())
-        # Show current calibration:
         self.spinBox_stageMinX.setValue(current_motor_limits[0])
         self.spinBox_stageMaxX.setValue(current_motor_limits[1])
         self.spinBox_stageMinY.setValue(current_motor_limits[2])
@@ -243,11 +244,11 @@ class MicrotomeSettingsDlg(QDialog):
 
     def accept(self):
         if self.microtom_active:
-            self.microtome.set_stage_move_wait_interval(
+            self.microtome.stage_move_wait_interval = (
                 self.doubleSpinBox_waitInterval.value())
-            self.microtome.set_motor_limits([
+            self.microtome.stage_limits = [
                 self.spinBox_stageMinX.value(), self.spinBox_stageMaxX.value(),
-                self.spinBox_stageMinY.value(), self.spinBox_stageMaxY.value()])
+                self.spinBox_stageMinY.value(), self.spinBox_stageMaxY.value()]
         else:
             self.sem.set_stage_move_wait_interval(
                 self.doubleSpinBox_waitInterval.value())
@@ -294,27 +295,28 @@ class KatanaSettingsDlg(QDialog):
 
     def display_current_settings(self):
         self.spinBox_knifeCutSpeed.setValue(
-            self.microtome.get_knife_cut_speed())
+            self.microtome.knife_cut_speed)
         self.spinBox_knifeFastSpeed.setValue(
-            self.microtome.get_knife_fast_speed())
-        cut_window_start, cut_window_end = self.microtome.get_cut_window()
+            self.microtome.knife_fast_speed)
+        cut_window_start, cut_window_end = (
+            self.microtome.cut_window_start, self.microtome.cut_window_end)
         self.spinBox_cutWindowStart.setValue(cut_window_start)
         self.spinBox_cutWindowEnd.setValue(cut_window_end)
 
         self.checkBox_useOscillation.setChecked(
             self.microtome.is_oscillation_enabled())
         self.spinBox_oscAmplitude.setValue(
-            self.microtome.get_oscillation_amplitude())
+            self.microtome.oscillation_amplitude)
         self.spinBox_oscFrequency.setValue(
-            self.microtome.get_oscillation_frequency())
+            self.microtome.oscillation_frequency)
         if not self.microtome.simulation_mode and self.microtome.connected:
             self.doubleSpinBox_zPosition.setValue(self.microtome.get_stage_z())
-        z_range_min, z_range_max = self.microtome.get_stage_z_range()
+        z_range_min, z_range_max = self.microtome.z_range
         self.doubleSpinBox_zRangeMin.setValue(z_range_min)
         self.doubleSpinBox_zRangeMax.setValue(z_range_max)
         # Retraction clearance is stored in nanometres, display in micrometres
         self.doubleSpinBox_retractClearance.setValue(
-            self.microtome.get_retract_clearance() / 1000)
+            self.microtome.retract_clearance / 1000)
 
     def accept(self):
         new_cut_speed = self.spinBox_knifeCutSpeed.value()
@@ -328,14 +330,15 @@ class KatanaSettingsDlg(QDialog):
             self.doubleSpinBox_retractClearance.value() * 1000)
         # End position of cut window must be smaller than start position:
         if new_cut_end < new_cut_start:
-            self.microtome.set_knife_cut_speed(new_cut_speed)
-            self.microtome.set_knife_fast_speed(new_fast_speed)
-            self.microtome.set_cut_window(new_cut_start, new_cut_end)
-            self.microtome.set_oscillation_enabled(
+            self.microtome.knife_cut_speed = new_cut_speed
+            self.microtome.knife_fast_speed = new_fast_speed
+            self.microtome.cut_window_start = new_cut_start
+            self.microtome.cut_window_end = new_cut_end
+            self.microtome.use_oscillation = (
                 self.checkBox_useOscillation.isChecked())
-            self.microtome.set_oscillation_frequency(new_osc_frequency)
-            self.microtome.set_oscillation_amplitude(new_osc_amplitude)
-            self.microtome.set_retract_clearance(new_retract_clearance)
+            self.microtome.oscillation_frequency = new_osc_frequency
+            self.microtome.oscillation_amplitude = new_osc_amplitude
+            self.microtome.retract_clearance = new_retract_clearance
             super().accept()
         else:
             QMessageBox.warning(
@@ -349,9 +352,10 @@ class KatanaSettingsDlg(QDialog):
 class StageCalibrationDlg(QDialog):
     """Calibrate the stage (rotation and scaling) and the motor speeds."""
 
-    def __init__(self, config, stage, sem):
+    def __init__(self, config, coordinate_system, stage, sem):
         super().__init__()
         self.base_dir = config['acq']['base_dir']
+        self.cs = coordinate_system
         self.stage = stage
         self.sem = sem
         self.current_eht = self.sem.get_eht()
@@ -372,7 +376,7 @@ class StageCalibrationDlg(QDialog):
         self.arrow_symbol1.setPixmap(QPixmap('..\\img\\arrow.png'))
         self.arrow_symbol2.setPixmap(QPixmap('..\\img\\arrow.png'))
         self.lineEdit_EHT.setText('{0:.2f}'.format(self.current_eht))
-        params = self.stage.get_stage_calibration()
+        params = self.cs.stage_calibration
         self.doubleSpinBox_stageScaleFactorX.setValue(params[0])
         self.doubleSpinBox_stageScaleFactorY.setValue(params[1])
         self.doubleSpinBox_stageRotationX.setValue(params[2])
@@ -633,7 +637,7 @@ class StageCalibrationDlg(QDialog):
                 self.doubleSpinBox_stageScaleFactorY.value(),
                 self.doubleSpinBox_stageRotationX.value(),
                 self.doubleSpinBox_stageRotationY.value()]
-            self.stage.set_stage_calibration(self.current_eht, stage_params)
+            self.cs.save_stage_calibration(self.current_eht, stage_params)
 
             success = self.stage.set_motor_speeds(
                 self.doubleSpinBox_motorSpeedX.value(),
@@ -642,7 +646,7 @@ class StageCalibrationDlg(QDialog):
             if not success:
                 QMessageBox.warning(
                     self, 'Error updating motor speeds',
-                    'Motor calibration could not be updated in DM script.',
+                    'Motor calibration could not be updated in DM.',
                     QMessageBox.Ok)
             super().accept()
 
@@ -713,7 +717,7 @@ class CutDurationDlg(QDialog):
         self.setFixedSize(self.size())
         self.show()
         self.doubleSpinBox_cutDuration.setValue(
-            self.microtome.get_full_cut_duration())
+            self.microtome.full_cut_duration)
 
     def accept(self):
         self.microtome.set_full_cut_duration(
@@ -2553,7 +2557,7 @@ class ApproachDlg(QDialog):
         # Clear knife
         self.add_to_log('3VIEW: Clearing knife.')
         self.microtome.clear_knife()
-        if self.microtome.get_error_state() > 0:
+        if self.microtome.error_state > 0:
             self.add_to_log('CTRL: Error clearing knife.')
             self.microtome.reset_error_state()
             QMessageBox.warning(self, 'Error',
@@ -2614,7 +2618,7 @@ class ApproachDlg(QDialog):
                     'CTRL: Error reading Z position. Approach aborted.')
                 self.microtome.reset_error_state()
                 self.aborted = True
-        if self.microtome.get_error_state() == 206:
+        if self.microtome.error_state == 206:
             self.microtome.reset_error_state()
             self.z_mismatch = True
             self.aborted = True
@@ -2625,7 +2629,7 @@ class ApproachDlg(QDialog):
         if not self.aborted:
             self.microtome.near_knife()
             self.add_to_log('3VIEW: Moving knife to near position.')
-            if self.microtome.get_error_state() > 0:
+            if self.microtome.error_state > 0:
                 self.add_to_log(
                     'CTRL: Error moving knife to near position. '
                     'Approach aborted.')
@@ -2642,7 +2646,7 @@ class ApproachDlg(QDialog):
             self.main_window_queue.put('UPDATE Z')
             self.main_window_trigger.s.emit()
             # Check if there were microtome problems:
-            if self.microtome.get_error_state() > 0:
+            if self.microtome.error_state > 0:
                 self.add_to_log(
                     'CTRL: Z stage problem detected. Approach aborted.')
                 self.aborted = True
@@ -2652,8 +2656,8 @@ class ApproachDlg(QDialog):
                             + str(self.thickness) + ' nm cutting thickness).')
             # Do the approach cut (cut, retract, in near position)
             self.microtome.do_full_approach_cut()
-            sleep(self.microtome.get_full_cut_duration() - 5)
-            if self.microtome.get_error_state() > 0:
+            sleep(self.microtome.full_cut_duration - 5)
+            if self.microtome.error_state > 0:
                 self.add_to_log(
                     'CTRL: Cutting problem detected. Approach aborted.')
                 self.aborted = True
@@ -2946,7 +2950,7 @@ class FTMoveDlg(QDialog):
             stage_x, stage_y = self.gm[self.grid_index][self.tile_number].sx_sy
         # Now move the stage
         self.microtome.move_stage_to_xy((stage_x, stage_y))
-        if self.microtome.get_error_state() > 0:
+        if self.microtome.error_state > 0:
             self.error = True
             self.microtome.reset_error_state()
         # Signal that move complete
@@ -3040,7 +3044,7 @@ class MotorTestDlg(QDialog):
         self.add_to_log('3VIEW: Moving back to starting z position.')
         # Safe mode must be set to false because diff likely > 200 nm
         self.microtome.move_stage_to_z(self.start_z, safe_mode=False)
-        if self.microtome.get_error_state() > 0:
+        if self.microtome.error_state > 0:
             self.microtome.reset_error_state()
             QMessageBox.warning(
                 self, 'Error',
@@ -3105,18 +3109,18 @@ class MotorTestDlg(QDialog):
                           + '{0:.3f}, '.format(current_y)
                           + '{0:.3f}'.format(current_z) + '\n')
             self.microtome.move_stage_to_xy((current_x, current_y))
-            if self.microtome.get_error_state() > 0:
+            if self.microtome.error_state > 0:
                 self.number_errors += 1
                 logfile.write('ERROR DURING XY MOVE: '
-                              + self.microtome.get_error_cause()
+                              + self.microtome.error_info
                               + '\n')
                 self.microtome.reset_error_state()
             else:
                 self.microtome.move_stage_to_z(current_z, safe_mode=False)
-                if self.microtome.get_error_state() > 0:
+                if self.microtome.error_state > 0:
                     self.number_errors += 1
                     logfile.write('ERROR DURING Z MOVE: '
-                                  + self.microtome.get_error_cause()
+                                  + self.microtome.error_info
                                   + '\n')
                     self.microtome.reset_error_state()
                 else:

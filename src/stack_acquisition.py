@@ -117,8 +117,8 @@ class Stack():
         self.total_z_diff = float(self.cfg['acq']['total_z_diff'])
         self.stage_z_position = None  # updated when stack (re)started.
         if self.microtome is not None:
-            self.full_cut_duration = self.microtome.get_full_cut_duration()
-            self.sweep_distance = self.microtome.get_sweep_distance()
+            self.full_cut_duration = self.microtome.full_cut_duration
+            self.sweep_distance = self.microtome.sweep_distance
         else:
             self.full_cut_duration = 0
             self.sweep_distance = None
@@ -261,8 +261,7 @@ class Stack():
                         if self.ovm.is_slice_active(ov_number, slice_counter):
                             x1, y1 = self.cs.get_ov_centre_s(ov_number)
                             stage_move_time += (
-                                self.stage.calculate_stage_move_duration(
-                                    x0, y0, x1, y1))
+                                self.stage.stage_move_duration(x0, y0, x1, y1))
                             x0, y0 = x1, y1
                             imaging_time += self.ovm.get_ov_cycle_time(ov_number)
                             frame_size = (self.ovm.get_ov_width_p(ov_number)
@@ -274,8 +273,7 @@ class Stack():
                         for tile_index in self.gm[grid_index].active_tiles:
                             x1, y1 = self.gm[grid_index][tile_index].sx_sy
                             stage_move_time += (
-                                self.stage.calculate_stage_move_duration(
-                                    x0, y0, x1, y1))
+                                self.stage.stage_move_duration(x0, y0, x1, y1))
                             x0, y0 = x1, y1
                         number_active_tiles = (
                             self.gm[grid_index].number_active_tiles())
@@ -289,8 +287,7 @@ class Stack():
                 if take_overviews:
                     x1, y1 = self.cs.get_ov_centre_s(0)
                     stage_move_time += (
-                        self.stage.calculate_stage_move_duration(
-                            x0, y0, x1, y1))
+                        self.stage.stage_move_duration(x0, y0, x1, y1))
                     x0, y0 = x1, y1
 
             return imaging_time, stage_move_time, amount_of_data
@@ -609,7 +606,7 @@ class Stack():
         sleep(1)
 
         for grid_index in range(number_grids):
-            if not self.gm[grid_index].wd_gradient_active():
+            if not self.gm[grid_index].use_wd_gradient:
                 self.gm[grid_index].set_wd_stig_xy_for_uninitialized_tiles(
                     self.wd_current_grid,
                     [self.stig_x_current_grid, self.stig_y_current_grid])
@@ -644,12 +641,12 @@ class Stack():
             self.stage_z_position = self.stage.get_z()
             if self.stage_z_position is None or self.stage_z_position < 0:
                 self.error_state = 104
-                self.stage.reset_error_state()
+                self.stage.error_state = 0
                 self.pause_acquisition(1)
                 self.add_to_main_log('CTRL: Error reading initial Z position.')
         # Check for Z mismatch:
-        if self.microtome is not None and self.microtome.get_error_state() == 206:
-            self.microtome.reset_error_state()
+        if self.microtome is not None and self.microtome.error_state == 206:
+            self.microtome.error_state = 0
             self.error_state = 206
             self.pause_acquisition(1)
             # Show warning dialog:
@@ -816,7 +813,7 @@ class Stack():
                         break
 
                 if self.gm[grid_index].slice_active(self.slice_counter):
-                    num_active_tiles = self.gm[grid_index].number_active_tiles
+                    num_active_tiles = self.gm[grid_index].number_active_tiles()
                     self.add_to_main_log('CTRL: Grid ' + str(grid_index)
                                   + ', number of active tiles: '
                                   + str(num_active_tiles))
@@ -1274,7 +1271,7 @@ class Stack():
         # Show new Z position in main window:
         self.transmit_cmd('UPDATE Z')
         # Check if there were microtome problems:
-        self.error_state = self.microtome.get_error_state()
+        self.error_state = self.microtome.error_state
         if self.error_state in [103, 202]:
             self.add_to_main_log('CTRL: Problem detected. Trying again.')
             self.error_state = 0
@@ -1285,7 +1282,7 @@ class Stack():
             # Show new Z position in main window:
             self.transmit_cmd('UPDATE Z')
             # Read new error_state:
-            self.error_state = self.microtome.get_error_state()
+            self.error_state = self.microtome.error_state
 
         if self.error_state == 0:
             self.add_to_main_log('3VIEW: Cutting in progress ('
@@ -1305,7 +1302,7 @@ class Stack():
             if duration_exceeded:
                 self.add_to_main_log(
                     'CTRL: Warning: Cut cycle took longer than specified.')
-            self.error_state = self.microtome.get_error_state()
+            self.error_state = self.microtome.error_state
             self.microtome.reset_error_state()
         if self.error_state > 0:
             self.add_to_main_log('CTRL: Problem detected.')
@@ -1349,7 +1346,7 @@ class Stack():
             self.add_to_main_log(
                 '3VIEW: Moving stage to OV %d position.' % ov_number)
             self.stage.move_to_xy(ov_stage_position)
-            if self.stage.get_error_state() > 0:
+            if self.stage.error_state > 0:
                 self.stage.reset_error_state()
                 # Update error log in viewport window with warning message:
                 log_str = (str(self.slice_counter) + ': WARNING ('
@@ -1360,7 +1357,7 @@ class Stack():
                 # Try again
                 sleep(2)
                 self.stage.move_to_xy(ov_stage_position)
-                self.error_state = self.stage.get_error_state()
+                self.error_state = self.stage.error_state
                 if self.error_state > 0:
                     self.add_to_main_log('CTRL: Stage failed to move to '
                                          'OV position.')
@@ -1486,7 +1483,7 @@ class Stack():
                 sleep(0.1)
             if self.user_reply == QMessageBox.Yes:
                 # Proceed anyway, reset error state and accept OV:
-                self.error_state = 0
+                self.reset_error_state()
                 ov_accepted = True
             else:
                 self.image_rejected_by_user = True
@@ -1527,7 +1524,7 @@ class Stack():
         be active for this function. Cannot be used with SEM stage."""
         self.add_to_main_log('CTRL: Sweeping to remove debris.')
         self.microtome.do_sweep(self.stage_z_position)
-        if self.microtome.get_error_state() > 0:
+        if self.microtome.error_state > 0:
             self.microtome.reset_error_state()
             self.add_to_main_log('CTRL: Problem during sweep. Trying again.')
             # Print warning in viewport window:
@@ -1539,7 +1536,7 @@ class Stack():
             sleep(3)
             self.microtome.do_sweep(self.stage_z_position)
             # check if there was again an error during sweeping:
-            if self.microtome.get_error_state() > 0:
+            if self.microtome.error_state > 0:
                 self.microtome.reset_error_state()
                 self.error_state = 205
                 self.pause_acquisition(1)
@@ -1579,7 +1576,7 @@ class Stack():
             # The move function waits for the specified stage move wait interval
             # Check if there were microtome problems:
             # If yes, try one more time before pausing acquisition.
-            if self.stage.get_error_state() > 0:
+            if self.stage.error_state > 0:
                 self.stage.reset_error_state()
                 self.add_to_main_log('CTRL: Problem detected (XY '
                               'stage move). Trying again.')
@@ -1595,7 +1592,7 @@ class Stack():
                               'of tile ' + tile_id)
                 self.stage.move_to_xy((stage_x, stage_y))
                 # Check again if there is a failure:
-                self.error_state = self.stage.get_error_state()
+                self.error_state = self.stage.error_state
                 self.stage.reset_error_state()
                 # If yes, pause stack:
                 if self.error_state > 0:
@@ -1753,7 +1750,7 @@ class Stack():
     def acquire_grid(self, grid_index):
         """Acquire all active tiles of grid specified by grid_index"""
 
-        self.use_wd_gradient = self.gm[grid_index].wd_gradient_active()
+        self.use_wd_gradient = self.gm[grid_index].use_wd_gradient
         # Get size and active tiles  (using list() to get a copy)
         active_tiles = list(self.gm[grid_index].active_tiles)
 
@@ -1993,7 +1990,7 @@ class Stack():
             # The move function waits for the specified stage move wait interval
             # Check if there were microtome problems:
             # If yes, try one more time before pausing acquisition.
-            if self.stage.get_error_state() > 0:
+            if self.stage.error_state > 0:
                 self.stage.reset_error_state()
                 self.add_to_main_log('CTRL: Problem detected (XY '
                               'stage move). Trying again.')
@@ -2010,7 +2007,7 @@ class Stack():
                     + str(grid_index) + '.' + str(tile_index))
                 self.stage.move_to_xy((stage_x, stage_y))
                 # Check again if there is a failure:
-                self.error_state = self.stage.get_error_state()
+                self.error_state = self.stage.error_state
                 self.stage.reset_error_state()
                 # If yes, pause stack:
                 if self.error_state > 0:
