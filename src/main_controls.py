@@ -536,11 +536,11 @@ class MainControls(QMainWindow):
 
     def update_main_controls_ov_selector(self, current_ov=0):
         """Update the combo box for OV selection in the main window."""
-        if current_ov >= self.ovm.get_number_ov():
+        if current_ov >= self.ovm.number_ov:
             current_ov = 0
         self.comboBox_OVSelector.blockSignals(True)
         self.comboBox_OVSelector.clear()
-        ov_list_str = self.ovm.get_ov_str_list()
+        ov_list_str = self.ovm.ov_selector_list()
         self.comboBox_OVSelector.addItems(ov_list_str)
         self.current_ov = current_ov
         self.comboBox_OVSelector.setCurrentIndex(current_ov)
@@ -580,21 +580,21 @@ class MainControls(QMainWindow):
             + str(self.gm[self.current_grid].tile_height_p()))
         # Show settings for current OV:
         self.label_OVDwellTime.setText(
-            str(self.ovm.get_ov_dwell_time(self.current_ov)) + ' µs')
+            str(self.ovm[self.current_ov].dwell_time) + ' µs')
         self.label_OVMagnification.setText(
-            str(self.ovm.get_ov_magnification(self.current_ov)))
+            str(self.ovm[self.current_ov].magnification))
         self.label_OVSize.setText(
-            str(self.ovm.get_ov_width_p(self.current_ov))
+            str(self.ovm[self.current_ov].width_p())
             + ' × '
-            + str(self.ovm.get_ov_height_p(self.current_ov)))
-        ov_centre = self.cs.get_ov_centre_s(self.current_ov)
+            + str(self.ovm[self.current_ov].height_p()))
+        ov_centre = self.ovm[self.current_ov].centre_sx_sy
         ov_centre_str = ('X: {0:.3f}'.format(ov_centre[0])
                          + ', Y: {0:.3f}'.format(ov_centre[1]))
         self.label_OVLocation.setText(ov_centre_str)
         # Debris detection area:
         if bool(self.cfg['acq']['use_debris_detection']):
             self.label_debrisDetectionArea.setText(
-                str(self.ovm.get_ov_debris_detection_area(self.current_ov)))
+                str(self.ovm[self.current_ov].debris_detection_area))
         else:
             self.label_debrisDetectionArea.setText('-')
         # Grid parameters
@@ -896,8 +896,8 @@ class MainControls(QMainWindow):
         if grid_index != 0:
             self.gm[grid_index].rotation = self.gm[grid_index-1].rotation
             self.gm[grid_index].size = self.gm[grid_index-1].size
-            self.gm[grid_index].tile_size_selector = (
-                self.gm[grid_index-1].tile_size_selector)
+            self.gm[grid_index].frame_size_selector = (
+                self.gm[grid_index-1].frame_size_selector)
             self.gm[grid_index].pixel_size = self.gm[grid_index-1].pixel_size
 
         self.gm[grid_index].update_tile_positions()
@@ -981,7 +981,7 @@ class MainControls(QMainWindow):
             # Electron dose may have changed:
             self.show_estimates()
             if (self.cfg['debris']['auto_detection_area'] == 'True'):
-                self.ovm.update_all_ov_debris_detections_areas(self.gm)
+                self.ovm.update_all_debris_detections_areas(self.gm)
             self.viewport.mv_draw()
             if not self.cs.calibration_found:
                 self.add_to_log(
@@ -998,7 +998,6 @@ class MainControls(QMainWindow):
             dialog = MicrotomeSettingsDlg(self.microtome, self.sem, self.cs,
                                           self.use_microtome)
             if dialog.exec_():
-                self.cs.load_stage_limits()
                 self.viewport.mv_load_stage_limits()
                 self.show_current_settings()
                 self.show_estimates()
@@ -1012,7 +1011,7 @@ class MainControls(QMainWindow):
         if dialog.exec_():
             self.cs.apply_stage_calibration()
             if (self.cfg['debris']['auto_detection_area'] == 'True'):
-                self.ovm.update_all_ov_debris_detections_areas(self.gm)
+                self.ovm.update_all_debris_detections_areas(self.gm)
             self.viewport.mv_draw()
 
     def open_cut_duration_dlg(self):
@@ -1031,7 +1030,7 @@ class MainControls(QMainWindow):
         self.ft_update_ov_selector(self.ft_selected_ov)
         self.viewport.update_ov()
         if bool(self.cfg['debris']['auto_detection_area']):
-            self.ovm.update_all_ov_debris_detections_areas(self.gm)
+            self.ovm.update_all_debris_detections_areas(self.gm)
         self.show_current_settings()
         self.show_estimates()
         self.viewport.mv_draw()
@@ -1072,7 +1071,7 @@ class MainControls(QMainWindow):
             self.ft_clear_wd_stig_display()
         self.viewport.update_grids()
         if (self.cfg['debris']['auto_detection_area'] == 'True'):
-            self.ovm.update_all_ov_debris_detections_areas(self.gm)
+            self.ovm.update_all_debris_detections_areas(self.gm)
         self.show_current_settings()
         self.show_estimates()
         self.viewport.mv_draw()
@@ -1082,7 +1081,7 @@ class MainControls(QMainWindow):
             self.acq_queue, self.acq_trigger)
         if dialog.exec_():
             if self.cfg['debris']['auto_detection_area'] == 'True':
-                self.ovm.update_all_ov_debris_detections_areas(self.gm)
+                self.ovm.update_all_debris_detections_areas(self.gm)
                 self.viewport.mv_draw()
 
     def open_acq_settings_dlg(self):
@@ -1117,7 +1116,7 @@ class MainControls(QMainWindow):
     def open_debris_dlg(self):
         dialog = DebrisSettingsDlg(self.cfg, self.ovm)
         if dialog.exec_():
-            self.ovm.update_all_ov_debris_detections_areas(self.gm)
+            self.ovm.update_all_debris_detections_areas(self.gm)
             self.show_current_settings()
             self.img_inspector.update_debris_settings()
             self.viewport.mv_draw()
@@ -1540,14 +1539,14 @@ class MainControls(QMainWindow):
         ov_selection = self.viewport.mv_get_current_ov()
         if ov_selection > -2:
             user_reply = None
-            if (ov_selection == -1) and (self.ovm.get_number_ov() > 1):
+            if (ov_selection == -1) and (self.ovm.number_ov > 1):
                 user_reply = QMessageBox.question(
                     self, 'Acquisition of all overview images',
                     'This will acquire all overview images.\n\n' +
                     'Do you wish to proceed?',
                     QMessageBox.Ok | QMessageBox.Cancel)
             if (user_reply == QMessageBox.Ok or ov_selection >= 0
-                or (self.ovm.get_number_ov() == 1 and ov_selection == -1)):
+                or (self.ovm.number_ov == 1 and ov_selection == -1)):
                 base_dir = self.cfg['acq']['base_dir']
                 self.add_to_log(
                     'CTRL: User-requested acquisition of OV image(s) started')
@@ -2067,6 +2066,7 @@ class MainControls(QMainWindow):
         system configuration to disk."""
         # Save current status of grid_manager and other modules
         self.gm.save_to_cfg()
+        self.ovm.save_to_cfg()
         self.autofocus.save_to_cfg()
         self.microtome.save_to_cfg()
         self.cs.save_to_cfg()
@@ -2239,7 +2239,7 @@ class MainControls(QMainWindow):
             self.sem.set_wd(self.ft_selected_wd)
             # Save working distance for OV or in tile grid:
             if self.ft_selected_ov >= 0:
-                self.ovm.set_ov_wd(self.ft_selected_ov, self.ft_selected_wd)
+                self.ovm[self.ft_selected_ov].wd_stig_xy[0] = self.ft_selected_wd
             elif self.ft_selected_tile >= 0:
                 self.gm[self.ft_selected_grid][self.ft_selected_tile].wd = (
                     self.ft_selected_wd)
@@ -2255,8 +2255,8 @@ class MainControls(QMainWindow):
             self.ft_selected_stig_x += self.ft_sdeltas[self.ft_index]
             self.sem.set_stig_x(self.ft_selected_stig_x)
             if self.ft_selected_ov >= 0:
-                self.ovm.set_ov_stig_x(
-                    self.ft_selected_ov, self.ft_selected_stig_x)
+                self.ovm[self.ft_selected_ov].wd_stig_xy[1] = (
+                    self.ft_selected_stig_x)
             elif self.ft_selected_tile >= 0:
                 self.gm[self.ft_selected_grid][
                         self.ft_selected_tile].stig_xy[0] = (
@@ -2269,8 +2269,8 @@ class MainControls(QMainWindow):
             self.ft_selected_stig_y += self.ft_sdeltas[self.ft_index]
             self.sem.set_stig_y(self.ft_selected_stig_y)
             if self.ft_selected_ov >= 0:
-                self.ovm.set_ov_stig_y(
-                    self.ft_selected_ov, self.ft_selected_stig_y)
+                self.ovm[self.ft_selected_ov].wd_stig_xy[2] = (
+                    self.ft_selected_stig_y)
             elif self.ft_selected_tile >= 0:
                 self.gm[self.ft_selected_grid][
                         self.ft_selected_tile].stig_xy[1] = (
@@ -2293,11 +2293,10 @@ class MainControls(QMainWindow):
                 self.ft_update_wd_display()
                 self.ft_update_stig_display()
                 if self.ft_selected_ov >= 0:
-                    self.ovm.set_ov_wd(self.ft_selected_ov,
-                                       self.ft_selected_wd)
-                    self.ovm.set_ov_stig_xy(self.ft_selected_ov,
-                                            self.ft_selected_stig_x,
-                                            self.ft_selected_stig_y)
+                    self.ovm[self.ft_selected_ov] = [
+                        self.ft_selected_wd,
+                        self.ft_selected_stig_x,
+                        self.ft_selected_stig_y]
                 elif self.ft_selected_tile >= 0:
                     self.gm[self.ft_selected_grid][self.ft_selected_tile].wd = (
                         self.ft_selected_wd)
@@ -2396,7 +2395,7 @@ class MainControls(QMainWindow):
         """Move to the target stage position with error handling, then acquire
         through-focus series."""
         if self.ft_selected_ov >= 0:
-            stage_x, stage_y = self.cs.get_ov_centre_d(self.ft_selected_ov)
+            stage_x, stage_y = self.ovm[self.ft_selected_ov].centre_dx_dy
         elif self.ft_selected_tile >= 0:
             stage_x, stage_y = self.cs.convert_to_d(
                 self.gm[self.ft_selected_grid][self.ft_selected_tile].sx_sy)
@@ -2621,12 +2620,12 @@ class MainControls(QMainWindow):
         self.comboBox_selectTileFT.blockSignals(False)
 
     def ft_update_ov_selector(self, current_ov=-1):
-        if current_ov >= self.ovm.get_number_ov():
+        if current_ov >= self.ovm.number_ov:
             current_ov = -1
         self.comboBox_selectOVFT.blockSignals(True)
         self.comboBox_selectOVFT.clear()
         self.comboBox_selectOVFT.addItems(
-            ['Select OV'] + self.ovm.get_ov_str_list())
+            ['Select OV'] + self.ovm.ov_selector_list())
         self.comboBox_selectOVFT.setCurrentIndex(current_ov + 1)
         self.ft_selected_ov = current_ov
         self.comboBox_selectOVFT.currentIndexChanged.connect(
@@ -2676,9 +2675,8 @@ class MainControls(QMainWindow):
         self.ft_selected_ov = self.comboBox_selectOVFT.currentIndex() - 1
         if self.ft_selected_ov >= 0:
             self.ft_update_tile_selector(-1)
-            self.ft_selected_wd = self.ovm.get_ov_wd(self.ft_selected_ov)
-            self.ft_selected_stig_x, self.ft_selected_stig_y = (
-                self.ovm.get_ov_stig_xy(self.ft_selected_ov))
+            (self.ft_selected_wd, self.ft_selected_stig_x,
+             self.ft_selected_stig_y) = self.ovm[self.ft_selected_ov].wd_stig_xy
             self.ft_update_wd_display()
             self.ft_update_stig_display()
         elif self.ft_selected_tile == -1:

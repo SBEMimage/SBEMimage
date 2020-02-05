@@ -236,10 +236,10 @@ class Stack():
 
         max_offset_slice_number = max(
             self.gm.max_acq_interval_offset(),
-            self.ovm.get_max_ov_acq_interval_offset())
+            self.ovm.max_acq_interval_offset())
         max_interval_slice_number = max(
             self.gm.max_acq_interval(),
-            self.ovm.get_max_ov_acq_interval())
+            self.ovm.max_acq_interval())
 
         # Calculate estimates until max_offset_slice_number, then starting from
         # max_offset_slice_number for max_interval_slice_number, then
@@ -253,19 +253,19 @@ class Stack():
             stage_move_time = 0
             amount_of_data = 0
             # Start at stage position of OV 0
-            x0, y0 = self.cs.get_ov_centre_s(0)
+            x0, y0 = self.ovm[0].centre_sx_sy
             for slice_counter in range(from_slice, to_slice):
                 if take_overviews:
                     # Run through all overviews
-                    for ov_number in range(self.ovm.get_number_ov()):
-                        if self.ovm.is_slice_active(ov_number, slice_counter):
-                            x1, y1 = self.cs.get_ov_centre_s(ov_number)
+                    for ov_index in range(self.ovm.number_ov):
+                        if self.ovm[ov_index].slice_active(slice_counter):
+                            x1, y1 = self.ovm[ov_index].centre_sx_sy
                             stage_move_time += (
                                 self.stage.stage_move_duration(x0, y0, x1, y1))
                             x0, y0 = x1, y1
-                            imaging_time += self.ovm.get_ov_cycle_time(ov_number)
-                            frame_size = (self.ovm.get_ov_width_p(ov_number)
-                                          * self.ovm.get_ov_height_p(ov_number))
+                            imaging_time += self.ovm[ov_index].tile_cycle_time()
+                            frame_size = (self.ovm[ov_index].width_p()
+                                          * self.ovm[ov_index].height_p())
                             amount_of_data += frame_size
                 # Run through all grids
                 for grid_index in range(self.gm.number_grids):
@@ -285,7 +285,7 @@ class Stack():
                         amount_of_data += frame_size * number_active_tiles
                 # Move back to starting position
                 if take_overviews:
-                    x1, y1 = self.cs.get_ov_centre_s(0)
+                    x1, y1 = self.ovm[0].centre_sx_sy
                     stage_move_time += (
                         self.stage.stage_move_duration(x0, y0, x1, y1))
                     x0, y0 = x1, y1
@@ -333,9 +333,9 @@ class Stack():
                 max_dose = dose
 
         if take_overviews:
-            for ov_number in range(self.ovm.get_number_ov()):
-                dwell_time = self.ovm.get_ov_dwell_time(ov_number)
-                pixel_size = self.ovm.get_ov_pixel_size(ov_number)
+            for ov_index in range(self.ovm.number_ov):
+                dwell_time = self.ovm[ov_index].dwell_time
+                pixel_size = self.ovm[ov_index].pixel_size
                 dose = utils.calculate_electron_dose(
                     current, dwell_time, pixel_size)
                 if (min_dose is None) or (dose < min_dose):
@@ -432,9 +432,9 @@ class Stack():
             'workspace\\reslices'
         ]
         # Add subdirectories for overviews, grids, tiles:
-        for ov_number in range(self.ovm.get_number_ov()):
+        for ov_index in range(self.ovm.number_ov):
             ov_dir = os.path.join(
-                'overviews', 'ov' + str(ov_number).zfill(utils.OV_DIGITS))
+                'overviews', 'ov' + str(ov_index).zfill(utils.OV_DIGITS))
             subdirectory_list.append(ov_dir)
         for grid_index in range(self.gm.number_grids):
             grid_dir = os.path.join(
@@ -550,7 +550,7 @@ class Stack():
             self.main_log_file.write('\n*** STACK ACQUISITION STARTED ***\n')
             self.add_to_main_log('CTRL: Stack started.')
 
-        number_ov = self.ovm.get_number_ov()
+        number_ov = self.ovm.number_ov
         number_grids = self.gm.number_grids
         self.first_ov = [True] * number_ov
         self.img_inspector.reset_tile_stats()
@@ -616,9 +616,8 @@ class Stack():
                 self.gm[grid_index].set_stig_xy_for_all_tiles(
                     [self.stig_x_current_grid, self.stig_y_current_grid])
 
-        for ov_number in range(number_ov):
-            self.ovm.set_ov_wd(ov_number, 0)
-            self.ovm.set_ov_stig_xy(ov_number, 0, 0)
+        for ov_index in range(number_ov):
+            self.ovm[ov_index].wd_stig_xy = [0, 0, 0]
 
         # Show current focus/stig settings:
         self.log_wd_stig(self.wd_current_grid,
@@ -695,10 +694,10 @@ class Stack():
                 continue_after_max_sweeps = (
                     self.cfg['debris']['continue_after_max_sweeps'] == 'True')
 
-                for ov_number in range(number_ov):
+                for ov_index in range(number_ov):
                     if (self.error_state > 0) or (self.pause_state == 1):
                         break
-                    if self.ovm.is_slice_active(ov_number, self.slice_counter):
+                    if self.ovm[ov_index].slice_active(self.slice_counter):
                         ov_accepted = False
                         sweep_limit = False
                         sweep_counter = 0
@@ -710,7 +709,7 @@ class Stack():
                                and fail_counter < 3):
 
                             ov_filename, ov_accepted = (
-                                self.acquire_overview(ov_number))
+                                self.acquire_overview(ov_index))
 
                             if (self.error_state in [303, 404]
                                 and not self.image_rejected_by_user):
@@ -721,7 +720,7 @@ class Stack():
                                     self.add_to_main_log(
                                         'CTRL: OV problem detected. '
                                         'Trying again.')
-                                self.img_inspector.discard_last_ov(ov_number)
+                                self.img_inspector.discard_last_ov(ov_index)
                                 sleep(1)
                                 if fail_counter == 3:
                                     self.pause_acquisition(1)
@@ -732,11 +731,11 @@ class Stack():
                             elif (not ov_accepted
                                   and not self.pause_state == 1
                                   and (use_debris_detection
-                                  or self.first_ov[ov_number])):
+                                  or self.first_ov[ov_index])):
                                 # Save image with debris:
                                 self.save_debris_image(ov_filename,
                                                        sweep_counter)
-                                self.img_inspector.discard_last_ov(ov_number)
+                                self.img_inspector.discard_last_ov(ov_index)
                                 # Try to remove debris:
                                 if (sweep_counter < max_number_sweeps):
                                     self.remove_debris()
@@ -750,7 +749,7 @@ class Stack():
                             - self.sem.DEFAULT_DELAY)
                         if cycle_time_diff > 0.15:
                             self.add_to_main_log(
-                                f'CTRL: Warning: OV {ov_number} cycle time was '
+                                f'CTRL: Warning: OV {ov_index} cycle time was '
                                 f'{cycle_time_diff:.2f} s longer than expected.')
 
                         if (not ov_accepted
@@ -768,17 +767,17 @@ class Stack():
                                     'CTRL: Max. number of sweeps reached, '
                                     'but continuing as specified.')
 
-                        self.first_ov[ov_number] = False
+                        self.first_ov[ov_index] = False
 
                         if ov_accepted:
                             # Write stats to disk:
                             success = self.img_inspector.save_ov_stats(
-                                ov_number, self.slice_counter)
+                                ov_index, self.slice_counter)
                             if not success:
                                 self.add_to_main_log(
                                     'CTRL: Error saving OV mean/SD to disk.')
                             success = self.img_inspector.save_ov_reslice(
-                                ov_number)
+                                ov_index)
                             if not success:
                                 self.add_to_main_log(
                                     'CTRL: Error saving OV reslice to disk.')
@@ -795,7 +794,7 @@ class Stack():
                     else:
                         self.add_to_main_log(
                             'CTRL: Skip OV %d (intervallic acquisition)'
-                            % ov_number)
+                            % ov_index)
 
             if (self.acq_interrupted
                     and self.acq_interrupted_at[0] >= number_grids):
@@ -1152,9 +1151,9 @@ class Stack():
             else:
                 missing_list.append(self.viewport_filename)
         if (self.cfg['monitoring']['send_ov'] == 'True'):
-            for ov_number in ov_list:
+            for ov_index in ov_list:
                 save_path = self.base_dir + '\\' + utils.get_ov_save_path(
-                            self.stack_name, ov_number, self.slice_counter)
+                            self.stack_name, ov_index, self.slice_counter)
                 if os.path.isfile(save_path):
                     attachment_list.append(save_path)
                 else:
@@ -1185,15 +1184,15 @@ class Stack():
                     missing_list.append(save_path)
 
         if self.cfg['monitoring']['send_ov_reslices'] == 'True':
-            for ov_number in ov_list:
+            for ov_index in ov_list:
                 save_path = (self.base_dir + '\\'
-                             + utils.get_ov_reslice_save_path(ov_number))
+                             + utils.get_ov_reslice_save_path(ov_index))
                 if os.path.isfile(save_path):
                     ov_reslice_img = Image.open(save_path)
                     height = ov_reslice_img.size[1]
                     cropped_ov_reslice_save_path = (
                         self.base_dir + '\\workspace\\reslice_OV'
-                        + str(ov_number).zfill(utils.OV_DIGITS) + '.png')
+                        + str(ov_index).zfill(utils.OV_DIGITS) + '.png')
                     if height>1000:
                         ov_reslice_img.crop(0, height-1000, 400, height).save(
                             cropped_ov_reslice_save_path)
@@ -1334,24 +1333,24 @@ class Stack():
         if remaining_cutting_time > 0:
             sleep(remaining_cutting_time)
 
-    def acquire_overview(self, ov_number, move_required=True):
+    def acquire_overview(self, ov_index, move_required=True):
         """Acquire an overview image with error handling and image inspection"""
         move_success = True
         ov_save_path = None
         ov_accepted = False
 
-        ov_stage_position = self.cs.get_ov_centre_s(ov_number)
+        ov_stage_position = self.ovm[ov_index].centre_sx_sy
         # Move to OV stage coordinates if required:
         if move_required:
             self.add_to_main_log(
-                '3VIEW: Moving stage to OV %d position.' % ov_number)
+                '3VIEW: Moving stage to OV %d position.' % ov_index)
             self.stage.move_to_xy(ov_stage_position)
             if self.stage.error_state > 0:
                 self.stage.reset_error_state()
                 # Update error log in viewport window with warning message:
                 log_str = (str(self.slice_counter) + ': WARNING ('
                            + 'Move to OV%d position failed)'
-                           % ov_number)
+                           % ov_index)
                 self.error_log_file.write(log_str + '\n')
                 self.transmit_cmd('VP LOG' + log_str)
                 # Try again
@@ -1373,10 +1372,10 @@ class Stack():
                 + ', Y:' + '{0:.3f}'.format(ov_stage_position[1]))
             # Set specified OV frame settings:
             self.sem.apply_frame_settings(
-                self.ovm.get_ov_size_selector(ov_number),
-                self.ovm.get_ov_pixel_size(ov_number),
-                self.ovm.get_ov_dwell_time(ov_number))
-            ov_wd = self.ovm.get_ov_wd(ov_number)
+                self.ovm[ov_index].frame_size_selector,
+                self.ovm[ov_index].pixel_size,
+                self.ovm[ov_index].dwell_time)
+            ov_wd = self.ovm[ov_index].wd_stig_xy[0]
             # Use specified OV working distance if available (unavailable = 0)
             if ov_wd > 0:
                 self.sem.set_wd(ov_wd)
@@ -1387,14 +1386,14 @@ class Stack():
             ov_save_path = (self.base_dir
                             + '\\'
                             + utils.get_ov_save_path(self.stack_name,
-                                                     ov_number,
+                                                     ov_index,
                                                      self.slice_counter))
             # Indicate the overview being acquired in the viewport
-            self.transmit_cmd('ACQ IND OV' + str(ov_number))
+            self.transmit_cmd('ACQ IND OV' + str(ov_index))
             # Grab the image from SmartSEM
             self.sem.acquire_frame(ov_save_path)
             # Remove indicator colour
-            self.transmit_cmd('ACQ IND OV' + str(ov_number))
+            self.transmit_cmd('ACQ IND OV' + str(ov_index))
 
             # Check if OV saved and show in viewport
             if os.path.isfile(ov_save_path):
@@ -1404,7 +1403,7 @@ class Stack():
                  range_test_passed,
                  load_error, grab_incomplete) = (
                     self.img_inspector.process_ov(ov_save_path,
-                                                  ov_number,
+                                                  ov_index,
                                                   self.slice_counter))
                 # Show OV in viewport and display mean and stddev
                 # if no load error:
@@ -1414,11 +1413,11 @@ class Stack():
                         + '{0:.2f}'.format(mean)
                         + ', SD:' + '{0:.2f}'.format(stddev))
                     workspace_save_path = (self.base_dir + '\\workspace\\OV'
-                                           + str(ov_number).zfill(3) + '.bmp')
+                                           + str(ov_index).zfill(3) + '.bmp')
                     imwrite(workspace_save_path, ov_img)
-                    self.ovm.update_ov_file_list(ov_number, workspace_save_path)
+                    self.ovm[ov_index].vp_file_path = workspace_save_path
                     # Signal to update viewport:
-                    self.transmit_cmd('MV UPDATE OV' + str(ov_number))
+                    self.transmit_cmd('MV UPDATE OV' + str(ov_index))
                 if load_error:
                     self.error_state = 404
                     ov_accepted = False
@@ -1438,7 +1437,7 @@ class Stack():
                     # OV seems ok in principle.
                     ov_accepted = True
                     # Check for debris:
-                    if self.first_ov[ov_number]:
+                    if self.first_ov[ov_index]:
                         self.transmit_cmd('ASK DEBRIS FIRST OV')
                         # The command above causes message box to be displayed
                         # and variables self.user_reply_received and
@@ -1454,7 +1453,7 @@ class Stack():
                     elif (self.cfg['acq']['use_debris_detection'] == 'True'):
                         # Detect potential debris:
                         debris_detected, msg = self.img_inspector.detect_debris(
-                            ov_number,
+                            ov_index,
                             int(self.cfg['debris']['detection_method']))
                         self.add_to_main_log(msg)
                         if debris_detected:
@@ -1738,7 +1737,7 @@ class Stack():
         frozen in SmartSEM and no further frames can be acquired ('frozen frame
         error'): Try to 'unfreeze' by switching to a different store resolution
         and then back to the grid's original store resolution."""
-        target_store_res = self.gm[grid_index].tile_size_selector()
+        target_store_res = self.gm[grid_index].frame_size_selector
         if target_store_res == 0:
             self.sem.set_frame_size(1)
         else:
@@ -1777,7 +1776,7 @@ class Stack():
 
             # Switch to specified settings of the current grid
             self.sem.apply_frame_settings(
-                self.gm[grid_index].tile_size_selector,
+                self.gm[grid_index].frame_size_selector,
                 self.gm[grid_index].pixel_size,
                 self.gm[grid_index].dwell_time)
 
@@ -1793,7 +1792,7 @@ class Stack():
                     if not (tile in active_tiles):
                         self.tiles_acquired.remove(tile)
 
-            tile_width, tile_height = self.gm[grid_index].tile_size
+            tile_width, tile_height = self.gm[grid_index].frame_size
 
             # Set WD and stig settings for the current grid and lock the settings
             if not adjust_wd_stig_for_each_tile:
@@ -2042,7 +2041,7 @@ class Stack():
 
             # Restore grid settings for tile acquisition:
             self.sem.apply_frame_settings(
-                self.gm[grid_index].tile_size_selector,
+                self.gm[grid_index].frame_size_selector,
                 self.gm[grid_index].pixel_size,
                 self.gm[grid_index].dwell_time)
             # Delay necessary for Gemini (change of mag):

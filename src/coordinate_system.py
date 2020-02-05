@@ -58,8 +58,6 @@ class CoordinateSystem():
         self.apply_stage_calibration()
 
     def save_to_cfg(self):
-        self.cfg['overviews']['ov_centre_sx_sy'] = str(
-            self.ov_centre_sx_sy)
         self.cfg['overviews']['stub_ov_centre_sx_sy'] = str(
             self.stub_ov_centre_sx_sy)
         self.cfg['overviews']['stub_ov_origin_sx_sy'] = str(
@@ -199,25 +197,6 @@ class CoordinateSystem():
         # Recalculate upper left corner of visible window
         self.mv_dx_dy = (self.mv_centre_dx_dy[0] - 500 / self.mv_scale,
                          self.mv_centre_dx_dy[1] - 400 / self.mv_scale)
-
-    def set_ov_centre_s(self, ov_number, s_coordinates):
-        if ov_number < len(self.ov_centre_sx_sy):
-            self.ov_centre_sx_sy[ov_number] = list(s_coordinates)
-        else:
-            self.ov_centre_sx_sy.append(list(s_coordinates))
-        self.cfg['overviews']['ov_centre_sx_sy'] = str(self.ov_centre_sx_sy)
-
-    def get_ov_centre_s(self, ov_number):
-        return self.ov_centre_sx_sy[ov_number]
-
-    def get_ov_centre_d(self, ov_number):
-        return self.convert_to_d(self.ov_centre_sx_sy[ov_number])
-
-    def delete_ov_centre(self, ov_number):
-        if ov_number < len(self.ov_centre_sx_sy):
-            del self.ov_centre_sx_sy[ov_number]
-            self.cfg['overviews']['ov_centre_sx_sy'] = str(
-                self.ov_centre_sx_sy)
 
     def set_stub_ov_centre_s(self, s_coordinates):
         self.stub_ov_centre_sx_sy = list(s_coordinates)

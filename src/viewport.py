@@ -80,7 +80,7 @@ class Viewport(QWidget):
         self.acq_in_progress = False
         self.viewport_active = True
         self.number_grids = self.gm.number_grids
-        self.number_ov = self.ovm.get_number_ov()
+        self.number_ov = self.ovm.number_ov
         self.number_imported = self.ovm.get_number_imported()
         # for mouse operations (dragging, measuring):
         self.doubleclick_registered = False
@@ -147,7 +147,7 @@ class Viewport(QWidget):
         self.m_update_tile_selector(self.m_current_tile)
 
     def update_ov(self):
-        self.number_ov = self.ovm.get_number_ov()
+        self.number_ov = self.ovm.number_ov
         self.mv_current_ov = -1
         self.cfg['viewport']['mv_current_ov'] = '-1'
         self.mv_load_all_overviews()
@@ -282,8 +282,7 @@ class Viewport(QWidget):
                 if self.selected_ov is not None and self.selected_ov >= 0:
                     self.ov_drag_active = True
                     self.drag_origin = (px, py)
-                    self.stage_pos_backup = self.cs.get_ov_centre_s(
-                        self.selected_ov)
+                    self.stage_pos_backup = self.ovm[self.selected_ov].centre_sx_sy
 
             # Check if alt key is pressed -> Move grid:
             elif ((self.tabWidget.currentIndex() == 0)
@@ -468,16 +467,17 @@ class Viewport(QWidget):
                 if user_reply == QMessageBox.Cancel:
                     # Restore origin coordinates:
                     self.gm[self.selected_grid].origin_sx_sy = self.stage_pos_backup
-
-                # ------ MagC code ------
-                elif self.cfg['sys']['magc_mode'] == 'True':
-                    # in magc_mode, save the new grid location back
-                    # to the source magc sections
-                    self.gm.update_source_ROIs_from_grids()
-                    # deactivate roi_mode because grid manually moved
-                    self.cfg['magc']['roi_mode'] = 'False'
-                    self.transmit_cmd('SAVE INI')
-                # ------ End of MagC code ------
+                else:
+                    self.ovm.update_all_debris_detections_areas(self.gm)
+                    # ------ MagC code ------
+                    if self.cfg['sys']['magc_mode'] == 'True':
+                        # in magc_mode, save the new grid location back
+                        # to the source magc sections
+                        self.gm.update_source_ROIs_from_grids()
+                        # deactivate roi_mode because grid manually moved
+                        self.cfg['magc']['roi_mode'] = 'False'
+                        self.transmit_cmd('SAVE INI')
+                    # ------ End of MagC code ------
 
             if self.ov_drag_active:
                 self.ov_drag_active = False
@@ -488,11 +488,10 @@ class Viewport(QWidget):
                     QMessageBox.Ok | QMessageBox.Cancel)
                 if user_reply == QMessageBox.Cancel:
                     # Restore origin coordinates:
-                    self.cs.set_ov_centre_s(
-                        self.selected_ov, self.stage_pos_backup)
+                    self.ovm[self.selected_ov].centre_sx_sy = self.stage_pos_backup
                 else:
                     # Remove current preview image from file list:
-                    self.ovm.update_ov_file_list(self.selected_ov, '')
+                    self.ovm[self.selected_ov].vp_file_path = ''
                     # Show blue transparent ROI:
                     self.ov_img[self.selected_ov].fill(QColor(255, 255, 255, 0))
                     self.mv_qp.begin(self.ov_img[self.selected_ov])
@@ -500,9 +499,11 @@ class Viewport(QWidget):
                     self.mv_qp.setBrush(QColor(0, 0, 255, 70))
                     self.mv_qp.drawRect(
                         0, 0,
-                        self.ovm.get_ov_width_p(self.selected_ov),
-                        self.ovm.get_ov_height_p(self.selected_ov))
+                        self.ovm[self.selected_ov].width_p(),
+                        self.ovm[self.selected_ov].height_p())
                     self.mv_qp.end()
+                    self.ovm.update_all_debris_detections_areas(self.gm)
+
             if self.tile_paint_mode_active:
                 self.tile_paint_mode_active = False
                 self.mv_update_after_tile_selection()
@@ -518,7 +519,6 @@ class Viewport(QWidget):
                     self.cs.set_imported_img_centre_s(
                         self.selected_imported, self.stage_pos_backup)
             # Update viewport:
-            self.ovm.update_all_ov_debris_detections_areas(self.gm)
             self.mv_draw()
             self.transmit_cmd('SHOW CURRENT SETTINGS')
 
@@ -656,7 +656,7 @@ class Viewport(QWidget):
         self.comboBox_OVSelectorMV.blockSignals(True)
         self.comboBox_OVSelectorMV.clear()
         self.comboBox_OVSelectorMV.addItems(
-            ['Hide OVs', 'All OVs'] + self.ovm.get_ov_str_list())
+            ['Hide OVs', 'All OVs'] + self.ovm.ov_selector_list())
         self.comboBox_OVSelectorMV.setCurrentIndex(current_ov + 2)
         self.comboBox_OVSelectorMV.blockSignals(False)
 
@@ -712,9 +712,9 @@ class Viewport(QWidget):
         self.tile_indicator_pos = [grid_index, tile_index]
         self.mv_draw()
 
-    def mv_toggle_ov_acq_indicator(self, ov_number):
+    def mv_toggle_ov_acq_indicator(self, ov_index):
         self.ov_indicator_on ^= True
-        self.ov_indicator_pos = ov_number
+        self.ov_indicator_pos = ov_index
         self.mv_draw()
 
     def mv_toggle_show_stage_pos(self):
@@ -735,30 +735,30 @@ class Viewport(QWidget):
         """Load the images specified in the OV file list into memory """
         self.ov_img = []
         # Load the OV image:
-        ov_file_list = self.ovm.get_ov_file_list()
         for i in range(self.number_ov):
-            if os.path.isfile(ov_file_list[i]):
-                self.ov_img.append(QPixmap(ov_file_list[i]))
+            ov_file = self.ovm[i].vp_file_path
+            if os.path.isfile(ov_file):
+                self.ov_img.append(QPixmap(ov_file))
             else:
                 # Show blue transparent ROI when no OV image found
-                blank = QPixmap(self.ovm.get_ov_width_p(i),
-                                self.ovm.get_ov_height_p(i))
+                blank = QPixmap(self.ovm[i].width_p(),
+                                self.ovm[i].height_p())
                 blank.fill(QColor(255, 255, 255, 0))
                 self.ov_img.append(blank)
                 self.mv_qp.begin(self.ov_img[i])
                 self.mv_qp.setPen(QColor(0, 0, 255, 0))
                 self.mv_qp.setBrush(QColor(0, 0, 255, 70))
                 self.mv_qp.drawRect(0, 0,
-                         self.ovm.get_ov_width_p(i),
-                         self.ovm.get_ov_height_p(i))
+                         self.ovm[i].width_p(),
+                         self.ovm[i].height_p())
                 self.mv_qp.end()
 
-    def mv_load_overview(self, ov_number):
+    def mv_load_overview(self, ov_index):
         # (Re)load a single OV:
-        if ov_number < self.number_ov:
-            ov_file_list = self.ovm.get_ov_file_list()
-            if os.path.isfile(ov_file_list[ov_number]):
-                self.ov_img[ov_number] = QPixmap(ov_file_list[ov_number])
+        if ov_index < self.number_ov:
+            if os.path.isfile(self.ovm[ov_index].vp_file_path):
+                self.ov_img[ov_index] = QPixmap(
+                    self.ovm[ov_index].vp_file_path)
 
     def mv_load_stub_overview(self):
         """Load the most recent stub OV image into memory"""
@@ -827,7 +827,7 @@ class Viewport(QWidget):
             self.sv_update_tile_selector()
         if self.m_current_grid == self.selected_grid:
             self.m_update_tile_selector()
-        self.ovm.update_all_ov_debris_detections_areas(self.gm)
+        self.ovm.update_all_debris_detections_areas(self.gm)
         self.transmit_cmd('SHOW CURRENT SETTINGS')
         self.mv_draw()
 
@@ -966,7 +966,7 @@ class Viewport(QWidget):
                 action_selectAutofocus.setEnabled(False)
             if self.selected_imported is None:
                 action_adjustImported.setEnabled(False)
-            if self.ovm.get_number_imported == 0:
+            if self.ovm.get_number_imported() == 0:
                 action_deleteImported.setEnabled(False)
             if self.acq_in_progress:
                 action_focusTool.setEnabled(False)
@@ -1238,40 +1238,40 @@ class Viewport(QWidget):
                 self.mv_qp.drawPixmap(vx_rel, vy_rel, cropped_resized_img)
                 self.mv_qp.setOpacity(1)
 
-    def mv_place_overview(self, ov_number, show_debris_area,
+    def mv_place_overview(self, ov_index, show_debris_area,
                           suppress_labels=False):
-        """Place OV overview image specified by ov_number into the mosaic
+        """Place OV overview image specified by ov_index into the mosaic
         viewer canvas. Crop and resize the image before placing it.
         """
         # Load, resize and crop OV for display
         mv_scale = self.cs.get_mv_scale()
         viewport_pixel_size = 1000 / mv_scale
-        ov_pixel_size = self.ovm.get_ov_pixel_size(ov_number)
+        ov_pixel_size = self.ovm[ov_index].pixel_size
         resize_ratio = ov_pixel_size / viewport_pixel_size
         # Load OV centre in SEM coordinates:
-        dx, dy = self.cs.get_ov_centre_d(ov_number)
+        dx, dy = self.ovm[ov_index].centre_dx_dy
         # First, calculate origin of OV image with respect to
         # SEM coordinate system:
-        dx -= self.ovm.get_ov_width_d(ov_number)/2
-        dy -= self.ovm.get_ov_height_d(ov_number)/2
-        width_px = self.ovm.get_ov_width_p(ov_number)
-        height_px = self.ovm.get_ov_height_p(ov_number)
+        dx -= self.ovm[ov_index].width_d()/2
+        dy -= self.ovm[ov_index].height_d()/2
+        width_px = self.ovm[ov_index].width_p()
+        height_px = self.ovm[ov_index].height_p()
         # Convert to viewport window coordinates:
         vx, vy = self.cs.convert_to_v((dx, dy))
         # Crop and resize OV before placing it into viewport:
         visible, crop_area, vx_rel, vy_rel = self.mv_calculate_visible_area(
             vx, vy, width_px, height_px, resize_ratio)
         if visible:
-            cropped_img = self.ov_img[ov_number].copy(crop_area)
+            cropped_img = self.ov_img[ov_index].copy(crop_area)
             v_width = cropped_img.size().width()
             cropped_resized_img = cropped_img.scaledToWidth(
                 v_width * resize_ratio)
-            if not (self.ov_drag_active and ov_number == self.selected_ov):
+            if not (self.ov_drag_active and ov_index == self.selected_ov):
                 # Draw OV:
                 self.mv_qp.drawPixmap(vx_rel, vy_rel, cropped_resized_img)
             # draw blue rectangle around OV:
             self.mv_qp.setPen(QPen(QColor(0, 0, 255), 2, Qt.SolidLine))
-            if (self.ov_indicator_pos == ov_number) and self.ov_indicator_on:
+            if (self.ov_indicator_pos == ov_index) and self.ov_indicator_on:
                 indicator_colour = QColor(128, 0, 128, 80)
                 self.mv_qp.setBrush(indicator_colour)
             else:
@@ -1286,12 +1286,12 @@ class Viewport(QWidget):
                 w3 = utils.fit_in_range(self.cs.get_mv_scale()/2, 1, 3)
                 w4 = utils.fit_in_range(self.cs.get_mv_scale(), 5, 9)
 
-                area = self.ovm.get_ov_debris_detection_area(ov_number)
+                area = self.ovm[ov_index].debris_detection_area
                 (top_left_dx, top_left_dy,
                  bottom_right_dx, bottom_right_dy) = area
                 width = bottom_right_dx - top_left_dx
                 height = bottom_right_dy - top_left_dy
-                if width == self.ovm.get_ov_width_p(ov_number):
+                if width == self.ovm[ov_index].width_p():
                     w3, w4 = 3, 6
 
                 pen = QPen(QColor(0, 0, 255), 2, Qt.DashDotLine)
@@ -1323,7 +1323,7 @@ class Viewport(QWidget):
                 self.mv_qp.setFont(font)
                 self.mv_qp.drawText(ov_label_rect,
                                     Qt.AlignVCenter | Qt.AlignHCenter,
-                                    'OV %d' % ov_number)
+                                    'OV %d' % ov_index)
 
     def mv_place_grid(self, grid_index, show_grid=True,
                       show_previews=False, with_gaps=False,
@@ -1761,15 +1761,14 @@ class Viewport(QWidget):
     def mv_reposition_ov(self, shift_vector):
         dx, dy = shift_vector
         # current position:
-        (old_ov_dx, old_ov_dy) = \
-            self.cs.get_ov_centre_d(self.selected_ov)
+        old_ov_dx, old_ov_dy = self.ovm[self.selected_ov].centre_dx_dy
         mv_scale = self.cs.get_mv_scale()
         # Move tiling along shift vector:
         new_ov_dx = old_ov_dx + dx / mv_scale
         new_ov_dy = old_ov_dy + dy / mv_scale
         # Set new origin:
-        self.cs.set_ov_centre_s(self.selected_ov,
-            self.cs.convert_to_s((new_ov_dx, new_ov_dy)))
+        self.ovm[self.selected_ov].centre_sx_sy = self.cs.convert_to_s(
+            (new_ov_dx, new_ov_dy))
         self.mv_draw()
 
     def mv_reposition_imported_img(self, shift_vector):
@@ -1900,19 +1899,19 @@ class Viewport(QWidget):
             selected_ov = None
         elif self.mv_current_ov == -1:
             selected_ov = None
-            for ov_number in reversed(range(self.number_ov)):
+            for ov_index in reversed(range(self.number_ov)):
                 # Calculate origin of the overview with respect to mosaic viewer
-                dx, dy = self.cs.get_ov_centre_d(ov_number)
-                dx -= self.ovm.get_ov_width_d(ov_number)/2
-                dy -= self.ovm.get_ov_height_d(ov_number)/2
+                dx, dy = self.ovm[ov_index].centre_dx_dy
+                dx -= self.ovm[ov_index].width_d()/2
+                dy -= self.ovm[ov_index].height_d()/2
                 pixel_offset_x, pixel_offset_y = self.cs.convert_to_v((dx, dy))
                 mv_scale = self.cs.get_mv_scale()
-                p_width = self.ovm.get_ov_width_d(ov_number) * mv_scale
-                p_height = self.ovm.get_ov_height_d(ov_number) * mv_scale
+                p_width = self.ovm[ov_index].width_d() * mv_scale
+                p_height = self.ovm[ov_index].height_d() * mv_scale
                 x, y = px - pixel_offset_x, py - pixel_offset_y
                 if x >= 0 and y >= 0:
                     if x < p_width and y < p_height:
-                        selected_ov = ov_number
+                        selected_ov = ov_index
                         break
                     else:
                         selected_ov = None
@@ -1925,7 +1924,7 @@ class Viewport(QWidget):
                 l_y = y + label_height
                 if x >= 0 and l_y >= 0 and selected_ov is None:
                     if x < label_width and l_y < label_height:
-                        selected_ov = ov_number
+                        selected_ov = ov_index
                         break
         elif self.mv_current_ov >= 0:
             selected_ov = self.mv_current_ov
@@ -2226,7 +2225,7 @@ class Viewport(QWidget):
         self.comboBox_OVSelectorSV.blockSignals(True)
         self.comboBox_OVSelectorSV.clear()
         self.comboBox_OVSelectorSV.addItems(
-            ['Select OV'] + self.ovm.get_ov_str_list())
+            ['Select OV'] + self.ovm.ov_selector_list())
         self.comboBox_OVSelectorSV.setCurrentIndex(current_ov + 1)
         self.comboBox_OVSelectorSV.blockSignals(False)
 
@@ -2490,7 +2489,7 @@ class Viewport(QWidget):
         if self.sv_current_ov >= 0:
             previous_scaling_ov = self.sv_scale_ov
             # OV pixel size:
-            ov_pixel_size = self.ovm.get_ov_pixel_size(self.sv_current_ov)
+            ov_pixel_size = self.ovm[self.sv_current_ov].pixel_size
             self.sv_scale_ov = 1000 / ov_pixel_size
             ratio = self.sv_scale_ov/previous_scaling_ov
             current_offset_x_ov = int(self.cfg['viewport']['sv_offset_x_ov'])
@@ -2549,7 +2548,7 @@ class Viewport(QWidget):
         self.sv_qp.begin(self.sv_canvas)
         if self.sv_current_ov >= 0:
             viewport_pixel_size = 1000 / self.sv_scale_ov
-            ov_pixel_size = self.ovm.get_ov_pixel_size(self.sv_current_ov)
+            ov_pixel_size = self.ovm[self.sv_current_ov].pixel_size
             resize_ratio = ov_pixel_size / viewport_pixel_size
         else:
             viewport_pixel_size = 1000 / self.sv_scale_tile
@@ -2663,9 +2662,9 @@ class Viewport(QWidget):
             current_offset_y_ov = int(self.cfg['viewport']['sv_offset_y_ov'])
             new_offset_x_ov = current_offset_x_ov - dx
             new_offset_y_ov = current_offset_y_ov - dy
-            width, height = self.ovm.get_ov_size_px_py(self.sv_current_ov)
+            width, height = self.ovm[self.sv_current_ov].frame_size
             viewport_pixel_size = 1000 / self.sv_scale_ov
-            ov_pixel_size = self.ovm.get_ov_pixel_size(self.sv_current_ov)
+            ov_pixel_size = self.ovm[self.sv_current_ov].pixel_size
             resize_ratio = ov_pixel_size / viewport_pixel_size
             if self.sv_img_within_boundaries(new_offset_x_ov, new_offset_y_ov,
                                              width, height, resize_ratio):
@@ -2676,7 +2675,7 @@ class Viewport(QWidget):
             current_offset_y = int(self.cfg['viewport']['sv_offset_y_tile'])
             new_offset_x = current_offset_x - dx
             new_offset_y = current_offset_y - dy
-            width, height = self.gm[self.sv_current_grid].tile_size
+            width, height = self.gm[self.sv_current_grid].frame_size
             viewport_pixel_size = 1000 / self.sv_scale_tile
             tile_pixel_size = self.gm[self.sv_current_grid].pixel_size
             resize_ratio = tile_pixel_size / viewport_pixel_size
@@ -2722,9 +2721,9 @@ class Viewport(QWidget):
             self.horizontalSlider_SV.blockSignals(True)
             self.horizontalSlider_SV.setValue(0)
             self.horizontalSlider_SV.blockSignals(False)
-            width, height = self.ovm.get_ov_size_px_py(self.sv_current_ov)
+            width, height = self.ovm[self.sv_current_ov].frame_size
             viewport_pixel_size = 1000 / self.sv_scale_ov
-            ov_pixel_size = self.ovm.get_ov_pixel_size(self.sv_current_ov)
+            ov_pixel_size = self.ovm[self.sv_current_ov].pixel_size
             resize_ratio = ov_pixel_size / viewport_pixel_size
             self.cfg['viewport']['sv_offset_x_ov'] = str(
                 int(500 - (width/2) * resize_ratio))
@@ -2736,7 +2735,7 @@ class Viewport(QWidget):
             self.horizontalSlider_SV.blockSignals(True)
             self.horizontalSlider_SV.setValue(0)
             self.horizontalSlider_SV.blockSignals(False)
-            width, height = self.gm[self.sv_current_grid].tile_size
+            width, height = self.gm[self.sv_current_grid].frame_size
             viewport_pixel_size = 1000 / self.sv_scale_tile
             tile_pixel_size = self.gm[self.sv_current_grid].pixel_size
             resize_ratio = tile_pixel_size / viewport_pixel_size
@@ -2888,7 +2887,7 @@ class Viewport(QWidget):
         self.comboBox_OVSelectorM.blockSignals(True)
         self.comboBox_OVSelectorM.clear()
         self.comboBox_OVSelectorM.addItems(
-            ['Select OV'] + self.ovm.get_ov_str_list())
+            ['Select OV'] + self.ovm.ov_selector_list())
         self.comboBox_OVSelectorM.setCurrentIndex(current_ov + 1)
         self.comboBox_OVSelectorM.blockSignals(False)
 

@@ -68,12 +68,12 @@ class Grid:
     """Store all grid parameters and a list of Tile objects."""
 
     def __init__(self, coordinate_system, sem,
-                 origin_sx_sy=[0, 0], rotation=0, size=[5, 5],
-                 overlap=200, row_shift=0, grid_active=True, active_tiles=[],
-                 tile_size=[4096, 3072], tile_size_selector=4,
+                 active=True, origin_sx_sy=[0, 0], rotation=0,
+                 size=[5, 5], overlap=200, row_shift=0, active_tiles=[],
+                 frame_size=[4096, 3072], frame_size_selector=4,
                  pixel_size=10.0, dwell_time=0.8, dwell_time_selector=4,
                  display_colour=0, acq_interval=1, acq_interval_offset=0,
-                 origin_wd=0, use_wd_gradient=True,
+                 wd_stig_xy=[0, 0, 0], use_wd_gradient=False,
                  wd_gradient_ref_tiles=[-1, -1, -1],
                  wd_gradient_params=[0, 0, 0]):
         # The origin of the grid (origin_sx_sy) is the stage position of tile 0.
@@ -90,13 +90,13 @@ class Grid:
         self.overlap = overlap
         # Every other row of tiles is shifted by row_shift (number of pixels)
         self.row_shift = row_shift
-        # The boolean grid_active indicates whether the grid will be acquired
+        # The boolean active indicates whether the grid will be acquired
         # or skipped.
-        self.grid_active = grid_active
+        self.active = active
         # active_tiles: a list of tile numbers that are active in this grid
         self.active_tiles = active_tiles
-        self.tile_size = tile_size
-        self._tile_size_selector = tile_size_selector
+        self.frame_size = frame_size
+        self._frame_size_selector = frame_size_selector
         # Pixel size in nm (float)
         self.pixel_size = pixel_size
         # Dwell time in microseconds (float)
@@ -106,7 +106,7 @@ class Grid:
         self.display_colour = display_colour
         self.acq_interval = acq_interval
         self.acq_interval_offset = acq_interval_offset
-        self.origin_wd = origin_wd
+        self.wd_stig_xy = wd_stig_xy
         self.use_wd_gradient = use_wd_gradient
         self.wd_gradient_ref_tiles = wd_gradient_ref_tiles
         self.wd_gradient_params = wd_gradient_params
@@ -138,7 +138,7 @@ class Grid:
         when a new grid is created or an existing grid is changed in order
         to update the coordinates."""
         rows, cols = self.size
-        width_p, height_p = self.tile_size
+        width_p, height_p = self.frame_size
         theta = radians(self.rotation)
 
         for y_pos in range(rows):
@@ -288,7 +288,7 @@ class Grid:
         """
         gapped_tile_positions = {}
         rows, cols = self.size
-        width_p, height_p = self.tile_size
+        width_p, height_p = self.frame_size
         for y_pos in range(rows):
             for x_pos in range(cols):
                 tile_index = x_pos + y_pos * cols
@@ -341,13 +341,13 @@ class Grid:
     def width_p(self):
         """Return width of the grid in pixels."""
         columns = self.size[1]
-        return (columns * self.tile_size[0] - (columns - 1) * self.overlap
+        return (columns * self.frame_size[0] - (columns - 1) * self.overlap
                 + self.row_shift)
 
     def height_p(self):
         """Return height of the grid in pixels."""
         rows = self.size[0]
-        return rows * self.tile_size[1] - (rows - 1) * self.overlap
+        return rows * self.frame_size[1] - (rows - 1) * self.overlap
 
     def width_d(self):
         """Return width of the grid in micrometres."""
@@ -370,31 +370,31 @@ class Grid:
         self.display_colour = colour
 
     @property
-    def tile_size_selector(self):
-        return self._tile_size_selector
+    def frame_size_selector(self):
+        return self._frame_size_selector
 
-    @tile_size_selector.setter
-    def tile_size_selector(self, selector):
-        self._tile_size_selector = selector
+    @frame_size_selector.setter
+    def frame_size_selector(self, selector):
+        self._frame_size_selector = selector
         # Update explicit storage of frame size:
         if selector < len(self.sem.STORE_RES):
-            self.tile_size = self.sem.STORE_RES[selector]
+            self.frame_size = self.sem.STORE_RES[selector]
 
     def tile_width_p(self):
         """Return tile width in pixels."""
-        return self.tile_size[0]
+        return self.frame_size[0]
 
     def tile_height_p(self):
         """Return tile height in pixels."""
-        return self.tile_size[1]
+        return self.frame_size[1]
 
     def tile_width_d(self):
         """Return tile width in microns."""
-        return self.tile_size[0] * self.pixel_size / 1000
+        return self.frame_size[0] * self.pixel_size / 1000
 
     def tile_height_d(self):
         """Return tile height in microns."""
-        return self.tile_size[1] * self.pixel_size / 1000
+        return self.frame_size[1] * self.pixel_size / 1000
 
     @property
     def dwell_time_selector(self):
@@ -594,7 +594,7 @@ class Grid:
 
     def tile_cycle_time(self):
         """Calculate cycle time from SmartSEM data."""
-        size_selector = self.tile_size_selector
+        size_selector = self.frame_size_selector
         scan_speed = self.sem.DWELL_TIME.index(self.dwell_time)
         return self.sem.CYCLE_TIME[size_selector][scan_speed] + 0.2
 
@@ -615,22 +615,22 @@ class GridManager:
         self.cs = coordinate_system
         # Load grid parameters stored as lists in configuration.
         self.number_grids = int(self.cfg['grids']['number_grids'])
+        grid_active = json.loads(self.cfg['grids']['grid_active'])
         origin_sx_sy = json.loads(self.cfg['grids']['origin_sx_sy'])
         rotation = json.loads(self.cfg['grids']['rotation'])
         size = json.loads(self.cfg['grids']['size'])
         overlap = json.loads(self.cfg['grids']['overlap'])
         row_shift = json.loads(self.cfg['grids']['row_shift'])
-        grid_active = json.loads(self.cfg['grids']['grid_active'])
         active_tiles = json.loads(self.cfg['grids']['active_tiles'])
-        tile_size = json.loads(self.cfg['grids']['tile_size'])
-        tile_size_selector = json.loads(
+        frame_size = json.loads(self.cfg['grids']['tile_size'])
+        frame_size_selector = json.loads(
             self.cfg['grids']['tile_size_selector'])
         pixel_size = json.loads(self.cfg['grids']['pixel_size'])
         dwell_time = json.loads(self.cfg['grids']['dwell_time'])
         dwell_time_selector = json.loads(
             self.cfg['grids']['dwell_time_selector'])
         display_colour = json.loads(self.cfg['grids']['display_colour'])
-        origin_wd = json.loads(self.cfg['grids']['origin_wd'])
+        wd_stig_xy = json.loads(self.cfg['grids']['wd_stig_xy'])
         acq_interval = json.loads(self.cfg['grids']['acq_interval'])
         acq_interval_offset = json.loads(
             self.cfg['grids']['acq_interval_offset'])
@@ -645,12 +645,12 @@ class GridManager:
         # the user configuration.
         self.__grids = []
         for i in range(self.number_grids):
-            grid = Grid(self.cs, self.sem, origin_sx_sy[i], rotation[i],
-                        size[i], overlap[i], row_shift[i], grid_active[i]==1,
-                        active_tiles[i], tile_size[i], tile_size_selector[i],
+            grid = Grid(self.cs, self.sem, grid_active[i]==1, origin_sx_sy[i],
+                        rotation[i], size[i], overlap[i], row_shift[i],
+                        active_tiles[i], frame_size[i], frame_size_selector[i],
                         pixel_size[i], dwell_time[i], dwell_time_selector[i],
                         display_colour[i], acq_interval[i],
-                        acq_interval_offset[i], origin_wd[i],
+                        acq_interval_offset[i], wd_stig_xy[i],
                         use_wd_gradient[i]==1, wd_gradient_ref_tiles[i],
                         wd_gradient_params[i])
             self.__grids.append(grid)
@@ -682,6 +682,8 @@ class GridManager:
         The reasons why all grid parameters are saved as lists in the user
         configuration are backward compatibility and readability."""
         self.cfg['grids']['number_grids'] = str(self.number_grids)
+        self.cfg['grids']['grid_active'] = str(
+            [int(grid.active) for grid in self.__grids])
         self.cfg['grids']['origin_sx_sy'] = str(
             [grid.origin_sx_sy for grid in self.__grids])
         self.cfg['grids']['rotation'] = str(
@@ -692,14 +694,12 @@ class GridManager:
             [grid.overlap for grid in self.__grids])
         self.cfg['grids']['row_shift'] = str(
             [grid.row_shift for grid in self.__grids])
-        self.cfg['grids']['grid_active'] = str(
-            [int(grid.grid_active) for grid in self.__grids])
         self.cfg['grids']['active_tiles'] = str(
             [grid.active_tiles for grid in self.__grids])
         self.cfg['grids']['tile_size'] = str(
-            [grid.tile_size for grid in self.__grids])
+            [grid.frame_size for grid in self.__grids])
         self.cfg['grids']['tile_size_selector'] = str(
-            [grid.tile_size_selector for grid in self.__grids])
+            [grid.frame_size_selector for grid in self.__grids])
         self.cfg['grids']['pixel_size'] = str(
             [grid.pixel_size for grid in self.__grids])
         self.cfg['grids']['dwell_time'] = str(
@@ -708,8 +708,8 @@ class GridManager:
             [grid.dwell_time_selector for grid in self.__grids])
         self.cfg['grids']['display_colour'] = str(
             [grid.display_colour for grid in self.__grids])
-        self.cfg['grids']['origin_wd'] = str(
-            [grid.origin_wd for grid in self.__grids])
+        self.cfg['grids']['wd_stig_xy'] = str(
+            [grid.wd_stig_xy for grid in self.__grids])
         self.cfg['grids']['acq_interval'] = str(
             [grid.acq_interval for grid in self.__grids])
         self.cfg['grids']['acq_interval_offset'] = str(
@@ -754,12 +754,12 @@ class GridManager:
         y_pos += 50
         # Set tile size and overlap according to store resolutions available
         if len(self.sem.STORE_RES) > 4:
-            tile_size = [4096, 3072]
-            tile_size_selector = 4
+            frame_size = [4096, 3072]
+            frame_size_selector = 4
             overlap = 200
         else:
-            tile_size = [3072, 2304]
-            tile_size_selector = 3
+            frame_size = [3072, 2304]
+            frame_size_selector = 3
             overlap = 150
         # Set grid colour
         if self.cfg['sys']['magc_mode'].lower() != 'true':
@@ -770,13 +770,14 @@ class GridManager:
             # Use green by default in magc_mode.
             display_colour = 1
 
-        new_grid = Grid(self.cs, self.sem, origin_sx_sy=[x_pos, y_pos],
+        new_grid = Grid(self.cs, self.sem,
+                        active=True, origin_sx_sy=[x_pos, y_pos],
                         rotation=0, size=[5, 5], overlap=overlap, row_shift=0,
-                        grid_active=True, active_tiles=[], tile_size=tile_size,
-                        tile_size_selector=tile_size_selector, pixel_size=10.0,
+                        active_tiles=[], frame_size=frame_size,
+                        frame_size_selector=frame_size_selector, pixel_size=10.0,
                         dwell_time=0.8, dwell_time_selector=4,
                         display_colour=display_colour, acq_interval=1,
-                        acq_interval_offset=0, origin_wd=0,
+                        acq_interval_offset=0, wd_stig_xy=[0, 0, 0],
                         use_wd_gradient=False,
                         wd_gradient_ref_tiles=[-1, -1, -1],
                         wd_gradient_params=[0, 0, 0])
@@ -842,7 +843,7 @@ class GridManager:
         return max(acq_interval_offsets)
 
     def intervallic_acq_active(self):
-        """Return True if intervallic acquisition is active in at least
+        """Return True if intervallic acquisition is active for at least
         one grid, otherwise return False."""
         for grid in self.__grids:
             if grid.acq_interval > 1:

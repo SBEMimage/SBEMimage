@@ -28,7 +28,7 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, cs, queue, trigger):
     trigger.s.emit()
     success = True
     if selection == -1: # acquire all OVs
-        start, end = 0, ovm.get_number_ov()
+        start, end = 0, ovm.number_ov
     else:
         start, end = selection, selection + 1 # acquire only one OV
     # Acquisition loop:
@@ -37,7 +37,7 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, cs, queue, trigger):
             '3VIEW: Moving stage to OV %d position.' % i))
         trigger.s.emit()
         # Move to OV stage coordinates:
-        stage.move_to_xy(cs.get_ov_centre_s(i))
+        stage.move_to_xy(ovm[i].centre_sx_sy)
         # Check to see if error ocurred:
         if stage.error_state > 0:
             success = False
@@ -47,9 +47,9 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, cs, queue, trigger):
             queue.put('UPDATE XY')
             trigger.s.emit()
             # Set specified OV frame settings:
-            sem.apply_frame_settings(ovm.get_ov_size_selector(i),
-                                     ovm.get_ov_pixel_size(i),
-                                     ovm.get_ov_dwell_time(i))
+            sem.apply_frame_settings(ovm[i].frame_size_selector,
+                                     ovm[i].pixel_size,
+                                     ovm[i].dwell_time)
             save_path = base_dir + '\\workspace\\OV' + str(i).zfill(3) + '.bmp'
             queue.put(utils.format_log_entry(
                 'SEM: Acquiring OV %d.' % i))
@@ -65,7 +65,7 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, cs, queue, trigger):
             queue.put('MV UPDATE OV' + str(i))
             trigger.s.emit()
             if success:
-                ovm.update_ov_file_list(i, save_path)
+                ovm[i].vp_file_path = save_path
         if not success:
             break # leave loop if error has occured
     if success:

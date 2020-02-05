@@ -700,8 +700,6 @@ class MagCalibrationDlg(QDialog):
     def accept(self):
         self.sem.set_mag_px_size_factor(
             self.spinBox_calibrationFactor.value())
-        # Update the magnifications of all OVs:
-        self.ovm.calculate_ov_mag_from_pixel_size()
         super().accept()
 
 #------------------------------------------------------------------------------
@@ -743,7 +741,7 @@ class OVSettingsDlg(QDialog):
         self.setFixedSize(self.size())
         self.show()
         # Set up OV selector:
-        self.comboBox_OVSelector.addItems(self.ovm.get_ov_str_list())
+        self.comboBox_OVSelector.addItems(self.ovm.ov_selector_list())
         self.comboBox_OVSelector.setCurrentIndex(self.current_ov)
         self.comboBox_OVSelector.currentIndexChanged.connect(self.change_ov)
         # Set up other comboboxes:
@@ -765,17 +763,17 @@ class OVSettingsDlg(QDialog):
 
     def show_current_settings(self):
         self.comboBox_frameSize.setCurrentIndex(
-            self.ovm.get_ov_size_selector(self.current_ov))
+            self.ovm[self.current_ov].frame_size_selector)
         self.spinBox_magnification.setValue(
-            self.ovm.get_ov_magnification(self.current_ov))
+            self.ovm[self.current_ov].magnification)
         self.doubleSpinBox_pixelSize.setValue(
-            self.ovm.get_ov_pixel_size(self.current_ov))
+            self.ovm[self.current_ov].pixel_size)
         self.comboBox_dwellTime.setCurrentIndex(
-            self.ovm.get_ov_dwell_time_selector(self.current_ov))
+            self.ovm[self.current_ov].dwell_time_selector)
         self.spinBox_acqInterval.setValue(
-            self.ovm.get_ov_acq_interval(self.current_ov))
+            self.ovm[self.current_ov].acq_interval)
         self.spinBox_acqIntervalOffset.setValue(
-            self.ovm.get_ov_acq_interval_offset(self.current_ov))
+            self.ovm[self.current_ov].acq_interval_offset)
 
     def update_pixel_size(self):
         """Calculate pixel size from current magnification and display it."""
@@ -787,8 +785,8 @@ class OVSettingsDlg(QDialog):
 
     def show_frame_size(self):
         """Calculate and show frame size depending on user selection."""
-        frame_size_selector = self.ovm.get_ov_size_selector(self.current_ov)
-        pixel_size = self.ovm.get_ov_pixel_size(self.current_ov)
+        frame_size_selector = self.ovm[self.current_ov].frame_size_selector
+        pixel_size = self.ovm[self.current_ov].pixel_size
         width = self.sem.STORE_RES[frame_size_selector][0] * pixel_size / 1000
         height = self.sem.STORE_RES[frame_size_selector][1] * pixel_size / 1000
         self.label_frameSize.setText('{0:.1f} × '.format(width)
@@ -809,37 +807,37 @@ class OVSettingsDlg(QDialog):
             self.pushButton_deleteOV.setEnabled(False)
         else:
             self.pushButton_deleteOV.setEnabled(
-                self.current_ov == self.ovm.get_number_ov() - 1)
+                self.current_ov == self.ovm.number_ov - 1)
         # Show current OV number on delete and save buttons
         self.pushButton_save.setText(
             'Save settings for OV %d' % self.current_ov)
         self.pushButton_deleteOV.setText('Delete OV %d' % self.current_ov)
 
     def save_current_settings(self):
-        self.prev_frame_size = self.ovm.get_ov_size_selector(self.current_ov)
-        self.ovm.set_ov_size_selector(self.current_ov,
+        self.prev_frame_size = self.ovm[self.current_ov].frame_size_selector
+        self.ovm[self.current_ov].frame_size_selector = (
             self.comboBox_frameSize.currentIndex())
-        self.ovm.set_ov_magnification(self.current_ov,
+        self.ovm[self.current_ov].magnification = (
             self.spinBox_magnification.value())
-        self.ovm.set_ov_dwell_time_selector(self.current_ov,
+        self.ovm[self.current_ov].dwell_time_selector = (
             self.comboBox_dwellTime.currentIndex())
-        self.ovm.set_ov_acq_interval(self.current_ov,
+        self.ovm[self.current_ov].acq_interval = (
             self.spinBox_acqInterval.value())
-        self.ovm.set_ov_acq_interval_offset(self.current_ov,
+        self.ovm[self.current_ov].acq_interval_offset = (
             self.spinBox_acqIntervalOffset.value())
         if self.comboBox_frameSize.currentIndex() != self.prev_frame_size:
             # Delete current preview image:
-            self.ovm.update_ov_file_list(self.current_ov, '')
+            self.ovm[self.current_ov].vp_file_path = ''
         self.main_window_queue.put('OV SETTINGS CHANGED')
         self.main_window_trigger.s.emit()
 
     def add_ov(self):
-        self.ovm.add_new_ov()
-        self.current_ov = self.ovm.get_number_ov() - 1
+        self.ovm.add_new_overview()
+        self.current_ov = self.ovm.number_ov - 1
         # Update OV selector:
         self.comboBox_OVSelector.blockSignals(True)
         self.comboBox_OVSelector.clear()
-        self.comboBox_OVSelector.addItems(self.ovm.get_ov_str_list())
+        self.comboBox_OVSelector.addItems(self.ovm.ov_selector_list())
         self.comboBox_OVSelector.setCurrentIndex(self.current_ov)
         self.comboBox_OVSelector.blockSignals(False)
         self.update_buttons()
@@ -849,12 +847,12 @@ class OVSettingsDlg(QDialog):
         self.main_window_trigger.s.emit()
 
     def delete_ov(self):
-        self.ovm.delete_ov()
-        self.current_ov = self.ovm.get_number_ov() - 1
+        self.ovm.delete_overview()
+        self.current_ov = self.ovm.number_ov - 1
         # Update OV selector:
         self.comboBox_OVSelector.blockSignals(True)
         self.comboBox_OVSelector.clear()
-        self.comboBox_OVSelector.addItems(self.ovm.get_ov_str_list())
+        self.comboBox_OVSelector.addItems(self.ovm.ov_selector_list())
         self.comboBox_OVSelector.setCurrentIndex(self.current_ov)
         self.comboBox_OVSelector.blockSignals(False)
         self.update_buttons()
@@ -1061,12 +1059,12 @@ class GridSettingsDlg(QDialog):
             '%d × %d' % (res[0], res[1]) for res in self.sem.STORE_RES]
         self.comboBox_tileSize.addItems(store_res_list)
         self.comboBox_tileSize.currentIndexChanged.connect(
-            self.show_tile_size_and_dose)
+            self.show_frame_size_and_dose)
         self.comboBox_dwellTime.addItems(map(str, self.sem.DWELL_TIME))
         self.comboBox_dwellTime.currentIndexChanged.connect(
-            self.show_tile_size_and_dose)
+            self.show_frame_size_and_dose)
         self.doubleSpinBox_pixelSize.valueChanged.connect(
-            self.show_tile_size_and_dose)
+            self.show_frame_size_and_dose)
         # Adaptive focus tool button:
         self.toolButton_focusGradient.clicked.connect(
             self.open_focus_gradient_dlg)
@@ -1079,7 +1077,7 @@ class GridSettingsDlg(QDialog):
         self.pushButton_deleteGrid.clicked.connect(self.delete_grid)
         self.update_buttons()
         self.show_current_settings()
-        self.show_tile_size_and_dose()
+        self.show_frame_size_and_dose()
         # inactivating add grid in magc_mode (should be done in magc panel instead)
         if self.cfg['sys']['magc_mode'] == 'True':
             self.pushButton_addGrid.setEnabled(False)
@@ -1101,7 +1099,7 @@ class GridSettingsDlg(QDialog):
         self.doubleSpinBox_pixelSize.setValue(
             self.gm[self.current_grid].pixel_size)
         self.comboBox_tileSize.setCurrentIndex(
-            self.gm[self.current_grid].tile_size_selector)
+            self.gm[self.current_grid].frame_size_selector)
         self.comboBox_dwellTime.setCurrentIndex(
             self.gm[self.current_grid].dwell_time_selector)
         self.spinBox_acqInterval.setValue(
@@ -1109,15 +1107,15 @@ class GridSettingsDlg(QDialog):
         self.spinBox_acqIntervalOffset.setValue(
             self.gm[self.current_grid].acq_interval_offset)
 
-    def show_tile_size_and_dose(self):
+    def show_frame_size_and_dose(self):
         """Calculate and display the tile size and the dose for the current
            settings. Updated in real-time as user changes dwell time, frame
            resolution and pixel size.
         """
-        tile_size_selector = self.comboBox_tileSize.currentIndex()
+        frame_size_selector = self.comboBox_tileSize.currentIndex()
         pixel_size = self.doubleSpinBox_pixelSize.value()
-        width = self.sem.STORE_RES[tile_size_selector][0] * pixel_size / 1000
-        height = self.sem.STORE_RES[tile_size_selector][1] * pixel_size / 1000
+        width = self.sem.STORE_RES[frame_size_selector][0] * pixel_size / 1000
+        height = self.sem.STORE_RES[frame_size_selector][1] * pixel_size / 1000
         self.label_tileSize.setText('{0:.1f} × '.format(width)
                                     + '{0:.1f}'.format(height))
         current = self.sem.get_beam_current()
@@ -1131,7 +1129,7 @@ class GridSettingsDlg(QDialog):
         self.current_grid = self.comboBox_gridSelector.currentIndex()
         self.update_buttons()
         self.show_current_settings()
-        self.show_tile_size_and_dose()
+        self.show_frame_size_and_dose()
 
     def update_buttons(self):
         """Update labels on buttons and disable/enable delete button
@@ -1159,7 +1157,7 @@ class GridSettingsDlg(QDialog):
         self.comboBox_gridSelector.blockSignals(False)
         self.update_buttons()
         self.show_current_settings()
-        self.show_tile_size_and_dose()
+        self.show_frame_size_and_dose()
         self.main_window_queue.put('GRID SETTINGS CHANGED')
         self.main_window_trigger.s.emit()
 
@@ -1180,7 +1178,7 @@ class GridSettingsDlg(QDialog):
             self.comboBox_gridSelector.blockSignals(False)
             self.update_buttons()
             self.show_current_settings()
-            self.show_tile_size_and_dose()
+            self.show_frame_size_and_dose()
             self.main_window_queue.put('GRID SETTINGS CHANGED')
             self.main_window_trigger.s.emit()
 
@@ -1204,7 +1202,7 @@ class GridSettingsDlg(QDialog):
         error_msg = ''
         self.gm[self.current_grid].size = [self.spinBox_rows.value(),
                                            self.spinBox_cols.value()]
-        self.gm[self.current_grid].tile_size_selector = (
+        self.gm[self.current_grid].frame_size_selector = (
             self.comboBox_tileSize.currentIndex())
         tile_width_p = self.gm[self.current_grid].tile_width_p()
         input_overlap = self.spinBox_overlap.value()
@@ -1706,7 +1704,7 @@ class PreStackDlg(QDialog):
         else:
             self.label_gradientActive.setText('Inactive')
         if (self.gm.intervallic_acq_active()
-            or self.ovm.is_intervallic_acq_active()):
+            or self.ovm.intervallic_acq_active()):
             self.label_intervallicActive.setFont(boldFont)
             self.label_intervallicActive.setText('Active')
         else:
@@ -2068,7 +2066,7 @@ class DebrisSettingsDlg(QDialog):
             self.radioButton_fullSelection.setChecked(True)
         # Extra margin around detection area in pixels:
         self.spinBox_debrisMargin.setValue(
-            self.ovm.get_ov_auto_debris_detection_area_margin())
+            self.ovm.auto_debris_area_margin)
         self.spinBox_maxSweeps.setValue(
             int(self.cfg['debris']['max_number_sweeps']))
         self.doubleSpinBox_diffMean.setValue(
@@ -2117,7 +2115,7 @@ class DebrisSettingsDlg(QDialog):
              self.spinBox_diffHistogram.setEnabled(True)
 
     def accept(self):
-        self.ovm.set_ov_auto_debris_detection_area_margin(
+        self.ovm.auto_debris_area_margin = (
             self.spinBox_debrisMargin.value())
         self.cfg['debris']['max_number_sweeps'] = str(
             self.spinBox_maxSweeps.value())
@@ -2912,12 +2910,12 @@ class FTMoveDlg(QDialog):
     """Move the stage to the selected tile or OV position."""
 
     def __init__(self, microtome, coordinate_system, grid_manager,
-                 grid_index, tile_index, ov_number):
+                 grid_index, tile_index, ov_index):
         super().__init__()
         self.microtome = microtome
         self.cs = coordinate_system
         self.gm = grid_manager
-        self.ov_number = ov_number
+        self.ov_index = ov_index
         self.grid_index = grid_index
         self.tile_index = tile_index
         self.error = False
@@ -2929,8 +2927,8 @@ class FTMoveDlg(QDialog):
         self.setFixedSize(self.size())
         self.show()
         self.pushButton_move.clicked.connect(self.start_move)
-        if ov_number >= 0:
-            self.label_moveTarget.setText('OV ' + str(ov_number))
+        if ov_index >= 0:
+            self.label_moveTarget.setText('OV ' + str(ov_index))
         elif (grid_index >= 0) and (tile_index >= 0):
             self.label_moveTarget.setText(
                 'Grid: %d, Tile: %d' % (grid_index, tile_index))
@@ -2944,8 +2942,8 @@ class FTMoveDlg(QDialog):
 
     def move_and_wait(self):
         # Load target coordinates
-        if self.ov_number >= 0:
-            stage_x, stage_y = self.cs.get_ov_centre_s(self.ov_number)
+        if self.ov_index >= 0:
+            stage_x, stage_y = self.ovm[self.ov_index].centre_sx_sy
         elif self.tile_index >= 0:
             stage_x, stage_y = self.gm[self.grid_index][self.tile_number].sx_sy
         # Now move the stage
