@@ -95,6 +95,9 @@ class Stage():
     def error_info(self):
         return self._stage.error_info
 
+    def reset_error_state(self):
+        return self._stage.reset_error_state()
+
     @property
     def stage_move_wait_interval(self):
         return self._stage.stage_move_wait_interval

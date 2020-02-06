@@ -3,7 +3,7 @@
 # ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2018-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
@@ -34,14 +34,6 @@ class CoordinateSystem():
         self.syscfg = sysconfig
         # The pixel size of the global coordinate system is fixed at 10 nm:
         self.CS_PIXEL_SIZE = 10   # This may become obsolete.
-        # Current positions of overviews, the stub overview,
-        # and imported images (this will be moved to OverviewManager):
-        self.ov_centre_sx_sy = json.loads(
-            self.cfg['overviews']['ov_centre_sx_sy'])
-        self.stub_ov_centre_sx_sy = json.loads(
-            self.cfg['overviews']['stub_ov_centre_sx_sy'])
-        self.stub_ov_origin_sx_sy = json.loads(
-            self.cfg['overviews']['stub_ov_origin_sx_sy'])
         self.imported_img_centre_sx_sy = json.loads(
             self.cfg['overviews']['imported_centre_sx_sy'])
         # Mosaic viewer (mv): visible window position and scaling:
@@ -58,10 +50,6 @@ class CoordinateSystem():
         self.apply_stage_calibration()
 
     def save_to_cfg(self):
-        self.cfg['overviews']['stub_ov_centre_sx_sy'] = str(
-            self.stub_ov_centre_sx_sy)
-        self.cfg['overviews']['stub_ov_origin_sx_sy'] = str(
-            self.stub_ov_origin_sx_sy)
         self.cfg['overviews']['imported_centre_sx_sy'] = str(
             self.imported_img_centre_sx_sy)
         self.cfg['viewport']['mv_centre_dx_dy'] = str(self.mv_centre_dx_dy)
@@ -197,29 +185,6 @@ class CoordinateSystem():
         # Recalculate upper left corner of visible window
         self.mv_dx_dy = (self.mv_centre_dx_dy[0] - 500 / self.mv_scale,
                          self.mv_centre_dx_dy[1] - 400 / self.mv_scale)
-
-    def set_stub_ov_centre_s(self, s_coordinates):
-        self.stub_ov_centre_sx_sy = list(s_coordinates)
-        self.cfg['overviews']['stub_ov_centre_sx_sy'] = str(
-            self.stub_ov_centre_sx_sy)
-
-    def get_stub_ov_centre_s(self):
-        return self.stub_ov_centre_sx_sy
-
-    def set_stub_ov_origin_s(self, s_coordinates):
-        self.stub_ov_origin_sx_sy = list(s_coordinates)
-        self.cfg['overviews']['stub_ov_origin_sx_sy'] = str(
-            self.stub_ov_origin_sx_sy)
-
-    def get_stub_ov_origin_s(self):
-        return self.stub_ov_origin_sx_sy
-
-    def get_stub_ov_origin_d(self):
-        return self.convert_to_d(self.stub_ov_origin_sx_sy)
-
-    def add_stub_ov_origin_s(self, s_coordinates):
-        return (self.stub_ov_origin_sx_sy[0] + s_coordinates[0],
-                self.stub_ov_origin_sx_sy[1] + s_coordinates[1])
 
     def get_imported_img_centre_s(self, img_number):
         return self.imported_img_centre_sx_sy[img_number]

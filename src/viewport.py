@@ -763,7 +763,7 @@ class Viewport(QWidget):
     def mv_load_stub_overview(self):
         """Load the most recent stub OV image into memory"""
         # Load stub OV image:
-        stub_ov_file = self.ovm.get_stub_ov_file()
+        stub_ov_file = self.ovm['stub'].vp_file_path
         if os.path.isfile(stub_ov_file):
             self.stub_ov_img = QPixmap(stub_ov_file)
             self.stub_ov_exists = True
@@ -1185,14 +1185,14 @@ class Viewport(QWidget):
         """
         # qp must be active
         viewport_pixel_size = 1000 / self.cs.get_mv_scale()
-        resize_ratio = self.ovm.STUB_OV_PIXEL_SIZE / viewport_pixel_size
+        resize_ratio = self.ovm['stub'].pixel_size / viewport_pixel_size
         # Compute position of stub overview (upper left corner) and its
         # width and height
-        dx, dy = self.cs.get_stub_ov_origin_d()
-        dx -= 1024/2 * self.ovm.STUB_OV_PIXEL_SIZE / 1000
-        dy -= 768/2 * self.ovm.STUB_OV_PIXEL_SIZE / 1000
+        dx, dy = self.ovm['stub'].origin_dx_dy
+        dx -= self.ovm['stub'].tile_width_d()/2
+        dy -= self.ovm['stub'].tile_height_d()/2
         vx, vy = self.cs.convert_to_v((dx, dy))
-        width_px, height_px = self.ovm.get_stub_ov_full_size()
+        width_px, height_px = self.ovm['stub'].width_p(), self.ovm['stub'].height_p()
         # Crop and resize stub OV before placing it into viewport:
         (visible, crop_area, vx_rel, vy_rel) = self.mv_calculate_visible_area(
              vx, vy, width_px, height_px, resize_ratio)

@@ -45,14 +45,10 @@ class Overview(Grid):
                          dwell_time_selector=dwell_time_selector,
                          display_colour=10, acq_interval=acq_interval,
                          acq_interval_offset=acq_interval_offset,
-                         wd_stig_xy=wd_stig_xy, use_wd_gradient=False,
-                         wd_gradient_ref_tiles=[-1, -1, -1],
-                         wd_gradient_params=[0, 0, 0])
+                         wd_stig_xy=wd_stig_xy)
 
         self.vp_file_path = vp_file_path
         self.debris_detection_area = debris_detection_area
-
-
 
     # The following property overrides centre_sx_sy from the parent class.
     # Since overviews are 1x1 grids, the centre is the same as the origin.
@@ -153,6 +149,38 @@ class Overview(Grid):
             # set full detection area:
             self.debris_detection_area = [0, 0, self.width_p(), self.height_p()]
 
+class StubOverview(Grid):
+
+    GRID_SIZE = [[2, 2], [3, 3], [5, 4], [6, 5], [7, 6], [8, 7], [9, 8]]
+
+    def __init__(self, coordinate_system, sem,
+                 centre_sx_sy, grid_size_selector, overlap, frame_size_selector,
+                 pixel_size, dwell_time_selector, vp_file_path):
+
+        # Initialize the stub overview as a grid
+        super().__init__(coordinate_system, sem,
+                         active=True, origin_sx_sy=centre_sx_sy,
+                         rotation=0, size=self.GRID_SIZE[grid_size_selector],
+                         overlap=overlap, row_shift=0, active_tiles=[],
+                         frame_size=[], frame_size_selector=frame_size_selector,
+                         pixel_size=pixel_size, dwell_time=0.8,
+                         dwell_time_selector=dwell_time_selector,
+                         display_colour=11)
+
+        self.vp_file_path = vp_file_path
+        self._grid_size_selector = grid_size_selector
+
+    @property
+    def grid_size_selector(self):
+        return self._grid_size_selector
+
+    @grid_size_selector.setter
+    def grid_size_selector(self, selector):
+        self._grid_size_selector = selector
+        self.size = self.GRID_SIZE[selector]
+        self.update_tile_positions()
+
+
 class OverviewManager:
 
     def __init__(self, config, sem, coordinate_system):
@@ -197,31 +225,34 @@ class OverviewManager:
                                 debris_detection_area[i])
             self.__overviews.append(overview)
 
-
         self.auto_debris_area_margin = int(
             self.cfg['debris']['auto_area_margin'])
 
-        # Stub OV settings:
-        # The acq parameters (frame size, dwell time, magnification) can only
-        # be changed manually in the config file, are therefore loaded as
-        # constants.
-        self.stub_ov_grid = []
-        self.stub_ov_size_selector = int(
-            self.cfg['overviews']['stub_ov_size_selector'])
-        self.STUB_OV_SIZE = json.loads(self.cfg['overviews']['stub_ov_size'])
-        self.STUB_OV_FRAME_SIZE_SELECTOR = int(
+        # Load stub OV settings
+        # The acq parameters (frame size, pixel size, dwell time) can at the
+        # moment only be changed manually in the config file.
+
+        stub_ov_centre_sx_sy = json.loads(
+            self.cfg['overviews']['stub_ov_centre_sx_sy'])
+        stub_ov_grid_size_selector = int(
+            self.cfg['overviews']['stub_ov_grid_size_selector'])
+        stub_ov_overlap = int(self.cfg['overviews']['stub_ov_overlap'])
+        stub_ov_frame_size_selector = int(
             self.cfg['overviews']['stub_ov_frame_size_selector'])
-        self.STUB_OV_PIXEL_SIZE = int(
-            self.cfg['overviews']['stub_ov_pixel_size'])
-        self.STUB_OV_DWELL_TIME = float(
-            self.cfg['overviews']['stub_ov_dwell_time'])
-        self.stub_ov_file = self.cfg['overviews']['stub_ov_viewport_image']
-        self.STUB_OV_FRAME_WIDTH = (
-            self.sem.STORE_RES[self.STUB_OV_FRAME_SIZE_SELECTOR][0])
-        self.STUB_OV_FRAME_HEIGHT = (
-            self.sem.STORE_RES[self.STUB_OV_FRAME_SIZE_SELECTOR][1])
-        self.STUB_OV_OVERLAP = int(self.cfg['overviews']['stub_ov_overlap'])
-        self.calculate_stub_ov_grid()
+        stub_ov_pixel_size = float(self.cfg['overviews']['stub_ov_pixel_size'])
+        stub_ov_dwell_time = int(
+            self.cfg['overviews']['stub_ov_dwell_time_selector'])
+        stub_ov_file_path = (
+            self.cfg['overviews']['stub_ov_viewport_image'])
+
+        self.__stub_overview = StubOverview(self.cs, self.sem,
+                                            stub_ov_centre_sx_sy,
+                                            stub_ov_grid_size_selector,
+                                            stub_ov_overlap,
+                                            stub_ov_frame_size_selector,
+                                            stub_ov_pixel_size,
+                                            stub_ov_dwell_time,
+                                            stub_ov_file_path)
 
         # Imported images:
         self.number_imported = int(self.cfg['overviews']['number_imported'])
@@ -240,7 +271,9 @@ class OverviewManager:
 
     def __getitem__(self, ov_index):
         """Return the Overview object selected by index."""
-        if ov_index < self.number_ov:
+        if ov_index == 'stub':
+            return self.__stub_overview
+        elif ov_index < self.number_ov:
             return self.__overviews[ov_index]
         else:
             return None
@@ -276,6 +309,22 @@ class OverviewManager:
             [ov.debris_detection_area for ov in self.__overviews])
         self.cfg['debris']['auto_area_margin'] = str(
             self.auto_debris_area_margin)
+        # Stub OV
+        self.cfg['overviews']['stub_ov_centre_sx_sy'] = str(
+            self.__stub_overview.centre_sx_sy)
+        self.cfg['overviews']['stub_ov_grid_size_selector'] = str(
+            self.__stub_overview.grid_size_selector)
+        self.cfg['overviews']['stub_ov_overlap'] = str(
+            self.__stub_overview.overlap)
+        self.cfg['overviews']['stub_ov_frame_size_selector'] = str(
+            self.__stub_overview.frame_size_selector)
+        self.cfg['overviews']['stub_ov_pixel_size'] = str(
+            self.__stub_overview.pixel_size)
+        self.cfg['overviews']['stub_ov_dwell_time'] = str(
+            self.__stub_overview.dwell_time)
+        self.cfg['overviews']['stub_ov_viewport_image'] = str(
+            self.__stub_overview.vp_file_path)
+
 
     def add_new_overview(self):
         new_ov_index = self.number_ov
@@ -332,62 +381,6 @@ class OverviewManager:
             overview.update_debris_detection_area(
                 grid_manager, auto_detection, self.auto_debris_area_margin)
 
-
-        # ================= stub OV ===========================================
-    def get_stub_ov_file(self):
-        return self.stub_ov_file
-
-    def set_stub_ov_file(self, img_path_file_name):
-        self.stub_ov_file = img_path_file_name
-        self.cfg['overviews']['stub_ov_viewport_image'] = str(
-            self.stub_ov_file)
-
-    def get_stub_ov_size_selector(self):
-        return self.stub_ov_size_selector
-
-    def set_stub_ov_size_selector(self, size_selector):
-        self.stub_ov_size_selector = size_selector
-        self.cfg['overviews']['stub_ov_size_selector'] = str(
-            self.stub_ov_size_selector)
-        self.calculate_stub_ov_grid()
-
-    def get_stub_ov_grid(self):
-        return self.stub_ov_grid
-
-    def calculate_stub_ov_grid(self):
-        self.stub_ov_grid = []
-        if self.stub_ov_size_selector not in range(7):
-            self.stub_ov_size_selector = 4
-        self.stub_ov_rows = self.STUB_OV_SIZE[self.stub_ov_size_selector][0]
-        self.stub_ov_cols = self.STUB_OV_SIZE[self.stub_ov_size_selector][1]
-
-        ij_grid = []
-        for i in range(self.stub_ov_rows):
-            for j in range(self.stub_ov_cols):
-                if i % 2 == 0:
-                    ij_grid.append((j, i))
-                else:
-                    ij_grid.append((self.stub_ov_cols-1-j, i))
-        for (col, row) in ij_grid:
-            delta_x = (col * (self.STUB_OV_FRAME_WIDTH
-                       - self.STUB_OV_OVERLAP)
-                       * self.STUB_OV_PIXEL_SIZE / 1000)
-            delta_y = (row * (self.STUB_OV_FRAME_HEIGHT
-                       - self.STUB_OV_OVERLAP)
-                       * self.STUB_OV_PIXEL_SIZE / 1000)
-            (rel_stage_x, rel_stage_y) = (
-                self.cs.convert_to_s((delta_x, delta_y)))
-            target_x, target_y = (
-                self.cs.add_stub_ov_origin_s((rel_stage_x, rel_stage_y)))
-            #if self.cs.is_within_stage_limits((target_x, target_y)):
-            self.stub_ov_grid.append((col, row, target_x, target_y))
-
-    def get_stub_ov_full_size(self):
-        width = (self.stub_ov_cols * self.STUB_OV_FRAME_WIDTH
-                 - (self.stub_ov_cols-1) * self.STUB_OV_OVERLAP)
-        height = (self.stub_ov_rows * self.STUB_OV_FRAME_HEIGHT
-                  - (self.stub_ov_rows-1) * self.STUB_OV_OVERLAP)
-        return width, height
 
     def add_imported_img(self):
         new_img_number = self.number_imported

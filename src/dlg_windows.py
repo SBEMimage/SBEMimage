@@ -3148,13 +3148,13 @@ class MotorTestDlg(QDialog):
 #------------------------------------------------------------------------------
 
 class StubOVDlg(QDialog):
-    """Acquire a stub overview mosaic image. The user can specify the location
-       in stage coordinates and the size of the mosaic.
+    """Acquire a stub overview image. The user can specify the location
+       in stage coordinates and the size of the grid.
     """
 
-    def __init__(self, position, size_selector,
+    def __init__(self, centre_dx_dy, grid_size_selector,
                  base_dir, slice_counter,
-                 sem, stage, ovm, cs,
+                 sem, stage, ovm,
                  main_window_queue, main_window_trigger):
         super().__init__()
         loadUi('..\\gui\\stub_ov_dlg.ui', self)
@@ -3167,7 +3167,6 @@ class StubOVDlg(QDialog):
         self.sem = sem
         self.stage = stage
         self.ovm = ovm
-        self.cs = cs
         self.main_window_queue = main_window_queue
         self.main_window_trigger = main_window_trigger
         # Set up trigger and queue to update dialog GUI during approach:
@@ -3178,33 +3177,42 @@ class StubOVDlg(QDialog):
         self.acq_in_progress = False
         self.pushButton_acquire.clicked.connect(self.acquire_stub_ov)
         self.pushButton_abort.clicked.connect(self.abort)
-        self.spinBox_X.setValue(position[0])
-        self.spinBox_Y.setValue(position[1])
-        self.size_selector = size_selector
-        self.size_list = []
+        self.spinBox_X.setValue(centre_dx_dy[0])
+        self.spinBox_Y.setValue(centre_dx_dy[1])
+        self.grid_size_selector = grid_size_selector
         self.durations = []
-        for i in range(7):
-            # Show available mosaic sizes and the corresponding estimated
-            # durations in min
-            rows, cols = ovm.STUB_OV_SIZE[i][0], ovm.STUB_OV_SIZE[i][1]
-            width = int((cols * ovm.STUB_OV_FRAME_WIDTH
-                        - (cols-1) * ovm.STUB_OV_OVERLAP)
-                        * ovm.STUB_OV_PIXEL_SIZE / 1000)
-            height = int((rows * ovm.STUB_OV_FRAME_HEIGHT
-                         - (rows-1) * ovm.STUB_OV_OVERLAP)
-                         * ovm.STUB_OV_PIXEL_SIZE / 1000)
-            time = int(round((rows * cols * 10 + 20) / 60))
-            self.size_list.append(str(width) + ' µm × ' + str(height) + ' µm')
-            self.durations.append('Up to ' + str(time) + ' min')
+
+        # Show available grid sizes and the corresponding estimated
+        # durations in min
+        tile_width = self.ovm['stub'].frame_size[0]
+        tile_height = self.ovm['stub'].frame_size[1]
+        overlap = self.ovm['stub'].overlap
+        pixel_size = self.ovm['stub'].pixel_size
+        cycle_time = self.ovm['stub'].tile_cycle_time()
+        motor_move_time = self.stage.stage_move_duration(
+            *self.ovm['stub'][0].sx_sy, *self.ovm['stub'][1].sx_sy)
+
+        self.grid_size_list = []
+        for grid_size in self.ovm['stub'].GRID_SIZE:
+            rows, cols = grid_size
+            width = int(
+                (cols * tile_width - (cols-1) * overlap) * pixel_size / 1000)
+            height = int(
+                (rows * tile_height - (rows-1) * overlap) * pixel_size / 1000)
+            duration = int(round(
+                (rows * cols * (cycle_time + motor_move_time)) / 60))
+
+            self.grid_size_list.append(
+                str(width) + ' µm × ' + str(height) + ' µm')
+            self.durations.append('Up to ~' + str(duration) + ' min')
         # Grid size selection:
-        self.comboBox_sizeSelector.addItems(self.size_list)
-        self.comboBox_sizeSelector.setCurrentIndex(self.size_selector)
+        self.comboBox_sizeSelector.addItems(self.grid_size_list)
+        self.comboBox_sizeSelector.setCurrentIndex(self.grid_size_selector)
         self.comboBox_sizeSelector.currentIndexChanged.connect(
             self.update_duration)
-        self.label_duration.setText(self.durations[2])
-        self.previous_centre = self.cs.get_stub_ov_centre_s()
-        self.previous_origin = self.cs.get_stub_ov_origin_s()
-        self.previous_size_selector = self.ovm.get_stub_ov_size_selector()
+        self.label_duration.setText(self.durations[self.grid_size_selector])
+        self.previous_centre_sx_sy = self.ovm['stub'].centre_sx_sy
+        self.previous_grid_size_selector = self.ovm['stub'].grid_size_selector
 
     def process_thread_signal(self):
         """Process commands from the queue when a trigger signal occurs
@@ -3234,9 +3242,9 @@ class StubOVDlg(QDialog):
             self.main_window_queue.put('STUB OV FAILURE')
             self.main_window_trigger.s.emit()
             # Restore previous origin:
-            self.cs.set_stub_ov_origin_s(self.previous_origin)
-            self.cs.set_stub_ov_centre_s(self.previous_centre)
-            self.ovm.set_stub_ov_size_selector(self.previous_size_selector)
+            self.ovm['stub'].centre_sx_sy = self.previous_centre_sx_sy
+            self.ovm['stub'].grid_size_selector = (
+                self.previous_grid_size_selector)
             QMessageBox.warning(
                 self, 'Error during stub overview acquisition',
                 'An error occurred during the acquisition of the stub '
@@ -3251,9 +3259,9 @@ class StubOVDlg(QDialog):
             self.main_window_queue.put('STATUS IDLE')
             self.main_window_trigger.s.emit()
             # Restore previous origin:
-            self.cs.set_stub_ov_origin_s(self.previous_origin)
-            self.cs.set_stub_ov_centre_s(self.previous_centre)
-            self.ovm.set_stub_ov_size_selector(self.previous_size_selector)
+            self.ovm['stub'].centre_sx_sy = self.previous_centre_sx_sy
+            self.ovm['stub'].grid_size_selector = (
+                self.previous_grid_size_selector)
             QMessageBox.information(
                 self, 'Stub Overview acquisition aborted',
                 'The stub overview acquisition was aborted.',
@@ -3281,8 +3289,11 @@ class StubOVDlg(QDialog):
         if self.sem.is_eht_on():
             self.acq_in_progress = True
             # Save previous stub OV origin in case user aborts acq:
-            position = (self.spinBox_X.value(), self.spinBox_Y.value())
-            size_selector = self.comboBox_sizeSelector.currentIndex()
+            centre_sx_sy = self.spinBox_X.value(), self.spinBox_Y.value()
+            grid_size_selector = self.comboBox_sizeSelector.currentIndex()
+            # Change the Stub Overview to the requested grid size
+            self.ovm['stub'].grid_size_selector = grid_size_selector
+
             self.add_to_log(
                 'CTRL: User-requested acquisition of stub OV mosaic started.')
             self.pushButton_acquire.setEnabled(False)
@@ -3298,9 +3309,7 @@ class StubOVDlg(QDialog):
             stub_acq_thread = threading.Thread(
                                   target=acq_func.acquire_stub_ov,
                                   args=(self.base_dir, self.slice_counter,
-                                        self.sem, self.stage,
-                                        position, size_selector,
-                                        self.ovm, self.cs,
+                                        self.sem, self.stage, self.ovm,
                                         self.acq_thread_queue,
                                         self.acq_thread_trigger,
                                         self.abort_queue,))

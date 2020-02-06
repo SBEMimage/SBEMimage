@@ -96,12 +96,12 @@ class Grid:
         # active_tiles: a list of tile numbers that are active in this grid
         self.active_tiles = active_tiles
         self.frame_size = frame_size
-        self._frame_size_selector = frame_size_selector
+        self.frame_size_selector = frame_size_selector
         # Pixel size in nm (float)
         self.pixel_size = pixel_size
         # Dwell time in microseconds (float)
         self.dwell_time = dwell_time
-        self._dwell_time_selector = dwell_time_selector
+        self.dwell_time_selector = dwell_time_selector
         # Colour of the grid in the Viewport. See utils.COLOUR_SELECTOR
         self.display_colour = display_colour
         self.acq_interval = acq_interval
@@ -166,6 +166,7 @@ class Grid:
         origin_sx, origin_sy = self.origin_sx_sy
         for tile in self.__tiles:
             tile_sx, tile_sy = self.cs.convert_to_s(tile.dx_dy)
+            print('new tile pos: ', tile_sx, tile_sy)
             tile.sx_sy = [origin_sx + tile_sx, origin_sy + tile_sy]
 
 
@@ -247,7 +248,7 @@ class Grid:
         between the origin (= first tile) and last tile of the grid."""
         sx1, sy1 = self._origin_sx_sy
         sx2, sy2 = self.__tiles[-1].sx_sy
-        return (sx1 + sx2)/2, (sy1 + sy2)/2
+        return [(sx1 + sx2)/2, (sy1 + sy2)/2]
 
     @centre_sx_sy.setter
     def centre_sx_sy(self, sx_sy):

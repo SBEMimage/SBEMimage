@@ -75,8 +75,8 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, cs, queue, trigger):
         queue.put('OV FAILURE')
         trigger.s.emit()
 
-def acquire_stub_ov(base_dir, slice_counter, sem, stage, pos, size_selector,
-                    ovm, cs, queue, trigger, abort_queue):
+def acquire_stub_ov(base_dir, slice_counter, sem, stage,
+                    ovm, queue, trigger, abort_queue):
     """Acquire a large overview image of user-defined size that can cover
        the entire stub.
     """
@@ -92,79 +92,72 @@ def acquire_stub_ov(base_dir, slice_counter, sem, stage, pos, size_selector,
         success = stage.update_motor_speed()
 
     if success:
-        ovm.set_stub_ov_size_selector(size_selector)
-        cs.set_stub_ov_centre_s(pos)
-        width, height = ovm.get_stub_ov_full_size()
-        full_stub_mosaic = Image.new('L', (width, height))
-        # Calculate origin coordinates:
-        start_dx = ((-width/2 + ovm.STUB_OV_FRAME_WIDTH/2)
-                    * ovm.STUB_OV_PIXEL_SIZE / 1000)
-        start_dy = ((-height/2 + ovm.STUB_OV_FRAME_HEIGHT/2)
-                    * ovm.STUB_OV_PIXEL_SIZE / 1000)
-        # Convert start SEM coordinates to stage coordinates:
-        start_sx, start_sy = cs.convert_to_s((start_dx, start_dy))
-        cs.set_stub_ov_origin_s((start_sx + pos[0], start_sy + pos[1]))
+        width, height = ovm['stub'].width_p(), ovm['stub'].height_p()
+        full_stub_image = Image.new('L', (width, height))
+        # Set acquisition parameters
+        sem.apply_frame_settings(ovm['stub'].frame_size_selector,
+                                 ovm['stub'].pixel_size,
+                                 ovm['stub'].dwell_time)
 
-        # Set SEM parameters
-        # Acquisition parameters for stub OV are fixed:
-        sem.apply_frame_settings(ovm.STUB_OV_FRAME_SIZE_SELECTOR,
-                                 ovm.STUB_OV_PIXEL_SIZE,
-                                 ovm.STUB_OV_DWELL_TIME)
-        ovm.calculate_stub_ov_grid()
-        stub_ov_grid = ovm.get_stub_ov_grid()
-        image_number = len(stub_ov_grid)
+        rows, cols = ovm['stub'].size
+        image_number = rows * cols
         image_counter = 0
+        tile_width = ovm['stub'].tile_width_p()
+        tile_height = ovm['stub'].tile_height_p()
+        overlap = ovm['stub'].overlap
 
-        for (col, row, target_x, target_y) in stub_ov_grid:
-            if not abort_queue.empty():
-                if abort_queue.get() == 'ABORT':
-                    queue.put('STUB OV ABORT')
-                    trigger.s.emit()
+        for row in range(rows):
+            for col in range(cols):
+                tile_index = row * cols + col
+                if not abort_queue.empty():
+                    if abort_queue.get() == 'ABORT':
+                        queue.put('STUB OV ABORT')
+                        trigger.s.emit()
+                        success = False
+                        aborted = True
+                        break
+                target_x, target_y = ovm['stub'][tile_index].sx_sy
+                stage.move_to_xy((target_x, target_y))
+
+                # Check to see if error ocurred:
+                if stage.error_state > 0:
                     success = False
-                    aborted = True
-                    break
-
-            stage.move_to_xy((target_x, target_y))
-
-            # Check to see if error ocurred:
-            if stage.error_state > 0:
-                success = False
-                stage.reset_error_state()
-            else:
-                # Show new stage coordinates in main control window:
-                queue.put('UPDATE STAGEPOS')
-                trigger.s.emit()
-                save_path = (base_dir + '\\workspace\\stub'
-                            + str(col) + str(row) + '.bmp')
-                success = sem.acquire_frame(save_path)
-                if success:
-                    current_tile = Image.open(save_path)
-                    position = (
-                         col * (ovm.STUB_OV_FRAME_WIDTH - ovm.STUB_OV_OVERLAP),
-                         row * (ovm.STUB_OV_FRAME_HEIGHT - ovm.STUB_OV_OVERLAP))
-                    full_stub_mosaic.paste(current_tile, position)
-                    image_counter += 1
-                    percentage_done = int(image_counter / image_number * 100)
-                    queue.put('UPDATE PROGRESS' + str(percentage_done))
+                    stage.reset_error_state()
+                else:
+                    # Show new stage coordinates in main control window:
+                    queue.put('UPDATE STAGEPOS')
                     trigger.s.emit()
-                if not success:
-                    break
+                    save_path = os.path.join(
+                        base_dir, 'workspace',
+                        'stub' + str(col) + str(row) + '.bmp')
+                    success = sem.acquire_frame(save_path)
+                    if success:
+                        current_tile = Image.open(save_path)
+                        position = (col * (tile_width - overlap),
+                                    row * (tile_height - overlap))
+                        full_stub_image.paste(current_tile, position)
+                        image_counter += 1
+                        percentage_done = int(image_counter / image_number * 100)
+                        queue.put('UPDATE PROGRESS' + str(percentage_done))
+                        trigger.s.emit()
+                    if not success:
+                        break
 
         # Write full mosaic to disk unless acq aborted:
         if not aborted:
-            if not os.path.exists(base_dir + '\\overviews\\stub'):
-                os.makedirs(base_dir + '\\overviews\\stub')
+            if not os.path.exists(os.path.join(base_dir, 'overviews', 'stub')):
+                os.makedirs(os.path.join(base_dir, 'overviews', 'stub'))
             base_dir_name = base_dir[base_dir.rfind('\\') + 1:].translate(
-                                {ord(c): None for c in ' '})
+                {ord(c): None for c in ' '})
             timestamp = str(datetime.datetime.now())
             # Remove some characters from timestap to get valid file name:
             timestamp = timestamp[:19].translate({ord(c): None for c in ' :-.'})
-            stub_mosaic_file_name = (base_dir + '\\overviews\\stub\\'
-                                     + base_dir_name + '_stubOV_'
-                                     + 's' + str(slice_counter).zfill(5)
-                                     + '_' + timestamp + '.png')
-            full_stub_mosaic.save(stub_mosaic_file_name)
-            ovm.set_stub_ov_file(stub_mosaic_file_name)
+            stub_overview_file_name = os.path.join(
+                base_dir, 'overviews', 'stub',
+                base_dir_name + '_stubOV_s' + str(slice_counter).zfill(5)
+                + '_' + timestamp + '.png')
+            full_stub_image.save(stub_overview_file_name)
+            ovm['stub'].vp_file_path = stub_overview_file_name
 
     if success:
         # Signal

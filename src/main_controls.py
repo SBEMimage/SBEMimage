@@ -1169,16 +1169,15 @@ class MainControls(QMainWindow):
         dialog.exec_()
 
     def open_stub_ov_dlg(self):
-        position = self.viewport.mv_get_stub_ov_centre()
-        if position[0] is None:
-            position = self.cs.get_stub_ov_centre_s()
-        size_selector = self.ovm.get_stub_ov_size_selector()
-        dialog = StubOVDlg(position,
-                           size_selector,
+        centre_dx_dy = self.viewport.mv_get_stub_ov_centre()
+        if centre_dx_dy[0] is None:
+            # Use the last known position
+            centre_dx_dy = self.ovm['stub'].centre_dx_dy
+        grid_size_selector = self.ovm['stub'].grid_size_selector
+        dialog = StubOVDlg(centre_dx_dy, grid_size_selector,
                            self.cfg['acq']['base_dir'],
                            self.stack.get_slice_counter(),
-                           self.sem, self.stage,
-                           self.ovm, self.cs,
+                           self.sem, self.stage, self.ovm,
                            self.acq_queue, self.acq_trigger)
         dialog.exec_()
 

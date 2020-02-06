@@ -44,18 +44,19 @@ RE_OV_LIST = re.compile('^([0-9]+)([ ]*,[ ]*[0-9]+)*$')
 # Set of selectable colours for grids (0-9), overviews (10)
 # acquisition indicator (11):
 COLOUR_SELECTOR = [
-    [255, 0, 0],        # red
-    [0, 255, 0],        # green
-    [255, 255, 0],      # yellow
-    [0, 255, 255],      # cyan
-    [128, 0, 0],        # dark red
-    [0, 128, 0],        # dark green
-    [255, 165, 0],      # orange
-    [255, 0, 255],      # pink
-    [173, 216, 230],    # grey
-    [184, 134, 11],     # brown
-    [0, 0, 255],        # blue (only used for OVs)
-    [128, 0, 128, 80]   # violett (to indicate acq)
+    [255, 0, 0],        #0  red
+    [0, 255, 0],        #1  green
+    [255, 255, 0],      #2  yellow
+    [0, 255, 255],      #3  cyan
+    [128, 0, 0],        #4  dark red
+    [0, 128, 0],        #5  dark green
+    [255, 165, 0],      #6  orange
+    [255, 0, 255],      #7  pink
+    [173, 216, 230],    #8  grey
+    [184, 134, 11],     #9  brown
+    [0, 0, 255],        #10 blue (only used for OVs)
+    [50, 50, 50],       #11 dark grey for stub OV border
+    [128, 0, 128, 80]   #12 violett (to indicate live acq)
 ]
 
 
