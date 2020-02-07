@@ -254,21 +254,6 @@ class OverviewManager:
                                             stub_ov_dwell_time,
                                             stub_ov_file_path)
 
-        # Imported images:
-        self.number_imported = int(self.cfg['overviews']['number_imported'])
-        self.imported_file_list = json.loads(
-            self.cfg['overviews']['imported_images'])
-        self.imported_names = json.loads(
-            self.cfg['overviews']['imported_names'])
-        self.imported_rotation = json.loads(
-            self.cfg['overviews']['imported_rotation'])
-        self.imported_pixel_size = json.loads(
-            self.cfg['overviews']['imported_pixel_size'])
-        self.imported_size_px_py = json.loads(
-            self.cfg['overviews']['imported_size_px_py'])
-        self.imported_transparency = json.loads(
-            self.cfg['overviews']['imported_transparency'])
-
     def __getitem__(self, ov_index):
         """Return the Overview object selected by index."""
         if ov_index == 'stub':
@@ -284,7 +269,7 @@ class OverviewManager:
         self.cfg['overviews']['ov_active'] = str(
             [int(ov.active) for ov in self.__overviews])
         self.cfg['overviews']['ov_centre_sx_sy'] = str(
-            [ov.centre_sx_sy for ov in self.__overviews])
+            [utils.round_xy(ov.centre_sx_sy) for ov in self.__overviews])
         self.cfg['overviews']['ov_rotation'] = str(
             [ov.rotation for ov in self.__overviews])
         self.cfg['overviews']['ov_size'] = str(
@@ -311,7 +296,7 @@ class OverviewManager:
             self.auto_debris_area_margin)
         # Stub OV
         self.cfg['overviews']['stub_ov_centre_sx_sy'] = str(
-            self.__stub_overview.centre_sx_sy)
+            utils.round_xy(self.__stub_overview.centre_sx_sy))
         self.cfg['overviews']['stub_ov_grid_size_selector'] = str(
             self.__stub_overview.grid_size_selector)
         self.cfg['overviews']['stub_ov_overlap'] = str(
@@ -380,131 +365,4 @@ class OverviewManager:
         for overview in self.__overviews:
             overview.update_debris_detection_area(
                 grid_manager, auto_detection, self.auto_debris_area_margin)
-
-
-    def add_imported_img(self):
-        new_img_number = self.number_imported
-        self.cs.set_imported_img_centre_s(new_img_number, [0, 0])
-        self.set_imported_img_rotation(new_img_number, 0)
-        self.set_imported_img_file(new_img_number, '')
-        self.set_imported_img_size_px_py(new_img_number, 0, 0)
-        self.set_imported_img_pixel_size(new_img_number, 10)
-        self.set_imported_img_transparency(new_img_number, 0)
-
-        self.number_imported += 1
-        self.cfg['overviews']['number_imported'] = str(self.number_imported)
-
-    def delete_imported_img(self, img_number):
-        if img_number < self.number_imported:
-            self.cs.delete_imported_img_centre(img_number)
-            del self.imported_file_list[img_number]
-            self.cfg['overviews']['imported_images'] = json.dumps(
-                self.imported_file_list)
-            del self.imported_names[img_number]
-            self.cfg['overviews']['imported_names'] = json.dumps(
-                self.imported_names)
-            del self.imported_pixel_size[img_number]
-            self.cfg['overviews']['imported_pixel_size'] = str(
-                self.imported_pixel_size)
-            del self.imported_size_px_py[img_number]
-            self.cfg['overviews']['imported_size_px_py'] = str(
-                self.imported_size_px_py)
-            del self.imported_transparency[img_number]
-            self.cfg['overviews']['imported_transparency'] = str(
-                self.imported_transparency)
-            del self.imported_rotation[img_number]
-            self.cfg['overviews']['imported_rotation'] = str(
-                self.imported_rotation)
-            # Number of imported images:
-            self.number_imported -= 1
-            self.cfg['overviews']['number_imported'] = str(
-                self.number_imported)
-
-    def get_number_imported(self):
-        return self.number_imported
-
-    def get_imported_img_name(self, img_number):
-        return self.imported_names[img_number]
-
-    def set_imported_img_name(self, img_number, name):
-        if img_number < len(self.imported_names):
-            self.imported_names[img_number] = name
-        else:
-            self.imported_names.append(name)
-        self.cfg['overviews']['imported_names'] = json.dumps(
-            self.imported_names)
-
-    def get_imported_img_rotation(self, img_number):
-        return self.imported_rotation[img_number]
-
-    def set_imported_img_rotation(self, img_number, angle):
-        if img_number < len(self.imported_rotation):
-            self.imported_rotation[img_number] = angle
-        else:
-            self.imported_rotation.append(angle)
-        self.cfg['overviews']['imported_rotation'] = str(
-            self.imported_rotation)
-
-    def get_imported_img_pixel_size(self, img_number):
-        return self.imported_pixel_size[img_number]
-
-    def set_imported_img_pixel_size(self, img_number, pixel_size):
-        if img_number < len(self.imported_pixel_size):
-            self.imported_pixel_size[img_number] = pixel_size
-        else:
-            self.imported_pixel_size.append(pixel_size)
-        self.cfg['overviews']['imported_pixel_size'] = str(
-            self.imported_pixel_size)
-
-    def get_imported_img_width_p(self, img_number):
-        return self.imported_size_px_py[img_number][0]
-
-    def get_imported_img_height_p(self, img_number):
-        return self.imported_size_px_py[img_number][1]
-
-    def get_imported_img_width_d(self, img_number):
-        return (self.get_imported_img_width_p(img_number)
-                * self.get_imported_img_pixel_size(img_number) / 1000)
-
-    def get_imported_img_height_d(self, img_number):
-        return (self.get_imported_img_height_p(img_number)
-                * self.get_imported_img_pixel_size(img_number) / 1000)
-
-    def set_imported_img_size_px_py(self, img_number, px, py):
-        if img_number < len(self.imported_size_px_py):
-            self.imported_size_px_py[img_number] = [px, py]
-        else:
-            self.imported_size_px_py.append([px, py])
-        self.cfg['overviews']['imported_size_px_py'] = str(
-            self.imported_size_px_py)
-
-    def get_imported_img_file(self, img_number):
-        return self.imported_file_list[img_number]
-
-    def set_imported_img_file(self, img_number, file):
-        if img_number < len(self.imported_file_list):
-            self.imported_file_list[img_number] = file
-        else:
-            self.imported_file_list.append(file)
-        self.cfg['overviews']['imported_images'] = json.dumps(
-            self.imported_file_list)
-
-    def get_imported_img_file_list(self):
-        return self.imported_file_list
-
-    def get_imported_img_file_name_list(self):
-        return [os.path.basename(s) for s in self.imported_file_list]
-
-    def get_imported_img_transparency(self, img_number):
-        return self.imported_transparency[img_number]
-
-    def set_imported_img_transparency(self, img_number, transparency):
-        if img_number < len(self.imported_transparency):
-            self.imported_transparency[img_number] = transparency
-        else:
-            self.imported_transparency.append(transparency)
-        self.cfg['overviews']['imported_transparency'] = str(
-            self.imported_transparency)
-
-
 

@@ -53,7 +53,8 @@ class Viewport(QWidget):
     VIEWER_TILE_ZOOM_F2 = 1.04
 
     def __init__(self, config, sem, stage,
-                 ov_manager, grid_manager, coordinate_system,
+                 ov_manager, grid_manager, imported_images,
+                 coordinate_system,
                  autofocus, trigger, queue):
         super().__init__()
         self.cfg = config
@@ -61,6 +62,7 @@ class Viewport(QWidget):
         self.stage = stage
         self.gm = grid_manager
         self.ovm = ov_manager
+        self.imported = imported_images
         self.cs = coordinate_system
         self.autofocus = autofocus
         self.trigger = trigger
@@ -81,7 +83,7 @@ class Viewport(QWidget):
         self.viewport_active = True
         self.number_grids = self.gm.number_grids
         self.number_ov = self.ovm.number_ov
-        self.number_imported = self.ovm.get_number_imported()
+        self.number_imported = self.imported.number_imported
         # for mouse operations (dragging, measuring):
         self.doubleclick_registered = False
         self.zooming_in_progress = False
@@ -303,8 +305,8 @@ class Viewport(QWidget):
                     self.imported_img_drag_active = True
                     self.drag_origin = (px, py)
                     # Save coordinates in case user wants to undo:
-                    self.stage_pos_backup = self.cs.get_imported_img_centre_s(
-                        self.selected_imported)
+                    self.stage_pos_backup = (
+                        self.imported[self.selected_imported].centre_sx_sy)
 
             # No key pressed? -> Pan:
             elif (QApplication.keyboardModifiers() == Qt.NoModifier):
@@ -776,7 +778,7 @@ class Viewport(QWidget):
         """
         self.imported_img = []
         self.imported_img_opacity = []
-        self.number_imported = self.ovm.get_number_imported()
+        self.number_imported = self.imported.number_imported
         for i in range(self.number_imported):
             self.mv_load_imported_image(i)
 
@@ -784,7 +786,7 @@ class Viewport(QWidget):
         """Load the most recent imported image into memory and enable the
         option 'show imported images'.
         """
-        self.number_imported = self.ovm.get_number_imported()
+        self.number_imported = self.imported.number_imported
         new_image_number = self.number_imported - 1
         self.mv_load_imported_image(new_image_number)
         self.show_imported = True
@@ -793,9 +795,9 @@ class Viewport(QWidget):
 
     def mv_load_imported_image(self, img_number):
         """Load the specified imported image into memory."""
-        file_name = self.ovm.get_imported_img_file(img_number)
-        angle = self.ovm.get_imported_img_rotation(img_number)
-        opacity = 1 - self.ovm.get_imported_img_transparency(img_number)/100
+        file_name = self.imported[img_number].image_src
+        angle = self.imported[img_number].rotation
+        opacity = 1 - self.imported[img_number].transparency/100
         if os.path.isfile(file_name):
             try:
                 img = QPixmap(file_name)
@@ -966,7 +968,7 @@ class Viewport(QWidget):
                 action_selectAutofocus.setEnabled(False)
             if self.selected_imported is None:
                 action_adjustImported.setEnabled(False)
-            if self.ovm.get_number_imported() == 0:
+            if self.imported.number_imported == 0:
                 action_deleteImported.setEnabled(False)
             if self.acq_in_progress:
                 action_focusTool.setEnabled(False)
@@ -1214,15 +1216,16 @@ class Viewport(QWidget):
         """Place imported image specified by img_number into the viewport."""
         if self.imported_img[img_number] is not None:
             viewport_pixel_size = 1000 / self.cs.get_mv_scale()
-            img_pixel_size = self.ovm.get_imported_img_pixel_size(img_number)
+            img_pixel_size = self.imported[img_number].pixel_size
             resize_ratio = img_pixel_size / viewport_pixel_size
 
             # Compute position of image in viewport:
-            dx, dy = self.cs.get_imported_img_centre_d(img_number)
+            dx, dy = self.cs.convert_to_d(
+                self.imported[img_number].centre_sx_sy)
             # Get width and height of the imported QPixmap:
             width = self.imported_img[img_number].width()
             height = self.imported_img[img_number].height()
-            pixel_size = self.ovm.get_imported_img_pixel_size(img_number)
+            pixel_size = self.imported[img_number].pixel_size
             dx -= (width * pixel_size / 1000)/2
             dy -= (height * pixel_size / 1000)/2
             vx, vy = self.cs.convert_to_v((dx, dy))
@@ -1774,14 +1777,14 @@ class Viewport(QWidget):
     def mv_reposition_imported_img(self, shift_vector):
         dx, dy = shift_vector
         # current position:
-        (old_origin_dx, old_origin_dy) = \
-            self.cs.get_imported_img_centre_d(self.selected_imported)
+        old_origin_dx, old_origin_dy = self.cs.convert_to_d(
+            self.imported[self.selected_imported].centre_sx_sy)
         mv_scale = self.cs.get_mv_scale()
         # Move tiling along shift vector:
         new_origin_dx = old_origin_dx + dx / mv_scale
         new_origin_dy = old_origin_dy + dy / mv_scale
         # Set new origin:
-        self.cs.set_imported_img_centre_s(self.selected_imported,
+        self.imported[self.selected_imported].centre_sx_sy = (
             self.cs.convert_to_s((new_origin_dx, new_origin_dy)))
 
     def mv_reposition_grid(self, shift_vector):
@@ -1938,9 +1941,9 @@ class Viewport(QWidget):
                 # Use width and heigh of loaded image (may be rotated
                 # and therefore larger than original image)
                 if self.imported_img[img_number] is not None:
-                    dx, dy = self.cs.get_imported_img_centre_d(img_number)
-                    pixel_size = self.ovm.get_imported_img_pixel_size(
-                        img_number)
+                    dx, dy = self.cs.convert_to_d(
+                        self.imported[img_number].centre_sx_sy)
+                    pixel_size = self.imported[img_number].pixel_size
                     width_d = (self.imported_img[img_number].size().width()
                                * pixel_size / 1000)
                     height_d = (self.imported_img[img_number].size().height()

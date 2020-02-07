@@ -166,7 +166,6 @@ class Grid:
         origin_sx, origin_sy = self.origin_sx_sy
         for tile in self.__tiles:
             tile_sx, tile_sy = self.cs.convert_to_s(tile.dx_dy)
-            print('new tile pos: ', tile_sx, tile_sy)
             tile.sx_sy = [origin_sx + tile_sx, origin_sy + tile_sy]
 
 
@@ -686,7 +685,7 @@ class GridManager:
         self.cfg['grids']['grid_active'] = str(
             [int(grid.active) for grid in self.__grids])
         self.cfg['grids']['origin_sx_sy'] = str(
-            [grid.origin_sx_sy for grid in self.__grids])
+            [utils.round_xy(grid.origin_sx_sy) for grid in self.__grids])
         self.cfg['grids']['rotation'] = str(
             [grid.rotation for grid in self.__grids])
         self.cfg['grids']['size'] = str(

@@ -866,9 +866,8 @@ class OVSettingsDlg(QDialog):
 class ImportImageDlg(QDialog):
     """Import an image into the viewport."""
 
-    def __init__(self, ovm, cs, target_dir):
-        self.ovm = ovm
-        self.cs = cs
+    def __init__(self, imported_images, target_dir):
+        self.imported = imported_images
         self.target_dir = target_dir
         super().__init__()
         loadUi('..\\gui\\import_image_dlg.ui', self)
@@ -884,10 +883,10 @@ class ImportImageDlg(QDialog):
         # Let user select image to be imported:
         start_path = 'C:\\'
         selected_file = str(QFileDialog.getOpenFileName(
-                self, 'Select image',
-                start_path,
-                'Images (*.tif *.png *.bmp *.jpg)'
-                )[0])
+            self, 'Select image',
+            start_path,
+            'Images (*.tif *.png *.bmp *.jpg)'
+            )[0])
         if len(selected_file) > 0:
             # Replace forward slashes with backward slashes:
             selected_file = selected_file.replace('/', '\\')
@@ -918,25 +917,22 @@ class ImportImageDlg(QDialog):
                 selection_success = False
 
             if selection_success:
-                new_img_number = self.ovm.get_number_imported()
-                self.ovm.add_imported_img()
-                self.cs.set_imported_img_centre_s(
-                    new_img_number,
-                    [self.doubleSpinBox_posX.value(),
-                     self.doubleSpinBox_posY.value()])
-                self.ovm.set_imported_img_rotation(
-                    new_img_number, self.spinBox_rotation.value())
-                self.ovm.set_imported_img_file(
-                    new_img_number, target_path)
-                self.ovm.set_imported_img_name(new_img_number,
-                                               self.lineEdit_name.text())
+                new_index = self.imported.number_imported
+                self.imported.add_image()
+                self.imported[new_index].centre_sx_sy = [
+                    self.doubleSpinBox_posX.value(),
+                    self.doubleSpinBox_posY.value()]
+                self.imported[new_index].rotation = (
+                    self.spinBox_rotation.value())
+                self.imported[new_index].image_src = target_path
+                self.imported[new_index].description = (
+                    self.lineEdit_name.text())
                 width, height = imported_img.size
-                self.ovm.set_imported_img_size_px_py(
-                    new_img_number, width, height)
-                self.ovm.set_imported_img_pixel_size(
-                    new_img_number, self.doubleSpinBox_pixelSize.value())
-                self.ovm.set_imported_img_transparency(
-                    new_img_number, self.spinBox_transparency.value())
+                self.imported[new_index].size = [width, height]
+                self.imported[new_index].pixel_size = (
+                    self.doubleSpinBox_pixelSize.value())
+                self.imported[new_index].transparency = (
+                    self.spinBox_transparency.value())
         else:
             QMessageBox.warning(self, 'Error',
                                 'Specified file not found.',
@@ -951,10 +947,9 @@ class ImportImageDlg(QDialog):
 class AdjustImageDlg(QDialog):
     """Adjust an imported image (size, rotation, transparency)"""
 
-    def __init__(self, ovm, cs, selected_img,
+    def __init__(self, imported_images, selected_img,
                  main_window_queue, main_window_trigger):
-        self.ovm = ovm
-        self.cs = cs
+        self.imported = imported_images
         self.main_window_queue = main_window_queue
         self.main_window_trigger = main_window_trigger
         self.selected_img = selected_img
@@ -965,16 +960,16 @@ class AdjustImageDlg(QDialog):
         self.setFixedSize(self.size())
         self.show()
         self.lineEdit_selectedImage.setText(
-            self.ovm.get_imported_img_name(self.selected_img))
-        pos_x, pos_y = self.cs.get_imported_img_centre_s(self.selected_img)
+            self.imported[self.selected_img].description)
+        pos_x, pos_y = self.imported[self.selected_img].centre_sx_sy
         self.doubleSpinBox_posX.setValue(pos_x)
         self.doubleSpinBox_posY.setValue(pos_y)
         self.doubleSpinBox_pixelSize.setValue(
-            self.ovm.get_imported_img_pixel_size(self.selected_img))
+            self.imported[self.selected_img].pixel_size)
         self.spinBox_rotation.setValue(
-            self.ovm.get_imported_img_rotation(self.selected_img))
+            self.imported[self.selected_img].rotation)
         self.spinBox_transparency.setValue(
-            self.ovm.get_imported_img_transparency(self.selected_img))
+            self.imported[self.selected_img].transparency)
         # Use "Apply" button to show changes in viewport
         apply_button = self.buttonBox.button(QDialogButtonBox.Apply)
         cancel_button = self.buttonBox.button(QDialogButtonBox.Cancel)
@@ -986,16 +981,15 @@ class AdjustImageDlg(QDialog):
 
     def apply_changes(self):
         """Apply the current settings and redraw the image in the viewport."""
-        self.cs.set_imported_img_centre_s(
-            self.selected_img,
-            [self.doubleSpinBox_posX.value(),
-             self.doubleSpinBox_posY.value()])
-        self.ovm.set_imported_img_pixel_size(
-            self.selected_img, self.doubleSpinBox_pixelSize.value())
-        self.ovm.set_imported_img_rotation(
-            self.selected_img, self.spinBox_rotation.value())
-        self.ovm.set_imported_img_transparency(
-            self.selected_img, self.spinBox_transparency.value())
+        self.imported[self.selected_img].centre_sx_sy = [
+            self.doubleSpinBox_posX.value(),
+            self.doubleSpinBox_posY.value()]
+        self.imported[self.selected_img].pixel_size = (
+            self.doubleSpinBox_pixelSize.value())
+        self.imported[self.selected_img].rotation = (
+            self.spinBox_rotation.value())
+        self.imported[self.selected_img].transparency = (
+            self.spinBox_transparency.value())
         # Emit signals to reload and redraw:
         self.main_window_queue.put('RELOAD IMPORTED' + str(self.selected_img))
         self.main_window_trigger.s.emit()
@@ -1005,8 +999,8 @@ class AdjustImageDlg(QDialog):
 class DeleteImageDlg(QDialog):
     """Delete an imported image from the viewport."""
 
-    def __init__(self, ovm):
-        self.ovm = ovm
+    def __init__(self, imported_images):
+        self.imported = imported_images
         super().__init__()
         loadUi('..\\gui\\delete_image_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
@@ -1015,14 +1009,14 @@ class DeleteImageDlg(QDialog):
         self.show()
         # Populate the list widget with existing imported images:
         img_list = []
-        for i in range(self.ovm.get_number_imported()):
-            img_list.append(str(i) + ' - ' + self.ovm.get_imported_img_name(i))
+        for i in range(self.imported.number_imported):
+            img_list.append(str(i) + ' - ' + self.imported[i].description)
         self.listWidget_imagelist.addItems(img_list)
 
     def accept(self):
         selected_img = self.listWidget_imagelist.currentRow()
         if selected_img is not None:
-            self.ovm.delete_imported_img(selected_img)
+            self.imported.delete_image(selected_img)
         super().accept()
 
 #------------------------------------------------------------------------------

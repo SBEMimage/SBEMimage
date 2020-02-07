@@ -20,12 +20,13 @@
        v - Pixel coordinates within Viewport window (vx: 0..1000, vy: 0..800)
            _v, vx, vy, vx_vy
 
-       TODO: Location management of overviews, stubs, ... to be moved to
-       OverviewManager
 """
 
 from math import sin, cos
 import json
+
+import utils
+
 
 class CoordinateSystem():
 
@@ -34,15 +35,13 @@ class CoordinateSystem():
         self.syscfg = sysconfig
         # The pixel size of the global coordinate system is fixed at 10 nm:
         self.CS_PIXEL_SIZE = 10   # This may become obsolete.
-        self.imported_img_centre_sx_sy = json.loads(
-            self.cfg['overviews']['imported_centre_sx_sy'])
         # Mosaic viewer (mv): visible window position and scaling:
         self.mv_centre_dx_dy = json.loads(
             self.cfg['viewport']['mv_centre_dx_dy'])
         self.mv_scale = float(self.cfg['viewport']['mv_scale'])
         # Upper left corner of visible window
-        self.mv_dx_dy = (self.mv_centre_dx_dy[0] - 500 / self.mv_scale,
-                         self.mv_centre_dx_dy[1] - 400 / self.mv_scale)
+        self.mv_dx_dy = [self.mv_centre_dx_dy[0] - 500 / self.mv_scale,
+                         self.mv_centre_dx_dy[1] - 400 / self.mv_scale]
         # Load current stage calibration and calculate transformation factors
         initial_eht = float(self.cfg['sem']['eht'])
         self.calibration_found = False
@@ -50,9 +49,8 @@ class CoordinateSystem():
         self.apply_stage_calibration()
 
     def save_to_cfg(self):
-        self.cfg['overviews']['imported_centre_sx_sy'] = str(
-            self.imported_img_centre_sx_sy)
-        self.cfg['viewport']['mv_centre_dx_dy'] = str(self.mv_centre_dx_dy)
+        self.cfg['viewport']['mv_centre_dx_dy'] = str(
+            utils.round_xy(self.mv_centre_dx_dy))
         self.cfg['viewport']['mv_scale'] = str(self.mv_scale)
 
         if self.cfg['sys']['use_microtome'].lower() == 'true':
@@ -138,12 +136,12 @@ class CoordinateSystem():
 
     def convert_to_s(self, d_coordinates):
         """Convert SEM XY coordinates provided as a tuple or list into stage
-        coordinates. The SEM coordinates (dx, dy) are multiplied with the
+        coordinates. The SEM coordinates [dx, dy] are multiplied with the
         rotation matrix."""
         dx, dy = d_coordinates
         stage_x = (self.rot_mat_a * dx + self.rot_mat_b * dy) * self.scale_x
         stage_y = (self.rot_mat_c * dx + self.rot_mat_d * dy) * self.scale_y
-        return stage_x, stage_y
+        return [stage_x, stage_y]
 
     def convert_to_d(self, s_coordinates):
         """Convert stage XY coordinates provided as a tuple or list into
@@ -156,15 +154,15 @@ class CoordinateSystem():
               / self.rot_mat_determinant)
         dy = ((-self.rot_mat_c * stage_x + self.rot_mat_a * stage_y)
               / self.rot_mat_determinant)
-        return dx, dy
+        return [dx, dy]
 
     def convert_to_v(self, d_coordinates):
         """Convert SEM XY coordinates into Viewport window coordinates.
         These coordinates in units of pixels specify an object's location
         relative to the Viewport origin """
         dx, dy = d_coordinates
-        return (int((dx - self.mv_dx_dy[0]) * self.mv_scale),
-                int((dy - self.mv_dx_dy[1]) * self.mv_scale))
+        return [int((dx - self.mv_dx_dy[0]) * self.mv_scale),
+                int((dy - self.mv_dx_dy[1]) * self.mv_scale)]
 
     def get_mv_centre_d(self):
         return self.mv_centre_dx_dy
@@ -173,8 +171,8 @@ class CoordinateSystem():
         self.mv_centre_dx_dy = list(d_coordinates)
         self.cfg['viewport']['mv_centre_dx_dy'] = str(self.mv_centre_dx_dy)
         # Recalculate upper left corner of visible window:
-        self.mv_dx_dy = (self.mv_centre_dx_dy[0] - 500 / self.mv_scale,
-                         self.mv_centre_dx_dy[1] - 400 / self.mv_scale)
+        self.mv_dx_dy = [self.mv_centre_dx_dy[0] - 500 / self.mv_scale,
+                         self.mv_centre_dx_dy[1] - 400 / self.mv_scale]
 
     def get_mv_scale(self):
         return self.mv_scale
@@ -183,27 +181,6 @@ class CoordinateSystem():
         self.mv_scale = new_scale
         self.cfg['viewport']['mv_scale'] = str(new_scale)
         # Recalculate upper left corner of visible window
-        self.mv_dx_dy = (self.mv_centre_dx_dy[0] - 500 / self.mv_scale,
-                         self.mv_centre_dx_dy[1] - 400 / self.mv_scale)
+        self.mv_dx_dy = [self.mv_centre_dx_dy[0] - 500 / self.mv_scale,
+                         self.mv_centre_dx_dy[1] - 400 / self.mv_scale]
 
-    def get_imported_img_centre_s(self, img_number):
-        return self.imported_img_centre_sx_sy[img_number]
-
-    def get_imported_img_centre_d(self, img_number):
-        return self.convert_to_d(
-            self.imported_img_centre_sx_sy[img_number])
-
-    def set_imported_img_centre_s(self, img_number, s_coordinates):
-        if img_number < len(self.imported_img_centre_sx_sy):
-            self.imported_img_centre_sx_sy[img_number] = list(
-                s_coordinates)
-        else:
-            self.imported_img_centre_sx_sy.append(list(s_coordinates))
-        self.cfg['overviews']['imported_centre_sx_sy'] = str(
-            self.imported_img_centre_sx_sy)
-
-    def delete_imported_img_centre(self, img_number):
-        if img_number < len(self.imported_img_centre_sx_sy):
-            del self.imported_img_centre_sx_sy[img_number]
-            self.cfg['overviews']['imported_centre_sx_sy'] = str(
-                self.imported_img_centre_sx_sy)

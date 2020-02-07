@@ -44,6 +44,7 @@ from stage import Stage
 from plasma_cleaner import PlasmaCleaner
 from stack_acquisition import Stack
 from overview_manager import OverviewManager
+from imported_img import ImportedImages
 from grid_manager import GridManager
 from coordinate_system import CoordinateSystem
 from viewport import Viewport
@@ -101,7 +102,8 @@ class MainControls(QMainWindow):
         QApplication.processEvents()
         # Initialize viewport window:
         self.viewport = Viewport(self.cfg, self.sem, self.stage,
-                                 self.ovm, self.gm, self.cs, self.autofocus,
+                                 self.ovm, self.gm, self.imported,
+                                 self.cs, self.autofocus,
                                  self.viewport_trigger,
                                  self.viewport_queue)
         self.viewport.show()
@@ -423,6 +425,9 @@ class MainControls(QMainWindow):
         # Set up grid/tile selectors:
         self.update_main_controls_grid_selector()
         self.update_main_controls_ov_selector()
+
+        # Imported images
+        self.imported = ImportedImages(self.cfg)
 
         utils.show_progress_in_console(50)
 
@@ -1036,21 +1041,22 @@ class MainControls(QMainWindow):
         self.viewport.mv_draw()
 
     def open_import_image_dlg(self):
-        target_dir = self.cfg['acq']['base_dir'] + '\\overviews\\imported'
+        target_dir = os.path.join(self.cfg['acq']['base_dir'],
+                                  'overviews', 'imported')
         if not os.path.exists(target_dir):
             self.try_to_create_directory(target_dir)
-        dialog = ImportImageDlg(self.ovm, self.cs, target_dir)
+        dialog = ImportImageDlg(self.imported, target_dir)
         if dialog.exec_():
             self.viewport.mv_load_last_imported_image()
             self.viewport.mv_draw()
 
     def open_adjust_image_dlg(self, selected_img):
-        dialog = AdjustImageDlg(self.ovm, self.cs, selected_img,
+        dialog = AdjustImageDlg(self.imported, selected_img,
                                 self.acq_queue, self.acq_trigger)
         dialog.exec_()
 
     def open_delete_image_dlg(self):
-        dialog = DeleteImageDlg(self.ovm)
+        dialog = DeleteImageDlg(self.imported)
         if dialog.exec_():
             self.viewport.mv_load_all_imported_images()
             self.viewport.mv_draw()
@@ -2066,6 +2072,7 @@ class MainControls(QMainWindow):
         # Save current status of grid_manager and other modules
         self.gm.save_to_cfg()
         self.ovm.save_to_cfg()
+        self.imported.save_to_cfg()
         self.autofocus.save_to_cfg()
         self.microtome.save_to_cfg()
         self.cs.save_to_cfg()

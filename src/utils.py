@@ -316,6 +316,10 @@ def get_days_hours_minutes(duration_in_seconds):
 def get_serial_ports():
     return [port.device for port in list_ports.comports()]
 
+def round_xy(coordinates):
+    x, y = coordinates
+    return [round(x, 3), round(y, 3)]
+
 # ----------------- Functions for geometric transforms (MagC) ------------------
 def affineT(x_in, y_in, x_out, y_out):
     X = np.array([[x, y, 1] for (x,y) in zip(x_in, y_in)])
