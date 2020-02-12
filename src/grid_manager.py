@@ -27,6 +27,7 @@ import yaml
 import numpy as np
 from statistics import mean
 from math import sqrt, radians, sin, cos
+from PyQt5.QtGui import QPixmap
 
 import utils
 
@@ -63,6 +64,23 @@ class Tile:
         self.tile_active = tile_active
         self.autofocus_active = autofocus_active
         self.wd_grad_active = wd_grad_active
+        self.preview_img = None
+
+    @property
+    def preview_src(self):
+        return self._preview_src
+
+    @preview_src.setter
+    def preview_src(self, src):
+        self._preview_src = src
+        if os.path.isfile(src):
+            try:
+                self.preview_img = QPixmap(src)
+            except:
+                self.preview_img = None
+        else:
+            self.preview_img = None
+
 
 class Grid:
     """Store all grid parameters and a list of Tile objects."""
@@ -670,6 +688,17 @@ class GridManager:
             g, t = (int(s) for s in tile_key.split('.'))
             self.__grids[g][t].autofocus_active = True
 
+        # Load tile previews for active tiles if available
+        base_dir = self.cfg['acq']['base_dir']
+        for g in range(self.number_grids):
+            for t in self.__grids[g].active_tiles:
+                preview_path = os.path.join(base_dir,
+                    utils.get_tile_preview_save_path(g, t))
+                try:
+                    self.__grids[g][t].preview_img = QPixmap(preview_path)
+                except:
+                    self.__grids[g][t].preview_img = None
+
     def __getitem__(self, grid_index):
         """Return the Grid object selected by index."""
         if grid_index < self.number_grids:
@@ -744,6 +773,16 @@ class GridManager:
         # Also save list of autofocus reference tiles.
         self.cfg['autofocus']['ref_tiles'] = json.dumps(
             self.autofocus_ref_tiles)
+
+        # Save tile previews currently held in memory as pngs
+        base_dir = self.cfg['acq']['base_dir']
+        for g in range(self.number_grids):
+            for t in range(self.__grids[g].number_tiles):
+                preview_path = os.path.join(base_dir,
+                    utils.get_tile_preview_save_path(g, t))
+                img = self.__grids[g][t].preview_img
+                if img is not None:
+                    img.save(preview_path)
 
     def add_new_grid(self):
         """Add new grid with default parameters. A new grid is always added

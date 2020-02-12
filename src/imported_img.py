@@ -16,19 +16,36 @@ future.
 import os
 import json
 
+from PyQt5.QtGui import QPixmap, QTransform
+
 import utils
 
 
 class ImportedImage:
-    def __init__(self, image_src, description, centre_sx_sy, rotation, size,
-                 pixel_size, transparency):
-        self.image_src = image_src   # Path to image file
+    def __init__(self, image_src, description, centre_sx_sy, rotation,
+                 size, pixel_size, transparency):
+        self._image_src = image_src   # Path to image file
         self.description = description
         self.centre_sx_sy = centre_sx_sy
-        self.rotation = rotation
+        self._rotation = rotation
         self.size = size
         self.pixel_size = pixel_size
         self.transparency = transparency
+        self._load_image()
+
+    def _load_image(self):
+        # Load image as QPixmap
+        if os.path.isfile(self.image_src):
+            try:
+                self.image = QPixmap(self.image_src)
+                if self.rotation > 0:
+                    trans = QTransform()
+                    trans.rotate(self.rotation)
+                    self.image = self.image.transformed(trans)
+            except:
+                self.image = None
+        else:
+            self.image = None
 
     @property
     def centre_sx_sy(self):
@@ -37,6 +54,25 @@ class ImportedImage:
     @centre_sx_sy.setter
     def centre_sx_sy(self, sx_sy):
         self._centre_sx_sy = list(sx_sy)
+
+    @property
+    def image_src(self):
+        return self._image_src
+
+    @image_src.setter
+    def image_src(self, src):
+        self._image_src = src
+        self._load_image()
+
+    @property
+    def rotation(self):
+        return self._rotation
+
+    @rotation.setter
+    def rotation(self, new_rotation):
+        self._rotation = new_rotation
+        self._load_image()
+
 
 
 class ImportedImages:

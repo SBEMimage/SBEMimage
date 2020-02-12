@@ -10,13 +10,11 @@
 
 """This module maintains the coordinate systems and the stage calibration, and
    provides conversion functionality.
-   One-letter abbreviations for type of coordinates use in this module and
-   everywhere else in SBEMimage code:
-       s - Microtome or SEM stage in microns. Stage origin at (0, 0)
+   One-letter abbreviations for type of coordinates:
+       s - Microtome or SEM stage coordinates in microns. Stage origin at (0, 0)
            _s, sx, sy, sx_sy
        d - SEM coordinates in microns, origin (0, 0) coincides with stage origin
            _d, dx, dy, dx_dy
-       [p - Same as d, but in 10-nm pixels; perhaps obsolete]
        v - Pixel coordinates within Viewport window (vx: 0..1000, vy: 0..800)
            _v, vx, vy, vx_vy
 
@@ -28,31 +26,25 @@ import json
 import utils
 
 
-class CoordinateSystem():
+class CoordinateSystem:
 
     def __init__(self, config, sysconfig):
         self.cfg = config
         self.syscfg = sysconfig
-        # The pixel size of the global coordinate system is fixed at 10 nm:
-        self.CS_PIXEL_SIZE = 10   # This may become obsolete.
-        # Mosaic viewer (mv): visible window position and scaling:
-        self.mv_centre_dx_dy = json.loads(
-            self.cfg['viewport']['mv_centre_dx_dy'])
-        self.mv_scale = float(self.cfg['viewport']['mv_scale'])
-        # Upper left corner of visible window
-        self.mv_dx_dy = [self.mv_centre_dx_dy[0] - 500 / self.mv_scale,
-                         self.mv_centre_dx_dy[1] - 400 / self.mv_scale]
+
         # Load current stage calibration and calculate transformation factors
         initial_eht = float(self.cfg['sem']['eht'])
         self.calibration_found = False
         self.load_stage_calibration(initial_eht)
         self.apply_stage_calibration()
 
-    def save_to_cfg(self):
-        self.cfg['viewport']['mv_centre_dx_dy'] = str(
-            utils.round_xy(self.mv_centre_dx_dy))
-        self.cfg['viewport']['mv_scale'] = str(self.mv_scale)
+        # Viewport (vp): visible window position and scaling:
+        self._vp_centre_dx_dy = json.loads(
+            self.cfg['viewport']['vp_centre_dx_dy'])
+        self._vp_scale = float(self.cfg['viewport']['vp_scale'])
+        self.update_vp_origin_dx_dy()
 
+    def save_to_cfg(self):
         if self.cfg['sys']['use_microtome'].lower() == 'true':
             type_of_stage = 'microtome'
         else:
@@ -65,6 +57,11 @@ class CoordinateSystem():
             self.stage_calibration[2])
         self.cfg[type_of_stage]['stage_rotation_angle_y'] = str(
             self.stage_calibration[3])
+
+        self.cfg['viewport']['vp_centre_dx_dy'] = str(
+            utils.round_xy(self.vp_centre_dx_dy))
+        self.cfg['viewport']['vp_scale'] = str(self.vp_scale)
+
 
     def load_stage_calibration(self, eht):
         eht = int(eht * 1000)  # Dict keys in system config use volts, not kV
@@ -161,26 +158,30 @@ class CoordinateSystem():
         These coordinates in units of pixels specify an object's location
         relative to the Viewport origin """
         dx, dy = d_coordinates
-        return [int((dx - self.mv_dx_dy[0]) * self.mv_scale),
-                int((dy - self.mv_dx_dy[1]) * self.mv_scale)]
+        return [int((dx - self._vp_origin_dx_dy[0]) * self._vp_scale),
+                int((dy - self._vp_origin_dx_dy[1]) * self._vp_scale)]
 
-    def get_mv_centre_d(self):
-        return self.mv_centre_dx_dy
+    @property
+    def vp_centre_dx_dy(self):
+        return self._vp_centre_dx_dy
 
-    def set_mv_centre_d(self, d_coordinates):
-        self.mv_centre_dx_dy = list(d_coordinates)
-        self.cfg['viewport']['mv_centre_dx_dy'] = str(self.mv_centre_dx_dy)
-        # Recalculate upper left corner of visible window:
-        self.mv_dx_dy = [self.mv_centre_dx_dy[0] - 500 / self.mv_scale,
-                         self.mv_centre_dx_dy[1] - 400 / self.mv_scale]
+    @vp_centre_dx_dy.setter
+    def vp_centre_dx_dy(self, dx_dy):
+        self._vp_centre_dx_dy = list(dx_dy)
+        self.update_vp_origin_dx_dy()
 
-    def get_mv_scale(self):
-        return self.mv_scale
+    @property
+    def vp_scale(self):
+        return self._vp_scale
 
-    def set_mv_scale(self, new_scale):
-        self.mv_scale = new_scale
-        self.cfg['viewport']['mv_scale'] = str(new_scale)
+    @vp_scale.setter
+    def vp_scale(self, new_scale):
+        self._vp_scale = new_scale
+        self.update_vp_origin_dx_dy()
+
+    def update_vp_origin_dx_dy(self):
         # Recalculate upper left corner of visible window
-        self.mv_dx_dy = [self.mv_centre_dx_dy[0] - 500 / self.mv_scale,
-                         self.mv_centre_dx_dy[1] - 400 / self.mv_scale]
-
+        dx, dy = self._vp_centre_dx_dy
+        self._vp_origin_dx_dy = [
+            dx - 500 / self._vp_scale,
+            dy - 400 / self._vp_scale]

@@ -3,15 +3,15 @@
 # ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2018-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
 
 """This module controls the viewport window, which consists of three tabs:
-    - the viewport (mv)  [formerly called Mosaic Viewer, therefore 'mv']
-    - the slice viewer (sv),
-    - the reslice/statistics tab (m)  ['monitoring']
+    - the viewport (vp)
+    - the slice-by-slice viewer (sv),
+    - the reslice/statistics tab (m for 'monitoring')
 """
 
 import os
@@ -69,7 +69,7 @@ class Viewport(QWidget):
         self.queue = queue
         # Set limits for viewport panning:
         self.VC_MIN_X, self.VC_MAX_X, self.VC_MIN_Y, self.VC_MAX_Y = (
-            self.mv_dx_dy_range())
+            self.vp_dx_dy_range())
         # Set zoom parameters depending on which stage is selected:
         if self.cfg['sys']['use_microtome'] == 'True':
             self.VIEWER_ZOOM_F1 = 0.2
@@ -81,9 +81,6 @@ class Viewport(QWidget):
         # Shared control variables:
         self.acq_in_progress = False
         self.viewport_active = True
-        self.number_grids = self.gm.number_grids
-        self.number_ov = self.ovm.number_ov
-        self.number_imported = self.imported.number_imported
         # for mouse operations (dragging, measuring):
         self.doubleclick_registered = False
         self.zooming_in_progress = False
@@ -98,7 +95,7 @@ class Viewport(QWidget):
 
         self.load_gui()
         # Initialize viewport tabs:
-        self.mv_initialize()  # Mosaic viewer
+        self.vp_initialize()  # Mosaic viewer
         self.sv_initialize()  # Slice viewer
         self.m_initialize()   # Monitoring tab
         self.setMouseTracking(True)
@@ -129,36 +126,33 @@ class Viewport(QWidget):
         self.radioButton_fromSEM.setEnabled(b)
 
     def update_grids(self):
-        self.number_grids = self.gm.number_grids
-        self.mv_current_grid = -1
-        self.cfg['viewport']['mv_current_grid'] = '-1'
-        if self.sv_current_grid >= self.number_grids:
-            self.sv_current_grid = self.number_grids - 1
+        self.vp_current_grid = -1
+        self.cfg['viewport']['vp_current_grid'] = '-1'
+        if self.sv_current_grid >= self.gm.number_grids:
+            self.sv_current_grid = self.gm.number_grids - 1
             self.cfg['viewport']['sv_current_grid'] = str(self.sv_current_grid)
             self.sv_current_tile = -1
             self.cfg['viewport']['sv_current_tile'] = '-1'
-        if self.m_current_grid >= self.number_grids:
-            self.m_current_grid = self.number_grids - 1
+        if self.m_current_grid >= self.gm.number_grids:
+            self.m_current_grid = self.gm.number_grids - 1
             self.cfg['viewport']['m_current_grid'] = str(self.m_current_grid)
             self.m_current_tile = -1
             self.cfg['viewport']['m_current_tile'] = '-1'
-        self.mv_update_grid_selector(self.mv_current_grid)
+        self.vp_update_grid_selector(self.vp_current_grid)
         self.sv_update_grid_selector(self.sv_current_grid)
         self.sv_update_tile_selector(self.sv_current_tile)
         self.m_update_grid_selector(self.m_current_grid)
         self.m_update_tile_selector(self.m_current_tile)
 
     def update_ov(self):
-        self.number_ov = self.ovm.number_ov
-        self.mv_current_ov = -1
-        self.cfg['viewport']['mv_current_ov'] = '-1'
-        self.mv_load_all_overviews()
-        self.mv_update_ov_selector()
+        self.vp_current_ov = -1
+        self.cfg['viewport']['vp_current_ov'] = '-1'
+        self.vp_update_ov_selector()
         self.sv_update_ov_selector()
         self.m_update_ov_selector()
 
     def update_measure_buttons(self):
-        if self.mv_measure_active:
+        if self.vp_measure_active:
             self.pushButton_measureMosaic.setIcon(
                 QIcon('..\\img\\measure-active.png'))
             self.pushButton_measureMosaic.setIconSize(QSize(16, 16))
@@ -232,15 +226,15 @@ class Viewport(QWidget):
             and mouse_pos_within_viewer):
 
             self.selected_grid, self.selected_tile = \
-                self.mv_get_grid_tile_mouse_selection(px, py)
-            self.selected_ov = self.mv_get_ov_mouse_selection(px, py)
+                self.vp_get_grid_tile_mouse_selection(px, py)
+            self.selected_ov = self.vp_get_ov_mouse_selection(px, py)
             self.selected_imported = (
-                self.mv_get_imported_mouse_selection(px, py))
+                self.vp_get_imported_mouse_selection(px, py))
 
             # Shift pressed in first tab? Toggle tile selection:
             if ((self.tabWidget.currentIndex() == 0)
                and (QApplication.keyboardModifiers() == Qt.ShiftModifier)):
-                if (self.mv_current_grid >= -2
+                if (self.vp_current_grid >= -2
                    and self.selected_grid is not None
                    and self.selected_tile is not None):
                     if self.acq_in_progress:
@@ -261,7 +255,7 @@ class Viewport(QWidget):
                             self.add_to_main_log(
                                 f'Tile {self.selected_grid}.'
                                 f'{self.selected_tile}{new_tile_status}')
-                            self.mv_update_after_tile_selection()
+                            self.vp_update_after_tile_selection()
                             # Make sure folder exists:
                             self.transmit_cmd('ADD TILE FOLDER')
                     else:
@@ -272,14 +266,14 @@ class Viewport(QWidget):
                         if self.autofocus.tracking_mode == 1:
                             self.gm[self.selected_grid][
                                     self.selected_tile].autofocus_active ^= True
-                        self.mv_draw()
+                        self.vp_draw()
                         # Then enter paint mode until mouse button released.
                         self.tile_paint_mode_active = True
 
             # Check if ctrl key is pressed -> Move OV:
             elif ((self.tabWidget.currentIndex() == 0)
                 and (QApplication.keyboardModifiers() == Qt.ControlModifier)
-                and self.mv_current_ov >= -2
+                and self.vp_current_ov >= -2
                 and not self.acq_in_progress):
                 if self.selected_ov is not None and self.selected_ov >= 0:
                     self.ov_drag_active = True
@@ -289,7 +283,7 @@ class Viewport(QWidget):
             # Check if alt key is pressed -> Move grid:
             elif ((self.tabWidget.currentIndex() == 0)
                 and (QApplication.keyboardModifiers() == Qt.AltModifier)
-                and self.mv_current_grid >= -2
+                and self.vp_current_grid >= -2
                 and not self.acq_in_progress):
                 if self.selected_grid is not None and self.selected_grid >= 0:
                     self.grid_drag_active = True
@@ -325,10 +319,10 @@ class Viewport(QWidget):
            and mouse_pos_within_viewer):
 
             if self.tabWidget.currentIndex() == 0:
-                if self.mv_measure_active:
-                    self.mv_start_measure(px - 500, py - 400)
+                if self.vp_measure_active:
+                    self.vp_start_measure(px - 500, py - 400)
                 else:
-                    self.mv_show_context_menu(p)
+                    self.vp_show_context_menu(p)
 
             elif self.tabWidget.currentIndex() == 1:
                 if self.sv_measure_active:
@@ -359,7 +353,7 @@ class Viewport(QWidget):
             px in range(self.VIEWER_WIDTH) and py in range(self.VIEWER_HEIGHT))
         if ((self.tabWidget.currentIndex() == 0)
                 and mouse_pos_within_viewer):
-            sx, sy = self.mv_get_stage_coordinates_from_mouse_position(px, py)
+            sx, sy = self.vp_get_stage_coordinates_from_mouse_position(px, py)
             dx, dy = self.cs.convert_to_d((sx, sy))
             self.label_mousePos.setText(
                 'Stage: {0:.1f}, '.format(sx)
@@ -377,30 +371,30 @@ class Viewport(QWidget):
                            py - self.drag_origin[1])
             # Update drag origin
             self.drag_origin = (px, py)
-            self.mv_reposition_grid(drag_vector)
-            self.mv_draw()
+            self.vp_reposition_grid(drag_vector)
+            self.vp_draw()
 
         elif self.ov_drag_active:
             self.setCursor(Qt.SizeAllCursor)
             drag_vector = (px - self.drag_origin[0],
                            py - self.drag_origin[1])
             self.drag_origin = (px, py)
-            self.mv_reposition_ov(drag_vector)
-            self.mv_draw()
+            self.vp_reposition_ov(drag_vector)
+            self.vp_draw()
         elif self.imported_img_drag_active:
             self.setCursor(Qt.SizeAllCursor)
             drag_vector = (px - self.drag_origin[0],
                            py - self.drag_origin[1])
             self.drag_origin = (px, py)
-            self.mv_reposition_imported_img(drag_vector)
-            self.mv_draw()
+            self.vp_reposition_imported_img(drag_vector)
+            self.vp_draw()
         elif self.fov_drag_active:
             self.setCursor(Qt.SizeAllCursor)
             drag_vector = (self.drag_origin[0] - px, self.drag_origin[1] - py)
             self.drag_origin = (px, py)
             if self.tabWidget.currentIndex() == 0:
-                self.mv_shift_fov(drag_vector)
-                self.mv_draw()
+                self.vp_shift_fov(drag_vector)
+                self.vp_draw()
             if self.tabWidget.currentIndex() == 1:
                 self.sv_shift_fov(drag_vector)
                 self.sv_draw()
@@ -409,7 +403,7 @@ class Viewport(QWidget):
             prev_selected_grid = self.selected_grid
             prev_selected_tile = self.selected_tile
             self.selected_grid, self.selected_tile = \
-                self.mv_get_grid_tile_mouse_selection(px, py)
+                self.vp_get_grid_tile_mouse_selection(px, py)
             # If mouse has moved to a new tile, toggle it:
             if (self.selected_grid is not None
                 and self.selected_tile is not None):
@@ -421,14 +415,14 @@ class Viewport(QWidget):
                         if self.autofocus.tracking_mode == 1:
                             self.gm[self.selected_grid][
                                     self.selected_tile].autofocus_active ^= True
-                        self.mv_draw()
+                        self.vp_draw()
             else:
                 # Disable paint mode when mouse moved beyond grid edge.
                 self.tile_paint_mode_active = False
 
         elif ((self.tabWidget.currentIndex() == 0)
             and mouse_pos_within_viewer
-            and self.mv_measure_active):
+            and self.vp_measure_active):
                 # Change cursor appearence:
                 self.setCursor(Qt.CrossCursor)
         elif ((self.tabWidget.currentIndex() == 1)
@@ -439,7 +433,7 @@ class Viewport(QWidget):
             self.setCursor(Qt.ArrowCursor)
 
     def mouseReleaseEvent(self, event):
-        if not self.mv_measure_active:
+        if not self.vp_measure_active:
             self.setCursor(Qt.ArrowCursor)
         # Process doubleclick here:
         if self.doubleclick_registered:
@@ -447,7 +441,7 @@ class Viewport(QWidget):
             px, py = p.x() - self.WINDOW_MARGIN_X, p.y() - self.WINDOW_MARGIN_Y
             if px in range(self.VIEWER_WIDTH) and py in range(self.VIEWER_HEIGHT):
                 if self.tabWidget.currentIndex() == 0:
-                    self.mv_mouse_zoom(px, py, 2)
+                    self.vp_mouse_zoom(px, py, 2)
                 elif self.tabWidget.currentIndex() == 1:
                     # Disable native resolution:
                     self.cfg['viewport']['show_native_resolution'] = 'False'
@@ -494,21 +488,11 @@ class Viewport(QWidget):
                 else:
                     # Remove current preview image from file list:
                     self.ovm[self.selected_ov].vp_file_path = ''
-                    # Show blue transparent ROI:
-                    self.ov_img[self.selected_ov].fill(QColor(255, 255, 255, 0))
-                    self.mv_qp.begin(self.ov_img[self.selected_ov])
-                    self.mv_qp.setPen(QColor(0, 0, 255, 0))
-                    self.mv_qp.setBrush(QColor(0, 0, 255, 70))
-                    self.mv_qp.drawRect(
-                        0, 0,
-                        self.ovm[self.selected_ov].width_p(),
-                        self.ovm[self.selected_ov].height_p())
-                    self.mv_qp.end()
                     self.ovm.update_all_debris_detections_areas(self.gm)
 
             if self.tile_paint_mode_active:
                 self.tile_paint_mode_active = False
-                self.mv_update_after_tile_selection()
+                self.vp_update_after_tile_selection()
             if self.imported_img_drag_active:
                 self.imported_img_drag_active = False
                 user_reply = QMessageBox.question(
@@ -518,10 +502,10 @@ class Viewport(QWidget):
                     QMessageBox.Ok | QMessageBox.Cancel)
                 if user_reply == QMessageBox.Cancel:
                     # Restore origin coordinates:
-                    self.cs.set_imported_img_centre_s(
-                        self.selected_imported, self.stage_pos_backup)
+                    self.imported[self.selected_imported].centre_sx_sy = (
+                        self.stage_pos_backup)
             # Update viewport:
-            self.mv_draw()
+            self.vp_draw()
             self.transmit_cmd('SHOW CURRENT SETTINGS')
 
     def wheelEvent(self, event):
@@ -537,32 +521,30 @@ class Viewport(QWidget):
                 px in range(self.VIEWER_WIDTH) and py in range(self.VIEWER_HEIGHT))
             if mouse_pos_within_viewer:
                 if event.angleDelta().y() > 0:
-                    self.mv_mouse_zoom(px, py, 1.25)
+                    self.vp_mouse_zoom(px, py, 1.25)
                 if event.angleDelta().y() < 0:
-                    self.mv_mouse_zoom(px, py, 0.8)
+                    self.vp_mouse_zoom(px, py, 0.8)
 
-# ================= Below: Mosaic Viewer (mv) functions =======================
+# ================= Below: Viewport (vp) functions =======================
 
-    def mv_initialize(self):
-        self.mv_current_grid = int(self.cfg['viewport']['mv_current_grid'])
-        self.mv_current_ov = int(self.cfg['viewport']['mv_current_ov'])
-        self.mv_tile_preview_mode = int(
-            self.cfg['viewport']['mv_tile_preview_mode'])
-        self.mv_scale = self.cs.get_mv_scale()
-        self.mv_centre_dx_dy = self.cs.get_mv_centre_d()
-        self.grid_origin_sx_sy = (None, None)
-        self.grid_origin_sx_sy_backup = (None, None)
+    def vp_initialize(self):
+        self.vp_current_grid = int(self.cfg['viewport']['vp_current_grid'])
+        self.vp_current_ov = int(self.cfg['viewport']['vp_current_ov'])
+        self.vp_tile_preview_mode = int(
+            self.cfg['viewport']['vp_tile_preview_mode'])
         # display options:
-        self.stub_ov_exists = False
-        self.show_stub_ov = self.cfg['viewport']['show_stub_ov'] == 'True'
-        self.show_imported = self.cfg['viewport']['show_imported'] == 'True'
+        self.show_stub_ov = (
+            self.cfg['viewport']['show_stub_ov'].lower() == 'true')
+        self.show_imported = (
+            self.cfg['viewport']['show_imported'].lower() == 'true')
         self.show_labels = (
-            self.cfg['viewport']['show_labels'] == 'True')
-        self.show_axes = self.cfg['viewport']['show_axes'] == 'True'
+            self.cfg['viewport']['show_labels'].lower() == 'true')
+        self.show_axes = (
+            self.cfg['viewport']['show_axes'].lower() == 'true')
         self.show_native_res = (
-            self.cfg['viewport']['show_native_resolution'] == 'True')
+            self.cfg['viewport']['show_native_resolution'].lower() == 'true')
         self.show_saturated_pixels = (
-            self.cfg['viewport']['show_saturated_pixels'] == 'True')
+            self.cfg['viewport']['show_saturated_pixels'].lower() == 'true')
         # By default, stage position indicator is not visible. Can be activated
         # by user in GUI
         self.show_stage_pos = False
@@ -580,35 +562,30 @@ class Viewport(QWidget):
         self.grid_drag_active = False
         self.ov_drag_active = False
         self.imported_img_drag_active = False
-        self.mv_measure_active = False
+        self.vp_measure_active = False
 
-        self.mv_load_stage_limits()
+        self.vp_load_stage_limits()
 
         # Canvas:
-        self.mv_canvas = QPixmap(self.VIEWER_WIDTH, self.VIEWER_HEIGHT)
+        self.vp_canvas = QPixmap(self.VIEWER_WIDTH, self.VIEWER_HEIGHT)
         # Help panel:
-        self.mv_help_panel_img = QPixmap('..\\img\\help-viewport.png')
+        self.vp_help_panel_img = QPixmap('..\\img\\help-viewport.png')
         # QPainter:
-        self.mv_qp = QPainter()
-
-        # Load overview files into memory:
-        self.mv_load_all_overviews()
-        self.mv_load_stub_overview()
-        self.mv_load_all_imported_images()
+        self.vp_qp = QPainter()
 
         # Buttons:
-        self.pushButton_refreshOVs.clicked.connect(self.mv_refresh_overviews)
+        self.pushButton_refreshOVs.clicked.connect(self.vp_refresh_overviews)
         self.pushButton_acquireStubOV.clicked.connect(
-            self.mv_acquire_stub_overview)
-        self.pushButton_measureMosaic.clicked.connect(self.mv_toggle_measure)
+            self.vp_acquire_stub_overview)
+        self.pushButton_measureMosaic.clicked.connect(self.vp_toggle_measure)
         self.pushButton_measureMosaic.setIcon(QIcon('..\\img\\measure.png'))
         self.pushButton_measureMosaic.setIconSize(QSize(16, 16))
-        self.pushButton_helpViewport.clicked.connect(self.mv_toggle_help_panel)
+        self.pushButton_helpViewport.clicked.connect(self.vp_toggle_help_panel)
         self.pushButton_helpSliceViewer.clicked.connect(
-            self.mv_toggle_help_panel)
+            self.vp_toggle_help_panel)
         # Slider for zoom:
-        self.horizontalSlider_MV.valueChanged.connect(self.mv_adjust_scale)
-        self.mv_adjust_zoom_slider(self.cs.get_mv_scale())
+        self.horizontalSlider_MV.valueChanged.connect(self.vp_adjust_scale)
+        self.vp_adjust_zoom_slider(self.cs.vp_scale)
         # Tile Preview selector:
         self.comboBox_tilePreviewSelectorMV.addItems(
             ['Hide tile previews',
@@ -616,36 +593,36 @@ class Viewport(QWidget):
              'Tile previews, no grid(s)',
              'Tile previews with gaps'])
         self.comboBox_tilePreviewSelectorMV.setCurrentIndex(
-            self.mv_tile_preview_mode)
+            self.vp_tile_preview_mode)
         self.comboBox_tilePreviewSelectorMV.currentIndexChanged.connect(
-            self.mv_change_tile_preview_mode)
+            self.vp_change_tile_preview_mode)
 
         # Connect and populate grid/tile/roi comboboxes:
         self.comboBox_gridSelectorMV.currentIndexChanged.connect(
-            self.mv_change_grid_selection)
-        self.mv_update_grid_selector(self.mv_current_grid)
+            self.vp_change_grid_selection)
+        self.vp_update_grid_selector(self.vp_current_grid)
         self.comboBox_OVSelectorMV.currentIndexChanged.connect(
-            self.mv_change_ov_selection)
-        self.mv_update_ov_selector(self.mv_current_ov)
+            self.vp_change_ov_selection)
+        self.vp_update_ov_selector(self.vp_current_ov)
 
         self.checkBox_showLabels.setChecked(self.show_labels)
         self.checkBox_showLabels.stateChanged.connect(
-            self.mv_toggle_show_labels)
+            self.vp_toggle_show_labels)
         self.checkBox_showAxes.setChecked(self.show_axes)
-        self.checkBox_showAxes.stateChanged.connect(self.mv_toggle_show_axes)
+        self.checkBox_showAxes.stateChanged.connect(self.vp_toggle_show_axes)
         self.checkBox_showImported.setChecked(self.show_imported)
         self.checkBox_showImported.stateChanged.connect(
-            self.mv_toggle_show_imported)
+            self.vp_toggle_show_imported)
         self.checkBox_showStubOV.setChecked(self.show_stub_ov)
         self.checkBox_showStubOV.stateChanged.connect(
-            self.mv_toggle_show_stub_ov)
+            self.vp_toggle_show_stub_ov)
         self.checkBox_showStagePos.setChecked(self.show_stage_pos)
         self.checkBox_showStagePos.stateChanged.connect(
-            self.mv_toggle_show_stage_pos)
+            self.vp_toggle_show_stage_pos)
 
-    def mv_update_grid_selector(self, current_grid=-1):
+    def vp_update_grid_selector(self, current_grid=-1):
         # Set up grid selector:
-        if current_grid >= self.number_grids:
+        if current_grid >= self.gm.number_grids:
             current_grid = -1
         self.comboBox_gridSelectorMV.blockSignals(True)
         self.comboBox_gridSelectorMV.clear()
@@ -654,7 +631,7 @@ class Viewport(QWidget):
         self.comboBox_gridSelectorMV.setCurrentIndex(current_grid + 2)
         self.comboBox_gridSelectorMV.blockSignals(False)
 
-    def mv_update_ov_selector(self, current_ov=-1):
+    def vp_update_ov_selector(self, current_ov=-1):
         self.comboBox_OVSelectorMV.blockSignals(True)
         self.comboBox_OVSelectorMV.clear()
         self.comboBox_OVSelectorMV.addItems(
@@ -662,168 +639,78 @@ class Viewport(QWidget):
         self.comboBox_OVSelectorMV.setCurrentIndex(current_ov + 2)
         self.comboBox_OVSelectorMV.blockSignals(False)
 
-    def mv_change_tile_preview_mode(self):
-        self.mv_tile_preview_mode = (
+    def vp_change_tile_preview_mode(self):
+        self.vp_tile_preview_mode = (
             self.comboBox_tilePreviewSelectorMV.currentIndex())
-        self.cfg['viewport']['mv_tile_preview_mode'] = str(
-            self.mv_tile_preview_mode)
-        if self.mv_tile_preview_mode == 3:
+        self.cfg['viewport']['vp_tile_preview_mode'] = str(
+            self.vp_tile_preview_mode)
+        if self.vp_tile_preview_mode == 3:
             # Hide OVs:
             self.comboBox_OVSelectorMV.blockSignals(True)
             self.comboBox_OVSelectorMV.setCurrentIndex(0)
-            self.mv_current_ov = -2
+            self.vp_current_ov = -2
             self.comboBox_OVSelectorMV.blockSignals(False)
             # Hide stub:
             self.show_stub_ov = False
             self.checkBox_showStubOV.setChecked(self.show_stub_ov)
-        self.mv_draw()
+        self.vp_draw()
 
-    def mv_change_grid_selection(self):
-        self.mv_current_grid = self.comboBox_gridSelectorMV.currentIndex() - 2
-        self.cfg['viewport']['mv_current_grid'] = str(self.mv_current_grid)
-        self.mv_draw()
+    def vp_change_grid_selection(self):
+        self.vp_current_grid = self.comboBox_gridSelectorMV.currentIndex() - 2
+        self.cfg['viewport']['vp_current_grid'] = str(self.vp_current_grid)
+        self.vp_draw()
 
-    def mv_change_ov_selection(self):
-        self.mv_current_ov = self.comboBox_OVSelectorMV.currentIndex() - 2
-        self.cfg['viewport']['mv_current_ov'] = str(self.mv_current_ov)
-        self.mv_draw()
+    def vp_change_ov_selection(self):
+        self.vp_current_ov = self.comboBox_OVSelectorMV.currentIndex() - 2
+        self.cfg['viewport']['vp_current_ov'] = str(self.vp_current_ov)
+        self.vp_draw()
 
-    def mv_toggle_show_labels(self):
+    def vp_toggle_show_labels(self):
         # update variable show_labels and redraw
         self.show_labels = self.checkBox_showLabels.isChecked()
         self.cfg['viewport']['show_labels'] = str(self.show_labels)
-        self.mv_draw()
+        self.vp_draw()
 
-    def mv_toggle_show_axes(self):
+    def vp_toggle_show_axes(self):
         self.show_axes = self.checkBox_showAxes.isChecked()
         self.cfg['viewport']['show_axes'] = str(self.show_axes)
-        self.mv_draw()
+        self.vp_draw()
 
-    def mv_toggle_show_stub_ov(self):
+    def vp_toggle_show_stub_ov(self):
         self.show_stub_ov = self.checkBox_showStubOV.isChecked()
         self.cfg['viewport']['show_stub_ov'] = str(self.show_stub_ov)
-        self.mv_draw()
+        self.vp_draw()
 
-    def mv_toggle_show_imported(self):
+    def vp_toggle_show_imported(self):
         self.show_imported = self.checkBox_showImported.isChecked()
         self.cfg['viewport']['show_imported'] = str(self.show_imported)
-        self.mv_draw()
+        self.vp_draw()
 
-    def mv_toggle_tile_acq_indicator(self, grid_index, tile_index):
+    def vp_toggle_tile_acq_indicator(self, grid_index, tile_index):
         self.tile_indicator_on ^= True
         self.tile_indicator_pos = [grid_index, tile_index]
-        self.mv_draw()
+        self.vp_draw()
 
-    def mv_toggle_ov_acq_indicator(self, ov_index):
+    def vp_toggle_ov_acq_indicator(self, ov_index):
         self.ov_indicator_on ^= True
         self.ov_indicator_pos = ov_index
-        self.mv_draw()
+        self.vp_draw()
 
-    def mv_toggle_show_stage_pos(self):
+    def vp_toggle_show_stage_pos(self):
         self.show_stage_pos ^= True
-        self.mv_draw()
+        self.vp_draw()
 
-    def mv_activate_checkbox_show_stage_pos(self):
+    def vp_activate_checkbox_show_stage_pos(self):
         self.show_stage_pos = True
         self.checkBox_showStagePos.blockSignals(True)
         self.checkBox_showStagePos.setChecked(True)
         self.checkBox_showStagePos.blockSignals(False)
 
-    def mv_load_stage_limits(self):
+    def vp_load_stage_limits(self):
         (self.min_sx, self.max_sx,
             self.min_sy, self.max_sy) = self.stage.limits
 
-    def mv_load_all_overviews(self):
-        """Load the images specified in the OV file list into memory """
-        self.ov_img = []
-        # Load the OV image:
-        for i in range(self.number_ov):
-            ov_file = self.ovm[i].vp_file_path
-            if os.path.isfile(ov_file):
-                self.ov_img.append(QPixmap(ov_file))
-            else:
-                # Show blue transparent ROI when no OV image found
-                blank = QPixmap(self.ovm[i].width_p(),
-                                self.ovm[i].height_p())
-                blank.fill(QColor(255, 255, 255, 0))
-                self.ov_img.append(blank)
-                self.mv_qp.begin(self.ov_img[i])
-                self.mv_qp.setPen(QColor(0, 0, 255, 0))
-                self.mv_qp.setBrush(QColor(0, 0, 255, 70))
-                self.mv_qp.drawRect(0, 0,
-                         self.ovm[i].width_p(),
-                         self.ovm[i].height_p())
-                self.mv_qp.end()
-
-    def mv_load_overview(self, ov_index):
-        # (Re)load a single OV:
-        if ov_index < self.number_ov:
-            if os.path.isfile(self.ovm[ov_index].vp_file_path):
-                self.ov_img[ov_index] = QPixmap(
-                    self.ovm[ov_index].vp_file_path)
-
-    def mv_load_stub_overview(self):
-        """Load the most recent stub OV image into memory"""
-        # Load stub OV image:
-        stub_ov_file = self.ovm['stub'].vp_file_path
-        if os.path.isfile(stub_ov_file):
-            self.stub_ov_img = QPixmap(stub_ov_file)
-            self.stub_ov_exists = True
-        else:
-            self.stub_ov_exists = False
-
-    def mv_load_all_imported_images(self):
-        """Load all imported images into memory. Clear all previously loaded
-        images.
-        """
-        self.imported_img = []
-        self.imported_img_opacity = []
-        self.number_imported = self.imported.number_imported
-        for i in range(self.number_imported):
-            self.mv_load_imported_image(i)
-
-    def mv_load_last_imported_image(self):
-        """Load the most recent imported image into memory and enable the
-        option 'show imported images'.
-        """
-        self.number_imported = self.imported.number_imported
-        new_image_number = self.number_imported - 1
-        self.mv_load_imported_image(new_image_number)
-        self.show_imported = True
-        self.cfg['viewport']['show_imported'] = 'True'
-        self.checkBox_showImported.setChecked(True)
-
-    def mv_load_imported_image(self, img_number):
-        """Load the specified imported image into memory."""
-        file_name = self.imported[img_number].image_src
-        angle = self.imported[img_number].rotation
-        opacity = 1 - self.imported[img_number].transparency/100
-        if os.path.isfile(file_name):
-            try:
-                img = QPixmap(file_name)
-                if angle != 0:
-                    trans = QTransform()
-                    trans.rotate(angle)
-                    img = img.transformed(trans)
-            except:
-                img = None
-        else:
-            img = None
-        if img_number < len(self.imported_img):
-            self.imported_img[img_number] = img
-            self.imported_img_opacity[img_number] = opacity
-        else:
-            self.imported_img.append(img)
-            self.imported_img_opacity.append(opacity)
-        if img is None:
-            QMessageBox.warning(self, 'Error loading imported image',
-                                f'Imported image number {img_number} could not '
-                                f'be loaded. Check if the folder containing '
-                                f'the image ({file_name}) was deleted or '
-                                f'moved, or if the image file is damaged or in '
-                                f'the wrong format.', QMessageBox.Ok)
-
-    def mv_update_after_tile_selection(self):
+    def vp_update_after_tile_selection(self):
         # Update tile selectors:
         if self.sv_current_grid == self.selected_grid:
             self.sv_update_tile_selector()
@@ -831,17 +718,17 @@ class Viewport(QWidget):
             self.m_update_tile_selector()
         self.ovm.update_all_debris_detections_areas(self.gm)
         self.transmit_cmd('SHOW CURRENT SETTINGS')
-        self.mv_draw()
+        self.vp_draw()
 
-    def mv_show_context_menu(self, p):
+    def vp_show_context_menu(self, p):
         px, py = p.x() - self.WINDOW_MARGIN_X, p.y() - self.WINDOW_MARGIN_Y
         if px in range(self.VIEWER_WIDTH) and py in range(self.VIEWER_HEIGHT):
             self.selected_grid, self.selected_tile = \
-                self.mv_get_grid_tile_mouse_selection(px, py)
-            self.selected_ov = self.mv_get_ov_mouse_selection(px, py)
+                self.vp_get_grid_tile_mouse_selection(px, py)
+            self.selected_ov = self.vp_get_ov_mouse_selection(px, py)
             self.selected_imported = (
-                self.mv_get_imported_mouse_selection(px, py))
-            sx, sy = self.mv_get_stage_coordinates_from_mouse_position(px, py)
+                self.vp_get_imported_mouse_selection(px, py))
+            sx, sy = self.vp_get_stage_coordinates_from_mouse_position(px, py)
             dx, dy = self.cs.convert_to_d((sx, sy))
             current_pos_str = ('Move stage to X: {0:.3f}, '.format(sx)
                                + 'Y: {0:.3f}'.format(sy))
@@ -881,7 +768,7 @@ class Viewport(QWidget):
                 f'Load {selected} in Slice Viewer')
             action_sliceViewer.triggered.connect(self.sv_load_selected)
             action_focusTool = menu.addAction(f'Load {selected} in Focus Tool')
-            action_focusTool.triggered.connect(self.mv_load_selected_in_ft)
+            action_focusTool.triggered.connect(self.vp_load_selected_in_ft)
             action_statistics = menu.addAction(f'Load {selected} statistics')
             action_statistics.triggered.connect(self.m_load_selected)
             menu.addSeparator()
@@ -891,12 +778,12 @@ class Viewport(QWidget):
             else:
                 action_openGridSettings = menu.addAction(
                     'Open settings of selected grid')
-            action_openGridSettings.triggered.connect(self.mv_open_grid_settings)
+            action_openGridSettings.triggered.connect(self.vp_open_grid_settings)
             action_selectAll = menu.addAction('Select all tiles ' + grid_str)
-            action_selectAll.triggered.connect(self.mv_activate_all_tiles)
+            action_selectAll.triggered.connect(self.vp_activate_all_tiles)
             action_deselectAll = menu.addAction(
                 'Deselect all tiles ' + grid_str)
-            action_deselectAll.triggered.connect(self.mv_deactivate_all_tiles)
+            action_deselectAll.triggered.connect(self.vp_deactivate_all_tiles)
             if self.selected_grid is not None:
                 action_changeRotation = menu.addAction(
                     'Change rotation of ' + grid_str[3:])
@@ -904,12 +791,12 @@ class Viewport(QWidget):
                 action_changeRotation = menu.addAction(
                     'Change rotation of selected grid')
             action_changeRotation.triggered.connect(
-                self.mv_change_grid_rotation)
+                self.vp_change_grid_rotation)
             if self.cfg['sys']['magc_mode'] == 'True':
                 action_moveGridCurrentStage = menu.addAction(
                     f'Move grid {self.selected_grid} to current stage position')
                 action_moveGridCurrentStage.triggered.connect(
-                    self.mv_move_grid_current_stage)
+                    self.vp_move_grid_current_stage)
                 if not ((self.selected_grid is not None)
                     and self.cfg['magc']['wafer_calibrated'] == 'True'):
                     action_moveGridCurrentStage.setEnabled(False)
@@ -922,34 +809,34 @@ class Viewport(QWidget):
                 action_selectAutofocus = menu.addAction(
                     selected_for_autofocus + ' autofocus ref.')
             action_selectAutofocus.triggered.connect(
-                self.mv_toggle_tile_autofocus)
+                self.vp_toggle_tile_autofocus)
             action_selectGradient = menu.addAction(
                 selected_for_gradient + ' focus gradient ref.')
             action_selectGradient.triggered.connect(
-                self.mv_toggle_wd_gradient_ref_tile)
+                self.vp_toggle_wd_gradient_ref_tile)
             menu.addSeparator()
             action_move = menu.addAction(current_pos_str)
-            action_move.triggered.connect(self.mv_move_to_stage_pos)
+            action_move.triggered.connect(self.vp_move_to_stage_pos)
             action_stub = menu.addAction('Set stub OV centre')
-            action_stub.triggered.connect(self.mv_set_stub_ov_centre)
+            action_stub.triggered.connect(self.vp_set_stub_ov_centre)
             menu.addSeparator()
             action_import = menu.addAction('Import and place image')
-            action_import.triggered.connect(self.mv_import_image)
+            action_import.triggered.connect(self.vp_import_image)
             action_adjustImported = menu.addAction('Adjust imported image')
             action_adjustImported.triggered.connect(
-                self.mv_adjust_imported_image)
+                self.vp_adjust_imported_image)
             action_deleteImported = menu.addAction('Delete imported image')
             action_deleteImported.triggered.connect(
-                self.mv_delete_imported_image)
+                self.vp_delete_imported_image)
 
             #----- MagC items -----
             if (self.cfg['sys']['magc_mode'] == 'True'
                 and self.selected_grid is not None):
                 menu.addSeparator()
                 action13 = menu.addAction('MagC|Propagate grid properties to all sections')
-                action13.triggered.connect(self.mv_propagate_grid_all_sections)
+                action13.triggered.connect(self.vp_propagate_grid_all_sections)
                 action14 = menu.addAction('MagC|Propagate grid properties to selected sections')
-                action14.triggered.connect(self.mv_propagate_grid_selected_sections)
+                action14.triggered.connect(self.vp_propagate_grid_selected_sections)
             #----- End of MagC items -----
 
             if (self.selected_tile is None) and (self.selected_ov is None):
@@ -983,35 +870,35 @@ class Viewport(QWidget):
                 action_stub.setEnabled(False)
             menu.exec_(self.mapToGlobal(p))
 
-    def mv_get_selected_stage_pos(self):
+    def vp_get_selected_stage_pos(self):
         return self.selected_stage_pos
 
-    def mv_load_selected_in_ft(self):
+    def vp_load_selected_in_ft(self):
         self.transmit_cmd('LOAD IN FOCUS TOOL')
 
-    def mv_move_to_stage_pos(self):
+    def vp_move_to_stage_pos(self):
         self.transmit_cmd('MOVE STAGE')
 
-    def mv_set_stub_ov_centre(self):
+    def vp_set_stub_ov_centre(self):
         self.stub_ov_centre = self.selected_stage_pos
-        self.mv_acquire_stub_overview()
+        self.vp_acquire_stub_overview()
 
-    def mv_get_stub_ov_centre(self):
+    def vp_get_stub_ov_centre(self):
         return self.stub_ov_centre
 
-    def mv_reset_stub_ov_centre(self):
+    def vp_reset_stub_ov_centre(self):
         self.stub_ov_centre = [None, None]
 
-    def mv_get_stage_coordinates_from_mouse_position(self, px, py):
+    def vp_get_stage_coordinates_from_mouse_position(self, px, py):
         dx, dy = px - 500, py - 400
-        mv_centre_dx, mv_centre_dy = self.cs.get_mv_centre_d()
-        mv_scale = self.cs.get_mv_scale()
-        dx_pos, dy_pos = (mv_centre_dx + dx / mv_scale,
-                          mv_centre_dy + dy / mv_scale)
+        vp_centre_dx, vp_centre_dy = self.cs.vp_centre_dx_dy
+        vp_scale = self.cs.vp_scale
+        dx_pos, dy_pos = (vp_centre_dx + dx / vp_scale,
+                          vp_centre_dy + dy / vp_scale)
         sx_pos, sy_pos = self.cs.convert_to_s((dx_pos, dy_pos))
         return (sx_pos, sy_pos)
 
-    def mv_dx_dy_range(self):
+    def vp_dx_dy_range(self):
         min_sx, max_sx, min_sy, max_sy = self.stage.limits
         dx = [0, 0, 0, 0]
         dy = [0, 0, 0, 0]
@@ -1021,117 +908,117 @@ class Viewport(QWidget):
         dx[3], dy[3] = self.cs.convert_to_d((min_sx, max_sy))
         return min(dx), max(dx), min(dy), max(dy)
 
-    def mv_draw(self, suppress_labels=False, suppress_previews=False):
+    def vp_draw(self, suppress_labels=False, suppress_previews=False):
         """Draw all elements on mosaic viewer canvas"""
         show_debris_area = self.cfg['debris']['show_detection_area'] == 'True'
         if self.ov_drag_active or self.grid_drag_active:
             show_debris_area = False
         # Start with empty black canvas, size fixed (1000 x 800):
-        self.mv_canvas.fill(Qt.black)
+        self.vp_canvas.fill(Qt.black)
         # Begin painting on canvas:
-        self.mv_qp.begin(self.mv_canvas)
+        self.vp_qp.begin(self.vp_canvas)
         # First, show stub OV if option selected:
-        if self.show_stub_ov and self.stub_ov_exists:
-            self.mv_place_stub_overview()
+        if self.show_stub_ov and self.ovm['stub'].image is not None:
+            self.vp_place_stub_overview()
         # For MagC: show imported images before drawing grids
-        if (self.show_imported and self.number_imported > 0
+        if (self.show_imported and self.imported.number_imported > 0
             and self.cfg['sys']['magc_mode'] == 'True'):
-            for i in range(self.number_imported):
-                self.mv_place_imported_img(i)
+            for i in range(self.imported.number_imported):
+                self.vp_place_imported_img(i)
         # Place OV overviews over stub OV:
-        if self.mv_current_ov == -1:
-            for i in range(self.number_ov):
-                self.mv_place_overview(i, show_debris_area, suppress_labels)
-        if self.mv_current_ov >= 0:
-            self.mv_place_overview(
-                self.mv_current_ov, show_debris_area, suppress_labels)
+        if self.vp_current_ov == -1:
+            for i in range(self.ovm.number_ov):
+                self.vp_place_overview(i, show_debris_area, suppress_labels)
+        if self.vp_current_ov >= 0:
+            self.vp_place_overview(
+                self.vp_current_ov, show_debris_area, suppress_labels)
         # Tile preview mode:
-        if self.mv_tile_preview_mode == 0:
+        if self.vp_tile_preview_mode == 0:
             show_grid, show_previews, with_gaps = True, False, False
-        if self.mv_tile_preview_mode == 1:
+        if self.vp_tile_preview_mode == 1:
             show_grid, show_previews, with_gaps = True, True, False
-        if self.mv_tile_preview_mode == 2:
+        if self.vp_tile_preview_mode == 2:
             show_grid, show_previews, with_gaps = False, True, False
-        if self.mv_tile_preview_mode == 3:
+        if self.vp_tile_preview_mode == 3:
             show_grid, show_previews, with_gaps = False, True, True
         if suppress_previews:
             show_previews = False
-        if self.mv_current_grid == -1:
-            for i in range(self.number_grids):
-                self.mv_place_grid(i, show_grid,
+        if self.vp_current_grid == -1:
+            for i in range(self.gm.number_grids):
+                self.vp_place_grid(i, show_grid,
                                    show_previews, with_gaps, suppress_labels)
-        if self.mv_current_grid >= 0:
-            self.mv_place_grid(self.mv_current_grid, show_grid,
+        if self.vp_current_grid >= 0:
+            self.vp_place_grid(self.vp_current_grid, show_grid,
                                show_previews, with_gaps, suppress_labels)
         # Finally, show imported images:
-        if (self.show_imported and self.number_imported > 0
+        if (self.show_imported and self.imported.number_imported > 0
             and self.cfg['sys']['magc_mode'] == 'False'):
-            for i in range(self.number_imported):
-                self.mv_place_imported_img(i)
+            for i in range(self.imported.number_imported):
+                self.vp_place_imported_img(i)
         # Show stage boundaries (motor limits)
-        self.mv_draw_stage_boundaries()
+        self.vp_draw_stage_boundaries()
         # Show axes:
         if self.show_axes:
-            self.mv_draw_stage_axes()
-        if self.mv_measure_active:
-            self.mv_draw_measure_labels()
+            self.vp_draw_stage_axes()
+        if self.vp_measure_active:
+            self.vp_draw_measure_labels()
         # Show help panel:
         if self.help_panel_visible:
-            self.mv_qp.drawPixmap(800, 310, self.mv_help_panel_img)
+            self.vp_qp.drawPixmap(800, 310, self.vp_help_panel_img)
         # Simulation mode indicator:
         if self.cfg['sys']['simulation_mode'] == 'True':
             self.show_simulation_mode_indicator()
         # Show current stage position:
         if self.show_stage_pos:
             self.show_stage_position_indicator()
-        self.mv_qp.end()
+        self.vp_qp.end()
         # All elements have been drawn, show them:
-        self.mosaic_viewer.setPixmap(self.mv_canvas)
+        self.mosaic_viewer.setPixmap(self.vp_canvas)
         # Update text labels:
-        mv_scale = self.cs.get_mv_scale()
+        vp_scale = self.cs.vp_scale
         self.label_FOVSize.setText(
-            '{0:.1f}'.format(self.VIEWER_WIDTH / mv_scale)
+            '{0:.1f}'.format(self.VIEWER_WIDTH / vp_scale)
             + ' µm × '
-            + '{0:.1f}'.format(self.VIEWER_HEIGHT / mv_scale) + ' µm')
+            + '{0:.1f}'.format(self.VIEWER_HEIGHT / vp_scale) + ' µm')
 
     def show_simulation_mode_indicator(self):
         """Disply simulation mode indicator on viewport canvas.
         Painter must be activate when calling this method.
         """
-        self.mv_qp.setPen(QPen(QColor(0, 0, 0), 1, Qt.SolidLine))
-        self.mv_qp.setBrush(QColor(0, 0, 0, 255))
-        self.mv_qp.drawRect(0, 0, 120, 20)
-        self.mv_qp.setPen(QPen(QColor(255, 0, 0), 1, Qt.SolidLine))
+        self.vp_qp.setPen(QPen(QColor(0, 0, 0), 1, Qt.SolidLine))
+        self.vp_qp.setBrush(QColor(0, 0, 0, 255))
+        self.vp_qp.drawRect(0, 0, 120, 20)
+        self.vp_qp.setPen(QPen(QColor(255, 0, 0), 1, Qt.SolidLine))
         font = QFont()
         font.setPixelSize(12)
-        self.mv_qp.setFont(font)
-        self.mv_qp.drawText(7, 15, 'SIMULATION MODE')
+        self.vp_qp.setFont(font)
+        self.vp_qp.drawText(7, 15, 'SIMULATION MODE')
 
     def show_stage_position_indicator(self):
         """Paint red indicator at last known stage position.
         Painter must be active when caling this method.
         """
-        # Coordinates within mv_qp:
+        # Coordinates within vp_qp:
         stage_x_v, stage_y_v = self.cs.convert_to_v(self.cs.convert_to_d(
             self.stage.last_known_xy))
-        size = int(self.cs.get_mv_scale() * 5)
+        size = int(self.cs.vp_scale * 5)
         if size < 10:
             size = 10
-        self.mv_qp.setPen(QPen(QColor(255, 0, 0), 2, Qt.SolidLine))
-        self.mv_qp.setBrush(QColor(255, 0, 0, 0))
-        self.mv_qp.drawEllipse(QPoint(stage_x_v, stage_y_v), size, size)
-        self.mv_qp.setBrush(QColor(255, 0, 0, 0))
-        self.mv_qp.drawEllipse(QPoint(stage_x_v, stage_y_v),
+        self.vp_qp.setPen(QPen(QColor(255, 0, 0), 2, Qt.SolidLine))
+        self.vp_qp.setBrush(QColor(255, 0, 0, 0))
+        self.vp_qp.drawEllipse(QPoint(stage_x_v, stage_y_v), size, size)
+        self.vp_qp.setBrush(QColor(255, 0, 0, 0))
+        self.vp_qp.drawEllipse(QPoint(stage_x_v, stage_y_v),
                                int(size/2), int(size/2))
-        self.mv_qp.drawLine(stage_x_v - 1.25 * size, stage_y_v,
+        self.vp_qp.drawLine(stage_x_v - 1.25 * size, stage_y_v,
                             stage_x_v + 1.25 * size, stage_y_v)
-        self.mv_qp.drawLine(stage_x_v, stage_y_v - 1.25 * size,
+        self.vp_qp.drawLine(stage_x_v, stage_y_v - 1.25 * size,
                             stage_x_v, stage_y_v + 1.25 * size)
 
-    def mv_calculate_visible_area(self, vx, vy, w_px, h_px, resize_ratio):
+    def vp_calculate_visible_area(self, vx, vy, w_px, h_px, resize_ratio):
         crop_area = QRect(0, 0, w_px, h_px)
         vx_cropped, vy_cropped = vx, vy
-        visible = self.mv_element_is_visible(vx, vy, w_px, h_px, resize_ratio)
+        visible = self.vp_element_is_visible(vx, vy, w_px, h_px, resize_ratio)
         if visible:
             if (vx >= 0) and (vy >= 0):
                 crop_area = QRect(0, 0,
@@ -1154,7 +1041,7 @@ class Viewport(QWidget):
                 vx_cropped = 0
         return visible, crop_area, vx_cropped, vy_cropped
 
-    def mv_element_is_visible(self, vx, vy, width, height, resize_ratio,
+    def vp_element_is_visible(self, vx, vy, width, height, resize_ratio,
                               pivot_vx=0, pivot_vy=0, angle=0):
         # Calculate the four corners of the unrotated bounding box
         points_x = [vx, vx + width * resize_ratio, vx, vx + width * resize_ratio]
@@ -1181,12 +1068,12 @@ class Viewport(QWidget):
             return False
         return True
 
-    def mv_place_stub_overview(self):
+    def vp_place_stub_overview(self):
         """Place stub overview image into the mosaic viewer canvas.
            Crop and resize the image before placing it.
         """
         # qp must be active
-        viewport_pixel_size = 1000 / self.cs.get_mv_scale()
+        viewport_pixel_size = 1000 / self.cs.vp_scale
         resize_ratio = self.ovm['stub'].pixel_size / viewport_pixel_size
         # Compute position of stub overview (upper left corner) and its
         # width and height
@@ -1196,59 +1083,59 @@ class Viewport(QWidget):
         vx, vy = self.cs.convert_to_v((dx, dy))
         width_px, height_px = self.ovm['stub'].width_p(), self.ovm['stub'].height_p()
         # Crop and resize stub OV before placing it into viewport:
-        (visible, crop_area, vx_rel, vy_rel) = self.mv_calculate_visible_area(
+        (visible, crop_area, vx_rel, vy_rel) = self.vp_calculate_visible_area(
              vx, vy, width_px, height_px, resize_ratio)
         if visible:
-            cropped_img = self.stub_ov_img.copy(crop_area)
+            cropped_img = self.ovm['stub'].image.copy(crop_area)
             v_width = cropped_img.size().width()
             cropped_resized_img = cropped_img.scaledToWidth(
                 v_width * resize_ratio)
             # Draw stub OV:
-            self.mv_qp.drawPixmap(vx_rel, vy_rel, cropped_resized_img)
+            self.vp_qp.drawPixmap(vx_rel, vy_rel, cropped_resized_img)
             # Draw grey rectangle around stub OV:
             pen = QPen(QColor(50, 50, 50), 1, Qt.SolidLine)
-            self.mv_qp.setPen(pen)
-            self.mv_qp.drawRect(vx - 1, vy - 1,
+            self.vp_qp.setPen(pen)
+            self.vp_qp.drawRect(vx - 1, vy - 1,
                              width_px * resize_ratio + 1,
                              height_px * resize_ratio + 1)
 
-    def mv_place_imported_img(self, img_number):
-        """Place imported image specified by img_number into the viewport."""
-        if self.imported_img[img_number] is not None:
-            viewport_pixel_size = 1000 / self.cs.get_mv_scale()
-            img_pixel_size = self.imported[img_number].pixel_size
+    def vp_place_imported_img(self, index):
+        """Place imported image specified by index into the viewport."""
+        if self.imported[index].image is not None:
+            viewport_pixel_size = 1000 / self.cs.vp_scale
+            img_pixel_size = self.imported[index].pixel_size
             resize_ratio = img_pixel_size / viewport_pixel_size
 
             # Compute position of image in viewport:
             dx, dy = self.cs.convert_to_d(
-                self.imported[img_number].centre_sx_sy)
+                self.imported[index].centre_sx_sy)
             # Get width and height of the imported QPixmap:
-            width = self.imported_img[img_number].width()
-            height = self.imported_img[img_number].height()
-            pixel_size = self.imported[img_number].pixel_size
+            width = self.imported[index].image.width()
+            height = self.imported[index].image.height()
+            pixel_size = self.imported[index].pixel_size
             dx -= (width * pixel_size / 1000)/2
             dy -= (height * pixel_size / 1000)/2
             vx, vy = self.cs.convert_to_v((dx, dy))
             # Crop and resize image before placing it into viewport:
-            visible, crop_area, vx_rel, vy_rel = self.mv_calculate_visible_area(
+            visible, crop_area, vx_rel, vy_rel = self.vp_calculate_visible_area(
                 vx, vy, width, height, resize_ratio)
             if visible:
-                cropped_img = self.imported_img[img_number].copy(crop_area)
+                cropped_img = self.imported[index].image.copy(crop_area)
                 v_width = cropped_img.size().width()
                 cropped_resized_img = cropped_img.scaledToWidth(
                     v_width * resize_ratio)
-                self.mv_qp.setOpacity(self.imported_img_opacity[img_number])
-                self.mv_qp.drawPixmap(vx_rel, vy_rel, cropped_resized_img)
-                self.mv_qp.setOpacity(1)
+                self.vp_qp.setOpacity(1 - self.imported[index].transparency/100)
+                self.vp_qp.drawPixmap(vx_rel, vy_rel, cropped_resized_img)
+                self.vp_qp.setOpacity(1)
 
-    def mv_place_overview(self, ov_index, show_debris_area,
+    def vp_place_overview(self, ov_index, show_debris_area,
                           suppress_labels=False):
         """Place OV overview image specified by ov_index into the mosaic
         viewer canvas. Crop and resize the image before placing it.
         """
         # Load, resize and crop OV for display
-        mv_scale = self.cs.get_mv_scale()
-        viewport_pixel_size = 1000 / mv_scale
+        vp_scale = self.cs.vp_scale
+        viewport_pixel_size = 1000 / vp_scale
         ov_pixel_size = self.ovm[ov_index].pixel_size
         resize_ratio = ov_pixel_size / viewport_pixel_size
         # Load OV centre in SEM coordinates:
@@ -1262,32 +1149,32 @@ class Viewport(QWidget):
         # Convert to viewport window coordinates:
         vx, vy = self.cs.convert_to_v((dx, dy))
         # Crop and resize OV before placing it into viewport:
-        visible, crop_area, vx_rel, vy_rel = self.mv_calculate_visible_area(
+        visible, crop_area, vx_rel, vy_rel = self.vp_calculate_visible_area(
             vx, vy, width_px, height_px, resize_ratio)
         if visible:
-            cropped_img = self.ov_img[ov_index].copy(crop_area)
+            cropped_img = self.ovm[ov_index].image.copy(crop_area)
             v_width = cropped_img.size().width()
             cropped_resized_img = cropped_img.scaledToWidth(
                 v_width * resize_ratio)
             if not (self.ov_drag_active and ov_index == self.selected_ov):
                 # Draw OV:
-                self.mv_qp.drawPixmap(vx_rel, vy_rel, cropped_resized_img)
+                self.vp_qp.drawPixmap(vx_rel, vy_rel, cropped_resized_img)
             # draw blue rectangle around OV:
-            self.mv_qp.setPen(QPen(QColor(0, 0, 255), 2, Qt.SolidLine))
+            self.vp_qp.setPen(QPen(QColor(0, 0, 255), 2, Qt.SolidLine))
             if (self.ov_indicator_pos == ov_index) and self.ov_indicator_on:
                 indicator_colour = QColor(128, 0, 128, 80)
-                self.mv_qp.setBrush(indicator_colour)
+                self.vp_qp.setBrush(indicator_colour)
             else:
-                self.mv_qp.setBrush(QColor(0, 0, 255, 0))
+                self.vp_qp.setBrush(QColor(0, 0, 255, 0))
 
-            self.mv_qp.drawRect(vx, vy,
+            self.vp_qp.drawRect(vx, vy,
                              width_px * resize_ratio,
                              height_px * resize_ratio)
 
             if show_debris_area:
                 # w3, w4 are fudge factors for clearer display
-                w3 = utils.fit_in_range(self.cs.get_mv_scale()/2, 1, 3)
-                w4 = utils.fit_in_range(self.cs.get_mv_scale(), 5, 9)
+                w3 = utils.fit_in_range(self.cs.vp_scale/2, 1, 3)
+                w4 = utils.fit_in_range(self.cs.vp_scale, 5, 9)
 
                 area = self.ovm[ov_index].debris_detection_area
                 (top_left_dx, top_left_dy,
@@ -1298,40 +1185,40 @@ class Viewport(QWidget):
                     w3, w4 = 3, 6
 
                 pen = QPen(QColor(0, 0, 255), 2, Qt.DashDotLine)
-                self.mv_qp.setPen(pen)
-                self.mv_qp.setBrush(QColor(0, 0, 0, 0))
-                self.mv_qp.drawRect(vx + top_left_dx * resize_ratio - w3,
+                self.vp_qp.setPen(pen)
+                self.vp_qp.setBrush(QColor(0, 0, 0, 0))
+                self.vp_qp.drawRect(vx + top_left_dx * resize_ratio - w3,
                                  vy + top_left_dy * resize_ratio - w3,
                                  width * resize_ratio + w4,
                                  height * resize_ratio + w4)
 
             if not suppress_labels:
-                suppress_labels = ((self.number_grids + self.number_ov) > 10
-                                   and (mv_scale < 1.0
+                suppress_labels = ((self.gm.number_grids + self.ovm.number_ov) > 10
+                                   and (vp_scale < 1.0
                                    or self.fov_drag_active
                                    or self.grid_drag_active))
 
             if self.show_labels and not suppress_labels:
-                font_size = int(self.cs.get_mv_scale() * 8)
+                font_size = int(self.cs.vp_scale * 8)
                 if font_size < 12:
                     font_size = 12
-                self.mv_qp.setPen(QColor(0, 0, 255))
-                self.mv_qp.setBrush(QColor(0, 0, 255))
+                self.vp_qp.setPen(QColor(0, 0, 255))
+                self.vp_qp.setBrush(QColor(0, 0, 255))
                 ov_label_rect = QRect(vx, vy - int(4/3 * font_size),
                                     int(font_size * 3.6), int(4/3 * font_size))
-                self.mv_qp.drawRect(ov_label_rect)
-                self.mv_qp.setPen(QColor(255, 255, 255))
+                self.vp_qp.drawRect(ov_label_rect)
+                self.vp_qp.setPen(QColor(255, 255, 255))
                 font = QFont()
                 font.setPixelSize(font_size)
-                self.mv_qp.setFont(font)
-                self.mv_qp.drawText(ov_label_rect,
+                self.vp_qp.setFont(font)
+                self.vp_qp.drawText(ov_label_rect,
                                     Qt.AlignVCenter | Qt.AlignHCenter,
                                     'OV %d' % ov_index)
 
-    def mv_place_grid(self, grid_index, show_grid=True,
+    def vp_place_grid(self, grid_index, show_grid=True,
                       show_previews=False, with_gaps=False,
                       suppress_labels=False):
-        mv_scale = self.cs.get_mv_scale()
+        vp_scale = self.cs.vp_scale
         dx, dy = self.gm[grid_index].origin_dx_dy
         # Coordinates of grid origin with respect to Viewport canvas:
         origin_vx, origin_vy = self.cs.convert_to_v((dx, dy))
@@ -1344,14 +1231,14 @@ class Viewport(QWidget):
         width_px = self.gm[grid_index].width_p()
         height_px = self.gm[grid_index].height_p()
 
-        viewport_pixel_size = 1000 / mv_scale
+        viewport_pixel_size = 1000 / vp_scale
         grid_pixel_size = self.gm[grid_index].pixel_size
         resize_ratio = grid_pixel_size / viewport_pixel_size
 
         theta = self.gm[grid_index].rotation
         use_rotation = theta > 0
 
-        visible = self.mv_element_is_visible(
+        visible = self.vp_element_is_visible(
             topleft_vx, topleft_vy, width_px, height_px, resize_ratio,
             origin_vx, origin_vy, theta)
 
@@ -1361,16 +1248,16 @@ class Viewport(QWidget):
         # Rotate the painter if necessary:
         if use_rotation:
             # Translate painter to coordinates of grid origin:
-            self.mv_qp.translate(origin_vx, origin_vy)
-            self.mv_qp.rotate(theta)
+            self.vp_qp.translate(origin_vx, origin_vy)
+            self.vp_qp.rotate(theta)
             # Translate to top-left corner:
-            self.mv_qp.translate(-self.gm[grid_index].tile_width_d()/2 * mv_scale,
-                                 -self.gm[grid_index].tile_height_d()/2 * mv_scale)
+            self.vp_qp.translate(-self.gm[grid_index].tile_width_d()/2 * vp_scale,
+                                 -self.gm[grid_index].tile_height_d()/2 * vp_scale)
             # Enable anti-aliasing in this case:
-            # self.mv_qp.setRenderHint(QPainter.Antialiasing)
+            # self.vp_qp.setRenderHint(QPainter.Antialiasing)
         else:
             # Translate painter to coordinates of top-left corner:
-            self.mv_qp.translate(topleft_vx, topleft_vy)
+            self.vp_qp.translate(topleft_vx, topleft_vy)
 
         if with_gaps:
             # Use gapped tile grid, not rotated:
@@ -1380,8 +1267,8 @@ class Viewport(QWidget):
             tile_map = self.gm[grid_index].tile_positions_p()
         # active tiles in current grid:
         active_tiles = self.gm[grid_index].active_tiles
-        tile_width_v = self.gm[grid_index].tile_width_d() * mv_scale
-        tile_height_v = self.gm[grid_index].tile_height_d() * mv_scale
+        tile_width_v = self.gm[grid_index].tile_width_d() * vp_scale
+        tile_height_v = self.gm[grid_index].tile_height_d() * vp_scale
         base_dir = self.cfg['acq']['base_dir']
         font_size1 = int(tile_width_v/5)
         font_size1 = utils.fit_in_range(font_size1, 2, 120)
@@ -1391,7 +1278,7 @@ class Viewport(QWidget):
         if (show_previews
                 and not self.fov_drag_active
                 and not self.grid_drag_active
-                and mv_scale > 1.4):
+                and vp_scale > 1.4):
             # Previews are disabled when FOV or grid is being dragged or
             # when sufficiently zoomed out.
             width_px = self.gm[grid_index].tile_width_p()
@@ -1400,22 +1287,19 @@ class Viewport(QWidget):
             for tile in active_tiles:
                 vx = tile_map[tile][0] * resize_ratio
                 vy = tile_map[tile][1] * resize_ratio
-                tile_visible = self.mv_element_is_visible(
+                tile_visible = self.vp_element_is_visible(
                     topleft_vx + vx, topleft_vy + vy,
                     width_px, height_px, resize_ratio,
                     origin_vx, origin_vy, theta)
                 if not tile_visible:
                     continue
-                # load current tile preview:
-                tile_preview_filename = (
-                    base_dir + '\\'
-                    + utils.get_tile_preview_save_path(grid_index, tile))
-                if os.path.exists(tile_preview_filename):
-                    tile_img = QPixmap(tile_preview_filename)
-                    # Scale image from 512px to current tile width:
-                    tile_img = tile_img.scaledToWidth(tile_width_v)
+                # Show tile preview
+                # Scale image from 512px to current tile width:
+                preview_img = self.gm[grid_index][tile].preview_img
+                if preview_img is not None:
+                    tile_img = preview_img.scaledToWidth(tile_width_v)
                     # Draw:
-                    self.mv_qp.drawPixmap(vx, vy, tile_img)
+                    self.vp_qp.drawPixmap(vx, vy, tile_img)
 
         # Display grid lines
         rows, cols = self.gm[grid_index].size
@@ -1433,32 +1317,32 @@ class Viewport(QWidget):
         # Suppress labels when zoomed out or when user is moving a grid or
         # panning the view, under the condition that there are >10 grids:
         if not suppress_labels:
-            suppress_labels = ((self.number_grids + self.number_ov) > 10
-                               and (mv_scale < 1.0
+            suppress_labels = ((self.gm.number_grids + self.ovm.number_ov) > 10
+                               and (vp_scale < 1.0
                                or self.fov_drag_active
                                or self.grid_drag_active))
 
         if (tile_width_v * cols > 2 or tile_height_v * rows > 2):
             for tile in range(rows * cols):
-                self.mv_qp.setPen(grid_pen)
+                self.vp_qp.setPen(grid_pen)
                 if tile in active_tiles:
-                    self.mv_qp.setBrush(grid_brush_active_tile)
+                    self.vp_qp.setBrush(grid_brush_active_tile)
                 else:
-                    self.mv_qp.setBrush(grid_brush_transparent)
+                    self.vp_qp.setBrush(grid_brush_transparent)
                 if ((self.tile_indicator_pos == [grid_index, tile])
                     and self.tile_indicator_on):
-                    self.mv_qp.setBrush(indicator_colour)
+                    self.vp_qp.setBrush(indicator_colour)
                 # tile rectangles
                 if show_grid:
-                    self.mv_qp.drawRect(tile_map[tile][0] * resize_ratio,
+                    self.vp_qp.drawRect(tile_map[tile][0] * resize_ratio,
                         tile_map[tile][1] * resize_ratio,
                         tile_width_v, tile_height_v)
                 if self.show_labels and not suppress_labels:
                     if tile in active_tiles:
-                        self.mv_qp.setPen(QColor(255, 255, 255))
+                        self.vp_qp.setPen(QColor(255, 255, 255))
                         font.setBold(True)
                     else:
-                        self.mv_qp.setPen(QColor(rgb[0], rgb[1], rgb[2]))
+                        self.vp_qp.setPen(QColor(rgb[0], rgb[1], rgb[2]))
                         font.setBold(False)
                     pos_x = (tile_map[tile][0] * resize_ratio
                             + tile_width_v/2)
@@ -1469,15 +1353,15 @@ class Viewport(QWidget):
                                           tile_width_v, tile_height_v)
                     # Show tile number
                     font.setPixelSize(int(font_size1))
-                    self.mv_qp.setFont(font)
-                    self.mv_qp.drawText(position_rect,
+                    self.vp_qp.setFont(font)
+                    self.vp_qp.drawText(position_rect,
                                      Qt.AlignVCenter | Qt.AlignHCenter,
                                      str(tile))
                     # Show autofocus/gradient marker and working distance
                     font = QFont()
                     font.setPixelSize(int(font_size2))
                     font.setBold(True)
-                    self.mv_qp.setFont(font)
+                    self.vp_qp.setFont(font)
                     position_rect = QRect(
                         pos_x - tile_width_v,
                         pos_y - tile_height_v
@@ -1497,28 +1381,28 @@ class Viewport(QWidget):
                         and self.autofocus.method == 2)
 
                     if show_grad_label and show_af_label:
-                        self.mv_qp.drawText(position_rect,
+                        self.vp_qp.drawText(position_rect,
                                             Qt.AlignVCenter | Qt.AlignHCenter,
                                             'GRAD + AF')
                     elif show_grad_label and show_tracking_label:
-                        self.mv_qp.drawText(position_rect,
+                        self.vp_qp.drawText(position_rect,
                                             Qt.AlignVCenter | Qt.AlignHCenter,
                                             'GRAD + TRACK')
                     elif show_grad_label:
-                        self.mv_qp.drawText(position_rect,
+                        self.vp_qp.drawText(position_rect,
                                             Qt.AlignVCenter | Qt.AlignHCenter,
                                             'GRADIENT')
                     elif show_af_label:
-                        self.mv_qp.drawText(position_rect,
+                        self.vp_qp.drawText(position_rect,
                                             Qt.AlignVCenter | Qt.AlignHCenter,
                                             'AUTOFOCUS')
                     elif show_tracking_label:
-                        self.mv_qp.drawText(position_rect,
+                        self.vp_qp.drawText(position_rect,
                                             Qt.AlignVCenter | Qt.AlignHCenter,
                                             'TRACKED FOCUS')
 
                     font.setBold(False)
-                    self.mv_qp.setFont(font)
+                    self.vp_qp.setFont(font)
                     if (self.gm[grid_index][tile].wd > 0
                         and (tile in active_tiles or show_grad_label
                         or show_af_label or show_tracking_label)):
@@ -1527,43 +1411,43 @@ class Viewport(QWidget):
                             pos_y - tile_height_v
                             + tile_height_v/4,
                             2 * tile_width_v, 2 * tile_height_v)
-                        self.mv_qp.drawText(
+                        self.vp_qp.drawText(
                             position_rect,
                             Qt.AlignVCenter | Qt.AlignHCenter,
                             'WD: {0:.6f}'.format(
                             self.gm[grid_index][tile].wd * 1000))
         else:
             # Show the grid as a single pixel:
-            self.mv_qp.setPen(grid_pen)
-            self.mv_qp.drawPoint(tile_map[0][0] * resize_ratio,
+            self.vp_qp.setPen(grid_pen)
+            self.vp_qp.drawPoint(tile_map[0][0] * resize_ratio,
                                  tile_map[0][1] * resize_ratio)
 
         if self.show_labels and not suppress_labels:
-            fontsize = int(self.cs.get_mv_scale() * 8)
+            fontsize = int(self.cs.vp_scale * 8)
             if fontsize < 12:
                 fontsize = 12
 
             font.setPixelSize(fontsize)
-            self.mv_qp.setFont(font)
-            self.mv_qp.setPen(grid_colour)
-            self.mv_qp.setBrush(grid_colour)
+            self.vp_qp.setFont(font)
+            self.vp_qp.setPen(grid_colour)
+            self.vp_qp.setBrush(grid_colour)
             grid_label_rect = QRect(0, -int(4/3 * fontsize),
                                     int(5.3 * fontsize), int(4/3 * fontsize))
-            self.mv_qp.drawRect(grid_label_rect)
+            self.vp_qp.drawRect(grid_label_rect)
             if self.gm[grid_index].display_colour in [1, 2, 3]:
-                self.mv_qp.setPen(QColor(0, 0, 0))
+                self.vp_qp.setPen(QColor(0, 0, 0))
             else:
-                self.mv_qp.setPen(QColor(255, 255, 255))
+                self.vp_qp.setPen(QColor(255, 255, 255))
 
-            self.mv_qp.drawText(grid_label_rect,
+            self.vp_qp.drawText(grid_label_rect,
                                 Qt.AlignVCenter | Qt.AlignHCenter,
                                 'GRID %d' % grid_index)
         # Reset painter (undo translation and rotation):
-        self.mv_qp.resetTransform()
+        self.vp_qp.resetTransform()
 
 
 
-    def mv_draw_stage_boundaries(self):
+    def vp_draw_stage_boundaries(self):
         """Show bounding box around area accessible to the stage motors:
            Compute stage corner coordinates for viewport
         """
@@ -1575,34 +1459,34 @@ class Viewport(QWidget):
             (self.max_sx, self.max_sy)))
         b_bottom = self.cs.convert_to_v(self.cs.convert_to_d(
             (self.min_sx, self.max_sy)))
-        self.mv_qp.setPen(QColor(255, 255, 255))
-        self.mv_qp.drawLine(b_left[0], b_left[1], b_top[0], b_top[1])
-        self.mv_qp.drawLine(b_top[0], b_top[1], b_right[0], b_right[1])
-        self.mv_qp.drawLine(b_right[0], b_right[1], b_bottom[0], b_bottom[1])
-        self.mv_qp.drawLine(b_bottom[0], b_bottom[1], b_left[0], b_left[1])
+        self.vp_qp.setPen(QColor(255, 255, 255))
+        self.vp_qp.drawLine(b_left[0], b_left[1], b_top[0], b_top[1])
+        self.vp_qp.drawLine(b_top[0], b_top[1], b_right[0], b_right[1])
+        self.vp_qp.drawLine(b_right[0], b_right[1], b_bottom[0], b_bottom[1])
+        self.vp_qp.drawLine(b_bottom[0], b_bottom[1], b_left[0], b_left[1])
         if self.show_labels:
             # Show corner stage coordinates:
             font = QFont()
             font.setPixelSize(12)
-            self.mv_qp.setFont(font)
-            self.mv_qp.drawText(b_left[0]-75, b_left[1],
+            self.vp_qp.setFont(font)
+            self.vp_qp.drawText(b_left[0]-75, b_left[1],
                              'X: {0:.0f} µm'.format(self.min_sx))
-            self.mv_qp.drawText(b_left[0]-75, b_left[1]+15,
+            self.vp_qp.drawText(b_left[0]-75, b_left[1]+15,
                              'Y: {0:.0f} µm'.format(self.min_sy))
-            self.mv_qp.drawText(b_top[0]-20, b_top[1]-25,
+            self.vp_qp.drawText(b_top[0]-20, b_top[1]-25,
                              'X: {0:.0f} µm'.format(self.max_sx))
-            self.mv_qp.drawText(b_top[0]-20, b_top[1]-10,
+            self.vp_qp.drawText(b_top[0]-20, b_top[1]-10,
                              'Y: {0:.0f} µm'.format(self.min_sy))
-            self.mv_qp.drawText(b_right[0]+10, b_right[1],
+            self.vp_qp.drawText(b_right[0]+10, b_right[1],
                              'X: {0:.0f} µm'.format(self.max_sx))
-            self.mv_qp.drawText(b_right[0]+10, b_right[1]+15,
+            self.vp_qp.drawText(b_right[0]+10, b_right[1]+15,
                              'Y: {0:.0f} µm'.format(self.max_sy))
-            self.mv_qp.drawText(b_bottom[0]-20, b_bottom[1]+15,
+            self.vp_qp.drawText(b_bottom[0]-20, b_bottom[1]+15,
                              'X: {0:.0f} µm'.format(self.min_sx))
-            self.mv_qp.drawText(b_bottom[0]-20, b_bottom[1]+30,
+            self.vp_qp.drawText(b_bottom[0]-20, b_bottom[1]+30,
                              'Y: {0:.0f} µm'.format(self.max_sy))
 
-    def mv_draw_stage_axes(self):
+    def vp_draw_stage_axes(self):
         # Stage x-axis:
         x_axis_start = self.cs.convert_to_v(self.cs.convert_to_d(
             (self.min_sx - 100, 0)))
@@ -1613,70 +1497,70 @@ class Viewport(QWidget):
             (0, self.min_sy - 100)))
         y_axis_end = self.cs.convert_to_v(self.cs.convert_to_d(
             (0, self.max_sy + 100)))
-        self.mv_qp.setPen(QPen(QColor(255, 255, 255), 1, Qt.DashLine))
-        self.mv_qp.drawLine(x_axis_start[0], x_axis_start[1],
+        self.vp_qp.setPen(QPen(QColor(255, 255, 255), 1, Qt.DashLine))
+        self.vp_qp.drawLine(x_axis_start[0], x_axis_start[1],
                          x_axis_end[0], x_axis_end[1])
-        self.mv_qp.drawLine(y_axis_start[0], y_axis_start[1],
+        self.vp_qp.drawLine(y_axis_start[0], y_axis_start[1],
                          y_axis_end[0], y_axis_end[1])
         if self.show_labels:
             font = QFont()
             font.setPixelSize(12)
-            self.mv_qp.drawText(x_axis_end[0] + 10, x_axis_end[1], 'stage x-axis')
-            self.mv_qp.drawText(y_axis_end[0] + 10, y_axis_end[1] + 10,
+            self.vp_qp.drawText(x_axis_end[0] + 10, x_axis_end[1], 'stage x-axis')
+            self.vp_qp.drawText(y_axis_end[0] + 10, y_axis_end[1] + 10,
                              'stage y-axis')
 
-    def mv_draw_measure_labels(self):
-        self.mv_qp.setPen(QPen(QColor(255, 165, 0), 2, Qt.SolidLine))
-        self.mv_qp.setBrush(QColor(0, 0, 0, 0))
+    def vp_draw_measure_labels(self):
+        self.vp_qp.setPen(QPen(QColor(255, 165, 0), 2, Qt.SolidLine))
+        self.vp_qp.setBrush(QColor(0, 0, 0, 0))
         if not (self.measure_p1 == (None, None)):
             p1_x, p1_y = self.cs.convert_to_v(self.measure_p1)
-            self.mv_qp.drawEllipse(QPoint(p1_x, p1_y), 4, 4)
-            self.mv_qp.drawLine(p1_x, p1_y-10, p1_x, p1_y+10)
-            self.mv_qp.drawLine(p1_x-10, p1_y, p1_x+10, p1_y)
+            self.vp_qp.drawEllipse(QPoint(p1_x, p1_y), 4, 4)
+            self.vp_qp.drawLine(p1_x, p1_y-10, p1_x, p1_y+10)
+            self.vp_qp.drawLine(p1_x-10, p1_y, p1_x+10, p1_y)
         if not (self.measure_p2 == (None, None)):
             p2_x, p2_y = self.cs.convert_to_v(self.measure_p2)
-            self.mv_qp.drawEllipse(QPoint(p2_x, p2_y), 4, 4)
-            self.mv_qp.drawLine(p2_x, p2_y-10, p2_x, p2_y+10)
-            self.mv_qp.drawLine(p2_x-10, p2_y, p2_x+10, p2_y)
+            self.vp_qp.drawEllipse(QPoint(p2_x, p2_y), 4, 4)
+            self.vp_qp.drawLine(p2_x, p2_y-10, p2_x, p2_y+10)
+            self.vp_qp.drawLine(p2_x-10, p2_y, p2_x+10, p2_y)
 
         if self.measure_complete:
             # Draw line between p1 and p2:
             p1_x, p1_y = self.cs.convert_to_v(self.measure_p1)
             p2_x, p2_y = self.cs.convert_to_v(self.measure_p2)
-            self.mv_qp.drawLine(p1_x, p1_y, p2_x, p2_y)
+            self.vp_qp.drawLine(p1_x, p1_y, p2_x, p2_y)
             distance = sqrt((self.measure_p1[0] - self.measure_p2[0])**2
                             + (self.measure_p1[1] - self.measure_p2[1])**2)
-            self.mv_qp.setPen(QPen(QColor(0, 0, 0), 1, Qt.SolidLine))
-            self.mv_qp.setBrush(QColor(0, 0, 0, 255))
-            self.mv_qp.drawRect(920, 780, 80, 20)
-            self.mv_qp.setPen(QPen(QColor(255, 165, 0), 1, Qt.SolidLine))
+            self.vp_qp.setPen(QPen(QColor(0, 0, 0), 1, Qt.SolidLine))
+            self.vp_qp.setBrush(QColor(0, 0, 0, 255))
+            self.vp_qp.drawRect(920, 780, 80, 20)
+            self.vp_qp.setPen(QPen(QColor(255, 165, 0), 1, Qt.SolidLine))
             if distance < 1:
-                self.mv_qp.drawText(925, 795,
+                self.vp_qp.drawText(925, 795,
                     str((int(distance * 1000))) + ' nm')
             else:
-                self.mv_qp.drawText(925, 795,
+                self.vp_qp.drawText(925, 795,
                     '{0:.2f}'.format(distance) + ' µm')
 
-    def mv_start_measure(self, dx, dy):
-        mv_centre_dx, mv_centre_dy = self.cs.get_mv_centre_d()
-        mv_scale = self.cs.get_mv_scale()
+    def vp_start_measure(self, dx, dy):
+        vp_centre_dx, vp_centre_dy = self.cs.vp_centre_dx_dy
+        vp_scale = self.cs.vp_scale
         if self.measure_p1 == (None, None) or self.measure_complete:
-            self.measure_p1 = (mv_centre_dx + dx / mv_scale,
-                               mv_centre_dy + dy / mv_scale)
+            self.measure_p1 = (vp_centre_dx + dx / vp_scale,
+                               vp_centre_dy + dy / vp_scale)
             self.measure_complete = False
             self.measure_p2 = (None, None)
-            self.mv_draw()
+            self.vp_draw()
         elif self.measure_p2 == (None, None):
-            self.measure_p2 = (mv_centre_dx + dx / mv_scale,
-                               mv_centre_dy + dy / mv_scale)
+            self.measure_p2 = (vp_centre_dx + dx / vp_scale,
+                               vp_centre_dy + dy / vp_scale)
             self.measure_complete = True
-            self.mv_draw()
+            self.vp_draw()
 
-    def mv_draw_zoom_delay(self):
+    def vp_draw_zoom_delay(self):
         """Redraw the viewport without suppressing labels/previews after at
         least 0.3 seconds have passed since last mouse/slider zoom action."""
         finish_trigger = Trigger()
-        finish_trigger.s.connect(self.mv_draw)
+        finish_trigger.s.connect(self.vp_draw)
         current_time = self.time_of_last_zoom_action
         while (current_time - self.time_of_last_zoom_action < 0.3):
             sleep(0.1)
@@ -1684,149 +1568,149 @@ class Viewport(QWidget):
         self.zooming_in_progress = False
         finish_trigger.s.emit()
 
-    def mv_adjust_zoom_slider(self, new_mv_scale):
+    def vp_adjust_zoom_slider(self, new_vp_scale):
         self.horizontalSlider_MV.blockSignals(True)
         self.horizontalSlider_MV.setValue(
-            log(new_mv_scale / self.VIEWER_ZOOM_F1, self.VIEWER_ZOOM_F2))
+            log(new_vp_scale / self.VIEWER_ZOOM_F1, self.VIEWER_ZOOM_F2))
         self.horizontalSlider_MV.blockSignals(False)
 
-    def mv_adjust_scale(self):
+    def vp_adjust_scale(self):
         self.time_of_last_zoom_action = time()
         if not self.zooming_in_progress:
             # Start thread to ensure viewport is drawn with labels and previews
             # after zooming completed.
             self.zooming_in_progress = True
-            mv_draw_zoom_delay_thread = threading.Thread(
-                target=self.mv_draw_zoom_delay,
+            vp_draw_zoom_delay_thread = threading.Thread(
+                target=self.vp_draw_zoom_delay,
                 args=())
-            mv_draw_zoom_delay_thread.start()
+            vp_draw_zoom_delay_thread.start()
         # Recalculate scaling factor:
-        new_mv_scale = (
+        new_vp_scale = (
             self.VIEWER_ZOOM_F1
             * (self.VIEWER_ZOOM_F2)**self.horizontalSlider_MV.value())
-        self.cs.set_mv_scale(new_mv_scale)
+        self.cs.vp_scale = new_vp_scale
         # Redraw viewport:
-        self.mv_draw(suppress_labels=True, suppress_previews=True)
+        self.vp_draw(suppress_labels=True, suppress_previews=True)
 
-    def mv_mouse_zoom(self, px, py, factor):
+    def vp_mouse_zoom(self, px, py, factor):
         self.time_of_last_zoom_action = time()
         if not self.zooming_in_progress and not self.doubleclick_registered:
             # Start thread to ensure viewport is drawn with labels and previews
             # after zooming completed.
             self.zooming_in_progress = True
-            mv_draw_zoom_delay_thread = threading.Thread(
-                target=self.mv_draw_zoom_delay,
+            vp_draw_zoom_delay_thread = threading.Thread(
+                target=self.vp_draw_zoom_delay,
                 args=())
-            mv_draw_zoom_delay_thread.start()
+            vp_draw_zoom_delay_thread.start()
         # Recalculate scaling factor:
-        old_mv_scale = self.cs.get_mv_scale()
-        new_mv_scale = utils.fit_in_range(
-            factor * old_mv_scale,
+        old_vp_scale = self.cs.vp_scale
+        new_vp_scale = utils.fit_in_range(
+            factor * old_vp_scale,
             self.VIEWER_ZOOM_F1,
             self.VIEWER_ZOOM_F1 * (self.VIEWER_ZOOM_F2)**99)  # 99 is max slider value
-        self.cs.set_mv_scale(new_mv_scale)
-        self.mv_adjust_zoom_slider(new_mv_scale)
+        self.cs.vp_scale = new_vp_scale
+        self.vp_adjust_zoom_slider(new_vp_scale)
         # Recentre, so that mouse position is preserved:
-        current_centre_dx, current_centre_dy = self.cs.get_mv_centre_d()
+        current_centre_dx, current_centre_dy = self.cs.vp_centre_dx_dy
         x_shift = px - 500
         y_shift = py - 400
-        scale_diff = 1 / new_mv_scale - 1 / old_mv_scale
+        scale_diff = 1 / new_vp_scale - 1 / old_vp_scale
         new_centre_dx = current_centre_dx - x_shift * scale_diff
         new_centre_dy = current_centre_dy - y_shift * scale_diff
         new_centre_dx = utils.fit_in_range(
             new_centre_dx, self.VC_MIN_X, self.VC_MAX_X)
         new_centre_dy = utils.fit_in_range(
             new_centre_dy, self.VC_MIN_Y, self.VC_MAX_Y)
-        # Set new mv_centre coordinates:
-        self.cs.set_mv_centre_d((new_centre_dx, new_centre_dy))
+        # Set new vp_centre coordinates:
+        self.cs.vp_centre_dx_dy = [new_centre_dx, new_centre_dy]
         # Redraw viewport:
         if self.doubleclick_registered:
             # Doubleclick is (usually) a single event: draw with labels/previews
-            self.mv_draw()
+            self.vp_draw()
         else:
             # Continuous zoom with the mouse wheel: suppress labels and previews
             # for smoother redrawing:
-            self.mv_draw(suppress_labels=True, suppress_previews=True)
+            self.vp_draw(suppress_labels=True, suppress_previews=True)
 
-    def mv_shift_fov(self, shift_vector):
+    def vp_shift_fov(self, shift_vector):
         dx, dy = shift_vector
-        current_centre_dx, current_centre_dy = self.cs.get_mv_centre_d()
-        mv_scale = self.cs.get_mv_scale()
-        new_centre_dx = current_centre_dx + dx / mv_scale
-        new_centre_dy = current_centre_dy + dy / mv_scale
+        current_centre_dx, current_centre_dy = self.cs.vp_centre_dx_dy
+        vp_scale = self.cs.vp_scale
+        new_centre_dx = current_centre_dx + dx / vp_scale
+        new_centre_dy = current_centre_dy + dy / vp_scale
         new_centre_dx = utils.fit_in_range(
             new_centre_dx, self.VC_MIN_X, self.VC_MAX_X)
         new_centre_dy = utils.fit_in_range(
             new_centre_dy, self.VC_MIN_Y, self.VC_MAX_Y)
-        # Set new mv_centre coordinates:
-        self.cs.set_mv_centre_d((new_centre_dx, new_centre_dy))
+        # Set new vp_centre coordinates:
+        self.cs.vp_centre_dx_dy = [new_centre_dx, new_centre_dy]
 
-    def mv_reposition_ov(self, shift_vector):
+    def vp_reposition_ov(self, shift_vector):
         dx, dy = shift_vector
         # current position:
         old_ov_dx, old_ov_dy = self.ovm[self.selected_ov].centre_dx_dy
-        mv_scale = self.cs.get_mv_scale()
+        vp_scale = self.cs.vp_scale
         # Move tiling along shift vector:
-        new_ov_dx = old_ov_dx + dx / mv_scale
-        new_ov_dy = old_ov_dy + dy / mv_scale
+        new_ov_dx = old_ov_dx + dx / vp_scale
+        new_ov_dy = old_ov_dy + dy / vp_scale
         # Set new origin:
         self.ovm[self.selected_ov].centre_sx_sy = self.cs.convert_to_s(
             (new_ov_dx, new_ov_dy))
-        self.mv_draw()
+        self.vp_draw()
 
-    def mv_reposition_imported_img(self, shift_vector):
+    def vp_reposition_imported_img(self, shift_vector):
         dx, dy = shift_vector
         # current position:
         old_origin_dx, old_origin_dy = self.cs.convert_to_d(
             self.imported[self.selected_imported].centre_sx_sy)
-        mv_scale = self.cs.get_mv_scale()
+        vp_scale = self.cs.vp_scale
         # Move tiling along shift vector:
-        new_origin_dx = old_origin_dx + dx / mv_scale
-        new_origin_dy = old_origin_dy + dy / mv_scale
+        new_origin_dx = old_origin_dx + dx / vp_scale
+        new_origin_dy = old_origin_dy + dy / vp_scale
         # Set new origin:
         self.imported[self.selected_imported].centre_sx_sy = (
             self.cs.convert_to_s((new_origin_dx, new_origin_dy)))
 
-    def mv_reposition_grid(self, shift_vector):
+    def vp_reposition_grid(self, shift_vector):
         dx, dy = shift_vector
         # current position:
         old_grid_origin_dx, old_grid_origin_dy = (
             self.gm[self.selected_grid].origin_dx_dy)
-        mv_scale = self.cs.get_mv_scale()
+        vp_scale = self.cs.vp_scale
         # Move tiling along shift vector:
-        new_grid_origin_dx = old_grid_origin_dx + dx / mv_scale
-        new_grid_origin_dy = old_grid_origin_dy + dy / mv_scale
+        new_grid_origin_dx = old_grid_origin_dx + dx / vp_scale
+        new_grid_origin_dy = old_grid_origin_dy + dy / vp_scale
         # Set new origin:
         self.gm[self.selected_grid].origin_sx_sy = (
             self.cs.convert_to_s((new_grid_origin_dx, new_grid_origin_dy)))
 
-    def mv_get_current_grid(self):
-        return self.mv_current_grid
+    def vp_get_current_grid(self):
+        return self.vp_current_grid
 
-    def mv_get_current_ov(self):
-        return self.mv_current_ov
+    def vp_get_current_ov(self):
+        return self.vp_current_ov
 
-    def mv_get_selected_grid(self):
+    def vp_get_selected_grid(self):
         return self.selected_grid
 
-    def mv_get_selected_tile(self):
+    def vp_get_selected_tile(self):
         return self.selected_tile
 
-    def mv_get_selected_ov(self):
+    def vp_get_selected_ov(self):
         return self.selected_ov
 
-    def mv_get_grid_tile_mouse_selection(self, px, py):
+    def vp_get_grid_tile_mouse_selection(self, px, py):
         """Get the grid number and tile number at the position in the viewport
         where user clicked."""
-        if self.mv_current_grid == -2:  # grids are hidden
+        if self.vp_current_grid == -2:  # grids are hidden
             grid_range = []
             selected_grid, selected_tile = None, None
-        elif self.mv_current_grid == -1:  # all grids visible
-            grid_range = reversed(range(self.number_grids))
+        elif self.vp_current_grid == -1:  # all grids visible
+            grid_range = reversed(range(self.gm.number_grids))
             selected_grid, selected_tile = None, None
-        elif self.mv_current_grid >= 0:  # one selected grid visible
-            grid_range = range(self.mv_current_grid, self.mv_current_grid + 1)
-            selected_grid, selected_tile = self.mv_current_grid, None
+        elif self.vp_current_grid >= 0:  # one selected grid visible
+            grid_range = range(self.vp_current_grid, self.vp_current_grid + 1)
+            selected_grid, selected_tile = self.vp_current_grid, None
 
         # Go through all visible grids to check for overlap with mouse click
         # position. Check grids with a higher grid number first.
@@ -1834,7 +1718,7 @@ class Viewport(QWidget):
             # Calculate origin of the grid with respect to viewport canvas
             dx, dy = self.gm[grid_index].origin_dx_dy
             grid_origin_vx, grid_origin_vy = self.cs.convert_to_v((dx, dy))
-            mv_scale = self.cs.get_mv_scale()
+            vp_scale = self.cs.vp_scale
             pixel_size = self.gm[grid_index].pixel_size
             # Calculate top-left corner of unrotated grid
             dx -= self.gm[grid_index].tile_width_d()/2
@@ -1847,12 +1731,12 @@ class Viewport(QWidget):
             tile_height_p = self.gm[grid_index].tile_height_p()
             # Tile width in viewport pixels taking overlap into account
             tile_width_v = ((tile_width_p - overlap) * pixel_size
-                            / 1000 * mv_scale)
+                            / 1000 * vp_scale)
             tile_height_v = ((tile_height_p - overlap) * pixel_size
-                             / 1000 * mv_scale)
+                             / 1000 * vp_scale)
             # Row shift in viewport pixels
             shift_v = (self.gm[grid_index].row_shift * pixel_size
-                       / 1000 * mv_scale)
+                       / 1000 * vp_scale)
             # Mouse click position relative to top-left corner of grid
             x, y = px - grid_topleft_vx, py - grid_topleft_vy
             theta = radians(self.gm[grid_index].rotation)
@@ -1865,8 +1749,8 @@ class Viewport(QWidget):
                 y_rot = x * sin(-theta) + y * cos(-theta)
                 x, y = x_rot, y_rot
                 # Correction for top-left corner:
-                x += tile_width_p / 2 * pixel_size / 1000 * mv_scale
-                y += tile_height_p / 2 * pixel_size / 1000 * mv_scale
+                x += tile_width_p / 2 * pixel_size / 1000 * vp_scale
+                y += tile_height_p / 2 * pixel_size / 1000 * vp_scale
             # Check if mouse click position is within current grid
             if x >= 0 and y >= 0:
                 j = y // tile_height_v
@@ -1883,7 +1767,7 @@ class Viewport(QWidget):
                     break
             # Also check whether grid label clicked. This selects only the grid
             # and not a specific tile.
-            f = int(mv_scale * 8)
+            f = int(vp_scale * 8)
             if f < 12:
                 f = 12
             label_width = int(5.3 * f)
@@ -1897,20 +1781,20 @@ class Viewport(QWidget):
 
         return selected_grid, selected_tile
 
-    def mv_get_ov_mouse_selection(self, px, py):
-        if self.mv_current_ov == -2:
+    def vp_get_ov_mouse_selection(self, px, py):
+        if self.vp_current_ov == -2:
             selected_ov = None
-        elif self.mv_current_ov == -1:
+        elif self.vp_current_ov == -1:
             selected_ov = None
-            for ov_index in reversed(range(self.number_ov)):
+            for ov_index in reversed(range(self.ovm.number_ov)):
                 # Calculate origin of the overview with respect to mosaic viewer
                 dx, dy = self.ovm[ov_index].centre_dx_dy
                 dx -= self.ovm[ov_index].width_d()/2
                 dy -= self.ovm[ov_index].height_d()/2
                 pixel_offset_x, pixel_offset_y = self.cs.convert_to_v((dx, dy))
-                mv_scale = self.cs.get_mv_scale()
-                p_width = self.ovm[ov_index].width_d() * mv_scale
-                p_height = self.ovm[ov_index].height_d() * mv_scale
+                vp_scale = self.cs.vp_scale
+                p_width = self.ovm[ov_index].width_d() * vp_scale
+                p_height = self.ovm[ov_index].height_d() * vp_scale
                 x, y = px - pixel_offset_x, py - pixel_offset_y
                 if x >= 0 and y >= 0:
                     if x < p_width and y < p_height:
@@ -1919,7 +1803,7 @@ class Viewport(QWidget):
                     else:
                         selected_ov = None
                 # Also check whether label clicked:
-                f = int(self.cs.get_mv_scale() * 8)
+                f = int(self.cs.vp_scale * 8)
                 if f < 12:
                     f = 12
                 label_width = int(f * 3.6)
@@ -1929,40 +1813,38 @@ class Viewport(QWidget):
                     if x < label_width and l_y < label_height:
                         selected_ov = ov_index
                         break
-        elif self.mv_current_ov >= 0:
-            selected_ov = self.mv_current_ov
+        elif self.vp_current_ov >= 0:
+            selected_ov = self.vp_current_ov
         return selected_ov
 
-    def mv_get_imported_mouse_selection(self, px, py):
-        selected_imported = None
+    def vp_get_imported_mouse_selection(self, px, py):
         if self.show_imported:
-            for img_number in reversed(range(self.number_imported)):
+            for i in reversed(range(self.imported.number_imported)):
                 # Calculate origin of the image with respect to mosaic viewer
                 # Use width and heigh of loaded image (may be rotated
                 # and therefore larger than original image)
-                if self.imported_img[img_number] is not None:
+                if self.imported[i].image is not None:
                     dx, dy = self.cs.convert_to_d(
-                        self.imported[img_number].centre_sx_sy)
-                    pixel_size = self.imported[img_number].pixel_size
-                    width_d = (self.imported_img[img_number].size().width()
+                        self.imported[i].centre_sx_sy)
+                    pixel_size = self.imported[i].pixel_size
+                    width_d = (self.imported[i].image.size().width()
                                * pixel_size / 1000)
-                    height_d = (self.imported_img[img_number].size().height()
+                    height_d = (self.imported[i].image.size().height()
                                 * pixel_size / 1000)
                     dx -= width_d/2
                     dy -= height_d/2
                     pixel_offset_x, pixel_offset_y = self.cs.convert_to_v(
                         (dx, dy))
-                    mv_scale = self.cs.get_mv_scale()
-                    p_width = width_d * mv_scale
-                    p_height = height_d * mv_scale
+                    vp_scale = self.cs.vp_scale
+                    p_width = width_d * vp_scale
+                    p_height = height_d * vp_scale
                     x, y = px - pixel_offset_x, py - pixel_offset_y
                     if x >= 0 and y >= 0:
                         if x < p_width and y < p_height:
-                            selected_imported = img_number
-                            break
-        return selected_imported
+                            return i
+        return None
 
-    def mv_activate_all_tiles(self):
+    def vp_activate_all_tiles(self):
         if self.selected_grid is not None:
             user_reply = QMessageBox.question(
                 self, 'Set all tiles in grid to "active"',
@@ -1975,9 +1857,9 @@ class Viewport(QWidget):
                     self.gm.make_all_active_tiles_autofocus_ref_tiles()
                 self.add_to_main_log('CTRL: All tiles in grid %d selected.'
                                      % self.selected_grid)
-                self.mv_update_after_tile_selection()
+                self.vp_update_after_tile_selection()
 
-    def mv_deactivate_all_tiles(self):
+    def vp_deactivate_all_tiles(self):
        if self.selected_grid is not None:
             user_reply = QMessageBox.question(
                 self, 'Deactivating all tiles in grid',
@@ -1990,30 +1872,30 @@ class Viewport(QWidget):
                     self.gm.delete_all_autofocus_ref_tiles()
                 self.add_to_main_log('CTRL: All tiles in grid %d deactivated.'
                                      % self.selected_grid)
-                self.mv_update_after_tile_selection()
+                self.vp_update_after_tile_selection()
 
-    def mv_change_grid_rotation(self):
+    def vp_change_grid_rotation(self):
         self.transmit_cmd('CHANGE GRID ROTATION' + str(self.selected_grid))
 
-    def mv_open_grid_settings(self):
+    def vp_open_grid_settings(self):
         self.transmit_cmd('OPEN GRID SETTINGS' + str(self.selected_grid))
 
-    def mv_move_grid_current_stage(self):
+    def vp_move_grid_current_stage(self):
         grid_index = self.selected_grid
         x, y = self.stage.get_xy()
         self.gm[grid_index].centre_sx_sy = [x, y]
         self.gm[grid_index].update_tile_positions()
         self.cfg['magc']['roi_mode'] = 'False'
         self.gm.update_source_ROIs_from_grids()
-        self.mv_draw()
+        self.vp_draw()
 
-    def mv_toggle_tile_autofocus(self):
+    def vp_toggle_tile_autofocus(self):
         if self.selected_grid is not None and self.selected_tile is not None:
             self.gm[self.selected_grid][
                     self.selected_tile].autofocus_active ^= True
-            self.mv_draw()
+            self.vp_draw()
 
-    def mv_toggle_wd_gradient_ref_tile(self):
+    def vp_toggle_wd_gradient_ref_tile(self):
         if self.selected_grid is not None and self.selected_tile is not None:
             ref_tiles = self.gm[self.selected_grid].wd_gradient_ref_tiles
             if self.selected_tile in ref_tiles:
@@ -2026,19 +1908,19 @@ class Viewport(QWidget):
                         ref_tiles[dialog.selected] = self.selected_tile
             self.gm[self.selected_grid].wd_gradient_ref_tiles = ref_tiles
             self.transmit_cmd('UPDATE FT TILE SELECTOR')
-            self.mv_draw()
+            self.vp_draw()
 
-    def mv_toggle_measure(self):
-        self.mv_measure_active = not self.mv_measure_active
-        if self.mv_measure_active:
+    def vp_toggle_measure(self):
+        self.vp_measure_active = not self.vp_measure_active
+        if self.vp_measure_active:
             self.sv_measure_active = False
         self.measure_p1 = (None, None)
         self.measure_p2 = (None, None)
         self.measure_complete = False
         self.update_measure_buttons()
-        self.mv_draw()
+        self.vp_draw()
 
-    def mv_toggle_help_panel(self):
+    def vp_toggle_help_panel(self):
         self.help_panel_visible ^= True
         if self.help_panel_visible:
             self.pushButton_helpViewport.setStyleSheet(
@@ -2050,34 +1932,33 @@ class Viewport(QWidget):
                 'QPushButton {color: #000000;}')
             self.pushButton_helpSliceViewer.setStyleSheet(
                 'QPushButton {color: #000000;}')
-        self.mv_draw()
+        self.vp_draw()
         self.sv_draw()
 
-    def mv_import_image(self):
+    def vp_import_image(self):
         self.transmit_cmd('IMPORT IMG')
 
-    def mv_adjust_imported_image(self):
+    def vp_adjust_imported_image(self):
         self.transmit_cmd('ADJUST IMPORTED IMG' + str(self.selected_imported))
 
-    def mv_delete_imported_image(self):
+    def vp_delete_imported_image(self):
         self.transmit_cmd('DELETE IMPORTED IMG')
 
-    def mv_refresh_overviews(self):
+    def vp_refresh_overviews(self):
         self.transmit_cmd('REFRESH OV')
 
-    def mv_acquire_stub_overview(self):
+    def vp_acquire_stub_overview(self):
         self.transmit_cmd('ACQUIRE STUB OV')
 
-    def mv_show_new_stub_overview(self):
+    def vp_show_new_stub_overview(self):
         self.checkBox_showStubOV.setChecked(True)
         self.show_stub_ov = True
         self.cfg['viewport']['show_stub_ov'] = 'True'
-        self.mv_load_stub_overview()
-        self.mv_draw()
+        self.vp_draw()
 
     # --------------------- MagC functions in Viewport -------------------------
 
-    def mv_propagate_grid_selected_sections(self):
+    def vp_propagate_grid_selected_sections(self):
         clicked_section_number = self.selected_grid
         selected_sections = json.loads(self.cfg['magc']['selected_sections'])
 
@@ -2097,10 +1978,10 @@ class Viewport(QWidget):
         # (done here because no access to autofocus from inside gm)
         ref_tiles = json.loads(self.cfg['autofocus']['ref_tiles'])
         self.af.set_ref_tiles(ref_tiles)
-        self.mv_draw()
+        self.vp_draw()
         self.transmit_cmd('SHOW CURRENT SETTINGS') # update statistics in GUI
 
-    def mv_propagate_grid_all_sections(self):
+    def vp_propagate_grid_all_sections(self):
         clicked_section_number = self.selected_grid
         section_number = self.gm.number_grids
 
@@ -2121,7 +2002,7 @@ class Viewport(QWidget):
         ref_tiles = json.loads(self.cfg['autofocus']['ref_tiles'])
         self.af.set_ref_tiles(ref_tiles)
 
-        self.mv_draw()
+        self.vp_draw()
         self.transmit_cmd('SHOW CURRENT SETTINGS') # update statistics in GUI
 
     # ------------------- End of MagC functions in Viewport --------------------
@@ -2205,7 +2086,7 @@ class Viewport(QWidget):
         self.slice_viewer.setPixmap(self.sv_canvas)
 
     def sv_update_grid_selector(self, current_grid=0):
-        if current_grid >= self.number_grids:
+        if current_grid >= self.gm.number_grids:
             current_grid = 0
         self.comboBox_gridSelectorSV.blockSignals(True)
         self.comboBox_gridSelectorSV.clear()
@@ -2223,7 +2104,7 @@ class Viewport(QWidget):
         self.comboBox_tileSelectorSV.blockSignals(False)
 
     def sv_update_ov_selector(self, current_ov=-1):
-        if current_ov >= self.number_ov:
+        if current_ov >= self.ovm.number_ov:
             current_ov = -1
         self.comboBox_OVSelectorSV.blockSignals(True)
         self.comboBox_OVSelectorSV.clear()
@@ -2573,7 +2454,7 @@ class Viewport(QWidget):
             w_px = current_image.size().width()
             h_px = current_image.size().height()
 
-            visible, crop_area, vx, vy = self.mv_calculate_visible_area(
+            visible, crop_area, vx, vy = self.vp_calculate_visible_area(
                 offset_x, offset_y, w_px, h_px, resize_ratio)
             display_img = current_image.copy(crop_area)
 
@@ -2690,7 +2571,7 @@ class Viewport(QWidget):
     def sv_toggle_measure(self):
         self.sv_measure_active = not self.sv_measure_active
         if self.sv_measure_active:
-            self.mv_measure_active = False
+            self.vp_measure_active = False
         self.measure_p1 = (None, None)
         self.measure_p2 = (None, None)
         self.measure_complete = False
@@ -2865,7 +2746,7 @@ class Viewport(QWidget):
         self.m_show_statistics()
 
     def m_update_grid_selector(self, current_grid=0):
-        if current_grid >= self.number_grids:
+        if current_grid >= self.gm.number_grids:
             current_grid = 0
         self.comboBox_gridSelectorM.blockSignals(True)
         self.comboBox_gridSelectorM.clear()
@@ -2885,7 +2766,7 @@ class Viewport(QWidget):
         self.comboBox_tileSelectorM.blockSignals(False)
 
     def m_update_ov_selector(self, current_ov=-1):
-        if current_ov > self.number_ov:
+        if current_ov > self.ovm.number_ov:
             current_ov = 0
         self.comboBox_OVSelectorM.blockSignals(True)
         self.comboBox_OVSelectorM.clear()

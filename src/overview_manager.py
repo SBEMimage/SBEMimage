@@ -23,6 +23,7 @@ self.ovm['stub'].size  (size of the stub overview grid)
 
 import os
 import json
+from PyQt5.QtGui import QPixmap, QPainter, QColor
 
 import utils
 from grid_manager import Grid
@@ -47,8 +48,10 @@ class Overview(Grid):
                          acq_interval_offset=acq_interval_offset,
                          wd_stig_xy=wd_stig_xy)
 
-        self.vp_file_path = vp_file_path
+        self.image = None
+        self.vp_file_path = vp_file_path    # this will load the image if found
         self.debris_detection_area = debris_detection_area
+
 
     # The following property overrides centre_sx_sy from the parent class.
     # Since overviews are 1x1 grids, the centre is the same as the origin.
@@ -70,6 +73,28 @@ class Overview(Grid):
         # Calculate and set pixel size:
         self.pixel_size = (self.sem.MAG_PX_SIZE_FACTOR
                            / (self.frame_size[0] * mag))
+
+    @property
+    def vp_file_path(self):
+        return self._vp_file_path
+
+    @vp_file_path.setter
+    def vp_file_path(self, file_path):
+        self._vp_file_path = file_path
+        # Load OV image as QPixmap:
+        if os.path.isfile(file_path):
+            self.image = QPixmap(file_path)
+        else:
+            # Show blue transparent ROI when no OV image found
+            blank = QPixmap(self.width_p(), self.height_p())
+            blank.fill(QColor(255, 255, 255, 0))
+            self.image = blank
+            qp = QPainter()
+            qp.begin(self.image)
+            qp.setPen(QColor(0, 0, 255, 0))
+            qp.setBrush(QColor(0, 0, 255, 70))
+            qp.drawRect(0, 0, self.width_p(), self.height_p())
+            qp.end()
 
     def bounding_box(self):
         centre_dx, centre_dy = self.centre_dx_dy
@@ -167,6 +192,7 @@ class StubOverview(Grid):
                          dwell_time_selector=dwell_time_selector,
                          display_colour=11)
 
+        self.image = None
         self.vp_file_path = vp_file_path
         self._grid_size_selector = grid_size_selector
 
@@ -179,6 +205,22 @@ class StubOverview(Grid):
         self._grid_size_selector = selector
         self.size = self.GRID_SIZE[selector]
         self.update_tile_positions()
+
+    @property
+    def vp_file_path(self):
+        return self._vp_file_path
+
+    @vp_file_path.setter
+    def vp_file_path(self, file_path):
+        self._vp_file_path = file_path
+        # Load image as QPixmap
+        if os.path.isfile(self._vp_file_path):
+            try:
+                self.image = QPixmap(self._vp_file_path)
+            except:
+                self.image = None
+        else:
+            self.image = None
 
 
 class OverviewManager:

@@ -30,9 +30,10 @@ import utils
 
 class ImageInspector(object):
 
-    def __init__(self, config, overview_manager):
+    def __init__(self, config, overview_manager, grid_manager):
         self.cfg = config
         self.ovm = overview_manager
+        self.gm = grid_manager
         self.tile_means = {}
         self.tile_stddevs = {}
         self.tile_reslice_line = {}
@@ -123,8 +124,9 @@ class ImageInspector(object):
             preview_img = Image.frombytes(
                 'L', (width, height),
                 img_tostring).resize((512, 384), resample=2)
-            preview_img.save(os.path.join(
-                self.base_dir, 'workspace', tile_key + '.png'))
+            # preview_img.save(os.path.join(
+            #     self.base_dir, 'workspace', tile_key + '.png'))
+            self.gm[grid_index][tile_index].preview_img = preview_img
 
             # calculate mean and stddev:
             mean = np.mean(img)

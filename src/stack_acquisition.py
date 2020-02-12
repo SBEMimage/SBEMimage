@@ -984,7 +984,7 @@ class Stack():
         if self.autofocus.active():
             for grid_index in range(number_grids):
                 self.handle_autofocus_adjustments(grid_index)
-            self.transmit_cmd('DRAW MV')
+            self.transmit_cmd('DRAW VP')
             if self.autofocus.method == 1:
                 self.wd_delta, self.stig_x_delta, self.stig_y_delta = 0, 0, 0
                 self.set_grid_wd_stig()
@@ -1632,7 +1632,7 @@ class Stack():
                 # For tracking mode 0: Adjust wd/stig of other tiles:
                 if self.error_state == 0 and self.autofocus.tracking_mode == 0:
                     self.autofocus.approximate_wd_stig_in_grid(grid_index)
-                    self.transmit_cmd('DRAW MV')
+                    self.transmit_cmd('DRAW VP')
 
             # Check mag if locked:
             if self.mag_locked and not self.error_state in [505, 506, 507]:
@@ -1676,7 +1676,7 @@ class Stack():
                                   + ': M:' + '{0:.2f}'.format(mean)
                                   + ', SD:' + '{0:.2f}'.format(stddev))
                     # New thumbnail available, show it:
-                    self.transmit_cmd('DRAW MV')
+                    self.transmit_cmd('DRAW VP')
 
                     if self.error_state in [505, 506, 507]:
                         # Don't accept tile if autofocus error has ocurred:
@@ -1768,8 +1768,8 @@ class Stack():
 
             if self.cfg['sys']['magc_mode'] == 'True':
                 grid_centre_d = self.gm[grid_index].centre_dx_dy
-                self.cs.set_mv_centre_d(grid_centre_d)
-                self.transmit_cmd('DRAW MV')
+                self.cs.set_vp_centre_d(grid_centre_d)
+                self.transmit_cmd('DRAW VP')
                 self.transmit_cmd('SET SECTION STATE GUI-'
                     + str(grid_index)
                     + '-acquiring')
@@ -1920,8 +1920,8 @@ class Stack():
 
                 if self.cfg['sys']['magc_mode'] == 'True':
                     grid_centre_d = self.gm[grid_index].centre_dx_dy
-                    self.cs.set_mv_centre_d(grid_centre_d)
-                    self.transmit_cmd('DRAW MV')
+                    self.cs.set_vp_centre_d(grid_centre_d)
+                    self.transmit_cmd('DRAW VP')
                     self.transmit_cmd('SET SECTION STATE GUI-'
                         + str(grid_index)
                         + '-acquired')
@@ -2037,7 +2037,7 @@ class Stack():
                     self.sem.get_stig_xy())
 
                 # Show updated WD in viewport:
-                self.transmit_cmd('DRAW MV')
+                self.transmit_cmd('DRAW VP')
 
             # Restore grid settings for tile acquisition:
             self.sem.apply_frame_settings(

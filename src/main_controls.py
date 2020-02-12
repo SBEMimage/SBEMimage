@@ -108,7 +108,7 @@ class MainControls(QMainWindow):
                                  self.viewport_queue)
         self.viewport.show()
         # Draw the workspace
-        self.viewport.mv_draw()
+        self.viewport.vp_draw()
 
         # Initialize focus tool:
         self.ft_initialize()
@@ -428,6 +428,14 @@ class MainControls(QMainWindow):
 
         # Imported images
         self.imported = ImportedImages(self.cfg)
+        for i in range(self.imported.number_imported):
+            if self.imported[i].image is None:
+                QMessageBox.warning(self, 'Error loading imported image',
+                    f'Imported image number {i} could not '
+                    f'be loaded. Check if the folder containing '
+                    f'the image ({self.imported[i].image_src}) was deleted or '
+                    f'moved, or if the image file is damaged or in '
+                    f'the wrong format.', QMessageBox.Ok)
 
         utils.show_progress_in_console(50)
 
@@ -497,7 +505,7 @@ class MainControls(QMainWindow):
         self.actionPlasmaCleanerSettings.setEnabled(self.plc_installed)
 
         # Set up Image Inspector instance:
-        self.img_inspector = ImageInspector(self.cfg, self.ovm)
+        self.img_inspector = ImageInspector(self.cfg, self.ovm, self.gm)
 
         # Set up autofocus instance:
         self.autofocus = Autofocus(self.cfg, self.sem, self.gm,
@@ -675,7 +683,7 @@ class MainControls(QMainWindow):
         self.cfg['acq']['use_autofocus'] = str(
             self.checkBox_useAutofocus.isChecked())
         self.show_estimates()
-        self.viewport.mv_draw()
+        self.viewport.vp_draw()
 
 # ----------------------------- MagC tab ---------------------------------------
 
@@ -805,7 +813,7 @@ class MainControls(QMainWindow):
         for changedDeselectedIndex in changedDeselected.indexes():
             row = changedDeselectedIndex.row()
             self.gm[row].display_colour = 1
-        self.viewport.mv_draw()
+        self.viewport.vp_draw()
         # update config
         tableView = self.tableView_magc_sectionList
         selectedRows = [id.row() for id in tableView.selectedIndexes()]
@@ -827,8 +835,8 @@ class MainControls(QMainWindow):
         model = doubleClickedIndex.model()
         firstColumnIndex = model.index(row, 0)
         sectionKey = int(model.data(firstColumnIndex)) # the index and the key of the section should in theory be the same, just in case
-        self.cs.set_mv_centre_d(self.gm[row].centre_dx_dy)
-        self.viewport.mv_draw()
+        self.cs.set_vp_centre_d(self.gm[row].centre_dx_dy)
+        self.viewport.vp_draw()
         if self.cfg['magc']['wafer_calibrated'] == 'True':
             self.add_to_log('Section ' + str(sectionKey) + ' has been double-clicked. Moving to section...')
             # set scan rotation
@@ -862,7 +870,7 @@ class MainControls(QMainWindow):
         self.cfg['magc']['checked_sections'] = '[]'
         self.gm.delete_all_but_last_grid()
         self.viewport.update_grids()
-        self.viewport.mv_draw()
+        self.viewport.vp_draw()
         tableModel = self.tableView_magc_sectionList.model()
         tableModel.removeRows(0, tableModel.rowCount(), QModelIndex())
         # unenable wafer calibration button
@@ -881,7 +889,7 @@ class MainControls(QMainWindow):
             # wafer_img_number = wafer_img_number_list[0]
             # print('delete wafer image number', wafer_img_number)
             # self.ovm.delete_imported_img(wafer_img_number)
-            # self.viewport.mv_draw()
+            # self.viewport.vp_draw()
 
     def magc_open_import_wafer_image(self):
         target_dir = os.path.join(self.cfg['acq']['base_dir'], 'overviews', 'imported')
@@ -889,8 +897,8 @@ class MainControls(QMainWindow):
             self.try_to_create_directory(target_dir)
         dialog = ImportWaferImageDlg(self.ovm, self.cs, target_dir)
         if dialog.exec_():
-            self.viewport.mv_load_last_imported_image()
-            self.viewport.mv_draw()
+            self.viewport.vp_load_last_imported_image()
+            self.viewport.vp_draw()
 
     def magc_add_section(self):
         self.gm.add_new_grid()
@@ -987,7 +995,7 @@ class MainControls(QMainWindow):
             self.show_estimates()
             if (self.cfg['debris']['auto_detection_area'] == 'True'):
                 self.ovm.update_all_debris_detections_areas(self.gm)
-            self.viewport.mv_draw()
+            self.viewport.vp_draw()
             if not self.cs.calibration_found:
                 self.add_to_log(
                     'CTRL: Warning - No stage calibration found for current EHT.')
@@ -1003,10 +1011,10 @@ class MainControls(QMainWindow):
             dialog = MicrotomeSettingsDlg(self.microtome, self.sem, self.cs,
                                           self.use_microtome)
             if dialog.exec_():
-                self.viewport.mv_load_stage_limits()
+                self.viewport.vp_load_stage_limits()
                 self.show_current_settings()
                 self.show_estimates()
-                self.viewport.mv_draw()
+                self.viewport.vp_draw()
         elif self.cfg['microtome']['device'] == 'ConnectomX katana':
             dialog = KatanaSettingsDlg(self.microtome)
             dialog.exec_()
@@ -1017,7 +1025,7 @@ class MainControls(QMainWindow):
             self.cs.apply_stage_calibration()
             if (self.cfg['debris']['auto_detection_area'] == 'True'):
                 self.ovm.update_all_debris_detections_areas(self.gm)
-            self.viewport.mv_draw()
+            self.viewport.vp_draw()
 
     def open_cut_duration_dlg(self):
         dialog = CutDurationDlg(self.microtome)
@@ -1038,17 +1046,15 @@ class MainControls(QMainWindow):
             self.ovm.update_all_debris_detections_areas(self.gm)
         self.show_current_settings()
         self.show_estimates()
-        self.viewport.mv_draw()
+        self.viewport.vp_draw()
 
     def open_import_image_dlg(self):
-        target_dir = os.path.join(self.cfg['acq']['base_dir'],
-                                  'overviews', 'imported')
+        target_dir = os.path.join(self.cfg['acq']['base_dir'], 'imported')
         if not os.path.exists(target_dir):
             self.try_to_create_directory(target_dir)
         dialog = ImportImageDlg(self.imported, target_dir)
         if dialog.exec_():
-            self.viewport.mv_load_last_imported_image()
-            self.viewport.mv_draw()
+            self.viewport.vp_draw()
 
     def open_adjust_image_dlg(self, selected_img):
         dialog = AdjustImageDlg(self.imported, selected_img,
@@ -1058,8 +1064,7 @@ class MainControls(QMainWindow):
     def open_delete_image_dlg(self):
         dialog = DeleteImageDlg(self.imported)
         if dialog.exec_():
-            self.viewport.mv_load_all_imported_images()
-            self.viewport.mv_draw()
+            self.viewport.vp_draw()
 
     def open_grid_dlg(self, selected_grid):
         dialog = GridSettingsDlg(self.gm, self.sem, selected_grid,
@@ -1080,7 +1085,7 @@ class MainControls(QMainWindow):
             self.ovm.update_all_debris_detections_areas(self.gm)
         self.show_current_settings()
         self.show_estimates()
-        self.viewport.mv_draw()
+        self.viewport.vp_draw()
 
     def open_change_grid_rotation_dlg(self, selected_grid):
         dialog = GridRotationDlg(selected_grid, self.gm, self.cfg,
@@ -1088,7 +1093,7 @@ class MainControls(QMainWindow):
         if dialog.exec_():
             if self.cfg['debris']['auto_detection_area'] == 'True':
                 self.ovm.update_all_debris_detections_areas(self.gm)
-                self.viewport.mv_draw()
+                self.viewport.vp_draw()
 
     def open_acq_settings_dlg(self):
         dialog = AcqSettingsDlg(self.cfg, self.stack)
@@ -1125,7 +1130,7 @@ class MainControls(QMainWindow):
             self.ovm.update_all_debris_detections_areas(self.gm)
             self.show_current_settings()
             self.img_inspector.update_debris_settings()
-            self.viewport.mv_draw()
+            self.viewport.vp_draw()
 
     def open_ask_user_dlg(self):
         dialog = AskUserDlg()
@@ -1149,7 +1154,7 @@ class MainControls(QMainWindow):
                 self.checkBox_useAutofocus.setText('Focus tracking')
             else:
                 self.checkBox_useAutofocus.setText('Autofocus')
-            self.viewport.mv_draw()
+            self.viewport.vp_draw()
 
     def open_plasma_cleaner_dlg(self):
         dialog = PlasmaCleanerDlg(self.plasma_cleaner)
@@ -1175,7 +1180,7 @@ class MainControls(QMainWindow):
         dialog.exec_()
 
     def open_stub_ov_dlg(self):
-        centre_dx_dy = self.viewport.mv_get_stub_ov_centre()
+        centre_dx_dy = self.viewport.vp_get_stub_ov_centre()
         if centre_dx_dy[0] is None:
             # Use the last known position
             centre_dx_dy = self.ovm['stub'].centre_dx_dy
@@ -1345,10 +1350,10 @@ class MainControls(QMainWindow):
         elif msg == 'SAVE CFG':
             self.save_settings()
         elif msg[:10] == 'ACQ IND OV':
-            self.viewport.mv_toggle_ov_acq_indicator(int(msg[10:]))
+            self.viewport.vp_toggle_ov_acq_indicator(int(msg[10:]))
         elif msg[:12] == 'ACQ IND TILE':
             position = msg[12:].split('.')
-            self.viewport.mv_toggle_tile_acq_indicator(
+            self.viewport.vp_toggle_tile_acq_indicator(
                 int(position[0]), int(position[1]))
         elif msg == 'RESTRICT GUI':
             self.restrict_gui(True)
@@ -1366,17 +1371,14 @@ class MainControls(QMainWindow):
         elif msg == 'OV SETTINGS CHANGED':
             self.update_from_ov_dlg()
         elif msg[:12] == 'MV UPDATE OV':
-            self.viewport.mv_load_overview(int(msg[12:]))
-            self.viewport.mv_draw()
+            self.viewport.vp_load_overview(int(msg[12:]))
+            self.viewport.vp_draw()
         elif msg[:18] == 'GRAB VP SCREENSHOT':
             self.viewport.grab_viewport_screenshot(msg[18:])
-        elif msg[:15] == 'RELOAD IMPORTED':
-            self.viewport.mv_load_imported_image(int(msg[15:]))
-            self.viewport.mv_draw()
-        elif msg == 'DRAW MV':
-            self.viewport.mv_draw()
-        elif msg == 'DRAW MV NO LABELS':
-            self.viewport.mv_draw(suppress_labels=True, suppress_previews=True)
+        elif msg == 'DRAW VP':
+            self.viewport.vp_draw()
+        elif msg == 'DRAW VP NO LABELS':
+            self.viewport.vp_draw(suppress_labels=True, suppress_previews=True)
         elif msg[:6] == 'VP LOG':
             self.viewport.add_to_viewport_log(msg[6:])
         elif msg[:15] == 'GET CURRENT LOG':
@@ -1435,8 +1437,8 @@ class MainControls(QMainWindow):
             self.textarea_log.appendPlainText(msg)
 
     def add_tile_folder(self):
-        grid = self.viewport.mv_get_selected_grid()
-        tile = self.viewport.mv_get_selected_tile()
+        grid = self.viewport.vp_get_selected_grid()
+        tile = self.viewport.vp_get_selected_tile()
         tile_folder = (self.cfg['acq']['base_dir']
                       + '\\tiles\\g'
                       + str(grid).zfill(utils.GRID_DIGITS)
@@ -1541,7 +1543,7 @@ class MainControls(QMainWindow):
 
     def acquire_ov(self):
         """Acquire one selected or all overview images."""
-        ov_selection = self.viewport.mv_get_current_ov()
+        ov_selection = self.viewport.vp_get_current_ov()
         if ov_selection > -2:
             user_reply = None
             if (ov_selection == -1) and (self.ovm.number_ov > 1):
@@ -1598,9 +1600,9 @@ class MainControls(QMainWindow):
                 'CTRL: User-requested acquisition of stub overview mosaic '
                 'completed.')
             # Load and show new OV images:
-            self.viewport.mv_show_new_stub_overview()
+            self.viewport.vp_show_new_stub_overview()
             # Reset user-selected stub_ov_centre:
-            self.viewport.mv_reset_stub_ov_centre()
+            self.viewport.vp_reset_stub_ov_centre()
             # Copy to mirror drive:
             if self.cfg['sys']['use_mirror_drive'] == 'True':
                 mirror_path = (self.cfg['sys']['mirror_drive']
@@ -1627,7 +1629,7 @@ class MainControls(QMainWindow):
         self.set_statusbar('Ready.')
 
     def move_stage(self):
-        target_pos = self.viewport.mv_get_selected_stage_pos()
+        target_pos = self.viewport.vp_get_selected_stage_pos()
         user_reply = QMessageBox.question(
             self, 'Move to selected stage position',
             'This will move the stage to the coordinates '
@@ -1651,7 +1653,7 @@ class MainControls(QMainWindow):
     def move_stage_success(self, success):
         if success:
             self.add_to_log('CTRL: User-requested stage move completed.')
-            self.viewport.mv_draw()
+            self.viewport.vp_draw()
         else:
             self.add_to_log('CTRL: ERROR ocurred during stage move.')
             QMessageBox.warning(
@@ -2252,7 +2254,7 @@ class MainControls(QMainWindow):
                 if self.gm[self.ft_selected_grid].wd_gradient_active():
                     # Recalculate with new wd:
                     self.gm[self.ft_selected_grid].calculate_wd_gradient()
-                self.viewport.mv_draw()
+                self.viewport.vp_draw()
             self.ft_reset()
 
         elif self.ft_mode == 2:
@@ -2312,7 +2314,7 @@ class MainControls(QMainWindow):
                     if self.gm[self.ft_selected_grid].wd_gradient_active():
                         # Recalculate with new wd:
                         self.gm[self.ft_selected_grid].calculate_wd_gradient()
-                    self.viewport.mv_draw()
+                    self.viewport.vp_draw()
                 # Also set SEM to new values:
                 self.sem.set_wd(self.ft_selected_wd)
                 self.sem.set_stig_xy(
@@ -2329,14 +2331,14 @@ class MainControls(QMainWindow):
         self.show_current_stage_xy()
         # Activate stage position indicator if not active already
         if not self.viewport.show_stage_pos:
-            self.viewport.mv_activate_checkbox_show_stage_pos()
+            self.viewport.vp_activate_checkbox_show_stage_pos()
         # Set zoom
-        self.cs.set_mv_scale(8)
-        self.viewport.mv_adjust_zoom_slider(8)
+        self.cs.set_vp_scale(8)
+        self.viewport.vp_adjust_zoom_slider(8)
         # Recentre at current stage position and redraw
-        self.cs.set_mv_centre_d(
+        self.cs.set_vp_centre_d(
             self.cs.convert_to_d(self.stage.last_known_xy))
-        self.viewport.mv_draw()
+        self.viewport.vp_draw()
 
     def ft_open_move_dlg(self):
         """Open dialog box to let user manually move to the stage position of
@@ -2694,9 +2696,9 @@ class MainControls(QMainWindow):
     def ft_set_selection_from_mv(self):
         """Load the tile/OV selected in the viewport with mouse click and
         context menu."""
-        selected_ov = self.viewport.mv_get_selected_ov()
-        selected_grid = self.viewport.mv_get_selected_grid()
-        selected_tile = self.viewport.mv_get_selected_tile()
+        selected_ov = self.viewport.vp_get_selected_ov()
+        selected_grid = self.viewport.vp_get_selected_grid()
+        selected_tile = self.viewport.vp_get_selected_tile()
         if (selected_grid is not None) and (selected_tile is not None):
             self.ft_selected_grid = selected_grid
             if self.gm[selected_grid].use_wd_gradient:

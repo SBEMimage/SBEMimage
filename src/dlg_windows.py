@@ -919,12 +919,12 @@ class ImportImageDlg(QDialog):
             if selection_success:
                 new_index = self.imported.number_imported
                 self.imported.add_image()
+                self.imported[new_index].image_src = target_path
                 self.imported[new_index].centre_sx_sy = [
                     self.doubleSpinBox_posX.value(),
                     self.doubleSpinBox_posY.value()]
                 self.imported[new_index].rotation = (
                     self.spinBox_rotation.value())
-                self.imported[new_index].image_src = target_path
                 self.imported[new_index].description = (
                     self.lineEdit_name.text())
                 width, height = imported_img.size
@@ -933,6 +933,11 @@ class ImportImageDlg(QDialog):
                     self.doubleSpinBox_pixelSize.value())
                 self.imported[new_index].transparency = (
                     self.spinBox_transparency.value())
+                if self.imported[new_index].image is None:
+                    QMessageBox.warning(
+                        self, 'Error',
+                        'Could not load image as QPixmap.',
+                         QMessageBox.Ok)
         else:
             QMessageBox.warning(self, 'Error',
                                 'Specified file not found.',
@@ -990,8 +995,8 @@ class AdjustImageDlg(QDialog):
             self.spinBox_rotation.value())
         self.imported[self.selected_img].transparency = (
             self.spinBox_transparency.value())
-        # Emit signals to reload and redraw:
-        self.main_window_queue.put('RELOAD IMPORTED' + str(self.selected_img))
+        # Emit signals to redraw Viewport:
+        self.main_window_queue.put('DRAW VP')
         self.main_window_trigger.s.emit()
 
 #------------------------------------------------------------------------------
@@ -1472,11 +1477,11 @@ class GridRotationDlg(QDialog):
         # Update tile positions:
         self.gm[self.selected_grid].update_tile_positions()
         # Emit signal to redraw:
-        self.main_window_queue.put('DRAW MV NO LABELS')
+        self.main_window_queue.put('DRAW VP NO LABELS')
         self.main_window_trigger.s.emit()
 
     def draw_with_labels(self):
-        self.main_window_queue.put('DRAW MV')
+        self.main_window_queue.put('DRAW VP')
         self.main_window_trigger.s.emit()
 
     def update_viewport_with_delay(self):
@@ -1495,7 +1500,7 @@ class GridRotationDlg(QDialog):
         # Revert to previous angle and origin:
         self.gm[self.selected_grid].rotation = self.previous_angle
         self.gm[self.selected_grid].origin_sx_sy = self.previous_origin_sx_sy
-        self.main_window_queue.put('DRAW MV')
+        self.main_window_queue.put('DRAW VP')
         self.main_window_trigger.s.emit()
         super().reject()
 
