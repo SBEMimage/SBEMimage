@@ -1011,7 +1011,6 @@ class MainControls(QMainWindow):
             dialog = MicrotomeSettingsDlg(self.microtome, self.sem, self.cs,
                                           self.use_microtome)
             if dialog.exec_():
-                self.viewport.vp_load_stage_limits()
                 self.show_current_settings()
                 self.show_estimates()
                 self.viewport.vp_draw()
@@ -1180,7 +1179,7 @@ class MainControls(QMainWindow):
         dialog.exec_()
 
     def open_stub_ov_dlg(self):
-        centre_dx_dy = self.viewport.vp_get_stub_ov_centre()
+        centre_dx_dy = self.viewport.stub_ov_centre
         if centre_dx_dy[0] is None:
             # Use the last known position
             centre_dx_dy = self.ovm['stub'].centre_dx_dy
@@ -1371,7 +1370,6 @@ class MainControls(QMainWindow):
         elif msg == 'OV SETTINGS CHANGED':
             self.update_from_ov_dlg()
         elif msg[:12] == 'MV UPDATE OV':
-            self.viewport.vp_load_overview(int(msg[12:]))
             self.viewport.vp_draw()
         elif msg[:18] == 'GRAB VP SCREENSHOT':
             self.viewport.grab_viewport_screenshot(msg[18:])
@@ -1380,7 +1378,7 @@ class MainControls(QMainWindow):
         elif msg == 'DRAW VP NO LABELS':
             self.viewport.vp_draw(suppress_labels=True, suppress_previews=True)
         elif msg[:6] == 'VP LOG':
-            self.viewport.add_to_viewport_log(msg[6:])
+            self.viewport.add_to_log(msg[6:])
         elif msg[:15] == 'GET CURRENT LOG':
             self.write_current_log_to_file(msg[15:])
         elif msg == 'MAGC WAFER CALIBRATED':
@@ -1437,8 +1435,8 @@ class MainControls(QMainWindow):
             self.textarea_log.appendPlainText(msg)
 
     def add_tile_folder(self):
-        grid = self.viewport.vp_get_selected_grid()
-        tile = self.viewport.vp_get_selected_tile()
+        grid = self.viewport.selected_grid
+        tile = self.viewport.selected_tile
         tile_folder = (self.cfg['acq']['base_dir']
                       + '\\tiles\\g'
                       + str(grid).zfill(utils.GRID_DIGITS)
@@ -1543,7 +1541,7 @@ class MainControls(QMainWindow):
 
     def acquire_ov(self):
         """Acquire one selected or all overview images."""
-        ov_selection = self.viewport.vp_get_current_ov()
+        ov_selection = self.viewport.current_ov
         if ov_selection > -2:
             user_reply = None
             if (ov_selection == -1) and (self.ovm.number_ov > 1):
@@ -1602,7 +1600,7 @@ class MainControls(QMainWindow):
             # Load and show new OV images:
             self.viewport.vp_show_new_stub_overview()
             # Reset user-selected stub_ov_centre:
-            self.viewport.vp_reset_stub_ov_centre()
+            self.viewport.stub_ov_centre = [None, None]
             # Copy to mirror drive:
             if self.cfg['sys']['use_mirror_drive'] == 'True':
                 mirror_path = (self.cfg['sys']['mirror_drive']
@@ -1629,7 +1627,7 @@ class MainControls(QMainWindow):
         self.set_statusbar('Ready.')
 
     def move_stage(self):
-        target_pos = self.viewport.vp_get_selected_stage_pos()
+        target_pos = self.viewport.selected_stage_pos
         user_reply = QMessageBox.question(
             self, 'Move to selected stage position',
             'This will move the stage to the coordinates '
@@ -2078,6 +2076,7 @@ class MainControls(QMainWindow):
         self.autofocus.save_to_cfg()
         self.microtome.save_to_cfg()
         self.cs.save_to_cfg()
+        self.viewport.save_to_cfg()
 
         # Write config to disk:
         with open(os.path.join('..', 'cfg', self.cfg_file), 'w') as f:
@@ -2151,7 +2150,7 @@ class MainControls(QMainWindow):
                             QMessageBox.Yes| QMessageBox.No)
                         if result == QMessageBox.Yes:
                             self.open_save_settings_new_file_dlg()
-                self.viewport.deactivate()
+                self.viewport.active = False
                 self.viewport.close()
                 QApplication.processEvents()
                 sleep(1)
@@ -2696,9 +2695,9 @@ class MainControls(QMainWindow):
     def ft_set_selection_from_mv(self):
         """Load the tile/OV selected in the viewport with mouse click and
         context menu."""
-        selected_ov = self.viewport.vp_get_selected_ov()
-        selected_grid = self.viewport.vp_get_selected_grid()
-        selected_tile = self.viewport.vp_get_selected_tile()
+        selected_ov = self.viewport.selected_ov
+        selected_grid = self.viewport.selected_grid
+        selected_tile = self.viewport.selected_tile
         if (selected_grid is not None) and (selected_tile is not None):
             self.ft_selected_grid = selected_grid
             if self.gm[selected_grid].use_wd_gradient:

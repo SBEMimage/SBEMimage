@@ -106,7 +106,7 @@
        <string>Show axes</string>
       </property>
      </widget>
-     <widget class="QSlider" name="horizontalSlider_MV">
+     <widget class="QSlider" name="horizontalSlider_VP">
       <property name="geometry">
        <rect>
         <x>780</x>
@@ -180,7 +180,7 @@
        <string/>
       </property>
      </widget>
-     <widget class="QComboBox" name="comboBox_gridSelectorMV">
+     <widget class="QComboBox" name="comboBox_gridSelectorVP">
       <property name="geometry">
        <rect>
         <x>10</x>
@@ -190,7 +190,7 @@
        </rect>
       </property>
      </widget>
-     <widget class="QComboBox" name="comboBox_OVSelectorMV">
+     <widget class="QComboBox" name="comboBox_OVSelectorVP">
       <property name="geometry">
        <rect>
         <x>280</x>
@@ -200,7 +200,7 @@
        </rect>
       </property>
      </widget>
-     <widget class="QComboBox" name="comboBox_tilePreviewSelectorMV">
+     <widget class="QComboBox" name="comboBox_tilePreviewSelectorVP">
       <property name="geometry">
        <rect>
         <x>90</x>
@@ -223,7 +223,7 @@
        <string>Show imported</string>
       </property>
      </widget>
-     <widget class="QLabel" name="label_8">
+     <widget class="QLabel" name="label_mousePosText">
       <property name="geometry">
        <rect>
         <x>10</x>
@@ -289,7 +289,7 @@
       </property>
      </widget>
     </widget>
-    <widget class="QLabel" name="mosaic_viewer">
+    <widget class="QLabel" name="QLabel_ViewportCanvas">
      <property name="geometry">
       <rect>
        <x>10</x>
@@ -307,7 +307,7 @@
     <attribute name="title">
      <string>Slice by slice</string>
     </attribute>
-    <widget class="QLabel" name="slice_viewer">
+    <widget class="QLabel" name="QLabel_SliceViewerCanvas">
      <property name="geometry">
       <rect>
        <x>10</x>
@@ -689,7 +689,7 @@
      <property name="title">
       <string>Reslice</string>
      </property>
-     <widget class="QLabel" name="reslice_view">
+     <widget class="QLabel" name="QLabel_resliceCanvas">
       <property name="geometry">
        <rect>
         <x>10</x>
@@ -715,7 +715,7 @@
      <property name="title">
       <string>Histogram and image statistics</string>
      </property>
-     <widget class="QLabel" name="histogram_view">
+     <widget class="QLabel" name="QLabel_histogramCanvas">
       <property name="geometry">
        <rect>
         <x>10</x>
@@ -773,7 +773,7 @@
       </property>
      </widget>
     </widget>
-    <widget class="QLabel" name="plots_view">
+    <widget class="QLabel" name="QLabel_plotCanvas">
      <property name="geometry">
       <rect>
        <x>450</x>
@@ -791,9 +791,9 @@
  </widget>
  <tabstops>
   <tabstop>tabWidget</tabstop>
-  <tabstop>comboBox_gridSelectorMV</tabstop>
-  <tabstop>comboBox_tilePreviewSelectorMV</tabstop>
-  <tabstop>comboBox_OVSelectorMV</tabstop>
+  <tabstop>comboBox_gridSelectorVP</tabstop>
+  <tabstop>comboBox_tilePreviewSelectorVP</tabstop>
+  <tabstop>comboBox_OVSelectorVP</tabstop>
   <tabstop>pushButton_refreshOVs</tabstop>
   <tabstop>pushButton_acquireStubOV</tabstop>
   <tabstop>pushButton_measureMosaic</tabstop>
@@ -801,7 +801,7 @@
   <tabstop>checkBox_showStubOV</tabstop>
   <tabstop>checkBox_showAxes</tabstop>
   <tabstop>checkBox_showLabels</tabstop>
-  <tabstop>horizontalSlider_MV</tabstop>
+  <tabstop>horizontalSlider_VP</tabstop>
   <tabstop>comboBox_gridSelectorSV</tabstop>
   <tabstop>comboBox_tileSelectorSV</tabstop>
   <tabstop>comboBox_OVSelectorSV</tabstop>

@@ -953,8 +953,9 @@ class GridManager:
 
 # ----------------------------- MagC functions ---------------------------------
 
-    def propagate_source_grid_to_target_grid(self, source_grid_number,
+    def propagate_source_grid_properties_to_target_grid(self, source_grid_number,
         target_grid_number, sections):
+        # TODO
         s = source_grid_number
         t = target_grid_number
         if s == t:
@@ -1058,9 +1059,8 @@ class GridManager:
         self.set_grid_centre_s(t, targetGridCenter)
         self.update_tile_positions(t)
 
-
-
     def update_source_ROIs_from_grids(self):
+        # TODO
         if self.cfg['magc']['wafer_calibrated'] == 'True':
             waferTransform = np.array(json.loads(
                 self.cfg['magc']['wafer_transform']))

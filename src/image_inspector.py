@@ -19,7 +19,10 @@ import numpy as np
 from imageio import imwrite
 from scipy.signal import medfilt2d
 from PIL import Image
+from PIL.ImageQt import ImageQt
 Image.MAX_IMAGE_PIXELS = None
+from PyQt5.QtGui import QPixmap
+
 
 from time import sleep
 
@@ -126,7 +129,9 @@ class ImageInspector(object):
                 img_tostring).resize((512, 384), resample=2)
             # preview_img.save(os.path.join(
             #     self.base_dir, 'workspace', tile_key + '.png'))
-            self.gm[grid_index][tile_index].preview_img = preview_img
+            # Convert to QPixmap and save in grid_manager
+            self.gm[grid_index][tile_index].preview_img = QPixmap.fromImage(
+                ImageQt(preview_img))
 
             # calculate mean and stddev:
             mean = np.mean(img)

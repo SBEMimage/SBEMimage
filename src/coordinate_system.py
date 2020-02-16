@@ -28,6 +28,9 @@ import utils
 
 class CoordinateSystem:
 
+    VP_WIDTH = 1000
+    VP_HEIGHT = 800
+
     def __init__(self, config, sysconfig):
         self.cfg = config
         self.syscfg = sysconfig
@@ -43,6 +46,15 @@ class CoordinateSystem:
             self.cfg['viewport']['vp_centre_dx_dy'])
         self._vp_scale = float(self.cfg['viewport']['vp_scale'])
         self.update_vp_origin_dx_dy()
+
+        # Slice-by-Slice Viewer (sv): scaling and offsets
+        # Two different scale factors for tiles and OVs
+        self.sv_scale_tile = float(self.cfg['viewport']['sv_scale_tile'])
+        self.sv_scale_ov = float(self.cfg['viewport']['sv_scale_ov'])
+        self.sv_tile_vx_vy = [int(self.cfg['viewport']['sv_offset_x_tile']),
+                              int(self.cfg['viewport']['sv_offset_x_tile'])]
+        self.sv_ov_vx_vy = [int(self.cfg['viewport']['sv_offset_x_ov']),
+                            int(self.cfg['viewport']['sv_offset_x_ov'])]
 
     def save_to_cfg(self):
         if self.cfg['sys']['use_microtome'].lower() == 'true':
@@ -61,6 +73,9 @@ class CoordinateSystem:
         self.cfg['viewport']['vp_centre_dx_dy'] = str(
             utils.round_xy(self.vp_centre_dx_dy))
         self.cfg['viewport']['vp_scale'] = str(self.vp_scale)
+
+        self.cfg['viewport']['sv_scale_tile'] = str(self.sv_scale_ov)
+        self.cfg['viewport']['sv_scale_ov'] = str(self.sv_scale_ov)
 
 
     def load_stage_calibration(self, eht):
@@ -183,5 +198,5 @@ class CoordinateSystem:
         # Recalculate upper left corner of visible window
         dx, dy = self._vp_centre_dx_dy
         self._vp_origin_dx_dy = [
-            dx - 500 / self._vp_scale,
-            dy - 400 / self._vp_scale]
+            dx - self.VP_WIDTH / self._vp_scale,
+            dy - self.VP_HEIGHT / self._vp_scale]

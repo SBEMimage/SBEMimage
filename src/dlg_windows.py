@@ -3287,11 +3287,11 @@ class StubOVDlg(QDialog):
         # Start acquisition only if EHT is on:
         if self.sem.is_eht_on():
             self.acq_in_progress = True
-            # Save previous stub OV origin in case user aborts acq:
             centre_sx_sy = self.spinBox_X.value(), self.spinBox_Y.value()
             grid_size_selector = self.comboBox_sizeSelector.currentIndex()
-            # Change the Stub Overview to the requested grid size
+            # Change the Stub Overview to the requested grid size and centre
             self.ovm['stub'].grid_size_selector = grid_size_selector
+            self.ovm['stub'].centre_sx_sy = centre_sx_sy
 
             self.add_to_log(
                 'CTRL: User-requested acquisition of stub OV mosaic started.')
