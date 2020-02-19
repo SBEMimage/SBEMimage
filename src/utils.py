@@ -3,7 +3,7 @@
 # ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2018-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
@@ -30,7 +30,13 @@ from email.mime.text import MIMEText
 from email.utils import formatdate
 from email import encoders, message_from_string
 
-# Number of digits used to format image file names
+# Size of the Viewport canvas. This is currently fixed and values other
+# than 1000 and 800 are not fully supported/tested. In the future, these could
+# become parameters to allow resizing of the Viewport window.
+VP_WIDTH = 1000
+VP_HEIGHT = 800
+
+# Number of digits used to format image file names.
 OV_DIGITS = 3         # up to 999 overview images
 GRID_DIGITS = 4       # up to 9999 grids
 TILE_DIGITS = 4       # up to 9999 tiles per grid
@@ -41,7 +47,7 @@ RE_TILE_LIST = re.compile('^((0|[1-9][0-9]*)[.](0|[1-9][0-9]*))'
                           '([ ]*,[ ]*(0|[1-9][0-9]*)[.](0|[1-9][0-9]*))*$')
 RE_OV_LIST = re.compile('^([0-9]+)([ ]*,[ ]*[0-9]+)*$')
 
-# Set of selectable colours for grids (0-9), overviews (10)
+# List of selectable colours for grids (0-9), overviews (10)
 # acquisition indicator (11):
 COLOUR_SELECTOR = [
     [255, 0, 0],        #0  red (default colour for grid 0)

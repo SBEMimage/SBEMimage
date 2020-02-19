@@ -1541,7 +1541,7 @@ class MainControls(QMainWindow):
 
     def acquire_ov(self):
         """Acquire one selected or all overview images."""
-        ov_selection = self.viewport.current_ov
+        ov_selection = self.viewport.vp_current_ov
         if ov_selection > -2:
             user_reply = None
             if (ov_selection == -1) and (self.ovm.number_ov > 1):

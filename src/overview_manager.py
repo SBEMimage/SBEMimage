@@ -184,7 +184,7 @@ class StubOverview(Grid):
 
         # Initialize the stub overview as a grid
         super().__init__(coordinate_system, sem,
-                         active=True, origin_sx_sy=centre_sx_sy,
+                         active=True, origin_sx_sy=[0, 0],
                          rotation=0, size=self.GRID_SIZE[grid_size_selector],
                          overlap=overlap, row_shift=0, active_tiles=[],
                          frame_size=[], frame_size_selector=frame_size_selector,
@@ -192,7 +192,10 @@ class StubOverview(Grid):
                          dwell_time_selector=dwell_time_selector,
                          display_colour=11)
 
+        # Set the centre coordinates, which will update the origin.
+        self.centre_sx_sy = centre_sx_sy
         self.image = None
+        # Image is loaded when file path is set/changed.
         self.vp_file_path = vp_file_path
         self._grid_size_selector = grid_size_selector
 
