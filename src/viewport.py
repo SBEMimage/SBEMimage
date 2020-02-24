@@ -190,17 +190,28 @@ class Viewport(QWidget):
             qp.drawLine(x, y - 10, x, y + 10)
             qp.drawLine(x - 10, y, x + 10, y)
 
+        draw_in_vp = (self.tabWidget.currentIndex() == 0)
+        tile_display = (self.sv_current_tile >= 0)
+
         qp.setPen(QPen(QColor(*utils.COLOUR_SELECTOR[6]), 2, Qt.SolidLine))
         qp.setBrush(QColor(0, 0, 0, 0))
         if self.measure_p1[0] is not None:
-            p1_x, p1_y = self.cs.convert_to_v(self.measure_p1)
+            if draw_in_vp:
+                p1_x, p1_y = self.cs.convert_to_v(self.measure_p1)
+            else:
+                p1_x, p1_y = self.cs.convert_to_sv(
+                    self.measure_p1, tile_display)
             draw_measure_point(qp, p1_x, p1_y)
         if self.measure_p2[0] is not None:
-            p2_x, p2_y = self.cs.convert_to_v(self.measure_p2)
+            if draw_in_vp:
+                p2_x, p2_y = self.cs.convert_to_v(self.measure_p2)
+            else:
+                p2_x, p2_y = self.cs.convert_to_sv(
+                    self.measure_p2, tile_display)
             draw_measure_point(qp, p2_x, p2_y)
 
         if self.measure_complete:
-            # Draw line between p1 and p2.
+            # Draw line between p1 and p2
             qp.drawLine(p1_x, p1_y, p2_x, p2_y)
             distance = sqrt((self.measure_p1[0] - self.measure_p2[0])**2
                             + (self.measure_p1[1] - self.measure_p2[1])**2)
@@ -370,8 +381,7 @@ class Viewport(QWidget):
            and mouse_pos_within_viewer):
             if self.tabWidget.currentIndex() == 0:
                 if self.vp_measure_active:
-                    self._vp_set_measure_point(
-                        px - utils.VP_WIDTH // 2, py - 400)
+                    self._vp_set_measure_point(px, py)
                 else:
                     self.vp_show_context_menu(p)
             elif self.tabWidget.currentIndex() == 1:
@@ -1578,19 +1588,22 @@ class Viewport(QWidget):
             self.vp_qp.drawText(y_axis_end[0] + 10, y_axis_end[1] + 10,
                                 'stage y-axis')
 
-    def _vp_set_measure_point(self, dx, dy):
+    def _vp_set_measure_point(self, px, py):
+        """Convert pixel coordinates where mouse was clicked to SEM coordinates
+        in Viewport for starting or end point of measurement."""
+        px -= utils.VP_WIDTH // 2
+        py -= utils.VP_HEIGHT // 2
         centre_dx, centre_dy = self.cs.vp_centre_dx_dy
         if self.measure_p1[0] is None or self.measure_complete:
-            self.measure_p1 = (centre_dx + dx / self.cs.vp_scale,
-                               centre_dy + dy / self.cs.vp_scale)
+            self.measure_p1 = (centre_dx + px / self.cs.vp_scale,
+                               centre_dy + py / self.cs.vp_scale)
             self.measure_complete = False
             self.measure_p2 = (None, None)
-            self.vp_draw()
         elif self.measure_p2[0] is None:
-            self.measure_p2 = (centre_dx + dx / self.cs.vp_scale,
-                               centre_dy + dy / self.cs.vp_scale)
+            self.measure_p2 = (centre_dx + px / self.cs.vp_scale,
+                               centre_dy + py / self.cs.vp_scale)
             self.measure_complete = True
-            self.vp_draw()
+        self.vp_draw()
 
     def _vp_draw_zoom_delay(self):
         """Redraw the viewport without suppressing labels/previews after at
@@ -2507,24 +2520,26 @@ class Viewport(QWidget):
         self._update_measure_buttons()
         self.sv_draw()
 
-    def _sv_set_measure_point(self, dx, dy):
+    def _sv_set_measure_point(self, px, py):
+        """Convert pixel coordinates where mouse was clicked to SEM coordinates
+        relative to the origin of the image displayed in the Slice-by-Slice
+        Viewer, for starting or end point of measurement."""
         if self.sv_current_ov >= 0:
-            dx -= self.cs.sv_ov_vx_vy[0]
-            dy -= self.cs.sv_ov_vx_vy[1]
+            px -= self.cs.sv_ov_vx_vy[0]
+            py -= self.cs.sv_ov_vx_vy[1]
             scale = self.cs.sv_scale_ov
         elif self.sv_current_tile >= 0:
-            dx -= self.cs.sv_tile_vx_vy[0]
-            dy -= self.cs.sv_tile_vx_vy[1]
+            px -= self.cs.sv_tile_vx_vy[0]
+            py -= self.cs.sv_tile_vx_vy[1]
             scale = self.cs.sv_scale_tile
         if self.measure_p1[0] is None or self.measure_complete:
-            self.measure_p1 = dx / scale, dy / scale
+            self.measure_p1 = px / scale, py / scale
             self.measure_complete = False
             self.measure_p2 = None, None
-            self.sv_draw()
         elif self.measure_p2[0] is None:
-            self.measure_p2 = dx / scale, dy / scale
+            self.measure_p2 = px / scale, py / scale
             self.measure_complete = True
-            self.sv_draw()
+        self.sv_draw()
 
     def sv_reset_view(self):
         """Zoom out completely and centre current image."""
@@ -2819,7 +2834,7 @@ class Viewport(QWidget):
                     + '.' + str(self.m_current_tile))
             self.m_qp.drawText(260, 543, 'Showing past ' + str(h) + ' slices')
             self.m_qp.end()
-            self.reslice_view.setPixmap(canvas)
+            self.QLabel_resliceCanvas.setPixmap(canvas)
         else:
             # Clear reslice canvas:
             self.m_qp.begin(canvas)
@@ -2831,7 +2846,7 @@ class Viewport(QWidget):
                                Qt.AlignVCenter | Qt.AlignHCenter,
                                'No reslice image available.')
             self.m_qp.end()
-            self.reslice_view.setPixmap(canvas)
+            self.QLabel_resliceCanvas.setPixmap(canvas)
             self.m_tab_populated = False
 
     def m_draw_plots(self):
@@ -3021,9 +3036,9 @@ class Viewport(QWidget):
                 x_pos += x_delta
 
             self.m_qp.end()
-            self.plots_view.setPixmap(canvas)
+            self.QLabel_plotCanvas.setPixmap(canvas)
         else:
-            self.plots_view.setPixmap(self.plots_canvas_template)
+            self.QLabel_plotCanvas.setPixmap(self.plots_canvas_template)
             self.m_tab_populated = False
 
     def m_draw_histogram(self):
@@ -3116,10 +3131,10 @@ class Viewport(QWidget):
             self.m_qp.drawText(345, 150, str(hist_max))
 
             self.m_qp.end()
-            self.histogram_view.setPixmap(canvas)
+            self.QLabel_histogramCanvas.setPixmap(canvas)
         else:
             self.m_qp.begin(canvas)
             self.m_qp.setPen(QColor(25, 25, 112))
             self.m_qp.drawText(50, 90, 'No image found for selected source   ')
             self.m_qp.end()
-            self.histogram_view.setPixmap(canvas)
+            self.QLabel_histogramCanvas.setPixmap(canvas)

@@ -182,6 +182,18 @@ class CoordinateSystem:
         return [int((dx - self._vp_origin_dx_dy[0]) * self._vp_scale),
                 int((dy - self._vp_origin_dx_dy[1]) * self._vp_scale)]
 
+    def convert_to_sv(self, d_coordinates, tile_display=True):
+        """Convert SEM coordinates in microns (relative to image origin) to
+        pixel coordinates in Slice-by-Slice Viewer."""
+        dx, dy = d_coordinates
+        if tile_display:
+            scale = self._sv_scale_tile
+            offset_x, offset_y = self.sv_tile_vx_vy
+        else:
+            scale = self._sv_scale_ov
+            offset_x, offset_y = self.sv_ov_vx_vy
+        return [int(dx * scale + offset_x), int(dy * scale + offset_y)]
+
     @property
     def vp_centre_dx_dy(self):
         return self._vp_centre_dx_dy
