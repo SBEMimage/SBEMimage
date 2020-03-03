@@ -24,7 +24,7 @@ from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import Qt
 import colorama # needed to suppress TIFFReadDirectory warnings in the console
 
-from dlg_windows import ConfigDlg
+from main_controls_dlg_windows import ConfigDlg
 from config_template import process_cfg
 from main_controls import MainControls
 

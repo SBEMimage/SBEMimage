@@ -24,6 +24,7 @@ import threading
 from time import time, sleep
 from PIL import Image
 from math import log, sqrt, sin, cos, radians
+from queue import Queue
 from statistics import mean
 
 from PyQt5.uic import loadUi
@@ -33,7 +34,10 @@ from PyQt5.QtGui import QPixmap, QPainter, QColor, QFont, QIcon, QPen, \
 from PyQt5.QtCore import Qt, QObject, QRect, QPoint, QSize, pyqtSignal
 
 import utils
-from dlg_windows import FocusGradientTileSelectionDlg
+import acq_func
+from viewport_dlg_windows import StubOVDlg, FocusGradientTileSelectionDlg, \
+                                 GridRotationDlg, ImportImageDlg, \
+                                 AdjustImageDlg, DeleteImageDlg
 
 
 class Trigger(QObject):
@@ -42,40 +46,37 @@ class Trigger(QObject):
 
 
 class Viewport(QWidget):
-    MARGIN_X = 20
-    MARGIN_Y = 40
-    VP_ZOOM = (0.2, 1.05)
-    SV_ZOOM_OV = (1.0, 1.03)
-    SV_ZOOM_TILE = (5.0, 1.04)
 
-    def __init__(self, config, sem, stage,
+    def __init__(self, config, sem, stage, coordinate_system,
                  ov_manager, grid_manager, imported_images,
-                 coordinate_system,
-                 autofocus, trigger, queue):
+                 autofocus, stack,
+                 main_controls_trigger, main_controls_queue):
         super().__init__()
         self.cfg = config
         self.sem = sem
         self.stage = stage
+        self.cs = coordinate_system
         self.gm = grid_manager
         self.ovm = ov_manager
         self.imported = imported_images
-        self.cs = coordinate_system
         self.autofocus = autofocus
-        self.trigger = trigger
-        self.queue = queue
-        # Set limits for viewport panning:
+        self.stack = stack
+        self.main_controls_trigger = main_controls_trigger
+        self.main_controls_queue = main_controls_queue
+
+        # Set Viewport zoom parameters depending on which stage is used for XY
+        if self.stage.use_microtome_xy:
+            self.VP_ZOOM = utils.VP_ZOOM_MICROTOME_STAGE
+        else:
+            self.VP_ZOOM = utils.VP_ZOOM_SEM_STAGE
+        # Set limits for viewport panning.
         self.VC_MIN_X, self.VC_MAX_X, self.VC_MIN_Y, self.VC_MAX_Y = (
             self.vp_dx_dy_range())
-        # Set zoom parameters depending on which stage is selected:
-        if self.cfg['sys']['use_microtome'].lower() == 'true':
-            self.VP_ZOOM = (0.2, 1.05)
-        else:
-            self.VP_ZOOM = (0.0055, 1.085)
 
-        # Shared control variables:
-        self.busy = False
-        self.active = True
-        # for mouse operations (dragging, measuring):
+        # Shared control variables
+        self.busy = False    # acquisition or other operation in progress
+        self.active = True   # Viewport windows is active.
+        # for mouse operations (dragging, measuring)
         self.doubleclick_registered = False
         self.zooming_in_progress = False
         self.drag_origin = (0, 0)
@@ -86,6 +87,12 @@ class Viewport(QWidget):
         self.measure_complete = False
         self.help_panel_visible = False
         self.stub_ov_centre = [None, None]
+
+        # Set up trigger and queue to update viewport from the
+        # acquisition thread or dialog windows.
+        self.viewport_trigger = Trigger()
+        self.viewport_trigger.s.connect(self._process_signal)
+        self.viewport_queue = Queue()
 
         self._load_gui()
         # Initialize viewport tabs:
@@ -150,11 +157,11 @@ class Viewport(QWidget):
         if self.m_current_grid >= self.gm.number_grids:
             self.m_current_grid = self.gm.number_grids - 1
             self.m_current_tile = -1
-        self.vp_update_grid_selector(self.vp_current_grid)
-        self.sv_update_grid_selector(self.sv_current_grid)
-        self.sv_update_tile_selector(self.sv_current_tile)
-        self.m_update_grid_selector(self.m_current_grid)
-        self.m_update_tile_selector(self.m_current_tile)
+        self.vp_update_grid_selector()
+        self.sv_update_grid_selector()
+        self.sv_update_tile_selector()
+        self.m_update_grid_selector()
+        self.m_update_tile_selector()
 
     def update_ov(self):
         """Update the overview selectors after overview is added or deleted."""
@@ -237,10 +244,44 @@ class Viewport(QWidget):
         self.textarea_incidentLog.appendPlainText(
             timestamp[:22] + ' | Slice ' + text)
 
+    def _process_signal(self):
+        """Process signals from the acquisition thread or from dialog windows.
+        """
+        msg = self.viewport_queue.get()
+        if msg == 'DRAW VP':
+            self.vp_draw()
+        elif msg == 'DRAW VP NO LABELS':
+            self.vp_draw(suppress_labels=True, suppress_previews=True)
+        elif msg == 'UPDATE XY':
+            self._transmit_cmd(msg)
+        elif msg == 'STATUS IDLE':
+            self._transmit_cmd(msg)
+        elif msg == 'STATUS BUSY STUB':
+            self._transmit_cmd(msg)
+        elif msg == 'STATUS BUSY OV':
+            self._transmit_cmd(msg)
+        elif msg.startswith('ACQ IND OV'):
+            self.vp_toggle_ov_acq_indicator(
+                int(msg[len('ACQ IND OV'):]))
+        elif msg == 'MANUAL MOVE SUCCESS':
+            self._vp_manual_stage_move_success(True)
+        elif msg == 'MANUAL MOVE FAILURE':
+            self._vp_manual_stage_move_success(False)
+        elif msg == 'REFRESH OV SUCCESS':
+            self._vp_overview_acq_success(True)
+        elif msg == 'REFRESH OV FAILURE':
+            self._vp_overview_acq_success(False)
+        elif msg == 'STUB OV SUCCESS':
+            self._vp_stub_overview_acq_success(True)
+        elif msg == 'STUB OV FAILURE':
+            self._vp_stub_overview_acq_success(False)
+        else:
+            self._add_to_main_log(msg)
+
     def _transmit_cmd(self, cmd):
         """Transmit command to the main window thread."""
-        self.queue.put(cmd)
-        self.trigger.s.emit()
+        self.main_controls_queue.put(cmd)
+        self.main_controls_trigger.s.emit()
 
     def _add_to_main_log(self, msg):
         """Add entry to the log in the main window"""
@@ -275,7 +316,7 @@ class Viewport(QWidget):
 
     def mousePressEvent(self, event):
         p = event.pos()
-        px, py = p.x() - self.MARGIN_X, p.y() - self.MARGIN_Y
+        px, py = p.x() - utils.VP_MARGIN_X, p.y() - utils.VP_MARGIN_Y
         mouse_pos_within_viewer = (
             px in range(utils.VP_WIDTH) and py in range(utils.VP_HEIGHT))
         mouse_pos_within_plot_area = (
@@ -373,8 +414,8 @@ class Viewport(QWidget):
                 if self.show_saturated_pixels:
                     self.checkBox_showSaturated.setChecked(False)
                     self.show_saturated_pixels = False
-                self.drag_origin = (p.x() - self.MARGIN_X,
-                                    p.y() - self.MARGIN_Y)
+                self.drag_origin = (p.x() - utils.VP_MARGIN_X,
+                                    p.y() - utils.VP_MARGIN_Y)
         # Now check right mouse button for context menus and measuring tool
         if ((event.button() == Qt.RightButton)
            and (self.tabWidget.currentIndex() < 2)
@@ -407,7 +448,7 @@ class Viewport(QWidget):
 
     def mouseMoveEvent(self, event):
         p = event.pos()
-        px, py = p.x() - self.MARGIN_X, p.y() - self.MARGIN_Y
+        px, py = p.x() - utils.VP_MARGIN_X, p.y() - utils.VP_MARGIN_Y
         # Show current stage and SEM coordinates at mouse position
         mouse_pos_within_viewer = (
             px in range(utils.VP_WIDTH) and py in range(utils.VP_HEIGHT))
@@ -492,7 +533,7 @@ class Viewport(QWidget):
         # Process doubleclick
         if self.doubleclick_registered:
             p = event.pos()
-            px, py = p.x() - self.MARGIN_X, p.y() - self.MARGIN_Y
+            px, py = p.x() - utils.VP_MARGIN_X, p.y() - utils.VP_MARGIN_Y
             if px in range(utils.VP_WIDTH) and py in range(utils.VP_HEIGHT):
                 if self.tabWidget.currentIndex() == 0:
                     self._vp_mouse_zoom(px, py, 2)
@@ -570,7 +611,7 @@ class Viewport(QWidget):
                 self.sv_slice_bwd()
         if self.tabWidget.currentIndex() == 0:
             p = event.pos()
-            px, py = p.x() - self.MARGIN_X, p.y() - self.MARGIN_Y
+            px, py = p.x() - utils.VP_MARGIN_X, p.y() - utils.VP_MARGIN_Y
             mouse_pos_within_viewer = (
                 px in range(utils.VP_WIDTH) and py in range(utils.VP_HEIGHT))
             if mouse_pos_within_viewer:
@@ -632,9 +673,9 @@ class Viewport(QWidget):
         self.vp_qp = QPainter()
 
         # Buttons
-        self.pushButton_refreshOVs.clicked.connect(self.vp_refresh_overviews)
+        self.pushButton_refreshOVs.clicked.connect(self.vp_acquire_overview)
         self.pushButton_acquireStubOV.clicked.connect(
-            self._vp_acquire_stub_overview)
+            self._vp_open_stub_overview_dlg)
         self.pushButton_measureMosaic.clicked.connect(self._vp_toggle_measure)
         self.pushButton_measureMosaic.setIcon(
             QIcon(os.path.join('..', 'img', 'measure.png')))
@@ -774,7 +815,7 @@ class Viewport(QWidget):
 
     def vp_show_context_menu(self, p):
         """Show context menu after user has right-clicked at position p."""
-        px, py = p.x() - self.MARGIN_X, p.y() - self.MARGIN_Y
+        px, py = p.x() - utils.VP_MARGIN_X, p.y() - utils.VP_MARGIN_Y
         if px in range(utils.VP_WIDTH) and py in range(utils.VP_HEIGHT):
             self.selected_grid, self.selected_tile = \
                 self._vp_grid_tile_mouse_selection(px, py)
@@ -847,13 +888,13 @@ class Viewport(QWidget):
                 action_changeRotation = menu.addAction(
                     'Change rotation of selected grid')
             action_changeRotation.triggered.connect(
-                self._vp_change_grid_rotation)
+                self._vp_open_change_grid_rotation_dlg)
 
             if self.cfg['sys']['magc_mode'] == 'True':
                 action_moveGridCurrentStage = menu.addAction(
                     f'Move grid {self.selected_grid} to current stage position')
                 action_moveGridCurrentStage.triggered.connect(
-                    self._vp_move_grid_to_current_stage_position)
+                    self._vp_manual_stage_move)
                 if not ((self.selected_grid is not None)
                     and self.cfg['magc']['wafer_calibrated'] == 'True'):
                     action_moveGridCurrentStage.setEnabled(False)
@@ -874,19 +915,19 @@ class Viewport(QWidget):
 
             menu.addSeparator()
             action_move = menu.addAction(current_pos_str)
-            action_move.triggered.connect(self._vp_move_to_stage_pos)
-            action_stub = menu.addAction('Set stub OV centre')
+            action_move.triggered.connect(self._vp_manual_stage_move)
+            action_stub = menu.addAction('Acquire stub OV at this position')
             action_stub.triggered.connect(self._vp_set_stub_ov_centre)
 
             menu.addSeparator()
             action_import = menu.addAction('Import and place image')
-            action_import.triggered.connect(self._vp_import_image)
+            action_import.triggered.connect(self._vp_open_import_image_dlg)
             action_adjustImported = menu.addAction('Adjust imported image')
             action_adjustImported.triggered.connect(
-                self._vp_adjust_imported_image)
+                self._vp_open_adjust_image_dlg)
             action_deleteImported = menu.addAction('Delete imported image')
             action_deleteImported.triggered.connect(
-                self._vp_delete_imported_image)
+                self._vp_open_delete_image_dlg)
 
             # ----- MagC items -----
             if (self.cfg['sys']['magc_mode'].lower() == 'true'
@@ -936,12 +977,9 @@ class Viewport(QWidget):
     def _vp_load_selected_in_ft(self):
         self._transmit_cmd('LOAD IN FOCUS TOOL')
 
-    def _vp_move_to_stage_pos(self):
-        self._transmit_cmd('MOVE STAGE')
-
     def _vp_set_stub_ov_centre(self):
         self.stub_ov_centre = self.selected_stage_pos
-        self._vp_acquire_stub_overview()
+        self._vp_open_stub_overview_dlg()
 
     def _vp_stage_coordinates_from_mouse_position(self, px, py):
         dx, dy = px - utils.VP_WIDTH // 2, py - utils.VP_HEIGHT // 2
@@ -1915,9 +1953,6 @@ class Viewport(QWidget):
                                      % self.selected_grid)
                 self.vp_update_after_active_tile_selection()
 
-    def _vp_change_grid_rotation(self):
-        self._transmit_cmd('CHANGE GRID ROTATION' + str(self.selected_grid))
-
     def _vp_open_grid_settings(self):
         self._transmit_cmd('OPEN GRID SETTINGS' + str(self.selected_grid))
 
@@ -1980,20 +2015,169 @@ class Viewport(QWidget):
         self.vp_draw()
         self.sv_draw()
 
-    def _vp_import_image(self):
-        self._transmit_cmd('IMPORT IMG')
+    def _vp_manual_stage_move(self):
+        user_reply = QMessageBox.question(
+            self, 'Move to selected stage position',
+            'This will move the stage to the coordinates '
+            'X: {0:.3f}, '.format(self.selected_stage_pos[0])
+            + 'Y: {0:.3f}'.format(self.selected_stage_pos[1]),
+            QMessageBox.Ok | QMessageBox.Cancel)
+        if user_reply == QMessageBox.Ok:
+            self._add_to_main_log('CTRL: Performing user-requested stage move')
+            self._transmit_cmd('RESTRICT GUI')
+            self.restrict_gui(True)
+            QApplication.processEvents()
+            move_thread = threading.Thread(target=acq_func.manual_stage_move,
+                                           args=(self.stage,
+                                                 self.selected_stage_pos,
+                                                 self.viewport_trigger,
+                                                 self.viewport_queue,))
+            move_thread.start()
+            self._transmit_cmd('STATUS BUSY STAGE MOVE')
 
-    def _vp_adjust_imported_image(self):
-        self._transmit_cmd('ADJUST IMPORTED IMG' + str(self.selected_imported))
+    def _vp_manual_stage_move_success(self, success):
+        if success:
+            self._add_to_main_log('CTRL: User-requested stage move completed.')
+            self.vp_draw()
+        else:
+            self._add_to_main_log('CTRL: ERROR ocurred during stage move.')
+            QMessageBox.warning(
+                self, 'Error during stage move',
+                'An error occurred during the requested stage move. ' +
+                'Please check the microtome status in DM.',
+                QMessageBox.Ok)
+        self.restrict_gui(False)
+        self._transmit_cmd('UNRESTRICT GUI')
+        self._transmit_cmd('STATUS IDLE')
 
-    def _vp_delete_imported_image(self):
-        self._transmit_cmd('DELETE IMPORTED IMG')
+    def vp_acquire_overview(self):
+        """Acquire one selected or all overview images."""
+        if self.vp_current_ov > -2:
+            user_reply = None
+            if (self.vp_current_ov == -1) and (self.ovm.number_ov > 1):
+                user_reply = QMessageBox.question(
+                    self, 'Acquisition of all overview images',
+                    'This will acquire all overview images.\n\n' +
+                    'Do you wish to proceed?',
+                    QMessageBox.Ok | QMessageBox.Cancel)
+            if (user_reply == QMessageBox.Ok or self.vp_current_ov >= 0
+                or (self.ovm.number_ov == 1 and self.vp_current_ov == -1)):
+                self._add_to_main_log(
+                    'CTRL: User-requested acquisition of OV image(s) started')
+                self.restrict_gui(True)
+                self._transmit_cmd('RESTRICT GUI')
+                self._transmit_cmd('STATUS BUSY OV')
+                # Start OV acquisition thread:
+                ov_acq_thread = threading.Thread(
+                    target=acq_func.acquire_ov,
+                    args=(self.stack.base_dir, self.vp_current_ov,
+                          self.sem, self.stage, self.ovm, self.cs,
+                          self.viewport_trigger, self.viewport_queue,))
+                ov_acq_thread.start()
+        else:
+            QMessageBox.information(
+                self, 'Acquisition of overview image(s)',
+                'Please select "All OVs" or a single OV from the '
+                'pull-down menu.',
+                QMessageBox.Ok)
 
-    def vp_refresh_overviews(self):
-        self._transmit_cmd('REFRESH OV')
+    def _vp_overview_acq_success(self, success):
+        if success:
+            self._add_to_main_log(
+                'CTRL: User-requested acquisition of overview(s) completed.')
+        else:
+            self._add_to_main_log(
+                'CTRL: ERROR ocurred during overview acquisition.')
+            QMessageBox.warning(
+                self, 'Error during overview acquisition',
+                'An error occurred during the acquisition of the overview(s) '
+                'at the current location(s). The most likely causes are '
+                'incorrect settings of the stage X/Y motor ranges or speeds. '
+                'Home the stage and check whether the range limits specified '
+                'in SBEMimage are correct.', QMessageBox.Ok)
+        self._transmit_cmd('UNRESTRICT GUI')
+        self.restrict_gui(False)
+        self._transmit_cmd('STATUS IDLE')
 
-    def _vp_acquire_stub_overview(self):
-        self._transmit_cmd('ACQUIRE STUB OV')
+    def _vp_open_stub_overview_dlg(self):
+        centre_sx_sy = self.stub_ov_centre
+        if centre_sx_sy[0] is None:
+            # Use the last known position
+            centre_sx_sy = self.ovm['stub'].centre_sx_sy
+        grid_size_selector = self.ovm['stub'].grid_size_selector
+        dialog = StubOVDlg(centre_sx_sy, grid_size_selector,
+                           self.sem, self.stage, self.ovm, self.stack,
+                           self.viewport_trigger, self.viewport_queue)
+        dialog.exec_()
+
+    def _vp_stub_overview_acq_success(self, success):
+        if success:
+            self._add_to_main_log(
+                'CTRL: User-requested acquisition of stub overview mosaic '
+                'completed.')
+            # Load and show new OV images:
+            self.vp_show_new_stub_overview()
+            # Reset user-selected stub_ov_centre:
+            self.stub_ov_centre = [None, None]
+            # Copy to mirror drive:
+            if self.cfg['sys']['use_mirror_drive'] == 'True':
+                mirror_path = os.path.join(
+                    self.cfg['sys']['mirror_drive'],
+                    self.cfg['acq']['base_dir'][2:], 'overviews', 'stub')
+                if not os.path.exists(mirror_path):
+                    try:
+                        os.makedirs(mirror_path)
+                    except Exception as e:
+                        self._add_to_main_log(
+                            'CTRL: Creating directory on mirror drive failed: '
+                            + str(e))
+                try:
+                    shutil.copy(self.ovm.get_stub_ov_file(), mirror_path)
+                except Exception as e:
+                    self._add_to_main_log(
+                        'CTRL: Copying stub overview image to mirror drive '
+                        'failed: ' + str(e))
+
+        else:
+            self._add_to_main_log('CTRL: ERROR ocurred during stub overview '
+                                  'acquisition.')
+        self._transmit_cmd('STATUS IDLE')
+
+    def _vp_open_change_grid_rotation_dlg(self):
+        dialog = GridRotationDlg(self.selected_grid, self.gm, self.cfg,
+            self.viewport_trigger, self.viewport_queue)
+        if dialog.exec_():
+            if self.cfg['debris']['auto_detection_area'] == 'True':
+                self.ovm.update_all_debris_detections_areas(self.gm)
+                self.vp_draw()
+
+    def _vp_open_import_image_dlg(self):
+        target_dir = os.path.join(self.stack.base_dir, 'imported')
+        if not os.path.exists(target_dir):
+            try:
+                os.makedirs(target_dir)
+            except Exception as e:
+                QMessageBox.warning(
+                    self, 'Could not create directory',
+                    f'Could not create directory {target_dir} to save imported '
+                    f'images. Make sure the drive/folder is available for '
+                    f'write access. {str(e)}',
+                    QMessageBox.Ok)
+                return
+        dialog = ImportImageDlg(self.imported, target_dir)
+        if dialog.exec_():
+            self.vp_draw()
+
+    def _vp_open_adjust_image_dlg(self):
+        dialog = AdjustImageDlg(self.imported, self.selected_imported,
+                                self.viewport_trigger, self.viewport_queue)
+        dialog.exec_()
+
+    def _vp_open_delete_image_dlg(self):
+        dialog = DeleteImageDlg(self.imported)
+        if dialog.exec_():
+            self.vp_draw()
+
 
     def vp_show_new_stub_overview(self):
         self.checkBox_showStubOV.setChecked(True)
@@ -2142,6 +2326,8 @@ class Viewport(QWidget):
         self.comboBox_tileSelectorSV.addItems(
             ['Select tile']
             + self.gm[self.sv_current_grid].tile_selector_list())
+        if self.sv_current_tile >= self.gm[self.sv_current_grid].number_tiles:
+            self.sv_current_tile = -1
         self.comboBox_tileSelectorSV.setCurrentIndex(self.sv_current_tile + 1)
         self.comboBox_tileSelectorSV.blockSignals(False)
 
@@ -2179,12 +2365,12 @@ class Viewport(QWidget):
         # This depends on whether OV or a tile is displayed.
         if self.sv_current_ov >= 0:
             self.cs.sv_scale_ov = (
-                self.SV_ZOOM_OV[0]
-                * self.SV_ZOOM_OV[1]**self.horizontalSlider_SV.value())
+                utils.SV_ZOOM_OV[0]
+                * utils.SV_ZOOM_OV[1]**self.horizontalSlider_SV.value())
         else:
             self.cs.sv_scale_tile = (
-                self.SV_ZOOM_TILE[0]
-                * self.SV_ZOOM_TILE[1]**self.horizontalSlider_SV.value())
+                utils.SV_ZOOM_TILE[0]
+                * utils.SV_ZOOM_TILE[1]**self.horizontalSlider_SV.value())
         self.sv_disable_saturated_pixels()
         self.sv_draw()
 
@@ -2192,12 +2378,12 @@ class Viewport(QWidget):
         self.horizontalSlider_SV.blockSignals(True)
         if self.sv_current_ov >= 0:
             self.horizontalSlider_SV.setValue(
-                log(self.cs.sv_scale_ov / self.SV_ZOOM_OV[0],
-                    self.SV_ZOOM_OV[1]))
+                log(self.cs.sv_scale_ov / utils.SV_ZOOM_OV[0],
+                    utils.SV_ZOOM_OV[1]))
         else:
             self.horizontalSlider_SV.setValue(
-                log(self.cs.sv_scale_tile / self.SV_ZOOM_TILE[0],
-                    self.SV_ZOOM_TILE[1]))
+                log(self.cs.sv_scale_tile / utils.SV_ZOOM_TILE[0],
+                    utils.SV_ZOOM_TILE[1]))
         self.horizontalSlider_SV.blockSignals(False)
 
     def _sv_mouse_zoom(self, px, py, factor):
@@ -2209,8 +2395,8 @@ class Viewport(QWidget):
             # Recalculate scaling factor.
             self.cs.sv_scale_ov = utils.fit_in_range(
                 factor * old_sv_scale_ov,
-                self.SV_ZOOM_OV[0],
-                self.SV_ZOOM_OV[0] * self.SV_ZOOM_OV[1]**99)
+                utils.SV_ZOOM_OV[0],
+                utils.SV_ZOOM_OV[0] * utils.SV_ZOOM_OV[1]**99)
                 # 99 is max slider value
             ratio = self.cs.sv_scale_ov / old_sv_scale_ov
             # Preserve mouse click position.
@@ -2222,8 +2408,8 @@ class Viewport(QWidget):
             current_vx, current_vy = self.cs.sv_tile_vx_vy
             self.cs.sv_scale_tile = utils.fit_in_range(
                 factor * old_sv_scale_tile,
-                self.SV_ZOOM_TILE[0],
-                self.SV_ZOOM_TILE[0] * self.SV_ZOOM_TILE[1]**99)
+                utils.SV_ZOOM_TILE[0],
+                utils.SV_ZOOM_TILE[0] * utils.SV_ZOOM_TILE[1]**99)
             ratio = self.cs.sv_scale_tile / old_sv_scale_tile
             # Preserve mouse click position.
             new_vx = int(ratio * current_vx - (ratio - 1) * px)
@@ -2247,6 +2433,10 @@ class Viewport(QWidget):
             self.comboBox_OVSelectorSV.blockSignals(False)
             self._sv_adjust_zoom_slider()
             self.sv_load_slices()
+        else:
+            self.slice_view_images = []
+            self.slice_view_index = 0
+            self.sv_draw()
 
     def sv_change_ov_selection(self):
         self.sv_current_ov = self.comboBox_OVSelectorSV.currentIndex() - 1
@@ -2260,6 +2450,10 @@ class Viewport(QWidget):
             self.comboBox_tileSelectorSV.blockSignals(False)
             self._sv_adjust_zoom_slider()
             self.sv_load_slices()
+        else:
+            self.slice_view_images = []
+            self.slice_view_index = 0
+            self.sv_draw()
 
     def sv_load_selected(self):
         if self.selected_grid is not None and self.selected_tile is not None:
@@ -2292,6 +2486,10 @@ class Viewport(QWidget):
         return visible
 
     def sv_load_slices(self):
+        if self.sv_current_grid is None and self.sv_current_ov is None:
+            QMessageBox('No tile or overview selected for slice-by-slice '
+                        'display.')
+            return
         # Reading the tiff files from SmartSEM generates warnings. They
         # are suppressed in the code below.
         # First show a "waiting" info, since loading the images may take a
@@ -2532,6 +2730,9 @@ class Viewport(QWidget):
             px -= self.cs.sv_tile_vx_vy[0]
             py -= self.cs.sv_tile_vx_vy[1]
             scale = self.cs.sv_scale_tile
+        else:
+            # Measuring tool cannot be used when no image displayed.
+            return
         if self.measure_p1[0] is None or self.measure_complete:
             self.measure_p1 = px / scale, py / scale
             self.measure_complete = False
@@ -2544,7 +2745,7 @@ class Viewport(QWidget):
     def sv_reset_view(self):
         """Zoom out completely and centre current image."""
         if self.sv_current_ov >= 0:
-            self.cs.sv_scale_ov = self.SV_ZOOM_OV[0]
+            self.cs.sv_scale_ov = utils.SV_ZOOM_OV[0]
             width, height = self.ovm[self.sv_current_ov].frame_size
             viewport_pixel_size = 1000 / self.cs.sv_scale_ov
             ov_pixel_size = self.ovm[self.sv_current_ov].pixel_size
@@ -2552,7 +2753,7 @@ class Viewport(QWidget):
             new_vx = int(utils.VP_WIDTH // 2 - (width // 2) * resize_ratio)
             new_vy = int(utils.VP_HEIGHT // 2 - (height // 2) * resize_ratio)
         elif self.sv_current_tile >= 0:
-            self.cs.sv_scale_tile = self.SV_ZOOM_TILE[0]
+            self.cs.sv_scale_tile = utils.SV_ZOOM_TILE[0]
             width, height = self.gm[self.sv_current_grid].frame_size
             viewport_pixel_size = 1000 / self.cs.sv_scale_tile
             tile_pixel_size = self.gm[self.sv_current_grid].pixel_size
@@ -2565,7 +2766,7 @@ class Viewport(QWidget):
         self.sv_draw()
 
     def sv_show_context_menu(self, p):
-        px, py = p.x() - self.MARGIN_X, p.y() - self.MARGIN_Y
+        px, py = p.x() - utils.VP_MARGIN_X, p.y() - utils.VP_MARGIN_Y
         if px in range(utils.VP_WIDTH) and py in range(utils.VP_HEIGHT):
             menu = QMenu()
             action1 = menu.addAction('Reset view for current image')

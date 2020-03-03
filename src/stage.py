@@ -24,14 +24,17 @@ class Stage():
         if use_microtome and microtome.device_name == 'Gatan 3View':
             # Use microtome for X, Y, Z control
             self._stage = microtome
+            self.use_microtome_xy = True
             self.use_microtome_z = True
         elif use_microtome and microtome.device_name == 'ConnectomX katana':
             # Use SEM stage for X, Y control, and microtome for Z control
             self._stage = sem
+            self.use_microtome_xy = False
             self.use_microtome_z = True
         else:
             # Use SEM stage for X, Y, Z control
             self._stage = sem
+            self.use_microtome_xy = False
             self.use_microtome_z = False
 
     def get_x(self):

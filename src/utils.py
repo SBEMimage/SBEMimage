@@ -36,6 +36,21 @@ from email import encoders, message_from_string
 VP_WIDTH = 1000
 VP_HEIGHT = 800
 
+# XY margins between display area and the top-left corner of the Viewport
+# window. These margins must be subtracted from the coordinates provided
+# when the user clicks onto the window.
+VP_MARGIN_X = 20
+VP_MARGIN_Y = 40
+
+# Zoom parameters to convert between the scale factors and the position
+# of the zoom sliders in the Viewport (VP) and the Slice-by-Slice viewer
+# (SV). Zoom settings for tiles and for OVs are stored separately because
+# tiles and OVs usually differ in pixel size by an order of magnitude.
+VP_ZOOM_MICROTOME_STAGE = (0.2, 1.05)
+VP_ZOOM_SEM_STAGE = (0.0055, 1.085)
+SV_ZOOM_OV = (1.0, 1.03)
+SV_ZOOM_TILE = (5.0, 1.04)
+
 # Number of digits used to format image file names.
 OV_DIGITS = 3         # up to 999 overview images
 GRID_DIGITS = 4       # up to 9999 grids

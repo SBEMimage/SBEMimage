@@ -3,12 +3,13 @@
 # ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2018-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
 
-"""This module contains all dialog windows."""
+"""This module contains all dialog windows that are called from the Main
+Controls and the Startup dialog (ConfigDlg)."""
 
 import os
 import re
@@ -46,7 +47,7 @@ class Trigger(QObject):
     """Custom signal for updating GUI from within running threads."""
     s = pyqtSignal()
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class ConfigDlg(QDialog):
     """Ask the user to select a configuration file. The previously used
@@ -116,7 +117,7 @@ class ConfigDlg(QDialog):
         else:
             return 'abort'
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class SaveConfigDlg(QDialog):
     """Save current configuration in a new config file."""
@@ -151,7 +152,7 @@ class SaveConfigDlg(QDialog):
                 'Name contains forbidden characters.',
                 QMessageBox.Ok)
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class SEMSettingsDlg(QDialog):
     """Let user change SEM beam settings (target EHT, taget beam current).
@@ -179,7 +180,7 @@ class SEMSettingsDlg(QDialog):
         self.sem.set_beam_current(self.spinBox_beamCurrent.value())
         super().accept()
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class MicrotomeSettingsDlg(QDialog):
     """Adjust stage motor limits and wait interval after stage moves."""
@@ -254,7 +255,7 @@ class MicrotomeSettingsDlg(QDialog):
                 self.doubleSpinBox_waitInterval.value())
         super().accept()
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class KatanaSettingsDlg(QDialog):
     """Adjust settings for the katana microtome."""
@@ -347,7 +348,7 @@ class KatanaSettingsDlg(QDialog):
                 'than the end position.',
                 QMessageBox.Ok)
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class StageCalibrationDlg(QDialog):
     """Calibrate the stage (rotation and scaling) and the motor speeds."""
@@ -660,7 +661,7 @@ class StageCalibrationDlg(QDialog):
         else:
             event.ignore()
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class MagCalibrationDlg(QDialog):
     """Calibrate the relationship between magnification and pixel size."""
@@ -702,7 +703,7 @@ class MagCalibrationDlg(QDialog):
             self.spinBox_calibrationFactor.value())
         super().accept()
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class CutDurationDlg(QDialog):
 
@@ -722,7 +723,7 @@ class CutDurationDlg(QDialog):
             self.doubleSpinBox_cutDuration.value())
         super().accept()
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class OVSettingsDlg(QDialog):
     """Let the user change all settings for each overview image."""
@@ -861,170 +862,7 @@ class OVSettingsDlg(QDialog):
         self.main_window_queue.put('OV SETTINGS CHANGED')
         self.main_window_trigger.s.emit()
 
-#------------------------------------------------------------------------------
-
-class ImportImageDlg(QDialog):
-    """Import an image into the viewport."""
-
-    def __init__(self, imported_images, target_dir):
-        self.imported = imported_images
-        self.target_dir = target_dir
-        super().__init__()
-        loadUi('..\\gui\\import_image_dlg.ui', self)
-        self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
-        self.show()
-        self.pushButton_selectFile.clicked.connect(self.select_file)
-        self.pushButton_selectFile.setIcon(QIcon('..\\img\\selectdir.png'))
-        self.pushButton_selectFile.setIconSize(QSize(16, 16))
-
-    def select_file(self):
-        # Let user select image to be imported:
-        start_path = 'C:\\'
-        selected_file = str(QFileDialog.getOpenFileName(
-            self, 'Select image',
-            start_path,
-            'Images (*.tif *.png *.bmp *.jpg)'
-            )[0])
-        if len(selected_file) > 0:
-            # Replace forward slashes with backward slashes:
-            selected_file = selected_file.replace('/', '\\')
-            self.lineEdit_fileName.setText(selected_file)
-            self.lineEdit_name.setText(
-                os.path.splitext(os.path.basename(selected_file))[0])
-
-    def accept(self):
-        selection_success = True
-        selected_path = self.lineEdit_fileName.text()
-        selected_filename = os.path.basename(selected_path)
-        timestamp = str(datetime.datetime.now())
-        # Remove some characters from timestap to get valid file name:
-        timestamp = timestamp[:19].translate({ord(c): None for c in ' :-.'})
-        target_path = (self.target_dir + '\\'
-                       + os.path.splitext(selected_filename)[0]
-                       + '_' + timestamp + '.png')
-        if os.path.isfile(selected_path):
-            # Copy file to data folder as png:
-            try:
-                imported_img = Image.open(selected_path)
-                imported_img.save(target_path)
-            except:
-                QMessageBox.warning(
-                    self, 'Error',
-                    'Could not load image file.',
-                     QMessageBox.Ok)
-                selection_success = False
-
-            if selection_success:
-                new_index = self.imported.number_imported
-                self.imported.add_image()
-                self.imported[new_index].image_src = target_path
-                self.imported[new_index].centre_sx_sy = [
-                    self.doubleSpinBox_posX.value(),
-                    self.doubleSpinBox_posY.value()]
-                self.imported[new_index].rotation = (
-                    self.spinBox_rotation.value())
-                self.imported[new_index].description = (
-                    self.lineEdit_name.text())
-                width, height = imported_img.size
-                self.imported[new_index].size = [width, height]
-                self.imported[new_index].pixel_size = (
-                    self.doubleSpinBox_pixelSize.value())
-                self.imported[new_index].transparency = (
-                    self.spinBox_transparency.value())
-                if self.imported[new_index].image is None:
-                    QMessageBox.warning(
-                        self, 'Error',
-                        'Could not load image as QPixmap.',
-                         QMessageBox.Ok)
-        else:
-            QMessageBox.warning(self, 'Error',
-                                'Specified file not found.',
-                                QMessageBox.Ok)
-            selection_success = False
-
-        if selection_success:
-            super().accept()
-
-#------------------------------------------------------------------------------
-
-class AdjustImageDlg(QDialog):
-    """Adjust an imported image (size, rotation, transparency)"""
-
-    def __init__(self, imported_images, selected_img,
-                 main_window_queue, main_window_trigger):
-        self.imported = imported_images
-        self.main_window_queue = main_window_queue
-        self.main_window_trigger = main_window_trigger
-        self.selected_img = selected_img
-        super().__init__()
-        loadUi('..\\gui\\adjust_imported_image_dlg.ui', self)
-        self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
-        self.show()
-        self.lineEdit_selectedImage.setText(
-            self.imported[self.selected_img].description)
-        pos_x, pos_y = self.imported[self.selected_img].centre_sx_sy
-        self.doubleSpinBox_posX.setValue(pos_x)
-        self.doubleSpinBox_posY.setValue(pos_y)
-        self.doubleSpinBox_pixelSize.setValue(
-            self.imported[self.selected_img].pixel_size)
-        self.spinBox_rotation.setValue(
-            self.imported[self.selected_img].rotation)
-        self.spinBox_transparency.setValue(
-            self.imported[self.selected_img].transparency)
-        # Use "Apply" button to show changes in viewport
-        apply_button = self.buttonBox.button(QDialogButtonBox.Apply)
-        cancel_button = self.buttonBox.button(QDialogButtonBox.Cancel)
-        cancel_button.setAutoDefault(False)
-        cancel_button.setDefault(False)
-        apply_button.setDefault(True)
-        apply_button.setAutoDefault(True)
-        apply_button.clicked.connect(self.apply_changes)
-
-    def apply_changes(self):
-        """Apply the current settings and redraw the image in the viewport."""
-        self.imported[self.selected_img].centre_sx_sy = [
-            self.doubleSpinBox_posX.value(),
-            self.doubleSpinBox_posY.value()]
-        self.imported[self.selected_img].pixel_size = (
-            self.doubleSpinBox_pixelSize.value())
-        self.imported[self.selected_img].rotation = (
-            self.spinBox_rotation.value())
-        self.imported[self.selected_img].transparency = (
-            self.spinBox_transparency.value())
-        # Emit signals to redraw Viewport:
-        self.main_window_queue.put('DRAW VP')
-        self.main_window_trigger.s.emit()
-
-#------------------------------------------------------------------------------
-
-class DeleteImageDlg(QDialog):
-    """Delete an imported image from the viewport."""
-
-    def __init__(self, imported_images):
-        self.imported = imported_images
-        super().__init__()
-        loadUi('..\\gui\\delete_image_dlg.ui', self)
-        self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
-        self.show()
-        # Populate the list widget with existing imported images:
-        img_list = []
-        for i in range(self.imported.number_imported):
-            img_list.append(str(i) + ' - ' + self.imported[i].description)
-        self.listWidget_imagelist.addItems(img_list)
-
-    def accept(self):
-        selected_img = self.listWidget_imagelist.currentRow()
-        if selected_img is not None:
-            self.imported.delete_image(selected_img)
-        super().accept()
-
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class GridSettingsDlg(QDialog):
     """Dialog for changing grid settings."""
@@ -1248,7 +1086,7 @@ class GridSettingsDlg(QDialog):
         sub_dialog = FocusGradientSettingsDlg(self.gm, self.current_grid)
         sub_dialog.exec_()
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class FocusGradientSettingsDlg(QDialog):
     """Select the tiles to calculate the working distance gradient."""
@@ -1362,156 +1200,8 @@ class FocusGradientSettingsDlg(QDialog):
         self.gm[self.current_grid].calculate_wd_gradient()
         super().reject()
 
-#------------------------------------------------------------------------------
 
-class FocusGradientTileSelectionDlg(QDialog):
-
-    def __init__(self, current_ref_tiles):
-        super().__init__()
-        self.selected = None
-        loadUi('..\\gui\\wd_gradient_tile_selection_dlg.ui', self)
-        self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
-        self.show()
-        self.grid_illustration.setPixmap(QPixmap('..\\img\\grid.png'))
-        if current_ref_tiles[0] >= 0:
-            self.pushButton_pos0.setText(str(current_ref_tiles[0]))
-        else:
-            self.pushButton_pos0.setText('-')
-        if current_ref_tiles[1] >= 0:
-            self.pushButton_pos1.setText(str(current_ref_tiles[1]))
-        else:
-            self.pushButton_pos1.setText('-')
-        if current_ref_tiles[2] >= 0:
-            self.pushButton_pos2.setText(str(current_ref_tiles[2]))
-        else:
-            self.pushButton_pos2.setText('-')
-        self.pushButton_pos0.clicked.connect(self.select_pos0)
-        self.pushButton_pos1.clicked.connect(self.select_pos1)
-        self.pushButton_pos2.clicked.connect(self.select_pos2)
-
-    def select_pos0(self):
-        self.selected = 0
-        super().accept()
-
-    def select_pos1(self):
-        self.selected = 1
-        super().accept()
-
-    def select_pos2(self):
-        self.selected = 2
-        super().accept()
-
-#------------------------------------------------------------------------------
-
-class GridRotationDlg(QDialog):
-    """Change the rotation angle of a selected grid."""
-
-    def __init__(self, selected_grid, gm, cfg, main_window_queue, main_window_trigger):
-        self.selected_grid = selected_grid
-        self.gm = gm
-        self.cfg = cfg
-        self.main_window_queue = main_window_queue
-        self.main_window_trigger = main_window_trigger
-        self.rotation_in_progress = False
-        super().__init__()
-        loadUi('..\\gui\\change_grid_rotation_dlg.ui', self)
-        self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
-        self.show()
-        self.label_description.setText(
-            f'Rotation of selected grid {self.selected_grid} in degrees:')
-
-        # Keep current angle and origin to enable undo option
-        self.previous_angle = self.gm[selected_grid].rotation
-        self.previous_origin_sx_sy = self.gm[selected_grid].origin_sx_sy
-        # Set initial values:
-        self.doubleSpinBox_angle.setValue(self.previous_angle)
-        # Slider value 0..719 (twice the angle in degrees) for 0.5 degree steps
-        self.horizontalSlider_angle.setValue(
-            self.doubleSpinBox_angle.value() * 2)
-
-        self.horizontalSlider_angle.valueChanged.connect(self.update_spinbox)
-        self.doubleSpinBox_angle.valueChanged.connect(self.update_slider)
-
-    def keyPressEvent(self, event):
-        # Catch KeyPressEvent when user presses Enter (otherwise dialog would exit.)
-        if event.key() == Qt.Key_Enter or event.key() == Qt.Key_Return:
-            event.accept()
-
-    def update_spinbox(self):
-        self.doubleSpinBox_angle.blockSignals(True)
-        self.doubleSpinBox_angle.setValue(
-            self.horizontalSlider_angle.value() / 2)
-        self.doubleSpinBox_angle.blockSignals(False)
-        self.update_grid()
-
-    def update_slider(self):
-        self.horizontalSlider_angle.blockSignals(True)
-        self.horizontalSlider_angle.setValue(
-            self.doubleSpinBox_angle.value() * 2)
-        self.horizontalSlider_angle.blockSignals(False)
-        self.update_grid()
-
-    def update_grid(self):
-        """Apply the new rotation angle and redraw the viewport"""
-        self.time_of_last_rotation = time()
-        if not self.rotation_in_progress:
-            # Start thread to ensure viewport is drawn with labels and previews
-            # after rotation completed.
-            self.rotation_in_progress = True
-            update_viewport_with_delay_thread = threading.Thread(
-                target=self.update_viewport_with_delay,
-                args=())
-            update_viewport_with_delay_thread.start()
-        if self.radioButton_pivotCentre.isChecked():
-            # Get current centre of grid:
-            centre_dx, centre_dy = self.gm[self.selected_grid].centre_dx_dy
-            # Set new angle
-            self.gm[self.selected_grid].rotation = self.doubleSpinBox_angle.value()
-            self.gm[self.selected_grid].rotate_around_grid_centre(centre_dx, centre_dy)
-        else:
-            self.gm[self.selected_grid].rotation = self.doubleSpinBox_angle.value()
-        # Update tile positions:
-        self.gm[self.selected_grid].update_tile_positions()
-        # Emit signal to redraw:
-        self.main_window_queue.put('DRAW VP NO LABELS')
-        self.main_window_trigger.s.emit()
-
-    def draw_with_labels(self):
-        self.main_window_queue.put('DRAW VP')
-        self.main_window_trigger.s.emit()
-
-    def update_viewport_with_delay(self):
-        """Redraw the viewport without suppressing labels/previews after at
-        least 0.3 seconds have passed since last update of the rotation angle."""
-        finish_trigger = Trigger()
-        finish_trigger.s.connect(self.draw_with_labels)
-        current_time = self.time_of_last_rotation
-        while (current_time - self.time_of_last_rotation < 0.3):
-            sleep(0.1)
-            current_time += 0.1
-        self.rotation_in_progress = False
-        finish_trigger.s.emit()
-
-    def reject(self):
-        # Revert to previous angle and origin:
-        self.gm[self.selected_grid].rotation = self.previous_angle
-        self.gm[self.selected_grid].origin_sx_sy = self.previous_origin_sx_sy
-        self.main_window_queue.put('DRAW VP')
-        self.main_window_trigger.s.emit()
-        super().reject()
-
-    def accept(self):
-        # Calculate new grid map with new rotation angle:
-        self.gm[self.selected_grid].update_tile_positions()
-        if self.cfg['sys']['magc_mode'] == 'True':
-            self.gm.update_source_ROIs_from_grids()
-        super().accept()
-
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class AcqSettingsDlg(QDialog):
     """Let user adjust acquisition settings."""
@@ -1652,7 +1342,7 @@ class AcqSettingsDlg(QDialog):
             self.cfg['acq']['base_dir'] = modified_dir
             super().accept()
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class PreStackDlg(QDialog):
     """Let user check the acquisition settings before starting a stack.
@@ -1744,7 +1434,7 @@ class PreStackDlg(QDialog):
             self.checkBox_oscillation.isChecked())
         super().accept()
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class PauseDlg(QDialog):
     """Let the user pause a running acquisition. Two options: (1) Pause as soon
@@ -1777,7 +1467,7 @@ class PauseDlg(QDialog):
     def accept(self):
         super().accept()
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class ExportDlg(QDialog):
     """Export image list in TrakEM2 format."""
@@ -1876,6 +1566,7 @@ class ExportDlg(QDialog):
         self.pushButton_export.setEnabled(True)
         QApplication.processEvents()
 
+# ------------------------------------------------------------------------------
 
 class UpdateDlg(QDialog):
     """Update SBEMimage by downloading latest version from GitHub."""
@@ -1932,7 +1623,7 @@ class UpdateDlg(QDialog):
                 self.pushButton_update.setText('Update now')
                 self.pushButton_update.setEnabled(True)
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class EmailMonitoringSettingsDlg(QDialog):
     """Adjust settings for the e-mail monitoring feature."""
@@ -2041,7 +1732,7 @@ class EmailMonitoringSettingsDlg(QDialog):
         else:
             QMessageBox.warning(self, 'Error', error_str, QMessageBox.Ok)
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class DebrisSettingsDlg(QDialog):
     """Adjust the options for debris detection and removal: Detection area,
@@ -2140,7 +1831,7 @@ class DebrisSettingsDlg(QDialog):
             self.cfg['debris']['detection_method'] = '2'
         super().accept()
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class AskUserDlg(QDialog):
     """Specify for which events the program should let the user decide how
@@ -2156,7 +1847,7 @@ class AskUserDlg(QDialog):
         self.setFixedSize(self.size())
         self.show()
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class MirrorDriveDlg(QDialog):
     """Select a mirror drive from all available drives."""
@@ -2205,7 +1896,7 @@ class MirrorDriveDlg(QDialog):
                     self.comboBox_allDrives.currentText())
                 super().accept()
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class ImageMonitoringSettingsDlg(QDialog):
     """Adjust settings to monitor overviews and tiles. A test if image is
@@ -2267,7 +1958,7 @@ class ImageMonitoringSettingsDlg(QDialog):
         else:
             QMessageBox.warning(self, 'Error', error_str, QMessageBox.Ok)
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class AutofocusSettingsDlg(QDialog):
     """Adjust settings for the ZEISS autofocus, the heuristic autofocus,
@@ -2418,7 +2109,7 @@ class AutofocusSettingsDlg(QDialog):
         else:
             QMessageBox.warning(self, 'Error', error_str, QMessageBox.Ok)
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class PlasmaCleanerDlg(QDialog):
     """Set parameters for the downstream asher, run it."""
@@ -2484,7 +2175,7 @@ class PlasmaCleanerDlg(QDialog):
             'Start in-chamber cleaning process')
         self.pushButton_abortCleaning.setEnabled(False)
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class ApproachDlg(QDialog):
     """Remove slices without imaging. User can specify how many slices and
@@ -2545,7 +2236,7 @@ class ApproachDlg(QDialog):
         self.buttonBox.setEnabled(False)
         self.spinBox_thickness.setEnabled(False)
         self.spinBox_numberSlices.setEnabled(False)
-        self.main_window_queue.put('APPROACH BUSY')
+        self.main_window_queue.put('STATUS BUSY APPROACH')
         self.main_window_trigger.s.emit()
         thread = threading.Thread(target=self.approach_thread)
         thread.start()
@@ -2683,7 +2374,7 @@ class ApproachDlg(QDialog):
         if not self.approach_in_progress:
             super().accept()
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class GrabFrameDlg(QDialog):
     """Acquires or saves a single frame from SmartSEM."""
@@ -2792,7 +2483,7 @@ class GrabFrameDlg(QDialog):
         self.main_window_queue.put(utils.format_log_entry(msg))
         self.main_window_trigger.s.emit()
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class EHTDlg(QDialog):
     """Show EHT status and let user switch beam on or off."""
@@ -2856,7 +2547,7 @@ class EHTDlg(QDialog):
         self.pushButton_off.setText('OFF')
         self.update_status()
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class FTSetParamsDlg(QDialog):
     """Read working distance and stigmation parameters from user input or
@@ -2903,7 +2594,7 @@ class FTSetParamsDlg(QDialog):
         self.new_stig_y = self.doubleSpinBox_currentStigY.value()
         super().accept()
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class FTMoveDlg(QDialog):
     """Move the stage to the selected tile or OV position."""
@@ -2969,7 +2660,7 @@ class FTMoveDlg(QDialog):
         self.pushButton_move.setText('Move again')
         self.pushButton_move.setEnabled(True)
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class MotorTestDlg(QDialog):
     """Perform a random-walk-like XYZ motor test. Experimental, only for
@@ -3144,194 +2835,7 @@ class MotorTestDlg(QDialog):
         if not self.approach_in_progress:
             super().accept()
 
-#------------------------------------------------------------------------------
-
-class StubOVDlg(QDialog):
-    """Acquire a stub overview image. The user can specify the location
-       in stage coordinates and the size of the grid.
-    """
-
-    def __init__(self, centre_dx_dy, grid_size_selector,
-                 base_dir, slice_counter,
-                 sem, stage, ovm,
-                 main_window_queue, main_window_trigger):
-        super().__init__()
-        loadUi('..\\gui\\stub_ov_dlg.ui', self)
-        self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
-        self.show()
-        self.base_dir = base_dir
-        self.slice_counter = slice_counter
-        self.sem = sem
-        self.stage = stage
-        self.ovm = ovm
-        self.main_window_queue = main_window_queue
-        self.main_window_trigger = main_window_trigger
-        # Set up trigger and queue to update dialog GUI during approach:
-        self.acq_thread_trigger = Trigger()
-        self.acq_thread_trigger.s.connect(self.process_thread_signal)
-        self.acq_thread_queue = Queue()
-        self.abort_queue = Queue()
-        self.acq_in_progress = False
-        self.pushButton_acquire.clicked.connect(self.acquire_stub_ov)
-        self.pushButton_abort.clicked.connect(self.abort)
-        self.spinBox_X.setValue(centre_dx_dy[0])
-        self.spinBox_Y.setValue(centre_dx_dy[1])
-        self.grid_size_selector = grid_size_selector
-        self.durations = []
-
-        # Show available grid sizes and the corresponding estimated
-        # durations in min
-        tile_width = self.ovm['stub'].frame_size[0]
-        tile_height = self.ovm['stub'].frame_size[1]
-        overlap = self.ovm['stub'].overlap
-        pixel_size = self.ovm['stub'].pixel_size
-        cycle_time = self.ovm['stub'].tile_cycle_time()
-        motor_move_time = self.stage.stage_move_duration(
-            *self.ovm['stub'][0].sx_sy, *self.ovm['stub'][1].sx_sy)
-
-        self.grid_size_list = []
-        for grid_size in self.ovm['stub'].GRID_SIZE:
-            rows, cols = grid_size
-            width = int(
-                (cols * tile_width - (cols-1) * overlap) * pixel_size / 1000)
-            height = int(
-                (rows * tile_height - (rows-1) * overlap) * pixel_size / 1000)
-            duration = int(round(
-                (rows * cols * (cycle_time + motor_move_time)) / 60))
-
-            self.grid_size_list.append(
-                str(width) + ' µm × ' + str(height) + ' µm')
-            self.durations.append('Up to ~' + str(duration) + ' min')
-        # Grid size selection:
-        self.comboBox_sizeSelector.addItems(self.grid_size_list)
-        self.comboBox_sizeSelector.setCurrentIndex(self.grid_size_selector)
-        self.comboBox_sizeSelector.currentIndexChanged.connect(
-            self.update_duration)
-        self.label_duration.setText(self.durations[self.grid_size_selector])
-        self.previous_centre_sx_sy = self.ovm['stub'].centre_sx_sy
-        self.previous_grid_size_selector = self.ovm['stub'].grid_size_selector
-
-    def process_thread_signal(self):
-        """Process commands from the queue when a trigger signal occurs
-           while the acquisition of the stub overview is running.
-        """
-        msg = self.acq_thread_queue.get()
-        if msg == 'UPDATE STAGEPOS':
-            self.show_new_stage_pos()
-        elif msg[:15] == 'UPDATE PROGRESS':
-            percentage = int(msg[15:])
-            self.progressBar.setValue(percentage)
-        elif msg == 'STUB OV SUCCESS':
-            self.main_window_queue.put('STUB OV SUCCESS')
-            self.main_window_trigger.s.emit()
-            self.pushButton_acquire.setEnabled(True)
-            self.pushButton_abort.setEnabled(False)
-            self.buttonBox.setEnabled(True)
-            self.spinBox_X.setEnabled(True)
-            self.spinBox_Y.setEnabled(True)
-            self.comboBox_sizeSelector.setEnabled(True)
-            QMessageBox.information(
-                self, 'Stub Overview acquisition complete',
-                'The stub overview was completed successfully.',
-                QMessageBox.Ok)
-            self.acq_in_progress = False
-        elif msg == 'STUB OV FAILURE':
-            self.main_window_queue.put('STUB OV FAILURE')
-            self.main_window_trigger.s.emit()
-            # Restore previous origin:
-            self.ovm['stub'].centre_sx_sy = self.previous_centre_sx_sy
-            self.ovm['stub'].grid_size_selector = (
-                self.previous_grid_size_selector)
-            QMessageBox.warning(
-                self, 'Error during stub overview acquisition',
-                'An error occurred during the acquisition of the stub '
-                'overview mosaic. The most likely cause are incorrect '
-                'settings of the stage X/Y motor ranges or speeds. Home '
-                'the stage and check whether the range limits specified '
-                'in SBEMimage are correct.',
-                QMessageBox.Ok)
-            self.acq_in_progress = False
-            self.close()
-        elif msg == 'STUB OV ABORT':
-            self.main_window_queue.put('STATUS IDLE')
-            self.main_window_trigger.s.emit()
-            # Restore previous origin:
-            self.ovm['stub'].centre_sx_sy = self.previous_centre_sx_sy
-            self.ovm['stub'].grid_size_selector = (
-                self.previous_grid_size_selector)
-            QMessageBox.information(
-                self, 'Stub Overview acquisition aborted',
-                'The stub overview acquisition was aborted.',
-                QMessageBox.Ok)
-            self.acq_in_progress = False
-            self.close()
-
-    def update_duration(self):
-        self.label_duration.setText(self.durations[
-            self.comboBox_sizeSelector.currentIndex()])
-
-    def show_new_stage_pos(self):
-        self.main_window_queue.put('UPDATE XY')
-        self.main_window_trigger.s.emit()
-
-    def add_to_log(self, msg):
-        self.main_window_queue.put(utils.format_log_entry(msg))
-        self.main_window_trigger.s.emit()
-
-    def acquire_stub_ov(self):
-        """Acquire the stub overview. Acquisition routine runs in
-           a thread.
-        """
-        # Start acquisition only if EHT is on:
-        if self.sem.is_eht_on():
-            self.acq_in_progress = True
-            centre_sx_sy = self.spinBox_X.value(), self.spinBox_Y.value()
-            grid_size_selector = self.comboBox_sizeSelector.currentIndex()
-            # Change the Stub Overview to the requested grid size and centre
-            self.ovm['stub'].grid_size_selector = grid_size_selector
-            self.ovm['stub'].centre_sx_sy = centre_sx_sy
-
-            self.add_to_log(
-                'CTRL: User-requested acquisition of stub OV mosaic started.')
-            self.pushButton_acquire.setEnabled(False)
-            self.pushButton_abort.setEnabled(True)
-            self.buttonBox.setEnabled(False)
-            self.spinBox_X.setEnabled(False)
-            self.spinBox_Y.setEnabled(False)
-            self.comboBox_sizeSelector.setEnabled(False)
-            self.progressBar.setValue(0)
-            self.main_window_queue.put('STUB OV BUSY')
-            self.main_window_trigger.s.emit()
-            QApplication.processEvents()
-            stub_acq_thread = threading.Thread(
-                                  target=acq_func.acquire_stub_ov,
-                                  args=(self.base_dir, self.slice_counter,
-                                        self.sem, self.stage, self.ovm,
-                                        self.acq_thread_queue,
-                                        self.acq_thread_trigger,
-                                        self.abort_queue,))
-            stub_acq_thread.start()
-        else:
-            QMessageBox.warning(
-                self, 'EHT off',
-                'EHT / high voltage is off. Please turn '
-                'it on before starting the acquisition.',
-                QMessageBox.Ok)
-
-    def abort(self):
-        if self.abort_queue.empty():
-            self.abort_queue.put('ABORT')
-            self.pushButton_abort.setEnabled(False)
-
-    def closeEvent(self, event):
-        if not self.acq_in_progress:
-            event.accept()
-        else:
-            event.ignore()
-
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class AboutBox(QDialog):
     """Show the About dialog box with info about SBEMimage and the current

@@ -3,7 +3,7 @@
 # ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2018-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
@@ -28,10 +28,9 @@ from queue import Queue
 from PyQt5.QtWidgets import QApplication, QTableWidgetSelectionRange, \
                             QAbstractItemView
 from PyQt5.QtCore import QObject, Qt, QRect, QSize, pyqtSignal, QEvent, \
-                        QItemSelection, QItemSelectionModel, QModelIndex
+                         QItemSelection, QItemSelectionModel, QModelIndex
 from PyQt5.QtGui import QIcon, QPalette, QColor, QPixmap, QKeyEvent, \
-                        QStatusTipEvent, \
-                        QStandardItem, QStandardItemModel
+                        QStatusTipEvent, QStandardItem, QStandardItemModel
 from PyQt5.QtWidgets import QMainWindow, QMessageBox, QInputDialog, QLineEdit, \
                             QHeaderView
 from PyQt5.uic import loadUi
@@ -50,18 +49,18 @@ from coordinate_system import CoordinateSystem
 from viewport import Viewport
 from image_inspector import ImageInspector
 from autofocus import Autofocus
-from dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
-                        GridSettingsDlg, AutofocusSettingsDlg, \
-                        EmailMonitoringSettingsDlg, DebrisSettingsDlg, \
-                        ImageMonitoringSettingsDlg, AcqSettingsDlg, \
-                        SaveConfigDlg, PlasmaCleanerDlg, OVSettingsDlg, \
-                        ApproachDlg, MirrorDriveDlg, ExportDlg, MotorTestDlg, \
-                        StageCalibrationDlg, MagCalibrationDlg, PreStackDlg, \
-                        PauseDlg, StubOVDlg, EHTDlg, GrabFrameDlg, \
-                        FTSetParamsDlg, FTMoveDlg, AskUserDlg, \
-                        ImportImageDlg, AdjustImageDlg, DeleteImageDlg, \
-                        UpdateDlg, CutDurationDlg, GridRotationDlg, \
-                        KatanaSettingsDlg, AboutBox
+from main_controls_dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
+                                      GridSettingsDlg, OVSettingsDlg, \
+                                      AcqSettingsDlg, PreStackDlg, PauseDlg, \
+                                      AutofocusSettingsDlg, DebrisSettingsDlg, \
+                                      EmailMonitoringSettingsDlg, \
+                                      ImageMonitoringSettingsDlg, ExportDlg, \
+                                      SaveConfigDlg, PlasmaCleanerDlg, \
+                                      ApproachDlg, MirrorDriveDlg, EHTDlg, \
+                                      StageCalibrationDlg, MagCalibrationDlg, \
+                                      GrabFrameDlg, FTSetParamsDlg, FTMoveDlg, \
+                                      AskUserDlg, UpdateDlg, CutDurationDlg, \
+                                      KatanaSettingsDlg, AboutBox
 
 from magc_controls import ImportMagCDlg, ImportWaferImageDlg, WaferCalibrationDlg
 
@@ -100,12 +99,12 @@ class MainControls(QMainWindow):
         # Now show main window:
         self.show()
         QApplication.processEvents()
+
         # Initialize viewport window:
-        self.viewport = Viewport(self.cfg, self.sem, self.stage,
+        self.viewport = Viewport(self.cfg, self.sem, self.stage, self.cs,
                                  self.ovm, self.gm, self.imported,
-                                 self.cs, self.autofocus,
-                                 self.viewport_trigger,
-                                 self.viewport_queue)
+                                 self.autofocus, self.stack,
+                                 self.trigger, self.queue)
         self.viewport.show()
         # Draw the workspace
         self.viewport.vp_draw()
@@ -193,9 +192,10 @@ class MainControls(QMainWindow):
         self.pushButton_acqSettings.setIconSize(QSize(16, 16))
         # Command buttons
         self.pushButton_doApproach.clicked.connect(self.open_approach_dlg)
-        self.pushButton_doSweep.clicked.connect(self.sweep)
+        self.pushButton_doSweep.clicked.connect(self.manual_sweep)
         self.pushButton_grabFrame.clicked.connect(self.open_grab_frame_dlg)
-        self.pushButton_saveViewport.clicked.connect(self.save_viewport)
+        self.pushButton_saveViewport.clicked.connect(
+            self.save_viewport_screenshot)
         self.pushButton_EHTToggle.clicked.connect(self.open_eht_dlg)
         # Acquisition control buttons
         self.pushButton_startAcq.clicked.connect(self.open_pre_stack_dlg)
@@ -381,16 +381,11 @@ class MainControls(QMainWindow):
         self.current_ov = 0
         self.current_grid = 0
 
-        # Set up trigger to update information from Viewport:
-        self.viewport_trigger = Trigger()
-        self.viewport_trigger.s.connect(self.process_viewport_signal)
-        self.viewport_queue = Queue()
-
-        # Set up update function that is called during main acquisition loop
-        # in thread:
-        self.acq_trigger = Trigger()
-        self.acq_trigger.s.connect(self.process_acq_signal)
-        self.acq_queue = Queue()
+        # Set up trigger and queue to update main controls from the
+        # acquisition thread or dialog windows.
+        self.trigger = Trigger()
+        self.trigger.s.connect(self.process_signal)
+        self.queue = Queue()
 
         # First log message:
         self.add_to_log('CTRL: SBEMimage Version ' + self.VERSION)
@@ -509,13 +504,13 @@ class MainControls(QMainWindow):
 
         # Set up autofocus instance:
         self.autofocus = Autofocus(self.cfg, self.sem, self.gm,
-                                   self.acq_queue, self.acq_trigger)
+                                   self.queue, self.trigger)
         # Finally, the stack instance:
         self.stack = Stack(self.cfg,
                            self.sem, self.microtome, self.stage,
                            self.ovm, self.gm, self.cs,
                            self.img_inspector, self.autofocus,
-                           self.acq_queue, self.acq_trigger)
+                           self.queue, self.trigger)
 
     def try_to_create_directory(self, new_directory):
         """Create directory. If not possible: error message"""
@@ -952,13 +947,13 @@ class MainControls(QMainWindow):
         gui_items = {
         'sectionList': self.tableView_magc_sectionList,
         }
-        dialog = ImportMagCDlg(self.cfg, self.gm, self.cs, self.stage, self.sem, self.ovm, self.viewport, gui_items, self.acq_trigger, self.acq_queue)
+        dialog = ImportMagCDlg(self.cfg, self.gm, self.cs, self.stage, self.sem, self.ovm, self.viewport, gui_items, self.trigger, self.queue)
         if dialog.exec_():
             # self.tabWidget.setTabEnabled(3, True)
             self.update_from_grid_dlg()
 
     def magc_open_wafer_calibration_dlg(self):
-        dialog = WaferCalibrationDlg(self.cfg, self.stage, self.ovm, self.cs, self.gm, self.viewport, self.acq_queue, self.acq_trigger)
+        dialog = WaferCalibrationDlg(self.cfg, self.stage, self.ovm, self.cs, self.gm, self.viewport, self.queue, self.trigger)
         if dialog.exec_():
             pass
 
@@ -1032,7 +1027,7 @@ class MainControls(QMainWindow):
 
     def open_ov_dlg(self):
         dialog = OVSettingsDlg(self.ovm, self.sem, self.current_ov,
-                               self.acq_queue, self.acq_trigger)
+                               self.queue, self.trigger)
         # self.update_from_ov_dlg() is called when user saves settings
         # or adds/deletes OVs.
         dialog.exec_()
@@ -1047,27 +1042,9 @@ class MainControls(QMainWindow):
         self.show_estimates()
         self.viewport.vp_draw()
 
-    def open_import_image_dlg(self):
-        target_dir = os.path.join(self.cfg['acq']['base_dir'], 'imported')
-        if not os.path.exists(target_dir):
-            self.try_to_create_directory(target_dir)
-        dialog = ImportImageDlg(self.imported, target_dir)
-        if dialog.exec_():
-            self.viewport.vp_draw()
-
-    def open_adjust_image_dlg(self, selected_img):
-        dialog = AdjustImageDlg(self.imported, selected_img,
-                                self.acq_queue, self.acq_trigger)
-        dialog.exec_()
-
-    def open_delete_image_dlg(self):
-        dialog = DeleteImageDlg(self.imported)
-        if dialog.exec_():
-            self.viewport.vp_draw()
-
     def open_grid_dlg(self, selected_grid):
         dialog = GridSettingsDlg(self.gm, self.sem, selected_grid,
-                                 self.cfg, self.acq_queue, self.acq_trigger)
+                                 self.cfg, self.queue, self.trigger)
         # self.update_from_grid_dlg() is called when user saves settings
         # or adds/deletes grids.
         dialog.exec_()
@@ -1085,14 +1062,6 @@ class MainControls(QMainWindow):
         self.show_current_settings()
         self.show_estimates()
         self.viewport.vp_draw()
-
-    def open_change_grid_rotation_dlg(self, selected_grid):
-        dialog = GridRotationDlg(selected_grid, self.gm, self.cfg,
-            self.acq_queue, self.acq_trigger)
-        if dialog.exec_():
-            if self.cfg['debris']['auto_detection_area'] == 'True':
-                self.ovm.update_all_debris_detections_areas(self.gm)
-                self.viewport.vp_draw()
 
     def open_acq_settings_dlg(self):
         dialog = AcqSettingsDlg(self.cfg, self.stack)
@@ -1161,12 +1130,12 @@ class MainControls(QMainWindow):
 
     def open_approach_dlg(self):
         # Trigger and queue needed to pass updates to main window (z coordinate)
-        dialog = ApproachDlg(self.microtome, self.acq_queue, self.acq_trigger)
+        dialog = ApproachDlg(self.microtome, self.queue, self.trigger)
         dialog.exec_()
 
     def open_grab_frame_dlg(self):
         dialog = GrabFrameDlg(self.cfg, self.sem,
-                              self.acq_queue, self.acq_trigger)
+                              self.queue, self.trigger)
         dialog.exec_()
 
     def open_eht_dlg(self):
@@ -1175,20 +1144,7 @@ class MainControls(QMainWindow):
 
     def open_motor_test_dlg(self):
         dialog = MotorTestDlg(self.cfg, self.microtome,
-                              self.acq_queue, self.acq_trigger)
-        dialog.exec_()
-
-    def open_stub_ov_dlg(self):
-        centre_dx_dy = self.viewport.stub_ov_centre
-        if centre_dx_dy[0] is None:
-            # Use the last known position
-            centre_dx_dy = self.ovm['stub'].centre_dx_dy
-        grid_size_selector = self.ovm['stub'].grid_size_selector
-        dialog = StubOVDlg(centre_dx_dy, grid_size_selector,
-                           self.cfg['acq']['base_dir'],
-                           self.stack.get_slice_counter(),
-                           self.sem, self.stage, self.ovm,
-                           self.acq_queue, self.acq_trigger)
+                              self.queue, self.trigger)
         dialog.exec_()
 
     def open_about_box(self):
@@ -1249,41 +1205,34 @@ class MainControls(QMainWindow):
             e = QStatusTipEvent(self.statusbar_msg)
         return super().event(e)
 
-    def process_acq_signal(self):
-        """Process signals from acquisition thread and from dialog windows.
-           The trigger/queue approach is required to pass information
-           between threads.
+    def process_signal(self):
+        """Process signals from the acquisition thread, the viewport, or from
+        dialog windows. The trigger/queue approach is required to pass
+        information between threads and to allow the GUI to be updated from a
+        thread.
         """
-        msg = self.acq_queue.get()
-        if msg == 'OV SUCCESS':
-            self.acquire_ov_success(True)
-        elif msg == 'OV FAILURE':
-            self.acquire_ov_success(False)
-        elif msg == 'STUB OV SUCCESS':
-            self.acquire_stub_ov_success(True)
-        elif msg == 'STUB OV FAILURE':
-            self.acquire_stub_ov_success(False)
-        elif msg == 'STUB OV BUSY':
-            self.set_status('Busy.')
-            self.set_statusbar(
-                'Stub overview acquisition in progress...')
-        elif msg == 'APPROACH BUSY':
-            self.set_status('Busy.')
-            self.set_statusbar(
-                'Approach cutting in progress...')
-        elif msg == 'STATUS IDLE':
+        msg = self.queue.get()
+        if msg == 'STATUS IDLE':
             self.set_status('')
             self.set_statusbar('Ready.')
-        elif msg == 'SWEEP SUCCESS':
+        elif msg == 'STATUS BUSY APPROACH':
+            self.set_status('Busy.')
+            self.set_statusbar('Approach cutting in progress...')
+        elif msg == 'STATUS BUSY OV':
+            self.set_status('Busy.')
+            self.set_statusbar('Overview acquisition in progress...')
+        elif msg == 'STATUS BUSY STUB':
+            self.set_status('Busy.')
+            self.set_statusbar('Stub overview acquisition in progress...')
+        elif msg == 'STATUS BUSY STAGE MOVE':
+            self.set_status('Busy.')
+            self.set_statusbar('Stage move in progress...')
+        elif msg == 'MANUAL SWEEP SUCCESS':
             self.show_current_stage_z()
-            self.sweep_success(True)
-        elif msg == 'SWEEP FAILURE':
+            self.manual_sweep_success(True)
+        elif msg == 'MANUAL SWEEP FAILURE':
             self.show_current_stage_z()
-            self.sweep_success(False)
-        elif msg == 'MOVE SUCCESS':
-            self.move_stage_success(True)
-        elif msg == 'MOVE FAILURE':
-            self.move_stage_success(False)
+            self.manual_sweep_success(False)
         elif msg == 'Z WARNING':
             QMessageBox.warning(
                 self, 'Z position mismatch',
@@ -1348,8 +1297,9 @@ class MainControls(QMainWindow):
             self.acq_not_in_progress_update_gui()
         elif msg == 'SAVE CFG':
             self.save_settings()
-        elif msg[:10] == 'ACQ IND OV':
-            self.viewport.vp_toggle_ov_acq_indicator(int(msg[10:]))
+        elif msg.startswith('ACQ IND OV'):
+            self.vp_toggle_ov_acq_indicator(
+                int(msg[len('ACQ IND OV'):]))
         elif msg[:12] == 'ACQ IND TILE':
             position = msg[12:].split('.')
             self.viewport.vp_toggle_tile_acq_indicator(
@@ -1369,8 +1319,6 @@ class MainControls(QMainWindow):
             self.update_from_grid_dlg()
         elif msg == 'OV SETTINGS CHANGED':
             self.update_from_ov_dlg()
-        elif msg[:12] == 'MV UPDATE OV':
-            self.viewport.vp_draw()
         elif msg[:18] == 'GRAB VP SCREENSHOT':
             self.viewport.grab_viewport_screenshot(msg[18:])
         elif msg == 'DRAW VP':
@@ -1393,14 +1341,7 @@ class MainControls(QMainWindow):
             self.magc_set_section_state_in_table(msg)
         elif msg == 'SAVE INI':
             self.save_ini()
-        else:
-            # If msg is not a command, show it in log:
-            self.textarea_log.appendPlainText(msg)
-
-    def process_viewport_signal(self):
-        """Process signals from the viewport."""
-        msg = self.viewport_queue.get()
-        if msg == 'REFRESH OV':
+        elif msg == 'REFRESH OV':
             self.acquire_ov()
         elif msg == 'ACQUIRE STUB OV':
             self.open_stub_ov_dlg()
@@ -1539,132 +1480,7 @@ class MainControls(QMainWindow):
 
 # ==================== Below: Manual SBEM commands ============================
 
-    def acquire_ov(self):
-        """Acquire one selected or all overview images."""
-        ov_selection = self.viewport.vp_current_ov
-        if ov_selection > -2:
-            user_reply = None
-            if (ov_selection == -1) and (self.ovm.number_ov > 1):
-                user_reply = QMessageBox.question(
-                    self, 'Acquisition of all overview images',
-                    'This will acquire all overview images.\n\n' +
-                    'Do you wish to proceed?',
-                    QMessageBox.Ok | QMessageBox.Cancel)
-            if (user_reply == QMessageBox.Ok or ov_selection >= 0
-                or (self.ovm.number_ov == 1 and ov_selection == -1)):
-                base_dir = self.cfg['acq']['base_dir']
-                self.add_to_log(
-                    'CTRL: User-requested acquisition of OV image(s) started')
-                self.restrict_gui(True)
-                self.viewport.restrict_gui(True)
-                self.set_status('Busy.')
-                self.set_statusbar('Overview acquisition in progress...')
-                # Start OV acquisition thread:
-                ov_acq_thread = threading.Thread(
-                    target=acq_func.acquire_ov,
-                    args=(base_dir, ov_selection,
-                          self.sem, self.stage,
-                          self.ovm, self.cs,
-                          self.acq_queue, self.acq_trigger,))
-                ov_acq_thread.start()
-        else:
-            QMessageBox.information(
-                self, 'Acquisition of overview image(s)',
-                'Please select "All OVs" or a single OV from the '
-                'pull-down menu.',
-                QMessageBox.Ok)
-
-    def acquire_ov_success(self, success):
-        if success:
-            self.add_to_log(
-                'CTRL: User-requested acquisition of overview(s) completed.')
-        else:
-            self.add_to_log('CTRL: ERROR ocurred during overview acquisition.')
-            QMessageBox.warning(
-                self, 'Error during overview acquisition',
-                'An error occurred during the acquisition of the overview(s) '
-                'at the current location(s). The most likely cause are incorrect '
-                'settings of the stage X/Y motor ranges or speeds. Home the '
-                'stage and check whether the range limits specified in '
-                'SBEMimage are correct.', QMessageBox.Ok)
-        self.restrict_gui(False)
-        self.viewport.restrict_gui(False)
-        self.set_status('')
-        self.set_statusbar('Ready.')
-
-    def acquire_stub_ov_success(self, success):
-        if success:
-            self.add_to_log(
-                'CTRL: User-requested acquisition of stub overview mosaic '
-                'completed.')
-            # Load and show new OV images:
-            self.viewport.vp_show_new_stub_overview()
-            # Reset user-selected stub_ov_centre:
-            self.viewport.stub_ov_centre = [None, None]
-            # Copy to mirror drive:
-            if self.cfg['sys']['use_mirror_drive'] == 'True':
-                mirror_path = (self.cfg['sys']['mirror_drive']
-                              + self.cfg['acq']['base_dir'][2:]
-                              + '\\overviews\\stub')
-                if not os.path.exists(mirror_path):
-                    try:
-                        os.makedirs(mirror_path)
-                    except:
-                        self.add_to_log(
-                            'CTRL: Creating directory on mirror drive failed.')
-                try:
-                    shutil.copy(self.ovm.get_stub_ov_file(), mirror_path)
-                except:
-                    self.add_to_log(
-                        'CTRL: Copying stub overview image to mirror drive '
-                        'failed.')
-
-        else:
-            self.add_to_log('CTRL: ERROR ocurred during stub overview '
-                            'acquisition.')
-
-        self.set_status('')
-        self.set_statusbar('Ready.')
-
-    def move_stage(self):
-        target_pos = self.viewport.selected_stage_pos
-        user_reply = QMessageBox.question(
-            self, 'Move to selected stage position',
-            'This will move the stage to the coordinates '
-            'X: {0:.3f}, '.format(target_pos[0])
-            + 'Y: {0:.3f}'.format(target_pos[1]),
-            QMessageBox.Ok | QMessageBox.Cancel)
-        if user_reply == QMessageBox.Ok:
-            self.add_to_log('CTRL: Performing user-requested stage move')
-            self.restrict_gui(True)
-            self.viewport.restrict_gui(True)
-            QApplication.processEvents()
-            move_thread = threading.Thread(target=acq_func.move,
-                                           args=(self.stage,
-                                                 target_pos,
-                                                 self.acq_queue,
-                                                 self.acq_trigger,))
-            move_thread.start()
-            self.set_status('Busy.')
-            self.set_statusbar('Stage move in progress...')
-
-    def move_stage_success(self, success):
-        if success:
-            self.add_to_log('CTRL: User-requested stage move completed.')
-            self.viewport.vp_draw()
-        else:
-            self.add_to_log('CTRL: ERROR ocurred during stage move.')
-            QMessageBox.warning(
-                self, 'Error during stage move',
-                'An error occurred during the requested stage move. ' +
-                'Please check the microtome status in DM.',
-                QMessageBox.Ok)
-        self.restrict_gui(False)
-        self.viewport.restrict_gui(False)
-        self.set_status('')
-        self.set_statusbar('Ready.')
-
-    def sweep(self):
+    def manual_sweep(self):
         user_reply = QMessageBox.question(
                         self, 'Sweep surface',
                         'This will perform a sweep cycle.\n\n' +
@@ -1677,15 +1493,15 @@ class MainControls(QMainWindow):
             self.restrict_gui(True)
             self.viewport.restrict_gui(True)
             QApplication.processEvents()
-            user_sweep_thread = threading.Thread(target=acq_func.sweep,
+            user_sweep_thread = threading.Thread(target=acq_func.manual_sweep,
                                                  args=(self.microtome,
-                                                       self.acq_queue,
-                                                       self.acq_trigger,))
+                                                       self.trigger,
+                                                       self.queue,))
             user_sweep_thread.start()
             self.set_status('Busy.')
             self.set_statusbar('Sweep in progress...')
 
-    def sweep_success(self, success):
+    def manual_sweep_success(self, success):
         if success:
             self.add_to_log('CTRL: User-requested sweep completed.')
         else:
@@ -1699,15 +1515,15 @@ class MainControls(QMainWindow):
         self.set_status('')
         self.set_statusbar('Ready.')
 
-    def save_viewport(self):
-        (file_name, user_edit) = QInputDialog.getText(
+    def save_viewport_screenshot(self):
+        file_name, ok_button_clicked = QInputDialog.getText(
             self, 'Save current viewport screenshot as',
             'File name (.png will be added; File will be saved in '
             'current base directory): ', QLineEdit.Normal, 'current_viewport')
-        if user_edit:
+        if ok_button_clicked:
             self.viewport.grab_viewport_screenshot(
-                self.cfg['acq']['base_dir'] + '\\' + file_name + '.png')
-            self.add_to_log('CTRL: Saved current viewport to disk.')
+                os.path.join(self.stack.base_dir, file_name + '.png'))
+            self.add_to_log('CTRL: Saved current viewport to base directory.')
 
 # ===================== Test functions in third tab ===========================
 
@@ -2424,8 +2240,8 @@ class MainControls(QMainWindow):
                 move_success = False
                 self.add_to_log('CTRL: Stage failed to move to selected tile '
                                 'for focus tool cycle.')
-        self.acq_queue.put('UPDATE XY FT')
-        self.acq_trigger.s.emit() # need to use signal because running in thread
+        self.queue.put('UPDATE XY FT')
+        self.trigger.s.emit() # need to use signal because running in thread
         if move_success:
             if self.radioButton_focus.isChecked():
                 self.ft_delta = (

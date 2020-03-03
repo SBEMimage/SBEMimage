@@ -38,7 +38,7 @@ class ImportedImage:
         if os.path.isfile(self.image_src):
             try:
                 self.image = QPixmap(self.image_src)
-                if self.rotation > 0:
+                if self.rotation != 0:
                     trans = QTransform()
                     trans.rotate(self.rotation)
                     self.image = self.image.transformed(trans)
