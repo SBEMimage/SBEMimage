@@ -3,7 +3,7 @@
 # ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2018-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
@@ -14,12 +14,11 @@
 
 # The following constants must be updated if entries are added to or
 # deleted from the default configuration files
-CFG_TEMPLATE_FILE = '..\\cfg\\default.ini'
-
+CFG_TEMPLATE_FILE = '..\\cfg\\default.ini'  # Template of user configuration
 CFG_NUMBER_SECTIONS = 12
 CFG_NUMBER_KEYS = 205
 
-SYSCFG_TEMPLATE_FILE = '..\\cfg\\system.cfg'
+SYSCFG_TEMPLATE_FILE = '..\\cfg\\system.cfg'  # Template of system configuration
 SYSCFG_NUMBER_SECTIONS = 7
 SYSCFG_NUMBER_KEYS = 28
 
@@ -27,6 +26,9 @@ import os
 from configparser import ConfigParser
 
 def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):
+    """Go through all sections and keys of the template configuration files and
+    check whether entries are present in configuration files to be processed.
+    If an entry cannot be found, use the entry from the template."""
 
     cfg_template = None
     cfg_load_success = True
@@ -37,7 +39,10 @@ def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):
     syscfg_valid = True
     syscfg_changed = False
 
+    exceptions = ''
+
     if is_default_cfg:
+        # Currently, the only validity check is verifying the number of entries.
         cfg_valid = check_number_of_entries(current_cfg, 0)
         syscfg_valid = check_number_of_entries(current_syscfg, 1)
     else:
@@ -48,15 +53,17 @@ def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):
             try:
                 with open(CFG_TEMPLATE_FILE, 'r') as file:
                     cfg_template.read_file(file)
-            except:
+            except Exception as e:
                 cfg_load_success = False
+                exceptions += str(e) + ';'
         if os.path.isfile(SYSCFG_TEMPLATE_FILE):
             syscfg_template = ConfigParser()
             try:
                 with open(SYSCFG_TEMPLATE_FILE, 'r') as file:
                     syscfg_template.read_file(file)
-            except:
+            except Exception as e:
                 syscfg_load_success = False
+                exceptions += str(e) + ';'
         if cfg_load_success:
             cfg_valid = check_number_of_entries(cfg_template, 0)
         if syscfg_load_success:
@@ -64,15 +71,15 @@ def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):
 
         if (cfg_load_success and syscfg_load_success
                 and cfg_valid and syscfg_valid):
-            # Compare default config to current user config:
+            # Compare default config to current user config.
             for section in cfg_template.sections():
-                # Go through all sections and keys:
+                # Go through all sections and keys.
                 for key in cfg_template[section]:
                     if current_cfg.has_option(section, key):
                         cfg_template[section][key] = current_cfg[section][key]
                     else:
                         cfg_changed = True
-            # Compare sys default config:
+            # Compare sys default config.
             for section in syscfg_template.sections():
                 for key in syscfg_template[section]:
                     if current_syscfg.has_option(section, key):
@@ -85,11 +92,11 @@ def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):
     success = (cfg_load_success and syscfg_load_success
                and cfg_valid and syscfg_valid)
 
-    changes = [cfg_changed, syscfg_changed]
-
     # cfg_template and syscfg_template are updated versions of the current
     # configuration
-    return success, changes, cfg_template, syscfg_template
+    return (success, exceptions,
+            cfg_changed, syscfg_changed,
+            cfg_template, syscfg_template)
 
 def check_number_of_entries(cfg, type=0):
     all_sections = cfg.sections()

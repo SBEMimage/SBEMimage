@@ -1298,7 +1298,7 @@ class MainControls(QMainWindow):
         elif msg == 'SAVE CFG':
             self.save_settings()
         elif msg.startswith('ACQ IND OV'):
-            self.vp_toggle_ov_acq_indicator(
+            self.viewport.vp_toggle_ov_acq_indicator(
                 int(msg[len('ACQ IND OV'):]))
         elif msg[:12] == 'ACQ IND TILE':
             position = msg[12:].split('.')
