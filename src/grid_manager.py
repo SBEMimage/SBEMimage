@@ -126,17 +126,15 @@ class Grid:
         self.acq_interval_offset = acq_interval_offset
         self.wd_stig_xy = wd_stig_xy
         self.use_wd_gradient = use_wd_gradient
-        self.wd_gradient_ref_tiles = wd_gradient_ref_tiles
-        self.wd_gradient_params = wd_gradient_params
         self.initialize_tiles()
         self.update_tile_positions()
-        # Set active tiles and wd_gradient_ref_tiles
+        # Set boolean flags for active tiles
         for tile_index in self.active_tiles:
             self.__tiles[tile_index].tile_active = True
-        for tile_index in self.wd_gradient_ref_tiles:
-            # Unselected gradient tiles are set to -1, therefore check if >= 0
-            if tile_index >= 0:
-                self.__tiles[tile_index].wd_grad_active = True
+        # Set wd_gradient_ref_tiles, which will set the bool flags in
+        # self.__tiles
+        self.wd_gradient_ref_tiles = wd_gradient_ref_tiles
+        self.wd_gradient_params = wd_gradient_params
 
     def __getitem__(self, tile_index):
         """Return the Tile object selected by tile_index."""
@@ -434,11 +432,23 @@ class Grid:
     def tile_selector_list(self):
         return ['Tile %d' % t for t in range(self.number_tiles)]
 
+    @property
+    def wd_gradient_ref_tiles(self):
+        return self._wd_gradient_ref_tiles
+
+    @wd_gradient_ref_tiles.setter
+    def wd_gradient_ref_tiles(self, ref_tiles):
+        self._wd_gradient_ref_tiles = ref_tiles
+        # Set bool flags for ref tiles
+        for tile_index in range(self.number_tiles):
+            self.__tiles[tile_index].wd_grad_active = (
+                tile_index in ref_tiles)
+
     def wd_gradient_ref_tile_selector_list(self):
         selector_list = []
         for tile_index in self.wd_gradient_ref_tiles:
             if tile_index >= 0:
-                selector_list.append('Tile %d' % tile)
+                selector_list.append('Tile %d' % tile_index)
             else:
                 selector_list.append('No tile selected')
         return selector_list
