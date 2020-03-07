@@ -27,8 +27,7 @@ import utils
 
 
 class Microtome:
-    """
-    Base class for microtome control. It implements minimum config/parameter
+    """Base class for microtome control. It implements minimum config/parameter
     handling. Undefined methods have to be implemented in the child class,
     otherwise NotImplementedError is raised.
     """
@@ -47,23 +46,14 @@ class Microtome:
         except:
             self.cfg['microtome']['device'] = 'NOT RECOGNIZED'
         self.device_name = self.cfg['microtome']['device']
-        # Get microtome stage limits from system cfg file
-        stage_limits = json.loads(
+        # Get microtome stage limits from systemcfg
+        # self.stage_limits: [min_x, max_x, min_y, max_y] in micrometres
+        self.stage_limits = json.loads(
             self.syscfg['stage']['microtome_stage_limits'])
-        # self.stage_limits contains the XY stage limits in microns as integers.
-        self.stage_limits = [
-            int(float(self.cfg['microtome']['stage_min_x'])),
-            int(float(self.cfg['microtome']['stage_max_x'])),
-            int(float(self.cfg['microtome']['stage_min_y'])),
-            int(float(self.cfg['microtome']['stage_max_y']))]
-        # Get microtome motor speeds from system cfg file
-        motor_speed = json.loads(self.syscfg['stage']['microtome_motor_speed'])
-        self.cfg['microtome']['motor_speed_x'] = str(motor_speed[0])
-        self.cfg['microtome']['motor_speed_y'] = str(motor_speed[1])
-        # XY motor speeds in microns per second
-        self.motor_speed_x = float(self.cfg['microtome']['motor_speed_x'])
-        self.motor_speed_y = float(self.cfg['microtome']['motor_speed_y'])
-        # Some knife settings are set in system config:
+        # Get microtome motor speeds from syscfg
+        self.motor_speed_x, self.motor_speed_y = (
+            json.loads(self.syscfg['stage']['microtome_motor_speed']))
+        # Knife settings in system config override the user config settings.
         self.cfg['microtome']['full_cut_duration'] = (
             self.syscfg['knife']['full_cut_duration'])
         self.cfg['microtome']['sweep_distance'] = (
@@ -145,12 +135,17 @@ class Microtome:
     def save_to_cfg(self):
         self.cfg['microtome']['stage_move_wait_interval'] = str(
             self.stage_move_wait_interval)
+        # Save stage limits in cfg and syscfg
         self.cfg['microtome']['stage_min_x'] = str(self.stage_limits[0])
         self.cfg['microtome']['stage_max_x'] = str(self.stage_limits[1])
         self.cfg['microtome']['stage_min_y'] = str(self.stage_limits[2])
         self.cfg['microtome']['stage_max_y'] = str(self.stage_limits[3])
-        # Save data in sysconfig:
         self.syscfg['stage']['microtome_stage_limits'] = str(self.stage_limits)
+        # Save motor speeds to cfg and syscfg
+        self.cfg['microtome']['motor_speed_x'] = str(self.motor_speed_x)
+        self.cfg['microtome']['motor_speed_y'] = str(self.motor_speed_y)
+        self.syscfg['stage']['microtome_motor_speed'] = str(
+            [self.motor_speed_x, self.motor_speed_y])
 
         self.cfg['microtome']['knife_cut_speed'] = str(int(
             self.knife_cut_speed))
@@ -167,9 +162,8 @@ class Microtome:
             self.oscillation_frequency))
         self.cfg['microtome']['knife_osc_amplitude'] = str(int(
             self.oscillation_amplitude))
-
+        # Save full cut duration in both cfg and syscfg
         self.cfg['microtome']['full_cut_duration'] = str(self.full_cut_duration)
-        # Also save duration in sysconfig:
         self.syscfg['knife']['full_cut_duration'] = str(self.full_cut_duration)
 
     def do_full_cut(self):
@@ -203,11 +197,6 @@ class Microtome:
     def set_motor_speeds(self, motor_speed_x, motor_speed_y):
         self.motor_speed_x = motor_speed_x
         self.motor_speed_y = motor_speed_y
-        self.cfg['microtome']['motor_speed_x'] = str(motor_speed_x)
-        self.cfg['microtome']['motor_speed_y'] = str(motor_speed_y)
-        # Save in sysconfig:
-        self.syscfg['stage']['microtome_motor_speed'] = str(
-            [self.motor_speed_x, self.motor_speed_y])
         return self.write_motor_speeds_to_script()
 
     def write_motor_speeds_to_script(self):
@@ -680,6 +669,15 @@ class Microtome_katana(Microtome):
             self.last_known_z = self.get_stage_z()
             print('Starting Z position: ' + str(self.last_known_z) + 'µm')
 
+    def save_to_cfg(self):
+        super().save_to_cfg()
+        # Save kantana-specific keys sysconfig
+        self.sysconfig['device']['katana_com_port'] = self.selected_port
+        self.sysconfig['knife']['katana_clear_position'] = int(
+            self.clear_position)
+        self.sysconfig['stage']['katana_retract_clearance'] = int(
+            self.retract_clearance)
+
     def connect(self):
         # Open COM port
         if not self.simulation_mode:
@@ -907,16 +905,12 @@ class Microtome_katana(Microtome):
 
     def set_clear_position(self, clear_position):
         self.clear_position = int(clear_position)
-        self.sysconfig['knife']['katana_clear_position'] = str(
-            self.clear_position)
 
     def get_retract_clearance(self):
         return self.retract_clearance
 
     def set_retract_clearance(self, retract_clearance):
         self.retract_clearance = int(retract_clearance)
-        self.syscfg['stage']['katana_retract_clearance'] = str(
-            self.retract_clearance)
 
     def check_for_cut_cycle_error(self):
         pass

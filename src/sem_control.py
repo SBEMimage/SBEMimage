@@ -38,6 +38,13 @@ class SEM:
         # Must be reset with self.reset_error_state()
         self.error_state = 0
         self.error_cause = ''
+        # Load selected device from sysconfig.
+        recognized_devices = json.loads(self.syscfg['device']['recognized'])
+        try:
+            self.cfg['sem']['device'] = (
+                recognized_devices[int(self.syscfg['device']['sem'])])
+        except:
+            self.cfg['sem']['device'] = 'NOT RECOGNIZED'
         self.device_name = self.cfg['sem']['device']
         self.simulation_mode = self.cfg['sys']['simulation_mode'] == 'True'
         self.load_system_constants()
@@ -61,18 +68,12 @@ class SEM:
         # Stage parameters:
         self.stage_move_wait_interval = float(
             self.cfg['sem']['stage_move_wait_interval'])
-        self.motor_speed_x = float(self.cfg['sem']['motor_speed_x'])
-        self.motor_speed_y = float(self.cfg['sem']['motor_speed_y'])
-        self.motor_limits = [
-            int(self.cfg['sem']['stage_min_x']),
-            int(self.cfg['sem']['stage_max_x']),
-            int(self.cfg['sem']['stage_min_y']),
-            int(self.cfg['sem']['stage_max_y'])]
-        self.stage_calibration = [
-            float(self.cfg['sem']['stage_scale_factor_x']),
-            float(self.cfg['sem']['stage_scale_factor_y']),
-            float(self.cfg['sem']['stage_rotation_angle_x']),
-            float(self.cfg['sem']['stage_rotation_angle_y'])]
+        # Load motor speeds and stage limits from sysconfig
+        self.stage_limits = json.loads(
+            self.syscfg['stage']['sem_stage_limits'])
+        # Get microtome motor speeds from syscfg
+        self.motor_speed_x, self.motor_speed_y = (
+            json.loads(self.syscfg['stage']['sem_motor_speed']))
 
     def load_system_constants(self):
         """Load all constant parameters from system config."""
@@ -90,13 +91,16 @@ class SEM:
         # M = MAG_PX_SIZE_FACTOR / (STORE_RES_X * PX_SIZE)
         self.MAG_PX_SIZE_FACTOR = int(self.syscfg['sem']['mag_px_size_factor'])
 
-    def get_mag_px_size_factor(self):
-        return self.MAG_PX_SIZE_FACTOR
+    def save_to_cfg(self):
+        self.syscfg['sem']['mag_px_size_factor'] = str(self.MAG_PX_SIZE_FACTOR)
+        # Save stage limits in cfg and syscfg
+        self.cfg['sem']['stage_min_x'] = str(self.stage_limits[0])
+        self.cfg['sem']['stage_max_x'] = str(self.stage_limits[1])
+        self.cfg['sem']['stage_min_y'] = str(self.stage_limits[2])
+        self.cfg['sem']['stage_max_y'] = str(self.stage_limits[3])
+        self.syscfg['stage']['sem_stage_limits'] = str(self.stage_limits)
 
-    def set_mag_px_size_factor(self, new_factor):
-        self.MAG_PX_SIZE_FACTOR = new_factor
-        # Save in sysconfig:
-        self.syscfg['sem']['mag_px_size_factor'] = str(new_factor)
+
 
     def turn_eht_on(self):
         raise NotImplementedError
@@ -298,12 +302,6 @@ class SEM:
     def set_stage_move_wait_interval(self, wait_interval):
         self.stage_move_wait_interval = wait_interval
         self.cfg['sem']['stage_move_wait_interval'] = str(wait_interval)
-
-    def get_motor_speeds(self):
-        return (self.motor_speed_x, self.motor_speed_y)
-
-    def get_motor_limits(self):
-        return self.motor_limits
 
     def get_stage_calibration(self):
         return self.stage_calibration
@@ -543,7 +541,7 @@ class SEM_SmartSEM(SEM):
         while self.sem_api.Get('DP_FROZEN')[1] == 'Live':
             sleep(0.1)
             self.additional_cycle_time += 0.1
-            
+
         ret_val = self.sem_api.Grab(0, 0, 1024, 768, 0,
                                     save_path_filename)
         if ret_val == 0:
