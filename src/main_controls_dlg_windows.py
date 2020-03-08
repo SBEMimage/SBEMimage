@@ -676,7 +676,7 @@ class MagCalibrationDlg(QDialog):
         self.setFixedSize(self.size())
         self.show()
         self.spinBox_calibrationFactor.setValue(
-            self.sem.get_mag_px_size_factor())
+            self.sem.MAG_PX_SIZE_FACTOR)
         self.comboBox_frameWidth.addItems(['2048', '4096'])
         self.comboBox_frameWidth.setCurrentIndex(1)
         self.pushButton_calculate.clicked.connect(
@@ -699,8 +699,7 @@ class MagCalibrationDlg(QDialog):
             self.spinBox_calibrationFactor.setValue(new_factor)
 
     def accept(self):
-        self.sem.set_mag_px_size_factor(
-            self.spinBox_calibrationFactor.value())
+        self.sem.MAG_PX_SIZE_FACTOR = self.spinBox_calibrationFactor.value()
         super().accept()
 
 # ------------------------------------------------------------------------------
@@ -1670,7 +1669,7 @@ class EmailMonitoringSettingsDlg(QDialog):
             int(self.cfg['monitoring']['remote_check_interval']))
         self.lineEdit_account.setText(self.cfg['sys']['email_account'])
         self.lineEdit_password.setEchoMode(QLineEdit.Password)
-        self.lineEdit_password.setText(self.stack.get_remote_password())
+        self.lineEdit_password.setText(self.stack.remote_cmd_email_pw)
 
     def update_remote_option_input(self):
         status = self.checkBox_allowEmailControl.isChecked()
@@ -1726,7 +1725,7 @@ class EmailMonitoringSettingsDlg(QDialog):
             self.checkBox_allowEmailControl.isChecked())
         self.cfg['monitoring']['remote_check_interval'] = str(
             self.spinBox_remoteCheckInterval.value())
-        self.stack.set_remote_password(self.lineEdit_password.text())
+        self.stack.remote_cmd_email_pw = self.lineEdit_password.text()
         if not error_str:
             super().accept()
         else:

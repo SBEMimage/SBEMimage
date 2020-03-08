@@ -686,7 +686,7 @@ class Viewport(QWidget):
         # Slider for zoom
         self.horizontalSlider_VP.valueChanged.connect(
             self._vp_adjust_scale_from_slider)
-        self._vp_adjust_zoom_slider()
+        self.vp_adjust_zoom_slider()
         # Tile Preview selector:
         self.comboBox_tilePreviewSelectorVP.addItems(
             ['Hide tile previews',
@@ -1655,7 +1655,7 @@ class Viewport(QWidget):
         self.zooming_in_progress = False
         finish_trigger.s.emit()
 
-    def _vp_adjust_zoom_slider(self):
+    def vp_adjust_zoom_slider(self):
         """Adjust the position of the viewport sliders according to the current
         viewport scaling."""
         self.horizontalSlider_VP.blockSignals(True)
@@ -1700,7 +1700,7 @@ class Viewport(QWidget):
             factor * old_vp_scale,
             self.VP_ZOOM[0],
             self.VP_ZOOM[0] * (self.VP_ZOOM[1])**99)  # 99 is max slider value
-        self._vp_adjust_zoom_slider()
+        self.vp_adjust_zoom_slider()
         # Recentre, so that mouse position is preserved.
         current_centre_dx, current_centre_dy = self.cs.vp_centre_dx_dy
         x_shift = px - utils.VP_WIDTH // 2

@@ -8,7 +8,7 @@
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
 
-"""This module controls the acquisition process."""
+"""This module controls the stack acquisition process."""
 
 import os
 import shutil
@@ -27,10 +27,12 @@ import utils
 
 class Stack():
 
-    def __init__(self, config, sem, microtome, stage,
+    def __init__(self, config, sysconfig, sem, microtome, stage,
                  overview_manager, grid_manager, coordinate_system,
-                 image_inspector, autofocus, acq_queue, acq_trigger):
+                 image_inspector, autofocus,
+                 main_controls_trigger, main_controls_queue):
         self.cfg = config
+        self.syscfg = sysconfig
         self.sem = sem
         self.microtome = microtome
         self.stage = stage
@@ -39,125 +41,93 @@ class Stack():
         self.cs = coordinate_system
         self.img_inspector = image_inspector
         self.autofocus = autofocus
-        self.queue = acq_queue
-        self.trigger = acq_trigger
+        self.trigger = main_controls_trigger
+        self.queue = main_controls_queue
 
-        self.email_pw = ''  # provided by user at runtime
+        # The password needed to access the e-mail account used by SBEMimage
+        # to receive remote commands. The user can set this password in a
+        # dialog at runtime
+        self.remote_cmd_email_pw = ''
 
-        self.ERROR_LIST = {
-            0: 'No error',
-
-            # First digit 1: DM communication
-            101: 'DM script initialization error',
-            102: 'DM communication error (command could not be sent)',
-            103: 'DM communication error (unresponsive)',
-            104: 'DM communication error (return values could not be read)',
-
-            # First digit 2: 3View/SBEM hardware
-            201: 'Stage error (XY target position not reached)',
-            202: 'Stage error (Z target position not reached)',
-            203: 'Stage error (Z move too large)',
-            204: 'Cutting error',
-            205: 'Sweeping error',
-            206: 'Z mismatch error',
-
-            # First digit 3: SmartSEM/SEM
-            301: 'SmartSEM API initialization error',
-            302: 'Grab image error',
-            303: 'Grab incomplete error',
-            304: 'Frozen frame error',
-            305: 'SmartSEM unresponsive error',
-            306: 'EHT error',
-            307: 'Beam current error',
-            308: 'Frame size error',
-            309: 'Magnification error',
-            310: 'Scan rate error',
-            311: 'WD error',
-            312: 'STIG XY error',
-            313: 'Beam blanking error',
-
-            # First digit 4: I/O error
-            401: 'Primary drive error',
-            402: 'Mirror drive error',
-            403: 'Overwrite file error',
-            404: 'Load image error',
-
-            # First digit 5: Other errors during acq
-            501: 'Maximum sweeps error',
-            502: 'Overview image error (outside of range)',
-            503: 'Tile image error (outside of range)',
-            504: 'Tile image error (slice-by-slice comparison)',
-            505: 'Autofocus error (SmartSEM)' ,
-            506: 'Autofocus error (heuristic)',
-            507: 'WD/STIG difference error',
-            508: 'Metadata server error',
-
-            # First digit 6: reserved for user-defined errors
-            601: 'Test case error',
-
-            # First digit 7: error in configuration
-            701: 'Configuration error'
-        }
-
-        self.acq_setup()
-
-    def acq_setup(self):
-        """Set up all variables for a new stack acquisition, or update
-           variables for restarting a stack.
-        """
         self.error_state = 0
-        self.error_cause = ''
+        self.error_info = ''
+        # self.pause_stage:
+        # 1 -> pause immediately, 2 -> pause after completing current slice
         self.pause_state = None
-        self.acq_paused = (self.cfg['acq']['paused'] == 'True')
+        self.acq_paused = (self.cfg['acq']['paused'].lower() == 'true')
         self.stack_completed = False
         self.report_requested = False
         self.slice_counter = int(self.cfg['acq']['slice_counter'])
         self.number_slices = int(self.cfg['acq']['number_slices'])
         self.slice_thickness = int(self.cfg['acq']['slice_thickness'])
+        # self.total_z_diff: The total Z of sample removed in microns.
         self.total_z_diff = float(self.cfg['acq']['total_z_diff'])
-        self.stage_z_position = None  # updated when stack (re)started.
-        if self.microtome is not None:
-            self.full_cut_duration = self.microtome.full_cut_duration
-            self.sweep_distance = self.microtome.sweep_distance
-        else:
-            self.full_cut_duration = 0
-            self.sweep_distance = None
+        # self.stage_z_position: The current Z position of the microtome/stage.
+        # This variable is updated when stack (re)started by reading Z value
+        # from the microtome/stage hardware.
+        self.stage_z_position = None
+        # self.eht_off_after_stack: If set to True, switch off EHT automatically
+        # after stack is completed.
         self.eht_off_after_stack = (
-            self.cfg['acq']['eht_off_after_stack'] == 'True')
+            self.cfg['acq']['eht_off_after_stack'].lower() == 'true')
         # Was previous acq interrupted by error or paused inbetween by user?
-        self.acq_interrupted = (self.cfg['acq']['interrupted'] == 'True')
+        self.acq_interrupted = (
+            self.cfg['acq']['interrupted'].lower() == 'true')
+        # self.acq_interrupted_at: Position provided as [grid_index, tile_index]
         self.acq_interrupted_at = json.loads(self.cfg['acq']['interrupted_at'])
+        # self.tiles_acquired: Tiles that were already acquired in the the grid
+        # where the interruption occured.
         self.tiles_acquired = json.loads(self.cfg['acq']['tiles_acquired'])
+        # self.grids_acquired: Grids that have been acquired before interruption
+        # occured.
         self.grids_acquired = json.loads(self.cfg['acq']['grids_acquired'])
-        # E-mail settings:
-        self.email_account = self.cfg['sys']['email_account']
-        self.smtp_server = self.cfg['sys']['email_smtp']
-        self.imap_server = self.cfg['sys']['email_imap']
+        # E-mail settings from sysconfig
+        self.email_account = self.syscfg['email']['account']
+        self.smtp_server = self.syscfg['email']['smtp_server']
+        self.imap_server = self.syscfg['email']['imap_server']
+
         self.user_email_addresses = [self.cfg['monitoring']['user_email'],
                                      self.cfg['monitoring']['cc_user_email']]
         # Remove trailing slashes and whitespace from base directory string
         self.cfg['acq']['base_dir'] = self.cfg['acq']['base_dir'].rstrip(r'\/ ')
         self.base_dir = self.cfg['acq']['base_dir']
-        # Extract the name of the stack from the base directory:
+        # Extract the name of the stack from the base directory.
         self.stack_name = self.base_dir[self.base_dir.rfind('\\') + 1:]
         self.viewport_filename = None
-        # Mirror drive: same folder, only drive letter changes:
+        # Mirror drive: same folder, only drive letter changes.
         self.mirror_drive = self.cfg['sys']['mirror_drive']
         self.mirror_drive_directory = os.path.join(
             self.cfg['sys']['mirror_drive'], self.base_dir[2:])
-        # Metadata to server:
-        self.metadata_server = (self.cfg['sys']['metadata_server_url']
-                                 + '/project/'
-                                 + self.cfg['sys']['metadata_project_name']
-                                 + '/stack/'
-                                 + self.stack_name)
-        self.send_metadata = (self.cfg['sys']['send_metadata'] == 'True')
+        # Metadata is sent to self.metadata_server_project_url (VIME)
+        self.metadata_server = self.syscfg['metaserver']['url']
+        self.metadata_server_admin_email = (
+            self.syscfg['metaserver']['admin_email'])
+        self.metadata_project = self.cfg['sys']['metadata_project_name']
+        self.metadata_server_project_url = (self.metadata_server
+                                            + '/project/'
+                                            + self.metadata_project
+                                            + '/stack/'
+                                            + self.stack_name)
+        self.send_metadata = (
+            self.cfg['sys']['send_metadata'].lower() == 'true')
         # The following two features (mirror drive, overviews) can not be
         # enabled/disabled during a run. Other features such as debris
         # detection and monitoring can be enabled/disabled during a run
-        self.use_mirror_drive = (self.cfg['sys']['use_mirror_drive'] == 'True')
-        self.take_overviews = (self.cfg['acq']['take_overviews'] == 'True')
-        self.use_wd_gradient = False
+        self.use_mirror_drive = (
+            self.cfg['sys']['use_mirror_drive'].lower() == 'true')
+        self.take_overviews = (
+            self.cfg['acq']['take_overviews'].lower() == 'true')
+        # Options that can be changed while acq is running
+        self.use_email_monitoring = (
+            self.cfg['acq']['use_email_monitoring'].lower() == 'true')
+        self.use_debris_detection = (
+            self.cfg['acq']['use_debris_detection'].lower() == 'true')
+        self.ask_user_mode = (
+            self.cfg['acq']['ask_user'].lower() == 'true')
+        self.monitor_images = (
+            self.cfg['acq']['monitor_images'].lower() == 'true')
+        self.use_autofocus = (
+            self.cfg['acq']['use_autofocus'].lower() == 'true')
 
         # autofocus and autostig interval status:
         self.autofocus_stig_current_slice = (False, False)
@@ -194,15 +164,13 @@ class Stack():
         self.error_log_file = None
         self.metadata_file = None
 
-    def get_remote_password(self):
-        return self.email_pw
-
-    def set_remote_password(self, pw):
-        """Set the password needed to access the e-mail account used by
-           SBEMimage to receive remote commands. The user can set this
-           password in a dialog.
-        """
-        self.email_pw = pw
+    def save_to_cfg(self):
+        self.syscfg['metaserver']['url'] = self.metadata_server
+        self.cfg['sys']['metadata_server_url'] = self.metadata_server
+        self.syscfg['metaserver']['admin_email'] = (
+            self.metadata_server_admin_email)
+        self.cfg['sys']['metadata_server_admin'] = (
+            self.metadata_server_admin_email)
 
     def calculate_estimates(self):
         """Calculate the current electron dose (range), the dimensions of
@@ -228,7 +196,7 @@ class Stack():
         take_overviews = self.cfg['acq']['take_overviews'] == 'True'
         current = self.sem.get_beam_current()
         min_dose = max_dose = None
-        total_cut_time = self.number_slices * self.full_cut_duration
+        total_cut_time = self.number_slices * self.microtome.full_cut_duration
         total_grid_area = 0
         total_data = 0
         total_stage_move_time = 0
@@ -1087,7 +1055,7 @@ class Stack():
 
     def process_error_state(self):
         # Has a failure occured? Write info into log, send notification, pause:
-        error_str = self.ERROR_LIST[self.error_state]
+        error_str = utils.ERROR_LIST[self.error_state]
         # Log in main window:
         self.add_to_main_log('CTRL: ' + error_str)
         # Log in viewport window:
@@ -1296,7 +1264,7 @@ class Stack():
                 self.add_to_main_log('CTRL: Applying corrections to WD/STIG')
                 self.autofocus.apply_heuristic_tile_corrections()
             else:
-                sleep(self.full_cut_duration)
+                sleep(self.microtome.full_cut_duration)
             duration_exceeded = self.microtome.check_for_cut_cycle_error()
             if duration_exceeded:
                 self.add_to_main_log(
@@ -1329,7 +1297,7 @@ class Stack():
             time_elapsed = current_time - start_time
         self.heuristic_af_queue = []
         remaining_cutting_time = (
-            self.full_cut_duration - time_elapsed.total_seconds())
+            self.microtome.full_cut_duration - time_elapsed.total_seconds())
         if remaining_cutting_time > 0:
             sleep(remaining_cutting_time)
 
@@ -1749,7 +1717,6 @@ class Stack():
     def acquire_grid(self, grid_index):
         """Acquire all active tiles of grid specified by grid_index"""
 
-        self.use_wd_gradient = self.gm[grid_index].use_wd_gradient
         # Get size and active tiles  (using list() to get a copy)
         active_tiles = list(self.gm[grid_index].active_tiles)
 
@@ -1758,7 +1725,7 @@ class Stack():
         # Otherwise self.wd_current_grid, self.stig_x_current_grid,
         # and self.stig_y_current_grid are used.
         adjust_wd_stig_for_each_tile = (
-            self.use_wd_gradient
+            self.gm[grid_index].use_wd_gradient
             or (self.autofocus.active() and self.autofocus.tracking_mode < 2))
 
         if self.pause_state != 1:
@@ -2243,9 +2210,6 @@ class Stack():
     def set_total_z_diff(self, z_diff):
         self.total_z_diff = z_diff
         self.cfg['acq']['total_z_diff'] = str(z_diff)
-
-    def is_paused(self):
-        return (self.cfg['acq']['paused'] == 'True')
 
     def transmit_cmd(self, cmd):
         """Transmit command to the main window thread."""

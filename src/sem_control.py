@@ -37,7 +37,7 @@ class SEM:
         # self.error_state: see error codes in stack_acquisition.py
         # Must be reset with self.reset_error_state()
         self.error_state = 0
-        self.error_cause = ''
+        self.error_info = ''
         # Load selected device from sysconfig.
         recognized_devices = json.loads(self.syscfg['device']['recognized'])
         try:
@@ -339,15 +339,9 @@ class SEM:
             self.stage_calibration = params
         return success
 
-    def get_error_state(self):
-        return self.error_state
-
-    def get_error_cause(self):
-        return self.error_cause
-
     def reset_error_state(self):
         self.error_state = 0
-        self.error_cause = ''
+        self.error_info = ''
 
     def disconnect(self):
         raise NotImplementedError
@@ -371,7 +365,7 @@ class SEM_SmartSEM(SEM):
                 ret_val = 1
             if ret_val != 0:   # In ZEISS API, response of '0' means success
                 self.error_state = 301
-                self.error_cause = (
+                self.error_info = (
                     'sem.__init__: remote API control could not be'
                     'initalized.')
             elif config['sys']['use_microtome'] == 'False':
@@ -385,7 +379,7 @@ class SEM_SmartSEM(SEM):
             return True
         else:
             self.error_state = 306
-            self.error_cause = 'sem.turn_eht_on: command failed'
+            self.error_info = 'sem.turn_eht_on: command failed'
             return False
 
     def turn_eht_off(self):
@@ -394,7 +388,7 @@ class SEM_SmartSEM(SEM):
             return True
         else:
             self.error_state = 306
-            self.error_cause = 'sem.turn_eht_off: command failed'
+            self.error_info = 'sem.turn_eht_off: command failed'
             return False
 
     def is_eht_on(self):
@@ -415,7 +409,7 @@ class SEM_SmartSEM(SEM):
             return True
         else:
             self.error_state = 306
-            self.error_cause = 'sem.set_eht: command failed'
+            self.error_info = 'sem.set_eht: command failed'
             return False
 
     def set_beam_current(self, target_current):
@@ -428,7 +422,7 @@ class SEM_SmartSEM(SEM):
             return True
         else:
             self.error_state = 307
-            self.error_cause = 'sem.set_beam_current: command failed'
+            self.error_info = 'sem.set_beam_current: command failed'
             return False
 
     def apply_beam_settings(self):
@@ -475,7 +469,7 @@ class SEM_SmartSEM(SEM):
             return True
         else:
             self.error_state = 308
-            self.error_cause = 'sem.set_frame_size: command failed'
+            self.error_info = 'sem.set_frame_size: command failed'
             return False
 
     def get_mag(self):
@@ -487,7 +481,7 @@ class SEM_SmartSEM(SEM):
             return True
         else:
             self.error_state = 309
-            self.error_cause = 'sem.set_mag: command failed'
+            self.error_info = 'sem.set_mag: command failed'
             return False
 
     def set_scan_rate(self, scan_rate_selector):
@@ -497,7 +491,7 @@ class SEM_SmartSEM(SEM):
             return True
         else:
             self.error_state = 310
-            self.error_cause = 'sem.set_scan_rate: command failed'
+            self.error_info = 'sem.set_scan_rate: command failed'
             return False
 
     def set_dwell_time(self, dwell_time):
@@ -548,7 +542,7 @@ class SEM_SmartSEM(SEM):
             return True
         else:
             self.error_state = 302
-            self.error_cause = 'sem.acquire_frame: command failed'
+            self.error_info = 'sem.acquire_frame: command failed'
             return False
 
     def save_frame(self, save_path_filename):
@@ -559,7 +553,7 @@ class SEM_SmartSEM(SEM):
             return True
         else:
             self.error_state = 302
-            self.error_cause = 'sem.save_frame: command failed'
+            self.error_info = 'sem.save_frame: command failed'
             return False
 
     def get_wd(self):
@@ -574,7 +568,7 @@ class SEM_SmartSEM(SEM):
             return True
         else:
             self.error_state = 311
-            self.error_cause = 'sem.set_wd: command failed'
+            self.error_info = 'sem.set_wd: command failed'
             return False
 
     def get_stig_xy(self):
@@ -592,7 +586,7 @@ class SEM_SmartSEM(SEM):
             return True
         else:
             self.error_state = 312
-            self.error_cause = 'sem.set_stig_xy: command failed'
+            self.error_info = 'sem.set_stig_xy: command failed'
             return False
 
     def get_stig_x(self):
@@ -605,7 +599,7 @@ class SEM_SmartSEM(SEM):
             return True
         else:
             self.error_state = 312
-            self.error_cause = 'sem.set_stig_x: command failed'
+            self.error_info = 'sem.set_stig_x: command failed'
             return False
 
     def get_stig_y(self):
@@ -618,7 +612,7 @@ class SEM_SmartSEM(SEM):
             return True
         else:
             self.error_state = 312
-            self.error_cause = 'sem.set_stig_y: command failed'
+            self.error_info = 'sem.set_stig_y: command failed'
             return False
 
     def set_beam_blanking(self, should_be_blanked):
@@ -631,7 +625,7 @@ class SEM_SmartSEM(SEM):
             return True
         else:
             self.error_state = 313
-            self.error_cause = 'sem.set_beam_blanking: command failed'
+            self.error_info = 'sem.set_beam_blanking: command failed'
             return False
 
     def run_autofocus(self):

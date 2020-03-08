@@ -30,6 +30,8 @@ from email.mime.text import MIMEText
 from email.utils import formatdate
 from email import encoders, message_from_string
 
+from PyQt5.QtCore import QObject, pyqtSignal
+
 # Size of the Viewport canvas. This is currently fixed and values other
 # than 1000 and 800 are not fully supported/tested. In the future, these could
 # become parameters to allow resizing of the Viewport window.
@@ -62,6 +64,61 @@ RE_TILE_LIST = re.compile('^((0|[1-9][0-9]*)[.](0|[1-9][0-9]*))'
                           '([ ]*,[ ]*(0|[1-9][0-9]*)[.](0|[1-9][0-9]*))*$')
 RE_OV_LIST = re.compile('^([0-9]+)([ ]*,[ ]*[0-9]+)*$')
 
+ERROR_LIST = {
+    0: 'No error',
+
+    # First digit 1: DM communication
+    101: 'DM script initialization error',
+    102: 'DM communication error (command could not be sent)',
+    103: 'DM communication error (unresponsive)',
+    104: 'DM communication error (return values could not be read)',
+
+    # First digit 2: 3View/SBEM hardware
+    201: 'Stage error (XY target position not reached)',
+    202: 'Stage error (Z target position not reached)',
+    203: 'Stage error (Z move too large)',
+    204: 'Cutting error',
+    205: 'Sweeping error',
+    206: 'Z mismatch error',
+
+    # First digit 3: SmartSEM/SEM
+    301: 'SmartSEM API initialization error',
+    302: 'Grab image error',
+    303: 'Grab incomplete error',
+    304: 'Frozen frame error',
+    305: 'SmartSEM unresponsive error',
+    306: 'EHT error',
+    307: 'Beam current error',
+    308: 'Frame size error',
+    309: 'Magnification error',
+    310: 'Scan rate error',
+    311: 'WD error',
+    312: 'STIG XY error',
+    313: 'Beam blanking error',
+
+    # First digit 4: I/O error
+    401: 'Primary drive error',
+    402: 'Mirror drive error',
+    403: 'Overwrite file error',
+    404: 'Load image error',
+
+    # First digit 5: Other errors during acq
+    501: 'Maximum sweeps error',
+    502: 'Overview image error (outside of range)',
+    503: 'Tile image error (outside of range)',
+    504: 'Tile image error (slice-by-slice comparison)',
+    505: 'Autofocus error (SmartSEM)' ,
+    506: 'Autofocus error (heuristic)',
+    507: 'WD/STIG difference error',
+    508: 'Metadata server error',
+
+    # First digit 6: reserved for user-defined errors
+    601: 'Test case error',
+
+    # First digit 7: error in configuration
+    701: 'Configuration error'
+}
+
 # List of selectable colours for grids (0-9), overviews (10)
 # acquisition indicator (11):
 COLOUR_SELECTOR = [
@@ -80,6 +137,9 @@ COLOUR_SELECTOR = [
     [128, 0, 128, 80]   #12 transparent violet (to indicate live acq)
 ]
 
+class Trigger(QObject):
+    """A custom signal for receiving updates and requests from threads."""
+    s = pyqtSignal()
 
 def try_to_open(file_name, mode):
     """Try to open file and retry twice if unsucessful."""
