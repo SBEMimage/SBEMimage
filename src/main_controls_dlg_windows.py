@@ -728,7 +728,7 @@ class OVSettingsDlg(QDialog):
     """Let the user change all settings for each overview image."""
 
     def __init__(self, ovm, sem, current_ov,
-                 main_window_queue, main_window_trigger):
+                 main_window_trigger, main_window_queue):
         super().__init__()
         self.ovm = ovm
         self.sem = sem
@@ -867,7 +867,7 @@ class GridSettingsDlg(QDialog):
     """Dialog for changing grid settings."""
 
     def __init__(self, grid_manager, sem, selected_grid,
-                 config, main_window_queue, main_window_trigger):
+                 config, main_window_trigger, main_window_queue):
         super().__init__()
         self.gm = grid_manager
         self.sem = sem
@@ -2181,7 +2181,7 @@ class ApproachDlg(QDialog):
        the cutting thickness.
     """
 
-    def __init__(self, microtome, main_window_queue, main_window_trigger):
+    def __init__(self, microtome, main_window_trigger, main_window_queue):
         super().__init__()
         self.microtome = microtome
         self.main_window_queue = main_window_queue
@@ -2378,7 +2378,7 @@ class ApproachDlg(QDialog):
 class GrabFrameDlg(QDialog):
     """Acquires or saves a single frame from SmartSEM."""
 
-    def __init__(self, config, sem, main_window_queue, main_window_trigger):
+    def __init__(self, config, sem, main_window_trigger, main_window_queue):
         super().__init__()
         self.cfg = config
         self.sem = sem
@@ -2665,7 +2665,7 @@ class MotorTestDlg(QDialog):
     """Perform a random-walk-like XYZ motor test. Experimental, only for
        testing/debugging. Only works with a microtome for now."""
 
-    def __init__(self, cfg, microtome, main_window_queue, main_window_trigger):
+    def __init__(self, cfg, microtome, main_window_trigger, main_window_queue):
         super().__init__()
         self.cfg = cfg
         self.microtome = microtome

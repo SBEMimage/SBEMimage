@@ -59,7 +59,9 @@ class CoordinateSystem:
                             int(self.cfg['viewport']['sv_offset_y_ov'])]
 
     def save_to_cfg(self):
-        """Save current parameters to the self.cfg ConfigParser object."""
+        """Save current parameters to the self.cfg ConfigParser object.
+        The stage calibration parameters are saved to self.syscfg whenever
+        the calibration is changed at runtime."""
         # Stage calibration parameters
         if self.cfg['sys']['use_microtome'].lower() == 'true':
             type_of_stage = 'microtome'

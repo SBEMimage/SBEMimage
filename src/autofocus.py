@@ -26,12 +26,13 @@ from scipy.signal import correlate2d, fftconvolve
 
 class Autofocus():
 
-    def __init__(self, config, sem, grid_manager, acq_queue, acq_trigger):
+    def __init__(self, config, sem, grid_manager,
+                 main_controls_trigger, main_controls_queue):
         self.cfg = config
         self.sem = sem
         self.gm = grid_manager
-        self.queue = acq_queue
-        self.trigger = acq_trigger
+        self.trigger = main_controls_trigger
+        self.queue = main_controls_queue
         self.method = int(self.cfg['autofocus']['method'])
         self.tracking_mode = int(self.cfg['autofocus']['tracking_mode'])
         self.interval = int(self.cfg['autofocus']['interval'])

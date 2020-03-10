@@ -84,6 +84,10 @@ class ImageInspector(object):
         self.tile_stddev_threshold = float(
             self.cfg['monitoring']['tile_stddev_threshold'])
 
+    def save_to_cfg(self):
+        # TODO: save parameters managed by image_inspector to config
+        pass
+
     def process_tile(self, filename, grid_index, tile_index, slice_number):
         img = None
         mean, stddev = 0, 0
