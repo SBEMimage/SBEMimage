@@ -48,9 +48,19 @@ class Stack():
         # to receive remote commands. The user can set this password in a
         # dialog at runtime
         self.remote_cmd_email_pw = ''
+        self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
 
         self.error_state = 0
         self.error_info = ''
+
+        # Log file handles
+        self.main_log_file = None
+        self.imagelist_file = None
+        self.mirror_imagelist_file = None
+        self.debris_log_file = None
+        self.error_log_file = None
+        self.metadata_file = None
+
         # self.pause_stage:
         # 1 -> pause immediately, 2 -> pause after completing current slice
         self.pause_state = None
@@ -102,10 +112,10 @@ class Stack():
         self.metadata_server = self.syscfg['metaserver']['url']
         self.metadata_server_admin_email = (
             self.syscfg['metaserver']['admin_email'])
-        self.metadata_project = self.cfg['sys']['metadata_project_name']
+        self.metadata_project_name = self.cfg['sys']['metadata_project_name']
         self.metadata_server_project_url = (self.metadata_server
                                             + '/project/'
-                                            + self.metadata_project
+                                            + self.metadata_project_name
                                             + '/stack/'
                                             + self.stack_name)
         self.send_metadata = (
@@ -129,40 +139,32 @@ class Stack():
         self.use_autofocus = (
             self.cfg['acq']['use_autofocus'].lower() == 'true')
 
-        # autofocus and autostig interval status:
-        self.autofocus_stig_current_slice = (False, False)
+        # Status report
+        self.status_report_interval = int(
+            self.cfg['monitoring']['report_interval'])
+        self.status_report_ov_list = json.loads(
+            self.cfg['monitoring']['report_ov_list'])
+        self.status_report_tile_list = json.loads(
+            self.cfg['monitoring']['report_tile_list'])
+        self.send_logfile = str(self.cfg['monitoring']['send_logfile'])
+        self.send_additional_logs = str(
+            self.cfg['monitoring']['send_additional_logs'])
+        self.send_viewport_screenshot = str(
+            self.cfg['monitoring']['send_viewport_screenshot'])
+        self.send_ov = str(self.cfg['monitoring']['send_ov'])
+        self.send_tiles = str(self.cfg['monitoring']['send_tiles'])
+        self.send_ov_reslices = str(self.cfg['monitoring']['send_ov_reslices'])
+        self.send_tile_reslices = str(
+            self.cfg['monitoring']['send_tile_reslices'])
+        self.remote_commands_enabled = str(
+            self.cfg['monitoring']['remote_commands_enabled'])
+        self.remote_check_interval = int(
+            self.cfg['monitoring']['remote_check_interval'])
+        # Debris
+        self.max_number_sweeps = int(self.cfg['debris']['max_number_sweeps'])
+        self.continue_after_max_sweeps = (
+            self.cfg['debris']['continue_after_max_sweeps'].lower() == 'true')
 
-        # locked focus params:
-        self.wd_stig_locked = False
-        self.mag_locked = False
-        self.locked_wd = None
-        self.locked_stig_x, self.locked_stig_y = None, None
-        self.locked_mag = None
-
-        # Focus parameters for current grid, initialized with current settings:
-        if self.cfg['sys']['simulation_mode'] == 'False':
-            self.wd_current_grid = self.sem.get_wd()
-            self.stig_x_current_grid, self.stig_y_current_grid = (
-                self.sem.get_stig_xy())
-
-        # Alternating plus/minus deltas for wd and stig, needed for
-        # heuristic autofocus, otherwise 0
-        self.wd_delta, self.stig_x_delta, self.stig_y_delta = 0, 0, 0
-        # List of tiles to be processed for heuristic autofocus:
-        self.heuristic_af_queue = []
-
-        # Variables used for reply from main program:
-        self.user_reply = None
-        self.user_reply_received = False
-        self.image_rejected_by_user = False
-
-        # Log file handles:
-        self.main_log_file = None
-        self.imagelist_file = None
-        self.mirror_imagelist_file = None
-        self.debris_log_file = None
-        self.error_log_file = None
-        self.metadata_file = None
 
     def save_to_cfg(self):
         self.syscfg['metaserver']['url'] = self.metadata_server
@@ -171,6 +173,59 @@ class Stack():
             self.metadata_server_admin_email)
         self.cfg['sys']['metadata_server_admin'] = (
             self.metadata_server_admin_email)
+        self.cfg['sys']['send_metadata'] = str(self.send_metadata)
+        self.cfg['acq']['base_dir'] = str(self.base_dir)
+        self.cfg['acq']['paused'] = str(self.acq_paused)
+        self.cfg['acq']['slice_counter'] = str(self.slice_counter)
+        self.cfg['acq']['number_slices'] = str(self.number_slices)
+        self.cfg['acq']['slice_thickness'] = str(self.slice_thickness)
+        self.cfg['acq']['total_z_diff'] = str(self.total_z_diff)
+
+        self.cfg['acq']['interrupted'] = str(self.acq_interrupted)
+        self.cfg['acq']['interrupted_at'] = str(self.acq_interrupted_at)
+        self.cfg['acq']['tiles_acquired'] = str(self.tiles_acquired)
+        self.cfg['acq']['grids_acquired'] = str(self.grids_acquired)
+
+        self.cfg['sys']['use_mirror_drive'] = str(self.use_mirror_drive)
+        self.cfg['acq']['take_overviews'] = str(self.take_overviews)
+        # Options that can be changed while acq is running
+        self.cfg['acq']['use_email_monitoring'] = str(
+            self.use_email_monitoring)
+        self.cfg['acq']['use_debris_detection'] = str(
+            self.use_debris_detection)
+        self.cfg['acq']['ask_user'] = str(self.ask_user_mode)
+        self.cfg['acq']['monitor_images'] = str(self.monitor_images)
+        self.cfg['acq']['use_autofocus'] = str(self.use_autofocus)
+        self.cfg['acq']['eht_off_after_stack'] = str(self.eht_off_after_stack)
+        self.cfg['monitoring']['user_email'] = self.user_email_addresses[0]
+        self.cfg['monitoring']['cc_user_email'] = self.user_email_addresses[1]
+        # Status report settings
+        self.cfg['monitoring']['report_interval'] = str(
+            self.status_report_interval)
+        self.cfg['monitoring']['report_ov_list'] = str(
+            self.status_report_ov_list)
+        self.cfg['monitoring']['report_tile_list'] = json.dumps(
+            self.status_report_tile_list)
+
+        self.cfg['monitoring']['send_logfile'] = str(self.send_logfile)
+        self.cfg['monitoring']['send_additional_logs'] = str(
+            self.send_additional_logs)
+        self.cfg['monitoring']['send_viewport_screenshot'] = str(
+            self.send_viewport_screenshot)
+        self.cfg['monitoring']['send_ov'] = str(self.send_ov)
+        self.cfg['monitoring']['send_tiles'] = str(self.send_tiles)
+        self.cfg['monitoring']['send_ov_reslices'] = str(self.send_ov_reslices)
+        self.cfg['monitoring']['send_tile_reslices'] = str(
+            self.send_tile_reslices)
+        self.cfg['monitoring']['remote_commands_enabled'] = str(
+            self.remote_commands_enabled)
+        self.cfg['monitoring']['remote_check_interval'] = str(
+            self.remote_check_interval)
+
+        self.cfg['debris']['max_number_sweeps'] = str(self.max_number_sweeps)
+        self.cfg['debris']['continue_after_max_sweeps'] = str(
+            self.continue_after_max_sweeps)
+
 
     def calculate_estimates(self):
         """Calculate the current electron dose (range), the dimensions of
@@ -194,7 +249,7 @@ class Stack():
         if N == 0:    # 0 slices is a valid setting. It means: image the current
             N = 1     # surface, but do not cut afterwards.
         take_overviews = self.cfg['acq']['take_overviews'] == 'True'
-        current = self.sem.get_beam_current()
+        current = self.sem.target_beam_current
         min_dose = max_dose = None
         total_cut_time = self.number_slices * self.microtome.full_cut_duration
         total_grid_area = 0
@@ -500,16 +555,45 @@ class Stack():
                     self.pause_acquisition(1)
                     self.error_state = 402
 
-# ===================== STACK ACQUISITION THREAD run() ========================
+# ====================== STACK ACQUISITION THREAD run() ========================
 
     def run(self):
         """Run acquisition in a thread started from main_controls.py."""
-        self.acq_setup()
+
+        self.error_state = 0
+        self.error_info = ''
+
+        # autofocus and autostig interval status:
+        self.autofocus_stig_current_slice = (False, False)
+
+        # locked focus params:
+        self.wd_stig_locked = False
+        self.mag_locked = False
+        self.locked_wd = None
+        self.locked_stig_x, self.locked_stig_y = None, None
+        self.locked_mag = None
+
+        # Focus parameters for current grid, initialized with current settings
+        self.wd_current_grid = self.sem.get_wd()
+        self.stig_x_current_grid, self.stig_y_current_grid = (
+            self.sem.get_stig_xy())
+
+        # Alternating plus/minus deltas for wd and stig, needed for
+        # heuristic autofocus, otherwise 0
+        self.wd_delta, self.stig_x_delta, self.stig_y_delta = 0, 0, 0
+        # List of tiles to be processed for heuristic autofocus:
+        self.heuristic_af_queue = []
+
+        # Variables used for reply from main program:
+        self.user_reply = None
+        self.user_reply_received = False
+        self.image_rejected_by_user = False
+
         self.set_up_acq_subdirectories()
         self.set_up_acq_logs()
 
         self.main_log_file.write('*** SBEMimage log for acquisition '
-                                 + self.cfg['acq']['base_dir'] + ' ***\n\n')
+                                 + self.base_dir + ' ***\n\n')
         if self.acq_paused:
             self.main_log_file.write('\n*** STACK ACQUISITION RESTARTED ***\n')
             self.add_to_main_log('CTRL: Stack restarted.')
@@ -518,16 +602,14 @@ class Stack():
             self.main_log_file.write('\n*** STACK ACQUISITION STARTED ***\n')
             self.add_to_main_log('CTRL: Stack started.')
 
-        number_ov = self.ovm.number_ov
-        number_grids = self.gm.number_grids
-        self.first_ov = [True] * number_ov
+        self.first_ov = [True] * self.ovm.number_ov
         self.img_inspector.reset_tile_stats()
 
         if self.use_mirror_drive:
             self.add_to_main_log(
                 'CTRL: Mirror drive directory: ' + self.mirror_drive_directory)
 
-        # save current configuration to disk:
+        # Save current configuration to disk
         self.transmit_cmd('SAVE CFG')
         # Update progress bar and slice counter:
         self.transmit_cmd('UPDATE PROGRESS')
@@ -537,11 +619,11 @@ class Stack():
         wd = 0 # placeholder for now
         timestamp = int(time.time())
         grid_list = [
-            str(i).zfill(utils.GRID_DIGITS) for i in range(number_grids)]
+            str(i).zfill(utils.GRID_DIGITS) for i in range(self.gm.number_grids)]
         session_metadata = {
             'timestamp': timestamp,
-            'eht': self.sem.get_eht(),
-            'beam_current': self.sem.get_beam_current(),
+            'eht': self.sem.target_eht,
+            'beam_current': self.sem.target_beam_current,
             'stig_parameters': self.sem.get_stig_xy(),
             'working_distance': wd,
             'slice_thickness': self.slice_thickness,
@@ -549,10 +631,9 @@ class Stack():
             'grid_origins': [],
             'pixel_sizes': [],
             'dwell_times': [],
-            'contrast': float(self.cfg['sem']['bsd_contrast']),
-            'brightness': float(self.cfg['sem']['bsd_brightness']),
-            'email_addresses: ': [self.cfg['monitoring']['user_email'],
-                                  self.cfg['monitoring']['cc_user_email']]
+            'contrast': self.sem.bsd_contrast,
+            'brightness': self.sem.bsd_brightness,
+            'email_addresses: ': self.user_email_addresses
             }
         self.metadata_file.write('SESSION: ' + str(session_metadata) + '\n')
         # Send to server?
@@ -568,12 +649,13 @@ class Stack():
                 self.add_to_main_log(
                     'CTRL: Metadata server active.')
 
-        # Set SEM to target parameters. EHT is assumed to be on!
+        # Set SEM to target parameters.
+        # EHT is assumed to be on at this point (checked when stack started)
         self.sem.apply_beam_settings()
         self.sem.set_beam_blanking(1)
         sleep(1)
 
-        for grid_index in range(number_grids):
+        for grid_index in range(self.gm.number_grids):
             if not self.gm[grid_index].use_wd_gradient:
                 self.gm[grid_index].set_wd_stig_xy_for_uninitialized_tiles(
                     self.wd_current_grid,
@@ -584,13 +666,13 @@ class Stack():
                 self.gm[grid_index].set_stig_xy_for_all_tiles(
                     [self.stig_x_current_grid, self.stig_y_current_grid])
 
-        for ov_index in range(number_ov):
+        for ov_index in range(self.ovm.number_ov):
             self.ovm[ov_index].wd_stig_xy = [0, 0, 0]
 
         # Show current focus/stig settings:
-        self.log_wd_stig(self.wd_current_grid,
-                         self.stig_x_current_grid,
-                         self.stig_y_current_grid)
+        self.show_wd_stig_in_log(self.wd_current_grid,
+                                 self.stig_x_current_grid,
+                                 self.stig_y_current_grid)
 
         # Make sure DM script uses the correct motor speed calibration
         # (This information is lost when script crashes.)
@@ -601,22 +683,22 @@ class Stack():
             self.add_to_main_log('3VIEW: ERROR: Could not set '
                                  'motor speed calibration')
 
-        # Get current z position of stage:
+        # Get current Z position of microtome/stage
         self.stage_z_position = self.stage.get_z()
         if self.stage_z_position is None or self.stage_z_position < 0:
-            # try again:
+            # Try again
             self.stage_z_position = self.stage.get_z()
             if self.stage_z_position is None or self.stage_z_position < 0:
                 self.error_state = 104
                 self.stage.error_state = 0
                 self.pause_acquisition(1)
                 self.add_to_main_log('CTRL: Error reading initial Z position.')
-        # Check for Z mismatch:
+        # Check for Z mismatch
         if self.microtome is not None and self.microtome.error_state == 206:
             self.microtome.error_state = 0
             self.error_state = 206
             self.pause_acquisition(1)
-            # Show warning dialog:
+            # Show warning dialog
             self.transmit_cmd('Z WARNING')
 
         self.transmit_cmd('UPDATE Z')
@@ -624,17 +706,17 @@ class Stack():
         self.stage.get_xy()
         self.transmit_cmd('UPDATE XY')
 
-        # ========================= ACQUISITION LOOP ==========================
+        # ========================= ACQUISITION LOOP ===========================
         while not (self.acq_paused or self.stack_completed):
-            # Mark one line in log file for easier orientation:
+            # Mark one line in log file for easier orientation
             self.add_to_main_log(
                 'CTRL: ****************************************')
-            # Show current slice counter and z position:
+            # Show current slice counter and Z position
             self.add_to_main_log('CTRL: slice ' + str(self.slice_counter)
                 + ', Z:' + '{0:6.3f}'.format(self.stage_z_position))
 
             # Autofocus for this slice? (Method 0)
-            if self.cfg['sys']['magc_mode'] == 'True':
+            if self.magc_mode:
                 self.autofocus_stig_current_slice = (True, True)
             else:
                 self.autofocus_stig_current_slice = (
@@ -642,7 +724,7 @@ class Stack():
 
             # For autofocus method 1, focus slightly up or down depending
             # on slice number:
-            if self.autofocus.active() and self.autofocus.method == 1:
+            if self.use_autofocus and self.autofocus.method == 1:
                 sign = 1 if self.slice_counter % 2 else -1
                 self.wd_delta = sign * self.autofocus.wd_delta
                 self.stig_x_delta = sign * self.autofocus.stig_x_delta
@@ -653,16 +735,9 @@ class Stack():
                     + ', DIFF_STIG_X: {0:+.2f}'.format(self.stig_x_delta)
                     + ', DIFF_STIG_Y: {0:+.2f}'.format(self.stig_x_delta))
 
-            # ============= Overview (OV) image acquisition ===================
+            # ============== Overview (OV) image acquisition ===================
             if self.take_overviews:
-                use_debris_detection = (
-                    self.cfg['acq']['use_debris_detection'] == 'True')
-                max_number_sweeps = int(
-                    self.cfg['debris']['max_number_sweeps'])
-                continue_after_max_sweeps = (
-                    self.cfg['debris']['continue_after_max_sweeps'] == 'True')
-
-                for ov_index in range(number_ov):
+                for ov_index in range(self.ovm.number_ov):
                     if (self.error_state > 0) or (self.pause_state == 1):
                         break
                     if self.ovm[ov_index].slice_active(self.slice_counter):
@@ -670,7 +745,7 @@ class Stack():
                         sweep_limit = False
                         sweep_counter = 0
                         fail_counter = 0
-                        # ================ OV acquisition loop ================
+                        # ================ OV acquisition loop =================
                         while (not ov_accepted
                                and not sweep_limit
                                and not self.pause_state == 1
@@ -682,7 +757,7 @@ class Stack():
                             if (self.error_state in [303, 404]
                                 and not self.image_rejected_by_user):
                                 # Image incomplete or cannot be loaded,
-                                # try again:
+                                # try again
                                 fail_counter += 1
                                 if fail_counter < 3:
                                     self.add_to_main_log(
@@ -698,9 +773,9 @@ class Stack():
                                 break
                             elif (not ov_accepted
                                   and not self.pause_state == 1
-                                  and (use_debris_detection
+                                  and (self.use_debris_detection
                                   or self.first_ov[ov_index])):
-                                # Save image with debris:
+                                # Save image with debris
                                 self.save_debris_image(ov_filename,
                                                        sweep_counter)
                                 self.img_inspector.discard_last_ov(ov_index)
@@ -710,7 +785,7 @@ class Stack():
                                     sweep_counter += 1
                                 elif sweep_counter == max_number_sweeps:
                                     sweep_limit = True
-                        # ============= OV acquisition loop end ===============
+                        # ============= OV acquisition loop end ================
 
                         cycle_time_diff = (
                             self.sem.additional_cycle_time
@@ -723,7 +798,7 @@ class Stack():
                         if (not ov_accepted
                             and self.error_state == 0
                             and not self.pause_state == 1):
-                            if not continue_after_max_sweeps:
+                            if not self.continue_after_max_sweeps:
                                 self.pause_acquisition(1)
                                 self.error_state = 501
                                 self.add_to_main_log(
@@ -765,32 +840,28 @@ class Stack():
                             % ov_index)
 
             if (self.acq_interrupted
-                    and self.acq_interrupted_at[0] >= number_grids):
+                    and self.acq_interrupted_at[0] >= self.gm.number_grids):
                 # Grid in which interruption occured has been deleted.
                 self.acq_interrupted = False
-                self.cfg['acq']['interrupted'] = 'False'
                 self.interrupted_at = []
-                self.cfg['acq']['interrupted_at'] = '[]'
                 self.tiles_acquired = []
-                self.cfg['acq']['tiles_acquired'] = '[]'
 
             # =================== Grid acquisition loop ========================
-            for grid_index in range(number_grids):
+            for grid_index in range(self.gm.number_grids):
                 if self.error_state > 0 or self.pause_state == 1:
                         break
 
                 if self.gm[grid_index].slice_active(self.slice_counter):
                     num_active_tiles = self.gm[grid_index].number_active_tiles()
                     self.add_to_main_log('CTRL: Grid ' + str(grid_index)
-                                  + ', number of active tiles: '
-                                  + str(num_active_tiles))
+                                         + ', number of active tiles: '
+                                         + str(num_active_tiles))
 
                     # in MagC use the grid autostig delay
-                    if self.cfg['sys']['magc_mode'] == 'True':
-                        autostig_delay = int(self.cfg['autofocus']['autostig_delay'])
+                    if self.magc_mode:
                         self.autofocus_stig_current_slice = (
                             self.autofocus_stig_current_slice[0],
-                            0 == (grid_index % autostig_delay))
+                            (grid_index % self.autofocus.autostig_delay == 0))
 
                     if (num_active_tiles > 0
                         and not (self.pause_state == 1)
@@ -799,14 +870,14 @@ class Stack():
                             self.add_to_main_log('CTRL: Grid '
                                 + str(grid_index) + ' already acquired. '
                                 'Skipping. ')
-                        elif (self.cfg['sys']['magc_mode'] == 'True'
+                        elif (self.magc_mode
                             and grid_index not in
                             json.loads(self.cfg['magc']['checked_sections'])):
                                 self.add_to_main_log('CTRL: Grid '
                                     + str(grid_index) + ' not checked. '
                                     'Skipping. ')
                         else:
-                            if (self.autofocus.active()
+                            if (self.use_autofocus
                                     and self.autofocus.method == 0
                                     and (self.autofocus_stig_current_slice[0]
                                     or self.autofocus_stig_current_slice[1])):
@@ -819,26 +890,23 @@ class Stack():
                         % grid_index)
             # ================ Grid acquisition loop end =======================
 
-            # Reset interruption info if affected grid acquired:
+            # Reset interruption info if affected grid acquired
             if (self.pause_state != 1
                     and self.acq_interrupted
                     and self.acq_interrupted_at[0] in self.grids_acquired):
-                # Reset interruption info:
-                self.cfg['acq']['interrupted_at'] = '[]'
                 self.interrupted_at = []
-                self.cfg['acq']['interrupted'] = 'False'
                 self.acq_interrupted = False
 
             if not self.acq_interrupted:
                 self.grids_acquired = []
-                self.cfg['acq']['grids_acquired'] = '[]'
 
-            # Save current viewport:
-            self.viewport_filename = (self.base_dir + '\\workspace\\viewport\\'
-                + self.stack_name + '_viewport_' + 's'
+            # Save screenshot of current viewport canvas
+            self.viewport_filename = os.path.join(
+                self.base_dir, 'workspace', 'viewport',
+                self.stack_name + '_viewport_' + 's'
                 + str(self.slice_counter).zfill(utils.SLICE_DIGITS) + '.png')
             self.transmit_cmd('GRAB VP SCREENSHOT' + self.viewport_filename)
-            # Give main controls time to grab and save viewport screenshot:
+            # Allow enough time to grab and save viewport screenshot
             time_out = 0
             while not os.path.isfile(self.viewport_filename) and time_out < 20:
                 sleep(0.1)
@@ -901,32 +969,24 @@ class Stack():
                         'CTRL: Unknown signal from metadata server '
                         'received.')
 
-            # ======================= E-mail monitoring =======================
-            use_email_monitoring = (
-                self.cfg['acq']['use_email_monitoring'] == 'True')
-            remote_commands_enabled = (
-                self.cfg['monitoring']['remote_commands_enabled'] == 'True')
-            remote_check_interval = int(
-                self.cfg['monitoring']['remote_check_interval'])
-            scheduled_report = (
-                self.slice_counter
-                % int(self.cfg['monitoring']['report_interval']) == 0)
+            # ======================= E-mail monitoring ========================
+            report_scheduled = (self.slice_counter % self.report_interval == 0)
             # If remote commands are enabled, check email account:
             if (use_email_monitoring and remote_commands_enabled
                 and self.slice_counter % remote_check_interval == 0):
                 self.process_remote_commands()
 
             # Check if report should be sent:
-            if (use_email_monitoring
+            if (self.use_email_monitoring
                     and (self.slice_counter > 0)
-                    and (scheduled_report or self.report_requested)):
+                    and (report_scheduled or self.report_requested)):
                 self.send_status_report()
 
             # Check if single slice acquisition -> NO CUT
             if self.number_slices == 0:
                 self.pause_acquisition(1)
 
-            # ========================== CUTTING ==============================
+            # =========================== CUTTING ==============================
             if (self.pause_state != 1) and (self.error_state == 0):
                 if self.microtome is not None:
                     self.perform_cutting_sequence()
@@ -949,8 +1009,8 @@ class Stack():
 
         # ===================== END OF ACQUISITION LOOP =======================
 
-        if self.autofocus.active():
-            for grid_index in range(number_grids):
+        if self.use_autofocus:
+            for grid_index in range(self.gm.number_grids):
                 self.handle_autofocus_adjustments(grid_index)
             self.transmit_cmd('DRAW VP')
             if self.autofocus.method == 1:
@@ -963,7 +1023,7 @@ class Stack():
         if self.stack_completed and not (self.number_slices == 0):
             self.add_to_main_log('CTRL: Stack completed.')
             self.transmit_cmd('COMPLETION STOP')
-            if use_email_monitoring:
+            if self.use_email_monitoring:
                 # Send notification email:
                 msg_subject = 'Stack ' + self.stack_name + ' COMPLETED.'
                 success, error_msg = utils.send_email(
@@ -1012,7 +1072,7 @@ class Stack():
         if self.metadata_file is not None:
             self.metadata_file.close()
 
-    # =============== END OF STACK ACQUISITION THREAD run() ===================
+    # ================ END OF STACK ACQUISITION THREAD run() ===================
 
     def process_remote_commands(self):
         self.add_to_main_log('CTRL: Checking for remote commands.')
@@ -1054,20 +1114,20 @@ class Stack():
             self.add_to_main_log('CTRL: ERROR checking for remote commands.')
 
     def process_error_state(self):
-        # Has a failure occured? Write info into log, send notification, pause:
+        """Add information about the error to the main log, send a
+        notification email, and pause the stack."""
         error_str = utils.ERROR_LIST[self.error_state]
-        # Log in main window:
         self.add_to_main_log('CTRL: ' + error_str)
-        # Log in viewport window:
-        log_str = str(self.slice_counter) + ': ERROR (' + error_str + ')'
-        self.error_log_file.write(log_str + '\n')
-        # Signal to main window to update log in viewport:
-        self.transmit_cmd('VP LOG' + log_str)
-        # Send notification e-mail about error:
-        if self.cfg['acq']['use_email_monitoring'] == 'True':
-            # Generate log file from current content of log:
+        viewport_log_str = (
+            str(self.slice_counter) + ': ERROR (' + error_str + ')')
+        self.error_log_file.write(viewport_log_str + '\n')
+        # Signal to main window to update error log in viewport
+        self.transmit_cmd('VP LOG' + viewport_log_str)
+        # Send notification e-mail
+        if self.use_email_monitoring:
+            # Generate log file from current content of log
             self.transmit_cmd('GET CURRENT LOG' + self.recent_log_filename)
-            sleep(0.5) # wait for file to be written.
+            sleep(0.5)  # wait for file to be written
             if self.viewport_filename is not None:
                 attachment_list = [self.recent_log_filename,
                                    self.viewport_filename]
@@ -1087,14 +1147,14 @@ class Stack():
             else:
                 self.add_to_main_log('CTRL: ERROR sending notification email: '
                                      + error_msg)
-            # Remove temporary log file of most recent entries:
+            # Remove temporary log file of most recent entries
             try:
                 os.remove(self.recent_log_filename)
             except Exception as e:
                 self.add_to_main_log('CTRL: ERROR while trying to remove '
                                      'temporary file: ' + str(e))
 
-        # Tell main window that there was an error:
+        # Send signal to Main Controls that there was an error.
         self.transmit_cmd('ERROR PAUSE')
 
     def send_status_report(self):
@@ -1589,7 +1649,7 @@ class Stack():
             self.transmit_cmd('UPDATE XY')
 
             # Perform autofocus (method 0, SmartSEM) on current tile?
-            if (self.autofocus.active() and self.autofocus.method == 0
+            if (self.use_autofocus and self.autofocus.method == 0
                     and self.gm[grid_index][tile_index].autofocus_active
                     and (self.autofocus_stig_current_slice[0] or
                          self.autofocus_stig_current_slice[1])):
@@ -1726,14 +1786,14 @@ class Stack():
         # and self.stig_y_current_grid are used.
         adjust_wd_stig_for_each_tile = (
             self.gm[grid_index].use_wd_gradient
-            or (self.autofocus.active() and self.autofocus.tracking_mode < 2))
+            or (self.use_autofocus and self.autofocus.tracking_mode < 2))
 
         if self.pause_state != 1:
             self.add_to_main_log(
                 'CTRL: Starting acquisition of active '
                 'tiles in grid %d' % grid_index)
 
-            if self.cfg['sys']['magc_mode'] == 'True':
+            if self.magc_mode:
                 grid_centre_d = self.gm[grid_index].centre_dx_dy
                 self.cs.set_vp_centre_d(grid_centre_d)
                 self.transmit_cmd('DRAW VP')
@@ -1764,12 +1824,12 @@ class Stack():
             # Set WD and stig settings for the current grid and lock the settings
             if not adjust_wd_stig_for_each_tile:
                 # magc: WD/stig is kept to the current values from grid to grid
-                if self.cfg['sys']['magc_mode'] == 'False':
+                if not self.magc_mode:
                     self.set_grid_wd_stig()
                 self.lock_wd_stig()
 
             theta = self.gm[grid_index].rotation
-            if self.cfg['sys']['magc_mode'] == 'False':
+            if not self.magc_mode:
                 theta = 360 - theta
             if theta > 0:
                 # Enable scan rotation
@@ -1782,12 +1842,12 @@ class Stack():
                 tile_id = str(grid_index) + '.' + str(tile_index)
                 # Individual WD/stig adjustment for tile, if necessary:
                 if (adjust_wd_stig_for_each_tile
-                and self.cfg['sys']['magc_mode'] == 'False'):
+                and not self.magc_mode):
                     new_wd = self.gm[grid_index][tile_index].wd
                     new_stig_xy = self.gm[grid_index][tile_index].stig_xy
                     self.sem.set_wd(new_wd)
                     self.sem.set_stig_xy(*new_stig_xy)
-                    self.log_wd_stig(new_wd, new_stig_xy[0], new_stig_xy[1])
+                    self.show_wd_stig_in_log(new_wd, new_stig_xy[0], new_stig_xy[1])
                 # Acquire the current tile, up to three attempts:
                 while not tile_accepted and fail_counter < 2:
                     (tile_img, relative_save_path, save_path,
@@ -1841,7 +1901,7 @@ class Stack():
 
                     # If heuristic autofocus enabled and tile selected as
                     # reference tile, prepare tile for processing:
-                    if (self.autofocus.active() and self.autofocus.method == 1
+                    if (self.use_autofocus and self.autofocus.method == 1
                             and self.gm[grid_index][tile_index].autofocus_active):
                         tile_key = str(grid_index) + '.' + str(tile_index)
                         self.autofocus.crop_tile_for_heuristic_af(
@@ -1885,7 +1945,7 @@ class Stack():
                 self.tiles_acquired = []
                 self.cfg['acq']['tiles_acquired'] = '[]'
 
-                if self.cfg['sys']['magc_mode'] == 'True':
+                if self.magc_mode:
                     grid_centre_d = self.gm[grid_index].centre_dx_dy
                     self.cs.set_vp_centre_d(grid_centre_d)
                     self.transmit_cmd('DRAW VP')
@@ -2054,7 +2114,7 @@ class Stack():
     def handle_autofocus_adjustments(self, grid_index):
         # Apply average WD/STIG from reference tiles
         # if tracking mode "Average" is selected:
-        if self.autofocus.active() and self.autofocus.tracking_mode == 2:
+        if self.use_autofocus and self.autofocus.tracking_mode == 2:
             if self.autofocus.method == 0:
                 self.add_to_main_log(
                     'CTRL: Applying average WD/STIG parameters '
@@ -2091,7 +2151,7 @@ class Stack():
         # If "Individual + Approximate" mode selected - approximate the working
         # distances and stig parameters for all non-autofocus tiles that are
         # active:
-        if (self.autofocus.active()
+        if (self.use_autofocus
             and self.autofocus.tracking_mode == 0):
             self.autofocus.approximate_wd_stig_in_grid(grid_index)
 
@@ -2118,7 +2178,7 @@ class Stack():
         stig_y = self.stig_y_current_grid + self.stig_y_delta
         self.sem.set_wd(wd)
         self.sem.set_stig_xy(stig_x, stig_y)
-        self.log_wd_stig(wd, stig_x, stig_y)
+        self.show_wd_stig_in_log(wd, stig_x, stig_y)
 
     def check_locked_wd_stig(self):
         """Check if wd/stig was accidentally changed and restore targets."""
@@ -2158,7 +2218,7 @@ class Stack():
             self.sem.set_mag(self.locked_mag)
             self.transmit_cmd('MAG ALERT')
 
-    def log_wd_stig(self, wd, stig_x, stig_y):
+    def show_wd_stig_in_log(self, wd, stig_x, stig_y):
         self.add_to_main_log(
             'SEM: WD/STIG_XY: '
             + '{0:.6f}'.format(wd * 1000)
