@@ -166,10 +166,13 @@ class SEMSettingsDlg(QDialog):
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
-        # Display current target settings:
-        self.doubleSpinBox_EHT.setValue(self.sem.get_eht())
-        self.spinBox_beamCurrent.setValue(self.sem.get_beam_current())
-        # Display current focus/stig:
+        # Display actual settings from SmartSEM
+        self.doubleSpinBox_actualEHT.setValue(self.sem.get_eht())
+        self.spinBox_actualBeamCurrent.setValue(self.sem.get_beam_current())
+        # Display current target settings
+        self.doubleSpinBox_EHT.setValue(self.sem.target_eht)
+        self.spinBox_beamCurrent.setValue(self.sem.target_beam_current)
+        # Display current focus/stig
         self.lineEdit_currentFocus.setText(
             '{0:.6f}'.format(sem.get_wd() * 1000))
         self.lineEdit_currentStigX.setText('{0:.6f}'.format(sem.get_stig_x()))
@@ -228,7 +231,7 @@ class MicrotomeSettingsDlg(QDialog):
             current_calibration = self.cs.stage_calibration
             speed_x, speed_y = self.sem.get_motor_speeds()
             self.doubleSpinBox_waitInterval.setValue(
-                self.sem.get_stage_move_wait_interval())
+                self.sem.stage_move_wait_interval)
         self.spinBox_stageMinX.setValue(current_motor_limits[0])
         self.spinBox_stageMaxX.setValue(current_motor_limits[1])
         self.spinBox_stageMinY.setValue(current_motor_limits[2])
@@ -359,7 +362,7 @@ class StageCalibrationDlg(QDialog):
         self.cs = coordinate_system
         self.stage = stage
         self.sem = sem
-        self.current_eht = self.sem.get_eht()
+        self.current_eht = self.sem.target_eht
         self.x_shift_vector = [0, 0]
         self.y_shift_vector = [0, 0]
         self.finish_trigger = Trigger()
@@ -954,7 +957,7 @@ class GridSettingsDlg(QDialog):
         height = self.sem.STORE_RES[frame_size_selector][1] * pixel_size / 1000
         self.label_tileSize.setText('{0:.1f} × '.format(width)
                                     + '{0:.1f}'.format(height))
-        current = self.sem.get_beam_current()
+        current = self.sem.target_beam_current
         dwell_time = float(self.comboBox_dwellTime.currentText())
         pixel_size = self.doubleSpinBox_pixelSize.value()
         # Show electron dose in electrons per square nanometre.
@@ -1349,88 +1352,76 @@ class PreStackDlg(QDialog):
        them for logging purposes.
     """
 
-    def __init__(self, config, ovm, gm, paused):
+    def __init__(self, stack, sem, microtome, autofocus, ovm, gm):
         super().__init__()
-        self.cfg = config
-        self.ovm = ovm
-        self.gm = gm
+        self.sem = sem
+        self.microtome = microtome
         loadUi('..\\gui\\pre_stack_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
         # Different labels if stack is paused ('Continue' instead of 'Start'):
-        if paused:
+        if stack.acq_paused:
             self.pushButton_startAcq.setText('Continue acquisition')
             self.setWindowTitle('Continue acquisition')
         self.pushButton_startAcq.clicked.connect(self.accept)
         boldFont = QFont()
         boldFont.setBold(True)
-        # Show the most relevant current settings for the acquisition:
-        base_dir = self.cfg['acq']['base_dir']
-        self.label_stackName.setText(base_dir[base_dir.rfind('\\') + 1:])
+        # Show the most relevant current settings for the acquisition
+        self.label_stackName.setText(stack.stack_name)
         self.label_beamSettings.setText(
-            self.cfg['sem']['eht'] + ' keV, '
-            + self.cfg['sem']['beam_current'] + ' pA')
+            f'{self.sem.target_eht:.2f} keV, '
+            f'{self.sem.target_beam_current} pA')
         self.label_gridSetup.setText(
-            self.cfg['overviews']['number_ov'] + ' overview(s), '
-            + self.cfg['grids']['number_grids'] + ' grid(s);')
+            f'{ovm.number_ov} overview(s), {gm.number_grids} grid(s);')
         self.label_totalActiveTiles.setText(
-            str(self.gm.total_number_active_tiles()) + ' active tile(s)')
-        if self.cfg['acq']['use_autofocus'] == 'True':
-            if int(self.cfg['autofocus']['method']) == 0:
+            f'{gm.total_number_active_tiles()} active tile(s)')
+        if stack.use_autofocus:
+            if autofocus.method == 0:
                 self.label_autofocusActive.setFont(boldFont)
                 self.label_autofocusActive.setText('Active (SmartSEM)')
-            elif int(self.cfg['autofocus']['method']) == 1:
+            elif autofocus.method == 1:
                 self.label_autofocusActive.setFont(boldFont)
                 self.label_autofocusActive.setText('Active (heuristic)')
         else:
             self.label_autofocusActive.setText('Inactive')
-        if self.gm.wd_gradient_active():
+        if gm.wd_gradient_active():
             self.label_gradientActive.setFont(boldFont)
             self.label_gradientActive.setText('Active')
         else:
             self.label_gradientActive.setText('Inactive')
-        if (self.gm.intervallic_acq_active()
-            or self.ovm.intervallic_acq_active()):
+        if gm.intervallic_acq_active() or ovm.intervallic_acq_active():
             self.label_intervallicActive.setFont(boldFont)
             self.label_intervallicActive.setText('Active')
         else:
             self.label_intervallicActive.setText('Inactive')
-        if self.cfg['acq']['interrupted'] == 'True':
-            position = json.loads(self.cfg['acq']['interrupted_at'])
+        if stack.acq_interrupted:
             self.label_interruption.setFont(boldFont)
             self.label_interruption.setText(
-                'Yes, in grid ' + str(position[0]) + ' at tile '
-                + str(position[1]))
+                f'Yes, in grid {stack.acq_interrupted_at[0]} '
+                f'at tile {stack.acq_interrupted_at[1]}')
         else:
             self.label_interruption.setText('None')
         self.doubleSpinBox_cutSpeed.setValue(
-            int(float(self.cfg['microtome']['knife_cut_speed'])) / 1000)
+            self.microtome.knife_cut_speed / 1000)
         self.doubleSpinBox_retractSpeed.setValue(
-            int(float(self.cfg['microtome']['knife_retract_speed'])) / 1000)
-        self.doubleSpinBox_brightness.setValue(
-            float(self.cfg['sem']['bsd_brightness']))
-        self.doubleSpinBox_contrast.setValue(
-            float(self.cfg['sem']['bsd_contrast']))
-        self.spinBox_bias.setValue(
-            int(self.cfg['sem']['bsd_bias']))
-        self.checkBox_oscillation.setChecked(
-            self.cfg['microtome']['knife_oscillation'] == 'True')
+            self.microtome.knife_retract_speed / 1000)
+        self.doubleSpinBox_brightness.setValue(self.sem.bsd_brightness)
+        self.doubleSpinBox_contrast.setValue(self.sem.bsd_contrast)
+        self.spinBox_bias.setValue(self.sem.bsd_bias)
+        self.checkBox_oscillation.setChecked(self.microtome.use_oscillation)
 
     def accept(self):
-        self.cfg['microtome']['knife_cut_speed'] = str(
-            int(self.doubleSpinBox_cutSpeed.value() * 1000))
-        self.cfg['microtome']['knife_retract_speed'] = str(
-            int(self.doubleSpinBox_retractSpeed.value() * 1000))
-        self.cfg['sem']['bsd_contrast'] = str(
-            self.doubleSpinBox_contrast.value())
-        self.cfg['sem']['bsd_brightness'] = str(
-            self.doubleSpinBox_brightness.value())
-        self.cfg['sem']['bsd_bias'] = str(
-            self.spinBox_bias.value())
-        self.cfg['microtome']['knife_oscillation'] = str(
-            self.checkBox_oscillation.isChecked())
+        # Save updated settings
+        self.microtome.knife_cut_speed = int(
+            self.doubleSpinBox_cutSpeed.value() * 1000)
+        self.microtome.knife_retract_speed = int(
+            self.doubleSpinBox_retractSpeed.value() * 1000)
+        self.sem.bsd_contrast = self.doubleSpinBox_contrast.value()
+        self.sem.bsd_brightness = self.doubleSpinBox_brightness.value()
+        self.sem.bsd_bias = self.spinBox_bias.value()
+        self.microtome.use_oscillation = self.checkBox_oscillation.isChecked()
         super().accept()
 
 # ------------------------------------------------------------------------------
@@ -2396,27 +2387,27 @@ class GrabFrameDlg(QDialog):
         timestamp = timestamp[:19].translate({ord(c): None for c in ' :-.'})
         self.file_name = 'image_' + timestamp
         self.lineEdit_filename.setText(self.file_name)
-        frame_size, pixel_size, dwell_time = self.sem.get_grab_settings()
         store_res_list = [
             '%d × %d' % (res[0], res[1]) for res in self.sem.STORE_RES]
         self.comboBox_frameSize.addItems(store_res_list)
-        self.comboBox_frameSize.setCurrentIndex(frame_size)
-        self.doubleSpinBox_pixelSize.setValue(pixel_size)
+        self.comboBox_frameSize.setCurrentIndex(
+            self.sem.grab_frame_size_selector)
+        self.doubleSpinBox_pixelSize.setValue(self.sem.grab_pixel_size)
         self.comboBox_dwellTime.addItems(map(str, self.sem.DWELL_TIME))
         self.comboBox_dwellTime.setCurrentIndex(
-            self.sem.DWELL_TIME.index(dwell_time))
+            self.sem.DWELL_TIME.index(self.sem.grab_dwell_time))
         self.pushButton_scan.clicked.connect(self.scan_frame)
         self.pushButton_save.clicked.connect(self.save_frame)
 
     def scan_frame(self):
         """Scan and save a single frame using the current grab settings."""
         self.file_name = self.lineEdit_filename.text()
-        # Save and apply grab settings:
-        selected_dwell_time = self.sem.DWELL_TIME[
+        # Save and apply grab settings
+        self.sem.grab_frame_size_selector = (
+            self.comboBox_frameSize.currentIndex())
+        self.sem.grab_pixel_size = self.doubleSpinBox_pixelSize.value()
+        self.sem.grab_dwell_time = self.sem.DWELL_TIME[
             self.comboBox_dwellTime.currentIndex()]
-        self.sem.set_grab_settings(self.comboBox_frameSize.currentIndex(),
-                                   self.doubleSpinBox_pixelSize.value(),
-                                   selected_dwell_time)
         self.sem.apply_grab_settings()
         self.pushButton_scan.setText('Wait')
         self.pushButton_scan.setEnabled(False)

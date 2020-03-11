@@ -489,7 +489,7 @@ class MainControls(QMainWindow):
         self.checkBox_zoom.stateChanged.connect(self.ft_toggle_zoom)
         # Progress bar for stack acquisitions:
         self.progressBar.setValue(0)
-        # Limit the log to user-specified number of most recent lines:
+        # Limit the log to user-specified number of most recent lines
         self.textarea_log.setMaximumBlockCount(
             int(self.cfg['monitoring']['max_log_line_count']))
 
@@ -566,8 +566,8 @@ class MainControls(QMainWindow):
             self.label_microtome.setText(self.sem.device_name)
         # SEM beam settings:
         self.label_beamSettings.setText(
-            '{0:.2f}'.format(self.sem.get_eht()) + ' kV / '
-            + str(self.sem.get_beam_current()) + ' pA')
+            '{0:.2f}'.format(self.sem.target_eht) + ' kV / '
+            + str(self.sem.target_beam_current) + ' pA')
         # Show dwell time, pixel size, and frame size for current grid:
         self.label_tileDwellTime.setText(
             str(self.gm[self.grid_index_dropdown].dwell_time) + ' µs')
@@ -1003,7 +1003,7 @@ class MainControls(QMainWindow):
         if dialog.exec_():
             if self.microtome is not None:
                 # Update stage calibration (EHT may have changed)
-                self.cs.load_stage_calibration(self.sem.get_eht())
+                self.cs.load_stage_calibration(self.sem.target_eht)
                 self.cs.apply_stage_calibration()
             self.show_current_settings()
             # Electron dose may have changed
@@ -1089,14 +1089,13 @@ class MainControls(QMainWindow):
         if dialog.exec_():
             self.show_current_settings()
             self.show_stack_acq_estimates()
-            self.img_inspector.update_acq_settings()
             self.show_stack_progress()   # Slice number may have changed.
 
     def open_pre_stack_dlg(self):
         # Calculate new estimates first, then open dialog:
         self.show_stack_acq_estimates()
-        dialog = PreStackDlg(self.cfg, self.ovm, self.gm,
-                             paused=self.stack.acq_paused)
+        dialog = PreStackDlg(self.stack, self.sem, self.microtome,
+                             self.autofocus, self.ovm, self.gm)
         if dialog.exec_():
             self.show_current_settings()
             self.start_acquisition()
@@ -1118,7 +1117,6 @@ class MainControls(QMainWindow):
         if dialog.exec_():
             self.ovm.update_all_debris_detections_areas(self.gm)
             self.show_current_settings()
-            self.img_inspector.update_debris_settings()
             self.viewport.vp_draw()
 
     def open_ask_user_dlg(self):
@@ -1131,8 +1129,7 @@ class MainControls(QMainWindow):
 
     def open_image_monitoring_dlg(self):
         dialog = ImageMonitoringSettingsDlg(self.cfg)
-        if dialog.exec_():
-            self.img_inspector.update_monitoring_settings()
+        dialog.exec_()
 
     def open_autofocus_dlg(self):
         dialog = AutofocusSettingsDlg(self.autofocus, self.gm, self.magc_mode)
@@ -1755,13 +1752,13 @@ class MainControls(QMainWindow):
                 'Please save the current configuration file "default.ini" '
                 'under a new name before starting the stack.',
                 QMessageBox.Ok)
-        elif not self.sem.is_eht_on():
+        elif self.sem.is_eht_off():
             QMessageBox.warning(
                 self, 'EHT off',
                 'EHT / high voltage is off. Please turn '
                 'it on before starting the acquisition.',
                 QMessageBox.Ok)
-        elif self.stack.acq_paused:
+        elif self.stack.acq_paused or True:
             self.restrict_gui(True)
             self.viewport.restrict_gui(True)
             self.pushButton_startAcq.setText('START')
@@ -1783,22 +1780,20 @@ class MainControls(QMainWindow):
         """Pause the acquisition after user has clicked 'Pause' button. Let
         user decide whether to stop immediately or after finishing current
         slice."""
-        if self.acq_in_progress and not self.acq_paused:
+        if not self.stack.acq_paused:
             dialog = PauseDlg()
             dialog.exec_()
             pause_type = dialog.get_user_choice()
-        else:
-            pause_type = 0
-        if pause_type == 1 or pause_type == 2:
-            self.add_to_log('CTRL: PAUSE command received.')
-            self.pushButton_pauseAcq.setEnabled(False)
-            self.stack.pause_acquisition(pause_type)
-            self.pushButton_startAcq.setText('CONTINUE')
-            QMessageBox.information(
-                self, 'Acquisition being paused',
-                'Please wait until the pause status is confirmed in the log '
-                'before interacting with the program.',
-                QMessageBox.Ok)
+            if pause_type == 1 or pause_type == 2:
+                self.add_to_log('CTRL: PAUSE command received.')
+                self.pushButton_pauseAcq.setEnabled(False)
+                self.stack.pause_acquisition(pause_type)
+                self.pushButton_startAcq.setText('CONTINUE')
+                QMessageBox.information(
+                    self, 'Acquisition being paused',
+                    'Please wait until the pause status is confirmed in '
+                    'the log before interacting with the program.',
+                    QMessageBox.Ok)
 
     def reset_acquisition(self):
         """Reset the acquisition status."""
