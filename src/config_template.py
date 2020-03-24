@@ -16,7 +16,7 @@
 # deleted from the default configuration files
 CFG_TEMPLATE_FILE = '..\\cfg\\default.ini'  # Template of user configuration
 CFG_NUMBER_SECTIONS = 12
-CFG_NUMBER_KEYS = 205
+CFG_NUMBER_KEYS = 204
 
 SYSCFG_TEMPLATE_FILE = '..\\cfg\\system.cfg'  # Template of system configuration
 SYSCFG_NUMBER_SECTIONS = 7

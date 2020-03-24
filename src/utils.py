@@ -14,21 +14,12 @@ import os
 import datetime
 import json
 import re
-import imaplib
-import smtplib
-import socket
 import requests
 
 import numpy as np
 
 from time import sleep
 from serial.tools import list_ports
-
-from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
-from email.mime.text import MIMEText
-from email.utils import formatdate
-from email import encoders, message_from_string
 
 from PyQt5.QtCore import QObject, pyqtSignal
 
@@ -250,64 +241,6 @@ def validate_ov_list(input_str):
             ov_list = []
             success = False
     return success, ov_list
-
-def send_email(smtp_server, sender, recipients, subject, main_text, files=[]):
-    try:
-        msg = MIMEMultipart()
-        msg['From'] = sender
-        msg['To'] = recipients[0]
-        msg['Date'] = formatdate(localtime = True)
-        msg['Subject'] = subject
-        msg.attach(MIMEText(main_text))
-        for f in files:
-            part = MIMEBase('application', 'octet-stream')
-            part.set_payload(open(f, 'rb').read())
-            encoders.encode_base64(part)
-            part.add_header('Content-Disposition',
-                            'attachment; filename="{0}"'.format(
-                                os.path.basename(f)))
-            msg.attach(part)
-        mail_server = smtplib.SMTP(smtp_server)
-        #mail_server = smtplib.SMTP_SSL(smtp_server)
-        mail_server.sendmail(sender, recipients, msg.as_string())
-        mail_server.quit()
-        return True, None
-    except Exception as e:
-        return False, str(e)
-
-def get_remote_command(imap_server, email_account, email_pw, allowed_senders):
-    try:
-        #print('Trying to log in to', imap_server, email_account, email_pw)
-        mail_server = imaplib.IMAP4_SSL(imap_server)
-        mail_server.login(email_account, email_pw)
-        mail_server.list()
-        mail_server.select('inbox')
-        result, data = mail_server.search(None, 'ALL')
-        if data is not None:
-            id_list = data[0].split()
-            latest_email_id = id_list[-1]
-            # fetch the email body (RFC822) for latest_email_id
-            result, data = mail_server.fetch(latest_email_id, '(RFC822)')
-            for response_part in data:
-                if isinstance(response_part, tuple):
-                    msg = message_from_string(response_part[1].decode('utf-8'))
-                    subject = msg['subject'].strip().lower()
-                    sender = msg['from']
-            mail_server.logout()
-            # Check sender and subject
-            # Sender email must be main user email or cc email:
-            sender_allowed = (allowed_senders[0] in sender
-                              or allowed_senders[1] in sender)
-            allowed_commands = ['pause', 'stop', 'continue', 'start', 'restart',
-                                'report']
-            if (subject in allowed_commands) and sender_allowed:
-                return subject
-            else:
-                return 'NONE'
-        else:
-            return 'NONE'
-    except:
-        return 'ERROR'
 
 def meta_server_put_request(url, data):
     try:

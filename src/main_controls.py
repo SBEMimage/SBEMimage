@@ -42,6 +42,7 @@ from microtome_control import Microtome_3View, Microtome_katana
 from stage import Stage
 from plasma_cleaner import PlasmaCleaner
 from stack_acquisition import Stack
+from notifications import Notifications
 from overview_manager import OverviewManager
 from imported_img import ImportedImages
 from grid_manager import GridManager
@@ -235,10 +236,12 @@ class MainControls(QMainWindow):
         self.autofocus = Autofocus(self.cfg, self.sem, self.gm,
                                    self.trigger, self.queue)
 
+        self.notifications = Notifications(self.cfg, self.syscfg)
+
         self.stack = Stack(self.cfg, self.syscfg,
                            self.sem, self.microtome, self.stage,
-                           self.ovm, self.gm, self.cs,
-                           self.img_inspector, self.autofocus,
+                           self.ovm, self.gm, self.cs, self.img_inspector,
+                           self.autofocus, self.notifications,
                            self.trigger, self.queue)
 
         # Check if plasma cleaner is installed and load its COM port.
@@ -1109,7 +1112,8 @@ class MainControls(QMainWindow):
         dialog.exec_()
 
     def open_email_monitoring_dlg(self):
-        dialog = EmailMonitoringSettingsDlg(self.cfg, self.stack)
+        dialog = EmailMonitoringSettingsDlg(self.cfg, self.stack,
+                                            self.notifications)
         dialog.exec_()
 
     def open_debris_dlg(self):
@@ -1620,22 +1624,17 @@ class MainControls(QMainWindow):
             self.add_to_log('3VIEW: Microtome not active.')
 
     def test_send_email(self):
-        """Send test e-mail to the primary user."""
+        """Send test e-mail to the specified user email addresses."""
         self.add_to_log('CTRL: Trying to send test e-mail.')
-        success, error_msg = utils.send_email(
-            smtp_server=self.stack.smtp_server,
-            sender=self.stack.email_account,
-            recipients=[self.stack.user_email_addresses[0]],
-            subject='Test mail',
-            main_text='This mail was sent for testing purposes.',
-            files=[])
+        success, error_msg = self.notifications.send_email(
+            'Test mail', 'This mail was sent for testing purposes.')
         if success:
             self.add_to_log('CTRL: E-mail was sent via '
-                            + self.stack.smtp_server)
+                            + self.notifications.smtp_server)
             QMessageBox.information(
                 self, 'E-mail test',
-                'E-mail was sent via ' + self.stack.smtp_server
-                + ' to ' + self.stack.user_email_addresses[0]
+                'E-mail was sent via ' + self.notifications.smtp_server
+                + ' to ' + str(self.notifications.user_email_addresses)
                 + '. Check your inbox.',
                 QMessageBox.Ok)
         else:
@@ -1643,8 +1642,8 @@ class MainControls(QMainWindow):
             QMessageBox.warning(
                 self, 'E-mail test failed',
                 'A error occurred while trying to send a test e-mail to '
-                + self.stack.user_email_addresses[0] + ' via '
-                + self.stack.smtp_server
+                + str(self.notifications.user_email_addresses) + ' via '
+                + self.notifications.smtp_server
                 + ': ' + error_msg,
                 QMessageBox.Ok)
 

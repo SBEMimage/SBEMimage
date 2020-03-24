@@ -47,13 +47,7 @@ class ImageInspector(object):
         self.prev_img_mean_stddev = [0, 0]
 
         self.update_acq_settings()
-        self.update_debris_settings()
-        self.update_monitoring_settings()
 
-    def update_acq_settings(self):
-        self.base_dir = self.cfg['acq']['base_dir']
-
-    def update_debris_settings(self):
         self.debris_roi_min_quadrant_area = int(
             self.cfg['debris']['min_quadrant_area'])
         self.mean_diff_threshold = float(
@@ -69,8 +63,6 @@ class ImageInspector(object):
         self.histogram_diff_threshold = int(
             self.cfg['debris']['histogram_diff_threshold'])
 
-    def update_monitoring_settings(self):
-        # read params for monitoring image stats of tiles and OVs:
         self.mean_lower_limit = int(self.cfg['monitoring']['mean_lower_limit'])
         self.mean_upper_limit = int(self.cfg['monitoring']['mean_upper_limit'])
         self.stddev_lower_limit = int(
@@ -83,6 +75,13 @@ class ImageInspector(object):
             self.cfg['monitoring']['tile_mean_threshold'])
         self.tile_stddev_threshold = float(
             self.cfg['monitoring']['tile_stddev_threshold'])
+
+    def update_acq_settings(self):
+        self.base_dir = self.cfg['acq']['base_dir']
+
+
+
+
 
     def save_to_cfg(self):
         # TODO: save parameters managed by image_inspector to config

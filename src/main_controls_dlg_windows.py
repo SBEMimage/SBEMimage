@@ -1618,19 +1618,20 @@ class UpdateDlg(QDialog):
 class EmailMonitoringSettingsDlg(QDialog):
     """Adjust settings for the e-mail monitoring feature."""
 
-    def __init__(self, config, stack):
+    def __init__(self, config, stack, notifications):
         super().__init__()
         self.cfg = config
         self.stack = stack
+        self.notifications = notifications
         loadUi('..\\gui\\email_monitoring_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
         self.lineEdit_notificationEmail.setText(
-            self.cfg['monitoring']['user_email'])
+            self.notifications.user_email_addresses[0])
         self.lineEdit_secondaryNotificationEmail.setText(
-            self.cfg['monitoring']['cc_user_email'])
+            self.notifications.user_email_addresses[1])
         self.spinBox_reportInterval.setValue(
             int(self.cfg['monitoring']['report_interval']))
         self.lineEdit_selectedOV.setText(

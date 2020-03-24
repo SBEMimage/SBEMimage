@@ -146,7 +146,6 @@ class Microtome:
         self.cfg['microtome']['motor_speed_y'] = str(self.motor_speed_y)
         self.syscfg['stage']['microtome_motor_speed'] = str(
             [self.motor_speed_x, self.motor_speed_y])
-
         self.cfg['microtome']['knife_cut_speed'] = str(int(
             self.knife_cut_speed))
         self.cfg['microtome']['knife_retract_speed'] = str(int(

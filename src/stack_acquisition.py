@@ -29,7 +29,7 @@ class Stack():
 
     def __init__(self, config, sysconfig, sem, microtome, stage,
                  overview_manager, grid_manager, coordinate_system,
-                 image_inspector, autofocus,
+                 image_inspector, autofocus, notifications,
                  main_controls_trigger, main_controls_queue):
         self.cfg = config
         self.syscfg = sysconfig
@@ -41,13 +41,11 @@ class Stack():
         self.cs = coordinate_system
         self.img_inspector = image_inspector
         self.autofocus = autofocus
+        self.notifications = notifications
         self.trigger = main_controls_trigger
         self.queue = main_controls_queue
 
-        # The password needed to access the e-mail account used by SBEMimage
-        # to receive remote commands. The user can set this password in a
-        # dialog at runtime
-        self.remote_cmd_email_pw = ''
+
         self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
 
         self.error_state = 0
@@ -91,19 +89,13 @@ class Stack():
         # self.grids_acquired: Grids that have been acquired before interruption
         # occured.
         self.grids_acquired = json.loads(self.cfg['acq']['grids_acquired'])
-        # E-mail settings from sysconfig
-        self.email_account = self.syscfg['email']['account']
-        self.smtp_server = self.syscfg['email']['smtp_server']
-        self.imap_server = self.syscfg['email']['imap_server']
 
-        self.user_email_addresses = [self.cfg['monitoring']['user_email'],
-                                     self.cfg['monitoring']['cc_user_email']]
         # Remove trailing slashes and whitespace from base directory string
         self.cfg['acq']['base_dir'] = self.cfg['acq']['base_dir'].rstrip(r'\/ ')
         self.base_dir = self.cfg['acq']['base_dir']
         # Extract the name of the stack from the base directory.
         self.stack_name = self.base_dir[self.base_dir.rfind('\\') + 1:]
-        self.viewport_filename = None
+        self.vp_screenshot_filename = None
         # Mirror drive: same folder, only drive letter changes.
         self.mirror_drive = self.cfg['sys']['mirror_drive']
         self.mirror_drive_directory = os.path.join(
@@ -138,26 +130,9 @@ class Stack():
             self.cfg['acq']['monitor_images'].lower() == 'true')
         self.use_autofocus = (
             self.cfg['acq']['use_autofocus'].lower() == 'true')
-
-        # Status report
         self.status_report_interval = int(
             self.cfg['monitoring']['report_interval'])
-        self.status_report_ov_list = json.loads(
-            self.cfg['monitoring']['report_ov_list'])
-        self.status_report_tile_list = json.loads(
-            self.cfg['monitoring']['report_tile_list'])
-        self.send_logfile = str(self.cfg['monitoring']['send_logfile'])
-        self.send_additional_logs = str(
-            self.cfg['monitoring']['send_additional_logs'])
-        self.send_viewport_screenshot = str(
-            self.cfg['monitoring']['send_viewport_screenshot'])
-        self.send_ov = str(self.cfg['monitoring']['send_ov'])
-        self.send_tiles = str(self.cfg['monitoring']['send_tiles'])
-        self.send_ov_reslices = str(self.cfg['monitoring']['send_ov_reslices'])
-        self.send_tile_reslices = str(
-            self.cfg['monitoring']['send_tile_reslices'])
-        self.remote_commands_enabled = str(
-            self.cfg['monitoring']['remote_commands_enabled'])
+
         self.remote_check_interval = int(
             self.cfg['monitoring']['remote_check_interval'])
         # Debris
@@ -197,28 +172,10 @@ class Stack():
         self.cfg['acq']['monitor_images'] = str(self.monitor_images)
         self.cfg['acq']['use_autofocus'] = str(self.use_autofocus)
         self.cfg['acq']['eht_off_after_stack'] = str(self.eht_off_after_stack)
-        self.cfg['monitoring']['user_email'] = self.user_email_addresses[0]
-        self.cfg['monitoring']['cc_user_email'] = self.user_email_addresses[1]
         # Status report settings
         self.cfg['monitoring']['report_interval'] = str(
             self.status_report_interval)
-        self.cfg['monitoring']['report_ov_list'] = str(
-            self.status_report_ov_list)
-        self.cfg['monitoring']['report_tile_list'] = json.dumps(
-            self.status_report_tile_list)
 
-        self.cfg['monitoring']['send_logfile'] = str(self.send_logfile)
-        self.cfg['monitoring']['send_additional_logs'] = str(
-            self.send_additional_logs)
-        self.cfg['monitoring']['send_viewport_screenshot'] = str(
-            self.send_viewport_screenshot)
-        self.cfg['monitoring']['send_ov'] = str(self.send_ov)
-        self.cfg['monitoring']['send_tiles'] = str(self.send_tiles)
-        self.cfg['monitoring']['send_ov_reslices'] = str(self.send_ov_reslices)
-        self.cfg['monitoring']['send_tile_reslices'] = str(
-            self.send_tile_reslices)
-        self.cfg['monitoring']['remote_commands_enabled'] = str(
-            self.remote_commands_enabled)
         self.cfg['monitoring']['remote_check_interval'] = str(
             self.remote_check_interval)
 
@@ -901,14 +858,14 @@ class Stack():
                 self.grids_acquired = []
 
             # Save screenshot of current viewport canvas
-            self.viewport_filename = os.path.join(
+            self.vp_screenshot_filename = os.path.join(
                 self.base_dir, 'workspace', 'viewport',
                 self.stack_name + '_viewport_' + 's'
                 + str(self.slice_counter).zfill(utils.SLICE_DIGITS) + '.png')
-            self.transmit_cmd('GRAB VP SCREENSHOT' + self.viewport_filename)
+            self.transmit_cmd('GRAB VP SCREENSHOT' + self.vp_screenshot_filename)
             # Allow enough time to grab and save viewport screenshot
             time_out = 0
-            while not os.path.isfile(self.viewport_filename) and time_out < 20:
+            while not os.path.isfile(self.vp_screenshot_filename) and time_out < 20:
                 sleep(0.1)
                 time_out += 1
 
@@ -948,10 +905,7 @@ class Stack():
                             # Send notification email:
                             msg_subject = ('Stack ' + self.stack_name
                                            + ' PAUSED remotely')
-                            success, error_msg = utils.send_email(
-                                self.smtp_server,
-                                self.email_account,
-                                self.user_email_addresses,
+                            success, error_msg = self.notifications.send_email(
                                 msg_subject,
                                 'Pause command received from metadata server.')
                         if success:
@@ -973,8 +927,9 @@ class Stack():
             report_scheduled = (self.slice_counter % self.report_interval == 0)
             # If remote commands are enabled, check email account:
             if (use_email_monitoring and remote_commands_enabled
-                and self.slice_counter % remote_check_interval == 0):
-                self.process_remote_commands()
+                    and self.slice_counter % remote_check_interval == 0):
+                self.add_to_main_log('CTRL: Checking for remote commands.')
+                self.notifications.process_remote_commands()
 
             # Check if report should be sent:
             if (self.use_email_monitoring
@@ -1026,12 +981,8 @@ class Stack():
             if self.use_email_monitoring:
                 # Send notification email:
                 msg_subject = 'Stack ' + self.stack_name + ' COMPLETED.'
-                success, error_msg = utils.send_email(
-                    self.smtp_server,
-                    self.email_account,
-                    self.user_email_addresses,
-                    msg_subject,
-                    '')
+                success, error_msg = self.notifications.send_email(
+                    msg_subject, '')
                 if success:
                     self.add_to_main_log('CTRL: Notification e-mail sent.')
                 else:
@@ -1075,42 +1026,26 @@ class Stack():
     # ================ END OF STACK ACQUISITION THREAD run() ===================
 
     def process_remote_commands(self):
-        self.add_to_main_log('CTRL: Checking for remote commands.')
-        command = utils.get_remote_command(self.imap_server,
-                                           self.email_account,
-                                           self.email_pw,
-                                           self.user_email_addresses)
+        command = self.notifications.get_remote_command()
         # Send command to main program via trigger, queue:
         if command in ['stop', 'pause']:
             self.add_to_main_log('CTRL: STOP/PAUSE remote command received.')
-            utils.send_email(self.smtp_server,
-                             self.email_account,
-                             self.email_account,
-                             'Command received',
-                             '')
+            self.notifications.send_email('Command received', '')
             self.pause_acquisition(2)
-            success, error_msg = utils.send_email(
-                self.smtp_server,
-                self.email_account,
-                self.user_email_addresses,
-                'Remote stop',
-                'The acquisition was paused remotely.')
+            success, error_msg = self.notifications.send_email(
+                'Remote stop', 'The acquisition was paused remotely.')
             if not success:
                 self.add_to_log('CTRL: Error sending confirmation email: '
                                 + error_msg)
             self.transmit_cmd('REMOTE STOP')
-        if command in ['continue', 'start', 'restart']:
+        elif command in ['continue', 'start', 'restart']:
             pass
             # TODO: let user continue paused acq with remote command
-        if command == 'report':
+        elif command == 'report':
             self.add_to_main_log('CTRL: REPORT remote command received.')
-            utils.send_email(self.smtp_server,
-                             self.email_account,
-                             self.email_account,
-                             'Command received',
-                             '')
+            self.notifications.send_email('Command received', '')
             self.report_requested = True
-        if command == 'ERROR':
+        elif command == 'ERROR':
             self.add_to_main_log('CTRL: ERROR checking for remote commands.')
 
     def process_error_state(self):
@@ -1128,20 +1063,15 @@ class Stack():
             # Generate log file from current content of log
             self.transmit_cmd('GET CURRENT LOG' + self.recent_log_filename)
             sleep(0.5)  # wait for file to be written
-            if self.viewport_filename is not None:
+            if self.vp_screenshot_filename is not None:
                 attachment_list = [self.recent_log_filename,
-                                   self.viewport_filename]
+                                   self.vp_screenshot_filename]
             else:
                 attachment_list = [self.recent_log_filename]
             msg_subject = ('Stack ' + self.stack_name + ': slice '
                            + str(self.slice_counter) + ', ERROR')
-            success, error_msg = utils.send_email(
-                self.smtp_server,
-                self.email_account,
-                self.user_email_addresses,
-                msg_subject,
-                error_str,
-                attachment_list)
+            success, error_msg = self.notifications.send_email(
+                msg_subject, error_str, attachment_list)
             if success:
                 self.add_to_main_log('CTRL: Error notification email sent.')
             else:
@@ -1174,10 +1104,10 @@ class Stack():
             attachment_list.append(self.debris_log_filename)
             attachment_list.append(self.error_log_filename)
         if self.cfg['monitoring']['send_viewport'] == 'True':
-            if os.path.isfile(self.viewport_filename):
-                attachment_list.append(self.viewport_filename)
+            if os.path.isfile(self.vp_screenshot_filename):
+                attachment_list.append(self.vp_screenshot_filename)
             else:
-                missing_list.append(self.viewport_filename)
+                missing_list.append(self.vp_screenshot_filename)
         if (self.cfg['monitoring']['send_ov'] == 'True'):
             for ov_index in ov_list:
                 save_path = self.base_dir + '\\' + utils.get_ov_save_path(
@@ -1265,12 +1195,8 @@ class Stack():
             for file in missing_list:
                 msg_text += (file + '\n')
 
-        success, error_msg = utils.send_email(self.smtp_server,
-                                              self.email_account,
-                                              self.user_email_addresses,
-                                              msg_subject,
-                                              msg_text,
-                                              attachment_list)
+        success, error_msg = self.notifications.send_email(
+            msg_subject, msg_text, attachment_list)
         if success:
             self.add_to_main_log('CTRL: Status report e-mail sent.')
         else:

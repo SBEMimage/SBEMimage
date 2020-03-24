@@ -34,10 +34,8 @@ def main():
     """Load configuration and run QApplication.
     Let user select configuration file. Preselect the configuration from the
     previous run (saved in status.dat), otherwise default.ini.
-    Quit if default.ini can't be found.
-    Check if configuration can be loaded and if it's compatible with the
-    current version of SBEMimage. If not, quit.
-    """
+    Quit if default.ini can't be found, or if user/system configuration cannot
+    be loaded."""
     # Check Windows version:
     if not (platform.system() == 'Windows'
             and platform.release() in ['7', '10']):
