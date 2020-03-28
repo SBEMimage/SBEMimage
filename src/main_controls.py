@@ -236,7 +236,8 @@ class MainControls(QMainWindow):
         self.autofocus = Autofocus(self.cfg, self.sem, self.gm,
                                    self.trigger, self.queue)
 
-        self.notifications = Notifications(self.cfg, self.syscfg)
+        self.notifications = Notifications(self.cfg, self.syscfg,
+                                           self.trigger, self.queue)
 
         self.stack = Stack(self.cfg, self.syscfg,
                            self.sem, self.microtome, self.stage,

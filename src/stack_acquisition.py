@@ -770,17 +770,24 @@ class Stack():
                         self.first_ov[ov_index] = False
 
                         if ov_accepted:
-                            # Write stats to disk:
-                            success = self.img_inspector.save_ov_stats(
-                                ov_index, self.slice_counter)
+                            # Write stats and reslice to disk
+                            success, error_msg = (
+                                self.img_inspector.save_ov_stats(
+                                    self.base_dir, ov_index,
+                                    self.slice_counter))
                             if not success:
                                 self.add_to_main_log(
                                     'CTRL: Error saving OV mean/SD to disk.')
-                            success = self.img_inspector.save_ov_reslice(
-                                ov_index)
+                                self.add_to_main_log(
+                                    'CTRL: ' + error_msg)
+                            success, error_msg = (
+                                self.img_inspector.save_ov_reslice(
+                                    self.base_dir, ov_index))
                             if not success:
                                 self.add_to_main_log(
                                     'CTRL: Error saving OV reslice to disk.')
+                                self.add_to_main_log(
+                                    'CTRL: ' + error_msg)
                         # Mirror:
                         if self.use_mirror_drive:
                             self.mirror_files([ov_filename])
@@ -931,11 +938,15 @@ class Stack():
                 self.add_to_main_log('CTRL: Checking for remote commands.')
                 self.notifications.process_remote_commands()
 
-            # Check if report should be sent:
+            # Send status report if scheduled or requested by remote command
             if (self.use_email_monitoring
                     and (self.slice_counter > 0)
                     and (report_scheduled or self.report_requested)):
-                self.send_status_report()
+                self.notifications.send_status_report(
+                    self.base_dir, self.stack_name, self.slice_counter,
+                    self.recent_log_filename, self.debris_log_filename,
+                    self.error_log_filename, self.vp_screenshot_filename)
+                self.report_requested = False
 
             # Check if single slice acquisition -> NO CUT
             if self.number_slices == 0:
@@ -1060,156 +1071,9 @@ class Stack():
         self.transmit_cmd('VP LOG' + viewport_log_str)
         # Send notification e-mail
         if self.use_email_monitoring:
-            # Generate log file from current content of log
-            self.transmit_cmd('GET CURRENT LOG' + self.recent_log_filename)
-            sleep(0.5)  # wait for file to be written
-            if self.vp_screenshot_filename is not None:
-                attachment_list = [self.recent_log_filename,
-                                   self.vp_screenshot_filename]
-            else:
-                attachment_list = [self.recent_log_filename]
-            msg_subject = ('Stack ' + self.stack_name + ': slice '
-                           + str(self.slice_counter) + ', ERROR')
-            success, error_msg = self.notifications.send_email(
-                msg_subject, error_str, attachment_list)
-            if success:
-                self.add_to_main_log('CTRL: Error notification email sent.')
-            else:
-                self.add_to_main_log('CTRL: ERROR sending notification email: '
-                                     + error_msg)
-            # Remove temporary log file of most recent entries
-            try:
-                os.remove(self.recent_log_filename)
-            except Exception as e:
-                self.add_to_main_log('CTRL: ERROR while trying to remove '
-                                     'temporary file: ' + str(e))
-
+            self.notifications.send_error_report()
         # Send signal to Main Controls that there was an error.
         self.transmit_cmd('ERROR PAUSE')
-
-    def send_status_report(self):
-        """Compile a status report and send it via e-mail."""
-        attachment_list = []  # files to be attached
-        temp_file_list = []   # files to be deleted after email is sent
-        missing_list = []     # files to be attached that could not be found
-        tile_list = json.loads(self.cfg['monitoring']['watch_tiles'])
-        ov_list = json.loads(self.cfg['monitoring']['watch_ov'])
-        if self.cfg['monitoring']['send_logfile'] == 'True':
-            # Generate log file from current content of log:
-            self.transmit_cmd('GET CURRENT LOG' + self.recent_log_filename)
-            sleep(0.5) # wait for file be written.
-            attachment_list.append(self.recent_log_filename)
-            temp_file_list.append(self.recent_log_filename)
-        if self.cfg['monitoring']['send_additional_logs'] == 'True':
-            attachment_list.append(self.debris_log_filename)
-            attachment_list.append(self.error_log_filename)
-        if self.cfg['monitoring']['send_viewport'] == 'True':
-            if os.path.isfile(self.vp_screenshot_filename):
-                attachment_list.append(self.vp_screenshot_filename)
-            else:
-                missing_list.append(self.vp_screenshot_filename)
-        if (self.cfg['monitoring']['send_ov'] == 'True'):
-            for ov_index in ov_list:
-                save_path = self.base_dir + '\\' + utils.get_ov_save_path(
-                            self.stack_name, ov_index, self.slice_counter)
-                if os.path.isfile(save_path):
-                    attachment_list.append(save_path)
-                else:
-                    missing_list.append(save_path)
-
-        if (self.cfg['monitoring']['send_tiles'] == 'True'):
-            for tile_key in tile_list:
-                [grid_index, tile_index] = tile_key.split('.')
-                save_path = self.base_dir + '\\' + utils.get_tile_save_path(
-                            self.stack_name, grid_index, tile_index,
-                            self.slice_counter)
-                if os.path.isfile(save_path):
-                    # If it exists, load image and crop it:
-                    tile_image = Image.open(save_path)
-                    (r_width, r_height) = tile_image.size
-                    cropped_tile_filename = (
-                        self.base_dir
-                        + '\\workspace\\tile_g'
-                        + str(grid_index).zfill(utils.GRID_DIGITS)
-                        + 't' + str(tile_index).zfill(utils.TILE_DIGITS)
-                        + '_cropped.tif')
-                    tile_image.crop((int(r_width/3), int(r_height/3),
-                         int(2*r_width/3), int(2*r_height/3))).save(
-                         cropped_tile_filename)
-                    temp_file_list.append(cropped_tile_filename)
-                    attachment_list.append(cropped_tile_filename)
-                else:
-                    missing_list.append(save_path)
-
-        if self.cfg['monitoring']['send_ov_reslices'] == 'True':
-            for ov_index in ov_list:
-                save_path = (self.base_dir + '\\'
-                             + utils.get_ov_reslice_save_path(ov_index))
-                if os.path.isfile(save_path):
-                    ov_reslice_img = Image.open(save_path)
-                    height = ov_reslice_img.size[1]
-                    cropped_ov_reslice_save_path = (
-                        self.base_dir + '\\workspace\\reslice_OV'
-                        + str(ov_index).zfill(utils.OV_DIGITS) + '.png')
-                    if height>1000:
-                        ov_reslice_img.crop(0, height-1000, 400, height).save(
-                            cropped_ov_reslice_save_path)
-                    else:
-                        ov_reslice_img.save(cropped_ov_reslice_save_path)
-                    attachment_list.append(cropped_ov_reslice_save_path)
-                    temp_file_list.append(cropped_ov_reslice_save_path)
-                else:
-                    missing_list.append(save_path)
-
-        if self.cfg['monitoring']['send_tile_reslices'] == 'True':
-            for tile_key in tile_list:
-                [grid_index, tile_index] = tile_key.split('.')
-                save_path = (self.base_dir + '\\'
-                             + utils.get_tile_reslice_save_path(
-                             grid_index, tile_index))
-                if os.path.isfile(save_path):
-                    reslice_img = Image.open(save_path)
-                    height = reslice_img.size[1]
-                    cropped_reslice_save_path = (
-                        self.base_dir + '\\workspace\\reslice_tile_g'
-                        + str(grid_index).zfill(utils.GRID_DIGITS)
-                        + 't' + str(tile_index).zfill(utils.TILE_DIGITS)
-                        + '.png')
-                    if height>1000:
-                        reslice_img.crop(0, height-1000, 400, height).save(
-                            cropped_reslice_save_path)
-                    else:
-                        reslice_img.save(cropped_reslice_save_path)
-                    attachment_list.append(cropped_reslice_save_path)
-                    temp_file_list.append(cropped_reslice_save_path)
-                else:
-                    missing_list.append(save_path)
-
-        # Send report email:
-        msg_subject = ('Status report for stack ' + self.stack_name
-                       + ': slice ' + str(self.slice_counter))
-        msg_text = 'See attachments.'
-        if missing_list:
-            msg_text += ('\n\nThe following file(s) could not be attached. '
-                         'Please review your e-mail report settings.\n\n')
-            for file in missing_list:
-                msg_text += (file + '\n')
-
-        success, error_msg = self.notifications.send_email(
-            msg_subject, msg_text, attachment_list)
-        if success:
-            self.add_to_main_log('CTRL: Status report e-mail sent.')
-        else:
-            self.add_to_main_log('CTRL: ERROR sending status report e-mail: '
-                                 + error_msg)
-        # clean up:
-        for file in temp_file_list:
-            try:
-                os.remove(file)
-            except Exception as e:
-                self.add_to_main_log('CTRL: ERROR while trying to remove '
-                                     'temporary file: ' + str(e))
-        self.report_requested = False
 
     def perform_cutting_sequence(self):
         """Carry out a single cut. This function is called when the microtome
@@ -1355,7 +1219,7 @@ class Stack():
                 # Inspect the acquired image:
                 (ov_img, mean, stddev,
                  range_test_passed,
-                 load_error, grab_incomplete) = (
+                 load_error, load_exception, grab_incomplete) = (
                     self.img_inspector.process_ov(ov_save_path,
                                                   ov_index,
                                                   self.slice_counter))
@@ -1407,8 +1271,7 @@ class Stack():
                     elif (self.cfg['acq']['use_debris_detection'] == 'True'):
                         # Detect potential debris:
                         debris_detected, msg = self.img_inspector.detect_debris(
-                            ov_index,
-                            int(self.cfg['debris']['detection_method']))
+                            ov_index)
                         self.add_to_main_log(msg)
                         if debris_detected:
                             ov_accepted = False
@@ -1615,9 +1478,9 @@ class Stack():
             # Check if image was saved and process it:
             if os.path.isfile(save_path):
                 (tile_img, mean, stddev,
-                 range_test_passed, slice_by_slice_test_passed,
-                 tile_selected,
-                 load_error, grab_incomplete, frozen_frame_error) = (
+                 range_test_passed, slice_by_slice_test_passed, tile_selected,
+                 load_error, load_exception,
+                 grab_incomplete, frozen_frame_error) = (
                     self.img_inspector.process_tile(
                         save_path,
                         grid_index,
@@ -1814,16 +1677,21 @@ class Stack():
                                                 grid_index, tile_index,
                                                 tile_width, tile_height)
                     # Save stats and reslice:
-                    success = self.img_inspector.save_tile_stats(
+                    success, error_msg = self.img_inspector.save_tile_stats(
                         grid_index, tile_index, self.slice_counter)
                     if not success:
                         self.add_to_main_log(
                             'CTRL: Error saving tile mean and SD to disk.')
-                    success = self.img_inspector.save_tile_reslice(
+                        self.add_to_main_log(
+                            'CTTL: ' + error_msg)
+                    success, error_msg = self.img_inspector.save_tile_reslice(
                         grid_index, tile_index)
                     if not success:
                         self.add_to_main_log(
                             'CTRL: Error saving tile reslice to disk.')
+                        self.add_to_main_log(
+                            'CTTL: ' + error_msg)
+
 
                     # If heuristic autofocus enabled and tile selected as
                     # reference tile, prepare tile for processing:
