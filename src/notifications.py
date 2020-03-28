@@ -26,10 +26,13 @@ import utils
 
 
 class Notifications:
-    def __init__(self, config, sysconfig):
+    def __init__(self, config, sysconfig,
+                 main_controls_trigger, main_controls_queue):
         """Load all settings."""
         self.cfg = config
         self.syscfg = sysconfig
+        self.trigger = main_controls_trigger
+        self.queue = main_controls_queue
 
         # E-mail settings from sysconfig (read only)
         self.email_account = self.syscfg['email']['account']
@@ -115,6 +118,159 @@ class Notifications:
             return True, None
         except Exception as e:
             return False, str(e)
+
+    def send_status_report(self, base_dir, stack_name, slice_counter,
+                           main_log, debris_log, error_log, vp_screenshot):
+        """Compile a status report and send it via e-mail."""
+        attachment_list = []  # files to be attached
+        temp_file_list = []   # files to be deleted after email is sent
+        missing_list = []     # files to be attached that could not be found
+
+        if self.send_logfile:
+            # Generate log file from current content of log in Main Controls
+            self.queue.put('GET CURRENT LOG' + main_log)
+            self.trigger.s.emit()
+            sleep(0.5)  # wait for file to be written
+            attachment_list.append(main_log)
+            temp_file_list.append(main_log)
+        if self.send_additional_logs:
+            attachment_list.append(debris_log)
+            attachment_list.append(error_log)
+        if self.send_viewport_screenshot:
+            if os.path.isfile(vp_screenshot):
+                attachment_list.append(vp_screenshot)
+            else:
+                missing_list.append(vp_screenshot)
+        if self.send_ov:
+            for ov_index in self.status_report_ov_list:
+                save_path = os.path.join(base_dir, utils.get_ov_save_path(
+                                stack_name, ov_index, slice_counter))
+                if os.path.isfile(save_path):
+                    attachment_list.append(save_path)
+                else:
+                    missing_list.append(save_path)
+        if self.send_tiles:
+            for tile_key in self.status_report_tile_list:
+                grid_index, tile_index = tile_key.split('.')
+                save_path = os.path.join(base_dir, utils.get_tile_save_path(
+                                stack_name, grid_index, tile_index,
+                                slice_counter))
+                if os.path.isfile(save_path):
+                    # If it exists, load image and crop it
+                    tile_image = Image.open(save_path)
+                    r_width, r_height = tile_image.size
+                    cropped_tile_filename = os.path.join(
+                        base_dir, 'workspace', 'tile_g'
+                        + str(grid_index).zfill(utils.GRID_DIGITS)
+                        + 't' + str(tile_index).zfill(utils.TILE_DIGITS)
+                        + '_cropped.tif')
+                    tile_image.crop((int(r_width/3), int(r_height/3),
+                         int(2*r_width/3), int(2*r_height/3))).save(
+                         cropped_tile_filename)
+                    temp_file_list.append(cropped_tile_filename)
+                    attachment_list.append(cropped_tile_filename)
+                else:
+                    missing_list.append(save_path)
+        if self.send_ov_reslices:
+            for ov_index in self.status_report_ov_list:
+                save_path = os.path.join(base_dir,
+                                utils.get_ov_reslice_save_path(ov_index))
+                if os.path.isfile(save_path):
+                    ov_reslice_img = Image.open(save_path)
+                    height = ov_reslice_img.size[1]
+                    cropped_ov_reslice_save_path = os.path.join(
+                        base_dir, 'workspace', 'reslice_OV'
+                        + str(ov_index).zfill(utils.OV_DIGITS) + '.png')
+                    if height > 1000:
+                        ov_reslice_img.crop(0, height - 1000, 400, height).save(
+                            cropped_ov_reslice_save_path)
+                    else:
+                        ov_reslice_img.save(cropped_ov_reslice_save_path)
+                    attachment_list.append(cropped_ov_reslice_save_path)
+                    temp_file_list.append(cropped_ov_reslice_save_path)
+                else:
+                    missing_list.append(save_path)
+        if self.send_tile_reslices:
+            for tile_key in self.status_report_tile_list:
+                grid_index, tile_index = tile_key.split('.')
+                save_path = os.path.join(
+                                base_dir, utils.get_tile_reslice_save_path(
+                                    grid_index, tile_index))
+                if os.path.isfile(save_path):
+                    reslice_img = Image.open(save_path)
+                    height = reslice_img.size[1]
+                    cropped_reslice_save_path = os.path.join(
+                        base_dir, 'workspace', 'reslice_tile_g'
+                        + str(grid_index).zfill(utils.GRID_DIGITS)
+                        + 't' + str(tile_index).zfill(utils.TILE_DIGITS)
+                        + '.png')
+                    if height > 1000:
+                        reslice_img.crop(0, height - 1000, 400, height).save(
+                            cropped_reslice_save_path)
+                    else:
+                        reslice_img.save(cropped_reslice_save_path)
+                    attachment_list.append(cropped_reslice_save_path)
+                    temp_file_list.append(cropped_reslice_save_path)
+                else:
+                    missing_list.append(save_path)
+
+        # Send report email
+        msg_subject = ('Status report for stack ' + stack_name
+                       + ': slice ' + str(slice_counter))
+        msg_text = 'See attachments.'
+        if missing_list:
+            msg_text += ('\n\nThe following file(s) could not be attached. '
+                         'Please review your e-mail report settings.\n\n')
+            for file in missing_list:
+                msg_text += (file + '\n')
+        success, error_msg = self.send_email(
+            msg_subject, msg_text, attachment_list)
+        if success:
+            self.queue.put('CTRL: Status report e-mail sent.')
+            self.trigger.s.emit()
+        else:
+            self.queue.put('CTRL: ERROR sending status report e-mail: '
+                           + error_msg)
+            self.trigger.s.emit()
+
+        # Clean up temporary files
+        for file in temp_file_list:
+            try:
+                os.remove(file)
+            except Exception as e:
+                self.queue.put('CTRL: ERROR while trying to remove '
+                               'temporary file: ' + str(e))
+                self.trigger.s.emit()
+
+    def send_error_report(self, stack_name, slice_counter, error_state,
+                          main_log, vp_screenshot):
+        """Send a notification by email that an error has occurred."""
+        # Generate log file from current content of log
+        self.queue.put('GET CURRENT LOG' + main_log)
+        self.trigger.s.emit()
+        sleep(0.5)  # wait for file to be written
+        if vp_screenshot is not None:
+            attachment_list = [main_log, vp_screenshot]
+        else:
+            attachment_list = [main_log]
+        msg_subject = ('Stack ' + stack_name + ': slice '
+                       + str(slice_counter) + ', ERROR')
+        success, error_msg = self.send_email(
+            msg_subject, error_str, attachment_list)
+        if success:
+            self.queue.put('CTRL: Error notification email sent.')
+            self.trigger.s.emit()
+        else:
+            self.queue.put('CTRL: ERROR sending notification email: '
+                           + error_msg)
+            self.trigger.s.emit()
+        # Remove temporary log file of most recent entries
+        try:
+            os.remove(main_log)
+        except Exception as e:
+            self.queue.put('CTRL: ERROR while trying to remove '
+                           'temporary file: ' + str(e))
+            self.trigger.s.emit()
 
     def get_remote_command(self):
         """Check email account if command was received from one of the
