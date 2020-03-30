@@ -225,7 +225,6 @@ class StubOverview(Grid):
         else:
             self.image = None
 
-
 class OverviewManager:
 
     def __init__(self, config, sem, coordinate_system):
@@ -233,7 +232,6 @@ class OverviewManager:
         self.sem = sem
         self.cs = coordinate_system
         self.number_ov = int(self.cfg['overviews']['number_ov'])
-
 
         # Load OV parameters from user configuration
         ov_active = json.loads(self.cfg['overviews']['ov_active'])
@@ -270,8 +268,12 @@ class OverviewManager:
                                 debris_detection_area[i])
             self.__overviews.append(overview)
 
+        self.use_auto_debris_area = (
+            self.cfg['debris']['auto_detection_area'].lower() == 'true')
         self.auto_debris_area_margin = int(
             self.cfg['debris']['auto_area_margin'])
+        self.detection_area_visible = (
+            self.cfg['debris']['show_detection_area'].lower() == 'true')
 
         # Load stub OV settings
         # The acq parameters (frame size, pixel size, dwell time) can at the
@@ -310,7 +312,6 @@ class OverviewManager:
 
     def save_to_cfg(self):
         self.cfg['overviews']['number_ov'] = str(self.number_ov)
-
         self.cfg['overviews']['ov_active'] = str(
             [int(ov.active) for ov in self.__overviews])
         self.cfg['overviews']['ov_centre_sx_sy'] = str(
@@ -335,10 +336,14 @@ class OverviewManager:
             [ov.acq_interval_offset for ov in self.__overviews])
         self.cfg['overviews']['ov_viewport_images'] = json.dumps(
             [ov.vp_file_path for ov in self.__overviews])
+        self.cfg['debris']['auto_detection_area'] = str(
+            self.use_auto_debris_area)
         self.cfg['debris']['detection_area'] = str(
             [ov.debris_detection_area for ov in self.__overviews])
         self.cfg['debris']['auto_area_margin'] = str(
             self.auto_debris_area_margin)
+        self.cfg['debris']['show_detection_area'] = str(
+            self.detection_area_visible)
         # Stub OV
         self.cfg['overviews']['stub_ov_centre_sx_sy'] = str(
             utils.round_xy(self.__stub_overview.centre_sx_sy))
@@ -405,9 +410,8 @@ class OverviewManager:
         return False
 
     def update_all_debris_detections_areas(self, grid_manager):
-        auto_detection = (
-            self.cfg['debris']['auto_detection_area'].lower() == 'true')
         for overview in self.__overviews:
             overview.update_debris_detection_area(
-                grid_manager, auto_detection, self.auto_debris_area_margin)
-
+                grid_manager,
+                self.use_auto_debris_area,
+                self.auto_debris_area_margin)

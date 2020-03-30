@@ -1000,8 +1000,7 @@ class Viewport(QWidget):
 
     def vp_draw(self, suppress_labels=False, suppress_previews=False):
         """Draw all elements on Viewport canvas"""
-        show_debris_area = (
-            self.cfg['debris']['show_detection_area'].lower() == 'true')
+        show_debris_area = self.ovm.detection_area_visible
         if self.ov_drag_active or self.grid_drag_active:
             show_debris_area = False
         # Start with empty black canvas

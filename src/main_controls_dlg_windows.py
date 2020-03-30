@@ -203,19 +203,20 @@ class MicrotomeSettingsDlg(QDialog):
         # If microtome not active, change selection label:
         if microtome_active:
             self.label_selectedStage.setText('Microtome stage active.')
-            # Display settings that can only be changed in DM:
+            # Display those settings that can only be changed in DM
             self.lineEdit_knifeCutSpeed.setText(
                 str(self.microtome.knife_cut_speed))
             self.lineEdit_knifeRetractSpeed.setText(
                 str(self.microtome.knife_retract_speed))
             self.checkBox_useOscillation.setChecked(
                 self.microtome.use_oscillation)
-            # Settings changeable in GUI:
+            # Settings changeable in SBEMimage
             self.doubleSpinBox_waitInterval.setValue(
                 self.microtome.stage_move_wait_interval)
             current_motor_limits = self.microtome.stage_limits
             current_calibration = self.cs.stage_calibration
-            speed_x, speed_y = self.microtome.motor_speeds
+            speed_x, speed_y = (
+                self.microtome.motor_speed_x, self.microtome.motor_speed_y)
         else:
             self.label_selectedStage.setText('SEM stage active.')
             # Display stage limits. Not editable for SEM.
@@ -229,7 +230,7 @@ class MicrotomeSettingsDlg(QDialog):
             self.spinBox_stageMaxY.setEnabled(False)
             current_motor_limits = self.sem.get_motor_limits()
             current_calibration = self.cs.stage_calibration
-            speed_x, speed_y = self.sem.get_motor_speeds()
+            speed_x, speed_y = self.sem.motor_speed_x, self.sem.motor_speed_y
             self.doubleSpinBox_waitInterval.setValue(
                 self.sem.stage_move_wait_interval)
         self.spinBox_stageMinX.setValue(current_motor_limits[0])
@@ -1208,9 +1209,8 @@ class FocusGradientSettingsDlg(QDialog):
 class AcqSettingsDlg(QDialog):
     """Let user adjust acquisition settings."""
 
-    def __init__(self, config, stack):
+    def __init__(self, stack, use_microtome=True):
         super().__init__()
-        self.cfg = config
         self.stack = stack
         loadUi('..\\gui\\acq_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
@@ -1221,29 +1221,24 @@ class AcqSettingsDlg(QDialog):
         self.pushButton_selectDir.setIcon(QIcon('..\\img\\selectdir.png'))
         self.pushButton_selectDir.setIconSize(QSize(16, 16))
         # Display current settings:
-        self.lineEdit_baseDir.setText(self.cfg['acq']['base_dir'])
+        self.lineEdit_baseDir.setText(self.stack.base_dir)
         self.lineEdit_baseDir.textChanged.connect(self.update_stack_name)
         self.update_stack_name()
         self.new_base_dir = ''
-        self.spinBox_sliceThickness.setValue(self.stack.get_slice_thickness())
-        self.spinBox_numberSlices.setValue(self.stack.get_number_slices())
-        self.spinBox_sliceCounter.setValue(self.stack.get_slice_counter())
-        self.doubleSpinBox_zDiff.setValue(self.stack.get_total_z_diff())
-        self.checkBox_sendMetaData.setChecked(
-            self.cfg['sys']['send_metadata'] == 'True')
+        self.spinBox_sliceThickness.setValue(self.stack.slice_thickness)
+        self.spinBox_numberSlices.setValue(self.stack.number_slices)
+        self.spinBox_sliceCounter.setValue(self.stack.slice_counter)
+        self.doubleSpinBox_zDiff.setValue(self.stack.total_z_diff)
+        self.checkBox_sendMetaData.setChecked(self.stack.send_metadata)
         self.update_server_lineedit()
         self.checkBox_sendMetaData.stateChanged.connect(
             self.update_server_lineedit)
-        self.checkBox_EHTOff.setChecked(
-            self.cfg['acq']['eht_off_after_stack'] == 'True')
-        self.lineEdit_metaDataServer.setText(
-            self.cfg['sys']['metadata_server_url'])
-        self.lineEdit_adminEmail.setText(
-            self.cfg['sys']['metadata_server_admin'])
-        self.lineEdit_projectName.setText(
-            self.cfg['sys']['metadata_project_name'])
-        # Disable two spinboxes when SEM stage used:
-        if self.cfg['sys']['use_microtome'] == 'False':
+        self.checkBox_EHTOff.setChecked(self.stack.eht_off_after_stack)
+        self.lineEdit_metaDataServer.setText(self.stack.metadata_server)
+        self.lineEdit_adminEmail.setText(self.stack.metadata_server_admin_email)
+        self.lineEdit_projectName.setText(self.stack.metadata_project_name)
+        # Disable two spinboxes when SEM stage used
+        if not use_microtome:
             self.spinBox_sliceThickness.setEnabled(False)
             self.doubleSpinBox_zDiff.setEnabled(False)
 
@@ -1252,8 +1247,8 @@ class AcqSettingsDlg(QDialog):
            Note that the final subfolder name in the directory string is used as
            the name of the stack in SBEMimage.
         """
-        if len(self.cfg['acq']['base_dir']) > 2:
-            start_path = self.cfg['acq']['base_dir'][:3]
+        if len(self.stack.base_dir) > 2:
+            start_path = self.stack.base_dir[:3]
         else:
             start_path = 'C:\\'
         self.lineEdit_baseDir.setText(
@@ -1312,17 +1307,15 @@ class AcqSettingsDlg(QDialog):
                     QMessageBox.Ok)
 
         if 5 <= self.spinBox_sliceThickness.value() <= 200:
-            self.stack.set_slice_thickness(self.spinBox_sliceThickness.value())
+            self.stack.slice_thickness = self.spinBox_sliceThickness.value()
         number_slices = self.spinBox_numberSlices.value()
-        self.stack.set_number_slices(number_slices)
+        self.stack.number_slices = number_slices
         if (self.spinBox_sliceCounter.value() <= number_slices
             or number_slices == 0):
-            self.stack.set_slice_counter(self.spinBox_sliceCounter.value())
-        self.stack.set_total_z_diff(self.doubleSpinBox_zDiff.value())
-        self.cfg['acq']['eht_off_after_stack'] = str(
-            self.checkBox_EHTOff.isChecked())
-        self.cfg['sys']['send_metadata'] = str(
-            self.checkBox_sendMetaData.isChecked())
+            self.stack.slice_counter = self.spinBox_sliceCounter.value()
+        self.stack.total_z_diff = self.doubleSpinBox_zDiff.value()
+        self.stack.eht_off_after_stack = self.checkBox_EHTOff.isChecked()
+        self.stack.send_metadata = self.checkBox_sendMetaData.isChecked()
         if self.checkBox_sendMetaData.isChecked():
             metadata_server_url = self.lineEdit_metaDataServer.text()
             if not validators.url(metadata_server_url):
@@ -1331,8 +1324,7 @@ class AcqSettingsDlg(QDialog):
                     'Metadata server URL is invalid. Change the URL in the '
                     'system configuration file.',
                     QMessageBox.Ok)
-            self.cfg['sys']['metadata_project_name'] = (
-                self.lineEdit_projectName.text())
+            self.stack.metadata_project_name = self.lineEdit_projectName.text()
         if ((number_slices > 0)
             and (self.spinBox_sliceCounter.value() > number_slices)):
             QMessageBox.warning(
@@ -1341,7 +1333,7 @@ class AcqSettingsDlg(QDialog):
                 'target number of slices.', QMessageBox.Ok)
             success = False
         if success:
-            self.cfg['acq']['base_dir'] = modified_dir
+            self.stack.base_dir = modified_dir
             super().accept()
 
 # ------------------------------------------------------------------------------
@@ -1618,9 +1610,8 @@ class UpdateDlg(QDialog):
 class EmailMonitoringSettingsDlg(QDialog):
     """Adjust settings for the e-mail monitoring feature."""
 
-    def __init__(self, config, stack, notifications):
+    def __init__(self, stack, notifications):
         super().__init__()
-        self.cfg = config
         self.stack = stack
         self.notifications = notifications
         loadUi('..\\gui\\email_monitoring_settings_dlg.ui', self)
@@ -1632,36 +1623,33 @@ class EmailMonitoringSettingsDlg(QDialog):
             self.notifications.user_email_addresses[0])
         self.lineEdit_secondaryNotificationEmail.setText(
             self.notifications.user_email_addresses[1])
-        self.spinBox_reportInterval.setValue(
-            int(self.cfg['monitoring']['report_interval']))
-        self.lineEdit_selectedOV.setText(
-            self.cfg['monitoring']['watch_ov'][1:-1])
-        self.lineEdit_selectedTiles.setText(
-            self.cfg['monitoring']['watch_tiles'][1:-1].replace('"', ''))
-        self.checkBox_sendLogFile.setChecked(
-            self.cfg['monitoring']['send_logfile'] == 'True')
+        self.spinBox_reportInterval.setValue(self.stack.status_report_interval)
+        self.lineEdit_selectedOV.setText(str(
+            self.notifications.status_report_ov_list)[1:-1])
+        self.lineEdit_selectedTiles.setText(str(
+            self.notifications.status_report_tile_list)[1:-1].replace('\'', ''))
+        self.checkBox_sendLogFile.setChecked(self.notifications.send_logfile)
         self.checkBox_sendDebrisErrorLogFiles.setChecked(
-            self.cfg['monitoring']['send_additional_logs'] == 'True')
+            self.notifications.send_additional_logs)
         self.checkBox_sendViewport.setChecked(
-            self.cfg['monitoring']['send_viewport'] == 'True')
-        self.checkBox_sendOverviews.setChecked(
-            self.cfg['monitoring']['send_ov'] == 'True')
-        self.checkBox_sendTiles.setChecked(
-            self.cfg['monitoring']['send_tiles'] == 'True')
+            self.notifications.send_viewport_screenshot)
+        self.checkBox_sendOverviews.setChecked(self.notifications.send_ov)
+        self.checkBox_sendTiles.setChecked(self.notifications.send_tiles)
         self.checkBox_sendOVReslices.setChecked(
-            self.cfg['monitoring']['send_ov_reslices'] == 'True')
+            self.notifications.send_ov_reslices)
         self.checkBox_sendTileReslices.setChecked(
-            self.cfg['monitoring']['send_tile_reslices'] == 'True')
+            self.notifications.send_tile_reslices)
         self.checkBox_allowEmailControl.setChecked(
-            self.cfg['monitoring']['remote_commands_enabled'] == 'True')
+            self.notifications.remote_commands_enabled)
         self.checkBox_allowEmailControl.stateChanged.connect(
             self.update_remote_option_input)
         self.update_remote_option_input()
         self.spinBox_remoteCheckInterval.setValue(
-            int(self.cfg['monitoring']['remote_check_interval']))
-        self.lineEdit_account.setText(self.cfg['sys']['email_account'])
+            self.stack.remote_check_interval)
+        self.lineEdit_account.setText(self.notifications.email_account)
+        # Let password be displayed as string of asterisks
         self.lineEdit_password.setEchoMode(QLineEdit.Password)
-        self.lineEdit_password.setText(self.stack.remote_cmd_email_pw)
+        self.lineEdit_password.setText(self.notifications.remote_cmd_email_pw)
 
     def update_remote_option_input(self):
         status = self.checkBox_allowEmailControl.isChecked()
@@ -1673,49 +1661,47 @@ class EmailMonitoringSettingsDlg(QDialog):
         email1 = self.lineEdit_notificationEmail.text()
         email2 = self.lineEdit_secondaryNotificationEmail.text()
         if validate_email(email1):
-            self.cfg['monitoring']['user_email'] = email1
+            self.notifications.user_email_addresses[0] = email1
         else:
             error_str = 'Primary e-mail address badly formatted or missing.'
         # Second user e-mail is optional
         if validate_email(email2) or not email2:
-            self.cfg['monitoring']['cc_user_email'] = (
+            self.notifications.user_email_addresses[1] = (
                 self.lineEdit_secondaryNotificationEmail.text())
         else:
             error_str = 'Secondary e-mail address badly formatted.'
-        self.cfg['monitoring']['report_interval'] = str(
-            self.spinBox_reportInterval.value())
+        self.stack.status_report_interval = self.spinBox_reportInterval.value()
 
         success, ov_list = utils.validate_ov_list(
             self.lineEdit_selectedOV.text())
         if success:
-            self.cfg['monitoring']['watch_ov'] = str(ov_list)
+            self.notifications.status_report_ov_list = ov_list
         else:
             error_str = 'List of selected overviews badly formatted.'
 
         success, tile_list = utils.validate_tile_list(
             self.lineEdit_selectedTiles.text())
         if success:
-            self.cfg['monitoring']['watch_tiles'] = json.dumps(tile_list)
+            self.notifications.status_report_tile_list = tile_list
         else:
             error_str = 'List of selected tiles badly formatted.'
 
-        self.cfg['monitoring']['send_logfile'] = str(
-            self.checkBox_sendLogFile.isChecked())
-        self.cfg['monitoring']['send_additional_logs'] = str(
+        self.notifications.send_logfile = self.checkBox_sendLogFile.isChecked()
+        self.notifications.send_additional_logs = (
             self.checkBox_sendDebrisErrorLogFiles.isChecked())
-        self.cfg['monitoring']['send_viewport'] = str(
+        self.notifications.send_viewport_screenshot = (
             self.checkBox_sendViewport.isChecked())
-        self.cfg['monitoring']['send_ov'] = str(
+        self.notifications.send_ov = (
             self.checkBox_sendOverviews.isChecked())
-        self.cfg['monitoring']['send_tiles'] = str(
+        self.notifications.send_tiles = (
             self.checkBox_sendTiles.isChecked())
-        self.cfg['monitoring']['send_ov_reslices'] = str(
+        self.notifications.send_ov_reslices = (
             self.checkBox_sendOVReslices.isChecked())
-        self.cfg['monitoring']['send_tile_reslices'] = str(
+        self.notifications.send_tile_reslices = (
             self.checkBox_sendTileReslices.isChecked())
-        self.cfg['monitoring']['remote_commands_enabled'] = str(
+        self.notifications.remote_commands_enabled = (
             self.checkBox_allowEmailControl.isChecked())
-        self.cfg['monitoring']['remote_check_interval'] = str(
+        self.stack.remote_check_interval = (
             self.spinBox_remoteCheckInterval.value())
         self.stack.remote_cmd_email_pw = self.lineEdit_password.text()
         if not error_str:
@@ -1726,49 +1712,48 @@ class EmailMonitoringSettingsDlg(QDialog):
 # ------------------------------------------------------------------------------
 
 class DebrisSettingsDlg(QDialog):
-    """Adjust the options for debris detection and removal: Detection area,
-       detection method, max. number of sweeps, and what to do when max.
-       number reached.
-    """
+    """Adjust the settings for debris detection and removal: Detection area,
+    detection method and parameters, max. number of sweeps, and what to do when
+    max. sweep number reached."""
 
-    def __init__(self, config, ovm):
+    def __init__(self, ovm, image_inspector, stack):
         super().__init__()
-        self.cfg = config
         self.ovm = ovm
+        self.img_inspector = image_inspector
+        self.stack = stack
         loadUi('..\\gui\\debris_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
-        # Detection area:
-        if self.cfg['debris']['auto_detection_area'] == 'True':
+        # Detection area
+        if self.ovm.use_auto_debris_area:
             self.radioButton_autoSelection.setChecked(True)
         else:
             self.radioButton_fullSelection.setChecked(True)
         # Extra margin around detection area in pixels:
         self.spinBox_debrisMargin.setValue(
             self.ovm.auto_debris_area_margin)
-        self.spinBox_maxSweeps.setValue(
-            int(self.cfg['debris']['max_number_sweeps']))
+        self.spinBox_maxSweeps.setValue(self.stack.max_number_sweeps)
         self.doubleSpinBox_diffMean.setValue(
-            float(self.cfg['debris']['mean_diff_threshold']))
+            self.img_inspector.mean_diff_threshold)
         self.doubleSpinBox_diffSD.setValue(
-            float(self.cfg['debris']['stddev_diff_threshold']))
+            self.img_inspector.stddev_diff_threshold)
         self.spinBox_diffHistogram.setValue(
-            int(self.cfg['debris']['histogram_diff_threshold']))
+            self.img_inspector.histogram_diff_threshold)
         self.spinBox_diffPixels.setValue(
-            int(self.cfg['debris']['image_diff_threshold']))
+            self.img_inspector.image_diff_threshold)
         self.checkBox_showDebrisArea.setChecked(
-            self.cfg['debris']['show_detection_area'] == 'True')
+            self.ovm.detection_area_visible)
         self.checkBox_continueAcq.setChecked(
-            self.cfg['debris']['continue_after_max_sweeps'] == 'True')
+            self.stack.continue_after_max_sweeps)
         # Detection methods:
         self.radioButton_methodQuadrant.setChecked(
-            self.cfg['debris']['detection_method'] == '0')
+            self.img_inspector.debris_detection_method == 0)
         self.radioButton_methodPixel.setChecked(
-            self.cfg['debris']['detection_method'] == '1')
+            self.img_inspector.debris_detection_method == 1)
         self.radioButton_methodHistogram.setChecked(
-            self.cfg['debris']['detection_method'] == '2')
+            self.img_inspector.debris_detection_method == 2)
         self.radioButton_methodQuadrant.toggled.connect(
             self.update_option_selection)
         self.radioButton_methodHistogram.toggled.connect(
@@ -1796,30 +1781,28 @@ class DebrisSettingsDlg(QDialog):
              self.spinBox_diffHistogram.setEnabled(True)
 
     def accept(self):
-        self.ovm.auto_debris_area_margin = (
-            self.spinBox_debrisMargin.value())
-        self.cfg['debris']['max_number_sweeps'] = str(
-            self.spinBox_maxSweeps.value())
-        self.cfg['debris']['mean_diff_threshold'] = str(
+        self.ovm.auto_debris_area_margin = self.spinBox_debrisMargin.value()
+        self.stack.max_number_sweeps = self.spinBox_maxSweeps.value()
+        self.img_inspector.mean_diff_threshold = (
             self.doubleSpinBox_diffMean.value())
-        self.cfg['debris']['stddev_diff_threshold'] = str(
+        self.img_inspector.stddev_diff_threshold = (
             self.doubleSpinBox_diffSD.value())
-        self.cfg['debris']['histogram_diff_threshold'] = str(
+        self.img_inspector.histogram_diff_threshold = (
             self.spinBox_diffHistogram.value())
-        self.cfg['debris']['image_diff_threshold'] = str(
+        self.img_inspector.image_diff_threshold = (
             self.spinBox_diffPixels.value())
-        self.cfg['debris']['auto_detection_area'] = str(
+        self.ovm.use_auto_debris_area = (
             self.radioButton_autoSelection.isChecked())
-        self.cfg['debris']['show_detection_area'] = str(
+        self.ovm.detection_area_visible = (
             self.checkBox_showDebrisArea.isChecked())
-        self.cfg['debris']['continue_after_max_sweeps'] = str(
+        self.stack.continue_after_max_sweeps = (
             self.checkBox_continueAcq.isChecked())
         if self.radioButton_methodQuadrant.isChecked():
-            self.cfg['debris']['detection_method'] = '0'
+            self.img_inspector.debris_detection_method = 0
         elif self.radioButton_methodPixel.isChecked():
-            self.cfg['debris']['detection_method'] = '1'
+            self.img_inspector.debris_detection_method = 1
         elif self.radioButton_methodHistogram.isChecked():
-            self.cfg['debris']['detection_method'] = '2'
+            self.img_inspector.debris_detection_method = 2
         super().accept()
 
 # ------------------------------------------------------------------------------
@@ -1890,59 +1873,49 @@ class MirrorDriveDlg(QDialog):
 # ------------------------------------------------------------------------------
 
 class ImageMonitoringSettingsDlg(QDialog):
-    """Adjust settings to monitor overviews and tiles. A test if image is
-       within mean/SD range is performed for all images if option is activated.
-       Tile-by-tile comparisons are performed for the selected tiles.
-    """
-    def __init__(self, config):
+    """Adjust settings to monitor overviews and tiles. A test if a given image
+    is within mean/SD range is performed for all acquired images if this feature
+    is activated. Tile-by-tile comparisons are performed for the selected tiles
+    only."""
+    def __init__(self, image_inspector):
         super().__init__()
-        self.cfg = config
+        self.img_inspector = image_inspector
         loadUi('..\\gui\\image_monitoring_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
-        self.spinBox_meanMin.setValue(
-            int(self.cfg['monitoring']['mean_lower_limit']))
-        self.spinBox_meanMax.setValue(
-            int(self.cfg['monitoring']['mean_upper_limit']))
-        self.spinBox_stddevMin.setValue(
-            int(self.cfg['monitoring']['stddev_lower_limit']))
-        self.spinBox_stddevMax.setValue(
-            int(self.cfg['monitoring']['stddev_upper_limit']))
-        self.lineEdit_monitorTiles.setText(
-            self.cfg['monitoring']['monitor_tiles'][1:-1])
-        self.lineEdit_monitorTiles.setText(
-            self.cfg['monitoring']['monitor_tiles'][1:-1].replace('"', ''))
+        self.spinBox_meanMin.setValue(self.img_inspector.mean_lower_limit)
+        self.spinBox_meanMax.setValue(self.img_inspector.mean_upper_limit)
+        self.spinBox_stddevMin.setValue(self.img_inspector.stddev_lower_limit)
+        self.spinBox_stddevMax.setValue(self.img_inspector.stddev_upper_limit)
+        self.lineEdit_monitorTiles.setText(str(
+            self.img_inspector.monitoring_tile_list)[1:-1].replace('\'', ''))
         self.doubleSpinBox_meanThreshold.setValue(
-            float(self.cfg['monitoring']['tile_mean_threshold']))
+            self.img_inspector.tile_mean_threshold)
         self.doubleSpinBox_stdDevThreshold.setValue(
-            float(self.cfg['monitoring']['tile_stddev_threshold']))
+            self.img_inspector.tile_stddev_threshold)
 
     def accept(self):
         error_str = ''
-        self.cfg['monitoring']['mean_lower_limit'] = str(
-            self.spinBox_meanMin.value())
-        self.cfg['monitoring']['mean_upper_limit'] = str(
-            self.spinBox_meanMax.value())
-        self.cfg['monitoring']['stddev_lower_limit'] = str(
-            self.spinBox_stddevMin.value())
-        self.cfg['monitoring']['stddev_upper_limit'] = str(
-            self.spinBox_stddevMax.value())
+        self.img_inspector.mean_lower_limit = self.spinBox_meanMin.value()
+        self.img_inspector.mean_upper_limit = self.spinBox_meanMax.value()
+        self.img_inspector.stddev_lower_limit = self.spinBox_stddevMin.value()
+        self.img_inspector.stddev_upper_limit = self.spinBox_stddevMax.value()
 
         tile_str = self.lineEdit_monitorTiles.text().strip()
         if tile_str == 'all':
-            self.cfg['monitoring']['monitor_tiles'] = '["all"]'
+            self.img_inspector.monitoring_tile_list = ['all']
         else:
             success, tile_list = utils.validate_tile_list(tile_str)
             if success:
-                self.cfg['monitoring']['monitor_tiles'] = json.dumps(tile_list)
+                self.img_inspector.monitoring_tile_list = tile_list
             else:
                 error_str = 'List of selected tiles badly formatted.'
 
-        self.cfg['monitoring']['tile_mean_threshold'] = str(
+        self.img_inspector.tile_mean_threshold = (
             self.doubleSpinBox_meanThreshold.value())
-        self.cfg['monitoring']['tile_stddev_threshold'] = str(
+        self.img_inspector.tile_stddev_threshold = (
             self.doubleSpinBox_stdDevThreshold.value())
         if not error_str:
             super().accept()

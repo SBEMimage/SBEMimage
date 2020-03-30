@@ -110,14 +110,19 @@ class Stage():
         self._stage.stage_move_wait_interval = wait_interval
 
     @property
-    def motor_speeds(self):
-        return self._stage.motor_speeds
+    def motor_speed_x(self):
+        return self._stage.motor_speed_x
 
-    @motor_speeds.setter
-    def motor_speeds(self, motor_speed_x, motor_speed_y):
+    @property
+    def motor_speed_y(self):
+        return self._stage.motor_speed_y
+
+    def set_motor_speeds(self, motor_speed_x, motor_speed_y):
         if self.use_microtome:
-            self._stage.motor_speed_x = motor_speed_x
-            self._stage.motor_speed_y = motor_speed_y
+            return self._stage.set_motor_speeds(motor_speed_x, motor_speed_y)
+        else:
+            # motor speeds can currently not be set for SEM stage
+            return False
 
     def update_motor_speed(self):
         if self.use_microtome:

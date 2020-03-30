@@ -52,18 +52,22 @@ class Notifications:
             self.cfg['monitoring']['report_ov_list'])
         self.status_report_tile_list = json.loads(
             self.cfg['monitoring']['report_tile_list'])
-        self.send_logfile = str(self.cfg['monitoring']['send_logfile'])
-        self.send_additional_logs = str(
-            self.cfg['monitoring']['send_additional_logs'])
-        self.send_viewport_screenshot = str(
-            self.cfg['monitoring']['send_viewport_screenshot'])
-        self.send_ov = str(self.cfg['monitoring']['send_ov'])
-        self.send_tiles = str(self.cfg['monitoring']['send_tiles'])
-        self.send_ov_reslices = str(self.cfg['monitoring']['send_ov_reslices'])
-        self.send_tile_reslices = str(
-            self.cfg['monitoring']['send_tile_reslices'])
-        self.remote_commands_enabled = str(
-            self.cfg['monitoring']['remote_commands_enabled'])
+        self.send_logfile = (
+            self.cfg['monitoring']['send_logfile'].lower() == 'true')
+        self.send_additional_logs = (
+            self.cfg['monitoring']['send_additional_logs'].lower() == 'true')
+        self.send_viewport_screenshot = (
+            self.cfg['monitoring']['send_viewport_screenshot'].lower()
+            == 'true')
+        self.send_ov = (self.cfg['monitoring']['send_ov'].lower() == 'true')
+        self.send_tiles = (
+            self.cfg['monitoring']['send_tiles'].lower() == 'true')
+        self.send_ov_reslices = (
+            self.cfg['monitoring']['send_ov_reslices'].lower() == 'true')
+        self.send_tile_reslices = (
+            self.cfg['monitoring']['send_tile_reslices'].lower() == 'true')
+        self.remote_commands_enabled = (
+            self.cfg['monitoring']['remote_commands_enabled'].lower() == 'true')
 
     def save_to_cfg(self):
         self.cfg['monitoring']['user_email'] = self.user_email_addresses[0]

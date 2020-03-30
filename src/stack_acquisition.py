@@ -148,6 +148,8 @@ class Stack():
             self.metadata_server_admin_email)
         self.cfg['sys']['metadata_server_admin'] = (
             self.metadata_server_admin_email)
+        self.cfg['sys']['metadata_project_name'] = (
+            self.metadata_project_name)
         self.cfg['sys']['send_metadata'] = str(self.send_metadata)
         self.cfg['acq']['base_dir'] = str(self.base_dir)
         self.cfg['acq']['paused'] = str(self.acq_paused)
@@ -2035,35 +2037,6 @@ class Stack():
         self.cfg['acq']['interrupted_at'] = '[]'
         self.cfg['acq']['tiles_acquired'] = '[]'
         self.cfg['acq']['grids_acquired'] = '[]'
-
-    # TODO: Remove unnecessary getters and setters, use direct access.
-    def get_slice_counter(self):
-        return self.slice_counter
-
-    def set_slice_counter(self, slice_counter):
-        self.slice_counter = slice_counter
-        self.cfg['acq']['slice_counter'] = str(slice_counter)
-
-    def get_number_slices(self):
-        return self.number_slices
-
-    def set_number_slices(self, number_slices):
-        self.number_slices = number_slices
-        self.cfg['acq']['number_slices'] = str(number_slices)
-
-    def get_slice_thickness(self):
-        return self.slice_thickness
-
-    def set_slice_thickness(self, slice_thickness):
-        self.slice_thickness = slice_thickness
-        self.cfg['acq']['slice_thickness'] = str(slice_thickness)
-
-    def get_total_z_diff(self):
-        return self.total_z_diff
-
-    def set_total_z_diff(self, z_diff):
-        self.total_z_diff = z_diff
-        self.cfg['acq']['total_z_diff'] = str(z_diff)
 
     def transmit_cmd(self, cmd):
         """Transmit command to the main window thread."""

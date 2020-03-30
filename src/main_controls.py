@@ -1012,7 +1012,7 @@ class MainControls(QMainWindow):
             self.show_current_settings()
             # Electron dose may have changed
             self.show_stack_acq_estimates()
-            if (self.cfg['debris']['auto_detection_area'] == 'True'):
+            if self.ovm.use_auto_debris_area:
                 self.ovm.update_all_debris_detections_areas(self.gm)
             self.viewport.vp_draw()
             if not self.cs.calibration_found:
@@ -1042,7 +1042,7 @@ class MainControls(QMainWindow):
         dialog = StageCalibrationDlg(self.cfg, self.cs, self.stage, self.sem)
         if dialog.exec_():
             self.cs.apply_stage_calibration()
-            if (self.cfg['debris']['auto_detection_area'] == 'True'):
+            if self.ovm.use_auto_debris_area:
                 self.ovm.update_all_debris_detections_areas(self.gm)
             self.viewport.vp_draw()
 
@@ -1061,7 +1061,7 @@ class MainControls(QMainWindow):
         self.update_main_controls_ov_selector(self.ov_index_dropdown)
         self.ft_update_ov_selector(self.ft_selected_ov)
         self.viewport.update_ov()
-        if bool(self.cfg['debris']['auto_detection_area']):
+        if self.ovm.use_auto_debris_area:
             self.ovm.update_all_debris_detections_areas(self.gm)
         self.show_current_settings()
         self.show_stack_acq_estimates()
@@ -1082,14 +1082,14 @@ class MainControls(QMainWindow):
         if self.ft_selected_ov == -1:
             self.ft_clear_wd_stig_display()
         self.viewport.update_grids()
-        if (self.cfg['debris']['auto_detection_area'] == 'True'):
+        if self.ovm.use_auto_debris_area:
             self.ovm.update_all_debris_detections_areas(self.gm)
         self.show_current_settings()
         self.show_stack_acq_estimates()
         self.viewport.vp_draw()
 
     def open_acq_settings_dlg(self):
-        dialog = AcqSettingsDlg(self.cfg, self.stack)
+        dialog = AcqSettingsDlg(self.stack, self.use_microtome)
         if dialog.exec_():
             self.show_current_settings()
             self.show_stack_acq_estimates()
@@ -1113,12 +1113,11 @@ class MainControls(QMainWindow):
         dialog.exec_()
 
     def open_email_monitoring_dlg(self):
-        dialog = EmailMonitoringSettingsDlg(self.cfg, self.stack,
-                                            self.notifications)
+        dialog = EmailMonitoringSettingsDlg(self.stack, self.notifications)
         dialog.exec_()
 
     def open_debris_dlg(self):
-        dialog = DebrisSettingsDlg(self.cfg, self.ovm)
+        dialog = DebrisSettingsDlg(self.ovm, self.img_inspector, self.stack)
         if dialog.exec_():
             self.ovm.update_all_debris_detections_areas(self.gm)
             self.show_current_settings()
@@ -1133,7 +1132,7 @@ class MainControls(QMainWindow):
         dialog.exec_()
 
     def open_image_monitoring_dlg(self):
-        dialog = ImageMonitoringSettingsDlg(self.cfg)
+        dialog = ImageMonitoringSettingsDlg(self.img_inspector)
         dialog.exec_()
 
     def open_autofocus_dlg(self):
@@ -1897,6 +1896,7 @@ class MainControls(QMainWindow):
         self.viewport.save_to_cfg()
         self.stack.save_to_cfg()
         self.img_inspector.save_to_cfg()
+        self.notifications.save_to_cfg()
         # Save settings from Main Controls
         self.cfg['sys']['simulation_mode'] = str(self.simulation_mode)
 
