@@ -11,8 +11,14 @@
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
 
-"""SBEMimage.py launches the application.
-   Use 'python SBEMimage.py' or call the batch file SBEMimage.bat.
+"""sbemimage.py launches the application.
+
+First, the start-up dialog is shown (ConfigDlg in
+main_controls_dlg_windows.py), and the user is asked to select a configuration
+file.
+Then the QMainWindow MainControls (in main_controls.py) is launched.
+
+Use 'python sbemimage.py' or call the batch file SBEMimage.bat to run SBEMimage.
 """
 
 import os
@@ -28,29 +34,34 @@ from main_controls_dlg_windows import ConfigDlg
 from config_template import process_cfg
 from main_controls import MainControls
 
-VERSION = '2.0 (R2020-03-05)'
+VERSION = '2.0 (R2020-03-31)'
 
 def main():
     """Load configuration and run QApplication.
+
     Let user select configuration file. Preselect the configuration from the
     previous run (saved in status.dat), otherwise default.ini.
     Quit if default.ini can't be found, or if user/system configuration cannot
-    be loaded."""
-    # Check Windows version:
+    be loaded.
+    """
+    # Check Windows version
     if not (platform.system() == 'Windows'
             and platform.release() in ['7', '10']):
         print('Error: This version of SBEMimage requires Windows 7 or 10. '
               'Program aborted.\n')
-        os.system('cmd /k')
+        os.system('cmd /k')  # keep console window open
         sys.exit()
 
     if platform.release() == '10':
-        # TODO: This does not work well for 150% and other scale factors.
+        # High dpi scaling for Windows 10
         QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+        # TODO: This does not work well for 150% and other scale factors.
+        # Qt elements and fonts in the GUI don't scale in the correct ratios.
 
     SBEMimage = QApplication(sys.argv)
     app_id = 'SBEMimage ' + VERSION
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(app_id)
+
     colorama.init()
     os.system('cls')
     os.system('title SBEMimage - Console')
@@ -64,7 +75,7 @@ def main():
 
     if (os.path.isfile('..\\cfg\\default.ini')
             and os.path.isfile('..\\cfg\\system.cfg')):
-        # Ask user to select .ini file:
+        # Ask user to select .ini file
         startup_dialog = ConfigDlg(VERSION)
         startup_dialog.exec_()
         dlg_response = startup_dialog.get_ini_file()
@@ -84,7 +95,7 @@ def main():
                     config.read_file(file)
                 print(' Done.\n')
 
-                # Load corresponding system settings file
+                # Load corresponding system configuration file
                 sysconfig_file = config['sys']['sys_config_file']
                 if default_configuration and sysconfig_file != 'system.cfg':
                     sysconfig_file = 'system.cfg'
@@ -116,10 +127,12 @@ def main():
         # Check selected .ini file and ensure there are no missing entries.
         # Configuration must match template configuration in default.ini.
         if default_configuration:
-            # Check only if number of entries correct
-            success, _, _, _ = process_cfg(config, sysconfig, True)
+            # Check if number of entries correct (no other checks at the moment)
+            success, exceptions, _, _, _, _ = process_cfg(config, sysconfig,
+                                                          is_default_cfg=True)
         else:
-            # Check and update if necessary
+            # Check and update if necessary: obsolete entries are ignored,
+            # missing/new entries are added with default values.
             (success, exceptions,
              cfg_changed, syscfg_changed,
              config, sysconfig) = (
@@ -127,7 +140,7 @@ def main():
 
         if success:
             if default_configuration:
-                print('Default configuration loaded.\n')
+                print('Default configuration loaded (read-only).\n')
             else:
                 if cfg_changed and syscfg_changed:
                     ch_str = 'config and sysconfig updated'
@@ -138,12 +151,17 @@ def main():
                 else:
                     ch_str = 'complete, no updates'
                 print('Configuration loaded and checked: ' + ch_str + '\n')
-            # Remove status file. It will be recreated when program terminates
-            # normally.
+
+            # Remove status.dat. This file will be recreated when the program
+            # terminates normally. The start-up dialog checks if status.dat
+            # exists and displays a warning message if not.
             if os.path.isfile('..\\cfg\\status.dat'):
                 os.remove('..\\cfg\\status.dat')
+
             print('Initializing SBEMimage. Please wait...\n')
-            # Launch Main Controls. Viewport is launched from Main Controls.
+
+            # Launch Main Controls window. The Viewport window (see viewport.py)
+            # is launched from Main Controls.
             SBEMimage_main_window = MainControls(config,
                                                  sysconfig,
                                                  config_file,

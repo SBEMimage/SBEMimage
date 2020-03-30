@@ -8,9 +8,16 @@
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
 
-"""This module updates older or non-compliant configuration files to match the
-   most recent default.ini and system.cfg.
+"""The following two functions check configuration files, and update older or
+non-compliant configuration files to match default.ini and system.cfg.
+
+TODO: Before merging the dev branch to master, add backward compatibility for
+several entries in the system.cfg.
 """
+
+import os
+from configparser import ConfigParser
+
 
 # The following constants must be updated if entries are added to or
 # deleted from the default configuration files
@@ -22,8 +29,6 @@ SYSCFG_TEMPLATE_FILE = '..\\cfg\\system.cfg'  # Template of system configuration
 SYSCFG_NUMBER_SECTIONS = 7
 SYSCFG_NUMBER_KEYS = 28
 
-import os
-from configparser import ConfigParser
 
 def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):
     """Go through all sections and keys of the template configuration files and
@@ -92,11 +97,12 @@ def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):
     success = (cfg_load_success and syscfg_load_success
                and cfg_valid and syscfg_valid)
 
-    # cfg_template and syscfg_template are updated versions of the current
-    # configuration
+    # cfg_template and syscfg_template are now the updated versions of the
+    # current configuration
     return (success, exceptions,
             cfg_changed, syscfg_changed,
             cfg_template, syscfg_template)
+
 
 def check_number_of_entries(cfg, type=0):
     all_sections = cfg.sections()
