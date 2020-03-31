@@ -9,7 +9,8 @@
 # ==============================================================================
 
 """This module contains all dialog windows that are called from the Main
-Controls and the Startup dialog (ConfigDlg)."""
+Controls, and the startup dialog (ConfigDlg).
+"""
 
 import os
 import re
@@ -43,17 +44,14 @@ from PyQt5.QtWidgets import QApplication, QDialog, QMessageBox, \
 import utils
 import acq_func
 
-class Trigger(QObject):
-    """Custom signal for updating GUI from within running threads."""
-    s = pyqtSignal()
-
-# ------------------------------------------------------------------------------
 
 class ConfigDlg(QDialog):
-    """Ask the user to select a configuration file. The previously used
-       configuration is preselected in the list widget. If no previously used
-       configuration found, use default.ini. If status.dat does not exists,
-       show warning message box."""
+    """Start-up dialog window that lets user select a configuration file.
+
+    The previously used configuration is preselected in the list widget. If no
+    previously used configuration can be found, use default.ini. If status.dat
+    does not exists, show warning message box.
+    """
 
     def __init__(self, VERSION):
         super().__init__()
@@ -91,8 +89,9 @@ class ConfigDlg(QDialog):
                     'default.ini', Qt.MatchExactly)[0]
                 self.listWidget_filelist.setCurrentItem(default_item)
         else:
-            # If status.dat does not exists, the program crashed or a second
-            # instance is running. Display a warning and select default.ini
+            # If status.dat does not exist, the program must have crashed or a
+            # second instance is running. Display a warning and preselect
+            # default.ini in the list.
             default_item = self.listWidget_filelist.findItems(
                 'default.ini', Qt.MatchExactly)[0]
             self.listWidget_filelist.setCurrentItem(default_item)
@@ -100,10 +99,10 @@ class ConfigDlg(QDialog):
                 self, 'Problem detected: Crash or other SBEMimage instance '
                 'running',
                 'WARNING: SBEMimage appears to have crashed during the '
-                'previous run, or there is already another instance of '
-                'SBEMimage running. Please either close the other instance '
+                'previous run, or another instance of SBEMimage is already '
+                'running. Please either close the other instance '
                 'or abort this one.\n\n'
-                'If you are restarting a stack after a crash, doublecheck '
+                'If you are restarting a stack after a crash, double-check '
                 'all settings before restarting!',
                 QMessageBox.Ok)
 
@@ -120,7 +119,7 @@ class ConfigDlg(QDialog):
 # ------------------------------------------------------------------------------
 
 class SaveConfigDlg(QDialog):
-    """Save current configuration in a new config file."""
+    """Save current user configuration in a new config (.ini) file."""
 
     def __init__(self):
         super().__init__()
@@ -132,18 +131,15 @@ class SaveConfigDlg(QDialog):
         self.lineEdit_cfgFileName.setText('')
         self.file_name = None
 
-    def get_file_name(self):
-        return self.file_name
-
     def accept(self):
         # Replace spaces in file name with underscores.
-        without_spaces = self.lineEdit_cfgFileName.text().replace(' ', '_')
-        self.lineEdit_cfgFileName.setText(without_spaces)
+        self.lineEdit_cfgFileName.setText(
+            self.lineEdit_cfgFileName.text().replace(' ', '_'))
         # Check whether characters in name are permitted.
-        # Use may not overwrite "default.ini"
+        # default.ini may not be chosen.
         reg = re.compile('^[a-zA-Z0-9_-]+$')
         if (reg.match(self.lineEdit_cfgFileName.text())
-            and self.lineEdit_cfgFileName.text().lower != 'default'):
+                and self.lineEdit_cfgFileName.text().lower != 'default'):
             self.file_name = self.lineEdit_cfgFileName.text() + '.ini'
             super().accept()
         else:
@@ -155,8 +151,9 @@ class SaveConfigDlg(QDialog):
 # ------------------------------------------------------------------------------
 
 class SEMSettingsDlg(QDialog):
-    """Let user change SEM beam settings (target EHT, taget beam current).
-       Display current working distance and stigmation.
+    """SEM beam settings dialog window to adjust target EHT and target beam
+    current. The current actual beam settings and the current working distance
+    and stigmation parameters are displayed.
     """
     def __init__(self, sem):
         super().__init__()
@@ -172,7 +169,7 @@ class SEMSettingsDlg(QDialog):
         # Display current target settings
         self.doubleSpinBox_EHT.setValue(self.sem.target_eht)
         self.spinBox_beamCurrent.setValue(self.sem.target_beam_current)
-        # Display current focus/stig
+        # Display current working distance and stigmation parameters
         self.lineEdit_currentFocus.setText(
             '{0:.6f}'.format(sem.get_wd() * 1000))
         self.lineEdit_currentStigX.setText('{0:.6f}'.format(sem.get_stig_x()))
@@ -186,7 +183,10 @@ class SEMSettingsDlg(QDialog):
 # ------------------------------------------------------------------------------
 
 class MicrotomeSettingsDlg(QDialog):
-    """Adjust stage motor limits and wait interval after stage moves."""
+    """Microtome settings dialog window to adjust stage motor limits and the
+    wait interval after stage moves. Other settings are only displayed, but
+    cannot be changed here.
+    """
 
     def __init__(self, microtome, sem, coordinate_system,
                  microtome_active=True):
@@ -200,7 +200,8 @@ class MicrotomeSettingsDlg(QDialog):
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
-        # If microtome not active, change selection label:
+        # Labels and selection options depend on whether microtome stage or
+        # SEM stage is used.
         if microtome_active:
             self.label_selectedStage.setText('Microtome stage active.')
             # Display those settings that can only be changed in DM
@@ -219,7 +220,7 @@ class MicrotomeSettingsDlg(QDialog):
                 self.microtome.motor_speed_x, self.microtome.motor_speed_y)
         else:
             self.label_selectedStage.setText('SEM stage active.')
-            # Display stage limits. Not editable for SEM.
+            # Display stage limits. Not editable for SEM at the moment.
             self.spinBox_stageMaxX.setMaximum(200000)
             self.spinBox_stageMaxY.setMaximum(200000)
             self.spinBox_stageMinX.setMaximum(0)
@@ -228,7 +229,7 @@ class MicrotomeSettingsDlg(QDialog):
             self.spinBox_stageMaxX.setEnabled(False)
             self.spinBox_stageMinY.setEnabled(False)
             self.spinBox_stageMaxY.setEnabled(False)
-            current_motor_limits = self.sem.get_motor_limits()
+            current_motor_limits = self.sem.stage_limits
             current_calibration = self.cs.stage_calibration
             speed_x, speed_y = self.sem.motor_speed_x, self.sem.motor_speed_y
             self.doubleSpinBox_waitInterval.setValue(
@@ -237,8 +238,8 @@ class MicrotomeSettingsDlg(QDialog):
         self.spinBox_stageMaxX.setValue(current_motor_limits[1])
         self.spinBox_stageMinY.setValue(current_motor_limits[2])
         self.spinBox_stageMaxY.setValue(current_motor_limits[3])
-        # Other settings that can be changed in SBEMimage,
-        # but in a different dialog (CalibrationDgl):
+        # Show other relevant settings that can be changed in SBEMimage,
+        # but in a different dialog (CalibrationDlg):
         self.lineEdit_scaleFactorX.setText(str(current_calibration[0]))
         self.lineEdit_scaleFactorY.setText(str(current_calibration[1]))
         self.lineEdit_rotationX.setText(str(current_calibration[2]))
@@ -262,7 +263,9 @@ class MicrotomeSettingsDlg(QDialog):
 # ------------------------------------------------------------------------------
 
 class KatanaSettingsDlg(QDialog):
-    """Adjust settings for the katana microtome."""
+    """Adjust settings for the katana microtome.
+    (Under development)
+    """
 
     def __init__(self, microtome):
         super().__init__()
@@ -296,7 +299,8 @@ class KatanaSettingsDlg(QDialog):
         else:
             pal.setColor(QPalette.WindowText, QColor(Qt.red))
             self.label_connectionStatus.setPalette(pal)
-            self.label_connectionStatus.setText('katana microtome is not connected.')
+            self.label_connectionStatus.setText(
+                'katana microtome is not connected.')
 
     def display_current_settings(self):
         self.spinBox_knifeCutSpeed.setValue(
@@ -329,7 +333,7 @@ class KatanaSettingsDlg(QDialog):
         new_cut_start = self.spinBox_cutWindowStart.value()
         new_cut_end = self.spinBox_cutWindowEnd.value()
         new_osc_frequency = self.spinBox_oscFrequency.value()
-        new_osc_amplitude = self.spinBox_oscAmplitude. value()
+        new_osc_amplitude = self.spinBox_oscAmplitude.value()
         # retract_clearance in nanometres
         new_retract_clearance = (
             self.doubleSpinBox_retractClearance.value() * 1000)
@@ -355,62 +359,70 @@ class KatanaSettingsDlg(QDialog):
 # ------------------------------------------------------------------------------
 
 class StageCalibrationDlg(QDialog):
-    """Calibrate the stage (rotation and scaling) and the motor speeds."""
+    """Dialog window to calibrate the stage (rotation angles and scale factors)
+    and the motor speeds.
 
-    def __init__(self, config, coordinate_system, stage, sem):
+    The stage can be calibrated manually by providing shift vectors obtained
+    from image comparisons, or with an automated procedure.
+    To determine the (microtome) motor speeds, the user needs to run a
+    script in Digital Micrograph. TODO: develop automated procedure to update
+    motor speeds.
+    """
+
+    def __init__(self, coordinate_system, stage, sem, base_dir):
         super().__init__()
-        self.base_dir = config['acq']['base_dir']
         self.cs = coordinate_system
         self.stage = stage
         self.sem = sem
-        self.current_eht = self.sem.target_eht
+        self.base_dir = base_dir
+
         self.x_shift_vector = [0, 0]
         self.y_shift_vector = [0, 0]
-        self.finish_trigger = Trigger()
-        self.finish_trigger.s.connect(self.process_results)
-        self.update_calc_trigger = Trigger()
+        self.finish_trigger = utils.Trigger()
+        self.finish_trigger.s.connect(self.process_pixel_shifts)
+        self.update_calc_trigger = utils.Trigger()
         self.update_calc_trigger.s.connect(self.update_log)
         self.calc_exception = None
         self.busy = False
-        loadUi('..\\gui\\stage_calibration_dlg.ui', self)
 
+        loadUi('..\\gui\\stage_calibration_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
         self.arrow_symbol1.setPixmap(QPixmap('..\\img\\arrow.png'))
         self.arrow_symbol2.setPixmap(QPixmap('..\\img\\arrow.png'))
-        self.lineEdit_EHT.setText('{0:.2f}'.format(self.current_eht))
+        self.lineEdit_EHT.setText('{0:.2f}'.format(self.sem.target_eht))
         params = self.cs.stage_calibration
         self.doubleSpinBox_stageScaleFactorX.setValue(params[0])
         self.doubleSpinBox_stageScaleFactorY.setValue(params[1])
         self.doubleSpinBox_stageRotationX.setValue(params[2])
         self.doubleSpinBox_stageRotationY.setValue(params[3])
-        speed_x, speed_y = self.stage.get_motor_speeds()
-        self.doubleSpinBox_motorSpeedX.setValue(speed_x)
-        self.doubleSpinBox_motorSpeedY.setValue(speed_y)
+        self.doubleSpinBox_motorSpeedX.setValue(self.stage.motor_speed_x)
+        self.doubleSpinBox_motorSpeedY.setValue(self.stage.motor_speed_y)
         self.comboBox_dwellTime.addItems(map(str, self.sem.DWELL_TIME))
         self.comboBox_dwellTime.setCurrentIndex(4)
         self.comboBox_package.addItems(['imreg_dft', 'skimage'])
         self.pushButton_startImageAcq.clicked.connect(
-            self.start_calibration_procedure)
-        if config['sys']['simulation_mode'] == 'True':
+            self.start_stage_calibration_procedure)
+        if self.sem.simulation_mode:
             self.pushButton_startImageAcq.setEnabled(False)
         self.pushButton_helpCalibration.clicked.connect(self.show_help)
         self.pushButton_calcStage.clicked.connect(
-            self.calculate_stage_parameters_from_user_input)
+            self.calculate_calibration_parameters_from_user_input)
         self.pushButton_calcMotor.clicked.connect(
-            self.calculate_motor_parameters)
+            self.calculate_motor_speeds)
 
-    def calculate_motor_parameters(self):
+    def calculate_motor_speeds(self):
         """Calculate the motor speeds from the duration measurements provided
-           by the user and let user confirm the new speeds."""
+        by the user and let user confirm the new speeds.
+        """
         duration_x = self.doubleSpinBox_durationX.value()
         duration_y = self.doubleSpinBox_durationY.value()
         motor_speed_x = 1000 / duration_x
         motor_speed_y = 1000 / duration_y
         user_choice = QMessageBox.information(
-            self, 'Calculated parameters',
+            self, 'Calculated motor speeds',
             'Results:\nMotor speed X: ' + '{0:.2f}'.format(motor_speed_x)
             + ';\nMotor speed Y: ' + '{0:.2f}'.format(motor_speed_y)
             + '\n\nDo you want to use these values?',
@@ -446,8 +458,10 @@ class StageCalibrationDlg(QDialog):
             'from these shifts.',
             QMessageBox.Ok)
 
-    def start_calibration_procedure(self):
-        """Acquire three images to be used for the stage calibration"""
+    def start_stage_calibration_procedure(self):
+        """Acquire three images to be used for the stage calibration.
+        See text in information message box for explanation.
+        """
         # TODO: error handling!
         reply = QMessageBox.information(
             self, 'Start calibration procedure',
@@ -461,53 +475,54 @@ class StageCalibrationDlg(QDialog):
             'Proceed?',
             QMessageBox.Ok | QMessageBox.Cancel)
         if reply == QMessageBox.Ok:
-            # Show update in text field:
             self.busy = True
             self.plainTextEdit_calibLog.setPlainText('Acquiring images...')
             self.pushButton_startImageAcq.setText('Busy')
             self.pushButton_startImageAcq.setEnabled(False)
             self.pushButton_calcStage.setEnabled(False)
-            thread = threading.Thread(target=self.stage_calibration_acq_thread)
+            # Acquire images in thread
+            thread = threading.Thread(target=self.calibration_images_acq_thread)
             thread.start()
 
-    def stage_calibration_acq_thread(self):
+    def calibration_images_acq_thread(self):
         """Acquisition thread for three images used for the stage calibration.
-           Frame settings are fixed for now. Currently no error handling.
-           XY shifts are computed from images.
+        Frame settings are fixed for now. Currently no error handling. XY shifts
+        are computed from images with imreg_dft or skimage.
         """
         shift = self.spinBox_shift.value()
         pixel_size = self.spinBox_pixelsize.value()
         dwell_time = self.sem.DWELL_TIME[self.comboBox_dwellTime.currentIndex()]
-        # Use frame size 4 if available, otherwise 3:
+        # Use frame size 4 if available, otherwise 3
         if len(self.sem.STORE_RES) > 4:
-            # Merlin
             frame_size_selector = 4
         else:
-            # Sigma
             frame_size_selector = 3
 
         self.sem.apply_frame_settings(
             frame_size_selector, pixel_size, dwell_time)
 
         start_x, start_y = self.stage.get_xy()
-        # First image:
+        # Acquire first image at starting position
         self.sem.acquire_frame(self.base_dir + '\\start.tif')
-        # X shift:
+        # Shift along X stage
         self.stage.move_to_xy((start_x + shift, start_y))
-        # Second image:
+        # Second image, at new X position (Y unchanged from starting position)
         self.sem.acquire_frame(self.base_dir + '\\shift_x.tif')
-        # Y shift:
+        # Shift along Y direction, X back to starting position
         self.stage.move_to_xy((start_x, start_y + shift))
-        # Third image:
+        # Acquire third and final image, at new Y position
         self.sem.acquire_frame(self.base_dir + '\\shift_y.tif')
-        # Back to initial position:
+        # Move back to starting position
         self.stage.move_to_xy((start_x, start_y))
-        # Show in log that calculations begin:
+        # Show in log that calculation begins now
         self.update_calc_trigger.s.emit()
         # Load images
-        start_img = imread(self.base_dir + '\\start.tif', as_gray=True)
-        shift_x_img = imread(self.base_dir + '\\shift_x.tif', as_gray=True)
-        shift_y_img = imread(self.base_dir + '\\shift_y.tif', as_gray=True)
+        start_img = imread(os.path.join(self.base_dir, 'start.tif'),
+                           as_gray=True)
+        shift_x_img = imread(os.path.join(self.base_dir, 'shift_x.tif'),
+                             as_gray=True)
+        shift_y_img = imread(os.path.join(self.base_dir, 'shift_y.tif'),
+                             as_gray=True)
         self.calc_exception = None
 
         try:
@@ -523,19 +538,22 @@ class StageCalibrationDlg(QDialog):
             self.x_shift_vector = [x_shift[0], x_shift[1]]
             self.y_shift_vector = [y_shift[0], y_shift[1]]
         except Exception as e:
-            self.calc_exception = e
+            self.calc_exception = str(e)
         self.finish_trigger.s.emit()
 
     def update_log(self):
         self.plainTextEdit_calibLog.appendPlainText(
             'Now computing pixel shifts...')
 
-    def process_results(self):
+    def process_pixel_shifts(self):
+        """Show the pixel shifts computed from the calibration images, and
+        calculate the calibration parameters from these shifts.
+        """
         self.pushButton_startImageAcq.setText('Start')
         self.pushButton_startImageAcq.setEnabled(True)
         self.pushButton_calcStage.setEnabled(True)
         if self.calc_exception is None:
-            # Show the vectors in the textbox and the spinboxes:
+            # Show the vectors in the textbox and the spinboxes
             self.plainTextEdit_calibLog.setPlainText(
                 'Shift_X: [{0:.1f}, {1:.1f}], '
                 'Shift_Y: [{2:.1f}, {3:.1f}]'.format(
@@ -545,17 +563,20 @@ class StageCalibrationDlg(QDialog):
             self.spinBox_x2y.setValue(abs(self.x_shift_vector[1]))
             self.spinBox_y2x.setValue(abs(self.y_shift_vector[0]))
             self.spinBox_y2y.setValue(abs(self.y_shift_vector[1]))
-            # Now calculate parameters:
-            self.calculate_stage_parameters()
+            # Now calculate parameters
+            self.calculate_calibration_parameters()
         else:
             QMessageBox.warning(
                 self, 'Error',
                 'An exception occured while computing the translations: '
-                + str(self.calc_exception),
+                + self.calc_exception,
                 QMessageBox.Ok)
             self.busy = False
 
-    def calculate_stage_parameters(self):
+    def calculate_calibration_parameters(self):
+        """Calculate the calibration parameters (angles and scale factors) from
+        the current shift vectors.
+        """
         shift = self.spinBox_shift.value()
         pixel_size = self.spinBox_pixelsize.value()
         # Use absolute values for now, TODO: revisit for the Sigma stage
@@ -564,18 +585,22 @@ class StageCalibrationDlg(QDialog):
         delta_yx, delta_yy = (
             abs(self.y_shift_vector[0]), abs(self.y_shift_vector[1]))
 
-        # Rotation angles:
+        # Rotation angles (in radians)
         rot_x = atan(delta_xy/delta_xx)
         rot_y = atan(delta_yx/delta_yy)
-        # Scale factors:
+        # Scale factors
         scale_x = shift / (sqrt(delta_xx**2 + delta_xy**2) * pixel_size / 1000)
         scale_y = shift / (sqrt(delta_yx**2 + delta_yy**2) * pixel_size / 1000)
 
         # alternative calc
-        # x_abs = np.linalg.norm([self.x_shift_vector[0], self.x_shift_vector[1]])
-        # y_abs = np.linalg.norm([self.y_shift_vector[0], self.y_shift_vector[1]])
-        # rot_x_alt = np.arccos(shift * self.x_shift_vector[0] / (shift * x_abs))
-        # rot_y_alt = np.arccos(shift * self.y_shift_vector[1] / (shift * y_abs))
+        # x_abs = np.linalg.norm(
+        #     [self.x_shift_vector[0], self.x_shift_vector[1]])
+        # y_abs = np.linalg.norm(
+        #     [self.y_shift_vector[0], self.y_shift_vector[1]])
+        # rot_x_alt = np.arccos(
+        #     shift * self.x_shift_vector[0] / (shift * x_abs))
+        # rot_y_alt = np.arccos(
+        #     shift * self.y_shift_vector[1] / (shift * y_abs))
         # GUI cannot handle negative values
         # if rot_x < 0:
         #    rot_x += 2 * 3.141592
@@ -601,14 +626,14 @@ class StageCalibrationDlg(QDialog):
             self.doubleSpinBox_stageRotationX.setValue(rot_x)
             self.doubleSpinBox_stageRotationY.setValue(rot_y)
 
-    def calculate_stage_parameters_from_user_input(self):
+    def calculate_calibration_parameters_from_user_input(self):
         """Calculate the rotation angles and scale factors from the user input.
-           The user provides the pixel position of any object that can be
-           identified in all three acquired test images. From this, the program
-           calculates the difference the object was shifted in pixels, and the
-           angle with respect to the x or y axis.
+        The user provides the pixel position of any object that can be
+        identified in all three acquired test images. From this, the program
+        calculates the difference the object was shifted in pixels, and the
+        angle with respect to the x or y axis.
         """
-        # Pixel positions:
+        # Pixel position input from GUI
         x1x = self.spinBox_x1x.value()
         x1y = self.spinBox_x1y.value()
         x2x = self.spinBox_x2x.value()
@@ -633,7 +658,7 @@ class StageCalibrationDlg(QDialog):
                 'Using pixel shifts specified on the right side as input...')
             self.x_shift_vector = [delta_xx, delta_xy]
             self.y_shift_vector = [delta_yx, delta_yy]
-            self.calculate_stage_parameters()
+            self.calculate_calibration_parameters()
 
     def accept(self):
         if not self.busy:
@@ -642,12 +667,12 @@ class StageCalibrationDlg(QDialog):
                 self.doubleSpinBox_stageScaleFactorY.value(),
                 self.doubleSpinBox_stageRotationX.value(),
                 self.doubleSpinBox_stageRotationY.value()]
-            self.cs.save_stage_calibration(self.current_eht, stage_params)
-
+            # Save and apply new stage calibration and motor speeds
+            self.cs.save_stage_calibration(self.sem.target_eht, stage_params)
+            self.cs.apply_stage_calibration()
             success = self.stage.set_motor_speeds(
                 self.doubleSpinBox_motorSpeedX.value(),
                 self.doubleSpinBox_motorSpeedY.value())
-
             if not success:
                 QMessageBox.warning(
                     self, 'Error updating motor speeds',
@@ -670,10 +695,9 @@ class StageCalibrationDlg(QDialog):
 class MagCalibrationDlg(QDialog):
     """Calibrate the relationship between magnification and pixel size."""
 
-    def __init__(self, sem, ovm):
+    def __init__(self, sem):
         super().__init__()
         self.sem = sem
-        self.ovm = ovm
         loadUi('..\\gui\\mag_calibration_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -709,6 +733,9 @@ class MagCalibrationDlg(QDialog):
 # ------------------------------------------------------------------------------
 
 class CutDurationDlg(QDialog):
+    """Dialog to set the duration in seconds of a full cut cycle (near, cut,
+    clear).
+    """
 
     def __init__(self, microtome):
         super().__init__()
@@ -722,14 +749,16 @@ class CutDurationDlg(QDialog):
             self.microtome.full_cut_duration)
 
     def accept(self):
-        self.microtome.set_full_cut_duration(
+        self.microtome.full_cut_duration = (
             self.doubleSpinBox_cutDuration.value())
         super().accept()
 
 # ------------------------------------------------------------------------------
 
 class OVSettingsDlg(QDialog):
-    """Let the user change all settings for each overview image."""
+    """Dialog window to adjust settings for overview images, and to add/delete
+    overview images.
+    """
 
     def __init__(self, ovm, sem, current_ov,
                  main_window_trigger, main_window_queue):
@@ -802,10 +831,10 @@ class OVSettingsDlg(QDialog):
         self.show_current_settings()
 
     def update_buttons(self):
-        """Update labels on buttons and disable/enable delete button
-           depending on which OV is selected. OV 0 cannot be deleted.
-           Only the last OV can be deleted. Reason: preserve identities of
-           overviews during stack acq.
+        """Update labels on buttons and disable/enable delete button depending
+        on which OV is selected. OV 0 cannot be deleted. Only the last OV (with
+        the highest index) can be deleted. Reason: preserve identities of
+        overviews during stack acq.
         """
         if self.current_ov == 0:
             self.pushButton_deleteOV.setEnabled(False)
@@ -868,17 +897,17 @@ class OVSettingsDlg(QDialog):
 # ------------------------------------------------------------------------------
 
 class GridSettingsDlg(QDialog):
-    """Dialog for changing grid settings."""
+    """Dialog for changing grid settings and for adding/deleting grids."""
 
     def __init__(self, grid_manager, sem, selected_grid,
-                 config, main_window_trigger, main_window_queue):
+                 main_window_trigger, main_window_queue, magc_mode=False):
         super().__init__()
         self.gm = grid_manager
         self.sem = sem
         self.current_grid = selected_grid
-        self.cfg = config
         self.main_window_queue = main_window_queue
         self.main_window_trigger = main_window_trigger
+        self.magc_mode = magc_mode
         loadUi('..\\gui\\grid_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -918,8 +947,9 @@ class GridSettingsDlg(QDialog):
         self.update_buttons()
         self.show_current_settings()
         self.show_frame_size_and_dose()
-        # inactivating add grid in magc_mode (should be done in magc panel instead)
-        if self.cfg['sys']['magc_mode'] == 'True':
+        # Inactivate 'add grid' button in magc_mode
+        # (should be done in MagC panel instead)
+        if self.magc_mode:
             self.pushButton_addGrid.setEnabled(False)
 
     def show_current_settings(self):
@@ -949,8 +979,8 @@ class GridSettingsDlg(QDialog):
 
     def show_frame_size_and_dose(self):
         """Calculate and display the tile size and the dose for the current
-           settings. Updated in real-time as user changes dwell time, frame
-           resolution and pixel size.
+        settings. Updated in real-time as user changes dwell time, frame
+        resolution and pixel size.
         """
         frame_size_selector = self.comboBox_tileSize.currentIndex()
         pixel_size = self.doubleSpinBox_pixelSize.value()
@@ -973,9 +1003,9 @@ class GridSettingsDlg(QDialog):
 
     def update_buttons(self):
         """Update labels on buttons and disable/enable delete button
-           depending on which grid is selected. Grid 0 cannot be deleted.
-           Only the last grid can be deleted. Reason: preserve identities of
-           grids and tiles within grids.
+        depending on which grid is selected. Grid 0 cannot be deleted.
+        Only the last grid can be deleted. Reason: preserve identities of
+        grids and tiles within grids.
         """
         if self.current_grid == 0:
             self.pushButton_deleteGrid.setEnabled(False)
@@ -1036,8 +1066,9 @@ class GridSettingsDlg(QDialog):
             self.main_window_trigger.s.emit()
 
     def save_current_settings(self):
-        if self.cfg['sys']['magc_mode'] == 'True':
-            grid_center = self.gm[self.current_grid].centre_sx_sy
+        if self.magc_mode:
+            # Preserve centre coordinates of MagC grids
+            prev_grid_centre = self.gm[self.current_grid].centre_sx_sy
 
         error_msg = ''
         self.gm[self.current_grid].size = [self.spinBox_rows.value(),
@@ -1076,8 +1107,8 @@ class GridSettingsDlg(QDialog):
             self.spinBox_acqIntervalOffset.value())
         # Recalculate grid:
         self.gm[self.current_grid].update_tile_positions()
-        if self.cfg['sys']['magc_mode'] == 'True':
-            self.gm[self.current_grid].centre_sx_sy = grid_center
+        if self.magc_mode:
+            self.gm[self.current_grid].centre_sx_sy = prev_grid_centre
             self.gm.update_source_ROIs_from_grids()
         if error_msg:
             QMessageBox.warning(self, 'Error', error_msg, QMessageBox.Ok)
@@ -1142,7 +1173,7 @@ class FocusGradientSettingsDlg(QDialog):
 
     def update_settings(self):
         """Get selected working distances and calculate origin WD and
-           gradient if possible.
+        gradient if possible.
         """
         self.ref_tiles[0] = self.comboBox_tileUpperLeft.currentIndex() - 1
         self.ref_tiles[1] = self.comboBox_tileUpperRight.currentIndex() - 1
@@ -1203,11 +1234,10 @@ class FocusGradientSettingsDlg(QDialog):
         self.gm[self.current_grid].calculate_wd_gradient()
         super().reject()
 
-
 # ------------------------------------------------------------------------------
 
 class AcqSettingsDlg(QDialog):
-    """Let user adjust acquisition settings."""
+    """Dialog for adjusting acquisition settings."""
 
     def __init__(self, stack, use_microtome=True):
         super().__init__()
@@ -1244,8 +1274,8 @@ class AcqSettingsDlg(QDialog):
 
     def select_directory(self):
         """Let user select the base directory for the stack acquisition.
-           Note that the final subfolder name in the directory string is used as
-           the name of the stack in SBEMimage.
+        Note that the final subfolder name in the directory string is used as
+        the name of the stack in SBEMimage.
         """
         if len(self.stack.base_dir) > 2:
             start_path = self.stack.base_dir[:3]
@@ -2157,9 +2187,9 @@ class ApproachDlg(QDialog):
         self.setFixedSize(self.size())
         self.show()
         # Set up trigger and queue to update dialog GUI during approach:
-        self.progress_trigger = Trigger()
+        self.progress_trigger = utils.Trigger()
         self.progress_trigger.s.connect(self.update_progress)
-        self.finish_trigger = Trigger()
+        self.finish_trigger = utils.Trigger()
         self.finish_trigger.s.connect(self.finish_approach)
         self.spinBox_numberSlices.setRange(1, 100)
         self.spinBox_numberSlices.setSingleStep(1)
@@ -2349,7 +2379,7 @@ class GrabFrameDlg(QDialog):
         self.sem = sem
         self.main_window_queue = main_window_queue
         self.main_window_trigger = main_window_trigger
-        self.finish_trigger = Trigger()
+        self.finish_trigger = utils.Trigger()
         self.finish_trigger.s.connect(self.scan_complete)
         loadUi('..\\gui\\grab_frame_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
@@ -2573,7 +2603,7 @@ class FTMoveDlg(QDialog):
         self.grid_index = grid_index
         self.tile_index = tile_index
         self.error = False
-        self.finish_trigger = Trigger()
+        self.finish_trigger = utils.Trigger()
         self.finish_trigger.s.connect(self.move_completed)
         loadUi('..\\gui\\focus_tool_move_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
@@ -2642,9 +2672,9 @@ class MotorTestDlg(QDialog):
         self.setFixedSize(self.size())
         self.show()
         # Set up trigger and queue to update dialog GUI during approach:
-        self.progress_trigger = Trigger()
+        self.progress_trigger = utils.Trigger()
         self.progress_trigger.s.connect(self.update_progress)
-        self.finish_trigger = Trigger()
+        self.finish_trigger = utils.Trigger()
         self.finish_trigger.s.connect(self.test_finished)
         self.spinBox_duration.setRange(1, 9999)
         self.spinBox_duration.setSingleStep(10)

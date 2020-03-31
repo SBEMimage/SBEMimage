@@ -8,12 +8,17 @@
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
 
-"""This module controls the main window GUI, from which acquisitions are
-   started. The window contains four tabs: (1) main controls, settings, stack
-   progress and main log; (2) focus tool; (3) functions for testing/debugging;
-   (4) MagC module.
-   The 'Main Controls' window is a QMainWindow, and it launches the Viewport
-   window as a QWidget.
+"""This module contains MainControls, the main window of the application, from
+which the acquisition thread is started.
+
+The 'Main Controls' window consists of four tabs:
+    (1) Main controls: action buttons, settings, stack progress and main log;
+    (2) Focus tool;
+    (3) Functions for testing/debugging;
+    (4) MagC module.
+
+The 'Main Controls' window is a QMainWindow, and it launches the Viewport
+window (in viewport.py) as a QWidget.
 """
 
 import os
@@ -271,7 +276,8 @@ class MainControls(QMainWindow):
         self.show_stack_acq_estimates()
 
         # Restrict GUI (microtome-specific functionality) if no microtome used
-        self.restrict_gui_for_sem_stage()
+        if not self.use_microtome:
+            self.restrict_gui_for_sem_stage()
 
         # Now show main window:
         self.show()
@@ -987,7 +993,7 @@ class MainControls(QMainWindow):
 # =============== Below: all methods that open dialog windows ==================
 
     def open_mag_calibration_dlg(self):
-        dialog = MagCalibrationDlg(self.sem, self.ovm)
+        dialog = MagCalibrationDlg(self.sem)
         if dialog.exec_():
             # Show updated OV magnification
             self.show_current_settings()
@@ -997,7 +1003,7 @@ class MainControls(QMainWindow):
         if dialog.exec_():
             if self.cfg['sys']['sys_config_file'] == 'system.cfg':
                 self.cfg['sys']['sys_config_file'] = 'this_system.cfg'
-            self.cfg_file = dialog.get_file_name()
+            self.cfg_file = dialog.file_name
             self.save_config_to_disk()
             # Show new config file name in status bar
             self.set_statusbar('Ready.')
@@ -1039,9 +1045,9 @@ class MainControls(QMainWindow):
             dialog.exec_()
 
     def open_calibration_dlg(self):
-        dialog = StageCalibrationDlg(self.cfg, self.cs, self.stage, self.sem)
+        dialog = StageCalibrationDlg(self.cs, self.stage, self.sem,
+                                     self.stack.base_dir)
         if dialog.exec_():
-            self.cs.apply_stage_calibration()
             if self.ovm.use_auto_debris_area:
                 self.ovm.update_all_debris_detections_areas(self.gm)
             self.viewport.vp_draw()
@@ -1069,7 +1075,8 @@ class MainControls(QMainWindow):
 
     def open_grid_dlg(self, selected_grid):
         dialog = GridSettingsDlg(self.gm, self.sem, selected_grid,
-                                 self.cfg, self.trigger, self.queue)
+                                 self.trigger, self.queue,
+                                 self.magc_mode)
         # self.update_from_grid_dlg() is called when user saves settings
         # or adds/deletes grids.
         dialog.exec_()
