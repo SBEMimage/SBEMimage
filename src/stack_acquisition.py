@@ -592,7 +592,7 @@ class Stack():
             'dwell_times': [],
             'contrast': self.sem.bsd_contrast,
             'brightness': self.sem.bsd_brightness,
-            'email_addresses: ': self.user_email_addresses
+            'email_addresses: ': self.notifications.user_email_addresses
             }
         self.metadata_file.write('SESSION: ' + str(session_metadata) + '\n')
         # Send to server?
@@ -910,7 +910,7 @@ class Stack():
                         self.add_to_main_log(
                             'CTRL: Stop signal from metadata server '
                             'received.')
-                        if self.cfg['acq']['use_email_monitoring'] == 'True':
+                        if self.use_email_monitoring:
                             # Send notification email:
                             msg_subject = ('Stack ' + self.stack_name
                                            + ' PAUSED remotely')
@@ -933,10 +933,12 @@ class Stack():
                         'received.')
 
             # ======================= E-mail monitoring ========================
-            report_scheduled = (self.slice_counter % self.report_interval == 0)
+            report_scheduled = (
+                self.slice_counter % self.status_report_interval == 0)
             # If remote commands are enabled, check email account:
-            if (use_email_monitoring and remote_commands_enabled
-                    and self.slice_counter % remote_check_interval == 0):
+            if (self.use_email_monitoring
+                    and self.notifications.remote_commands_enabled
+                    and self.slice_counter % self.remote_check_interval == 0):
                 self.add_to_main_log('CTRL: Checking for remote commands.')
                 self.notifications.process_remote_commands()
 
@@ -1236,8 +1238,8 @@ class Stack():
                                            + str(ov_index).zfill(3) + '.bmp')
                     imwrite(workspace_save_path, ov_img)
                     self.ovm[ov_index].vp_file_path = workspace_save_path
-                    # Signal to update viewport:
-                    self.transmit_cmd('MV UPDATE OV' + str(ov_index))
+                    # Signal to update viewport
+                    self.transmit_cmd('DRAW VP')
                 if load_error:
                     self.error_state = 404
                     ov_accepted = False
@@ -1680,14 +1682,15 @@ class Stack():
                                                 tile_width, tile_height)
                     # Save stats and reslice:
                     success, error_msg = self.img_inspector.save_tile_stats(
-                        grid_index, tile_index, self.slice_counter)
+                        self.base_dir, grid_index, tile_index,
+                        self.slice_counter)
                     if not success:
                         self.add_to_main_log(
                             'CTRL: Error saving tile mean and SD to disk.')
                         self.add_to_main_log(
                             'CTTL: ' + error_msg)
                     success, error_msg = self.img_inspector.save_tile_reslice(
-                        grid_index, tile_index)
+                        self.base_dir, grid_index, tile_index)
                     if not success:
                         self.add_to_main_log(
                             'CTRL: Error saving tile reslice to disk.')

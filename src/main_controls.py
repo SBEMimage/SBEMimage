@@ -1112,7 +1112,7 @@ class MainControls(QMainWindow):
             self.start_acquisition()
 
     def open_export_dlg(self):
-        dialog = ExportDlg(self.cfg)
+        dialog = ExportDlg(self.stack)
         dialog.exec_()
 
     def open_update_dlg(self):
@@ -1135,7 +1135,7 @@ class MainControls(QMainWindow):
         dialog.exec_()
 
     def open_mirror_drive_dlg(self):
-        dialog = MirrorDriveDlg(self.cfg)
+        dialog = MirrorDriveDlg(self.stack)
         dialog.exec_()
 
     def open_image_monitoring_dlg(self):
@@ -1161,7 +1161,7 @@ class MainControls(QMainWindow):
         dialog.exec_()
 
     def open_grab_frame_dlg(self):
-        dialog = GrabFrameDlg(self.cfg, self.sem,
+        dialog = GrabFrameDlg(self.sem, self.stack,
                               self.trigger, self.queue)
         dialog.exec_()
 
@@ -1170,7 +1170,7 @@ class MainControls(QMainWindow):
         dialog.exec_()
 
     def open_motor_test_dlg(self):
-        dialog = MotorTestDlg(self.cfg, self.microtome,
+        dialog = MotorTestDlg(self.microtome, self.stack,
                               self.trigger, self.queue)
         dialog.exec_()
 
@@ -1785,11 +1785,12 @@ class MainControls(QMainWindow):
     def pause_acquisition(self):
         """Pause the acquisition after user has clicked 'Pause' button. Let
         user decide whether to stop immediately or after finishing current
-        slice."""
+        slice.
+        """
         if not self.stack.acq_paused:
             dialog = PauseDlg()
             dialog.exec_()
-            pause_type = dialog.get_user_choice()
+            pause_type = dialog.pause_type
             if pause_type == 1 or pause_type == 2:
                 self.add_to_log('CTRL: PAUSE command received.')
                 self.pushButton_pauseAcq.setEnabled(False)
@@ -2122,10 +2123,9 @@ class MainControls(QMainWindow):
                                     self.ft_selected_stig_y,
                                     self.simulation_mode)
             if dialog.exec_():
-                new_params = dialog.return_params()
-                self.ft_selected_wd = new_params[0]
-                self.ft_selected_stig_x, self.ft_selected_stig_y = (
-                    new_params[1:3])
+                self.ft_selected_wd = dialog.new_wd
+                self.ft_selected_stig_x = dialog.new_stig_x
+                self.ft_selected_stig_y = dialog.new_stig_y
                 self.ft_update_wd_display()
                 self.ft_update_stig_display()
                 if self.ft_selected_ov >= 0:

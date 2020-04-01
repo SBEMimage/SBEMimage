@@ -115,6 +115,7 @@ class ImageInspector:
         frozen_frame_error = False
         grab_incomplete = False
         load_error = False
+        load_exception = ''
         tile_selected = False
 
         # Skip tests in MagC mode if memory usage too high
@@ -196,8 +197,8 @@ class ImageInspector:
                 self.tile_stddevs[tile_key].pop(0)
             self.tile_stddevs[tile_key].append((slice_number, stddev))
 
-            if (tile_key_short in self.monitoring_tiles
-                or 'all' in self.monitoring_tiles):
+            if (tile_key_short in self.monitoring_tile_list
+                or 'all' in self.monitoring_tile_list):
                 if len(self.tile_means[tile_key]) > 1:
                     diff_mean = abs(self.tile_means[tile_key][0][1]
                                     - self.tile_means[tile_key][1][1])
@@ -292,6 +293,7 @@ class ImageInspector:
         ov_img = None
         mean, stddev = 0, 0
         load_error = False
+        load_exception = ''
         grab_incomplete = False
         range_test_passed = False
 
@@ -355,7 +357,7 @@ class ImageInspector:
         error_msg = ''
         if ov_number in self.ov_means and ov_number in self.ov_stddevs:
             stats_filename = os.path.join(
-                self.base_dir, 'meta', 'stats',
+                base_dir, 'meta', 'stats',
                 'OV' + str(ov_number).zfill(utils.OV_DIGITS) + '.dat')
             # Append to existing file or create new file
             try:
@@ -378,7 +380,7 @@ class ImageInspector:
         if (ov_number in self.ov_reslice_line
             and self.ov_reslice_line[ov_number].shape[1] == 400):
             reslice_filename = os.path.join(
-                self.base_dir, 'workspace', 'reslices',
+                base_dir, 'workspace', 'reslices',
                 'r_OV' + str(ov_number).zfill(utils.OV_DIGITS) + '.png')
             reslice_img = None
             # Open reslice file if it exists and save updated reslice

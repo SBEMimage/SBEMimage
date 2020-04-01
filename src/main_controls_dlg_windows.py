@@ -1369,9 +1369,10 @@ class AcqSettingsDlg(QDialog):
 # ------------------------------------------------------------------------------
 
 class PreStackDlg(QDialog):
-    """Let user check the acquisition settings before starting a stack.
-       Also show settings that can only be changed in DM and let user adjust
-       them for logging purposes.
+    """This dialog is called before starting a stack. It lets the user view a
+    summary of the stack acquisition setup. It also shows several settings that
+    can only be changed in DM and lets the user adjust them for logging
+    purposes.
     """
 
     def __init__(self, stack, sem, microtome, autofocus, ovm, gm):
@@ -1383,7 +1384,7 @@ class PreStackDlg(QDialog):
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
-        # Different labels if stack is paused ('Continue' instead of 'Start'):
+        # Different labels if stack is paused ('Continue' instead of 'Start')
         if stack.acq_paused:
             self.pushButton_startAcq.setText('Continue acquisition')
             self.setWindowTitle('Continue acquisition')
@@ -1449,9 +1450,11 @@ class PreStackDlg(QDialog):
 # ------------------------------------------------------------------------------
 
 class PauseDlg(QDialog):
-    """Let the user pause a running acquisition. Two options: (1) Pause as soon
-       as possible (after the current image is acquired.) (2) Pause after the
-       current slice is imaged and cut.
+    """This dialog is called when the user clicks 'PAUSE' to pause a running
+    acquisition. In the dialog, the user can then choose between two options:
+    (1) Pause as soon as possible (after acquisition of the current OV or tile
+    is complete). (2) Pause after imaging of the current slice is completed and
+    the surface has been cut.
     """
 
     def __init__(self):
@@ -1461,20 +1464,17 @@ class PauseDlg(QDialog):
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
-        self.pause_type = 0
+        self.pause_type = 0  # don't pause (when user clicks 'Cancel')
         self.pushButton_pauseNow.clicked.connect(self.pause_now)
         self.pushButton_pauseAfterSlice.clicked.connect(self.pause_later)
 
     def pause_now(self):
-        self.pause_type = 1
+        self.pause_type = 1  # pause immediately
         self.accept()
 
     def pause_later(self):
-        self.pause_type = 2
+        self.pause_type = 2  # pause after slice is completed
         self.accept()
-
-    def get_user_choice(self):
-        return self.pause_type
 
     def accept(self):
         super().accept()
@@ -1484,38 +1484,38 @@ class PauseDlg(QDialog):
 class ExportDlg(QDialog):
     """Export image list in TrakEM2 format."""
 
-    def __init__(self, config):
+    def __init__(self, stack):
         super().__init__()
-        self.cfg = config
+        self.stack = stack
         loadUi('..\\gui\\export_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.pushButton_export.clicked.connect(self.export_list)
-        self.spinBox_untilSlice.setValue(int(self.cfg['acq']['slice_counter']))
+        self.spinBox_untilSlice.setValue(int(self.stack.slice_counter))
         self.show()
 
     def export_list(self):
         self.pushButton_export.setText('Busy')
         self.pushButton_export.setEnabled(False)
         QApplication.processEvents()
-        base_dir = self.cfg['acq']['base_dir']
-        target_grid_index = (
-            str(self.spinBox_gridNumber.value()).zfill(utils.GRID_DIGITS))
+        base_dir = self.stack.base_dir
+        target_grid_index = str(
+            self.spinBox_gridNumber.value()).zfill(utils.GRID_DIGITS)
         pixel_size = self.doubleSpinBox_pixelSize.value()
         start_slice = self.spinBox_fromSlice.value()
         end_slice = self.spinBox_untilSlice.value()
-        # Read all imagelist files into memory:
+        # Read all imagelist files into memory
         imagelist_str = []
         imagelist_data = []
-        file_list = glob.glob(os.path.join(base_dir,
-                                           'meta', 'logs', 'imagelist*.txt'))
+        file_list = glob.glob(
+            os.path.join(base_dir, 'meta', 'logs', 'imagelist*.txt'))
         file_list.sort()
         for file in file_list:
             with open(file) as f:
                 imagelist_str.extend(f.readlines())
         if len(imagelist_str) > 0:
-            # split strings, store entries in variables, find minimum x and y:
+            # split strings, store entries in variables, find minimum x and y
             min_x = 1000000
             min_y = 1000000
             for line in imagelist_str:
@@ -1541,7 +1541,7 @@ class ExportDlg(QDialog):
             for item in imagelist_data:
                 item[1] -= min_x
                 item[2] -= min_y
-            # Write to output file:
+            # Write to output file
             try:
                 output_file = os.path.join(base_dir,
                                            'trakem2_imagelist_slice'
@@ -1555,10 +1555,10 @@ class ExportDlg(QDialog):
                                 + str(item[1]) + '\t'
                                 + str(item[2]) + '\t'
                                 + str(item[3]) + '\n')
-            except:
+            except Exception as e:
                 QMessageBox.warning(
                     self, 'Error',
-                    'An error ocurred while writing the output file.',
+                    'An error ocurred while writing the output file: ' + str(e),
                     QMessageBox.Ok)
             else:
                 QMessageBox.information(
@@ -1609,7 +1609,7 @@ class UpdateDlg(QDialog):
                 'internet connection. ',
                 QMessageBox.Ok)
         else:
-            # Get directory of current installation:
+            # Get directory of current installation
             install_path = os.path.dirname(
                 os.path.dirname(os.path.abspath(__file__)))
             try:
@@ -1617,7 +1617,7 @@ class UpdateDlg(QDialog):
                     for zip_info in zip_object.infolist():
                         if zip_info.filename[-1] == '/':
                             continue
-                        # Remove 'SBEMimage-master/':
+                        # Remove string 'SBEMimage-master/'
                         zip_info.filename = zip_info.filename[17:]
                         print(zip_info.filename)
                         zip_object.extract(zip_info, install_path)
@@ -1744,7 +1744,8 @@ class EmailMonitoringSettingsDlg(QDialog):
 class DebrisSettingsDlg(QDialog):
     """Adjust the settings for debris detection and removal: Detection area,
     detection method and parameters, max. number of sweeps, and what to do when
-    max. sweep number reached."""
+    max. sweep number reached.
+    """
 
     def __init__(self, ovm, image_inspector, stack):
         super().__init__()
@@ -1761,7 +1762,7 @@ class DebrisSettingsDlg(QDialog):
             self.radioButton_autoSelection.setChecked(True)
         else:
             self.radioButton_fullSelection.setChecked(True)
-        # Extra margin around detection area in pixels:
+        # Extra margin around detection area in pixels
         self.spinBox_debrisMargin.setValue(
             self.ovm.auto_debris_area_margin)
         self.spinBox_maxSweeps.setValue(self.stack.max_number_sweeps)
@@ -1777,7 +1778,7 @@ class DebrisSettingsDlg(QDialog):
             self.ovm.detection_area_visible)
         self.checkBox_continueAcq.setChecked(
             self.stack.continue_after_max_sweeps)
-        # Detection methods:
+        # Detection methods
         self.radioButton_methodQuadrant.setChecked(
             self.img_inspector.debris_detection_method == 0)
         self.radioButton_methodPixel.setChecked(
@@ -1792,7 +1793,7 @@ class DebrisSettingsDlg(QDialog):
 
     def update_option_selection(self):
         """Let user only change the parameters for the currently selected
-           detection method. The other input fields are deactivated.
+        detection method. The other input fields are deactivated.
         """
         if self.radioButton_methodQuadrant.isChecked():
             self.doubleSpinBox_diffMean.setEnabled(True)
@@ -1839,8 +1840,8 @@ class DebrisSettingsDlg(QDialog):
 
 class AskUserDlg(QDialog):
     """Specify for which events the program should let the user decide how
-       to proceed. The "Ask User" functionality is currently only used for
-       debris detection. Will be expanded, work in progress...
+    to proceed. The "Ask User" functionality is currently only used for
+    debris detection. Will be expanded, work in progress...
     """
 
     def __init__(self):
@@ -1856,9 +1857,9 @@ class AskUserDlg(QDialog):
 class MirrorDriveDlg(QDialog):
     """Select a mirror drive from all available drives."""
 
-    def __init__(self, config):
+    def __init__(self, stack):
         super().__init__()
-        self.cfg = config
+        self.stack = stack
         loadUi('..\\gui\\mirror_drive_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -1880,7 +1881,7 @@ class MirrorDriveDlg(QDialog):
         if self.available_drives:
             self.comboBox_allDrives.addItems(self.available_drives)
             current_index = self.comboBox_allDrives.findText(
-                self.cfg['sys']['mirror_drive'])
+                self.stack.mirror_drive)
             if current_index == -1:
                 current_index = 0
             self.comboBox_allDrives.setCurrentIndex(current_index)
@@ -1890,14 +1891,16 @@ class MirrorDriveDlg(QDialog):
     def accept(self):
         if self.available_drives:
             if (self.comboBox_allDrives.currentText()[0]
-                == self.cfg['acq']['base_dir'][0]):
+                == self.stack.base_dir[0]):
                 QMessageBox.warning(
                     self, 'Error',
                     'The mirror drive must be different from the '
                     'base directory drive!', QMessageBox.Ok)
             else:
-                self.cfg['sys']['mirror_drive'] = (
+                self.stack.mirror_drive = (
                     self.comboBox_allDrives.currentText())
+                self.stack.mirror_drive_directory = os.path.join(
+                    self.stack.mirror_drive, self.stack.base_dir[2:])
                 super().accept()
 
 # ------------------------------------------------------------------------------
@@ -1906,7 +1909,8 @@ class ImageMonitoringSettingsDlg(QDialog):
     """Adjust settings to monitor overviews and tiles. A test if a given image
     is within mean/SD range is performed for all acquired images if this feature
     is activated. Tile-by-tile comparisons are performed for the selected tiles
-    only."""
+    only.
+    """
     def __init__(self, image_inspector):
         super().__init__()
         self.img_inspector = image_inspector
@@ -1956,8 +1960,8 @@ class ImageMonitoringSettingsDlg(QDialog):
 
 class AutofocusSettingsDlg(QDialog):
     """Adjust settings for the ZEISS autofocus, the heuristic autofocus,
-    and tracking the focus/stig when refocusing manually."""
-
+    and tracking the focus/stig when refocusing manually.
+    """
     def __init__(self, autofocus, grid_manager, magc_mode=False):
         super().__init__()
         self.autofocus = autofocus
@@ -2108,9 +2112,9 @@ class AutofocusSettingsDlg(QDialog):
 class PlasmaCleanerDlg(QDialog):
     """Set parameters for the downstream asher, run it."""
 
-    def __init__(self, plc_):
+    def __init__(self, plc):
         super().__init__()
-        self.plc = plc_
+        self.plc = plc
         loadUi('..\\gui\\plasma_cleaner_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('icon.ico'))
@@ -2119,10 +2123,11 @@ class PlasmaCleanerDlg(QDialog):
         try:
             self.spinBox_currentPower.setValue(self.plc.get_power())
             self.spinBox_currentDuration.setValue(self.plc.get_duration())
-        except:
+        except Exception as e:
             QMessageBox.warning(
                 self, 'Error',
-                'Could not read current settings from plasma cleaner.',
+                'Could not read current settings from plasma cleaner: '
+                + str(e),
                 QMessageBox.Ok)
         self.pushButton_setTargets.clicked.connect(self.set_target_parameters)
         self.pushButton_startCleaning.clicked.connect(self.start_cleaning)
@@ -2173,7 +2178,7 @@ class PlasmaCleanerDlg(QDialog):
 
 class ApproachDlg(QDialog):
     """Remove slices without imaging. User can specify how many slices and
-       the cutting thickness.
+    the cutting thickness.
     """
 
     def __init__(self, microtome, main_window_trigger, main_window_queue):
@@ -2186,7 +2191,7 @@ class ApproachDlg(QDialog):
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
-        # Set up trigger and queue to update dialog GUI during approach:
+        # Set up trigger and queue to update dialog GUI during approach
         self.progress_trigger = utils.Trigger()
         self.progress_trigger.s.connect(self.update_progress)
         self.finish_trigger = utils.Trigger()
@@ -2214,7 +2219,7 @@ class ApproachDlg(QDialog):
         self.max_slices = self.spinBox_numberSlices.value()
         if self.slice_counter > 0:
             remaining_time_str = (
-                '    ' + str(int((self.max_slices - self.slice_counter)*12))
+                '    ' + str(int((self.max_slices - self.slice_counter) * 12))
                 + ' seconds left')
         else:
             remaining_time_str = ''
@@ -2247,7 +2252,7 @@ class ApproachDlg(QDialog):
                                 'Try to clear manually.', QMessageBox.Ok)
         self.main_window_queue.put('STATUS IDLE')
         self.main_window_trigger.s.emit()
-        # Show message box to user and reset counter and progress bar:
+        # Show message box to user and reset counter and progress bar
         if not self.aborted:
             QMessageBox.information(
                 self, 'Approach finished',
@@ -2290,10 +2295,10 @@ class ApproachDlg(QDialog):
         self.max_slices = self.spinBox_numberSlices.value()
         self.thickness = self.spinBox_thickness.value()
         self.progress_trigger.s.emit()
-        # Get current z position of stage:
+        # Get current z position of stage
         z_position = self.microtome.get_stage_z(wait_interval=1)
         if z_position is None or z_position < 0:
-            # Try again:
+            # Try again
             z_position = self.microtome.get_stage_z(wait_interval=2)
             if z_position is None or z_position < 0:
                 self.add_to_log(
@@ -2319,15 +2324,15 @@ class ApproachDlg(QDialog):
                 self.microtome.reset_error_state()
         # ====== Approach loop =========
         while (self.slice_counter < self.max_slices) and not self.aborted:
-            # Move to new z position:
+            # Move to new z position
             z_position = z_position + (self.thickness / 1000)
             self.add_to_log(
                 '3VIEW: Move to new Z: ' + '{0:.3f}'.format(z_position))
             self.microtome.move_stage_to_z(z_position)
-            # Show new Z position in main window:
+            # Show new Z position in main window
             self.main_window_queue.put('UPDATE Z')
             self.main_window_trigger.s.emit()
-            # Check if there were microtome problems:
+            # Check if there were microtome problems
             if self.microtome.error_state > 0:
                 self.add_to_log(
                     'CTRL: Z stage problem detected. Approach aborted.')
@@ -2373,10 +2378,10 @@ class ApproachDlg(QDialog):
 class GrabFrameDlg(QDialog):
     """Acquires or saves a single frame from SmartSEM."""
 
-    def __init__(self, config, sem, main_window_trigger, main_window_queue):
+    def __init__(self, sem, stack, main_window_trigger, main_window_queue):
         super().__init__()
-        self.cfg = config
         self.sem = sem
+        self.stack = stack
         self.main_window_queue = main_window_queue
         self.main_window_trigger = main_window_trigger
         self.finish_trigger = utils.Trigger()
@@ -2387,7 +2392,7 @@ class GrabFrameDlg(QDialog):
         self.setFixedSize(self.size())
         self.show()
         timestamp = str(datetime.datetime.now())
-        # Remove some characters from timestap to get valid file name:
+        # Remove some characters from timestap to get valid file name
         timestamp = timestamp[:19].translate({ord(c): None for c in ' :-.'})
         self.file_name = 'image_' + timestamp
         self.lineEdit_filename.setText(self.file_name)
@@ -2422,15 +2427,15 @@ class GrabFrameDlg(QDialog):
 
     def perform_scan(self):
         """Acquire a new frame. Executed in a thread because it may take some
-           time and GUI should not freeze.
+        time and GUI should not freeze.
         """
         self.scan_success = self.sem.acquire_frame(
-            self.cfg['acq']['base_dir'] + '\\' + self.file_name + '.tif')
+            self.stack.base_dir + '\\' + self.file_name + '.tif')
         self.finish_trigger.s.emit()
 
     def scan_complete(self):
         """This function is called when the scan is complete.
-           Reset the GUI and show result of grab command.
+        Reset the GUI and show result of grab command.
         """
         self.pushButton_scan.setText('Scan and grab')
         self.pushButton_scan.setEnabled(True)
@@ -2447,7 +2452,7 @@ class GrabFrameDlg(QDialog):
             QMessageBox.warning(
                 self, 'Error',
                 'An error ocurred while attempting to acquire the frame: '
-                + self.sem.get_error_cause(),
+                + self.sem.error_info,
                 QMessageBox.Ok)
             self.sem.reset_error_state()
 
@@ -2455,7 +2460,7 @@ class GrabFrameDlg(QDialog):
         """Save the image currently visible in SmartSEM."""
         self.file_name = self.lineEdit_filename.text()
         success = self.sem.save_frame(os.path.join(
-            self.cfg['acq']['base_dir'], self.file_name + '.tif'))
+            self.stack.base_dir, self.file_name + '.tif'))
         if success:
             self.add_to_log('CTRL: Single frame saved by user.')
             QMessageBox.information(
@@ -2467,8 +2472,8 @@ class GrabFrameDlg(QDialog):
             QMessageBox.warning(
                 self, 'Error',
                 'An error ocurred while attempting to save the current '
-                'SmarSEM image: '
-                + self.sem.get_error_cause(),
+                'SmartSEM image: '
+                + self.sem.error_info,
                 QMessageBox.Ok)
             self.sem.reset_error_state()
 
@@ -2545,8 +2550,8 @@ class EHTDlg(QDialog):
 
 class FTSetParamsDlg(QDialog):
     """Read working distance and stigmation parameters from user input or
-       from SmartSEM for setting WD/STIG for individual tiles/OVs in
-       focus tool.
+    from SmartSEM for setting WD/STIG for individual tiles/OVs in the
+    focus tool.
     """
 
     def __init__(self, sem, current_wd, current_stig_x, current_stig_y,
@@ -2578,9 +2583,6 @@ class FTSetParamsDlg(QDialog):
         self.doubleSpinBox_currentFocus.setValue(1000 * self.sem.get_wd())
         self.doubleSpinBox_currentStigX.setValue(self.sem.get_stig_x())
         self.doubleSpinBox_currentStigY.setValue(self.sem.get_stig_y())
-
-    def return_params(self):
-        return (self.new_wd, self.new_stig_x, self.new_stig_y)
 
     def accept(self):
         self.new_wd = self.doubleSpinBox_currentFocus.value() / 1000
@@ -2629,7 +2631,7 @@ class FTMoveDlg(QDialog):
         if self.ov_index >= 0:
             stage_x, stage_y = self.ovm[self.ov_index].centre_sx_sy
         elif self.tile_index >= 0:
-            stage_x, stage_y = self.gm[self.grid_index][self.tile_number].sx_sy
+            stage_x, stage_y = self.gm[self.grid_index][self.tile_index].sx_sy
         # Now move the stage
         self.microtome.move_stage_to_xy((stage_x, stage_y))
         if self.microtome.error_state > 0:
@@ -2650,7 +2652,7 @@ class FTMoveDlg(QDialog):
                 'The Viewport will be updated after pressing OK.',
                 QMessageBox.Ok)
             super().accept()
-        # Enable button again:
+        # Enable button again
         self.pushButton_move.setText('Move again')
         self.pushButton_move.setEnabled(True)
 
@@ -2658,12 +2660,13 @@ class FTMoveDlg(QDialog):
 
 class MotorTestDlg(QDialog):
     """Perform a random-walk-like XYZ motor test. Experimental, only for
-       testing/debugging. Only works with a microtome for now."""
+    testing/debugging. Only works with a microtome for now."""
 
-    def __init__(self, cfg, microtome, main_window_trigger, main_window_queue):
+    def __init__(self, microtome, stack,
+                 main_window_trigger, main_window_queue):
         super().__init__()
-        self.cfg = cfg
         self.microtome = microtome
+        self.stack = stack
         self.main_window_queue = main_window_queue
         self.main_window_trigger = main_window_trigger
         loadUi('..\\gui\\motor_test_dlg.ui', self)
@@ -2671,7 +2674,7 @@ class MotorTestDlg(QDialog):
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
-        # Set up trigger and queue to update dialog GUI during approach:
+        # Set up trigger and queue to update dialog GUI during approach
         self.progress_trigger = utils.Trigger()
         self.progress_trigger.s.connect(self.update_progress)
         self.finish_trigger = utils.Trigger()
@@ -2764,8 +2767,8 @@ class MotorTestDlg(QDialog):
         self.number_errors = 0
         current_x, current_y = 0, 0
         current_z = self.start_z
-        # Open log file:
-        logfile = open(self.cfg['acq']['base_dir'] + '\\motor_test_log.txt',
+        # Open log file
+        logfile = open(os.path.join(self.stack.base_dir, 'motor_test_log.txt'),
                        'w', buffering=1)
         while self.test_in_progress:
             # Start 'random' walk
@@ -2812,7 +2815,7 @@ class MotorTestDlg(QDialog):
             self.progress_trigger.s.emit()
         logfile.write('NUMBER OF ERRORS: ' + str(self.number_errors))
         logfile.close()
-        # Signal that thread is done:
+        # Signal that thread is done
         self.finish_trigger.s.emit()
 
     def abort_test(self):
@@ -2833,7 +2836,7 @@ class MotorTestDlg(QDialog):
 
 class AboutBox(QDialog):
     """Show the About dialog box with info about SBEMimage and the current
-       version and release date.
+    version and release date.
     """
 
     def __init__(self, VERSION):
