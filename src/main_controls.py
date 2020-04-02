@@ -676,6 +676,8 @@ class MainControls(QMainWindow):
         self.stack.use_autofocus = self.checkBox_useAutofocus.isChecked()
         # Show updated stack estimates (depend on options selected)
         self.show_stack_acq_estimates()
+        # Show updated debris detectiona area
+        self.show_current_settings()
         # Redraw Viewport canvas (some labels may have changed)
         self.viewport.vp_draw()
 
