@@ -1064,9 +1064,6 @@ class GridSettingsDlg(QDialog):
             self.main_window_trigger.s.emit()
 
     def save_current_settings(self):
-        if self.cfg['sys']['magc_mode'] == 'True':
-            grid_center = self.gm.get_grid_center_s(self.current_grid)
-            
         error_msg = ''
         self.gm.set_grid_size(self.current_grid,
                               (self.spinBox_rows.value(),
@@ -1107,15 +1104,12 @@ class GridSettingsDlg(QDialog):
         self.gm.calculate_grid_map(self.current_grid)
         # Update wd/stig map:
         self.gm.initialize_wd_stig_map(self.current_grid)
-        if self.cfg['sys']['magc_mode'] == 'True':
-            self.gm.set_grid_center_s(self.current_grid, grid_center)            
-            self.gm.update_source_ROIs_from_grids()
         if error_msg:
             QMessageBox.warning(self, 'Error', error_msg, QMessageBox.Ok)
         else:
             self.main_window_queue.put('GRID SETTINGS CHANGED')
             self.main_window_trigger.s.emit()
-            
+
     def open_adaptive_focus_dlg(self):
         sub_dialog = AdaptiveFocusSettingsDlg(self.gm, self.current_grid)
         sub_dialog.exec_()
@@ -1280,10 +1274,9 @@ class AdaptiveFocusSelectionDlg(QDialog):
 class GridRotationDlg(QDialog):
     """Change the rotation angle of a selected grid."""
 
-    def __init__(self, selected_grid, gm, cfg, main_window_queue, main_window_trigger):
+    def __init__(self, selected_grid, gm, main_window_queue, main_window_trigger):
         self.selected_grid = selected_grid
         self.gm = gm
-        self.cfg = cfg
         self.main_window_queue = main_window_queue
         self.main_window_trigger = main_window_trigger
         self.rotation_in_progress = False
@@ -1382,8 +1375,6 @@ class GridRotationDlg(QDialog):
     def accept(self):
         # Calculate new grid map with new rotation angle:
         self.gm.calculate_grid_map(self.selected_grid)
-        if self.cfg['sys']['magc_mode'] == 'True':
-            self.gm.update_source_ROIs_from_grids()
         super().accept()
 
 #------------------------------------------------------------------------------

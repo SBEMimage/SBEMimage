@@ -89,38 +89,34 @@ class ImportMagCDlg(QDialog):
         color_acquired = QColor(Qt.green)
         color_acquiring = QColor(Qt.yellow)
         #-----------------------------
-        # read sections from MagC yaml
-        file_path = os.path.normpath(
-            self.lineEdit_fileName.text())
-        if not os.path.isfile(file_path):
+        # read sections from MagC JSON
+        file_name = self.lineEdit_fileName.text()
+        if not os.path.isfile(file_name):
             self.add_to_main_log('MagC file not found')
         else:
-            self.cfg['magc']['sections_path'] = file_path
-            with open(file_path, 'r') as f:
+            with open(file_name, 'r') as f:
                 sectionsYAML = yaml.full_load(f)
-            sections, landmarks = utils.sectionsYAML_to_sections_landmarks(
-                sectionsYAML)
-                
-            if 'sourceROIsUpdatedFromSBEMImage' in sectionsYAML:
-                result = QMessageBox.question(
-                    self, 'Section import',
-                    'Using section locations that have been previously updated in SBEMImage ?',
-                    QMessageBox.Yes| QMessageBox.No)
-                if result == QMessageBox.Yes:
-                    for sectionId, sectionXYA in \
-                        sectionsYAML['sourceROIsUpdatedFromSBEMImage'].items():
-                        sections[int(sectionId)] = {
-                        'center': [float(a) for a in sectionXYA[:2]],
-                        'angle': float( (-sectionXYA[2] + 90) % 360)}
-                    self.cfg['magc']['roi_mode'] =  'False'
-            
+            sections = {}
+            landmarks = {}
+            for sectionId, sectionXYA in sectionsYAML['tissue'].items():
+                sections[int(sectionId)] = {
+                'center': [float(a) for a in sectionXYA[:2]],
+                'angle': float( (-sectionXYA[2] + 90) % 360)}
+            if 'tissueROI' in sectionsYAML:
+                tissueROIIndex = int(list(sectionsYAML['tissueROI'].keys())[0])
+                sections['tissueROI-' + str(tissueROIIndex)] = {
+                'center': sectionsYAML['tissueROI'][tissueROIIndex]}
+            if 'landmarks' in sectionsYAML:
+                for landmarkId, landmarkXY in sectionsYAML['landmarks'].items():
+                    landmarks[int(landmarkId)] = {
+                    'source': landmarkXY}
             n_sections = len([k for k in sections.keys() if str(k).isdigit()])
-            self.add_to_main_log(str(n_sections) +
-                ' MagC sections have been loaded.')
+            self.add_to_main_log(str(n_sections) + ' MagC sections have been loaded.')
             #-----------------------------
+
             #--------------------------------------
             # import wafer overview if file present
-            dir_sections = os.path.dirname(os.path.normpath(file_path))
+            dir_sections = os.path.dirname(os.path.normpath(file_name))
             im_names = [im_name for im_name in os.listdir(dir_sections) if
                 ('wafer' in im_name) and
                 (os.path.splitext(im_name)[1] in ['.tif', '.png'])]
@@ -181,15 +177,12 @@ class ImportMagCDlg(QDialog):
             # populate the grids and the sectionList
             tile_size_selector = self.comboBox_tileSize.currentIndex()
             pixel_size = self.doubleSpinBox_pixelSize.value()
-            tile_overlap = self.doubleSpinBox_tileOverlap.value()
 
-            sectionListView = self.gui_items['sectionList']
-            sectionListModel = sectionListView.model()
-            
+            sectionListModel = self.gui_items['sectionList'].model()
             sectionListModel.clear()
             sectionListModel.setHorizontalHeaderItem(0, QStandardItem('Section'))
             sectionListModel.setHorizontalHeaderItem(1, QStandardItem('State'))
-            header = sectionListView.horizontalHeader()
+            header = self.gui_items['sectionList'].horizontalHeader()
             for i in range(2):
                 header.setSectionResizeMode(i, QHeaderView.ResizeToContents)
             header.setStretchLastSection(True)
@@ -204,11 +197,10 @@ class ImportMagCDlg(QDialog):
                                           self.spinBox_cols.value()))
                     self.gm.set_tile_size_selector(idx, tile_size_selector)
                     self.gm.set_pixel_size(idx, pixel_size)
-                    self.gm.set_overlap(idx, tile_overlap)
                     self.gm.select_all_tiles(idx)
+                    self.gm.calculate_grid_map(grid_number=idx)
                     self.gm.set_rotation(idx, (180-float(section['angle'])) % 360)
                     self.gm.set_grid_center_s(idx, list(map(float, section['center'])))
-                    self.gm.calculate_grid_map(grid_number=idx)
 
                     # populate the sectionList
                     item1 = QStandardItem(str(idx))
@@ -218,7 +210,6 @@ class ImportMagCDlg(QDialog):
                     item2.setCheckable(False)
                     item2.setSelectable(False)
                     sectionListModel.appendRow([item1, item2])
-                    sectionListView.setRowHeight(idx, 40)
             #---------------------------------------
 
             #---------------------------------------
@@ -229,8 +220,6 @@ class ImportMagCDlg(QDialog):
             self.cfg['magc']['checked_sections'] = '[]'
             self.cfg['magc']['landmarks'] = json.dumps(landmarks)
             # xxx does importing a new magc file always require a wafer_calibration ?
-            self.queue.put('SAVE INI')
-            self.trigger.s.emit()
             # ---------------------------------------
 
             # enable wafer configuration button
@@ -378,14 +367,11 @@ class WaferCalibrationDlg(QDialog):
         landmarkModel.setHorizontalHeaderItem(6, QStandardItem('Move'))
         landmarkModel.setHorizontalHeaderItem(7, QStandardItem('Clear'))
         self.lTable.setModel(landmarkModel)
-        
+
         header = self.lTable.horizontalHeader()
         for i in range(8):
-            if i not in [3,4]: # fixed width for target columns
-                header.setSectionResizeMode(i, QHeaderView.ResizeToContents)
+            header.setSectionResizeMode(i, QHeaderView.ResizeToContents)
 
-        self.lTable.setColumnWidth(3, 70)
-        self.lTable.setColumnWidth(4, 70)
         self.lTable.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
 
         landmarkModel = self.lTable.model()
@@ -583,12 +569,9 @@ class WaferCalibrationDlg(QDialog):
         return callback_goto_landmark
 
     def validate_calibration(self):
-        # with open(self.cfg['magc']['sections_path'], 'r') as f:
-            # sections = utils.sectionsYAML_to_sections_landmarks(
-            # yaml.full_load(f))[0]
+        landmarks = json.loads(self.cfg['magc']['landmarks'])
         sections = json.loads(self.cfg['magc']['sections'])
-        landmarks = json.loads(self.cfg['magc']['landmarks'])        
-        
+
         nLandmarks = len(landmarks)
         calibratedLandmarkIds = [int(id)
             for id,landmark
@@ -638,10 +621,8 @@ class WaferCalibrationDlg(QDialog):
             print('self.gm.get_number_grids()', self.gm.get_number_grids())
             for grid_number in range(self.gm.get_number_grids()):
                 self.gm.set_rotation(grid_number, angles_target[grid_number])
-                self.gm.set_grid_center_s(grid_number,
+                self.cs.set_grid_origin_s(grid_number,
                     [x_target[grid_number], y_target[grid_number]])
-                self.gm.calculate_grid_map(grid_number)
-
             self.viewport.mv_draw()
 
             # # # update wafer picture
