@@ -108,7 +108,7 @@ class ImageInspector:
         self.cfg['debris']['histogram_diff_threshold'] = str(
             self.histogram_diff_threshold)
 
-    def process_tile(self, filename, grid_index, tile_index, slice_number):
+    def process_tile(self, filename, grid_index, tile_index, slice_counter):
         img = None
         mean, stddev = 0, 0
         range_test_passed, slice_by_slice_test_passed = False, False
@@ -189,13 +189,13 @@ class ImageInspector:
                 # Remove the oldest entry
                 self.tile_means[tile_key].pop(0)
             # Add the newest
-            self.tile_means[tile_key].append((slice_number, mean))
+            self.tile_means[tile_key].append((slice_counter, mean))
 
             if not tile_key in self.tile_stddevs:
                 self.tile_stddevs[tile_key] = []
             if len(self.tile_stddevs[tile_key]) > 1:
                 self.tile_stddevs[tile_key].pop(0)
-            self.tile_stddevs[tile_key].append((slice_number, stddev))
+            self.tile_stddevs[tile_key].append((slice_counter, stddev))
 
             if (tile_key_short in self.monitoring_tile_list
                 or 'all' in self.monitoring_tile_list):
@@ -235,7 +235,7 @@ class ImageInspector:
                 range_test_passed, slice_by_slice_test_passed, tile_selected,
                 load_error, load_exception, grab_incomplete, frozen_frame_error)
 
-    def save_tile_stats(self, base_dir, grid_index, tile_index, slice_number):
+    def save_tile_stats(self, base_dir, grid_index, tile_index, slice_counter):
         """Write mean and SD of specified tile to disk."""
         success = True
         error_msg = ''
@@ -247,7 +247,7 @@ class ImageInspector:
             # Append to existing file or create new file
             try:
                 with open(stats_filename, 'a') as file:
-                    file.write(str(slice_number).zfill(utils.SLICE_DIGITS)
+                    file.write(str(slice_counter).zfill(utils.SLICE_DIGITS)
                                + ';' + str(self.tile_means[tile_key][-1][1])
                                + ';' + str(self.tile_stddevs[tile_key][-1][1])
                                + '\n')
@@ -288,7 +288,7 @@ class ImageInspector:
             error_msg = 'Could not update reslice image for specified tile.'
         return success, error_msg
 
-    def process_ov(self, filename, ov_number, slice_number):
+    def process_ov(self, filename, ov_index, slice_counter):
         """Load overview image from disk and perform standard tests."""
         ov_img = None
         mean, stddev = 0, 0
@@ -312,34 +312,34 @@ class ImageInspector:
             final_line = ov_img[height-1:height,:]
             grab_incomplete = (np.min(final_line) == np.max(final_line))
 
-            if not ov_number in self.ov_images:
-                self.ov_images[ov_number] = []
-            if len(self.ov_images[ov_number]) > 1:
+            if not (ov_index in self.ov_images):
+                self.ov_images[ov_index] = []
+            if len(self.ov_images[ov_index]) > 1:
                 # Only keep the current and the previous OV
-                self.ov_images[ov_number].pop(0)
-            self.ov_images[ov_number].append((slice_number, ov_img))
+                self.ov_images[ov_index].pop(0)
+            self.ov_images[ov_index].append((slice_counter, ov_img))
 
             # Calculate mean and standard deviation:
             mean = np.mean(ov_img)
             stddev = np.std(ov_img)
 
             # Save mean and stddev in lists:
-            if not ov_number in self.ov_means:
-                self.ov_means[ov_number] = []
-            if len(self.ov_means[ov_number]) > 1:
-                self.ov_means[ov_number].pop(0)
-            self.ov_means[ov_number].append(mean)
+            if not (ov_index in self.ov_means):
+                self.ov_means[ov_index] = []
+            if len(self.ov_means[ov_index]) > 1:
+                self.ov_means[ov_index].pop(0)
+            self.ov_means[ov_index].append(mean)
 
-            if not ov_number in self.ov_stddevs:
-                self.ov_stddevs[ov_number] = []
-            if len(self.ov_stddevs[ov_number]) > 1:
-                self.ov_stddevs[ov_number].pop(0)
-            self.ov_stddevs[ov_number].append(stddev)
+            if not (ov_index in self.ov_stddevs):
+                self.ov_stddevs[ov_index] = []
+            if len(self.ov_stddevs[ov_index]) > 1:
+                self.ov_stddevs[ov_index].pop(0)
+            self.ov_stddevs[ov_index].append(stddev)
 
             # Save reslice line in memory. Take a 400-px line from the centre
             # of the image. This works for all frame resolutions.
             # Only saved to disk later if OV accepted.
-            self.ov_reslice_line[ov_number] = (
+            self.ov_reslice_line[ov_index] = (
                 ov_img[int(height/2):int(height/2)+1,
                        int(width/2)-200:int(width/2)+200])
 
@@ -351,20 +351,20 @@ class ImageInspector:
         return (ov_img, mean, stddev,
                 range_test_passed, load_error, load_exception, grab_incomplete)
 
-    def save_ov_stats(self, base_dir, ov_number, slice_number):
+    def save_ov_stats(self, base_dir, ov_index, slice_counter):
         """Write mean and SD of specified overview image to disk."""
         success = True
         error_msg = ''
-        if ov_number in self.ov_means and ov_number in self.ov_stddevs:
+        if ov_index in self.ov_means and ov_index in self.ov_stddevs:
             stats_filename = os.path.join(
                 base_dir, 'meta', 'stats',
-                'OV' + str(ov_number).zfill(utils.OV_DIGITS) + '.dat')
+                'OV' + str(ov_index).zfill(utils.OV_DIGITS) + '.dat')
             # Append to existing file or create new file
             try:
                 with open(stats_filename, 'a') as file:
-                    file.write(str(slice_number) + ';'
-                               + str(self.ov_means[ov_number][-1]) + ';'
-                               + str(self.ov_stddevs[ov_number][-1]) + '\n')
+                    file.write(str(slice_counter) + ';'
+                               + str(self.ov_means[ov_index][-1]) + ';'
+                               + str(self.ov_stddevs[ov_index][-1]) + '\n')
             except Exception as e:
                 success = False  # couldn't write to disk
                 error_msg = str(e)
@@ -373,15 +373,15 @@ class ImageInspector:
             error_msg = 'Mean/StdDev of specified OV not found.'
         return success, error_msg
 
-    def save_ov_reslice(self, base_dir, ov_number):
+    def save_ov_reslice(self, base_dir, ov_index):
         """Write new reslice line of specified overview image to disk."""
         success = True
         error_msg = ''
-        if (ov_number in self.ov_reslice_line
-            and self.ov_reslice_line[ov_number].shape[1] == 400):
+        if (ov_index in self.ov_reslice_line
+            and self.ov_reslice_line[ov_index].shape[1] == 400):
             reslice_filename = os.path.join(
                 base_dir, 'workspace', 'reslices',
-                'r_OV' + str(ov_number).zfill(utils.OV_DIGITS) + '.png')
+                'r_OV' + str(ov_index).zfill(utils.OV_DIGITS) + '.png')
             reslice_img = None
             # Open reslice file if it exists and save updated reslice
             try:
@@ -389,10 +389,10 @@ class ImageInspector:
                     reslice_img = np.array(Image.open(reslice_filename))
                 if reslice_img is not None and reslice_img.shape[1] == 400:
                     new_reslice_img = np.concatenate(
-                        (reslice_img, self.ov_reslice_line[ov_number]))
+                        (reslice_img, self.ov_reslice_line[ov_index]))
                     imwrite(reslice_filename, new_reslice_img)
                 else:
-                    imwrite(reslice_filename, self.ov_reslice_line[ov_number])
+                    imwrite(reslice_filename, self.ov_reslice_line[ov_index])
             except Exception as e:
                 success = False
                 error_msg = str(e)
@@ -401,15 +401,15 @@ class ImageInspector:
             error_msg = 'Could not update reslice image for specified OV.'
         return success, error_msg
 
-    def detect_debris(self, ov_number):
+    def detect_debris(self, ov_index):
         debris_detected = False
         msg = 'CTRL: No debris detection method selected.'
         ov_roi = [None, None]
         # Crop to current debris detection area
         top_left_px, top_left_py, bottom_right_px, bottom_right_py = (
-            self.ovm.get_ov_debris_detection_area(ov_number))
+            self.ovm[ov_index].debris_detection_area)
         for i in range(2):
-            ov_img = self.ov_images[ov_number][i][1]
+            ov_img = self.ov_images[ov_index][i][1]
             ov_roi[i] = ov_img[top_left_py:bottom_right_py,
                                top_left_px:bottom_right_px]
         height, width = ov_roi[0].shape
@@ -505,14 +505,14 @@ class ImageInspector:
 
         return debris_detected, msg
 
-    def discard_last_ov(self, ov_number):
+    def discard_last_ov(self, ov_index):
         if self.ov_means and self.ov_stddevs:
             # Delete last entries in means/stddevs list
-            self.ov_means[ov_number].pop()
-            self.ov_stddevs[ov_number].pop()
+            self.ov_means[ov_index].pop()
+            self.ov_stddevs[ov_index].pop()
         if self.ov_images:
             # Delete last image
-            self.ov_images[ov_number].pop()
+            self.ov_images[ov_index].pop()
 
     def reset_tile_stats(self):
         self.tile_means = {}
