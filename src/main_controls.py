@@ -1766,7 +1766,7 @@ class MainControls(QMainWindow):
                 'EHT / high voltage is off. Please turn '
                 'it on before starting the acquisition.',
                 QMessageBox.Ok)
-        elif self.stack.acq_paused or True:
+        else:
             self.restrict_gui(True)
             self.viewport.restrict_gui(True)
             self.pushButton_startAcq.setText('START')
@@ -1896,6 +1896,7 @@ class MainControls(QMainWindow):
     def save_config_to_disk(self):
         """Save the updated ConfigParser objects for the user and the
         system configuration to disk."""
+        self.stack.save_to_cfg()
         self.gm.save_to_cfg()
         self.ovm.save_to_cfg()
         self.imported.save_to_cfg()
@@ -1904,7 +1905,6 @@ class MainControls(QMainWindow):
         self.microtome.save_to_cfg()
         self.cs.save_to_cfg()
         self.viewport.save_to_cfg()
-        self.stack.save_to_cfg()
         self.img_inspector.save_to_cfg()
         self.notifications.save_to_cfg()
         # Save settings from Main Controls
@@ -2494,7 +2494,7 @@ class MainControls(QMainWindow):
         elif self.ft_selected_ov == -1:
             self.ft_clear_wd_stig_display()
 
-        if (self.autofocus.active()
+        if (self.stack.use_autofocus
             and self.gm[self.ft_selected_grid][
                         self.ft_selected_tile].autofocus_active):
             self.label_AFnotification.setText(

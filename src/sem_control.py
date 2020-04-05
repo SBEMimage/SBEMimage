@@ -48,6 +48,7 @@ class SEM:
         # In simulation mode, there is no connection to the SEM hardware
         self.simulation_mode = (
             self.cfg['sys']['simulation_mode'].lower() == 'true')
+        self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
         # self.use_sem_stage: True if microtome not used
         self.use_sem_stage = (
             self.cfg['sys']['use_microtome'].lower() == 'false')
@@ -668,7 +669,7 @@ class SEM_SmartSEM(SEM):
             if timeout_counter > 60:
                 ret_val = 1
                 break
-        if self.cfg['sys']['magc_mode'] == 'False':
+        if not self.magc_mode:
             self.sem_api.Execute('CMD_FREEZE_ALL')
         # Error state is set in stack_acquisition.py when this function is
         # called via autofocus.py
@@ -687,7 +688,7 @@ class SEM_SmartSEM(SEM):
             if timeout_counter > 60:
                 ret_val = 1
                 break
-        if self.cfg['sys']['magc_mode'] == 'False':
+        if not self.magc_mode:
             self.sem_api.Execute('CMD_FREEZE_ALL')
         # Error state is set in stack_acquisition.py when this function is
         # called via autofocus.py

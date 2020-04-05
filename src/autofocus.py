@@ -65,8 +65,9 @@ class Autofocus():
         self.astgy_est = {}
         # Computed corrections:
         self.wd_stig_corr = {}
-        # If MagC mode active, enforce method and tracking mode:
-        if self.cfg['sys']['magc_mode'].lower() == 'true':
+        # If MagC mode active, enforce method and tracking mode
+        self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
+        if self.magc_mode:
             self.set_method(0)         # SmartSEM autofocus
             self.set_tracking_mode(0)  # Track selected, approx. others
 
@@ -86,9 +87,6 @@ class Autofocus():
             self.heuristic_calibration)
         self.cfg['autofocus']['heuristic_rot_scale'] = str(
             [self.rot_angle, self.scale_factor])
-
-    def active(self):
-        return (self.cfg['acq']['use_autofocus'].lower() == 'true')
 
     def approximate_wd_stig_in_grid(self, grid_index):
         """Approximate the working distance and stigmation parameters for all
@@ -113,8 +111,7 @@ class Autofocus():
                 self.gm[grid_index][tile].stig_xy = (
                     self.gm[grid_index][nearest_tile].stig_xy)
 
-    def wd_stig_diff_below_max(self, prev_wd, prev_stig_xy):
-        prev_sx, prev_sy = prev_stig_xy
+    def wd_stig_diff_below_max(self, prev_wd, prev_sx, prev_sy):
         diff_wd = abs(self.sem.get_wd() - prev_wd)
         diff_sx = abs(self.sem.get_stig_x() - prev_sx)
         diff_sy = abs(self.sem.get_stig_y() - prev_sy)
@@ -146,7 +143,7 @@ class Autofocus():
             sleep(0.5)
 
             if autofocus and autostig:
-                if self.cfg['sys']['magc_mode'] == 'True':
+                if self.magc_mode:
                     # Run SmartSEM autofocus-autostig-autofocus sequence:
                     msg = 'SmartSEM autofocus-autostig-autofocus (MagC)'
                     success = self.sem.run_autofocus()

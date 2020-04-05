@@ -99,7 +99,7 @@ class Stage():
         return self._stage.error_info
 
     def reset_error_state(self):
-        return self._stage.reset_error_state()
+        self._stage.reset_error_state()
 
     @property
     def stage_move_wait_interval(self):
@@ -128,7 +128,8 @@ class Stage():
         if self.use_microtome:
             return self._stage.write_motor_speeds_to_script()
         else:
-            return True
+            # Speeds can currently not be updated for SEM stage
+            return False
 
     def stage_move_duration(self, from_x, from_y, to_x, to_y):
         return self._stage.stage_move_duration(
