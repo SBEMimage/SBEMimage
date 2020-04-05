@@ -629,7 +629,7 @@ class Grid:
     def autofocus_ref_tiles(self):
         """Return tile indices of autofocus ref tiles in this grid."""
         autofocus_ref_tiles = []
-        for tile_index in self.number_tiles:
+        for tile_index in range(self.number_tiles):
             if self.__tiles[tile_index].autofocus_active:
                 autofocus_ref_tiles.append(tile_index)
         return autofocus_ref_tiles
@@ -702,8 +702,8 @@ class GridManager:
         base_dir = self.cfg['acq']['base_dir']
         for g in range(self.number_grids):
             for t in self.__grids[g].active_tiles:
-                preview_path = os.path.join(base_dir,
-                    utils.get_tile_preview_save_path(g, t))
+                preview_path = utils.tile_preview_save_path(
+                    base_dir, g, t)
                 try:
                     self.__grids[g][t].preview_img = QPixmap(preview_path)
                 except:
@@ -788,8 +788,8 @@ class GridManager:
         base_dir = self.cfg['acq']['base_dir']
         for g in range(self.number_grids):
             for t in range(self.__grids[g].number_tiles):
-                preview_path = os.path.join(base_dir,
-                    utils.get_tile_preview_save_path(g, t))
+                preview_path = utils.tile_preview_save_path(
+                    base_dir, g, t)
                 img = self.__grids[g][t].preview_img
                 if img is not None:
                     img.save(preview_path)

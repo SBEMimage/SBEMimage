@@ -148,7 +148,18 @@ def try_to_open(file_name, mode):
                 file_handle = open(file_name, mode)
             except:
                 success = False
-    return (success, file_handle)
+    return success, file_handle
+
+def create_subdirectories(base_dir, dir_list):
+    """Create subdirectories given in dir_list in the base folder base_dir."""
+    try:
+        for dir_name in dir_list:
+            new_dir = os.path.join(base_dir, dir_name)
+            if not os.path.exists(new_dir):
+                os.makedirs(new_dir)
+        return True, ''
+    except Exception as e:
+        return False, str(e)
 
 def fit_in_range(value, min_value, max_value):
     """Make the given value fit into the range min_value..max_value"""
@@ -175,46 +186,57 @@ def show_progress_in_console(progress):
         + ' ' * (10 - int(progress/10)),
         progress), end='')
 
-def get_ov_save_path(stack_name, ov_number, slice_counter):
-    return ('overviews\\ov' + str(ov_number).zfill(OV_DIGITS) + '\\'
-            + stack_name
-            + '_ov' + str(ov_number).zfill(OV_DIGITS)
-            + '_s' + str(slice_counter).zfill(SLICE_DIGITS)
-            + '.tif')
+def ov_save_path(base_dir, stack_name, ov_index, slice_counter):
+    return os.path.join(
+        base_dir, 'overviews', 'ov' + str(ov_index).zfill(OV_DIGITS),
+        stack_name + '_ov' + str(ov_index).zfill(OV_DIGITS)
+        + '_s' + str(slice_counter).zfill(SLICE_DIGITS) + '.tif')
 
-def get_ov_debris_save_path(stack_name, ov_number, slice_counter, sw_counter):
-    return ('overviews\\debris\\'
-            + stack_name
-            + '_ov' + str(ov_number).zfill(OV_DIGITS)
-            + '_s' + str(slice_counter).zfill(SLICE_DIGITS)
-            + '_' + str(sw_counter)
-            + '.tif')
+def ov_debris_save_path(base_dir, stack_name, ov_index, slice_counter,
+                        sweep_counter):
+    return os.path.join(
+        base_dir, 'overviews', 'debris',
+        stack_name + '_ov' + str(ov_index).zfill(OV_DIGITS)
+        + '_s' + str(slice_counter).zfill(SLICE_DIGITS)
+        + '_' + str(sweep_counter) + '.tif')
 
-def get_tile_save_path(stack_name, grid_index, tile_index, slice_counter):
-    return ('tiles\\g' + str(grid_index).zfill(GRID_DIGITS)
-            + '\\t' + str(tile_index).zfill(TILE_DIGITS)
-            + '\\' + stack_name
-            + '_g' + str(grid_index).zfill(GRID_DIGITS)
-            + '_t' + str(tile_index).zfill(TILE_DIGITS)
-            + '_s' + str(slice_counter).zfill(SLICE_DIGITS)
-            + '.tif')
+def tile_relative_save_path(stack_name, grid_index, tile_index, slice_counter):
+    return os.path.join(
+        'tiles', 'g' + str(grid_index).zfill(GRID_DIGITS),
+        't' + str(tile_index).zfill(TILE_DIGITS),
+        stack_name + '_g' + str(grid_index).zfill(GRID_DIGITS)
+        + '_t' + str(tile_index).zfill(TILE_DIGITS)
+        + '_s' + str(slice_counter).zfill(SLICE_DIGITS) + '.tif')
 
-def get_tile_preview_save_path(grid_index, tile_index):
-    return ('workspace\\g' + str(grid_index).zfill(GRID_DIGITS)
-            + '_t' + str(tile_index).zfill(TILE_DIGITS) + '.png')
+def rejected_tile_save_path(base_dir, stack_name, grid_index, tile_index,
+                            slice_counter, fail_counter):
+    return os.path.join(
+        base_dir, 'tiles', 'rejected',
+        stack_name + '_g' + str(grid_index).zfill(GRID_DIGITS)
+        + '_t' + str(tile_index).zfill(TILE_DIGITS)
+        + '_s' + str(slice_counter).zfill(SLICE_DIGITS)
+        + '_'  + str(fail_counter) + '.tif')
 
-def get_tile_reslice_save_path(grid_index, tile_index):
-    return ('workspace\\reslices\\r_g' + str(grid_index).zfill(GRID_DIGITS)
-            + '_t' + str(tile_index).zfill(TILE_DIGITS) + '.png')
+def tile_preview_save_path(base_dir, grid_index, tile_index):
+    return os.path.join(
+        base_dir, 'workspace', 'g' + str(grid_index).zfill(GRID_DIGITS)
+         + '_t' + str(tile_index).zfill(TILE_DIGITS) + '.png')
 
-def get_ov_reslice_save_path(ov_number):
-    return ('workspace\\reslices\\r_OV'
-            + str(ov_number).zfill(OV_DIGITS) + '.png')
+def tile_reslice_save_path(base_dir, grid_index, tile_index):
+    return os.path.join(
+        base_dir, 'workspace', 'reslices',
+        'r_g' + str(grid_index).zfill(GRID_DIGITS)
+        + '_t' + str(tile_index).zfill(TILE_DIGITS) + '.png')
 
-def get_tile_id(grid_index, tile_index, slice_number):
+def ov_reslice_save_path(base_dir, ov_index):
+    return os.path.join(
+        base_dir, 'workspace', 'reslices',
+        'r_OV' + str(ov_index).zfill(OV_DIGITS) + '.png')
+
+def tile_id(grid_index, tile_index, slice_counter):
     return (str(grid_index).zfill(GRID_DIGITS)
             + '.' + str(tile_index).zfill(TILE_DIGITS)
-            + '.' + str(slice_number).zfill(SLICE_DIGITS))
+            + '.' + str(slice_counter).zfill(SLICE_DIGITS))
 
 def validate_tile_list(input_str):
     input_str = input_str.strip()
@@ -274,7 +296,7 @@ def meta_server_get_request(url):
     except:
         status = 100
         msg = 'Metadata server request failed.'
-    return (status, command, msg)
+    return status, command, msg
 
 def suppress_console_warning():
     # Suppress TIFFReadDirectory warnings that otherwise flood console window

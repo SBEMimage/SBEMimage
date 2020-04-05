@@ -1393,6 +1393,7 @@ class PreStackDlg(QDialog):
         boldFont.setBold(True)
         # Show the most relevant current settings for the acquisition
         self.label_stackName.setText(stack.stack_name)
+        self.label_sliceCounter.setText(str(stack.slice_counter))
         self.label_beamSettings.setText(
             f'{self.sem.target_eht:.2f} keV, '
             f'{self.sem.target_beam_current} pA')
@@ -1733,7 +1734,7 @@ class EmailMonitoringSettingsDlg(QDialog):
             self.checkBox_allowEmailControl.isChecked())
         self.stack.remote_check_interval = (
             self.spinBox_remoteCheckInterval.value())
-        self.stack.remote_cmd_email_pw = self.lineEdit_password.text()
+        self.notifications.remote_cmd_email_pw = self.lineEdit_password.text()
         if not error_str:
             super().accept()
         else:
@@ -1899,7 +1900,7 @@ class MirrorDriveDlg(QDialog):
             else:
                 self.stack.mirror_drive = (
                     self.comboBox_allDrives.currentText())
-                self.stack.mirror_drive_directory = os.path.join(
+                self.stack.mirror_drive_dir = os.path.join(
                     self.stack.mirror_drive, self.stack.base_dir[2:])
                 super().accept()
 

@@ -16,6 +16,8 @@ import json
 import imaplib
 import smtplib
 
+from time import sleep
+from PIL import Image
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email.mime.text import MIMEText
@@ -124,19 +126,23 @@ class Notifications:
             return False, str(e)
 
     def send_status_report(self, base_dir, stack_name, slice_counter,
-                           main_log, debris_log, error_log, vp_screenshot):
+                           recent_main_log, debris_log, error_log,
+                           vp_screenshot):
         """Compile a status report and send it via e-mail."""
+
         attachment_list = []  # files to be attached
         temp_file_list = []   # files to be deleted after email is sent
         missing_list = []     # files to be attached that could not be found
+        # Status messages returned by this function to be added to main log
+        status_msg1, status_msg2 = '', ''
 
         if self.send_logfile:
             # Generate log file from current content of log in Main Controls
-            self.queue.put('GET CURRENT LOG' + main_log)
+            self.queue.put('GET CURRENT LOG' + recent_main_log)
             self.trigger.s.emit()
             sleep(0.5)  # wait for file to be written
-            attachment_list.append(main_log)
-            temp_file_list.append(main_log)
+            attachment_list.append(recent_main_log)
+            temp_file_list.append(recent_main_log)
         if self.send_additional_logs:
             attachment_list.append(debris_log)
             attachment_list.append(error_log)
@@ -147,8 +153,8 @@ class Notifications:
                 missing_list.append(vp_screenshot)
         if self.send_ov:
             for ov_index in self.status_report_ov_list:
-                save_path = os.path.join(base_dir, utils.get_ov_save_path(
-                                stack_name, ov_index, slice_counter))
+                save_path = utils.ov_save_path(
+                    base_dir, stack_name, ov_index, slice_counter)
                 if os.path.isfile(save_path):
                     attachment_list.append(save_path)
                 else:
@@ -156,9 +162,9 @@ class Notifications:
         if self.send_tiles:
             for tile_key in self.status_report_tile_list:
                 grid_index, tile_index = tile_key.split('.')
-                save_path = os.path.join(base_dir, utils.get_tile_save_path(
-                                stack_name, grid_index, tile_index,
-                                slice_counter))
+                save_path = os.path.join(
+                    base_dir, utils.tile_relative_save_path(
+                        stack_name, grid_index, tile_index, slice_counter))
                 if os.path.isfile(save_path):
                     # If it exists, load image and crop it
                     tile_image = Image.open(save_path)
@@ -177,8 +183,7 @@ class Notifications:
                     missing_list.append(save_path)
         if self.send_ov_reslices:
             for ov_index in self.status_report_ov_list:
-                save_path = os.path.join(base_dir,
-                                utils.get_ov_reslice_save_path(ov_index))
+                save_path = utils.ov_reslice_save_path(base_dir, ov_index)
                 if os.path.isfile(save_path):
                     ov_reslice_img = Image.open(save_path)
                     height = ov_reslice_img.size[1]
@@ -197,9 +202,8 @@ class Notifications:
         if self.send_tile_reslices:
             for tile_key in self.status_report_tile_list:
                 grid_index, tile_index = tile_key.split('.')
-                save_path = os.path.join(
-                                base_dir, utils.get_tile_reslice_save_path(
-                                    grid_index, tile_index))
+                save_path = utils.tile_reslice_save_path(
+                    base_dir, grid_index, tile_index)
                 if os.path.isfile(save_path):
                     reslice_img = Image.open(save_path)
                     height = reslice_img.size[1]
@@ -229,52 +233,56 @@ class Notifications:
                 msg_text += (file + '\n')
         success, error_msg = self.send_email(
             msg_subject, msg_text, attachment_list)
+
         if success:
-            self.queue.put('CTRL: Status report e-mail sent.')
-            self.trigger.s.emit()
+            status_msg1 = 'CTRL: Status report e-mail sent.'
         else:
-            self.queue.put('CTRL: ERROR sending status report e-mail: '
+            status_msg1 = ('CTRL: ERROR sending status report e-mail: '
                            + error_msg)
-            self.trigger.s.emit()
 
         # Clean up temporary files
         for file in temp_file_list:
             try:
                 os.remove(file)
             except Exception as e:
-                self.queue.put('CTRL: ERROR while trying to remove '
+                status_msg2 = ('CTRL: ERROR while trying to remove '
                                'temporary file: ' + str(e))
                 self.trigger.s.emit()
+        return status_msg1, status_msg2
+
 
     def send_error_report(self, stack_name, slice_counter, error_state,
-                          main_log, vp_screenshot):
+                          recent_main_log, vp_screenshot):
         """Send a notification by email that an error has occurred."""
+
+        # Status messages returned by this function to be added to main log
+        status_msg1, status_msg2 = '', ''
         # Generate log file from current content of log
-        self.queue.put('GET CURRENT LOG' + main_log)
+        self.queue.put('GET CURRENT LOG' + recent_main_log)
         self.trigger.s.emit()
         sleep(0.5)  # wait for file to be written
         if vp_screenshot is not None:
-            attachment_list = [main_log, vp_screenshot]
+            attachment_list = [recent_main_log, vp_screenshot]
         else:
-            attachment_list = [main_log]
+            attachment_list = [recent_main_log]
         msg_subject = ('Stack ' + stack_name + ': slice '
                        + str(slice_counter) + ', ERROR')
+        error_description = (f'Error {error_state} has occurred: '
+                             + utils.ERROR_LIST[error_state])
         success, error_msg = self.send_email(
-            msg_subject, error_str, attachment_list)
+            msg_subject, error_description, attachment_list)
         if success:
-            self.queue.put('CTRL: Error notification email sent.')
-            self.trigger.s.emit()
+            status_msg1 = 'CTRL: Error notification email sent.'
         else:
-            self.queue.put('CTRL: ERROR sending notification email: '
+            status_msg1 = ('CTRL: ERROR sending notification email: '
                            + error_msg)
-            self.trigger.s.emit()
         # Remove temporary log file of most recent entries
         try:
-            os.remove(main_log)
+            os.remove(recent_main_log)
         except Exception as e:
-            self.queue.put('CTRL: ERROR while trying to remove '
+            status_msg2 = ('CTRL: ERROR while trying to remove '
                            'temporary file: ' + str(e))
-            self.trigger.s.emit()
+        return status_msg1, status_msg2
 
     def get_remote_command(self):
         """Check email account if command was received from one of the
