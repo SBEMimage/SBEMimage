@@ -36,30 +36,34 @@ from zipfile import ZipFile
 from PyQt5.uic import loadUi
 from PyQt5.QtCore import Qt, QObject, QSize, pyqtSignal
 from PyQt5.QtGui import QPixmap, QIcon, QPalette, QColor, QFont, \
-                        QStandardItem, QStandardItemModel
+    QStandardItem, QStandardItemModel
 from PyQt5.QtWidgets import QApplication, QDialog, QMessageBox, \
-                            QFileDialog, QLineEdit, QDialogButtonBox, \
-                            QHeaderView, QPushButton
+    QFileDialog, QLineEdit, QDialogButtonBox, QHeaderView, QPushButton
 
 import utils
 import acq_func
 
+GRAY = QColor(Qt.lightGray)
+GREEN = QColor(Qt.green)
+YELLOW = QColor(Qt.yellow)
+
 class ImportMagCDlg(QDialog):
     """Import MagC metadata."""
 
-    def __init__(self, config, grid_manager, coordinate_system, stage, sem, ovm,
-                 viewport, gui_items, trigger, queue):
+    def __init__(self, config, grid_manager, coordinate_system, stage,
+            sem, ovm, viewport, gui_items, trigger, queue):
         super().__init__()
-        self.gm = grid_manager
-        self.stage = stage
-        self.cs = coordinate_system
-        self.gui_items = gui_items
-        self.trigger = trigger
-        self.queue = queue
         self.cfg = config
+        self.gm = grid_manager
+        self.cs = coordinate_system
+        self.stage = stage
         self.sem = sem
         self.ovm = ovm
         self.viewport = viewport
+        self.gui_items = gui_items
+        self.trigger = trigger
+        self.queue = queue
+        
         self.target_dir = os.path.join(
             self.cfg['acq']['base_dir'], 'overviews', 'imported')
         loadUi(os.path.join('..', 'gui', 'import_magc_metadata_dlg.ui'), self)
@@ -80,7 +84,7 @@ class ImportMagCDlg(QDialog):
         self.comboBox_tileSize.setCurrentIndex(5)
         self.show()
 
-    def add_to_main_log(self, msg):
+    def _add_to_main_log(self, msg):
         """Add entry to the log in the main window"""
         msg = utils.format_log_entry(msg)
         # Send entry to main window via queue and trigger:
@@ -88,15 +92,11 @@ class ImportMagCDlg(QDialog):
         self.trigger.s.emit()
 
     def import_metadata(self):
-        color_not_acquired = QColor(Qt.lightGray)
-        color_acquired = QColor(Qt.green)
-        color_acquiring = QColor(Qt.yellow)
-        #-----------------------------
         # read sections from MagC yaml
         file_path = os.path.normpath(
             self.lineEdit_fileName.text())
         if not os.path.isfile(file_path):
-            self.add_to_main_log('MagC file not found')
+            self._add_to_main_log('MagC file not found')
         else:
             self.cfg['magc']['sections_path'] = file_path
             with open(file_path, 'r') as f:
@@ -119,7 +119,7 @@ class ImportMagCDlg(QDialog):
                     self.cfg['magc']['roi_mode'] =  'False'
 
             n_sections = len([k for k in sections.keys() if str(k).isdigit()])
-            self.add_to_main_log(str(n_sections) +
+            self._add_to_main_log(str(n_sections) +
                 ' MagC sections have been loaded.')
             #-----------------------------
             #--------------------------------------
@@ -129,7 +129,7 @@ class ImportMagCDlg(QDialog):
                 ('wafer' in im_name) and
                 (os.path.splitext(im_name)[1] in ['.tif', '.png'])]
             if im_names == []:
-                self.add_to_main_log('No wafer picture was found.')
+                self._add_to_main_log('No wafer picture was found.')
             elif len(im_names) == 1:
                 im_path = os.path.normpath(
                     os.path.join(dir_sections, im_names[0]))
@@ -180,7 +180,7 @@ class ImportMagCDlg(QDialog):
                                         QMessageBox.Ok)
                     selection_success = False
             else:
-                self.add_to_main_log(
+                self._add_to_main_log(
                     'There is more than one image available in the folder '
                     'containing the .magc section description file. Please '
                     'place only one wafer image (.tif) in that folder.')
@@ -227,7 +227,7 @@ class ImportMagCDlg(QDialog):
                     item1 = QStandardItem(str(idx))
                     item1.setCheckable(True)
                     item2 = QStandardItem('')
-                    item2.setBackground(color_not_acquired)
+                    item2.setBackground(GRAY)
                     item2.setCheckable(False)
                     item2.setSelectable(False)
                     sectionListModel.appendRow([item1, item2])
@@ -375,7 +375,7 @@ class WaferCalibrationDlg(QDialog):
             self.validate_calibration)
         self.show()
 
-    def add_to_main_log(self, msg):
+    def _add_to_main_log(self, msg):
         """Add entry to the log in the main window"""
         msg = utils.format_log_entry(msg)
         # Send entry to main window via queue and trigger:
@@ -432,21 +432,21 @@ class WaferCalibrationDlg(QDialog):
             item7.clicked.connect(self.clear_landmark(id))
 
             if 'target' in sourceTarget:
-                item0.setBackground(QColor(Qt.green))
+                item0.setBackground(GREEN)
 
                 item3 = QStandardItem(str(sourceTarget['target'][0]))
-                item3.setBackground(QColor(Qt.green))
+                item3.setBackground(GREEN)
 
                 item4 = QStandardItem(str(sourceTarget['target'][1]))
-                item4.setBackground(QColor(Qt.green))
+                item4.setBackground(GREEN)
             else:
-                item0.setBackground(QColor(Qt.lightGray))
+                item0.setBackground(GRAY)
 
                 item3 = QStandardItem('')
-                item3.setBackground(QColor(Qt.lightGray))
+                item3.setBackground(GRAY)
 
                 item4 = QStandardItem('')
-                item4.setBackground(QColor(Qt.lightGray))
+                item4.setBackground(GRAY)
 
                 item6.setEnabled(False)
                 item7.setEnabled(False)
@@ -466,17 +466,17 @@ class WaferCalibrationDlg(QDialog):
 
             item3 = self.lTable.model().item(row, 3)
             item3.setData('', Qt.DisplayRole)
-            item3.setBackground(QColor(Qt.lightGray))
+            item3.setBackground(GRAY)
 
             item4 = self.lTable.model().item(row, 4)
             item4.setData('', Qt.DisplayRole)
-            item4.setBackground(QColor(Qt.lightGray))
+            item4.setBackground(GRAY)
 
             del landmarks[str(row)]['target']
 
             # update table
             item0 = self.lTable.model().item(row, 0)
-            item0.setBackground(QColor(Qt.lightGray))
+            item0.setBackground(GRAY)
 
             item6 = self.lTable.indexWidget(landmarkModel.index(row, 6))
             item6.setEnabled(False)
@@ -498,15 +498,15 @@ class WaferCalibrationDlg(QDialog):
 
             # update table
             item0 = self.lTable.model().item(row, 0)
-            item0.setBackground(QColor(Qt.green))
+            item0.setBackground(GREEN)
 
             item3 = self.lTable.model().item(row, 3)
             item3.setData(str(x), Qt.DisplayRole)
-            item3.setBackground(QColor(Qt.green))
+            item3.setBackground(GREEN)
 
             item4 = self.lTable.model().item(row, 4)
             item4.setData(str(y), Qt.DisplayRole)
-            item4.setBackground(QColor(Qt.green))
+            item4.setBackground(GREEN)
 
             item6 = self.lTable.indexWidget(landmarkModel.index(row, 6))
             item6.setEnabled(True)
@@ -525,7 +525,7 @@ class WaferCalibrationDlg(QDialog):
                 in landmarks.items()
                 # if 'target' in landmark]
                 if self.lTable.model().item(int(id), 0).background().color()
-                   == QColor(Qt.green)]
+                   == GREEN]
             noncalibratedLandmarkIds = (
                 set(range(nLandmarks)) - set(calibratedLandmarkIds))
             print('calibratedLandmarkIds', calibratedLandmarkIds)
@@ -576,15 +576,15 @@ class WaferCalibrationDlg(QDialog):
                     landmarks[str(noncalibratedLandmarkId)]['target'] = [x,y]
 
                     item0 = self.lTable.model().item(noncalibratedLandmarkId, 0)
-                    item0.setBackground(QColor(Qt.yellow))
+                    item0.setBackground(YELLOW)
 
                     item3 = self.lTable.model().item(noncalibratedLandmarkId, 3)
                     item3.setData(str(x), Qt.DisplayRole)
-                    item3.setBackground(QColor(Qt.yellow))
+                    item3.setBackground(YELLOW)
 
                     item4 = self.lTable.model().item(noncalibratedLandmarkId, 4)
                     item4.setData(str(y), Qt.DisplayRole)
-                    item4.setBackground(QColor(Qt.yellow))
+                    item4.setBackground(YELLOW)
 
                     item6 = self.lTable.indexWidget(landmarkModel.index(
                         noncalibratedLandmarkId, 6))
@@ -626,10 +626,10 @@ class WaferCalibrationDlg(QDialog):
             for id,landmark
             in landmarks.items()
             if self.lTable.model().item(int(id), 0).background().color()
-                == QColor(Qt.green)]
+                == GREEN]
 
         if len(calibratedLandmarkIds) != nLandmarks:
-            self.add_to_main_log(
+            self._add_to_main_log(
                 'Cannot validate wafer calibration: all target landmarks '
                 'must be validated.')
 

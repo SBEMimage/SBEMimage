@@ -68,7 +68,7 @@ from main_controls_dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                                       AskUserDlg, UpdateDlg, CutDurationDlg, \
                                       KatanaSettingsDlg, AboutBox
 
-from magc_controls import ImportMagCDlg, ImportWaferImageDlg, \
+from magc_dlg_windows import ImportMagCDlg, ImportWaferImageDlg, \
                           WaferCalibrationDlg
 
 
