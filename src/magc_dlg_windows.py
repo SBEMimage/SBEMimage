@@ -33,6 +33,8 @@ import numpy as np
 from imreg_dft import translation
 from zipfile import ZipFile
 
+from viewport_dlg_windows import ImportImageDlg
+
 from PyQt5.uic import loadUi
 from PyQt5.QtCore import Qt, QObject, QSize, pyqtSignal
 from PyQt5.QtGui import QPixmap, QIcon, QPalette, QColor, QFont, \
@@ -92,166 +94,176 @@ class ImportMagCDlg(QDialog):
         self.trigger.s.emit()
 
     def import_metadata(self):
+        dialog = ImportImageDlg([], '')
+        if dialog.exec_():
+            print('importImg')
         # read sections from MagC yaml
-        file_path = os.path.normpath(
+        magc_file_path = os.path.normpath(
             self.lineEdit_fileName.text())
-        if not os.path.isfile(file_path):
+        if not os.path.isfile(magc_file_path):
             self._add_to_main_log('MagC file not found')
-        else:
-            self.cfg['magc']['sections_path'] = file_path
-            with open(file_path, 'r') as f:
-                sectionsYAML = yaml.full_load(f)
-            sections, landmarks = utils.sectionsYAML_to_sections_landmarks(
-                sectionsYAML)
+            self.accept()
+            return
+            
+        self.cfg['magc']['sections_path'] = magc_file_path
+        with open(magc_file_path, 'r') as f:
+            sectionsYAML = yaml.full_load(f)
+        sections, landmarks = (
+            utils.sectionsYAML_to_sections_landmarks(
+                sectionsYAML))
 
-            if 'sourceROIsUpdatedFromSBEMimage' in sectionsYAML:
-                result = QMessageBox.question(
-                    self, 'Section import',
-                    'Using section locations that have been previously updated '
-                    'in SBEMimage?',
-                    QMessageBox.Yes| QMessageBox.No)
-                if result == QMessageBox.Yes:
-                    for sectionId, sectionXYA in \
-                        sectionsYAML['sourceROIsUpdatedFromSBEMimage'].items():
-                        sections[int(sectionId)] = {
-                        'center': [float(a) for a in sectionXYA[:2]],
-                        'angle': float( (-sectionXYA[2] + 90) % 360)}
-                    self.cfg['magc']['roi_mode'] =  'False'
+        if 'sourceROIsUpdatedFromSBEMimage' in sectionsYAML:
+            result = QMessageBox.question(
+                self, 'Section import',
+                'Use section locations that have been previously updated '
+                'in SBEMimage?',
+                QMessageBox.Yes| QMessageBox.No)
+            if result == QMessageBox.Yes:
+                for sectionId, sectionXYA in \
+                    sectionsYAML['sourceROIsUpdatedFromSBEMimage'].items():
+                    sections[int(sectionId)] = {
+                    'center': [float(a) for a in sectionXYA[:2]],
+                    'angle': float( (-sectionXYA[2] + 90) % 360)}
+                self.cfg['magc']['roi_mode'] = 'False'
 
-            n_sections = len([k for k in sections.keys() if str(k).isdigit()])
-            self._add_to_main_log(str(n_sections) +
-                ' MagC sections have been loaded.')
-            #-----------------------------
-            #--------------------------------------
-            # import wafer overview if file present
-            dir_sections = os.path.dirname(os.path.normpath(file_path))
-            im_names = [im_name for im_name in os.listdir(dir_sections) if
-                ('wafer' in im_name) and
-                (os.path.splitext(im_name)[1] in ['.tif', '.png'])]
-            if im_names == []:
-                self._add_to_main_log('No wafer picture was found.')
-            elif len(im_names) == 1:
-                im_path = os.path.normpath(
-                    os.path.join(dir_sections, im_names[0]))
+        n_sections = len(
+            [k for k in sections.keys()
+            if str(k).isdigit()])
+        self._add_to_main_log(
+            str(n_sections)
+            + ' MagC sections have been loaded.')
+        #--------------------------------------
+        # import wafer overview if file present
+        
+        
+        dir_sections = os.path.dirname(magc_file_path)
+        im_names = [im_name for im_name in os.listdir(dir_sections)
+            if ('wafer' in im_name)
+                and (os.path.splitext(im_name)[1] in ['.tif', '.png'])]
+        if im_names == []:
+            self._add_to_main_log('No wafer picture was found. Insert it manually.')
+        elif len(im_names) == 1:
+            im_path = os.path.normpath(
+                os.path.join(dir_sections, im_names[0]))
 
-                selection_success = True
-                selected_filename = os.path.basename(im_path)
-                timestamp = str(datetime.datetime.now())
-                # Remove some characters from timestamp to get valid file name:
-                timestamp = timestamp[:19].translate(
-                    {ord(c): None for c in ' :-.'})
-                target_path = os.path.join(self.target_dir,
-                               os.path.splitext(selected_filename)[0] +
-                               '_' + timestamp + '.png')
-                if os.path.isfile(im_path):
-                    # Copy file to data folder as png:
-                    try:
-                        imported_img = Image.open(im_path)
-                        imported_img.save(target_path)
-                    except Exception as e:
-                        QMessageBox.warning(
-                            self, 'Error',
-                            'Could not load image file.' + str(e),
-                             QMessageBox.Ok)
-                        selection_success = False
-
-                    if selection_success:
-                        new_img_number = self.ovm.get_number_imported()
-                        self.ovm.add_imported_img()
-                        width, height = imported_img.size
-                        self.ovm.set_imported_img_file(
-                            new_img_number, target_path)
-                        self.ovm.set_imported_img_name(new_img_number,
-                                                       selected_filename)
-                        self.ovm.set_imported_img_size_px_py(
-                            new_img_number, width, height)
-                        self.ovm.set_imported_img_pixel_size(
-                            new_img_number, 1000)
-                        self.cs.set_imported_img_centre_s(
-                            new_img_number,
-                            [width//2, height//2])
-
-                        self.viewport.mv_load_last_imported_image()
-                        self.viewport.mv_draw()
-
-                else:
-                    QMessageBox.warning(self, 'Error',
-                                        'Specified file not found.',
-                                        QMessageBox.Ok)
+            selection_success = True
+            selected_filename = os.path.basename(im_path)
+            timestamp = str(datetime.datetime.now())
+            # Remove some characters from timestamp to get valid file name:
+            timestamp = timestamp[:19].translate(
+                {ord(c): None for c in ' :-.'})
+            target_path = os.path.join(self.target_dir,
+                           os.path.splitext(selected_filename)[0] +
+                           '_' + timestamp + '.png')
+            if os.path.isfile(im_path):
+                # Copy file to data folder as png:
+                try:
+                    imported_img = Image.open(im_path)
+                    imported_img.save(target_path)
+                except Exception as e:
+                    QMessageBox.warning(
+                        self, 'Error',
+                        'Could not load image file.' + str(e),
+                         QMessageBox.Ok)
                     selection_success = False
+
+                if selection_success:
+                    new_img_number = self.ovm.get_number_imported()
+                    self.ovm.add_imported_img()
+                    width, height = imported_img.size
+                    self.ovm.set_imported_img_file(
+                        new_img_number, target_path)
+                    self.ovm.set_imported_img_name(new_img_number,
+                                                   selected_filename)
+                    self.ovm.set_imported_img_size_px_py(
+                        new_img_number, width, height)
+                    self.ovm.set_imported_img_pixel_size(
+                        new_img_number, 1000)
+                    self.cs.set_imported_img_centre_s(
+                        new_img_number,
+                        [width//2, height//2])
+
+                    self.viewport.mv_load_last_imported_image()
+                    self.viewport.mv_draw()
+
             else:
-                self._add_to_main_log(
-                    'There is more than one image available in the folder '
-                    'containing the .magc section description file. Please '
-                    'place only one wafer image (.tif) in that folder.')
-            #--------------------------------------
+                QMessageBox.warning(self, 'Error',
+                                    'Specified file not found.',
+                                    QMessageBox.Ok)
+                selection_success = False
+        else:
+            self._add_to_main_log(
+                'There is more than one image available in the folder '
+                'containing the .magc section description file. Please '
+                'place only one wafer image (.tif) in that folder.')
+        #--------------------------------------
 
-            #---------------------------------------
-            # populate the grids and the sectionList
-            tile_size_selector = self.comboBox_tileSize.currentIndex()
-            pixel_size = self.doubleSpinBox_pixelSize.value()
-            tile_overlap = self.doubleSpinBox_tileOverlap.value()
+        #---------------------------------------
+        # populate the grids and the sectionList
+        tile_size_selector = self.comboBox_tileSize.currentIndex()
+        pixel_size = self.doubleSpinBox_pixelSize.value()
+        tile_overlap = self.doubleSpinBox_tileOverlap.value()
 
-            sectionListView = self.gui_items['sectionList']
-            sectionListModel = sectionListView.model()
+        sectionListView = self.gui_items['sectionList']
+        sectionListModel = sectionListView.model()
 
-            sectionListModel.clear()
-            sectionListModel.setHorizontalHeaderItem(
-                0, QStandardItem('Section'))
-            sectionListModel.setHorizontalHeaderItem(
-                1, QStandardItem('State'))
-            header = sectionListView.horizontalHeader()
-            for i in range(2):
-                header.setSectionResizeMode(i, QHeaderView.ResizeToContents)
-            header.setStretchLastSection(True)
+        sectionListModel.clear()
+        sectionListModel.setHorizontalHeaderItem(
+            0, QStandardItem('Section'))
+        sectionListModel.setHorizontalHeaderItem(
+            1, QStandardItem('State'))
+        header = sectionListView.horizontalHeader()
+        for i in range(2):
+            header.setSectionResizeMode(i, QHeaderView.ResizeToContents)
+        header.setStretchLastSection(True)
 
-            self.gm.delete_all_grids()
-            for section in range(n_sections):
-                self.gm.add_new_grid()
-            for idx, section in sections.items():
-                if str(idx).isdigit(): # to exclude tissueROI and landmarks
-                    self.gm.set_grid_size(idx,
-                                          (self.spinBox_rows.value(),
-                                          self.spinBox_cols.value()))
-                    self.gm.set_tile_size_selector(idx, tile_size_selector)
-                    self.gm.set_pixel_size(idx, pixel_size)
-                    self.gm.set_overlap(idx, tile_overlap)
-                    self.gm.select_all_tiles(idx)
-                    self.gm.set_rotation(
-                        idx, (180-float(section['angle'])) % 360)
-                    self.gm.set_grid_centre_s(
-                        idx, list(map(float, section['center'])))
-                    self.gm.calculate_grid_map(grid_number=idx)
+        self.gm.delete_all_grids()
+        for section in range(n_sections):
+            self.gm.add_new_grid()
+        for idx, section in sections.items():
+            if str(idx).isdigit(): # to exclude tissueROI and landmarks
+                self.gm.set_grid_size(idx,
+                                      (self.spinBox_rows.value(),
+                                      self.spinBox_cols.value()))
+                self.gm.set_tile_size_selector(idx, tile_size_selector)
+                self.gm.set_pixel_size(idx, pixel_size)
+                self.gm.set_overlap(idx, tile_overlap)
+                self.gm.select_all_tiles(idx)
+                self.gm.set_rotation(
+                    idx, (180-float(section['angle'])) % 360)
+                self.gm.set_grid_centre_s(
+                    idx, list(map(float, section['center'])))
+                self.gm.calculate_grid_map(grid_number=idx)
 
-                    # populate the sectionList
-                    item1 = QStandardItem(str(idx))
-                    item1.setCheckable(True)
-                    item2 = QStandardItem('')
-                    item2.setBackground(GRAY)
-                    item2.setCheckable(False)
-                    item2.setSelectable(False)
-                    sectionListModel.appendRow([item1, item2])
-                    sectionListView.setRowHeight(idx, 40)
-            #---------------------------------------
+                # populate the sectionList
+                item1 = QStandardItem(str(idx))
+                item1.setCheckable(True)
+                item2 = QStandardItem('')
+                item2.setBackground(GRAY)
+                item2.setCheckable(False)
+                item2.setSelectable(False)
+                sectionListModel.appendRow([item1, item2])
+                sectionListView.setRowHeight(idx, 40)
+        #---------------------------------------
 
-            #---------------------------------------
-            # Update config with MagC items
-            self.cfg['sys']['magc_mode'] = 'True'
-            self.cfg['magc']['sections'] = json.dumps(sections)
-            self.cfg['magc']['selected_sections'] = '[]'
-            self.cfg['magc']['checked_sections'] = '[]'
-            self.cfg['magc']['landmarks'] = json.dumps(landmarks)
-            # xxx does importing a new magc file always require
-            # a wafer_calibration ?
-            self.queue.put('SAVE INI')
-            self.trigger.s.emit()
-            # ---------------------------------------
+        #---------------------------------------
+        # Update config with MagC items
+        self.cfg['sys']['magc_mode'] = 'True'
+        self.cfg['magc']['sections'] = json.dumps(sections)
+        self.cfg['magc']['selected_sections'] = '[]'
+        self.cfg['magc']['checked_sections'] = '[]'
+        self.cfg['magc']['landmarks'] = json.dumps(landmarks)
+        # xxx does importing a new magc file always require
+        # a wafer_calibration ?
+        self.queue.put('SAVE INI')
+        self.trigger.s.emit()
+        # ---------------------------------------
 
-            # enable wafer configuration button
-            self.queue.put('MAGC ENABLE CALIBRATION')
-            self.trigger.s.emit()
-            self.queue.put('MAGC WAFER NOT CALIBRATED')
-            self.trigger.s.emit()
+        # enable wafer configuration button
+        self.queue.put('MAGC ENABLE CALIBRATION')
+        self.trigger.s.emit()
+        self.queue.put('MAGC WAFER NOT CALIBRATED')
+        self.trigger.s.emit()
 
         self.accept()
 
