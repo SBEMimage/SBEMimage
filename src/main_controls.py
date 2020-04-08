@@ -24,7 +24,6 @@ window (in viewport.py) as a QWidget.
 import os
 import sys
 import threading
-import shutil
 import json
 
 from time import sleep
@@ -1327,8 +1326,6 @@ class MainControls(QMainWindow):
             self.save_ini()
         elif msg == 'REFRESH OV':
             self.acquire_ov()
-        elif msg == 'ACQUIRE STUB OV':
-            self.open_stub_ov_dlg()
         elif msg == 'SHOW CURRENT SETTINGS':
             self.show_current_settings()
             self.show_stack_acq_estimates()

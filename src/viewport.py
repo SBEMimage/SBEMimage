@@ -16,6 +16,7 @@
 """
 
 import os
+import shutil
 import datetime
 import json
 import yaml
@@ -2113,17 +2114,16 @@ class Viewport(QWidget):
     def _vp_stub_overview_acq_success(self, success):
         if success:
             self._add_to_main_log(
-                'CTRL: User-requested acquisition of stub overview mosaic '
-                'completed.')
+                'CTRL: Acquisition of stub overview image completed.')
             # Load and show new OV images:
             self.vp_show_new_stub_overview()
-            # Reset user-selected stub_ov_centre:
+            # Reset user-selected stub_ov_centre
             self.stub_ov_centre = [None, None]
-            # Copy to mirror drive:
-            if self.cfg['sys']['use_mirror_drive'] == 'True':
+            # Copy to mirror drive
+            if self.stack.use_mirror_drive:
                 mirror_path = os.path.join(
-                    self.cfg['sys']['mirror_drive'],
-                    self.cfg['acq']['base_dir'][2:], 'overviews', 'stub')
+                    self.stack.mirror_drive,
+                    self.stack.base_dir[2:], 'overviews', 'stub')
                 if not os.path.exists(mirror_path):
                     try:
                         os.makedirs(mirror_path)
@@ -2132,12 +2132,11 @@ class Viewport(QWidget):
                             'CTRL: Creating directory on mirror drive failed: '
                             + str(e))
                 try:
-                    shutil.copy(self.ovm.get_stub_ov_file(), mirror_path)
+                    shutil.copy(self.ovm['stub'].vp_file_path, mirror_path)
                 except Exception as e:
                     self._add_to_main_log(
                         'CTRL: Copying stub overview image to mirror drive '
                         'failed: ' + str(e))
-
         else:
             self._add_to_main_log('CTRL: ERROR ocurred during stub overview '
                                   'acquisition.')
