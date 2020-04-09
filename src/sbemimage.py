@@ -34,7 +34,11 @@ from main_controls_dlg_windows import ConfigDlg
 from config_template import process_cfg
 from main_controls import MainControls
 
-VERSION = '2.0 (R2020-03-31)'
+# VERSION contains the current version/release date information for the
+# master branch (for example, '2.0 (R2020-03-31)'). For the current version
+# in the dev (development) branch, it is set to 'dev'.
+VERSION = 'dev'
+
 
 def main():
     """Load configuration and run QApplication.
@@ -64,10 +68,16 @@ def main():
 
     colorama.init()
     os.system('cls')
-    os.system('title SBEMimage - Console')
+    if VERSION.lower() == 'dev':
+        title_str = 'SBEMimage - Console - DEVELOPMENT VERSION'
+        version_info = 'DEVELOPMENT VERSION'
+    else:
+        title_str = 'SBEMimage - Console'
+        version_info = 'Version ' + VERSION
+    os.system('title ' + title_str)
     print(f'***********************************\n'
           f'     SBEMimage\n'
-          f'     Version {VERSION}\n'
+          f'     {version_info}\n'
           f'***********************************\n')
 
     configuration_loaded = False

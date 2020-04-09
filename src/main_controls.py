@@ -351,7 +351,16 @@ class MainControls(QMainWindow):
     def initialize_main_controls_gui(self):
         """Load and set up the Main Controls GUI"""
         loadUi('..\\gui\\main_window.ui', self)
-        self.setWindowTitle('SBEMimage - Main Controls')
+        if self.VERSION.lower() == 'dev':
+            self.setWindowTitle(
+                'SBEMimage - Main Controls - DEVELOPMENT VERSION')
+            # Disable 'Update' function (would overwrite current (local) changes
+            # in the code of the development version with the current version
+            # in the master branch.)
+            self.actionUpdate.setEnabled(False)
+        else:
+            self.setWindowTitle('SBEMimage - Main Controls')
+
         app_icon = QIcon()
         app_icon.addFile('..\\img\\icon_16px.ico', QSize(16, 16))
         app_icon.addFile('..\\img\\icon_48px.ico', QSize(48, 48))

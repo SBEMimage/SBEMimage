@@ -57,7 +57,10 @@ class ConfigDlg(QDialog):
         super().__init__()
         loadUi('..\\gui\\config_dlg.ui', self)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.label_version.setText('Version ' + VERSION)
+        if VERSION.lower() == 'dev':
+            self.label_version.setText('DEVELOPMENT VERSION')
+        else:
+            self.label_version.setText('Version ' + VERSION)
         self.labelIcon.setPixmap(QPixmap('..\\img\\logo.png'))
         self.label_website.setText('<a href="https://github.com/SBEMimage">'
                                    'https://github.com/SBEMimage</a>')
@@ -2845,7 +2848,10 @@ class AboutBox(QDialog):
         loadUi('..\\gui\\about_box.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.label_version.setText('Version ' + VERSION)
+        if VERSION.lower() == 'dev':
+            self.label_version.setText('DEVELOPMENT VERSION')
+        else:
+            self.label_version.setText('Version ' + VERSION)
         self.labelIcon.setPixmap(QPixmap('..\\img\\logo.png'))
         self.setFixedSize(self.size())
         self.show()
