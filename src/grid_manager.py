@@ -717,6 +717,17 @@ class GridManager:
                 except:
                     self.__grids[g][t].preview_img = None
 
+        # Load MagC settings
+        self.magc_sections_path = self.cfg['magc']['sections_path']
+        self.magc_sections = json.loads(self.cfg['magc']['sections'])
+        self.magc_selected_sections = json.loads(
+            self.cfg['magc']['selected_sections'])
+        self.magc_checked_sections = json.loads(
+            self.cfg['magc']['checked_sections'])
+        self.magc_landmarks = json.loads(self.cfg['magc']['landmarks'])
+        self.magc_wafer_transform = json.loads(
+            self.cfg['magc']['wafer_transform'])
+
     def __getitem__(self, grid_index):
         """Return the Grid object selected by index."""
         if grid_index < self.number_grids:
@@ -801,6 +812,18 @@ class GridManager:
                 img = self.__grids[g][t].preview_img
                 if img is not None:
                     img.save(preview_path)
+
+        # Save MagC settings to config
+        self.cfg['magc']['sections_path'] = self.magc_sections_path
+        self.cfg['magc']['sections'] = json.dumps(self.magc_sections)
+        self.cfg['magc']['selected_sections'] = json.dumps(
+            self.magc_selected_sections)
+        self.cfg['magc']['checked_sections'] = json.dumps(
+            self.magc_checked_sections)
+        self.cfg['magc']['landmarks'] = json.dumps(self.magc_landmarks)
+        self.cfg['magc']['wafer_transform'] = json.dumps(
+            self.magc_wafer_transform)
+
 
     def add_new_grid(self):
         """Add new grid with default parameters. A new grid is always added
