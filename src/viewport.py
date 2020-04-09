@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 
-#==============================================================================
+# ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2016-2018 Benjamin Titze,
-#   Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2018-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
-#==============================================================================
+# ==============================================================================
 
 """This module controls the viewport window, which consists of three tabs:
     - the viewport (mv)  [formerly called Mosaic Viewer, therefore 'mv']
@@ -34,6 +33,7 @@ from PyQt5.QtCore import Qt, QObject, QRect, QPoint, QSize, pyqtSignal
 import utils
 from dlg_windows import AdaptiveFocusSelectionDlg
 
+import yaml
 
 class Trigger(QObject):
     """Custom signal for updating GUI from within running threads."""
@@ -376,6 +376,7 @@ class Viewport(QWidget):
             self.drag_origin = (px, py)
             self.mv_reposition_grid(drag_vector)
             self.mv_draw()
+
         elif self.ov_drag_active:
             self.setCursor(Qt.SizeAllCursor)
             drag_vector = (px - self.drag_origin[0],
@@ -466,6 +467,17 @@ class Viewport(QWidget):
                     # Restore origin coordinates:
                     self.cs.set_grid_origin_s(
                         self.selected_grid, self.stage_pos_backup)
+
+                # ------ MagC code ------
+                elif self.cfg['sys']['magc_mode'] == 'True':
+                    # in magc_mode, save the new grid location back
+                    # to the source magc sections
+                    self.gm.update_source_ROIs_from_grids()
+                    # deactivate roi_mode because grid manually moved
+                    self.cfg['magc']['roi_mode'] = 'False'
+                    self.transmit_cmd('SAVE INI')
+                # ------ End of MagC code ------
+
             if self.ov_drag_active:
                 self.ov_drag_active = False
                 user_reply = QMessageBox.question(
@@ -593,9 +605,7 @@ class Viewport(QWidget):
             self.mv_toggle_help_panel)
         # Slider for zoom:
         self.horizontalSlider_MV.valueChanged.connect(self.mv_adjust_scale)
-        self.horizontalSlider_MV.setValue(
-            log(self.cs.get_mv_scale() / self.VIEWER_ZOOM_F1,
-                self.VIEWER_ZOOM_F2))
+        self.mv_adjust_zoom_slider(self.cs.get_mv_scale())
         # Tile Preview selector:
         self.comboBox_tilePreviewSelectorMV.addItems(
             ['Hide tile previews',
@@ -709,6 +719,12 @@ class Viewport(QWidget):
     def mv_toggle_show_stage_pos(self):
         self.show_stage_pos ^= True
         self.mv_draw()
+
+    def mv_activate_checkbox_show_stage_pos(self):
+        self.show_stage_pos = True
+        self.checkBox_showStagePos.blockSignals(True)
+        self.checkBox_showStagePos.setChecked(True)
+        self.checkBox_showStagePos.blockSignals(False)
 
     def mv_load_stage_limits(self):
         (self.min_sx, self.max_sx,
@@ -885,6 +901,15 @@ class Viewport(QWidget):
                     'Change rotation of selected grid')
             action_changeRotation.triggered.connect(
                 self.mv_change_grid_rotation)
+            if self.cfg['sys']['magc_mode'] == 'True':
+                action_moveGridCurrentStage = menu.addAction(
+                    f'Move grid {self.selected_grid} to current stage position')
+                action_moveGridCurrentStage.triggered.connect(
+                    self.mv_move_grid_current_stage)
+                if not ((self.selected_grid is not None)
+                    and self.cfg['magc']['wafer_calibrated'] == 'True'):
+                    action_moveGridCurrentStage.setEnabled(False)
+
             menu.addSeparator()
             if self.af.get_method() == 2:
                 action_selectAutofocus = menu.addAction(
@@ -1643,6 +1668,12 @@ class Viewport(QWidget):
         self.zooming_in_progress = False
         finish_trigger.s.emit()
 
+    def mv_adjust_zoom_slider(self, new_mv_scale):
+        self.horizontalSlider_MV.blockSignals(True)
+        self.horizontalSlider_MV.setValue(
+            log(new_mv_scale / self.VIEWER_ZOOM_F1, self.VIEWER_ZOOM_F2))
+        self.horizontalSlider_MV.blockSignals(False)
+
     def mv_adjust_scale(self):
         self.time_of_last_zoom_action = time()
         if not self.zooming_in_progress:
@@ -1678,10 +1709,7 @@ class Viewport(QWidget):
             self.VIEWER_ZOOM_F1,
             self.VIEWER_ZOOM_F1 * (self.VIEWER_ZOOM_F2)**99)  # 99 is max slider value
         self.cs.set_mv_scale(new_mv_scale)
-        self.horizontalSlider_MV.blockSignals(True)
-        self.horizontalSlider_MV.setValue(
-            log(new_mv_scale / self.VIEWER_ZOOM_F1, self.VIEWER_ZOOM_F2))
-        self.horizontalSlider_MV.blockSignals(False)
+        self.mv_adjust_zoom_slider(new_mv_scale)
         # Recentre, so that mouse position is preserved:
         current_centre_dx, current_centre_dy = self.cs.get_mv_centre_d()
         x_shift = px - 500
@@ -1955,6 +1983,15 @@ class Viewport(QWidget):
     def mv_open_grid_settings(self):
         self.transmit_cmd('OPEN GRID SETTINGS' + str(self.selected_grid))
 
+    def mv_move_grid_current_stage(self):
+        grid_number = self.selected_grid
+        x, y = self.stage.get_xy()
+        self.gm.set_grid_center_s(grid_number, [x, y])
+        self.gm.calculate_grid_map(grid_number)
+        self.cfg['magc']['roi_mode'] = 'False'
+        self.gm.update_source_ROIs_from_grids()
+        self.mv_draw()
+
     def mv_toggle_tile_autofocus(self):
         if self.selected_grid is not None and self.selected_tile is not None:
             ref_tiles = self.af.get_ref_tiles()
@@ -2033,9 +2070,19 @@ class Viewport(QWidget):
     def mv_propagate_grid_selected_sections(self):
         clicked_section_number = self.selected_grid
         selected_sections = json.loads(self.cfg['magc']['selected_sections'])
+
+        # load original sections from file which might be different from
+        # the grids adjusted in SBEMImage
+        with open(self.cfg['magc']['sections_path'], 'r') as f:
+            sections, landmarks = utils.sectionsYAML_to_sections_landmarks(
+            yaml.full_load(f))
+
         for selected_section in selected_sections:
-            self.gm.propagate_source_grid_to_target_grid(clicked_section_number,
-                                                         selected_section)
+            self.gm.propagate_source_grid_to_target_grid(
+                clicked_section_number,
+                selected_section,
+                sections)
+        self.gm.update_source_ROIs_from_grids()
         # update the autofocus tiles
         # (done here because no access to autofocus from inside gm)
         ref_tiles = json.loads(self.cfg['autofocus']['ref_tiles'])
@@ -2046,9 +2093,19 @@ class Viewport(QWidget):
     def mv_propagate_grid_all_sections(self):
         clicked_section_number = self.selected_grid
         section_number = self.gm.get_number_grids()
+
+        # load original sections from file which might be different from
+        # the grids adjusted in SBEMImage
+        with open(self.cfg['magc']['sections_path'], 'r') as f:
+            sections, landmarks = utils.sectionsYAML_to_sections_landmarks(
+            yaml.full_load(f))
         for section in range(section_number):
-            self.gm.propagate_source_grid_to_target_grid(clicked_section_number,
-                                                         section)
+            self.gm.propagate_source_grid_to_target_grid(
+                clicked_section_number,
+                section,
+                sections)
+
+        self.gm.update_source_ROIs_from_grids()
         # update the autofocus tiles
         # (done here because no access to autofocus from inside gm)
         ref_tiles = json.loads(self.cfg['autofocus']['ref_tiles'])
@@ -2151,7 +2208,7 @@ class Viewport(QWidget):
         self.comboBox_tileSelectorSV.clear()
         self.comboBox_tileSelectorSV.addItems(
             ['Select tile']
-            + self.gm.get_active_tile_str_list(self.sv_current_grid))
+            + self.gm.get_tile_str_list(self.sv_current_grid))
         self.comboBox_tileSelectorSV.setCurrentIndex(current_tile + 1)
         self.comboBox_tileSelectorSV.blockSignals(False)
 
@@ -2328,14 +2385,7 @@ class Viewport(QWidget):
             self.sv_load_slices()
 
     def sv_load_selected(self):
-        # use active tiles!!
-        active_tiles = self.gm.get_active_tiles(self.selected_grid)
-        if self.selected_tile in active_tiles:
-            self.selected_tile = active_tiles.index(self.selected_tile)
-        else:
-            self.selected_tile = None
-        if ((self.selected_grid is not None)
-            and (self.selected_tile is not None)):
+        if self.selected_grid is not None and self.selected_tile is not None:
             self.sv_current_grid = self.selected_grid
             self.sv_current_tile = self.selected_tile
             self.comboBox_gridSelectorSV.blockSignals(True)
@@ -2393,36 +2443,30 @@ class Viewport(QWidget):
         base_dir = self.cfg['acq']['base_dir']
         stack_name = base_dir[base_dir.rfind('\\') + 1:]
 
-        slices_loaded = False
         if self.sv_current_ov >= 0:
-            for i in range(0, -self.max_slices, -1):
-                filename = (base_dir + '\\'
-                            + utils.get_ov_save_path(
-                            stack_name, self.sv_current_ov, start_slice + i))
+            for i in range(self.max_slices):
+                filename = os.path.join(
+                    base_dir, utils.get_ov_save_path(
+                        stack_name, self.sv_current_ov, start_slice - i))
                 if os.path.isfile(filename):
                     self.slice_view_images.append(QPixmap(filename))
-                    slices_loaded = True
                     utils.suppress_console_warning()
-
             self.sv_set_native_resolution()
             self.sv_draw()
         elif self.sv_current_tile >= 0:
-            selected_tile = self.gm.get_active_tiles(
-                self.sv_current_grid)[self.sv_current_tile]
-            for i in range(0, -self.max_slices, -1):
-                filename = (base_dir + '\\'
-                            + utils.get_tile_save_path(
-                            stack_name, self.sv_current_grid, selected_tile,
-                            start_slice + i))
+            for i in range(self.max_slices):
+                filename = os.path.join(
+                    base_dir, utils.get_tile_save_path(
+                        stack_name, self.sv_current_grid, self.sv_current_tile,
+                        start_slice - i))
                 if os.path.isfile(filename):
-                    slices_loaded = True
                     self.slice_view_images.append(QPixmap(filename))
                     utils.suppress_console_warning()
             self.sv_set_native_resolution()
             # Draw the current slice:
             self.sv_draw()
 
-        if not slices_loaded:
+        if not self.slice_view_images:
             self.sv_qp.begin(self.sv_canvas)
             self.sv_qp.setPen(QColor(255, 255, 255))
             self.sv_qp.setBrush(QColor(0, 0, 0))
@@ -2826,7 +2870,7 @@ class Viewport(QWidget):
         self.comboBox_tileSelectorM.clear()
         self.comboBox_tileSelectorM.addItems(
             ['Select tile']
-            + self.gm.get_active_tile_str_list(self.m_current_grid))
+            + self.gm.get_tile_str_list(self.m_current_grid))
         self.comboBox_tileSelectorM.setCurrentIndex(current_tile + 1)
         self.comboBox_tileSelectorM.blockSignals(False)
 
@@ -2898,13 +2942,7 @@ class Viewport(QWidget):
     def m_load_selected(self):
         self.m_from_stack = True
         self.radioButton_fromStack.setChecked(True)
-        active_tiles = self.gm.get_active_tiles(self.selected_grid)
-        if self.selected_tile in active_tiles:
-            self.selected_tile = active_tiles.index(self.selected_tile)
-        else:
-            self.selected_tile = None
-        if ((self.selected_grid is not None)
-            and (self.selected_tile is not None)):
+        if self.selected_grid is not None and self.selected_tile is not None:
             self.m_current_grid = self.selected_grid
             self.m_current_tile = self.selected_tile
             self.comboBox_gridSelectorM.blockSignals(True)
@@ -2934,23 +2972,20 @@ class Viewport(QWidget):
         self.m_show_statistics()
 
     def m_draw_reslice(self):
+        """Draw the reslice of the selected tile or OV."""
         filename = None
         if self.m_current_ov >= 0:
-            # get current data:
-            filename = (self.cfg['acq']['base_dir']
-                        + '\\workspace\\reslices\\r_OV'
-                        + str(self.m_current_ov).zfill(utils.OV_DIGITS)
-                        + '.png')
+            filename = os.path.join(
+                self.cfg['acq']['base_dir'], 'workspace', 'reslices',
+                'r_OV' + str(self.m_current_ov).zfill(utils.OV_DIGITS) + '.png')
         elif self.m_current_tile >= 0:
-            active_tiles = self.gm.get_active_tiles(self.m_current_grid)
-            if self.m_current_tile < len(active_tiles):
-                tile_number = active_tiles[self.m_current_tile]
-                tile_key = ('g' + str(self.m_current_grid).zfill(utils.GRID_DIGITS)
-                            + '_t' + str(tile_number).zfill(utils.TILE_DIGITS))
-                filename = (self.cfg['acq']['base_dir']
-                            + '\\workspace\\reslices\\r_' + tile_key + '.png')
-            else:
-                filename = None
+            tile_key = ('g' + str(self.m_current_grid).zfill(utils.GRID_DIGITS)
+                        + '_t' + str(self.m_current_tile).zfill(utils.TILE_DIGITS))
+            filename = os.path.join(
+                self.cfg['acq']['base_dir'], 'workspace', 'reslices',
+                'r_' + tile_key + '.png')
+        else:
+            filename = None
         canvas = self.reslice_canvas_template.copy()
         if filename is not None and os.path.isfile(filename):
             current_reslice = QPixmap(filename)
@@ -2979,7 +3014,7 @@ class Viewport(QWidget):
             else:
                 self.m_qp.drawText(260, 523,
                     'Tile ' + str(self.m_current_grid)
-                    + '.' + str(tile_number))
+                    + '.' + str(self.m_current_tile))
             self.m_qp.drawText(260, 543, 'Showing past ' + str(h) + ' slices')
             self.m_qp.end()
             self.reslice_view.setPixmap(canvas)
@@ -3010,20 +3045,17 @@ class Viewport(QWidget):
         filename = None
         if self.m_current_ov >= 0:
             # get current data:
-            filename = (self.cfg['acq']['base_dir']
-                        + '\\meta\\stats\\OV'
-                        + str(self.m_current_ov).zfill(utils.OV_DIGITS)
-                        + '.dat')
+            filename = os.path.join(
+                self.cfg['acq']['base_dir'], 'meta', 'stats',
+                'OV' + str(self.m_current_ov).zfill(utils.OV_DIGITS) + '.dat')
         elif self.m_current_tile >= 0:
-            active_tiles = self.gm.get_active_tiles(self.m_current_grid)
-            if self.m_current_tile < len(active_tiles):
-                tile_number = active_tiles[self.m_current_tile]
-                tile_key = ('g' + str(self.m_current_grid).zfill(utils.GRID_DIGITS)
-                            + '_t' + str(tile_number).zfill(utils.TILE_DIGITS))
-                filename = (self.cfg['acq']['base_dir']
-                            + '\\meta\\stats\\' + tile_key + '.dat')
-            else:
-                filename = None
+            tile_key = ('g' + str(self.m_current_grid).zfill(utils.GRID_DIGITS)
+                        + '_t' + str(self.m_current_tile).zfill(utils.TILE_DIGITS))
+            filename = os.path.join(
+                self.cfg['acq']['base_dir'], 'meta', 'stats',
+                tile_key + '.dat')
+        else:
+            filename = None
         if filename is not None and os.path.isfile(filename):
             with open(filename, 'r') as file:
                 for line in file:
@@ -3032,7 +3064,7 @@ class Viewport(QWidget):
                     slice_number_list.append(int(values[0]))
                     mean_list.append(float(values[1]))
                     stddev_list.append(float(values[2]))
-            # Shorten the lists to last 150 entries if larger than 150:
+            # Shorten the lists to last 165 entries if larger than 165:
             N = len(mean_list)
             if N > 165:
                 mean_list = mean_list[-165:]
@@ -3197,20 +3229,16 @@ class Viewport(QWidget):
         slice_number = None
         if self.m_from_stack:
             success = False
-            path = ''
+            path = None
             if self.m_current_ov >= 0:
-                path = (base_dir + '\\overviews\\ov'
-                        + str(self.m_current_ov).zfill(utils.OV_DIGITS))
-
+                path = os.path.join(
+                    base_dir, 'overviews',
+                    'ov' + str(self.m_current_ov).zfill(utils.OV_DIGITS))
             elif self.m_current_tile >= 0:
-                active_tiles = self.gm.get_active_tiles(self.m_current_grid)
-                if self.m_current_tile < len(active_tiles):
-                    tile_number = active_tiles[self.m_current_tile]
-                    path = (base_dir + '\\tiles\\g'
-                            + str(self.m_current_grid).zfill(utils.GRID_DIGITS)
-                            + '\\t' + str(tile_number).zfill(utils.TILE_DIGITS))
-                else:
-                    path = None
+                path = os.path.join(
+                    base_dir, 'tiles',
+                    'g' + str(self.m_current_grid).zfill(utils.GRID_DIGITS)
+                    + '\\t' + str(self.m_current_tile).zfill(utils.TILE_DIGITS))
 
             if path is not None and os.path.exists(path):
                 filenames = next(os.walk(path))[2]
@@ -3218,19 +3246,20 @@ class Viewport(QWidget):
                     filenames = filenames[-165:]
                 if filenames:
                     if self.m_selected_slice_number is None:
-                        selected_file = path + '\\' + filenames[-1]
+                        selected_file = os.path.join(path, filenames[-1])
                     else:
                         slice_number_str = (
                             's' + str(self.m_selected_slice_number).zfill(
                                 utils.SLICE_DIGITS))
                         for filename in filenames:
                             if slice_number_str in filename:
-                                selected_file = path + '\\' + filename
+                                selected_file = os.path.join(path, filename)
                                 break
 
         else:
             # Use current image in SmartSEM
-            selected_file = base_dir + '\\workspace\\current_frame.tif'
+            selected_file = os.path.join(
+                base_dir, 'workspace', 'current_frame.tif')
             self.sem.save_frame(selected_file)
             self.m_reset_view()
             self.m_tab_populated = False
@@ -3273,7 +3302,7 @@ class Viewport(QWidget):
                     self.m_qp.drawText(
                         280, 50,
                         'Tile ' + str(self.m_current_grid)
-                        + '.' + str(tile_number)
+                        + '.' + str(self.m_current_tile)
                         + ', slice ' + str(slice_number))
 
             else:

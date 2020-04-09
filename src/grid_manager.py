@@ -3,7 +3,7 @@
 # ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2016-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2018-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
@@ -14,11 +14,13 @@
    TODO: Refactor (use inner class Grid)
 """
 
-from statistics import mean
-from math import sqrt, radians, sin, cos
+import os
 import json
 import utils
 import numpy as np
+from statistics import mean
+from math import sqrt, radians, sin, cos
+import yaml
 
 class GridManager(object):
 
@@ -798,17 +800,19 @@ class GridManager(object):
         return gapped_tile_map
 
     def save_grid_setup(self, timestamp):
-        # This assumes that base directory and logs subdirectory have already been created
-        file_name = self.cfg['acq']['base_dir'] + '\\meta\\logs\\' + \
-                    'gridmap_' + timestamp + '.txt'
-        grid_map_file = open(file_name, 'w')
-        for i in range(self.number_grids):
-            for t in range(self.size[i][0] * self.size[i][1]):
-                grid_map_file.write(str(i) + '.' + str(t) + ';' +
-                                    str(self.grid_map_p[i][t][0]) + ';' +
-                                    str(self.grid_map_p[i][t][1]) + ';' +
-                                    str(self.grid_map_d[i][t][2]) + '\n')
-        grid_map_file.close()
+        """Save the current grid setup in a text file in the meta\logs folder.
+        This assumes that base directory and logs subdirectory have already
+        been created."""
+        file_name = os.path.join(
+            self.cfg['acq']['base_dir'],
+            'meta', 'logs', 'gridmap_' + timestamp + '.txt')
+        with open(file_name, 'w') as grid_map_file:
+            for i in range(self.number_grids):
+                for t in range(self.size[i][0] * self.size[i][1]):
+                    grid_map_file.write(str(i) + '.' + str(t) + ';' +
+                                        str(self.grid_map_p[i][t][0]) + ';' +
+                                        str(self.grid_map_p[i][t][1]) + ';' +
+                                        str(self.grid_map_d[i][t][2]) + '\n')
         return file_name
 
     def load_wd_stig_data_from_config(self):
@@ -979,21 +983,23 @@ class GridManager(object):
 
         return min_dx, max_dx, min_dy, max_dy
 
+    def get_adaptive_focus_enabled(self, grid_number):
+        return self.af_active[grid_number]
+
 # ----------------------------- MagC functions ---------------------------------
 
     def propagate_source_grid_to_target_grid(self, source_grid_number,
-        target_grid_number):
+        target_grid_number, sections):
         s = source_grid_number
         t = target_grid_number
         if s == t:
             return
-        sections = json.loads(self.cfg['magc']['sections'])
 
-        sourceSectionCenter = np.array(sections[str(s)]['center'])
-        targetSectionCenter = np.array(sections[str(t)]['center'])
+        sourceSectionCenter = np.array(sections[s]['center'])
+        targetSectionCenter = np.array(sections[t]['center'])
 
-        sourceSectionAngle = sections[str(s)]['angle'] % 360
-        targetSectionAngle = sections[str(t)]['angle'] % 360
+        sourceSectionAngle = sections[s]['angle'] % 360
+        targetSectionAngle = sections[t]['angle'] % 360
 
         sourceGridRotation = self.get_rotation(s)
 
@@ -1079,9 +1085,6 @@ class GridManager(object):
 
         self.calculate_grid_map(t)
 
-    def get_adaptive_focus_enabled(self, grid_number):
-        return self.af_active[grid_number]
-
     def set_grid_center_s(self, grid_number, center_s):
         current_center = np.array(self.get_grid_center_s(grid_number))
         current_origin = np.array(self.cs.get_grid_origin_s(grid_number))
@@ -1130,5 +1133,42 @@ class GridManager(object):
     def delete_all_but_last_grid(self):
         for grid_number in range(self.number_grids - 1):
             self.delete_grid()
+
+    def update_source_ROIs_from_grids(self):
+        if self.cfg['magc']['wafer_calibrated'] == 'True':
+            waferTransform = np.array(json.loads(self.cfg['magc']['wafer_transform']))
+            waferTransformInverse = utils.invertAffineT(waferTransform)
+            transform_angle = -utils.getAffineRotation(waferTransform)
+
+        sections_path = self.cfg['magc']['sections_path']
+        with open(sections_path, 'r') as f:
+            sections_yaml = yaml.full_load(f)
+        sections_yaml['sourceROIsUpdatedFromSBEMimage'] = {}
+
+        for grid_number in range(self.number_grids):
+            target_ROI = self.get_grid_center_s(grid_number)
+            target_ROI_angle = self.get_rotation(grid_number)
+
+            if self.cfg['magc']['wafer_calibrated'] == 'True':
+                # transform back the grid coordinates in non-transformed coordinates
+                result = utils.applyAffineT(
+                    [target_ROI[0]],
+                    [target_ROI[1]],
+                    waferTransformInverse)
+                source_ROI = [result[0][0], result[1][0]]
+                source_ROI_angle = (-90 + target_ROI_angle - transform_angle) % 360
+            else:
+                source_ROI = target_ROI
+                source_ROI_angle = (-90 + target_ROI_angle) % 360
+            sections_yaml['sourceROIsUpdatedFromSBEMimage'][grid_number] = [
+                float(source_ROI[0]),
+                float(source_ROI[1]),
+                float(source_ROI_angle)]
+
+        with open(sections_path, 'w') as f:
+            yaml.dump(sections_yaml,
+                f,
+                default_flow_style=False,
+                sort_keys=False)
 
 # ------------------------- End of MagC functions ------------------------------

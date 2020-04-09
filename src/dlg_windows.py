@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 
-#==============================================================================
+# ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2016-2018 Benjamin Titze,
-#   Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2018-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
-#==============================================================================
+# ==============================================================================
 
 """This module contains all dialog windows."""
 
@@ -256,7 +255,98 @@ class MicrotomeSettingsDlg(QDialog):
 
 #------------------------------------------------------------------------------
 
-class CalibrationDlg(QDialog):
+class KatanaSettingsDlg(QDialog):
+    """Adjust settings for the katana microtome."""
+
+    def __init__(self, microtome):
+        super().__init__()
+        self.microtome = microtome
+        loadUi('..\\gui\\katana_settings_dlg.ui', self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setFixedSize(self.size())
+        self.show()
+
+        # Set up COM port selector
+        self.comboBox_portSelector.addItems(utils.get_serial_ports())
+        self.comboBox_portSelector.setCurrentIndex(0)
+        self.comboBox_portSelector.currentIndexChanged.connect(
+            self.reconnect)
+
+        self.display_connection_status()
+        self.display_current_settings()
+
+    def reconnect(self):
+        pass
+
+    def display_connection_status(self):
+        # Show message in dialog whether or not katana is connected.
+        pal = QPalette(self.label_connectionStatus.palette())
+        if self.microtome.connected:
+            # Use red colour if not connected
+            pal.setColor(QPalette.WindowText, QColor(Qt.black))
+            self.label_connectionStatus.setPalette(pal)
+            self.label_connectionStatus.setText('katana microtome connected.')
+        else:
+            pal.setColor(QPalette.WindowText, QColor(Qt.red))
+            self.label_connectionStatus.setPalette(pal)
+            self.label_connectionStatus.setText('katana microtome is not connected.')
+
+    def display_current_settings(self):
+        self.spinBox_knifeCutSpeed.setValue(
+            self.microtome.get_knife_cut_speed())
+        self.spinBox_knifeFastSpeed.setValue(
+            self.microtome.get_knife_fast_speed())
+        cut_window_start, cut_window_end = self.microtome.get_cut_window()
+        self.spinBox_cutWindowStart.setValue(cut_window_start)
+        self.spinBox_cutWindowEnd.setValue(cut_window_end)
+
+        self.checkBox_useOscillation.setChecked(
+            self.microtome.is_oscillation_enabled())
+        self.spinBox_oscAmplitude.setValue(
+            self.microtome.get_oscillation_amplitude())
+        self.spinBox_oscFrequency.setValue(
+            self.microtome.get_oscillation_frequency())
+        if not self.microtome.simulation_mode and self.microtome.connected:
+            self.doubleSpinBox_zPosition.setValue(self.microtome.get_stage_z())
+        z_range_min, z_range_max = self.microtome.get_stage_z_range()
+        self.doubleSpinBox_zRangeMin.setValue(z_range_min)
+        self.doubleSpinBox_zRangeMax.setValue(z_range_max)
+        # Retraction clearance is stored in nanometres, display in micrometres
+        self.doubleSpinBox_retractClearance.setValue(
+            self.microtome.get_retract_clearance() / 1000)
+
+    def accept(self):
+        new_cut_speed = self.spinBox_knifeCutSpeed.value()
+        new_fast_speed = self.spinBox_knifeFastSpeed.value()
+        new_cut_start = self.spinBox_cutWindowStart.value()
+        new_cut_end = self.spinBox_cutWindowEnd.value()
+        new_osc_frequency = self.spinBox_oscFrequency.value()
+        new_osc_amplitude = self.spinBox_oscAmplitude. value()
+        # retract_clearance in nanometres
+        new_retract_clearance = (
+            self.doubleSpinBox_retractClearance.value() * 1000)
+        # End position of cut window must be smaller than start position:
+        if new_cut_end < new_cut_start:
+            self.microtome.set_knife_cut_speed(new_cut_speed)
+            self.microtome.set_knife_fast_speed(new_fast_speed)
+            self.microtome.set_cut_window(new_cut_start, new_cut_end)
+            self.microtome.set_oscillation_enabled(
+                self.checkBox_useOscillation.isChecked())
+            self.microtome.set_oscillation_frequency(new_osc_frequency)
+            self.microtome.set_oscillation_amplitude(new_osc_amplitude)
+            self.microtome.set_retract_clearance(new_retract_clearance)
+            super().accept()
+        else:
+            QMessageBox.warning(
+                self, 'Invalid input',
+                'The start position of the cutting window must be larger '
+                'than the end position.',
+                QMessageBox.Ok)
+
+#------------------------------------------------------------------------------
+
+class StageCalibrationDlg(QDialog):
     """Calibrate the stage (rotation and scaling) and the motor speeds."""
 
     def __init__(self, config, stage, sem):
@@ -273,7 +363,7 @@ class CalibrationDlg(QDialog):
         self.update_calc_trigger.s.connect(self.update_log)
         self.calc_exception = None
         self.busy = False
-        loadUi('..\\gui\\calibration_dlg.ui', self)
+        loadUi('..\\gui\\stage_calibration_dlg.ui', self)
 
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -290,11 +380,14 @@ class CalibrationDlg(QDialog):
         speed_x, speed_y = self.stage.get_motor_speeds()
         self.doubleSpinBox_motorSpeedX.setValue(speed_x)
         self.doubleSpinBox_motorSpeedY.setValue(speed_y)
+        self.comboBox_dwellTime.addItems(map(str, self.sem.DWELL_TIME))
+        self.comboBox_dwellTime.setCurrentIndex(4)
+        self.comboBox_package.addItems(['cv2', 'imreg_dft', 'skimage'])
         self.pushButton_startImageAcq.clicked.connect(
             self.start_calibration_procedure)
         if config['sys']['simulation_mode'] == 'True':
             self.pushButton_startImageAcq.setEnabled(False)
-
+        self.pushButton_helpCalibration.clicked.connect(self.show_help)
         self.pushButton_calcStage.clicked.connect(
             self.calculate_stage_parameters_from_user_input)
         self.pushButton_calcMotor.clicked.connect(
@@ -317,18 +410,46 @@ class CalibrationDlg(QDialog):
             self.doubleSpinBox_motorSpeedX.setValue(motor_speed_x)
             self.doubleSpinBox_motorSpeedY.setValue(motor_speed_y)
 
+    def show_help(self):
+        QMessageBox.information(
+            self, 'Stage calibration procedure',
+            'If you click on "Start automatic calibration", '
+            'three images will be acquired and saved in the current base '
+            'directory: start.tif, shift_x.tif, shift_y.tif. '
+            'You can set the pixel size and dwell time for these images and '
+            'specify how far the stage should move along the X and the Y axis. '
+            'The X/Y moves must be small enough to allow some overlap between '
+            'the test images. The frame size is set automatically. '
+            'Make sure that structure is visible in the images, and that the '
+            'beam is focused.\n'
+            'The current stage position will be used as the starting '
+            'position. The recommended starting position is the centre of the '
+            'stage (0, 0).\n'
+            'Shift vectors between the acquired images will be computed using '
+            'a function from the selected package (cv2, imreg_dft or skimage). '
+            'Angles and scale factors will then be computed from these '
+            'shifts.\n\n'
+            'Alternatively, you can manually provide the pixel shifts by '
+            'looking at the calibration images start.tif, shift_x.tif, and '
+            'shift_y.tif and measuring the difference (with ImageJ, for '
+            'example) in the XY pixel position for some feature in the image. '
+            'Click on "Calculate" to calculate the calibration parameters '
+            'from these shifts.',
+            QMessageBox.Ok)
+
     def start_calibration_procedure(self):
         """Acquire three images to be used for the stage calibration"""
         # TODO: error handling!
         reply = QMessageBox.information(
             self, 'Start calibration procedure',
-            'Three images will be acquired and saved in the base '
+            'This will acquire three images and save them in the current base '
             'directory: start.tif, shift_x.tif, shift_y.tif. '
             'Structure must be visible in the images, and the beam must be '
             'focused.\nThe current stage position will be used as the starting '
             'position. The recommended starting position is the centre of the '
             'stage (0, 0). Angles and scale factors will be computed from the '
-            'shifts between the acquired test images.',
+            'shifts between the acquired test images.\n'
+            'Proceed?',
             QMessageBox.Ok | QMessageBox.Cancel)
         if reply == QMessageBox.Ok:
             # Show update in text field:
@@ -347,13 +468,17 @@ class CalibrationDlg(QDialog):
         """
         shift = self.spinBox_shift.value()
         pixel_size = self.spinBox_pixelsize.value()
+        dwell_time = self.sem.DWELL_TIME[self.comboBox_dwellTime.currentIndex()]
         # Use frame size 4 if available, otherwise 3:
         if len(self.sem.STORE_RES) > 4:
             # Merlin
-            self.sem.apply_frame_settings(4, pixel_size, 0.8)
+            frame_size_selector = 4
         else:
             # Sigma
-            self.sem.apply_frame_settings(3, pixel_size, 0.8)
+            frame_size_selector = 3
+
+        self.sem.apply_frame_settings(
+            frame_size_selector, pixel_size, dwell_time)
 
         start_x, start_y = self.stage.get_xy()
         # First image:
@@ -371,27 +496,38 @@ class CalibrationDlg(QDialog):
         # Show in log that calculations begin:
         self.update_calc_trigger.s.emit()
         # Load images and calculate shifts:
-        start_img = imread(self.base_dir + '\\start.tif', as_grey=True)
-        shift_x_img = imread(self.base_dir + '\\shift_x.tif', as_grey=True)
-        shift_y_img = imread(self.base_dir + '\\shift_y.tif', as_grey=True)
+        start_img = imread(self.base_dir + '\\start.tif', 1)
+        shift_x_img = imread(self.base_dir + '\\shift_x.tif', 1)
+        shift_y_img = imread(self.base_dir + '\\shift_y.tif', 1)
         #         Shift vector (in pixels) required to register ``target_image`` with
         #         ``src_image``.  Axis ordering is consistent with numpy (e.g. Z, Y, X)
         self.calc_exception = None
         try:
-            # [::-1] -> obey (x, y) order in GUI
-            # x_shift_xyz = register_translation(start_img, shift_x_img)[0][::-1]
-            # y_shift_xyz = register_translation(start_img, shift_y_img)[0][::-1]
-            x_shift_alt = translation(start_img, shift_x_img, filter_pcorr=3)["tvec"][::-1]
-            y_shift_alt = translation(start_img, shift_y_img, filter_pcorr=3)["tvec"][::-1]
-            # print(x_shift_xyz, x_shift_alt, y_shift_xyz, y_shift_alt)
-            self.x_shift_vector = [x_shift_alt[0], x_shift_alt[1]]
-            self.y_shift_vector = [y_shift_alt[0], y_shift_alt[1]]
+            # # [::-1] to use x, y, z order
+            if self.comboBox_package.currentIndex() == 0:  # alternative calculation selected
+                start_img = (start_img*255).astype(np.uint8)
+                shift_x_img = (shift_x_img*255).astype(np.uint8)
+                shift_y_img = (shift_y_img*255).astype(np.uint8)
+                x_shift = utils.align_images_cv2(shift_x_img, start_img)
+                y_shift = utils.align_images_cv2(shift_y_img, start_img)
+            elif self.comboBox_package.currentIndex() == 1:
+                x_shift = translation(
+                    start_img, shift_x_img, filter_pcorr=3)['tvec'][::-1]
+                y_shift = translation(
+                    start_img, shift_y_img, filter_pcorr=3)['tvec'][::-1]
+            else:  # use skimage.register_translation
+                x_shift = register_translation(start_img, shift_x_img)[0][::-1]
+                y_shift = register_translation(start_img, shift_y_img)[0][::-1]
+            self.x_shift_vector = [x_shift[0], x_shift[1]]
+            self.y_shift_vector = [y_shift[0], y_shift[1]]
+            print(x_shift, y_shift)
         except Exception as e:
             self.calc_exception = e
         self.finish_trigger.s.emit()
 
     def update_log(self):
-        self.plainTextEdit_calibLog.appendPlainText('Now computing pixel shifts...')
+        self.plainTextEdit_calibLog.appendPlainText(
+            'Now computing pixel shifts...')
 
     def process_results(self):
         self.pushButton_startImageAcq.setText('Start')
@@ -404,10 +540,17 @@ class CalibrationDlg(QDialog):
                 'Shift_Y: [{2:.1f}, {3:.1f}]'.format(
                 *self.x_shift_vector, *self.y_shift_vector))
             # Absolute values for the GUI
-            self.spinBox_x2x.setValue(abs(self.x_shift_vector[0]))
-            self.spinBox_x2y.setValue(abs(self.x_shift_vector[1]))
-            self.spinBox_y2x.setValue(abs(self.y_shift_vector[0]))
-            self.spinBox_y2y.setValue(abs(self.y_shift_vector[1]))
+            if self.comboBox_package.currentIndex() == 2:
+                self.spinBox_x2x.setValue(abs(self.x_shift_vector[0]))
+                self.spinBox_x2y.setValue(abs(self.x_shift_vector[1]))
+                self.spinBox_y2x.setValue(abs(self.y_shift_vector[0]))
+                self.spinBox_y2y.setValue(abs(self.y_shift_vector[1]))
+            else:
+                self.spinBox_x2x.setValue(self.x_shift_vector[0])
+                self.spinBox_x2y.setValue(self.x_shift_vector[1])
+                self.spinBox_y2x.setValue(self.y_shift_vector[0])
+                self.spinBox_y2y.setValue(self.y_shift_vector[1])
+
             # Now calculate parameters:
             self.calculate_stage_parameters()
         else:
@@ -421,12 +564,12 @@ class CalibrationDlg(QDialog):
     def calculate_stage_parameters(self):
         shift = self.spinBox_shift.value()
         pixel_size = self.spinBox_pixelsize.value()
+
         # Use absolute values for now, TODO: revisit for the Sigma stage
         delta_xx, delta_xy = (
             abs(self.x_shift_vector[0]), abs(self.x_shift_vector[1]))
         delta_yx, delta_yy = (
             abs(self.y_shift_vector[0]), abs(self.y_shift_vector[1]))
-
         # Rotation angles:
         rot_x = atan(delta_xy/delta_xx)
         rot_y = atan(delta_yx/delta_yy)
@@ -435,26 +578,29 @@ class CalibrationDlg(QDialog):
         scale_y = shift / (sqrt(delta_yx**2 + delta_yy**2) * pixel_size / 1000)
 
         # alternative calc
-        # x_abs = np.linalg.norm([self.x_shift_vector[0], self.x_shift_vector[1]])
-        # y_abs = np.linalg.norm([self.y_shift_vector[0], self.y_shift_vector[1]])
-        # rot_x_alt = np.arccos(shift * self.x_shift_vector[0] / (shift * x_abs))
-        # rot_y_alt = np.arccos(shift * self.y_shift_vector[1] / (shift * y_abs))
-        # GUI cannot handle negative values
-        # if rot_x < 0:
-        #    rot_x += 2 * 3.141592
-        # if rot_y < 0:
-        #    rot_y += 2 * 3.141592
+        x_abs = np.linalg.norm([self.x_shift_vector[0], self.x_shift_vector[1]])
+        y_abs = np.linalg.norm([self.y_shift_vector[0], self.y_shift_vector[1]])
+        # Rotation angles:
+        rot_x_alt = np.arccos(shift * self.x_shift_vector[0] / (shift * x_abs))
+        rot_y_alt = np.arccos(shift * self.y_shift_vector[1] / (shift * y_abs))
         # Scale factors:
-        # scale_x_alt = shift / (x_abs * pixel_size / 1000)
-        # scale_y_alt = shift / (y_abs * pixel_size / 1000)
+        scale_x_alt = shift / (x_abs * pixel_size / 1000)
+        scale_y_alt = shift / (y_abs * pixel_size / 1000)
+
+        if self.comboBox_package.currentIndex() != 2:
+            scale_x = scale_x_alt
+            scale_y = scale_y_alt
+            rot_x = rot_x_alt
+            rot_y = rot_y_alt
 
         self.busy = False
         user_choice = QMessageBox.information(
             self, 'Calculated parameters',
-            'Results:\nRotation X: ' + '{0:.5f}'.format(rot_x)
-            + ';\nRotation Y: ' + '{0:.5f}'.format(rot_y)
-            + '\nScale factor X: ' + '{0:.5f}'.format(scale_x)
+            'Results:\n'
+            + 'Scale factor X: ' + '{0:.5f}'.format(scale_x)
             + ';\nScale factor Y: ' + '{0:.5f}'.format(scale_y)
+            + '\nRotation X: ' + '{0:.5f}'.format(rot_x)
+            + ';\nRotation Y: ' + '{0:.5f}'.format(rot_y)
             + '\n\nDo you want to use these values?',
             QMessageBox.Ok | QMessageBox.Cancel)
         if user_choice == QMessageBox.Ok:
@@ -481,10 +627,16 @@ class CalibrationDlg(QDialog):
         y2y = self.spinBox_y2y.value()
 
         # Distances in pixels
-        delta_xx = abs(x1x - x2x)
-        delta_xy = abs(x1y - x2y)
-        delta_yx = abs(y1x - y2x)
-        delta_yy = abs(y1y - y2y)
+        if self.comboBox_package.currentIndex() != 2:
+            delta_xx = x2x - x1x
+            delta_xy = x2y - x1y
+            delta_yx = y2x - y1x
+            delta_yy = y2y - y1y
+        else:
+            delta_xx = abs(x1x - x2x)
+            delta_xy = abs(x1y - x2y)
+            delta_yx = abs(y1x - y2x)
+            delta_yy = abs(y1y - y2y)
         if delta_xx == 0 or delta_yy == 0:
             QMessageBox.warning(
                 self, 'Error computing stage calibration',
@@ -1064,6 +1216,9 @@ class GridSettingsDlg(QDialog):
             self.main_window_trigger.s.emit()
 
     def save_current_settings(self):
+        if self.cfg['sys']['magc_mode'] == 'True':
+            grid_center = self.gm.get_grid_center_s(self.current_grid)
+
         error_msg = ''
         self.gm.set_grid_size(self.current_grid,
                               (self.spinBox_rows.value(),
@@ -1104,6 +1259,9 @@ class GridSettingsDlg(QDialog):
         self.gm.calculate_grid_map(self.current_grid)
         # Update wd/stig map:
         self.gm.initialize_wd_stig_map(self.current_grid)
+        if self.cfg['sys']['magc_mode'] == 'True':
+            self.gm.set_grid_center_s(self.current_grid, grid_center)
+            self.gm.update_source_ROIs_from_grids()
         if error_msg:
             QMessageBox.warning(self, 'Error', error_msg, QMessageBox.Ok)
         else:
@@ -1274,9 +1432,10 @@ class AdaptiveFocusSelectionDlg(QDialog):
 class GridRotationDlg(QDialog):
     """Change the rotation angle of a selected grid."""
 
-    def __init__(self, selected_grid, gm, main_window_queue, main_window_trigger):
+    def __init__(self, selected_grid, gm, cfg, main_window_queue, main_window_trigger):
         self.selected_grid = selected_grid
         self.gm = gm
+        self.cfg = cfg
         self.main_window_queue = main_window_queue
         self.main_window_trigger = main_window_trigger
         self.rotation_in_progress = False
@@ -1375,6 +1534,8 @@ class GridRotationDlg(QDialog):
     def accept(self):
         # Calculate new grid map with new rotation angle:
         self.gm.calculate_grid_map(self.selected_grid)
+        if self.cfg['sys']['magc_mode'] == 'True':
+            self.gm.update_source_ROIs_from_grids()
         super().accept()
 
 #------------------------------------------------------------------------------
@@ -1396,6 +1557,8 @@ class AcqSettingsDlg(QDialog):
         self.pushButton_selectDir.setIconSize(QSize(16, 16))
         # Display current settings:
         self.lineEdit_baseDir.setText(self.cfg['acq']['base_dir'])
+        self.lineEdit_baseDir.textChanged.connect(self.update_stack_name)
+        self.update_stack_name()
         self.new_base_dir = ''
         self.spinBox_sliceThickness.setValue(self.stack.get_slice_thickness())
         self.spinBox_numberSlices.setValue(self.stack.get_number_slices())
@@ -1428,21 +1591,61 @@ class AcqSettingsDlg(QDialog):
             start_path = self.cfg['acq']['base_dir'][:3]
         else:
             start_path = 'C:\\'
-        self.new_base_dir = str(QFileDialog.getExistingDirectory(
-                                self, 'Select Directory',
-                                start_path,
-                                QFileDialog.ShowDirsOnly)).replace('/', '\\')
-        self.lineEdit_baseDir.setText(self.new_base_dir)
+        self.lineEdit_baseDir.setText(
+            str(QFileDialog.getExistingDirectory(
+                self, 'Select Directory',
+                start_path,
+                QFileDialog.ShowDirsOnly)).replace('/', '\\'))
 
     def update_server_lineedit(self):
         self.lineEdit_projectName.setEnabled(
             self.checkBox_sendMetaData.isChecked())
 
+    def update_stack_name(self):
+        base_dir = self.lineEdit_baseDir.text().rstrip(r'\/ ')
+        self.label_stackName.setText(base_dir[base_dir.rfind('\\') + 1:])
+
     def accept(self):
         success = True
-        self.new_base_dir = (
-            self.lineEdit_baseDir.text().replace(' ', '_').replace('/', '\\'))
-        self.lineEdit_baseDir.setText(self.new_base_dir)
+        selected_dir = self.lineEdit_baseDir.text()
+        # Remove trailing slashes and whitespace
+        modified_dir = selected_dir.rstrip(r'\/ ')
+        # Replace spaces and forward slashes
+        modified_dir = modified_dir.replace(' ', '_').replace('/', '\\')
+        # Notify user if directory was modified
+        if modified_dir != selected_dir:
+            self.lineEdit_baseDir.setText(modified_dir)
+            self.update_stack_name()
+            QMessageBox.information(
+                self, 'Base directory name modified',
+                'The selected base directory was modified by removing '
+                'trailing slashes and whitespace and replacing spaces with '
+                'underscores and forward slashes with backslashes.',
+                QMessageBox.Ok)
+        # Check if path contains a drive letter
+        reg = re.compile('^[a-zA-Z]:\\\$')
+        if not reg.match(modified_dir[:3]):
+            success = False
+            QMessageBox.warning(
+                self, 'Error',
+                'Please specify the full path to the base directory. It '
+                'must begin with a drive letter, for example: "D:\\..."',
+                QMessageBox.Ok)
+        else:
+            # If workspace directory does not yet exist, create it to test
+            # whether path is valid and accessible
+            workspace_dir = os.path.join(modified_dir, 'workspace')
+            try:
+                if not os.path.exists(workspace_dir):
+                    os.makedirs(workspace_dir)
+            except Exception as e:
+                success = False
+                QMessageBox.warning(
+                    self, 'Error',
+                    'The selected base directory is invalid or '
+                    'inaccessible: ' + str(e),
+                    QMessageBox.Ok)
+
         if 5 <= self.spinBox_sliceThickness.value() <= 200:
             self.stack.set_slice_thickness(self.spinBox_sliceThickness.value())
         number_slices = self.spinBox_numberSlices.value()
@@ -1472,16 +1675,8 @@ class AcqSettingsDlg(QDialog):
                 'Slice counter must be smaller than or equal to '
                 'target number of slices.', QMessageBox.Ok)
             success = False
-        reg = re.compile('^[a-zA-Z]:\\\$')
-        if not reg.match(self.lineEdit_baseDir.text()[:3]):
-            QMessageBox.warning(
-                self, 'Error',
-                'Please specify the full path to the base directory. It must '
-                'begin with a drive letter, for example: "D:\\..."',
-                QMessageBox.Ok)
-            success = False
         if success:
-            self.cfg['acq']['base_dir'] = self.new_base_dir
+            self.cfg['acq']['base_dir'] = modified_dir
             super().accept()
 
 #------------------------------------------------------------------------------
@@ -1549,9 +1744,9 @@ class PreStackDlg(QDialog):
         else:
             self.label_interruption.setText('None')
         self.doubleSpinBox_cutSpeed.setValue(
-            float(self.cfg['microtome']['knife_cut_speed']))
+            int(float(self.cfg['microtome']['knife_cut_speed'])) / 1000)
         self.doubleSpinBox_retractSpeed.setValue(
-            float(self.cfg['microtome']['knife_retract_speed']))
+            int(float(self.cfg['microtome']['knife_retract_speed'])) / 1000)
         self.doubleSpinBox_brightness.setValue(
             float(self.cfg['sem']['bsd_brightness']))
         self.doubleSpinBox_contrast.setValue(
@@ -1563,9 +1758,9 @@ class PreStackDlg(QDialog):
 
     def accept(self):
         self.cfg['microtome']['knife_cut_speed'] = str(
-            self.doubleSpinBox_cutSpeed.value())
+            int(self.doubleSpinBox_cutSpeed.value() * 1000))
         self.cfg['microtome']['knife_retract_speed'] = str(
-            self.doubleSpinBox_retractSpeed.value())
+            int(self.doubleSpinBox_retractSpeed.value() * 1000))
         self.cfg['sem']['bsd_contrast'] = str(
             self.doubleSpinBox_contrast.value())
         self.cfg['sem']['bsd_brightness'] = str(
@@ -1629,13 +1824,17 @@ class ExportDlg(QDialog):
         self.pushButton_export.setText('Busy')
         self.pushButton_export.setEnabled(False)
         QApplication.processEvents()
+        base_dir = self.cfg['acq']['base_dir']
+        target_grid_number = (
+            str(self.spinBox_gridNumber.value()).zfill(utils.GRID_DIGITS))
+        pixel_size = self.doubleSpinBox_pixelSize.value()
         start_slice = self.spinBox_fromSlice.value()
         end_slice = self.spinBox_untilSlice.value()
         # Read all imagelist files into memory:
         imagelist_str = []
         imagelist_data = []
-        file_list = glob.glob(self.cfg['acq']['base_dir']
-                              + '\\meta\\logs\\'  'imagelist*.txt')
+        file_list = glob.glob(os.path.join(base_dir,
+                                           'meta', 'logs', 'imagelist*.txt'))
         file_list.sort()
         for file in file_list:
             with open(file) as f:
@@ -1646,25 +1845,35 @@ class ExportDlg(QDialog):
             min_y = 1000000
             for line in imagelist_str:
                 elements = line.split(';')
-                z = int(elements[3])
-                if start_slice <= z <= end_slice:
-                    x = int(elements[1])
+                # elements[0]: relative path to tile image
+                # elements[1]: x coordinate in nm
+                # elements[2]: y coordinate in nm
+                # elements[3]: z coordinate in nm
+                # elements[4]: slice number
+                slice_number = int(elements[4])
+                grid_number = elements[0][7:11]
+                if (start_slice <= slice_number <= end_slice
+                    and grid_number == target_grid_number):
+                    x = int(int(elements[1]) / pixel_size)
                     if x < min_x:
                         min_x = x
-                    y = int(elements[2])
+                    y = int(int(elements[2]) / pixel_size)
                     if y < min_y:
                         min_y = y
-                    imagelist_data.append([elements[0], x, y, z])
-            # Subtract minimum values:
-            number_entries = len(imagelist_data)
-            for i in range(0, number_entries):
-                imagelist_data[i][1] -= min_x
-                imagelist_data[i][2] -= min_y
+                    imagelist_data.append([elements[0], x, y, slice_number])
+            # Subtract minimum values to obtain bounding box with (0, 0) as
+            # origin in top-left corner.
+            for item in imagelist_data:
+                item[1] -= min_x
+                item[2] -= min_y
             # Write to output file:
             try:
-                output_file = (self.cfg['acq']['base_dir'] +
-                               '\\trakem2_imagelist_slice' + str(start_slice) +
-                               'to' + str(end_slice) + '.txt')
+                output_file = os.path.join(base_dir,
+                                           'trakem2_imagelist_slice'
+                                           + str(start_slice)
+                                           + 'to'
+                                           + str(end_slice)
+                                           + '.txt')
                 with open(output_file, 'w') as f:
                     for item in imagelist_data:
                         f.write(item[0] + '\t'
@@ -1672,19 +1881,19 @@ class ExportDlg(QDialog):
                                 + str(item[2]) + '\t'
                                 + str(item[3]) + '\n')
             except:
-                QMessageBox.warning(self, 'Error',
-                        'An error ocurred while writing the output file.',
-                        QMessageBox.Ok)
+                QMessageBox.warning(
+                    self, 'Error',
+                    'An error ocurred while writing the output file.',
+                    QMessageBox.Ok)
             else:
                 QMessageBox.information(
-                        self, 'Export completed',
-                        'A total of ' + str(number_entries) + ' entries were '
-                        'processed.\n\nThe output file\n'
-                        'trakem2_imagelist_slice' + str(start_slice) +
-                        'to' + str(end_slice) + '.txt\n'
-                        'was written to the current base directory\n' +
-                        self.cfg['acq']['base_dir'] + '.',
-                        QMessageBox.Ok)
+                    self, 'Export completed',
+                    f'A total of {len(imagelist_data)} tile entries were '
+                    f'processed.\n\nThe output file\n'
+                    f'trakem2_imagelist_slice{start_slice}to{end_slice}.txt\n'
+                    f'was written to the current base directory\n'
+                    f'{base_dir}.',
+                    QMessageBox.Ok)
         else:
             QMessageBox.warning(
                 self, 'Error',
@@ -2672,8 +2881,8 @@ class EHTDlg(QDialog):
 #------------------------------------------------------------------------------
 
 class FTSetParamsDlg(QDialog):
-    """Read working distance and stigmation values from user input or
-       from SmarSEM. Used for setting WD/STIG for individual tiles in
+    """Read working distance and stigmation parameters from user input or
+       from SmartSEM for setting WD/STIG for individual tiles/OVs in
        focus tool.
     """
 

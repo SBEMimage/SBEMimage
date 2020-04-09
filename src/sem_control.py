@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 
-#==============================================================================
+# ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2016-2018 Benjamin Titze,
-#   Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2018-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
-#==============================================================================
+# ==============================================================================
 
 """This module provides the commands to operate the SEM. It calls the
    low-level functions of the Carl Zeiss EM API. Only the functions that are
@@ -58,6 +57,7 @@ class SEM:
         # self.cycle_time holds the cycle time for the current frame settings,
         # will be set the first time when self.apply_frame_settings() is called.
         self.current_cycle_time = 0
+        self.additional_cycle_time = 0
         # Stage parameters:
         self.stage_move_wait_interval = float(
             self.cfg['sem']['stage_move_wait_interval'])
@@ -73,6 +73,9 @@ class SEM:
             float(self.cfg['sem']['stage_scale_factor_y']),
             float(self.cfg['sem']['stage_rotation_angle_x']),
             float(self.cfg['sem']['stage_rotation_angle_y'])]
+
+    def __str__(self):
+        return self.device_name
 
     def load_system_constants(self):
         """Load all constant parameters from system config."""
@@ -308,6 +311,18 @@ class SEM:
     def get_stage_calibration(self):
         return self.stage_calibration
 
+    def set_stage_calibration(self, eht, params):
+        self.stage_calibration = params
+        self.cfg['sem']['stage_scale_factor_x'] = str(params[0])
+        self.cfg['sem']['stage_scale_factor_y'] = str(params[1])
+        self.cfg['sem']['stage_rotation_angle_x'] = str(params[2])
+        self.cfg['sem']['stage_rotation_angle_y'] = str(params[3])
+        # Save data in sysconfig:
+        calibration_data = json.loads(self.syscfg['stage']['sem_calibration_data'])
+        eht = int(eht * 1000)  # Dict keys in system config use volts, not kV
+        calibration_data[str(eht)] = params
+        self.syscfg['stage']['sem_calibration_data'] = json.dumps(calibration_data)
+
     def update_stage_calibration(self, eht):
         eht = int(eht * 1000)  # Dict keys in system config use volts, not kV
         success = True
@@ -531,13 +546,19 @@ class SEM_SmartSEM(SEM):
         """
         self.sem_api.Execute('CMD_UNFREEZE_ALL')
         self.sem_api.Execute('CMD_FREEZE_ALL') # Assume 'freeze on end of frame'
+
+        self.additional_cycle_time = extra_delay
         if self.current_cycle_time > 0.5:
-            delay_after_cycle_time = self.DEFAULT_DELAY
-        else:
-            delay_after_cycle_time = 0
-        sleep(self.current_cycle_time + delay_after_cycle_time + extra_delay)
+            self.additional_cycle_time += self.DEFAULT_DELAY
+
+        sleep(self.current_cycle_time + self.additional_cycle_time)
         # This sleep interval could be used to carry out other operations in
         # parallel while waiting for the new image.
+        # Wait longer if necessary before grabbing image
+        while self.sem_api.Get('DP_FROZEN')[1] == 'Live':
+            sleep(0.1)
+            self.additional_cycle_time += 0.1
+
         ret_val = self.sem_api.Grab(0, 0, 1024, 768, 0,
                                     save_path_filename)
         if ret_val == 0:
@@ -722,6 +743,7 @@ class SEM_SmartSEM(SEM):
         while self.sem_api.Get('DP_STAGE_IS') == 'Busy':
             sleep(0.2)
         sleep(3)  # for testing purposes
+        self.last_known_x = self.sem_api.GetStagePosition()[1] * 10**6
 
     def move_stage_to_y(self, y):
         """Move stage to coordinate y, provided in microns"""
@@ -733,6 +755,7 @@ class SEM_SmartSEM(SEM):
         while self.sem_api.Get('DP_STAGE_IS') == 'Busy':
             sleep(0.2)
         sleep(3)  # for testing purposes
+        self.last_known_y = self.sem_api.GetStagePosition()[2] * 10**6
 
     def move_stage_to_z(self, z):
         """Move stage to coordinate y, provided in microns"""
@@ -744,6 +767,7 @@ class SEM_SmartSEM(SEM):
         while self.sem_api.Get('DP_STAGE_IS') == 'Busy':
             sleep(0.2)
         sleep(3)  # for testing purposes
+        self.last_known_z = self.sem_api.GetStagePosition()[3] * 10**6
 
     def move_stage_to_xy(self, coordinates):
         """Move stage to coordinates x and y, provided in microns"""
@@ -756,6 +780,8 @@ class SEM_SmartSEM(SEM):
         while self.sem_api.Get('DP_STAGE_IS') == 'Busy':
             sleep(0.2)
         sleep(3)  # for testing purposes
+        new_x, new_y = self.sem_api.GetStagePosition()[1:3]
+        self.last_known_x, self.last_known_y = new_x * 10**6, new_y * 10**6
 
     def show_about_box(self):
         self.sem_api.AboutBox()

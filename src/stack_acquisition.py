@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 
-#==============================================================================
+# ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2016-2018 Benjamin Titze,
-#   Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2018-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
-#==============================================================================
+# ==============================================================================
 
 """This module controls the acquisition process."""
 
@@ -133,14 +132,16 @@ class Stack():
         self.imap_server = self.cfg['sys']['email_imap']
         self.user_email_addresses = [self.cfg['monitoring']['user_email'],
                                      self.cfg['monitoring']['cc_user_email']]
+        # Remove trailing slashes and whitespace from base directory string
+        self.cfg['acq']['base_dir'] = self.cfg['acq']['base_dir'].rstrip(r'\/ ')
         self.base_dir = self.cfg['acq']['base_dir']
         # Extract the name of the stack from the base directory:
         self.stack_name = self.base_dir[self.base_dir.rfind('\\') + 1:]
         self.viewport_filename = None
         # Mirror drive: same folder, only drive letter changes:
         self.mirror_drive = self.cfg['sys']['mirror_drive']
-        self.mirror_drive_directory = (self.cfg['sys']['mirror_drive']
-                                       + self.base_dir[2:])
+        self.mirror_drive_directory = os.path.join(
+            self.cfg['sys']['mirror_drive'], self.base_dir[2:])
         # Metadata to server:
         self.metadata_server = (self.cfg['sys']['metadata_server_url']
                                  + '/project/'
@@ -181,6 +182,14 @@ class Stack():
         self.user_reply = None
         self.user_reply_received = False
         self.image_rejected_by_user = False
+
+        # Log file handles:
+        self.main_log_file = None
+        self.imagelist_file = None
+        self.mirror_imagelist_file = None
+        self.debris_log_file = None
+        self.error_log_file = None
+        self.metadata_file = None
 
     def get_remote_password(self):
         return self.email_pw
@@ -356,47 +365,57 @@ class Stack():
         """Create subdirectories given in dir_list in the base folder"""
         try:
             for dir_name in dir_list:
-                new_dir = self.base_dir + '\\' + dir_name
+                new_dir = os.path.join(self.base_dir, dir_name)
                 if not os.path.exists(new_dir):
                     os.makedirs(new_dir)
             return True
-        except:
+        except Exception as e:
+            # Show message in main log via queue and trigger:
+            self.queue.put(utils.format_log_entry(
+                'CTRL: Error while creating subdirectories: ' + str(e)))
+            self.trigger.s.emit()
             return False
 
     def mirror_subdirectories(self, dir_list):
         """Mirror subdirectories given in dir_list"""
         try:
             for dir_name in dir_list:
-                new_mirror_dir = self.mirror_drive_directory + '\\' + dir_name
+                new_mirror_dir = os.path.join(
+                    self.mirror_drive_directory, dir_name)
                 if not os.path.exists(new_mirror_dir):
                     os.makedirs(new_mirror_dir)
             return True
-        except:
+        except Exception as e:
+            # Show message in main log via queue and trigger:
+            self.queue.put(utils.format_log_entry(
+                'CTRL: Error while mirroring subdirectories: ' + str(e)))
             return False
 
     def mirror_files(self, file_list):
-        """Copy files given in file_list to mirror drive, keep path."""
+        """Copy files given in file_list to mirror drive, keep relative path."""
         try:
             for file_name in file_list:
-                dst_file_name = self.mirror_drive + file_name[2:]
+                dst_file_name = os.path.join(self.mirror_drive, file_name[2:])
                 shutil.copy(file_name, dst_file_name)
-        except:
+        except Exception as e:
             # Log in viewport window:
             log_str = (str(self.slice_counter) + ': WARNING ('
                        + 'Could not mirror file(s))')
-            self.error_log_file.write(log_str + '\n')
+
+            self.error_log_file.write(log_str + ': ' + str(e) + '\n')
             # Signal to main window to update log in viewport:
             self.transmit_cmd('VP LOG' + log_str)
             sleep(2)
             # Try again:
             try:
                 for file_name in file_list:
-                    dst_file_name = self.mirror_drive + file_name[2:]
+                    dst_file_name = os.path.join(
+                        self.mirror_drive, file_name[2:])
                     shutil.copy(file_name, dst_file_name)
-            except:
-                self.add_to_main_log('CTRL: Copying file(s) to mirror '
-                                     'drive failed.')
-                self.pause_acquisition(2)
+            except Exception as e:
+                self.add_to_main_log(
+                    'CTRL: Copying file(s) to mirror drive failed: ' + str(e))
+                self.pause_acquisition(1)
                 self.error_state = 402
 
     def set_up_acq_subdirectories(self):
@@ -416,14 +435,16 @@ class Stack():
         ]
         # Add subdirectories for overviews, grids, tiles:
         for ov_number in range(self.ovm.get_number_ov()):
-            ov_dir = 'overviews\\ov' + str(ov_number).zfill(utils.OV_DIGITS)
+            ov_dir = os.path.join(
+                'overviews', 'ov' + str(ov_number).zfill(utils.OV_DIGITS))
             subdirectory_list.append(ov_dir)
         for grid_number in range(self.gm.get_number_grids()):
-            grid_dir = 'tiles\\g' + str(grid_number).zfill(utils.GRID_DIGITS)
+            grid_dir = os.path.join(
+                'tiles', 'g' + str(grid_number).zfill(utils.GRID_DIGITS))
             subdirectory_list.append(grid_dir)
             for tile_number in self.gm.get_active_tiles(grid_number):
-                tile_dir = grid_dir + '\\t' + str(
-                    tile_number).zfill(utils.TILE_DIGITS)
+                tile_dir = os.path.join(
+                    grid_dir, 't' + str(tile_number).zfill(utils.TILE_DIGITS))
                 subdirectory_list.append(tile_dir)
         # Create the directories:
         success = self.create_subdirectories(subdirectory_list)
@@ -433,7 +454,7 @@ class Stack():
         elif self.use_mirror_drive:
             success = self.mirror_subdirectories(subdirectory_list)
             if not success:
-                self.pause_acquisition(2)
+                self.pause_acquisition(1)
                 self.error_state = 402
 
     def set_up_acq_logs(self):
@@ -441,61 +462,77 @@ class Stack():
         # Get timestamp for this run:
         timestamp = str(datetime.datetime.now())[:22].translate(
             {ord(i):None for i in ' :.'})
-        # Save current configuration file with timestamp in log folder:
-        config_filename = (self.base_dir + '\\meta\\logs\\config_'
-                           + timestamp + '.txt')
-        f = open(config_filename, 'w')
-        self.cfg.write(f)
-        f.close()
-        # Save current grid setup:
-        gridmap_filename = self.gm.save_grid_setup(timestamp)
-        # Create main log file:
-        self.main_log_filename = (self.base_dir + '\\meta\\logs\\'
-                                  + 'log_' + timestamp + '.txt')
-        # Log file for most recent entries (used for status report):
-        self.recent_log_filename = (self.base_dir + '\\meta\\logs\\'
-                                    + 'log_' + timestamp + '_mostrecent.txt')
-        # A buffer_size of 1 ensures that all log entries are immediately
-        # written to disk:
-        buffer_size = 1
-        self.main_log_file = open(self.main_log_filename, 'w', buffer_size)
-        # Set up imagelist file:
-        self.imagelist_filename = (self.base_dir + '\\meta\\logs\\'
-                                   + 'imagelist_' + timestamp + '.txt')
-        self.imagelist_file = open(self.imagelist_filename, 'w', buffer_size)
-        # Log files for debris and errors:
-        self.debris_log_filename = (self.base_dir + '\\meta\\logs\\'
-                                    + 'debris_log_' + timestamp + '.txt')
-        self.debris_log_file = open(self.debris_log_filename,
-                                    'w', buffer_size)
-        self.error_log_filename = (self.base_dir + '\\meta\\logs\\'
-                                   + 'error_log_' + timestamp + '.txt')
-        self.error_log_file = open(self.error_log_filename, 'w', buffer_size)
 
-        self.metadata_filename = (self.base_dir + '\\meta\\logs\\'
-                                    + 'metadata_' + timestamp + '.txt')
-        self.metadata_file = open(self.metadata_filename, 'w', buffer_size)
-
-        # Note that the config file and the gridmap file are only saved once
-        # in the beginning of the acquisition. The other log files are updated
-        # continously during the acq.
-        log_file_list = [
-            config_filename,
-            gridmap_filename,
-            self.main_log_filename,
-            self.imagelist_filename,
-            self.debris_log_filename,
-            self.error_log_filename,
-            self.metadata_filename
-        ]
-        # Copy all log files to mirror drive:
-        if self.use_mirror_drive:
-            self.mirror_files(log_file_list)
-            # Handle for imagelist file on mirror drive:
-            self.mirror_imagelist_file = open(
-                self.mirror_drive
-                + self.imagelist_filename[2:],
-                'w', buffer_size)
+        try:
+            # Note that the config file and the gridmap file are only saved once
+            # before starting an acquisition run. The other log files are
+            # updated continously during the acq.
+            # Save current configuration file with timestamp in log folder:
+            config_filename = os.path.join(
+                self.base_dir, 'meta', 'logs', 'config_' + timestamp + '.txt')
+            with open(config_filename, 'w') as f:
+                self.cfg.write(f)
+            # Save current grid setup:
+            gridmap_filename = self.gm.save_grid_setup(timestamp)
+            # Create main log file:
+            self.main_log_filename = os.path.join(
+                self.base_dir, 'meta', 'logs', 'log_' + timestamp + '.txt')
+            # Log file for most recent entries (used for status report):
+            self.recent_log_filename = os.path.join(
+                self.base_dir, 'meta', 'logs',
+                'log_' + timestamp + '_mostrecent.txt')
+            # A buffer_size of 1 ensures that all log entries are immediately
+            # written to disk:
+            buffer_size = 1
+            self.main_log_file = open(self.main_log_filename, 'w', buffer_size)
+            # Set up imagelist file:
+            self.imagelist_filename = os.path.join(
+                self.base_dir, 'meta', 'logs',
+                'imagelist_' + timestamp + '.txt')
+            self.imagelist_file = open(self.imagelist_filename,
+                                       'w', buffer_size)
+            # Log files for debris and errors:
+            self.debris_log_filename = os.path.join(
+                self.base_dir, 'meta', 'logs',
+                'debris_log_' + timestamp + '.txt')
+            self.debris_log_file = open(self.debris_log_filename,
+                                        'w', buffer_size)
+            self.error_log_filename = os.path.join(
+                self.base_dir, 'meta', 'logs',
+                'error_log_' + timestamp + '.txt')
+            self.error_log_file = open(self.error_log_filename,
+                                       'w', buffer_size)
+            self.metadata_filename = os.path.join(
+                self.base_dir, 'meta', 'logs', 'metadata_' + timestamp + '.txt')
+            self.metadata_file = open(self.metadata_filename, 'w', buffer_size)
+        except Exception as e:
+            # Show message in main log via queue and trigger:
+            self.queue.put(utils.format_log_entry(
+                'CTRL: Error while setting up log files: ' + str(e)))
+            self.pause_acquisition(1)
+            self.error_state = 401
+        else:
+            if self.use_mirror_drive:
+                # Copy all log files to mirror drive:
+                self.mirror_files([
+                    config_filename,
+                    gridmap_filename,
+                    self.main_log_filename,
+                    self.imagelist_filename,
+                    self.debris_log_filename,
+                    self.error_log_filename,
+                    self.metadata_filename])
+                # File handle for imagelist file on mirror drive:
+                try:
+                    self.mirror_imagelist_file = open(os.path.join(
+                        self.mirror_drive, self.imagelist_filename[2:]),
+                        'w', buffer_size)
+                except Exception as e:
+                    self.add_to_main_log(
+                        'CTRL: Error while opening imagelist file on mirror '
+                        'drive: ' + str(e))
+                    self.pause_acquisition(1)
+                    self.error_state = 402
 
 # ===================== STACK ACQUISITION THREAD run() ========================
 
@@ -713,6 +750,14 @@ class Stack():
                                     sweep_limit = True
                         # ============= OV acquisition loop end ===============
 
+                        cycle_time_diff = (
+                            self.sem.additional_cycle_time
+                            - self.sem.DEFAULT_DELAY)
+                        if cycle_time_diff > 0.15:
+                            self.add_to_main_log(
+                                f'CTRL: Warning: OV {ov_number} cycle time was '
+                                f'{cycle_time_diff:.2f} s longer than expected.')
+
                         if (not ov_accepted
                             and self.error_state == 0
                             and not self.pause_state == 1):
@@ -778,6 +823,14 @@ class Stack():
                     self.add_to_main_log('CTRL: Grid ' + str(grid_number)
                                   + ', number of active tiles: '
                                   + str(num_active_tiles))
+
+                    # in MagC use the grid autostig delay
+                    if self.cfg['sys']['magc_mode'] == 'True':
+                        autostig_delay = int(self.cfg['autofocus']['autostig_delay'])
+                        self.autofocus_stig_current_slice = (
+                            self.autofocus_stig_current_slice[0],
+                            0 == (grid_number % autostig_delay))
+
                     if (num_active_tiles > 0
                         and not (self.pause_state == 1)
                         and (self.error_state == 0)):
@@ -785,6 +838,12 @@ class Stack():
                             self.add_to_main_log('CTRL: Grid '
                                 + str(grid_number) + ' already acquired. '
                                 'Skipping. ')
+                        elif (self.cfg['sys']['magc_mode'] == 'True'
+                            and grid_number not in
+                            json.loads(self.cfg['magc']['checked_sections'])):
+                                self.add_to_main_log('CTRL: Grid '
+                                    + str(grid_number) + ' not checked. '
+                                    'Skipping. ')
                         else:
                             if (self.af.is_active()
                                     and self.af.get_method() == 0
@@ -860,7 +919,7 @@ class Stack():
                             # Send notification email:
                             msg_subject = ('Stack ' + self.stack_name
                                            + ' PAUSED remotely')
-                            success = utils.send_email(
+                            success, error_msg = utils.send_email(
                                 self.smtp_server,
                                 self.email_account,
                                 self.user_email_addresses,
@@ -871,7 +930,8 @@ class Stack():
                                 'CTRL: Notification e-mail sent.')
                         else:
                             self.add_to_main_log(
-                                'CTRL: ERROR sending notification email.')
+                                'CTRL: ERROR sending notification email: '
+                                + error_msg)
                         self.transmit_cmd('REMOTE STOP')
                     if command == 'SHOWMESSAGE':
                         self.transmit_cmd('SHOW MSG' + msg)
@@ -945,16 +1005,18 @@ class Stack():
             if use_email_monitoring:
                 # Send notification email:
                 msg_subject = 'Stack ' + self.stack_name + ' COMPLETED.'
-                success = utils.send_email(self.smtp_server,
-                                           self.email_account,
-                                           self.user_email_addresses,
-                                           msg_subject,
-                                           '')
+                success, error_msg = utils.send_email(
+                    self.smtp_server,
+                    self.email_account,
+                    self.user_email_addresses,
+                    msg_subject,
+                    '')
                 if success:
                     self.add_to_main_log('CTRL: Notification e-mail sent.')
                 else:
                     self.add_to_main_log(
-                        'CTRL: ERROR sending notification email.')
+                        'CTRL: ERROR sending notification email: ',
+                        error_msg)
             if self.eht_off_after_stack:
                 self.sem.turn_eht_off()
                 self.add_to_main_log(
@@ -965,22 +1027,29 @@ class Stack():
 
         # Update acquisition status:
         self.transmit_cmd('ACQ NOT IN PROGRESS')
+
         # Write last entry in log and close log file.
         self.main_log_file.write('*** END OF LOG ***\n')
-        # Close all log files:
-        self.main_log_file.close()
-        self.imagelist_file.close()
-        if self.use_mirror_drive:
-            self.mirror_imagelist_file.close()
-        self.debris_log_file.close()
-        self.error_log_file.close()
-        self.metadata_file.close()
-        # Finally, copy files to mirror drive:
+
+        # Copy files to mirror drive:
         if self.use_mirror_drive:
             self.mirror_files([self.main_log_filename,
                                self.debris_log_filename,
                                self.error_log_filename,
                                self.metadata_filename])
+        # Close all log files:
+        if self.main_log_file is not None:
+            self.main_log_file.close()
+        if self.imagelist_file is not None:
+            self.imagelist_file.close()
+        if self.use_mirror_drive and self.mirror_imagelist_file is not None:
+            self.mirror_imagelist_file.close()
+        if self.debris_log_file is not None:
+            self.debris_log_file.close()
+        if self.error_log_file is not None:
+            self.error_log_file.close()
+        if self.metadata_file is not None:
+            self.metadata_file.close()
 
     # =============== END OF STACK ACQUISITION THREAD run() ===================
 
@@ -999,13 +1068,15 @@ class Stack():
                              'Command received',
                              '')
             self.pause_acquisition(2)
-            success = utils.send_email(self.smtp_server,
-                                       self.email_account,
-                                       self.user_email_addresses,
-                                       'Remote stop',
-                                       'The acquisition was paused remotely.')
+            success, error_msg = utils.send_email(
+                self.smtp_server,
+                self.email_account,
+                self.user_email_addresses,
+                'Remote stop',
+                'The acquisition was paused remotely.')
             if not success:
-                self.add_to_log('CTRL: Error sending confirmation email.')
+                self.add_to_log('CTRL: Error sending confirmation email: '
+                                + error_msg)
             self.transmit_cmd('REMOTE STOP')
         if command in ['continue', 'start', 'restart']:
             pass
@@ -1043,24 +1114,33 @@ class Stack():
                 attachment_list = [self.recent_log_filename]
             msg_subject = ('Stack ' + self.stack_name + ': slice '
                            + str(self.slice_counter) + ', ERROR')
-            success = utils.send_email(self.smtp_server,
-                                       self.email_account,
-                                       self.user_email_addresses,
-                                       msg_subject,
-                                       error_str,
-                                       attachment_list)
+            success, error_msg = utils.send_email(
+                self.smtp_server,
+                self.email_account,
+                self.user_email_addresses,
+                msg_subject,
+                error_str,
+                attachment_list)
             if success:
                 self.add_to_main_log('CTRL: Error notification email sent.')
             else:
-                self.add_to_main_log('CTRL: ERROR sending notification email.')
+                self.add_to_main_log('CTRL: ERROR sending notification email: '
+                                     + error_msg)
+            # Remove temporary log file of most recent entries:
+            try:
+                os.remove(self.recent_log_filename)
+            except Exception as e:
+                self.add_to_main_log('CTRL: ERROR while trying to remove '
+                                     'temporary file: ' + str(e))
+
         # Tell main window that there was an error:
         self.transmit_cmd('ERROR PAUSE')
 
     def send_status_report(self):
         """Compile a status report and send it via e-mail."""
-        attachment_list = []
-        temp_file_list = []
-        missing_list = []
+        attachment_list = []  # files to be attached
+        temp_file_list = []   # files to be deleted after email is sent
+        missing_list = []     # files to be attached that could not be found
         tile_list = json.loads(self.cfg['monitoring']['watch_tiles'])
         ov_list = json.loads(self.cfg['monitoring']['watch_ov'])
         if self.cfg['monitoring']['send_logfile'] == 'True':
@@ -1068,6 +1148,7 @@ class Stack():
             self.transmit_cmd('GET CURRENT LOG' + self.recent_log_filename)
             sleep(0.5) # wait for file be written.
             attachment_list.append(self.recent_log_filename)
+            temp_file_list.append(self.recent_log_filename)
         if self.cfg['monitoring']['send_additional_logs'] == 'True':
             attachment_list.append(self.debris_log_filename)
             attachment_list.append(self.error_log_filename)
@@ -1163,19 +1244,24 @@ class Stack():
             for file in missing_list:
                 msg_text += (file + '\n')
 
-        success = utils.send_email(self.smtp_server,
-                                   self.email_account,
-                                   self.user_email_addresses,
-                                   msg_subject,
-                                   msg_text,
-                                   attachment_list)
+        success, error_msg = utils.send_email(self.smtp_server,
+                                              self.email_account,
+                                              self.user_email_addresses,
+                                              msg_subject,
+                                              msg_text,
+                                              attachment_list)
         if success:
             self.add_to_main_log('CTRL: Status report e-mail sent.')
         else:
-            self.add_to_main_log('CTRL: ERROR sending status report e-mail.')
+            self.add_to_main_log('CTRL: ERROR sending status report e-mail: '
+                                 + error_msg)
         # clean up:
         for file in temp_file_list:
-            os.remove(file)
+            try:
+                os.remove(file)
+            except Exception as e:
+                self.add_to_main_log('CTRL: ERROR while trying to remove '
+                                     'temporary file: ' + str(e))
         self.report_requested = False
 
     def perform_cutting_sequence(self):
@@ -1412,23 +1498,32 @@ class Stack():
         return ov_save_path, ov_accepted
 
     def save_debris_image(self, ov_file_name, sweep_counter):
-        debris_save_path = (self.base_dir
-                            + '\\overviews\\debris\\'
-                            + ov_file_name[ov_file_name.rfind('\\') + 1:-4]
-                            + '_' + str(sweep_counter) + '.tif')
-        # Copy current ov_file, TODO: error handling
-        shutil.copy(ov_file_name, debris_save_path)
-
+        debris_save_path = os.path.join(
+            self.base_dir, 'overviews', 'debris',
+            ov_file_name[ov_file_name.rfind('\\') + 1:-4]
+            + '_' + str(sweep_counter) + '.tif')
+        # Copy current ov_file to folder 'debris'
+        try:
+            shutil.copy(ov_file_name, debris_save_path)
+        except Exception as e:
+            self.add_to_main_log(
+                'CTRL: Warning: Unable to save rejected OV image, ' + str(e))
         if self.use_mirror_drive:
             self.mirror_files([debris_save_path])
 
     def save_rejected_tile(self, tile_save_path, fail_counter):
-        rejected_tile_save_path = (
-            self.base_dir + '\\tiles\\rejected\\'
-            + tile_save_path[tile_save_path.rfind('\\') + 1:-4]
+        rejected_tile_save_path = os.path.join(
+            self.base_dir, 'tiles', 'rejected',
+            tile_save_path[tile_save_path.rfind('\\') + 1:-4]
             + '_' + str(fail_counter) + '.tif')
-        # Move tile to folder 'rejected', TODO: error handling
-        shutil.copy(tile_save_path, rejected_tile_save_path)
+        # Copy tile to folder 'rejected'
+        try:
+            shutil.copy(tile_save_path, rejected_tile_save_path)
+        except Exception as e:
+            self.add_to_main_log(
+                'CTRL: Warning: Unable to save rejected tile image, ' + str(e))
+        if self.use_mirror_drive:
+            self.mirror_files([rejected_tile_save_path])
 
     def remove_debris(self):
         """Try to remove detected debris by sweeping the surface. Microtome must
@@ -1466,11 +1561,11 @@ class Stack():
         tile_selected = False  # meaning if False: tile discarded
         tile_skipped = False   # meaning if True: tile already acquired
 
-        if self.cfg['sys']['magc_mode'] == 'True':
-            autostig_delay = int(self.cfg['autofocus']['autostig_delay'])
-            self.autofocus_stig_current_slice = (
-                self.autofocus_stig_current_slice[0],
-                0 == (grid_number % autostig_delay))
+        # if self.cfg['sys']['magc_mode'] == 'True':
+            # autostig_delay = int(self.cfg['autofocus']['autostig_delay'])
+            # self.autofocus_stig_current_slice = (
+                # self.autofocus_stig_current_slice[0],
+                # 0 == (grid_number % autostig_delay))
 
         # Criterion whether to retake image:
         retake_img = (
@@ -1645,6 +1740,20 @@ class Stack():
         return (tile_img, relative_save_path, save_path,
                 tile_accepted, tile_skipped, tile_selected)
 
+    def handle_frozen_frame(self, grid_number):
+        """Workaround when a frame in the grid specified by grid_number is
+        frozen in SmartSEM and no further frames can be acquired ('frozen frame
+        error'): Try to 'unfreeze' by switching to a different store resolution
+        and then back to the grid's original store resolution."""
+        target_store_res = self.gm.get_tile_size_selector(grid_number)
+        if target_store_res == 0:
+            self.sem.set_frame_size(1)
+        else:
+            self.sem.set_frame_size(0)
+        sleep(1)
+        # Back to previous store resolution:
+        self.sem.set_frame_size(target_store_res)
+
     def acquire_grid(self, grid_number):
         """Acquire all active tiles of grid specified by grid_number"""
 
@@ -1664,6 +1773,15 @@ class Stack():
             self.add_to_main_log(
                 'CTRL: Starting acquisition of active '
                 'tiles in grid %d' % grid_number)
+
+            if self.cfg['sys']['magc_mode'] == 'True':
+                grid_centre_d = self.gm.get_grid_centre_d(grid_number)
+                self.cs.set_mv_centre_d(grid_centre_d)
+                self.transmit_cmd('DRAW MV')
+                self.transmit_cmd('SET SECTION STATE GUI-'
+                    + str(grid_number)
+                    + '-acquiring')
+
             # Switch to specified settings of the current grid
             self.sem.apply_frame_settings(
                 self.gm.get_tile_size_selector(grid_number),
@@ -1698,20 +1816,21 @@ class Stack():
                 # Enable scan rotation
                 self.sem.set_scan_rotation(theta)
 
-            # ===================== Grid acquisition loop =========================
+            # ===================== Tile acquisition loop =========================
             for tile_number in active_tiles:
                 fail_counter = 0
                 tile_accepted = False
                 tile_id = str(grid_number) + '.' + str(tile_number)
                 # Individual WD/stig adjustment for tile, if necessary:
-                if adjust_wd_stig_for_each_tile:
+                if (adjust_wd_stig_for_each_tile
+                and self.cfg['sys']['magc_mode'] == 'False'):
                     new_wd = self.gm.get_tile_wd(grid_number, tile_number)
                     new_stig_xy = self.gm.get_tile_stig_xy(grid_number, tile_number)
                     self.sem.set_wd(new_wd)
                     self.sem.set_stig_xy(*new_stig_xy)
                     self.log_wd_stig(new_wd, new_stig_xy[0], new_stig_xy[1])
                 # Acquire the current tile, up to three attempts:
-                while not tile_accepted and fail_counter < 3:
+                while not tile_accepted and fail_counter < 2:
                     (tile_img, relative_save_path, save_path,
                      tile_accepted, tile_skipped, tile_selected) = (
                         self.acquire_tile(grid_number, tile_number))
@@ -1721,14 +1840,22 @@ class Stack():
                         self.save_rejected_tile(save_path, fail_counter)
                         # Try again, problem may disappear:
                         fail_counter += 1
-                        if fail_counter == 3:
-                            # Pause after third failed attempt
+                        if fail_counter == 2:
+                            # Pause after second failed attempt
                             self.pause_acquisition(1)
                         else:
                             # Remove the file to avoid overwrite error:
-                            os.remove(save_path)
+                            try:
+                                os.remove(save_path)
+                            except Exception as e:
+                                self.add_to_main_log(
+                                    'CTRL: Tile image file could not be '
+                                    'removed: ' + str(e))
+                            # Try to solve frozen frame problem:
+                            # if self.error_state == 304:
+                            #    self.handle_frozen_frame(grid_number)
                             self.add_to_main_log(
-                            'CTRL: Trying again to image tile.')
+                                'CTRL: Trying again to image tile.')
                             # Reset error state:
                             self.error_state = 0
                     elif self.error_state > 0:
@@ -1761,6 +1888,7 @@ class Stack():
                         self.af.crop_tile_for_heuristic_af(
                             tile_img, tile_key)
                         self.heuristic_af_queue.append(tile_key)
+                        del tile_img
 
                 elif (not tile_selected
                       and not tile_skipped
@@ -1777,7 +1905,14 @@ class Stack():
                 if self.pause_state == 1:
                     self.save_interruption_point(grid_number, tile_number)
                     break
-            # ================== End of grid acquisition loop =====================
+            # ================== End of tile acquisition loop =====================
+
+            cycle_time_diff = (self.sem.additional_cycle_time
+                               - self.sem.DEFAULT_DELAY)
+            if cycle_time_diff > 0.15:
+                self.add_to_main_log(
+                    f'CTRL: Warning: Grid {grid_number} cycle time was '
+                    f'{cycle_time_diff:.2f} s longer than expected.')
 
             if theta > 0:
                 # Disable scan rotation
@@ -1791,6 +1926,13 @@ class Stack():
                 self.tiles_acquired = []
                 self.cfg['acq']['tiles_acquired'] = '[]'
 
+                if self.cfg['sys']['magc_mode'] == 'True':
+                    grid_centre_d = self.gm.get_grid_centre_d(grid_number)
+                    self.cs.set_mv_centre_d(grid_centre_d)
+                    self.transmit_cmd('DRAW MV')
+                    self.transmit_cmd('SET SECTION STATE GUI-'
+                        + str(grid_number)
+                        + '-acquired')
 
     def register_accepted_tile(self, save_path, grid_number, tile_number,
                                tile_width, tile_height):
@@ -1920,17 +2062,17 @@ class Stack():
         autofocus_tiles = self.af.get_ref_tiles_in_grid(grid_number)
         active_tiles = self.gm.get_active_tiles(grid_number)
         # Perform Zeiss autofocus for non-active autofocus tiles:
-        for tile in autofocus_tiles:
-            if tile not in active_tiles:
+        for tile_number in autofocus_tiles:
+            if tile_number not in active_tiles:
                 do_move = True
                 self.perform_zeiss_autofocus(
                     *self.autofocus_stig_current_slice,
-                    do_move, grid_number, tile)
+                    do_move, grid_number, tile_number)
                 if self.error_state != 0 or self.pause_state == 1:
                     # Immediately pause and save interruption info
                     if not self.acq_paused:
                         self.pause_acquisition(1)
-                    self.save_interruption_point(grid_number, t)
+                    self.save_interruption_point(grid_number, tile_number)
                     break
 
     def perform_heuristic_autofocus(self, tile_key):

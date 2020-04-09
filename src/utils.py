@@ -3,7 +3,7 @@
 # ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2016-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2018-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
@@ -20,8 +20,12 @@ import socket
 import requests
 
 import numpy as np
+import cv2
+from skimage.transform import ProjectiveTransform
+from skimage.measure import ransac
 
 from time import sleep
+from serial.tools import list_ports
 
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
@@ -185,10 +189,9 @@ def send_email(smtp_server, sender, recipients, subject, main_text, files=[]):
         #mail_server = smtplib.SMTP_SSL(smtp_server)
         mail_server.sendmail(sender, recipients, msg.as_string())
         mail_server.quit()
-        return True
-    except (socket.error, smtplib.SMTPException) as exc:
-        print(exc)
-        return False
+        return True, None
+    except Exception as e:
+        return False, str(e)
 
 def get_remote_command(imap_server, email_account, email_pw, allowed_senders):
     try:
@@ -297,6 +300,7 @@ def get_indexes_from_user_string(userString):
         splitIndexes = [int(splitIndex) for splitIndex in userString.split('-')
                         if splitIndex.isdigit()]
         if len(splitIndexes) == 2 or len(splitIndexes) == 3:
+            splitIndexes[-1] = splitIndexes[-1] + 1 # inclusive is more natural (2-5 = 2,3,4,5)
             return range(*splitIndexes)
     elif userString.isdigit():
         return [int(userString)]
@@ -307,6 +311,9 @@ def get_days_hours_minutes(duration_in_seconds):
     hours, minutes = divmod(minutes, 60)
     days, hours = divmod(hours, 24)
     return days, hours, minutes
+
+def get_serial_ports():
+    return [port.device for port in list_ports.comports()]
 
 # ----------------- Functions for geometric transforms (MagC) ------------------
 def affineT(x_in, y_in, x_out, y_out):
@@ -370,3 +377,90 @@ def getRigidRotation(coefs):
 def getRigidScaling(coefs):
     return coefs[1]
 # -------------- End of functions for geometric transforms (MagC) --------------
+
+# ----------------- MagC utils ------------------
+def sectionsYAML_to_sections_landmarks(sectionsYAML):
+    sections = {}
+    landmarks = {}
+    for sectionId, sectionXYA in sectionsYAML['tissue'].items():
+        sections[int(sectionId)] = {
+        'center': [float(a) for a in sectionXYA[:2]],
+        'angle': float( (-sectionXYA[2] + 90) % 360)}
+    if 'tissueROI' in sectionsYAML:
+        tissueROIIndex = int(list(sectionsYAML['tissueROI'].keys())[0])
+        sections['tissueROI-' + str(tissueROIIndex)] = {
+        'center': sectionsYAML['tissueROI'][tissueROIIndex]}
+    if 'landmarks' in sectionsYAML:
+        for landmarkId, landmarkXY in sectionsYAML['landmarks'].items():
+            landmarks[int(landmarkId)] = {
+            'source': landmarkXY}
+    return sections, landmarks
+
+# # def sections_landmarks_to_sectionsYAML(sections, landmarks):
+    # # sectionsYAML = {}
+    # # sectionsYAML['landmarks'] = {}
+    # # sectionsYAML['tissue'] = {}
+    # # sectionsYAML['magnet'] = {}
+    # # sectionsYAML['tissueROI'] = {}
+    # # sectionsYAML['sourceROIsFromSbemimage'] = {}
+
+    # # for landmarkId, landmarkDic in enumerate(landmarks):
+        # # sectionsYAML['landmark'][landmarkId] = landmarkDic['source']
+    # # for tissueId, tissueDic in enumerate(sections):
+        # # sectionsYAML['tissue'][tissueId] = [
+            # # tissueDic['center'][0],
+            # # tissueDic['center'][1],
+            # # (-tissueDic['angle'] - 90) % 360]
+
+# -------------- End of MagC utils --------------
+
+
+class TranslationTransform(ProjectiveTransform):
+    def estimate(self, src, dst):
+        try:
+            T = np.mean(dst, axis=0) - np.mean(src, axis=0)
+        except ZeroDivisionError:
+            print('ZeroDivisionError encountered. Results will be invalid!')
+            self.params = np.nan * np.empty((3, 3))
+            return False
+        H = np.eye(3, 3)
+        H[:2, -1] = T
+        H[2, 2] = 1
+        self.params = H
+        return True
+
+
+def align_images_cv2(src: np.ndarray, target: np.ndarray) -> np.ndarray:
+    MAX_FEATURES = 500
+    GOOD_MATCH_PERCENT = 0.25
+    # Detect ORB features and compute descriptors.
+    orb = cv2.ORB_create(MAX_FEATURES, nlevels=10, patchSize=60)
+
+    kp1, des1 = orb.detectAndCompute(src, None)
+    kp2, des2 = orb.detectAndCompute(target, None)
+
+    # Match features.
+    # matcher = cv2.BFMatcher(cv2.NORM_HAMMING2)
+    matcher = cv2.DescriptorMatcher_create(cv2.DESCRIPTOR_MATCHER_BRUTEFORCE_HAMMING)
+    matches = matcher.match(des1, des2, None)
+    # Sort matches by score
+    matches.sort(key=lambda x: x.distance, reverse=False)
+
+    # Remove not so good matches
+    numGoodMatches = int(len(matches) * GOOD_MATCH_PERCENT)
+    matches = matches[:numGoodMatches]
+    # Extract location of good matches
+    points1 = np.zeros((len(matches), 2), dtype=np.float32)
+    points2 = np.zeros((len(matches), 2), dtype=np.float32)
+
+    for i, match in enumerate(matches):
+        points1[i, :] = kp1[match.queryIdx].pt
+        points2[i, :] = kp2[match.trainIdx].pt
+
+    # robustly estimate affine transform model with RANSAC
+    transf = TranslationTransform  # AffineTransform
+    model_robust, inliers = ransac((points1, points2), transf, min_samples=5,
+                                   residual_threshold=2, max_trials=10000, random_state=0)
+    affine_m = model_robust.params[:2]
+    # displacement from im1 to im2
+    return affine_m[:, -1]  # only return translation vector

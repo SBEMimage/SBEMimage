@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 
-#==============================================================================
+# ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2016-2018 Benjamin Titze,
-#   Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2018-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
-#==============================================================================
+# ==============================================================================
 
 """This module maintains the internal coordinate systems and reference points
    and provides conversion functionality.
@@ -61,6 +60,7 @@ class CoordinateSystem():
         rot_y = float(self.cfg[device]['stage_rotation_angle_y'])
         self.scale_x = float(self.cfg[device]['stage_scale_factor_x'])
         self.scale_y = float(self.cfg[device]['stage_scale_factor_y'])
+        print(f'Using device {device} with:', rot_x, rot_y, self.scale_x, self.scale_y)
         angle_diff = rot_x - rot_y
         if cos(angle_diff) == 0:
             raise ValueError('Illegal values of the stage rotation angles. '

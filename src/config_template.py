@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 
-#==============================================================================
+# ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2016-2018 Benjamin Titze,
-#   Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2018-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
-#==============================================================================
+# ==============================================================================
 
 """This module updates older or non-compliant configuration files to match the
    most recent default.ini and system.cfg.
@@ -17,11 +16,12 @@
 # deleted from the default configuration files
 CFG_TEMPLATE_FILE = '..\\cfg\\default.ini'
 CFG_NUMBER_SECTIONS_CORE = 10
-CFG_NUMBER_KEYS_CORE = 194
+CFG_NUMBER_KEYS_CORE = 199
 
 CFG_NUMBER_SECTIONS_MAGC = 1 # magc
-CFG_NUMBER_KEYS_MAGC = 7 # [sys]:magc_mode,
-                    # [magc]:source_sections,selected_sections,
+CFG_NUMBER_KEYS_MAGC = 9 # [sys]:magc_mode,
+                    # [magc]:sections_path, ROI_mode,
+                    # source_sections,selected_sections,
                     # checked_sections, wafer_calibrated,
                     # landmarks, wafer_transform,
 
@@ -30,7 +30,7 @@ CFG_NUMBER_KEYS = CFG_NUMBER_KEYS_CORE + CFG_NUMBER_KEYS_MAGC
 
 SYSCFG_TEMPLATE_FILE = '..\\cfg\\system.cfg'
 SYSCFG_NUMBER_SECTIONS = 7
-SYSCFG_NUMBER_KEYS = 24
+SYSCFG_NUMBER_KEYS = 28
 
 import os
 from configparser import ConfigParser
@@ -85,7 +85,9 @@ def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):
             for section in syscfg_template.sections():
                 for key in syscfg_template[section]:
                     if current_syscfg.has_option(section, key):
-                        syscfg_template[section][key] = current_syscfg[section][key]
+                        if key != 'recognized':
+                            syscfg_template[section][key] = (
+                                current_syscfg[section][key])
                     else:
                         syscfg_changed = True
 
