@@ -669,6 +669,14 @@ class GridManager:
         wd_gradient_params = json.loads(
             self.cfg['grids']['wd_gradient_params'])
 
+        # Backward compatibility for loading older config files
+        if len(grid_active) < self.number_grids:
+            grid_active = [1] * self.number_grids
+        if len(wd_stig_xy) < self.number_grids:
+            wd_stig_xy = [[0, 0, 0]] * self.number_grids
+        if len(wd_gradient_params) < self.number_grids:
+            wd_gradient_params = [[0, 0, 0]] * self.number_grids
+
         # Create a list of grid objects with the parameters read from
         # the user configuration.
         self.__grids = []
@@ -811,7 +819,7 @@ class GridManager:
             frame_size_selector = 3
             overlap = 150
         # Set grid colour
-        if self.cfg['sys']['magc_mode'].lower() != 'true':
+        if self.sem.magc_mode:
             # Cycle through available colours.
             display_colour = (
                 (self.__grids[new_grid_index - 1].display_colour + 1) % 10)
@@ -911,13 +919,13 @@ class GridManager:
         else:
             return self.__grids[grid_index].use_wd_gradient
 
-    def save_tile_positions_to_disk(self, timestamp):
+    def save_tile_positions_to_disk(self, base_dir, timestamp):
         """Save the current grid setup in a text file in the meta\logs folder.
         This assumes that base directory and logs subdirectory have already
-        been created."""
+        been created.
+        """
         file_name = os.path.join(
-            self.cfg['acq']['base_dir'],
-            'meta', 'logs', 'tilepos_' + timestamp + '.txt')
+            base_dir, 'meta', 'logs', 'tilepos_' + timestamp + '.txt')
         with open(file_name, 'w') as grid_map_file:
             for g in range(self.number_grids):
                 for t in range(self.__grids[g].number_tiles):

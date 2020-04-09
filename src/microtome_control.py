@@ -161,6 +161,7 @@ class Microtome:
             self.oscillation_frequency))
         self.cfg['microtome']['knife_osc_amplitude'] = str(int(
             self.oscillation_amplitude))
+        self.cfg['microtome']['last_known_z'] = str(self.last_known_z)
         # Save full cut duration in both cfg and syscfg
         self.cfg['microtome']['full_cut_duration'] = str(self.full_cut_duration)
         self.syscfg['knife']['full_cut_duration'] = str(self.full_cut_duration)
@@ -545,7 +546,6 @@ class Microtome_3View(Microtome):
                 self.error_state = 206
             self.prev_known_z = self.last_known_z
             self.last_known_z = z
-            self.cfg['microtome']['last_known_z'] = str(z)
         return z
 
     def move_stage_to_z(self, z, safe_mode=True):
@@ -567,7 +567,6 @@ class Microtome_3View(Microtome):
                 # Everything ok! Accept new position as last known position
                 self.prev_known_z = self.last_known_z
                 self.last_known_z = z
-                self.cfg['microtome']['last_known_z'] = str(z)
             elif os.path.isfile('..\\dm\\DMcom.err') and self.error_state == 0:
                 # There was an error during the move!
                 self.error_state = 202

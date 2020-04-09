@@ -75,20 +75,26 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, cs,
         viewport_queue.put('REFRESH OV FAILURE')
         viewport_trigger.s.emit()
 
-def acquire_stub_ov(base_dir, slice_counter, sem, stage,
-                    ovm, stub_dlg_trigger, stub_dlg_queue, abort_queue):
-    """Acquire a large overview image of user-defined size that can cover
-       the entire stub.
+def acquire_stub_ov(sem, stage, ovm, acq,
+                    stub_dlg_trigger, stub_dlg_queue, abort_queue):
+    """Acquire a large tiled overview image of user-defined size that covers a
+    part of or the entire stub (SEM sample holder).
+
+    This function, which acquires the tiles one by one and combines them into
+    one large image, is called in a thread from StubOVDlg.
     """
-    success = True
-    aborted = False
-    # Update current xy position:
+    success = True      # Set to False if an error occurs during acq process
+    aborted = False     # Set to True when user clicks the 'Abort' button
+
+    # Update current XY position and display it in Main Controls GUI
     stage.get_xy()
     stub_dlg_queue.put('UPDATE XY')
     stub_dlg_trigger.s.emit()
-    # Make sure DM script uses the correct motor speed calibration
-    # (This information is lost when script crashes.)
+
     if stage.use_microtome:
+        # When using the microtome stage, make sure the DigitalMicrograph script
+        # uses the correct motor speeds (this information is lost when script
+        # crashes.)
         success = stage.update_motor_speed()
 
     if success:
@@ -99,72 +105,89 @@ def acquire_stub_ov(base_dir, slice_counter, sem, stage,
                                  ovm['stub'].pixel_size,
                                  ovm['stub'].dwell_time)
 
-        rows, cols = ovm['stub'].size
-        image_number = rows * cols
         image_counter = 0
+        number_cols = ovm['stub'].size[1]
         tile_width = ovm['stub'].tile_width_p()
         tile_height = ovm['stub'].tile_height_p()
         overlap = ovm['stub'].overlap
+        # Activate all tiles, which will automatically sort active tiles to
+        # minimize motor move durations
+        ovm['stub'].activate_all_tiles()
 
-        for row in range(rows):
-            for col in range(cols):
-                tile_index = row * cols + col
-                if not abort_queue.empty():
-                    if abort_queue.get() == 'ABORT':
-                        stub_dlg_queue.put('STUB OV ABORT')
-                        stub_dlg_trigger.s.emit()
-                        success = False
-                        aborted = True
-                        break
-                target_x, target_y = ovm['stub'][tile_index].sx_sy
-                stage.move_to_xy((target_x, target_y))
-
-                # Check to see if error ocurred:
-                if stage.error_state > 0:
+        for tile_index in ovm['stub'].active_tiles:
+            if not abort_queue.empty():
+                # Check if user has clicked 'Abort' button in dialog GUI
+                if abort_queue.get() == 'ABORT':
+                    stub_dlg_queue.put('STUB OV ABORT')
+                    stub_dlg_trigger.s.emit()
                     success = False
+                    aborted = True
+                    break
+            target_x, target_y = ovm['stub'][tile_index].sx_sy
+            # Only acquire tile if it is within stage limits
+            if stage.pos_within_limits((target_x, target_y)):
+                stage.move_to_xy((target_x, target_y))
+                if stage.error_state > 0:
                     stage.reset_error_state()
+                    # Try once more
+                    sleep(3)
+                    stage.move_to_xy((target_x, target_y))
+                    if stage.error_state > 0:
+                        success = False
+                        stage.reset_error_state()
                 else:
-                    # Show new stage coordinates in main control window:
+                    # Show new stage coordinates in main control window
                     stub_dlg_queue.put('UPDATE XY')
                     stub_dlg_trigger.s.emit()
                     save_path = os.path.join(
-                        base_dir, 'workspace',
-                        'stub' + str(col) + str(row) + '.bmp')
+                        acq.base_dir, 'workspace',
+                        'stub' + str(tile_index).zfill(2) + '.bmp')
                     success = sem.acquire_frame(save_path)
+                    sleep(0.5)
                     if success:
+                        # Paste tile into full_stub_image
+                        x = tile_index % number_cols
+                        y = tile_index // number_cols
                         current_tile = Image.open(save_path)
-                        position = (col * (tile_width - overlap),
-                                    row * (tile_height - overlap))
+                        position = (x * (tile_width - overlap),
+                                    y * (tile_height - overlap))
                         full_stub_image.paste(current_tile, position)
-                        image_counter += 1
-                        percentage_done = int(image_counter / image_number * 100)
-                        stub_dlg_queue.put(
-                            'UPDATE PROGRESS' + str(percentage_done))
-                        stub_dlg_trigger.s.emit()
-                    if not success:
-                        break
+                    else:
+                        sem.reset_error_state()
 
-        # Write full mosaic to disk unless acq aborted:
+            if not success:
+                break
+
+            # Update progress bar in dialog window
+            image_counter += 1
+            percentage_done = int(
+                image_counter / ovm['stub'].number_tiles * 100)
+            stub_dlg_queue.put(
+                'UPDATE PROGRESS' + str(percentage_done))
+            stub_dlg_trigger.s.emit()
+
+        # Write full stub over image to disk unless acq aborted
         if not aborted:
-            if not os.path.exists(os.path.join(base_dir, 'overviews', 'stub')):
-                os.makedirs(os.path.join(base_dir, 'overviews', 'stub'))
-            base_dir_name = base_dir[base_dir.rfind('\\') + 1:].translate(
-                {ord(c): None for c in ' '})
+            stub_dir = os.path.join(acq.base_dir, 'overviews', 'stub')
+            if not os.path.exists(stub_dir):
+                os.makedirs(stub_dir)
             timestamp = str(datetime.datetime.now())
-            # Remove some characters from timestap to get valid file name:
+            # Remove some characters from timestap to get a valid file name
             timestamp = timestamp[:19].translate({ord(c): None for c in ' :-.'})
             stub_overview_file_name = os.path.join(
-                base_dir, 'overviews', 'stub',
-                base_dir_name + '_stubOV_s' + str(slice_counter).zfill(5)
+                acq.base_dir, 'overviews', 'stub',
+                acq.stack_name + '_stubOV_s'
+                + str(acq.slice_counter).zfill(5)
                 + '_' + timestamp + '.png')
             full_stub_image.save(stub_overview_file_name)
             ovm['stub'].vp_file_path = stub_overview_file_name
 
     if success:
-        # Signal
+        # Signal to dialog window that stub OV acquisition was successful
         stub_dlg_queue.put('STUB OV SUCCESS')
         stub_dlg_trigger.s.emit()
     elif not aborted:
+        # Signal to dialog window that stub OV acquisition failed
         stub_dlg_queue.put('STUB OV FAILURE')
         stub_dlg_trigger.s.emit()
 
