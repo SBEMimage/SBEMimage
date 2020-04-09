@@ -33,7 +33,8 @@ SYSCFG_NUMBER_KEYS = 28
 def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):
     """Go through all sections and keys of the template configuration files and
     check whether entries are present in configuration files to be processed.
-    If an entry cannot be found, use the entry from the template."""
+    If an entry cannot be found, use the entry from the template.
+    """
 
     cfg_template = None
     cfg_load_success = True
@@ -76,6 +77,10 @@ def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):
 
         if (cfg_load_success and syscfg_load_success
                 and cfg_valid and syscfg_valid):
+            # If there are obsolete key names, update them and preserve
+            # the entries.
+            cfg_changed, syscfg_changed = (
+                update_key_names(current_cfg, current_syscfg))
             # Compare default config to current user config.
             for section in cfg_template.sections():
                 # Go through all sections and keys.
@@ -116,3 +121,42 @@ def check_number_of_entries(cfg, type=0):
     else:
         return (section_count == SYSCFG_NUMBER_SECTIONS
                 and key_count == SYSCFG_NUMBER_KEYS)
+
+
+def update_key_names(cfg, syscfg):
+    """Ensure backward compatibility for several key names."""
+    cfg_changed, syscfg_changed = False, False
+    if cfg.has_option('grids', 'wd_stig_data'):
+        cfg['grids']['wd_stig_params'] = cfg['grids']['wd_stig_data']
+        cfg_changed = True
+    if cfg.has_option('grids', 'tile_size_px_py'):
+        cfg['grids']['tile_size'] = cfg['grids']['tile_size_px_py']
+        cfg_changed = True
+    if cfg.has_option('grids', 'use_adaptive_focus'):
+        cfg['grids']['use_wd_gradient'] = (
+            cfg['grids']['use_adaptive_focus'])
+        cfg_changed = True
+    if cfg.has_option('grids', 'adaptive_focus_tiles'):
+        cfg['grids']['wd_gradient_ref_tiles'] = (
+            cfg['grids']['adaptive_focus_tiles'])
+        cfg_changed = True
+    if cfg.has_option('overviews', 'ov_size_px_py'):
+        cfg['overviews']['ov_size'] = cfg['overviews']['ov_size_px_py']
+        cfg_changed = True
+    if syscfg.has_option('stage', 'microtome_motor_limits' ):
+        syscfg['stage']['microtome_stage_limits'] = (
+            syscfg['stage']['microtome_motor_limits'])
+        syscfg_changed = True
+    if syscfg.has_option('stage', 'sem_motor_limits' ):
+        syscfg['stage']['sem_stage_limits'] = (
+            syscfg['stage']['sem_motor_limits'])
+        syscfg_changed = True
+    if syscfg.has_option('stage', 'microtome_calibration_data' ):
+        syscfg['stage']['microtome_calibration_params'] = (
+            syscfg['stage']['microtome_calibration_data'])
+        syscfg_changed = True
+    if syscfg.has_option('stage', 'sem_calibration_data' ):
+        syscfg['stage']['sem_calibration_params'] = (
+            syscfg['stage']['sem_calibration_data'])
+        syscfg_changed = True
+    return cfg_changed, syscfg_changed

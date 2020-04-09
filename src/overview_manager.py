@@ -256,6 +256,12 @@ class OverviewManager:
         debris_detection_area = json.loads(
             self.cfg['debris']['detection_area'])
 
+        # Backward compatibility for loading older config files
+        if len(ov_active) < self.number_ov:
+            ov_active = [1] * self.number_ov
+        if len(ov_wd_stig_xy) < self.number_ov:
+            ov_wd_stig_xy = [[0, 0, 0]] * self.number_ov
+
         # Create OV objects
         self.__overviews = []
         for i in range(self.number_ov):

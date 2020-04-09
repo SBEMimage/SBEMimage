@@ -669,6 +669,14 @@ class GridManager:
         wd_gradient_params = json.loads(
             self.cfg['grids']['wd_gradient_params'])
 
+        # Backward compatibility for loading older config files
+        if len(grid_active) < self.number_grids:
+            grid_active = [1] * self.number_grids
+        if len(wd_stig_xy) < self.number_grids:
+            wd_stig_xy = [[0, 0, 0]] * self.number_grids
+        if len(wd_gradient_params) < self.number_grids:
+            wd_gradient_params = [[0, 0, 0]] * self.number_grids
+
         # Create a list of grid objects with the parameters read from
         # the user configuration.
         self.__grids = []
