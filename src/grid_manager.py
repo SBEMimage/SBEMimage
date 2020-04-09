@@ -1133,6 +1133,43 @@ class GridManager(object):
     def delete_all_but_last_grid(self):
         for grid_number in range(self.number_grids - 1):
             self.delete_grid()
+            
+    def update_source_ROIs_from_grids(self):
+        if self.cfg['magc']['wafer_calibrated'] == 'True':
+            waferTransform = np.array(json.loads(self.cfg['magc']['wafer_transform']))
+            waferTransformInverse = utils.invertAffineT(waferTransform)
+            transform_angle = -utils.getAffineRotation(waferTransform)
+        
+        sections_path = self.cfg['magc']['sections_path']
+        with open(sections_path, 'r') as f:
+            sections_yaml = yaml.full_load(f)
+        sections_yaml['sourceROIsUpdatedFromSBEMimage'] = {}
+
+        for grid_number in range(self.number_grids):
+            target_ROI = self.get_grid_center_s(grid_number)
+            target_ROI_angle = self.get_rotation(grid_number)
+
+            if self.cfg['magc']['wafer_calibrated'] == 'True':
+                # transform back the grid coordinates in non-transformed coordinates
+                result = utils.applyAffineT(
+                    [target_ROI[0]],
+                    [target_ROI[1]],
+                    waferTransformInverse)
+                source_ROI = [result[0][0], result[1][0]]
+                source_ROI_angle = (-90 + target_ROI_angle - transform_angle) % 360
+            else:
+                source_ROI = target_ROI
+                source_ROI_angle = (-90 + target_ROI_angle) % 360
+            sections_yaml['sourceROIsUpdatedFromSBEMimage'][grid_number] = [
+                float(source_ROI[0]),
+                float(source_ROI[1]),
+                float(source_ROI_angle)]
+            
+        with open(sections_path, 'w') as f:
+            yaml.dump(sections_yaml,
+                f, 
+                default_flow_style=False,
+                sort_keys=False)
 
     def update_source_ROIs_from_grids(self):
         if self.cfg['magc']['wafer_calibrated'] == 'True':
