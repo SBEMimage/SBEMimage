@@ -45,7 +45,7 @@ from sem_control import SEM_SmartSEM
 from microtome_control import Microtome_3View, Microtome_katana
 from stage import Stage
 from plasma_cleaner import PlasmaCleaner
-from stack_acquisition import Stack
+from acquisition import Acquisition
 from notifications import Notifications
 from overview_manager import OverviewManager
 from imported_img import ImportedImages
@@ -243,11 +243,11 @@ class MainControls(QMainWindow):
         self.notifications = Notifications(self.cfg, self.syscfg,
                                            self.trigger, self.queue)
 
-        self.stack = Stack(self.cfg, self.syscfg,
-                           self.sem, self.microtome, self.stage,
-                           self.ovm, self.gm, self.cs, self.img_inspector,
-                           self.autofocus, self.notifications,
-                           self.trigger, self.queue)
+        self.acq = Acquisition(self.cfg, self.syscfg,
+                               self.sem, self.microtome, self.stage,
+                               self.ovm, self.gm, self.cs, self.img_inspector,
+                               self.autofocus, self.notifications,
+                               self.trigger, self.queue)
 
         # Check if plasma cleaner is installed and load its COM port.
         self.cfg['sys']['plc_installed'] = self.syscfg['plc']['installed']
@@ -292,7 +292,7 @@ class MainControls(QMainWindow):
         # Initialize viewport window
         self.viewport = Viewport(self.cfg, self.sem, self.stage, self.cs,
                                  self.ovm, self.gm, self.imported,
-                                 self.autofocus, self.stack,
+                                 self.autofocus, self.acq,
                                  self.trigger, self.queue)
         self.viewport.show()
 
@@ -309,7 +309,7 @@ class MainControls(QMainWindow):
             self.actionLeaveSimulationMode.setEnabled(False)
 
         # Check if there is a previous acquisition to be be restarted.
-        if self.stack.acq_paused:
+        if self.acq.acq_paused:
             self.show_stack_progress()
             self.pushButton_startAcq.setText('CONTINUE')
             self.pushButton_resetAcq.setEnabled(True)
@@ -474,19 +474,19 @@ class MainControls(QMainWindow):
             self.debris_detection_test)
         self.pushButton_testCustom.clicked.connect(self.custom_test)
         # Checkboxes:
-        self.checkBox_useMonitoring.setChecked(self.stack.use_email_monitoring)
-        self.checkBox_takeOV.setChecked(self.stack.take_overviews)
+        self.checkBox_useMonitoring.setChecked(self.acq.use_email_monitoring)
+        self.checkBox_takeOV.setChecked(self.acq.take_overviews)
         if not self.checkBox_takeOV.isChecked():
             # Deactivate debris detection option when overviews deactivated:
-            self.stack.use_debris_detection = False
+            self.acq.use_debris_detection = False
             self.checkBox_useDebrisDetection.setChecked(False)
             self.checkBox_useDebrisDetection.setEnabled(False)
         self.checkBox_useDebrisDetection.setChecked(
-            self.stack.use_debris_detection)
-        self.checkBox_askUser.setChecked(self.stack.ask_user_mode)
-        self.checkBox_mirrorDrive.setChecked(self.stack.use_mirror_drive)
-        self.checkBox_monitorTiles.setChecked(self.stack.monitor_images)
-        self.checkBox_useAutofocus.setChecked(self.stack.use_autofocus)
+            self.acq.use_debris_detection)
+        self.checkBox_askUser.setChecked(self.acq.ask_user_mode)
+        self.checkBox_mirrorDrive.setChecked(self.acq.use_mirror_drive)
+        self.checkBox_monitorTiles.setChecked(self.acq.monitor_images)
+        self.checkBox_useAutofocus.setChecked(self.acq.use_autofocus)
         # Change label of option 'Autofocus' to 'Focus tracking'
         # if method 2 (focus tracking) is selected
         if self.autofocus.method == 2:
@@ -608,7 +608,7 @@ class MainControls(QMainWindow):
         self.label_OVLocation.setText('X: {0:.3f}'.format(ov_centre[0])
                                       + ', Y: {0:.3f}'.format(ov_centre[1]))
         # Debris detection area
-        if self.stack.use_debris_detection:
+        if self.acq.use_debris_detection:
             self.label_debrisDetectionArea.setText(
                 str(self.ovm[self.ov_index_dropdown].debris_detection_area))
         else:
@@ -624,11 +624,11 @@ class MainControls(QMainWindow):
         self.label_numberActiveTiles.setText(
             str(self.gm[self.grid_index_dropdown].number_active_tiles()))
         # Acquisition parameters
-        self.lineEdit_baseDir.setText(self.stack.base_dir)
-        self.label_numberSlices.setText(str(self.stack.number_slices))
+        self.lineEdit_baseDir.setText(self.acq.base_dir)
+        self.label_numberSlices.setText(str(self.acq.number_slices))
         if self.use_microtome:
             self.label_sliceThickness.setText(
-                str(self.stack.slice_thickness) + ' nm')
+                str(self.acq.slice_thickness) + ' nm')
         else:
             self.label_sliceThickness.setText('---')
 
@@ -639,7 +639,7 @@ class MainControls(QMainWindow):
         # Get current estimates:
         (min_dose, max_dose, total_area, total_z, total_data,
         total_imaging, total_stage_moves, total_cutting,
-        date_estimate, remaining_time) = self.stack.calculate_estimates()
+        date_estimate, remaining_time) = self.acq.calculate_estimates()
         total_duration = total_imaging + total_stage_moves + total_cutting
         if min_dose == max_dose:
             self.label_dose.setText(
@@ -666,9 +666,9 @@ class MainControls(QMainWindow):
     def update_acq_options(self):
         """Update the options for the stack acquisition selected by the user
         in the GUI (check boxes in acquisition panel)."""
-        self.stack.use_email_monitoring = (
+        self.acq.use_email_monitoring = (
             self.checkBox_useMonitoring.isChecked())
-        self.stack.take_overviews = self.checkBox_takeOV.isChecked()
+        self.acq.take_overviews = self.checkBox_takeOV.isChecked()
         if not self.checkBox_takeOV.isChecked():
             # Deactivate debris detection option when no overviews are taken
             self.checkBox_useDebrisDetection.setChecked(False)
@@ -676,12 +676,12 @@ class MainControls(QMainWindow):
         else:
             # Activate debris detection
             self.checkBox_useDebrisDetection.setEnabled(True)
-        self.stack.use_debris_detection = (
+        self.acq.use_debris_detection = (
             self.checkBox_useDebrisDetection.isChecked())
-        self.stack.ask_user_mode = self.checkBox_askUser.isChecked()
-        self.stack.use_mirror_drive = self.checkBox_mirrorDrive.isChecked()
-        self.stack.monitor_images = self.checkBox_monitorTiles.isChecked()
-        self.stack.use_autofocus = self.checkBox_useAutofocus.isChecked()
+        self.acq.ask_user_mode = self.checkBox_askUser.isChecked()
+        self.acq.use_mirror_drive = self.checkBox_mirrorDrive.isChecked()
+        self.acq.monitor_images = self.checkBox_monitorTiles.isChecked()
+        self.acq.use_autofocus = self.checkBox_useAutofocus.isChecked()
         # Show updated stack estimates (depend on options selected)
         self.show_stack_acq_estimates()
         # Show updated debris detectiona area
@@ -923,7 +923,7 @@ class MainControls(QMainWindow):
         #   self.viewport.vp_draw()
 
     def magc_open_import_wafer_image(self):
-        target_dir = os.path.join(self.stack.base_dir,
+        target_dir = os.path.join(self.acq.base_dir,
                                   'overviews', 'imported')
         if not os.path.exists(target_dir):
             self.try_to_create_directory(target_dir)
@@ -1056,7 +1056,7 @@ class MainControls(QMainWindow):
 
     def open_calibration_dlg(self):
         dialog = StageCalibrationDlg(self.cs, self.stage, self.sem,
-                                     self.stack.base_dir)
+                                     self.acq.base_dir)
         if dialog.exec_():
             if self.ovm.use_auto_debris_area:
                 self.ovm.update_all_debris_detections_areas(self.gm)
@@ -1106,7 +1106,7 @@ class MainControls(QMainWindow):
         self.viewport.vp_draw()
 
     def open_acq_settings_dlg(self):
-        dialog = AcqSettingsDlg(self.stack, self.use_microtome)
+        dialog = AcqSettingsDlg(self.acq, self.use_microtome)
         if dialog.exec_():
             self.show_current_settings()
             self.show_stack_acq_estimates()
@@ -1115,14 +1115,14 @@ class MainControls(QMainWindow):
     def open_pre_stack_dlg(self):
         # Calculate new estimates first, then open dialog:
         self.show_stack_acq_estimates()
-        dialog = PreStackDlg(self.stack, self.sem, self.microtome,
+        dialog = PreStackDlg(self.acq, self.sem, self.microtome,
                              self.autofocus, self.ovm, self.gm)
         if dialog.exec_():
             self.show_current_settings()
             self.start_acquisition()
 
     def open_export_dlg(self):
-        dialog = ExportDlg(self.stack)
+        dialog = ExportDlg(self.acq)
         dialog.exec_()
 
     def open_update_dlg(self):
@@ -1130,11 +1130,11 @@ class MainControls(QMainWindow):
         dialog.exec_()
 
     def open_email_monitoring_dlg(self):
-        dialog = EmailMonitoringSettingsDlg(self.stack, self.notifications)
+        dialog = EmailMonitoringSettingsDlg(self.acq, self.notifications)
         dialog.exec_()
 
     def open_debris_dlg(self):
-        dialog = DebrisSettingsDlg(self.ovm, self.img_inspector, self.stack)
+        dialog = DebrisSettingsDlg(self.ovm, self.img_inspector, self.acq)
         if dialog.exec_():
             self.ovm.update_all_debris_detections_areas(self.gm)
             self.show_current_settings()
@@ -1145,7 +1145,7 @@ class MainControls(QMainWindow):
         dialog.exec_()
 
     def open_mirror_drive_dlg(self):
-        dialog = MirrorDriveDlg(self.stack)
+        dialog = MirrorDriveDlg(self.acq)
         dialog.exec_()
 
     def open_image_monitoring_dlg(self):
@@ -1171,7 +1171,7 @@ class MainControls(QMainWindow):
         dialog.exec_()
 
     def open_grab_frame_dlg(self):
-        dialog = GrabFrameDlg(self.sem, self.stack,
+        dialog = GrabFrameDlg(self.sem, self.acq,
                               self.trigger, self.queue)
         dialog.exec_()
 
@@ -1180,7 +1180,7 @@ class MainControls(QMainWindow):
         dialog.exec_()
 
     def open_motor_test_dlg(self):
-        dialog = MotorTestDlg(self.microtome, self.stack,
+        dialog = MotorTestDlg(self.microtome, self.acq,
                               self.trigger, self.queue)
         dialog.exec_()
 
@@ -1191,13 +1191,13 @@ class MainControls(QMainWindow):
 # ============ Below: stack progress update and signal processing ==============
 
     def show_stack_progress(self):
-        current_slice = self.stack.slice_counter
-        if self.stack.number_slices > 0:
+        current_slice = self.acq.slice_counter
+        if self.acq.number_slices > 0:
             self.label_sliceCounter.setText(
                 str(current_slice) + '      (' + chr(8710) + 'Z = '
-                + '{0:.3f}'.format(self.stack.total_z_diff) + ' µm)')
+                + '{0:.3f}'.format(self.acq.total_z_diff) + ' µm)')
             self.progressBar.setValue(
-                current_slice / self.stack.number_slices * 100)
+                current_slice / self.acq.number_slices * 100)
         else:
             self.label_sliceCounter.setText(
                 str(current_slice) + "      (no cut after acq.)")
@@ -1386,7 +1386,7 @@ class MainControls(QMainWindow):
                 'debris?',
                 QMessageBox.Yes | QMessageBox.No | QMessageBox.Abort,
                 QMessageBox.Yes)
-            self.stack.set_user_reply(reply)
+            self.acq.set_user_reply(reply)
         elif msg == 'ASK DEBRIS CONFIRMATION':
             reply = QMessageBox.question(
                 self, 'Debris detection',
@@ -1395,7 +1395,7 @@ class MainControls(QMainWindow):
                 'area?',
                 QMessageBox.Yes | QMessageBox.No | QMessageBox.Abort,
                 QMessageBox.Yes)
-            self.stack.set_user_reply(reply)
+            self.acq.set_user_reply(reply)
         elif msg == 'ASK IMAGE ERROR OVERRIDE':
             reply = QMessageBox.question(
                 self, 'Image inspector',
@@ -1403,7 +1403,7 @@ class MainControls(QMainWindow):
                 'Would you like to proceed anyway?',
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.Yes)
-            self.stack.set_user_reply(reply)
+            self.acq.set_user_reply(reply)
         else:
             # If msg is not a command, show it in log:
             self.textarea_log.appendPlainText(msg)
@@ -1414,14 +1414,14 @@ class MainControls(QMainWindow):
         grid = self.viewport.selected_grid
         tile = self.viewport.selected_tile
         tile_folder = os.path.join(
-            self.stack.base_dir, 'tiles',
+            self.acq.base_dir, 'tiles',
             'g' + str(grid).zfill(utils.GRID_DIGITS),
             't' + str(tile).zfill(utils.TILE_DIGITS))
         if not os.path.exists(tile_folder):
             self.try_to_create_directory(tile_folder)
-        if self.stack.use_mirror_drive:
+        if self.acq.use_mirror_drive:
             mirror_tile_folder = os.path.join(
-                self.stack.mirror_drive, tile_folder[2:])
+                self.acq.mirror_drive, tile_folder[2:])
             if not os.path.exists(mirror_tile_folder):
                 self.try_to_create_directory(mirror_tile_folder)
 
@@ -1554,7 +1554,7 @@ class MainControls(QMainWindow):
             'current base directory): ', QLineEdit.Normal, 'current_viewport')
         if ok_button_clicked:
             self.viewport.grab_viewport_screenshot(
-                os.path.join(self.stack.base_dir, file_name + '.png'))
+                os.path.join(self.acq.base_dir, file_name + '.png'))
             self.add_to_log('CTRL: Saved current viewport to base directory.')
 
 # ======================= Test functions in third tab ==========================
@@ -1686,8 +1686,8 @@ class MainControls(QMainWindow):
     def debris_detection_test(self):
         # Uses overview images t1.tif and t2.tif in current base directory
         # to run the debris detection in the current detection area.
-        test_image1 = os.path.join(self.stack.base_dir, 't1.tif')
-        test_image2 = os.path.join(self.stack.base_dir, 't2.tif')
+        test_image1 = os.path.join(self.acq.base_dir, 't1.tif')
+        test_image2 = os.path.join(self.acq.base_dir, 't2.tif')
 
         if os.path.isfile(test_image1) and os.path.isfile(test_image2):
             self.img_inspector.process_ov(test_image1, 0, 0)
@@ -1746,15 +1746,15 @@ class MainControls(QMainWindow):
            clicks on start button. All functionality is contained
            in module stack_acquisition.py
         """
-        if (self.stack.slice_counter > self.stack.number_slices
-                and self.stack.number_slices != 0):
+        if (self.acq.slice_counter > self.acq.number_slices
+                and self.acq.number_slices != 0):
             QMessageBox.warning(
                 self, 'Check Slice Counter',
                 'Slice counter is larger than maximum slice number. Please '
                 'adjust the slice counter.',
                 QMessageBox.Ok)
-        elif (self.stack.slice_counter == self.stack.number_slices
-                and self.stack.number_slices != 0):
+        elif (self.acq.slice_counter == self.acq.number_slices
+                and self.acq.number_slices != 0):
             QMessageBox.information(
                 self, 'Target number of slices reached',
                 'The target number of slices has been acquired. Please click '
@@ -1787,7 +1787,7 @@ class MainControls(QMainWindow):
             # Start the thread running the stack acquisition
             # All source code in stack_acquisition.py
             # Thread is stopped by either stop or pause button
-            stack_thread = threading.Thread(target=self.stack.run)
+            stack_thread = threading.Thread(target=self.acq.run)
             stack_thread.start()
 
     def pause_acquisition(self):
@@ -1795,14 +1795,14 @@ class MainControls(QMainWindow):
         user decide whether to stop immediately or after finishing current
         slice.
         """
-        if not self.stack.acq_paused:
+        if not self.acq.acq_paused:
             dialog = PauseDlg()
             dialog.exec_()
             pause_type = dialog.pause_type
             if pause_type == 1 or pause_type == 2:
                 self.add_to_log('CTRL: PAUSE command received.')
                 self.pushButton_pauseAcq.setEnabled(False)
-                self.stack.pause_acquisition(pause_type)
+                self.acq.pause_acquisition(pause_type)
                 self.pushButton_startAcq.setText('CONTINUE')
                 QMessageBox.information(
                     self, 'Acquisition being paused',
@@ -1822,7 +1822,7 @@ class MainControls(QMainWindow):
                     QMessageBox.Yes| QMessageBox.No)
         if result == QMessageBox.Yes:
             self.add_to_log('CTRL: RESET command received.')
-            self.stack.reset_acquisition()
+            self.acq.reset_acquisition()
             self.pushButton_resetAcq.setEnabled(False)
             self.pushButton_pauseAcq.setEnabled(False)
             self.pushButton_startAcq.setEnabled(True)
@@ -1869,7 +1869,7 @@ class MainControls(QMainWindow):
         self.viewport.restrict_gui(False)
         self.pushButton_startAcq.setEnabled(True)
         self.pushButton_pauseAcq.setEnabled(False)
-        if self.stack.acq_paused:
+        if self.acq.acq_paused:
             self.pushButton_resetAcq.setEnabled(True)
 
     def leave_simulation_mode(self):
@@ -1890,7 +1890,7 @@ class MainControls(QMainWindow):
                 # Preserve system.cfg as template, rename:
                 self.cfg['sys']['sys_config_file'] = 'this_system.cfg'
             self.save_config_to_disk()
-        elif self.stack.acq_paused:
+        elif self.acq.acq_paused:
             QMessageBox.information(
                 self, 'Cannot save configuration',
                 'The current configuration file "default.ini" cannot be '
@@ -1902,7 +1902,7 @@ class MainControls(QMainWindow):
     def save_config_to_disk(self):
         """Save the updated ConfigParser objects for the user and the
         system configuration to disk."""
-        self.stack.save_to_cfg()
+        self.acq.save_to_cfg()
         self.gm.save_to_cfg()
         self.ovm.save_to_cfg()
         self.imported.save_to_cfg()
@@ -2328,7 +2328,7 @@ class MainControls(QMainWindow):
             self.ft_series_wd_values.append(
                 self.ft_selected_wd + self.ft_fdeltas[i])
             filename = os.path.join(
-                self.stack.base_dir, 'workspace', 'ft' + str(i) + '.bmp')
+                self.acq.base_dir, 'workspace', 'ft' + str(i) + '.bmp')
             self.sem.acquire_frame(filename)
             self.ft_series_img.append(QPixmap(filename))
         self.sem.set_beam_blanking(1)
@@ -2361,7 +2361,7 @@ class MainControls(QMainWindow):
                 self.ft_series_stig_y_values.append(
                     self.ft_selected_stig_y + self.ft_sdeltas[i])
             filename = os.path.join(
-                self.stack.base_dir, 'workspace', 'ft' + str(i) + '.bmp')
+                self.acq.base_dir, 'workspace', 'ft' + str(i) + '.bmp')
             self.sem.acquire_frame(filename)
             self.ft_series_img.append(QPixmap(filename))
         self.sem.set_beam_blanking(1)
@@ -2498,7 +2498,7 @@ class MainControls(QMainWindow):
         elif self.ft_selected_ov == -1:
             self.ft_clear_wd_stig_display()
 
-        if (self.stack.use_autofocus
+        if (self.acq.use_autofocus
             and self.gm[self.ft_selected_grid][
                         self.ft_selected_tile].autofocus_active):
             self.label_AFnotification.setText(

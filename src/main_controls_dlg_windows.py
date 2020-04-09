@@ -1242,9 +1242,9 @@ class FocusGradientSettingsDlg(QDialog):
 class AcqSettingsDlg(QDialog):
     """Dialog for adjusting acquisition settings."""
 
-    def __init__(self, stack, use_microtome=True):
+    def __init__(self, acquisition, use_microtome=True):
         super().__init__()
-        self.stack = stack
+        self.acq = acquisition
         loadUi('..\\gui\\acq_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -1254,22 +1254,22 @@ class AcqSettingsDlg(QDialog):
         self.pushButton_selectDir.setIcon(QIcon('..\\img\\selectdir.png'))
         self.pushButton_selectDir.setIconSize(QSize(16, 16))
         # Display current settings:
-        self.lineEdit_baseDir.setText(self.stack.base_dir)
+        self.lineEdit_baseDir.setText(self.acq.base_dir)
         self.lineEdit_baseDir.textChanged.connect(self.update_stack_name)
         self.update_stack_name()
         self.new_base_dir = ''
-        self.spinBox_sliceThickness.setValue(self.stack.slice_thickness)
-        self.spinBox_numberSlices.setValue(self.stack.number_slices)
-        self.spinBox_sliceCounter.setValue(self.stack.slice_counter)
-        self.doubleSpinBox_zDiff.setValue(self.stack.total_z_diff)
-        self.checkBox_sendMetaData.setChecked(self.stack.send_metadata)
+        self.spinBox_sliceThickness.setValue(self.acq.slice_thickness)
+        self.spinBox_numberSlices.setValue(self.acq.number_slices)
+        self.spinBox_sliceCounter.setValue(self.acq.slice_counter)
+        self.doubleSpinBox_zDiff.setValue(self.acq.total_z_diff)
+        self.checkBox_sendMetaData.setChecked(self.acq.send_metadata)
         self.update_server_lineedit()
         self.checkBox_sendMetaData.stateChanged.connect(
             self.update_server_lineedit)
-        self.checkBox_EHTOff.setChecked(self.stack.eht_off_after_stack)
-        self.lineEdit_metaDataServer.setText(self.stack.metadata_server)
-        self.lineEdit_adminEmail.setText(self.stack.metadata_server_admin_email)
-        self.lineEdit_projectName.setText(self.stack.metadata_project_name)
+        self.checkBox_EHTOff.setChecked(self.acq.eht_off_after_stack)
+        self.lineEdit_metaDataServer.setText(self.acq.metadata_server)
+        self.lineEdit_adminEmail.setText(self.acq.metadata_server_admin_email)
+        self.lineEdit_projectName.setText(self.acq.metadata_project_name)
         # Disable two spinboxes when SEM stage used
         if not use_microtome:
             self.spinBox_sliceThickness.setEnabled(False)
@@ -1280,8 +1280,8 @@ class AcqSettingsDlg(QDialog):
         Note that the final subfolder name in the directory string is used as
         the name of the stack in SBEMimage.
         """
-        if len(self.stack.base_dir) > 2:
-            start_path = self.stack.base_dir[:3]
+        if len(self.acq.base_dir) > 2:
+            start_path = self.acq.base_dir[:3]
         else:
             start_path = 'C:\\'
         self.lineEdit_baseDir.setText(
@@ -1340,15 +1340,15 @@ class AcqSettingsDlg(QDialog):
                     QMessageBox.Ok)
 
         if 5 <= self.spinBox_sliceThickness.value() <= 200:
-            self.stack.slice_thickness = self.spinBox_sliceThickness.value()
+            self.acq.slice_thickness = self.spinBox_sliceThickness.value()
         number_slices = self.spinBox_numberSlices.value()
-        self.stack.number_slices = number_slices
+        self.acq.number_slices = number_slices
         if (self.spinBox_sliceCounter.value() <= number_slices
             or number_slices == 0):
-            self.stack.slice_counter = self.spinBox_sliceCounter.value()
-        self.stack.total_z_diff = self.doubleSpinBox_zDiff.value()
-        self.stack.eht_off_after_stack = self.checkBox_EHTOff.isChecked()
-        self.stack.send_metadata = self.checkBox_sendMetaData.isChecked()
+            self.acq.slice_counter = self.spinBox_sliceCounter.value()
+        self.acq.total_z_diff = self.doubleSpinBox_zDiff.value()
+        self.acq.eht_off_after_stack = self.checkBox_EHTOff.isChecked()
+        self.acq.send_metadata = self.checkBox_sendMetaData.isChecked()
         if self.checkBox_sendMetaData.isChecked():
             metadata_server_url = self.lineEdit_metaDataServer.text()
             if not validators.url(metadata_server_url):
@@ -1357,7 +1357,7 @@ class AcqSettingsDlg(QDialog):
                     'Metadata server URL is invalid. Change the URL in the '
                     'system configuration file.',
                     QMessageBox.Ok)
-            self.stack.metadata_project_name = self.lineEdit_projectName.text()
+            self.acq.metadata_project_name = self.lineEdit_projectName.text()
         if ((number_slices > 0)
             and (self.spinBox_sliceCounter.value() > number_slices)):
             QMessageBox.warning(
@@ -1366,7 +1366,7 @@ class AcqSettingsDlg(QDialog):
                 'target number of slices.', QMessageBox.Ok)
             success = False
         if success:
-            self.stack.base_dir = modified_dir
+            self.acq.base_dir = modified_dir
             super().accept()
 
 # ------------------------------------------------------------------------------
@@ -1378,7 +1378,7 @@ class PreStackDlg(QDialog):
     purposes.
     """
 
-    def __init__(self, stack, sem, microtome, autofocus, ovm, gm):
+    def __init__(self, acq, sem, microtome, autofocus, ovm, gm):
         super().__init__()
         self.sem = sem
         self.microtome = microtome
@@ -1388,15 +1388,15 @@ class PreStackDlg(QDialog):
         self.setFixedSize(self.size())
         self.show()
         # Different labels if stack is paused ('Continue' instead of 'Start')
-        if stack.acq_paused:
+        if acq.acq_paused:
             self.pushButton_startAcq.setText('Continue acquisition')
             self.setWindowTitle('Continue acquisition')
         self.pushButton_startAcq.clicked.connect(self.accept)
         boldFont = QFont()
         boldFont.setBold(True)
         # Show the most relevant current settings for the acquisition
-        self.label_stackName.setText(stack.stack_name)
-        self.label_sliceCounter.setText(str(stack.slice_counter))
+        self.label_stackName.setText(acq.stack_name)
+        self.label_sliceCounter.setText(str(acq.slice_counter))
         self.label_beamSettings.setText(
             f'{self.sem.target_eht:.2f} keV, '
             f'{self.sem.target_beam_current} pA')
@@ -1404,7 +1404,7 @@ class PreStackDlg(QDialog):
             f'{ovm.number_ov} overview(s), {gm.number_grids} grid(s);')
         self.label_totalActiveTiles.setText(
             f'{gm.total_number_active_tiles()} active tile(s)')
-        if stack.use_autofocus:
+        if acq.use_autofocus:
             if autofocus.method == 0:
                 self.label_autofocusActive.setFont(boldFont)
                 self.label_autofocusActive.setText('Active (SmartSEM)')
@@ -1423,11 +1423,11 @@ class PreStackDlg(QDialog):
             self.label_intervallicActive.setText('Active')
         else:
             self.label_intervallicActive.setText('Inactive')
-        if stack.acq_interrupted:
+        if acq.acq_interrupted:
             self.label_interruption.setFont(boldFont)
             self.label_interruption.setText(
-                f'Yes, in grid {stack.acq_interrupted_at[0]} '
-                f'at tile {stack.acq_interrupted_at[1]}')
+                f'Yes, in grid {acq.acq_interrupted_at[0]} '
+                f'at tile {acq.acq_interrupted_at[1]}')
         else:
             self.label_interruption.setText('None')
         self.doubleSpinBox_cutSpeed.setValue(
@@ -1488,22 +1488,22 @@ class PauseDlg(QDialog):
 class ExportDlg(QDialog):
     """Export image list in TrakEM2 format."""
 
-    def __init__(self, stack):
+    def __init__(self, acq):
         super().__init__()
-        self.stack = stack
+        self.acq = acq
         loadUi('..\\gui\\export_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.pushButton_export.clicked.connect(self.export_list)
-        self.spinBox_untilSlice.setValue(int(self.stack.slice_counter))
+        self.spinBox_untilSlice.setValue(int(self.acq.slice_counter))
         self.show()
 
     def export_list(self):
         self.pushButton_export.setText('Busy')
         self.pushButton_export.setEnabled(False)
         QApplication.processEvents()
-        base_dir = self.stack.base_dir
+        base_dir = self.acq.base_dir
         target_grid_index = str(
             self.spinBox_gridNumber.value()).zfill(utils.GRID_DIGITS)
         pixel_size = self.doubleSpinBox_pixelSize.value()
@@ -1644,9 +1644,9 @@ class UpdateDlg(QDialog):
 class EmailMonitoringSettingsDlg(QDialog):
     """Adjust settings for the e-mail monitoring feature."""
 
-    def __init__(self, stack, notifications):
+    def __init__(self, acquisition, notifications):
         super().__init__()
-        self.stack = stack
+        self.acq = acquisition
         self.notifications = notifications
         loadUi('..\\gui\\email_monitoring_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
@@ -1657,7 +1657,7 @@ class EmailMonitoringSettingsDlg(QDialog):
             self.notifications.user_email_addresses[0])
         self.lineEdit_secondaryNotificationEmail.setText(
             self.notifications.user_email_addresses[1])
-        self.spinBox_reportInterval.setValue(self.stack.status_report_interval)
+        self.spinBox_reportInterval.setValue(self.acq.status_report_interval)
         self.lineEdit_selectedOV.setText(str(
             self.notifications.status_report_ov_list)[1:-1])
         self.lineEdit_selectedTiles.setText(str(
@@ -1679,7 +1679,7 @@ class EmailMonitoringSettingsDlg(QDialog):
             self.update_remote_option_input)
         self.update_remote_option_input()
         self.spinBox_remoteCheckInterval.setValue(
-            self.stack.remote_check_interval)
+            self.acq.remote_check_interval)
         self.lineEdit_account.setText(self.notifications.email_account)
         # Let password be displayed as string of asterisks
         self.lineEdit_password.setEchoMode(QLineEdit.Password)
@@ -1704,7 +1704,7 @@ class EmailMonitoringSettingsDlg(QDialog):
                 self.lineEdit_secondaryNotificationEmail.text())
         else:
             error_str = 'Secondary e-mail address badly formatted.'
-        self.stack.status_report_interval = self.spinBox_reportInterval.value()
+        self.acq.status_report_interval = self.spinBox_reportInterval.value()
 
         success, ov_list = utils.validate_ov_list(
             self.lineEdit_selectedOV.text())
@@ -1735,7 +1735,7 @@ class EmailMonitoringSettingsDlg(QDialog):
             self.checkBox_sendTileReslices.isChecked())
         self.notifications.remote_commands_enabled = (
             self.checkBox_allowEmailControl.isChecked())
-        self.stack.remote_check_interval = (
+        self.acq.remote_check_interval = (
             self.spinBox_remoteCheckInterval.value())
         self.notifications.remote_cmd_email_pw = self.lineEdit_password.text()
         if not error_str:
@@ -1751,11 +1751,11 @@ class DebrisSettingsDlg(QDialog):
     max. sweep number reached.
     """
 
-    def __init__(self, ovm, image_inspector, stack):
+    def __init__(self, ovm, image_inspector, acq):
         super().__init__()
         self.ovm = ovm
         self.img_inspector = image_inspector
-        self.stack = stack
+        self.acq = acq
         loadUi('..\\gui\\debris_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -1769,7 +1769,7 @@ class DebrisSettingsDlg(QDialog):
         # Extra margin around detection area in pixels
         self.spinBox_debrisMargin.setValue(
             self.ovm.auto_debris_area_margin)
-        self.spinBox_maxSweeps.setValue(self.stack.max_number_sweeps)
+        self.spinBox_maxSweeps.setValue(self.acq.max_number_sweeps)
         self.doubleSpinBox_diffMean.setValue(
             self.img_inspector.mean_diff_threshold)
         self.doubleSpinBox_diffSD.setValue(
@@ -1781,7 +1781,7 @@ class DebrisSettingsDlg(QDialog):
         self.checkBox_showDebrisArea.setChecked(
             self.ovm.detection_area_visible)
         self.checkBox_continueAcq.setChecked(
-            self.stack.continue_after_max_sweeps)
+            self.acq.continue_after_max_sweeps)
         # Detection methods
         self.radioButton_methodQuadrant.setChecked(
             self.img_inspector.debris_detection_method == 0)
@@ -1817,7 +1817,7 @@ class DebrisSettingsDlg(QDialog):
 
     def accept(self):
         self.ovm.auto_debris_area_margin = self.spinBox_debrisMargin.value()
-        self.stack.max_number_sweeps = self.spinBox_maxSweeps.value()
+        self.acq.max_number_sweeps = self.spinBox_maxSweeps.value()
         self.img_inspector.mean_diff_threshold = (
             self.doubleSpinBox_diffMean.value())
         self.img_inspector.stddev_diff_threshold = (
@@ -1830,7 +1830,7 @@ class DebrisSettingsDlg(QDialog):
             self.radioButton_autoSelection.isChecked())
         self.ovm.detection_area_visible = (
             self.checkBox_showDebrisArea.isChecked())
-        self.stack.continue_after_max_sweeps = (
+        self.acq.continue_after_max_sweeps = (
             self.checkBox_continueAcq.isChecked())
         if self.radioButton_methodQuadrant.isChecked():
             self.img_inspector.debris_detection_method = 0
@@ -1861,9 +1861,9 @@ class AskUserDlg(QDialog):
 class MirrorDriveDlg(QDialog):
     """Select a mirror drive from all available drives."""
 
-    def __init__(self, stack):
+    def __init__(self, acquisition):
         super().__init__()
-        self.stack = stack
+        self.acq = acquisition
         loadUi('..\\gui\\mirror_drive_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -1885,7 +1885,7 @@ class MirrorDriveDlg(QDialog):
         if self.available_drives:
             self.comboBox_allDrives.addItems(self.available_drives)
             current_index = self.comboBox_allDrives.findText(
-                self.stack.mirror_drive)
+                self.acq.mirror_drive)
             if current_index == -1:
                 current_index = 0
             self.comboBox_allDrives.setCurrentIndex(current_index)
@@ -1895,16 +1895,16 @@ class MirrorDriveDlg(QDialog):
     def accept(self):
         if self.available_drives:
             if (self.comboBox_allDrives.currentText()[0]
-                == self.stack.base_dir[0]):
+                == self.acq.base_dir[0]):
                 QMessageBox.warning(
                     self, 'Error',
                     'The mirror drive must be different from the '
                     'base directory drive!', QMessageBox.Ok)
             else:
-                self.stack.mirror_drive = (
+                self.acq.mirror_drive = (
                     self.comboBox_allDrives.currentText())
-                self.stack.mirror_drive_dir = os.path.join(
-                    self.stack.mirror_drive, self.stack.base_dir[2:])
+                self.acq.mirror_drive_dir = os.path.join(
+                    self.acq.mirror_drive, self.acq.base_dir[2:])
                 super().accept()
 
 # ------------------------------------------------------------------------------
@@ -2382,10 +2382,10 @@ class ApproachDlg(QDialog):
 class GrabFrameDlg(QDialog):
     """Acquires or saves a single frame from SmartSEM."""
 
-    def __init__(self, sem, stack, main_window_trigger, main_window_queue):
+    def __init__(self, sem, acq, main_window_trigger, main_window_queue):
         super().__init__()
         self.sem = sem
-        self.stack = stack
+        self.acq = acq
         self.main_window_queue = main_window_queue
         self.main_window_trigger = main_window_trigger
         self.finish_trigger = utils.Trigger()
@@ -2434,7 +2434,7 @@ class GrabFrameDlg(QDialog):
         time and GUI should not freeze.
         """
         self.scan_success = self.sem.acquire_frame(
-            self.stack.base_dir + '\\' + self.file_name + '.tif')
+            self.acq.base_dir + '\\' + self.file_name + '.tif')
         self.finish_trigger.s.emit()
 
     def scan_complete(self):
@@ -2464,7 +2464,7 @@ class GrabFrameDlg(QDialog):
         """Save the image currently visible in SmartSEM."""
         self.file_name = self.lineEdit_filename.text()
         success = self.sem.save_frame(os.path.join(
-            self.stack.base_dir, self.file_name + '.tif'))
+            self.acq.base_dir, self.file_name + '.tif'))
         if success:
             self.add_to_log('CTRL: Single frame saved by user.')
             QMessageBox.information(
@@ -2666,11 +2666,11 @@ class MotorTestDlg(QDialog):
     """Perform a random-walk-like XYZ motor test. Experimental, only for
     testing/debugging. Only works with a microtome for now."""
 
-    def __init__(self, microtome, stack,
+    def __init__(self, microtome, acq,
                  main_window_trigger, main_window_queue):
         super().__init__()
         self.microtome = microtome
-        self.stack = stack
+        self.acq = acq
         self.main_window_queue = main_window_queue
         self.main_window_trigger = main_window_trigger
         loadUi('..\\gui\\motor_test_dlg.ui', self)
@@ -2772,7 +2772,7 @@ class MotorTestDlg(QDialog):
         current_x, current_y = 0, 0
         current_z = self.start_z
         # Open log file
-        logfile = open(os.path.join(self.stack.base_dir, 'motor_test_log.txt'),
+        logfile = open(os.path.join(self.acq.base_dir, 'motor_test_log.txt'),
                        'w', buffering=1)
         while self.test_in_progress:
             # Start 'random' walk

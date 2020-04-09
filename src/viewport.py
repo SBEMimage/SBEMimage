@@ -50,7 +50,7 @@ class Viewport(QWidget):
 
     def __init__(self, config, sem, stage, coordinate_system,
                  ov_manager, grid_manager, imported_images,
-                 autofocus, stack,
+                 autofocus, acquisition,
                  main_controls_trigger, main_controls_queue):
         super().__init__()
         self.cfg = config
@@ -61,7 +61,7 @@ class Viewport(QWidget):
         self.ovm = ov_manager
         self.imported = imported_images
         self.autofocus = autofocus
-        self.stack = stack
+        self.acq = acquisition
         self.main_controls_trigger = main_controls_trigger
         self.main_controls_queue = main_controls_queue
 
@@ -1002,7 +1002,7 @@ class Viewport(QWidget):
     def vp_draw(self, suppress_labels=False, suppress_previews=False):
         """Draw all elements on Viewport canvas"""
         show_debris_area = (self.ovm.detection_area_visible
-                            and self.stack.use_debris_detection)
+                            and self.acq.use_debris_detection)
         if self.ov_drag_active or self.grid_drag_active:
             show_debris_area = False
         # Start with empty black canvas
@@ -1492,11 +1492,11 @@ class Viewport(QWidget):
                         and self.gm[grid_index].use_wd_gradient)
                     show_autofocus_label = (
                         self.gm[grid_index][tile_index].autofocus_active
-                        and self.stack.use_autofocus
+                        and self.acq.use_autofocus
                         and self.autofocus.method < 2)
                     show_tracking_label = (
                         self.gm[grid_index][tile_index].autofocus_active
-                        and self.stack.use_autofocus
+                        and self.acq.use_autofocus
                         and self.autofocus.method == 2)
 
                     if show_grad_label and show_autofocus_label:
@@ -2071,7 +2071,7 @@ class Viewport(QWidget):
                 # Start OV acquisition thread:
                 ov_acq_thread = threading.Thread(
                     target=acq_func.acquire_ov,
-                    args=(self.stack.base_dir, self.vp_current_ov,
+                    args=(self.acq.base_dir, self.vp_current_ov,
                           self.sem, self.stage, self.ovm, self.cs,
                           self.viewport_trigger, self.viewport_queue,))
                 ov_acq_thread.start()
@@ -2107,7 +2107,7 @@ class Viewport(QWidget):
             centre_sx_sy = self.ovm['stub'].centre_sx_sy
         grid_size_selector = self.ovm['stub'].grid_size_selector
         dialog = StubOVDlg(centre_sx_sy, grid_size_selector,
-                           self.sem, self.stage, self.ovm, self.stack,
+                           self.sem, self.stage, self.ovm, self.acq,
                            self.viewport_trigger, self.viewport_queue)
         dialog.exec_()
 
@@ -2120,10 +2120,10 @@ class Viewport(QWidget):
             # Reset user-selected stub_ov_centre
             self.stub_ov_centre = [None, None]
             # Copy to mirror drive
-            if self.stack.use_mirror_drive:
+            if self.acq.use_mirror_drive:
                 mirror_path = os.path.join(
-                    self.stack.mirror_drive,
-                    self.stack.base_dir[2:], 'overviews', 'stub')
+                    self.acq.mirror_drive,
+                    self.acq.base_dir[2:], 'overviews', 'stub')
                 if not os.path.exists(mirror_path):
                     try:
                         os.makedirs(mirror_path)
@@ -2152,7 +2152,7 @@ class Viewport(QWidget):
                 self.vp_draw()
 
     def _vp_open_import_image_dlg(self):
-        target_dir = os.path.join(self.stack.base_dir, 'imported')
+        target_dir = os.path.join(self.acq.base_dir, 'imported')
         if not os.path.exists(target_dir):
             try:
                 os.makedirs(target_dir)
@@ -2514,12 +2514,12 @@ class Viewport(QWidget):
         self.slice_view_images = []
         self.slice_view_index = 0
         self.lcdNumber_sliceIndicator.display(0)
-        start_slice = self.stack.slice_counter
+        start_slice = self.acq.slice_counter
 
         if self.sv_current_ov >= 0:
             for i in range(self.max_slices):
                 filename = utils.ov_save_path(
-                    self.stack.base_dir, self.stack.stack_name,
+                    self.acq.base_dir, self.acq.stack_name,
                     self.sv_current_ov, start_slice - i)
                 if os.path.isfile(filename):
                     self.slice_view_images.append(QPixmap(filename))
@@ -2529,8 +2529,8 @@ class Viewport(QWidget):
         elif self.sv_current_tile >= 0:
             for i in range(self.max_slices):
                 filename = os.path.join(
-                    self.stack.base_dir, utils.tile_relative_save_path(
-                        self.stack.stack_name, self.sv_current_grid,
+                    self.acq.base_dir, utils.tile_relative_save_path(
+                        self.acq.stack_name, self.sv_current_grid,
                         self.sv_current_tile, start_slice - i))
                 if os.path.isfile(filename):
                     self.slice_view_images.append(QPixmap(filename))
@@ -2991,14 +2991,14 @@ class Viewport(QWidget):
         filename = None
         if self.m_current_ov >= 0:
             filename = os.path.join(
-                self.stack.base_dir, 'workspace', 'reslices',
+                self.acq.base_dir, 'workspace', 'reslices',
                 'r_OV' + str(self.m_current_ov).zfill(utils.OV_DIGITS) + '.png')
         elif self.m_current_tile >= 0:
             tile_key = ('g' + str(self.m_current_grid).zfill(utils.GRID_DIGITS)
                         + '_t'
                         + str(self.m_current_tile).zfill(utils.TILE_DIGITS))
             filename = os.path.join(
-                self.stack.base_dir, 'workspace', 'reslices',
+                self.acq.base_dir, 'workspace', 'reslices',
                 'r_' + tile_key + '.png')
         else:
             filename = None
@@ -3018,7 +3018,7 @@ class Viewport(QWidget):
             self.m_qp.drawPixmap(0, 0, current_reslice)
             # Draw red line on currently selected slice:
             if self.m_selected_slice_number is not None:
-                most_recent_slice = int(self.stack.slice_counter)
+                most_recent_slice = int(self.acq.slice_counter)
                 self.m_qp.setPen(QColor(255, 0, 0))
                 slice_y = most_recent_slice - self.m_selected_slice_number
                 self.m_qp.drawLine(0, h - slice_y,
@@ -3062,14 +3062,14 @@ class Viewport(QWidget):
         if self.m_current_ov >= 0:
             # get current data:
             filename = os.path.join(
-                self.stack.base_dir, 'meta', 'stats',
+                self.acq.base_dir, 'meta', 'stats',
                 'OV' + str(self.m_current_ov).zfill(utils.OV_DIGITS) + '.dat')
         elif self.m_current_tile >= 0:
             tile_key = ('g' + str(self.m_current_grid).zfill(utils.GRID_DIGITS)
                         + '_t'
                         + str(self.m_current_tile).zfill(utils.TILE_DIGITS))
             filename = os.path.join(
-                self.stack.base_dir, 'meta', 'stats',
+                self.acq.base_dir, 'meta', 'stats',
                 tile_key + '.dat')
         else:
             filename = None
@@ -3248,11 +3248,11 @@ class Viewport(QWidget):
             path = None
             if self.m_current_ov >= 0:
                 path = os.path.join(
-                    self.stack.base_dir, 'overviews',
+                    self.acq.base_dir, 'overviews',
                     'ov' + str(self.m_current_ov).zfill(utils.OV_DIGITS))
             elif self.m_current_tile >= 0:
                 path = os.path.join(
-                    self.stack.base_dir, 'tiles',
+                    self.acq.base_dir, 'tiles',
                     'g' + str(self.m_current_grid).zfill(utils.GRID_DIGITS)
                     + '\\t' + str(self.m_current_tile).zfill(utils.TILE_DIGITS))
 
