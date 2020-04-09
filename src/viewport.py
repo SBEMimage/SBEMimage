@@ -567,7 +567,7 @@ class Viewport(QWidget):
                         self.gm.update_source_ROIs_from_grids()
                         # deactivate roi_mode because grid manually moved
                         self.cfg['magc']['roi_mode'] = 'False'
-                        self._transmit_cmd('SAVE INI')
+                        self._transmit_cmd('SAVE CFG')
                     # ------ End of MagC code ------
 
             if self.ov_drag_active:
@@ -3275,7 +3275,7 @@ class Viewport(QWidget):
         else:
             # Use current image in SmartSEM
             selected_file = os.path.join(
-                self.base_dir, 'workspace', 'current_frame.tif')
+                self.stack.base_dir, 'workspace', 'current_frame.tif')
             self.sem.save_frame(selected_file)
             self.m_reset_view()
             self.m_tab_populated = False

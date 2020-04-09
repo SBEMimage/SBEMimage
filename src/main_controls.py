@@ -45,7 +45,7 @@ from sem_control import SEM_SmartSEM
 from microtome_control import Microtome_3View, Microtome_katana
 from stage import Stage
 from plasma_cleaner import PlasmaCleaner
-from stack_acquisition import Stack
+from acquisition import Stack
 from notifications import Notifications
 from overview_manager import OverviewManager
 from imported_img import ImportedImages
@@ -1331,8 +1331,6 @@ class MainControls(QMainWindow):
             self.pushButton_magc_waferCalibration.setEnabled(False)
         elif 'SET SECTION STATE' in msg:
             self.magc_set_section_state_in_table(msg)
-        elif msg == 'SAVE INI':
-            self.save_ini()
         elif msg == 'REFRESH OV':
             self.acquire_ov()
         elif msg == 'SHOW CURRENT SETTINGS':
@@ -1908,7 +1906,8 @@ class MainControls(QMainWindow):
         self.imported.save_to_cfg()
         self.autofocus.save_to_cfg()
         self.sem.save_to_cfg()
-        self.microtome.save_to_cfg()
+        if self.microtome:
+            self.microtome.save_to_cfg()
         self.cs.save_to_cfg()
         self.viewport.save_to_cfg()
         self.img_inspector.save_to_cfg()
@@ -1926,7 +1925,7 @@ class MainControls(QMainWindow):
         self.add_to_log('CTRL: Settings saved to disk.')
 
     def closeEvent(self, event):
-        if self.microtome.error_state == 701:
+        if self.microtome and self.microtome.error_state == 701:
             if self.sem is not None:
                 self.sem.disconnect()
             print('\n\nError in configuration file. Aborted.\n')
