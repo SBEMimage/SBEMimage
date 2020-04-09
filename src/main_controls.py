@@ -1901,14 +1901,16 @@ class MainControls(QMainWindow):
 
     def save_config_to_disk(self):
         """Save the updated ConfigParser objects for the user and the
-        system configuration to disk."""
+        system configuration to disk.
+        """
         self.acq.save_to_cfg()
         self.gm.save_to_cfg()
         self.ovm.save_to_cfg()
         self.imported.save_to_cfg()
         self.autofocus.save_to_cfg()
         self.sem.save_to_cfg()
-        self.microtome.save_to_cfg()
+        if self.microtome is not None:
+            self.microtome.save_to_cfg()
         self.cs.save_to_cfg()
         self.viewport.save_to_cfg()
         self.img_inspector.save_to_cfg()
@@ -1926,7 +1928,7 @@ class MainControls(QMainWindow):
         self.add_to_log('CTRL: Settings saved to disk.')
 
     def closeEvent(self, event):
-        if self.microtome.error_state == 701:
+        if self.microtome is not None and self.microtome.error_state == 701:
             if self.sem is not None:
                 self.sem.disconnect()
             print('\n\nError in configuration file. Aborted.\n')
