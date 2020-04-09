@@ -439,7 +439,11 @@ class StageCalibrationDlg(QDialog):
 
     def start_calibration_procedure(self):
         """Acquire three images to be used for the stage calibration"""
-        # TODO: error handling!
+        if not self.sem.is_eht_on():
+            QMessageBox.warning(
+                self, 'EHT off', 'EHT / high voltage is off. Please turn '
+                'it on before starting the calibration.', QMessageBox.Ok)
+            return
         reply = QMessageBox.information(
             self, 'Start calibration procedure',
             'This will acquire three images and save them in the current base '
