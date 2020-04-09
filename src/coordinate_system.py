@@ -34,6 +34,11 @@ class CoordinateSystem:
         self.cfg = config
         self.syscfg = sysconfig
 
+        if ((self.cfg['sys']['use_microtome'].lower() == 'true')
+                and (int(self.syscfg['device']['microtome']) != 5)):
+            self._device = 'microtome'
+        else:
+            self._device = 'sem'
         # Load current stage calibration and calculate transformation factors
         initial_eht = float(self.cfg['sem']['eht'])
         self.calibration_found = False
@@ -61,19 +66,16 @@ class CoordinateSystem:
     def save_to_cfg(self):
         """Save current parameters to the self.cfg ConfigParser object.
         The stage calibration parameters are saved to self.syscfg whenever
-        the calibration is changed at runtime."""
+        the calibration is changed at runtime.
+        """
         # Stage calibration parameters
-        if self.cfg['sys']['use_microtome'].lower() == 'true':
-            type_of_stage = 'microtome'
-        else:
-            type_of_stage = 'sem'
-        self.cfg[type_of_stage]['stage_scale_factor_x'] = str(
+        self.cfg[self._device]['stage_scale_factor_x'] = str(
             self.stage_calibration[0])
-        self.cfg[type_of_stage]['stage_scale_factor_y'] = str(
+        self.cfg[self._device]['stage_scale_factor_y'] = str(
             self.stage_calibration[1])
-        self.cfg[type_of_stage]['stage_rotation_angle_x'] = str(
+        self.cfg[self._device]['stage_rotation_angle_x'] = str(
             self.stage_calibration[2])
-        self.cfg[type_of_stage]['stage_rotation_angle_y'] = str(
+        self.cfg[self._device]['stage_rotation_angle_y'] = str(
             self.stage_calibration[3])
         # Viewport parameters
         self.cfg['viewport']['vp_centre_dx_dy'] = str(
@@ -89,13 +91,9 @@ class CoordinateSystem:
 
     def load_stage_calibration(self, eht):
         eht = int(eht * 1000)  # Dict keys in system config use volts, not kV
-        if self.cfg['sys']['use_microtome'].lower() == 'true':
-            type_of_stage = 'microtome'
-        else:
-            type_of_stage = 'sem'
         try:
             calibration_params = json.loads(
-                self.syscfg['stage'][type_of_stage + '_calibration_params'])
+                self.syscfg['stage'][self._device + '_calibration_params'])
             available_eht_keys = [int(s) for s in calibration_params.keys()]
         except:
             raise Exception(
@@ -118,7 +116,8 @@ class CoordinateSystem:
 
     def apply_stage_calibration(self):
         """(Re)load rotation and scale parameters and compute rotation
-        matrix elements."""
+        matrix elements.
+        """
         self.scale_x, self.scale_y, θ_x, θ_y = self.stage_calibration
         θ_diff = θ_x - θ_y
         if cos(θ_diff) == 0:
@@ -141,23 +140,21 @@ class CoordinateSystem:
 
     def save_stage_calibration(self, eht, new_stage_calibration):
         """Save the new_stage_calibration for the specified eht in the system
-        configuration."""
+        configuration.
+        """
         self.stage_calibration = new_stage_calibration
-        if self.cfg['sys']['use_microtome'].lower() == 'true':
-            type_of_stage = 'microtome'
-        else:
-            type_of_stage = 'sem'
         calibration_params = json.loads(
-            self.syscfg['stage'][type_of_stage + '_calibration_params'])
+            self.syscfg['stage'][self._device + '_calibration_params'])
         eht = int(eht * 1000)  # Dict keys in system config use volts, not kV
         calibration_params[str(eht)] = self.stage_calibration
-        self.syscfg['stage'][type_of_stage + '_calibration_data'] = json.dumps(
+        self.syscfg['stage'][self._device + '_calibration_params'] = json.dumps(
             calibration_params)
 
     def convert_to_s(self, d_coordinates):
         """Convert SEM XY coordinates provided as a tuple or list into stage
         coordinates. The SEM coordinates [dx, dy] are multiplied with the
-        rotation matrix."""
+        rotation matrix.
+        """
         dx, dy = d_coordinates
         stage_x = (self.rot_mat_a * dx + self.rot_mat_b * dy) * self.scale_x
         stage_y = (self.rot_mat_c * dx + self.rot_mat_d * dy) * self.scale_y
@@ -166,7 +163,8 @@ class CoordinateSystem:
     def convert_to_d(self, s_coordinates):
         """Convert stage XY coordinates provided as a tuple or list into
         SEM coordinates. The stage coordinates are multiplied with the
-        inverse of the rotation matrix."""
+        inverse of the rotation matrix.
+        """
         stage_x, stage_y = s_coordinates
         stage_x /= self.scale_x
         stage_y /= self.scale_y
@@ -179,14 +177,16 @@ class CoordinateSystem:
     def convert_to_v(self, d_coordinates):
         """Convert SEM XY coordinates into Viewport window coordinates.
         These coordinates in units of pixels specify an object's location
-        relative to the Viewport origin """
+        relative to the Viewport origin.
+        """
         dx, dy = d_coordinates
         return [int((dx - self._vp_origin_dx_dy[0]) * self._vp_scale),
                 int((dy - self._vp_origin_dx_dy[1]) * self._vp_scale)]
 
     def convert_to_sv(self, d_coordinates, tile_display=True):
         """Convert SEM coordinates in microns (relative to image origin) to
-        pixel coordinates in Slice-by-Slice Viewer."""
+        pixel coordinates in Slice-by-Slice Viewer.
+        """
         dx, dy = d_coordinates
         if tile_display:
             scale = self._sv_scale_tile
@@ -216,7 +216,8 @@ class CoordinateSystem:
 
     def update_vp_origin_dx_dy(self):
         """Recalculate the coordinates of the upper left corner of the visible
-        area in the Viewport."""
+        area in the Viewport.
+        """
         dx, dy = self._vp_centre_dx_dy
         self._vp_origin_dx_dy = [
             dx - 0.5 * utils.VP_WIDTH / self._vp_scale,
@@ -245,7 +246,8 @@ class CoordinateSystem:
 
     def _adjust_sv_offset(self, old_vx_vy, zoom_ratio):
         """Adjust the origin coordinates (= offset) of the tile/OV displayed
-        in the Slice-by-Slice Viewer."""
+        in the Slice-by-Slice Viewer.
+        """
         old_vx, old_vy = old_vx_vy
         dx = utils.VP_WIDTH // 2 - old_vx
         dy = utils.VP_HEIGHT // 2 - old_vy

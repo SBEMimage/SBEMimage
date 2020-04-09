@@ -24,7 +24,6 @@ window (in viewport.py) as a QWidget.
 import os
 import sys
 import threading
-import shutil
 import json
 
 from time import sleep
@@ -352,7 +351,16 @@ class MainControls(QMainWindow):
     def initialize_main_controls_gui(self):
         """Load and set up the Main Controls GUI"""
         loadUi('..\\gui\\main_window.ui', self)
-        self.setWindowTitle('SBEMimage - Main Controls')
+        if self.VERSION.lower() == 'dev':
+            self.setWindowTitle(
+                'SBEMimage - Main Controls - DEVELOPMENT VERSION')
+            # Disable 'Update' function (would overwrite current (local) changes
+            # in the code of the development version with the current version
+            # in the master branch.)
+            self.actionUpdate.setEnabled(False)
+        else:
+            self.setWindowTitle('SBEMimage - Main Controls')
+
         app_icon = QIcon()
         app_icon.addFile('..\\img\\icon_16px.ico', QSize(16, 16))
         app_icon.addFile('..\\img\\icon_48px.ico', QSize(48, 48))
@@ -620,7 +628,7 @@ class MainControls(QMainWindow):
         self.label_numberSlices.setText(str(self.stack.number_slices))
         if self.use_microtome:
             self.label_sliceThickness.setText(
-                self.cfg['acq']['slice_thickness'] + ' nm')
+                str(self.stack.slice_thickness) + ' nm')
         else:
             self.label_sliceThickness.setText('---')
 
@@ -1327,8 +1335,6 @@ class MainControls(QMainWindow):
             self.save_ini()
         elif msg == 'REFRESH OV':
             self.acquire_ov()
-        elif msg == 'ACQUIRE STUB OV':
-            self.open_stub_ov_dlg()
         elif msg == 'SHOW CURRENT SETTINGS':
             self.show_current_settings()
             self.show_stack_acq_estimates()
@@ -1694,8 +1700,8 @@ class MainControls(QMainWindow):
                 self, 'Debris detection test results',
                 'Method 0:\n' + str(debris_detected0) + '; ' + msg0
                 + '\nThresholds were (mean/stddev): '
-                + self.cfg['debris']['mean_diff_threshold']
-                + ', ' + self.cfg['debris']['stddev_diff_threshold']
+                + str(self.img_inspector.mean_diff_threshold)
+                + ', ' + str(self.img_inspector.stddev_diff_threshold)
                 + '\n\nMethod 1: ' + str(debris_detected1) + '; ' + msg1
                 + '\n\nMethod 2: ' + str(debris_detected2) + '; ' + msg2,
                 QMessageBox.Ok)
@@ -2322,8 +2328,7 @@ class MainControls(QMainWindow):
             self.ft_series_wd_values.append(
                 self.ft_selected_wd + self.ft_fdeltas[i])
             filename = os.path.join(
-                self.cfg['acq']['base_dir'],
-                'workspace', 'ft' + str(i) + '.bmp')
+                self.stack.base_dir, 'workspace', 'ft' + str(i) + '.bmp')
             self.sem.acquire_frame(filename)
             self.ft_series_img.append(QPixmap(filename))
         self.sem.set_beam_blanking(1)
@@ -2356,8 +2361,7 @@ class MainControls(QMainWindow):
                 self.ft_series_stig_y_values.append(
                     self.ft_selected_stig_y + self.ft_sdeltas[i])
             filename = os.path.join(
-                self.cfg['acq']['base_dir'],
-                'workspace', 'ft' + str(i) + '.bmp')
+                self.stack.base_dir, 'workspace', 'ft' + str(i) + '.bmp')
             self.sem.acquire_frame(filename)
             self.ft_series_img.append(QPixmap(filename))
         self.sem.set_beam_blanking(1)

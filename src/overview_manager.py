@@ -8,13 +8,13 @@
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
 
-"""This module manages the overview images (region-of-interest overviews [OV]
-and stub overviews), as well as single imported images. It can add, delete and
-modify overviews, and read parameters from existing overviews.
-The classes Overview, StubOverview and ImportedImage are derived from class
-Grid in grid_manager.py.
-The instance of the OverviewManager class used throughout SBEMimage as self.ovm
-(ovm short for overview_manager).
+"""This module manages the overview images (region-of-interest overviews [OV])
+and the stub overview images. It can add, delete and modify overviews, and read
+parameters from existing overviews.
+The classes Overview and StubOverview are derived from class Grid in
+grid_manager.py.
+One instance of the OverviewManager class is used throughout SBEMimage as
+self.ovm ('ovm' short for overview_manager).
 The attributes of overviews be accessed with square brackets, for
 example:
 self.ovm[ov_index].dwell_time  (dwell_time of the specified overview)

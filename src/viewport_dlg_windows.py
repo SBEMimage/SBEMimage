@@ -37,7 +37,7 @@ class Trigger(QObject):
 
 class StubOVDlg(QDialog):
     """Acquire a stub overview image. The user can specify the location
-       in stage coordinates and the size of the grid.
+    in stage coordinates and the size of the grid.
     """
 
     def __init__(self, centre_sx_sy, grid_size_selector,
@@ -48,20 +48,20 @@ class StubOVDlg(QDialog):
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
-        self.base_dir = stack.base_dir
-        self.slice_counter = stack.slice_counter
         self.sem = sem
         self.stage = stage
         self.ovm = ovm
+        self.stack = stack
         self.viewport_trigger = viewport_trigger
         self.viewport_queue = viewport_queue
-        # Set up trigger and queue to update dialog GUI during approach:
+        self.acq_in_progress = False
+
+        # Set up trigger and queue to update dialog GUI during acquisition
         self.stub_dlg_trigger = Trigger()
         self.stub_dlg_trigger.s.connect(self.process_thread_signal)
         self.stub_dlg_queue = Queue()
         self.abort_queue = Queue()
-        self.acq_in_progress = False
-        self.pushButton_acquire.clicked.connect(self.acquire_stub_ov)
+        self.pushButton_acquire.clicked.connect(self.start_stub_ov_acquisition)
         self.pushButton_abort.clicked.connect(self.abort)
         self.spinBox_X.setValue(centre_sx_sy[0])
         self.spinBox_Y.setValue(centre_sx_sy[1])
@@ -86,12 +86,12 @@ class StubOVDlg(QDialog):
             height = int(
                 (rows * tile_height - (rows-1) * overlap) * pixel_size / 1000)
             duration = int(round(
-                (rows * cols * (cycle_time + motor_move_time)) / 60))
+                (rows * cols * (cycle_time + motor_move_time) + 30) / 60))
 
             self.grid_size_list.append(
                 str(width) + ' µm × ' + str(height) + ' µm')
             self.durations.append('Up to ~' + str(duration) + ' min')
-        # Grid size selection:
+        # Grid size selection
         self.comboBox_sizeSelector.addItems(self.grid_size_list)
         self.comboBox_sizeSelector.setCurrentIndex(self.grid_size_selector)
         self.comboBox_sizeSelector.currentIndexChanged.connect(
@@ -102,7 +102,7 @@ class StubOVDlg(QDialog):
 
     def process_thread_signal(self):
         """Process commands from the queue when a trigger signal occurs
-           while the acquisition of the stub overview is running.
+        while the acquisition of the stub overview is running.
         """
         msg = self.stub_dlg_queue.get()
         if msg == 'UPDATE XY':
@@ -127,7 +127,7 @@ class StubOVDlg(QDialog):
         elif msg == 'STUB OV FAILURE':
             self.viewport_queue.put('STUB OV FAILURE')
             self.viewport_trigger.s.emit()
-            # Restore previous origin:
+            # Restore previous origin and grid size
             self.ovm['stub'].centre_sx_sy = self.previous_centre_sx_sy
             self.ovm['stub'].grid_size_selector = (
                 self.previous_grid_size_selector)
@@ -144,7 +144,7 @@ class StubOVDlg(QDialog):
         elif msg == 'STUB OV ABORT':
             self.viewport_queue.put('STATUS IDLE')
             self.viewport_trigger.s.emit()
-            # Restore previous origin:
+            # Restore previous origin and grid size
             self.ovm['stub'].centre_sx_sy = self.previous_centre_sx_sy
             self.ovm['stub'].grid_size_selector = (
                 self.previous_grid_size_selector)
@@ -167,12 +167,11 @@ class StubOVDlg(QDialog):
         self.viewport_queue.put(msg)
         self.viewport_trigger.s.emit()
 
-    def acquire_stub_ov(self):
-        """Acquire the stub overview. Acquisition routine runs in
-           a thread.
-        """
-        # Start acquisition only if EHT is on:
-        if self.sem.is_eht_on() or True:
+    def start_stub_ov_acquisition(self):
+        """Acquire the stub overview. Acquisition routine runs in a thread."""
+
+        # Start acquisition if EHT is on
+        if self.sem.is_eht_on():
             self.acq_in_progress = True
             centre_sx_sy = self.spinBox_X.value(), self.spinBox_Y.value()
             grid_size_selector = self.comboBox_sizeSelector.currentIndex()
@@ -181,7 +180,7 @@ class StubOVDlg(QDialog):
             self.ovm['stub'].centre_sx_sy = centre_sx_sy
 
             self.add_to_log(
-                'CTRL: User-requested acquisition of stub OV mosaic started.')
+                'CTRL: Acquisition of stub overview image started.')
             self.pushButton_acquire.setEnabled(False)
             self.pushButton_abort.setEnabled(True)
             self.buttonBox.setEnabled(False)
@@ -194,8 +193,8 @@ class StubOVDlg(QDialog):
             QApplication.processEvents()
             stub_acq_thread = threading.Thread(
                                   target=acq_func.acquire_stub_ov,
-                                  args=(self.base_dir, self.slice_counter,
-                                        self.sem, self.stage, self.ovm,
+                                  args=(self.sem, self.stage,
+                                        self.ovm, self.stack,
                                         self.stub_dlg_trigger,
                                         self.stub_dlg_queue,
                                         self.abort_queue,))
@@ -264,13 +263,14 @@ class FocusGradientTileSelectionDlg(QDialog):
 class GridRotationDlg(QDialog):
     """Change the rotation angle of a selected grid."""
 
-    def __init__(self, selected_grid, gm, cfg,
-                 viewport_trigger, viewport_queue):
+    def __init__(self, selected_grid, gm,
+                 viewport_trigger, viewport_queue,
+                 magc_mode=False):
         self.selected_grid = selected_grid
         self.gm = gm
-        self.cfg = cfg
         self.viewport_trigger = viewport_trigger
         self.viewport_queue = viewport_queue
+        self.magc_mode = magc_mode
         self.rotation_in_progress = False
         super().__init__()
         loadUi('..\\gui\\change_grid_rotation_dlg.ui', self)
@@ -362,9 +362,9 @@ class GridRotationDlg(QDialog):
         super().reject()
 
     def accept(self):
-        # Calculate new grid map with new rotation angle:
+        # Calculate new grid map with new rotation angle
         self.gm[self.selected_grid].update_tile_positions()
-        if self.cfg['sys']['magc_mode'] == 'True':
+        if self.magc_mode:
             self.gm.update_source_ROIs_from_grids()
         super().accept()
 

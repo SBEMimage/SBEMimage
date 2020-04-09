@@ -421,7 +421,8 @@ class Stack:
             with open(config_filename, 'w') as f:
                 self.cfg.write(f)
             # Save current grid setup
-            gridmap_filename = self.gm.save_tile_positions_to_disk(timestamp)
+            gridmap_filename = self.gm.save_tile_positions_to_disk(
+                self.base_dir, timestamp)
             # Create main log file, in which all entries are saved.
             # No line limit.
             self.main_log_filename = os.path.join(
