@@ -132,8 +132,8 @@ class Viewport(QWidget):
         # Display current settings:
         self.setFixedSize(self.size())
         self.move(20, 20)
-        # Deactivate buttons for imaging if in simulation mode:
-        if self.cfg['sys']['simulation_mode'].lower == 'true':
+        # Deactivate buttons for imaging if in simulation mode
+        if self.sem.simulation_mode:
             self.pushButton_refreshOVs.setEnabled(False)
             self.pushButton_acquireStubOV.setEnabled(False)
             self.checkBox_showStagePos.setEnabled(False)
@@ -561,7 +561,7 @@ class Viewport(QWidget):
                 else:
                     self.ovm.update_all_debris_detections_areas(self.gm)
                     # ------ MagC code ------
-                    if self.cfg['sys']['magc_mode'] == 'True':
+                    if self.sem.magc_mode:
                         # in magc_mode, save the new grid location back
                         # to the source magc sections
                         self.gm.update_source_ROIs_from_grids()
@@ -891,13 +891,13 @@ class Viewport(QWidget):
             action_changeRotation.triggered.connect(
                 self._vp_open_change_grid_rotation_dlg)
 
-            if self.cfg['sys']['magc_mode'] == 'True':
+            if self.sem.magc_mode:
                 action_moveGridCurrentStage = menu.addAction(
                     f'Move grid {self.selected_grid} to current stage position')
                 action_moveGridCurrentStage.triggered.connect(
                     self._vp_manual_stage_move)
                 if not ((self.selected_grid is not None)
-                    and self.cfg['magc']['wafer_calibrated'] == 'True'):
+                    and self.cfg['magc']['wafer_calibrated'].lower() == 'true'):
                     action_moveGridCurrentStage.setEnabled(False)
 
             menu.addSeparator()
@@ -931,7 +931,7 @@ class Viewport(QWidget):
                 self._vp_open_delete_image_dlg)
 
             # ----- MagC items -----
-            if (self.cfg['sys']['magc_mode'].lower() == 'true'
+            if (self.sem.magc_mode
                 and self.selected_grid is not None):
                 menu.addSeparator()
                 action_propagateAll = menu.addAction(
@@ -970,7 +970,7 @@ class Viewport(QWidget):
                 action_selectGradient.setEnabled(False)
                 action_move.setEnabled(False)
                 action_stub.setEnabled(False)
-            if self.cfg['sys']['simulation_mode'].lower() == 'true':
+            if self.sem.simulation_mode:
                 action_move.setEnabled(False)
                 action_stub.setEnabled(False)
             menu.exec_(self.mapToGlobal(p))
@@ -1015,7 +1015,7 @@ class Viewport(QWidget):
         # For MagC mode: show imported images before drawing grids
         # TODO: Think about more general solution to organize display layers.
         if (self.show_imported and self.imported.number_imported > 0
-            and self.cfg['sys']['magc_mode'].lower() == 'true'):
+            and self.sem.magc_mode):
             for imported_img_index in range(self.imported.number_imported):
                 self._vp_place_imported_img(imported_img_index)
         # Place OV overviews over stub OV:
@@ -1055,7 +1055,7 @@ class Viewport(QWidget):
                                 suppress_labels)
         # Finally, show imported images
         if (self.show_imported and self.imported.number_imported > 0
-            and self.cfg['sys']['magc_mode'].lower() == 'false'):
+            and not self.sem.magc_mode):
             for imported_img_index in range(self.imported.number_imported):
                 self._vp_place_imported_img(imported_img_index)
         # Show stage boundaries (motor range limits)
@@ -1070,7 +1070,7 @@ class Viewport(QWidget):
                                   utils.VP_HEIGHT - 490,
                                   self.vp_help_panel_img)
         # Simulation mode indicator
-        if self.cfg['sys']['simulation_mode'].lower() == 'true':
+        if self.sem.simulation_mode:
             self._show_simulation_mode_indicator()
         # Show current stage position
         if self.show_stage_pos:
@@ -2143,10 +2143,11 @@ class Viewport(QWidget):
         self._transmit_cmd('STATUS IDLE')
 
     def _vp_open_change_grid_rotation_dlg(self):
-        dialog = GridRotationDlg(self.selected_grid, self.gm, self.cfg,
-            self.viewport_trigger, self.viewport_queue)
+        dialog = GridRotationDlg(self.selected_grid, self.gm,
+                                 self.viewport_trigger, self.viewport_queue,
+                                 self.sem.magc_mode)
         if dialog.exec_():
-            if self.cfg['debris']['auto_detection_area'] == 'True':
+            if self.ovm.use_auto_debris_area:
                 self.ovm.update_all_debris_detections_areas(self.gm)
                 self.vp_draw()
 
@@ -2990,14 +2991,14 @@ class Viewport(QWidget):
         filename = None
         if self.m_current_ov >= 0:
             filename = os.path.join(
-                self.cfg['acq']['base_dir'], 'workspace', 'reslices',
+                self.stack.base_dir, 'workspace', 'reslices',
                 'r_OV' + str(self.m_current_ov).zfill(utils.OV_DIGITS) + '.png')
         elif self.m_current_tile >= 0:
             tile_key = ('g' + str(self.m_current_grid).zfill(utils.GRID_DIGITS)
                         + '_t'
                         + str(self.m_current_tile).zfill(utils.TILE_DIGITS))
             filename = os.path.join(
-                self.cfg['acq']['base_dir'], 'workspace', 'reslices',
+                self.stack.base_dir, 'workspace', 'reslices',
                 'r_' + tile_key + '.png')
         else:
             filename = None
@@ -3017,7 +3018,7 @@ class Viewport(QWidget):
             self.m_qp.drawPixmap(0, 0, current_reslice)
             # Draw red line on currently selected slice:
             if self.m_selected_slice_number is not None:
-                most_recent_slice = int(self.cfg['acq']['slice_counter'])
+                most_recent_slice = int(self.stack.slice_counter)
                 self.m_qp.setPen(QColor(255, 0, 0))
                 slice_y = most_recent_slice - self.m_selected_slice_number
                 self.m_qp.drawLine(0, h - slice_y,
@@ -3061,14 +3062,14 @@ class Viewport(QWidget):
         if self.m_current_ov >= 0:
             # get current data:
             filename = os.path.join(
-                self.cfg['acq']['base_dir'], 'meta', 'stats',
+                self.stack.base_dir, 'meta', 'stats',
                 'OV' + str(self.m_current_ov).zfill(utils.OV_DIGITS) + '.dat')
         elif self.m_current_tile >= 0:
             tile_key = ('g' + str(self.m_current_grid).zfill(utils.GRID_DIGITS)
                         + '_t'
                         + str(self.m_current_tile).zfill(utils.TILE_DIGITS))
             filename = os.path.join(
-                self.cfg['acq']['base_dir'], 'meta', 'stats',
+                self.stack.base_dir, 'meta', 'stats',
                 tile_key + '.dat')
         else:
             filename = None
@@ -3240,7 +3241,6 @@ class Viewport(QWidget):
             self.m_tab_populated = False
 
     def m_draw_histogram(self):
-        base_dir = self.cfg['acq']['base_dir']
         selected_file = ''
         slice_number = None
         if self.m_from_stack:
@@ -3248,11 +3248,11 @@ class Viewport(QWidget):
             path = None
             if self.m_current_ov >= 0:
                 path = os.path.join(
-                    base_dir, 'overviews',
+                    self.stack.base_dir, 'overviews',
                     'ov' + str(self.m_current_ov).zfill(utils.OV_DIGITS))
             elif self.m_current_tile >= 0:
                 path = os.path.join(
-                    base_dir, 'tiles',
+                    self.stack.base_dir, 'tiles',
                     'g' + str(self.m_current_grid).zfill(utils.GRID_DIGITS)
                     + '\\t' + str(self.m_current_tile).zfill(utils.TILE_DIGITS))
 
@@ -3275,7 +3275,7 @@ class Viewport(QWidget):
         else:
             # Use current image in SmartSEM
             selected_file = os.path.join(
-                base_dir, 'workspace', 'current_frame.tif')
+                self.base_dir, 'workspace', 'current_frame.tif')
             self.sem.save_frame(selected_file)
             self.m_reset_view()
             self.m_tab_populated = False

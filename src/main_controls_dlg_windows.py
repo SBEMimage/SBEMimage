@@ -313,7 +313,7 @@ class KatanaSettingsDlg(QDialog):
         self.spinBox_cutWindowEnd.setValue(cut_window_end)
 
         self.checkBox_useOscillation.setChecked(
-            self.microtome.is_oscillation_enabled())
+            self.microtome.use_oscillation)
         self.spinBox_oscAmplitude.setValue(
             self.microtome.oscillation_amplitude)
         self.spinBox_oscFrequency.setValue(

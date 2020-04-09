@@ -263,13 +263,14 @@ class FocusGradientTileSelectionDlg(QDialog):
 class GridRotationDlg(QDialog):
     """Change the rotation angle of a selected grid."""
 
-    def __init__(self, selected_grid, gm, cfg,
-                 viewport_trigger, viewport_queue):
+    def __init__(self, selected_grid, gm,
+                 viewport_trigger, viewport_queue,
+                 magc_mode=False):
         self.selected_grid = selected_grid
         self.gm = gm
-        self.cfg = cfg
         self.viewport_trigger = viewport_trigger
         self.viewport_queue = viewport_queue
+        self.magc_mode = magc_mode
         self.rotation_in_progress = False
         super().__init__()
         loadUi('..\\gui\\change_grid_rotation_dlg.ui', self)
@@ -361,9 +362,9 @@ class GridRotationDlg(QDialog):
         super().reject()
 
     def accept(self):
-        # Calculate new grid map with new rotation angle:
+        # Calculate new grid map with new rotation angle
         self.gm[self.selected_grid].update_tile_positions()
-        if self.cfg['sys']['magc_mode'] == 'True':
+        if self.magc_mode:
             self.gm.update_source_ROIs_from_grids()
         super().accept()
 
