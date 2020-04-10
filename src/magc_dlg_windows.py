@@ -35,6 +35,8 @@ from zipfile import ZipFile
 
 from viewport_dlg_windows import ImportImageDlg
 
+from imported_img import ImportedImages
+
 from PyQt5.uic import loadUi
 from PyQt5.QtCore import Qt, QObject, QSize, pyqtSignal
 from PyQt5.QtGui import QPixmap, QIcon, QPalette, QColor, QFont, \
@@ -82,8 +84,8 @@ class ImportMagCDlg(QDialog):
         self.pushButton_import.rejected.connect(self.accept)
         store_res_list = [
             '%d × %d' % (res[0], res[1]) for res in self.sem.STORE_RES]
-        self.comboBox_tileSize.addItems(store_res_list)
-        self.comboBox_tileSize.setCurrentIndex(5)
+        self.comboBox_frameSize.addItems(store_res_list)
+        self.comboBox_frameSize.setCurrentIndex(5)
         self.show()
 
     def _add_to_main_log(self, msg):
@@ -94,9 +96,6 @@ class ImportMagCDlg(QDialog):
         self.trigger.s.emit()
 
     def import_metadata(self):
-        dialog = ImportImageDlg([], '')
-        if dialog.exec_():
-            print('importImg')
         # read sections from MagC yaml
         magc_file_path = os.path.normpath(
             self.lineEdit_fileName.text())
@@ -182,16 +181,94 @@ class ImportMagCDlg(QDialog):
                                     'Specified file not found.',
                                     QMessageBox.Ok)
                 selection_success = False
-        else:
+
+
+        dialog = ImportImageDlg(
+            ImportedImages(self.cfg),
+            os.path.join(self.cfg['acq']['base_dir'], 'imported'))
+        dialog.doubleSpinBox_pixelSize.setEnabled(False)
+        dialog.doubleSpinBox_posX.setEnabled(False)
+        dialog.doubleSpinBox_posY.setEnabled(False)
+        dialog.spinBox_rotation.setEnabled(False)
+
+        # pre-filling the dialog if wafer image present
+        # and no ambiguity in choosing the file
+        magc_file_folder = os.path.dirname(magc_file_path)
+        im_names = [im_name for im_name in os.listdir(magc_file_folder)
+            if ('wafer' in im_name)
+                and (os.path.splitext(im_name)[1] in ['.tif', '.png'])]
+        if len(im_names) == 0:
+            self._add_to_main_log('''No wafer picture was found.
+                Select the wafer image manually.''')
+        elif len(im_names) > 1:
+
             self._add_to_main_log(
                 'There is more than one image available in the folder '
-                'containing the .magc section description file. Please '
-                'place only one wafer image (.tif) in that folder.')
+                'containing the .magc section description file.'
+                'Select the wafer image manually')
+        elif len(im_names) == 1:
+            im_path = os.path.normpath(
+                os.path.join(magc_file_folder, im_names[0]))
+
+            dialog.lineEdit_fileName.setText(im_path)
+            dialog.lineEdit_name.setText(
+                os.path.splitext(
+                    os.path.basename(im_path))[0])
+
+        if dialog.exec_():
+            self._add_to_main_log('debug_executed')
+            print('debug_importImg')
+
+            # # # selection_success = True
+            # # # selected_filename = os.path.basename(im_path)
+            # # # timestamp = str(datetime.datetime.now())
+            # # # # Remove some characters from timestamp to get valid file name:
+            # # # timestamp = timestamp[:19].translate(
+                # # # {ord(c): None for c in ' :-.'})
+            # # # target_path = os.path.join(self.target_dir,
+                           # # # os.path.splitext(selected_filename)[0] +
+                           # # # '_' + timestamp + '.png')
+            # # # if os.path.isfile(im_path):
+                # # # # Copy file to data folder as png:
+                # # # try:
+                    # # # imported_img = Image.open(im_path)
+                    # # # imported_img.save(target_path)
+                # # # except Exception as e:
+                    # # # QMessageBox.warning(
+                        # # # self, 'Error',
+                        # # # 'Could not load image file.' + str(e),
+                         # # # QMessageBox.Ok)
+                    # # # selection_success = False
+
+                # # # if selection_success:
+                    # # # new_img_number = self.ovm.get_number_imported()
+                    # # # self.ovm.add_imported_img()
+                    # # # width, height = imported_img.size
+                    # # # self.ovm.set_imported_img_file(
+                        # # # new_img_number, target_path)
+                    # # # self.ovm.set_imported_img_name(new_img_number,
+                                                   # # # selected_filename)
+                    # # # self.ovm.set_imported_img_size_px_py(
+                        # # # new_img_number, width, height)
+                    # # # self.ovm.set_imported_img_pixel_size(
+                        # # # new_img_number, 1000)
+                    # # # self.cs.set_imported_img_centre_s(
+                        # # # new_img_number,
+                        # # # [width//2, height//2])
+
+                    # # # self.viewport.mv_load_last_imported_image()
+                    # # # self.viewport.mv_draw()
+
+            # # # else:
+                # # # QMessageBox.warning(self, 'Error',
+                                    # # # 'Specified file not found.',
+                                    # # # QMessageBox.Ok)
+                # # # selection_success = False
         #--------------------------------------
 
         #---------------------------------------
         # populate the grids and the sectionList
-        tile_size_selector = self.comboBox_tileSize.currentIndex()
+        frame_size_selector = self.comboBox_frameSize.currentIndex()
         pixel_size = self.doubleSpinBox_pixelSize.value()
         tile_overlap = self.doubleSpinBox_tileOverlap.value()
 

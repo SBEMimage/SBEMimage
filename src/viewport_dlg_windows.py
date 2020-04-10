@@ -396,7 +396,8 @@ class ImportImageDlg(QDialog):
             )[0])
         if len(selected_file) > 0:
             # Replace forward slashes with backward slashes:
-            selected_file = selected_file.replace('/', '\\')
+            # selected_file = selected_file.replace('/', '\\')
+            selected_file = os.path.normpath(selected_file)
             self.lineEdit_fileName.setText(selected_file)
             self.lineEdit_name.setText(
                 os.path.splitext(os.path.basename(selected_file))[0])
@@ -408,9 +409,13 @@ class ImportImageDlg(QDialog):
         timestamp = str(datetime.datetime.now())
         # Remove some characters from timestap to get valid file name:
         timestamp = timestamp[:19].translate({ord(c): None for c in ' :-.'})
-        target_path = (self.target_dir + '\\'
-                       + os.path.splitext(selected_filename)[0]
-                       + '_' + timestamp + '.png')
+        # target_path = (self.target_dir + '\\'
+                       # + os.path.splitext(selected_filename)[0]
+                       # + '_' + timestamp + '.png')
+        target_path = os.path.join(
+            self.target_dir,
+            os.path.splitext(selected_filename)[0]
+            + '_' + timestamp + '.png')
         if os.path.isfile(selected_path):
             # Copy file to data folder as png:
             try:
