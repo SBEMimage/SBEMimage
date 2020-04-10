@@ -974,8 +974,8 @@ class MainControls(QMainWindow):
 
     def magc_open_import_dlg(self):
         gui_items = {'sectionList': self.tableView_magc_sectionList,}
-        dialog = ImportMagCDlg(self.cfg, self.gm, self.cs, self.stage,
-                               self.sem, self.ovm, self.viewport, gui_items,
+        dialog = ImportMagCDlg(self.acq, self.gm, self.sem, self.imported,
+                               self.viewport, gui_items,
                                self.trigger, self.queue)
         if dialog.exec_():
             # self.tabWidget.setTabEnabled(3, True)

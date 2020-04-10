@@ -35,8 +35,6 @@ from zipfile import ZipFile
 
 from viewport_dlg_windows import ImportImageDlg
 
-from imported_img import ImportedImages
-
 from PyQt5.uic import loadUi
 from PyQt5.QtCore import Qt, QObject, QSize, pyqtSignal
 from PyQt5.QtGui import QPixmap, QIcon, QPalette, QColor, QFont, \
@@ -54,22 +52,20 @@ YELLOW = QColor(Qt.yellow)
 class ImportMagCDlg(QDialog):
     """Import MagC metadata."""
 
-    def __init__(self, config, grid_manager, coordinate_system, stage,
-            sem, ovm, viewport, gui_items, trigger, queue):
+    def __init__(self, acq, grid_manager, sem, imported, viewport,
+                 gui_items, trigger, queue):
         super().__init__()
-        self.cfg = config
+        self.acq = acq
         self.gm = grid_manager
-        self.cs = coordinate_system
-        self.stage = stage
         self.sem = sem
-        self.ovm = ovm
+        self.imported = imported
         self.viewport = viewport
         self.gui_items = gui_items
         self.trigger = trigger
         self.queue = queue
 
         self.target_dir = os.path.join(
-            self.cfg['acq']['base_dir'], 'overviews', 'imported')
+            self.acq.base_dir, 'overviews', 'imported')
         loadUi(os.path.join('..', 'gui', 'import_magc_metadata_dlg.ui'), self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon(os.path.join('..', 'img', 'icon_16px.ico')))
@@ -184,8 +180,8 @@ class ImportMagCDlg(QDialog):
 
 
         dialog = ImportImageDlg(
-            ImportedImages(self.cfg),
-            os.path.join(self.cfg['acq']['base_dir'], 'imported'))
+            self.imported,
+            os.path.join(self.acq.base_dir, 'imported'))
         dialog.doubleSpinBox_pixelSize.setEnabled(False)
         dialog.doubleSpinBox_posX.setEnabled(False)
         dialog.doubleSpinBox_posY.setEnabled(False)
@@ -201,7 +197,6 @@ class ImportMagCDlg(QDialog):
             self._add_to_main_log('''No wafer picture was found.
                 Select the wafer image manually.''')
         elif len(im_names) > 1:
-
             self._add_to_main_log(
                 'There is more than one image available in the folder '
                 'containing the .magc section description file.'
@@ -285,14 +280,15 @@ class ImportMagCDlg(QDialog):
             header.setSectionResizeMode(i, QHeaderView.ResizeToContents)
         header.setStretchLastSection(True)
 
-        self.gm.delete_all_grid_above_index(0)
+        self.gm.delete_all_grids_above_index(0)
         for section in range(n_sections):
             self.gm.add_new_grid()
         for idx, section in sections.items():
             if str(idx).isdigit(): # to exclude tissueROI and landmarks
                 self.gm[idx].size = [self.spinBox_rows.value(),
                                      self.spinBox_cols.value()]
-                self.gm[idx].frame_size_selector = tile_size_selector
+                self.gm[idx].display_colour = 1
+                self.gm[idx].frame_size_selector = frame_size_selector
                 self.gm[idx].pixel_size = pixel_size
                 self.gm[idx].overlap = tile_overlap
                 self.gm[idx].activate_all_tiles()
