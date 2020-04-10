@@ -39,7 +39,6 @@ import acq_func
 from viewport_dlg_windows import StubOVDlg, FocusGradientTileSelectionDlg, \
                                  GridRotationDlg, ImportImageDlg, \
                                  AdjustImageDlg, DeleteImageDlg
-from magc_dlg_windows import ImportWaferImageDlg
 
 class Trigger(QObject):
     """Custom signal for updating GUI from within running threads."""
@@ -2194,7 +2193,6 @@ class Viewport(QWidget):
     def vp_propagate_grid_properties_to_selected_sections(self):
         # TODO
         clicked_section_number = self.selected_grid
-        selected_sections = json.loads(self.cfg['magc']['selected_sections'])
 
         # load original sections from file which might be different from
         # the grids adjusted in SBEMImage
@@ -2202,7 +2200,7 @@ class Viewport(QWidget):
             sections, landmarks = utils.sectionsYAML_to_sections_landmarks(
             yaml.full_load(f))
 
-        for selected_section in selected_sections:
+        for selected_section in self.gm.magc_selected_sections:
             self.gm.propagate_source_grid_properties_to_target_grid(
                 clicked_section_number,
                 selected_section,

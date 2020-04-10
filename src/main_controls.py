@@ -707,9 +707,9 @@ class MainControls(QMainWindow):
         sectionListModel.setHorizontalHeaderItem(0, QStandardItem('Section'))
         sectionListModel.setHorizontalHeaderItem(1, QStandardItem('State'))
         self.tableView_magc_sectionList.setModel(sectionListModel)
-        self.tableView_magc_sectionList.selectionModel(
-            ).selectionChanged.connect(
-                self.magc_actions_selected_sections_changed)
+        (self.tableView_magc_sectionList.selectionModel()
+            .selectionChanged
+            .connect(self.magc_actions_selected_sections_changed))
 
         header = self.tableView_magc_sectionList.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents)

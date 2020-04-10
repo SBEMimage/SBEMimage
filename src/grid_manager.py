@@ -720,10 +720,8 @@ class GridManager:
         # Load MagC settings
         self.magc_sections_path = self.cfg['magc']['sections_path']
         self.magc_sections = json.loads(self.cfg['magc']['sections'])
-        self.magc_selected_sections = json.loads(
-            self.cfg['magc']['selected_sections'])
-        self.magc_checked_sections = json.loads(
-            self.cfg['magc']['checked_sections'])
+        self.magc_selected_sections = []
+        self.magc_checked_sections = []
         self.magc_landmarks = json.loads(self.cfg['magc']['landmarks'])
         self.magc_wafer_transform = json.loads(
             self.cfg['magc']['wafer_transform'])
@@ -824,10 +822,6 @@ class GridManager:
         # Save MagC settings to config
         self.cfg['magc']['sections_path'] = self.magc_sections_path
         self.cfg['magc']['sections'] = json.dumps(self.magc_sections)
-        self.cfg['magc']['selected_sections'] = json.dumps(
-            self.magc_selected_sections)
-        self.cfg['magc']['checked_sections'] = json.dumps(
-            self.magc_checked_sections)
         self.cfg['magc']['landmarks'] = json.dumps(self.magc_landmarks)
         self.cfg['magc']['wafer_transform'] = json.dumps(
             self.magc_wafer_transform)
