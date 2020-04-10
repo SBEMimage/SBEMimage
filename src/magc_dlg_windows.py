@@ -135,7 +135,8 @@ class ImportMagCDlg(QDialog):
             if ('wafer' in im_name)
                 and (os.path.splitext(im_name)[1] in ['.tif', '.png'])]
         if im_names == []:
-            self._add_to_main_log('No wafer picture was found. Insert it manually.')
+            self._add_to_main_log(
+                'No wafer picture was found. Insert it manually.')
         elif len(im_names) == 1:
             im_path = os.path.normpath(
                 os.path.join(dir_sections, im_names[0]))
@@ -167,7 +168,7 @@ class ImportMagCDlg(QDialog):
                     width, height = imported_img.size
                     self.imported[new_img_number].image_src = target_path
                     self.imported[new_img_number].description = selected_filename
-                    self.imported[new_img_number] = [width, height]
+                    self.imported[new_img_number].size = [width, height]
                     self.imported[new_img_number].pixel_size = 1000
                     self.imported[new_img_number].centre_sx_sy = [width//2, height//2]
                     self.viewport.mv_draw()
@@ -187,7 +188,7 @@ class ImportMagCDlg(QDialog):
         dialog.doubleSpinBox_posY.setEnabled(False)
         dialog.spinBox_rotation.setEnabled(False)
 
-        # pre-filling the dialog if wafer image present
+        # pre-filling the ImportImageDialog if wafer image present
         # and no ambiguity in choosing the file
         magc_file_folder = os.path.dirname(magc_file_path)
         im_names = [im_name for im_name in os.listdir(magc_file_folder)
@@ -281,7 +282,7 @@ class ImportMagCDlg(QDialog):
         header.setStretchLastSection(True)
 
         self.gm.delete_all_grids_above_index(0)
-        for section in range(n_sections):
+        for section in range(n_sections-1):
             self.gm.add_new_grid()
         for idx, section in sections.items():
             if str(idx).isdigit(): # to exclude tissueROI and landmarks

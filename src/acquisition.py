@@ -196,7 +196,7 @@ class Acquisition:
             self.continue_after_max_sweeps)
         # MagC
         self.cfg['magc']['roi_mode'] = str(self.magc_roi_mode)
-        self.cfg['magc']['wafer_calibrated'] == str(self.magc_wafer_calibrated)
+        self.cfg['magc']['wafer_calibrated'] = str(self.magc_wafer_calibrated)
 
 
     def calculate_estimates(self):
