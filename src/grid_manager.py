@@ -867,7 +867,7 @@ class GridManager:
     def delete_grid(self):
         """Delete the grid with the highest grid index. Grids at indices that
         are smaller than the highest index cannot be deleted because otherwise
-        grid indentities cannot be preserved."""
+        grid identities cannot be preserved."""
         self.number_grids -= 1
         del self.__grids[-1]
 

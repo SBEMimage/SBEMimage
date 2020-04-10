@@ -92,6 +92,7 @@ class ImportMagCDlg(QDialog):
         self.trigger.s.emit()
 
     def import_metadata(self):
+        #-----------------------------
         # read sections from MagC yaml
         magc_file_path = os.path.normpath(
             self.lineEdit_fileName.text())
@@ -107,6 +108,7 @@ class ImportMagCDlg(QDialog):
             utils.sectionsYAML_to_sections_landmarks(
                 sectionsYAML))
 
+        # load ROIs updated by user manually
         if 'sourceROIsUpdatedFromSBEMimage' in sectionsYAML:
             result = QMessageBox.question(
                 self, 'Section import',
@@ -120,80 +122,32 @@ class ImportMagCDlg(QDialog):
                     'center': [float(a) for a in sectionXYA[:2]],
                     'angle': float( (-sectionXYA[2] + 90) % 360)}
                 self.acq.magc_roi_mode = False
-
+        
         n_sections = len(
             [k for k in sections.keys()
-            if str(k).isdigit()])
+            if str(k).isdigit()]) # discard tissueROI-35
         self._add_to_main_log(
             str(n_sections)
             + ' MagC sections have been loaded.')
         #--------------------------------------
-        # import wafer overview if file present
-
-        dir_sections = os.path.dirname(magc_file_path)
-        im_names = [im_name for im_name in os.listdir(dir_sections)
-            if ('wafer' in im_name)
-                and (os.path.splitext(im_name)[1] in ['.tif', '.png'])]
-        if im_names == []:
-            self._add_to_main_log(
-                'No wafer picture was found. Insert it manually.')
-        elif len(im_names) == 1:
-            im_path = os.path.normpath(
-                os.path.join(dir_sections, im_names[0]))
-
-            selection_success = True
-            selected_filename = os.path.basename(im_path)
-            timestamp = str(datetime.datetime.now())
-            # Remove some characters from timestamp to get valid file name:
-            timestamp = timestamp[:19].translate(
-                {ord(c): None for c in ' :-.'})
-            target_path = os.path.join(self.target_dir,
-                           os.path.splitext(selected_filename)[0] +
-                           '_' + timestamp + '.png')
-            if os.path.isfile(im_path):
-                # Copy file to data folder as png:
-                try:
-                    imported_img = Image.open(im_path)
-                    imported_img.save(target_path)
-                except Exception as e:
-                    QMessageBox.warning(
-                        self, 'Error',
-                        'Could not load image file.' + str(e),
-                         QMessageBox.Ok)
-                    selection_success = False
-
-                if selection_success:
-                    new_img_number = self.imported.number_imported
-                    self.imported.add_image()
-                    width, height = imported_img.size
-                    self.imported[new_img_number].image_src = target_path
-                    self.imported[new_img_number].description = selected_filename
-                    self.imported[new_img_number].size = [width, height]
-                    self.imported[new_img_number].pixel_size = 1000
-                    self.imported[new_img_number].centre_sx_sy = [width//2, height//2]
-                    self.viewport.mv_draw()
-
-            else:
-                QMessageBox.warning(self, 'Error',
-                                    'Specified file not found.',
-                                    QMessageBox.Ok)
-                selection_success = False
-
-
-        dialog = ImportImageDlg(
+        # import wafer overview
+        
+        self.imported.delete_all_images()
+        
+        import_img_dlg = ImportImageDlg(
             self.imported,
             os.path.join(self.acq.base_dir, 'imported'))
-        dialog.doubleSpinBox_pixelSize.setEnabled(False)
-        dialog.doubleSpinBox_posX.setEnabled(False)
-        dialog.doubleSpinBox_posY.setEnabled(False)
-        dialog.spinBox_rotation.setEnabled(False)
+        import_img_dlg.doubleSpinBox_pixelSize.setEnabled(False)
+        import_img_dlg.doubleSpinBox_pixelSize.setValue(1000)
+        import_img_dlg.doubleSpinBox_posX.setEnabled(False)
+        import_img_dlg.doubleSpinBox_posY.setEnabled(False)
+        import_img_dlg.spinBox_rotation.setEnabled(False)
 
-        # pre-filling the ImportImageDialog if wafer image present
-        # and no ambiguity in choosing the file
-        magc_file_folder = os.path.dirname(magc_file_path)
-        im_names = [im_name for im_name in os.listdir(magc_file_folder)
+        # pre-filling the ImportImageDialog if wafer image (unique) present
+        magc_file_dir = os.path.dirname(magc_file_path)
+        im_names = [im_name for im_name in os.listdir(magc_file_dir)
             if ('wafer' in im_name)
-                and (os.path.splitext(im_name)[1] in ['.tif', '.png'])]
+                and (os.path.splitext(im_name)[1] in ['.tif', '.png', 'jpg'])]
         if len(im_names) == 0:
             self._add_to_main_log('''No wafer picture was found.
                 Select the wafer image manually.''')
@@ -203,63 +157,28 @@ class ImportMagCDlg(QDialog):
                 'containing the .magc section description file.'
                 'Select the wafer image manually')
         elif len(im_names) == 1:
+            # pre-fill the import dialog
             im_path = os.path.normpath(
-                os.path.join(magc_file_folder, im_names[0]))
-
-            dialog.lineEdit_fileName.setText(im_path)
-            dialog.lineEdit_name.setText(
+                os.path.join(magc_file_dir, im_names[0]))
+            import_img_dlg.lineEdit_fileName.setText(im_path)
+            import_img_dlg.lineEdit_name.setText(
                 os.path.splitext(
                     os.path.basename(im_path))[0])
 
-        if dialog.exec_():
-            self._add_to_main_log('debug_executed')
-            print('debug_importImg')
-
-            # # # selection_success = True
-            # # # selected_filename = os.path.basename(im_path)
-            # # # timestamp = str(datetime.datetime.now())
-            # # # # Remove some characters from timestamp to get valid file name:
-            # # # timestamp = timestamp[:19].translate(
-                # # # {ord(c): None for c in ' :-.'})
-            # # # target_path = os.path.join(self.target_dir,
-                           # # # os.path.splitext(selected_filename)[0] +
-                           # # # '_' + timestamp + '.png')
-            # # # if os.path.isfile(im_path):
-                # # # # Copy file to data folder as png:
-                # # # try:
-                    # # # imported_img = Image.open(im_path)
-                    # # # imported_img.save(target_path)
-                # # # except Exception as e:
-                    # # # QMessageBox.warning(
-                        # # # self, 'Error',
-                        # # # 'Could not load image file.' + str(e),
-                         # # # QMessageBox.Ok)
-                    # # # selection_success = False
-
-                # # # if selection_success:
-                    # # # new_img_number = self.ovm.get_number_imported()
-                    # # # self.ovm.add_imported_img()
-                    # # # width, height = imported_img.size
-                    # # # self.ovm.set_imported_img_file(
-                        # # # new_img_number, target_path)
-                    # # # self.ovm.set_imported_img_name(new_img_number,
-                                                   # # # selected_filename)
-                    # # # self.ovm.set_imported_img_size_px_py(
-                        # # # new_img_number, width, height)
-                    # # # self.ovm.set_imported_img_pixel_size(
-                        # # # new_img_number, 1000)
-                    # # # self.cs.set_imported_img_centre_s(
-                        # # # new_img_number,
-                        # # # [width//2, height//2])
-
-                    # # # self.viewport.mv_load_last_imported_image()
-                    # # # self.viewport.mv_draw()
-
-            # # # else:
-                # # # QMessageBox.warning(self, 'Error',
-                                    # # # 'Specified file not found.',
-                                    # # # QMessageBox.Ok)
-                # # # selection_success = False
+        if import_img_dlg.exec_():
+            pass
+        
+        if self.imported.number_imported != 1:
+            self._add_to_main_log(
+                'You have not added a wafer image overview.'
+                'You can still do it by right-clicking in the viewport.'
+                'and select "Import image"')
+        else:
+            wafer_im = self.imported[0]
+            width, height = wafer_im.size
+            wafer_im.pixel_size = 1000
+            wafer_im.centre_sx_sy = [width//2, height//2]
+            self.viewport.vp_draw()
         #--------------------------------------
 
         #---------------------------------------

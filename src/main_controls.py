@@ -957,21 +957,22 @@ class MainControls(QMainWindow):
         sectionListModel.appendRow([item1, item2])
 
     def magc_delete_last_section(self):
-        # remove grid
-        self.gm.delete_grid()
-        self.update_from_grid_dlg()
         # remove section from list
         tableView = self.tableView_magc_sectionList
         sectionListModel = tableView.model()
         lastSectionNumber = sectionListModel.rowCount()-1
         sectionListModel.removeRow(lastSectionNumber)
-
+        # unselect and uncheck section
         if lastSectionNumber in self.gm.magc_selected_sections:
             self.gm.magc_selected_sections.remove(lastSectionNumber)
 
         if lastSectionNumber in self.gm.magc_checked_sections:
             self.gm.magc_checked_sections.remove(lastSectionNumber)
-
+            
+        # remove grid
+        self.gm.delete_grid()
+        self.update_from_grid_dlg()
+    
     def magc_open_import_dlg(self):
         gui_items = {'sectionList': self.tableView_magc_sectionList,}
         dialog = ImportMagCDlg(self.acq, self.gm, self.sem, self.imported,

@@ -421,6 +421,30 @@ def getRigidScaling(coefs):
 
 # ----------------- MagC utils ------------------
 def sectionsYAML_to_sections_landmarks(sectionsYAML):
+    ''' The structures of the dictionnaries sections and landmarks are:
+    sections{
+        0{
+            'center'
+                [x,y]
+            'angle'
+                a
+        1{}
+        ...
+        1000{}
+        'tissueROI-134'{
+            'center'{
+                [x,y]
+    landmarks{
+        0{
+            'source'
+                [x,y]
+            'target'
+                [x,y]
+        1{}
+        ...
+        4{}
+    '''
+    
     sections = {}
     landmarks = {}
     for sectionId, sectionXYA in sectionsYAML['tissue'].items():
