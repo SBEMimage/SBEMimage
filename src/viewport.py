@@ -566,8 +566,7 @@ class Viewport(QWidget):
                         # to the source magc sections
                         self.gm.update_source_ROIs_from_grids()
                         # deactivate roi_mode because grid manually moved
-                        self.cfg['magc']['roi_mode'] = 'False'
-                        self._transmit_cmd('SAVE INI')
+                        self.acq.magc_roi_mode = False
                     # ------ End of MagC code ------
 
             if self.ov_drag_active:
@@ -897,7 +896,7 @@ class Viewport(QWidget):
                 action_moveGridCurrentStage.triggered.connect(
                     self._vp_manual_stage_move)
                 if not ((self.selected_grid is not None)
-                    and self.cfg['magc']['wafer_calibrated'].lower() == 'true'):
+                    and self.acq.magc_wafer_calibrated):
                     action_moveGridCurrentStage.setEnabled(False)
 
             menu.addSeparator()

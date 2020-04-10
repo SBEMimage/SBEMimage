@@ -1390,8 +1390,7 @@ class Acquisition:
                             f'CTRL: Grid {grid_index} already acquired. '
                             f'Skipping.')
                     elif (self.magc_mode
-                          and grid_index not in json.loads(
-                              self.cfg['magc']['checked_sections'])):
+                          and grid_index not in self.gm.magc_checked_sections):
                         self.add_to_main_log(
                             f'CTRL: Grid {grid_index} not checked. Skipping.')
                     else:

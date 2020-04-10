@@ -65,7 +65,7 @@ class ImportMagCDlg(QDialog):
         self.gui_items = gui_items
         self.trigger = trigger
         self.queue = queue
-        
+
         self.target_dir = os.path.join(
             self.cfg['acq']['base_dir'], 'overviews', 'imported')
         loadUi(os.path.join('..', 'gui', 'import_magc_metadata_dlg.ui'), self)
@@ -104,8 +104,8 @@ class ImportMagCDlg(QDialog):
             self._add_to_main_log('MagC file not found')
             self.accept()
             return
-            
-        self.cfg['magc']['sections_path'] = magc_file_path
+
+        self.gm.magc_sections_path = magc_file_path
         with open(magc_file_path, 'r') as f:
             sectionsYAML = yaml.full_load(f)
         sections, landmarks = (
@@ -124,7 +124,7 @@ class ImportMagCDlg(QDialog):
                     sections[int(sectionId)] = {
                     'center': [float(a) for a in sectionXYA[:2]],
                     'angle': float( (-sectionXYA[2] + 90) % 360)}
-                self.cfg['magc']['roi_mode'] = 'False'
+                self.acq.magc_roi_mode = False
 
         n_sections = len(
             [k for k in sections.keys()
@@ -134,8 +134,7 @@ class ImportMagCDlg(QDialog):
             + ' MagC sections have been loaded.')
         #--------------------------------------
         # import wafer overview if file present
-        
-        
+
         dir_sections = os.path.dirname(magc_file_path)
         im_names = [im_name for im_name in os.listdir(dir_sections)
             if ('wafer' in im_name)
@@ -168,22 +167,14 @@ class ImportMagCDlg(QDialog):
                     selection_success = False
 
                 if selection_success:
-                    new_img_number = self.ovm.get_number_imported()
-                    self.ovm.add_imported_img()
+                    new_img_number = self.imported.number_imported
+                    self.imported.add_image()
                     width, height = imported_img.size
-                    self.ovm.set_imported_img_file(
-                        new_img_number, target_path)
-                    self.ovm.set_imported_img_name(new_img_number,
-                                                   selected_filename)
-                    self.ovm.set_imported_img_size_px_py(
-                        new_img_number, width, height)
-                    self.ovm.set_imported_img_pixel_size(
-                        new_img_number, 1000)
-                    self.cs.set_imported_img_centre_s(
-                        new_img_number,
-                        [width//2, height//2])
-
-                    self.viewport.mv_load_last_imported_image()
+                    self.imported[new_img_number].image_src = target_path
+                    self.imported[new_img_number].description = selected_filename
+                    self.imported[new_img_number] = [width, height]
+                    self.imported[new_img_number].pixel_size = 1000
+                    self.imported[new_img_number].centre_sx_sy = [width//2, height//2]
                     self.viewport.mv_draw()
 
             else:
@@ -217,23 +208,20 @@ class ImportMagCDlg(QDialog):
             header.setSectionResizeMode(i, QHeaderView.ResizeToContents)
         header.setStretchLastSection(True)
 
-        self.gm.delete_all_grids()
+        self.gm.delete_all_grid_above_index(0)
         for section in range(n_sections):
             self.gm.add_new_grid()
         for idx, section in sections.items():
             if str(idx).isdigit(): # to exclude tissueROI and landmarks
-                self.gm.set_grid_size(idx,
-                                      (self.spinBox_rows.value(),
-                                      self.spinBox_cols.value()))
-                self.gm.set_tile_size_selector(idx, tile_size_selector)
-                self.gm.set_pixel_size(idx, pixel_size)
-                self.gm.set_overlap(idx, tile_overlap)
-                self.gm.select_all_tiles(idx)
-                self.gm.set_rotation(
-                    idx, (180-float(section['angle'])) % 360)
-                self.gm.set_grid_centre_s(
-                    idx, list(map(float, section['center'])))
-                self.gm.calculate_grid_map(grid_number=idx)
+                self.gm[idx].size = [self.spinBox_rows.value(),
+                                     self.spinBox_cols.value()]
+                self.gm[idx].frame_size_selector = tile_size_selector
+                self.gm[idx].pixel_size = pixel_size
+                self.gm[idx].overlap = tile_overlap
+                self.gm[idx].activate_all_tiles()
+                self.gm[idx].rotation = (180 - float(section['angle'])) % 360
+                self.gm[idx].centre_sx_sy = list(map(float, section['center']))
+                self.gm[idx].update_tile_positions()
 
                 # populate the sectionList
                 item1 = QStandardItem(str(idx))
@@ -248,15 +236,12 @@ class ImportMagCDlg(QDialog):
 
         #---------------------------------------
         # Update config with MagC items
-        self.cfg['sys']['magc_mode'] = 'True'
-        self.cfg['magc']['sections'] = json.dumps(sections)
-        self.cfg['magc']['selected_sections'] = '[]'
-        self.cfg['magc']['checked_sections'] = '[]'
-        self.cfg['magc']['landmarks'] = json.dumps(landmarks)
+        self.gm.magc_sections = sections
+        self.gm.magc_selected_sections = []
+        self.gm.magc_checked_sections = []
+        self.gm.magc_landmarks = landmarks
         # xxx does importing a new magc file always require
         # a wafer_calibration ?
-        self.queue.put('SAVE INI')
-        self.trigger.s.emit()
         # ---------------------------------------
 
         # enable wafer configuration button
