@@ -41,7 +41,7 @@ class StubOVDlg(QDialog):
     """
 
     def __init__(self, centre_sx_sy, grid_size_selector,
-                 sem, stage, ovm, stack, viewport_trigger, viewport_queue):
+                 sem, stage, ovm, acq, viewport_trigger, viewport_queue):
         super().__init__()
         loadUi('..\\gui\\stub_ov_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
@@ -51,7 +51,7 @@ class StubOVDlg(QDialog):
         self.sem = sem
         self.stage = stage
         self.ovm = ovm
-        self.stack = stack
+        self.acq = acq
         self.viewport_trigger = viewport_trigger
         self.viewport_queue = viewport_queue
         self.acq_in_progress = False
@@ -194,7 +194,7 @@ class StubOVDlg(QDialog):
             stub_acq_thread = threading.Thread(
                                   target=acq_func.acquire_stub_ov,
                                   args=(self.sem, self.stage,
-                                        self.ovm, self.stack,
+                                        self.ovm, self.acq,
                                         self.stub_dlg_trigger,
                                         self.stub_dlg_queue,
                                         self.abort_queue,))

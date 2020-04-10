@@ -75,7 +75,7 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, cs,
         viewport_queue.put('REFRESH OV FAILURE')
         viewport_trigger.s.emit()
 
-def acquire_stub_ov(sem, stage, ovm, stack,
+def acquire_stub_ov(sem, stage, ovm, acq,
                     stub_dlg_trigger, stub_dlg_queue, abort_queue):
     """Acquire a large tiled overview image of user-defined size that covers a
     part of or the entire stub (SEM sample holder).
@@ -140,7 +140,7 @@ def acquire_stub_ov(sem, stage, ovm, stack,
                     stub_dlg_queue.put('UPDATE XY')
                     stub_dlg_trigger.s.emit()
                     save_path = os.path.join(
-                        stack.base_dir, 'workspace',
+                        acq.base_dir, 'workspace',
                         'stub' + str(tile_index).zfill(2) + '.bmp')
                     success = sem.acquire_frame(save_path)
                     sleep(0.5)
@@ -168,16 +168,16 @@ def acquire_stub_ov(sem, stage, ovm, stack,
 
         # Write full stub over image to disk unless acq aborted
         if not aborted:
-            stub_dir = os.path.join(stack.base_dir, 'overviews', 'stub')
+            stub_dir = os.path.join(acq.base_dir, 'overviews', 'stub')
             if not os.path.exists(stub_dir):
                 os.makedirs(stub_dir)
             timestamp = str(datetime.datetime.now())
             # Remove some characters from timestap to get a valid file name
             timestamp = timestamp[:19].translate({ord(c): None for c in ' :-.'})
             stub_overview_file_name = os.path.join(
-                stack.base_dir, 'overviews', 'stub',
-                stack.stack_name + '_stubOV_s'
-                + str(stack.slice_counter).zfill(5)
+                acq.base_dir, 'overviews', 'stub',
+                acq.stack_name + '_stubOV_s'
+                + str(acq.slice_counter).zfill(5)
                 + '_' + timestamp + '.png')
             full_stub_image.save(stub_overview_file_name)
             ovm['stub'].vp_file_path = stub_overview_file_name

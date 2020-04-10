@@ -10,7 +10,7 @@
 
 """This module controls the stack acquisition process.
 
-The instance self.stack from class Stack is created in main_controls.py. Its
+The instance self.acq from class Acquisition is created in main_controls.py. Its
 method run(), which contains the acquisition loop, is started in a thread from
 main_controls.py.
 """
@@ -29,7 +29,7 @@ from PyQt5.QtWidgets import QMessageBox
 import utils
 
 
-class Stack:
+class Acquisition:
 
     def __init__(self, config, sysconfig, sem, microtome, stage,
                  overview_manager, grid_manager, coordinate_system,
