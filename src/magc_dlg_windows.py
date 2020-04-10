@@ -63,12 +63,17 @@ class ImportMagCDlg(QDialog):
         self.gui_items = gui_items
         self.trigger = trigger
         self.queue = queue
-
         self.target_dir = os.path.join(
             self.acq.base_dir, 'overviews', 'imported')
-        loadUi(os.path.join('..', 'gui', 'import_magc_metadata_dlg.ui'), self)
+        loadUi(os.path.join(
+            '..', 'gui', 'import_magc_metadata_dlg.ui'),
+            self)
+        self.default_magc_path = os.path.join(
+            '..', 'magc', 'example', 'magc_433_sections.magc')
+        self.lineEdit_fileName.setText(self.default_magc_path)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon(os.path.join('..', 'img', 'icon_16px.ico')))
+        self.setWindowIcon(QIcon(os.path.join(
+            '..', 'img', 'icon_16px.ico')))
         self.pushButton_selectFile.clicked.connect(self.select_file)
         self.pushButton_selectFile.setIcon(
             QIcon(os.path.join('..','img','selectdir.png')))
@@ -84,12 +89,16 @@ class ImportMagCDlg(QDialog):
         self.comboBox_frameSize.setCurrentIndex(5)
         self.show()
 
+    def _transmit_cmd(self, cmd):
+        """Transmit command to the main window thread."""
+        self.queue.put(cmd)
+        self.trigger.s.emit()
+
     def _add_to_main_log(self, msg):
         """Add entry to the log in the main window"""
         msg = utils.format_log_entry(msg)
         # Send entry to main window via queue and trigger:
-        self.queue.put(msg)
-        self.trigger.s.emit()
+        self._transmit_cmd(msg)
 
     def import_metadata(self):
         #-----------------------------
@@ -121,7 +130,7 @@ class ImportMagCDlg(QDialog):
                     sections[int(sectionId)] = {
                     'center': [float(a) for a in sectionXYA[:2]],
                     'angle': float( (-sectionXYA[2] + 90) % 360)}
-                self.acq.magc_roi_mode = False
+                self.gm.magc_roi_mode = False
         
         n_sections = len(
             [k for k in sections.keys()
@@ -131,54 +140,12 @@ class ImportMagCDlg(QDialog):
             + ' MagC sections have been loaded.')
         #--------------------------------------
         # import wafer overview
-        
         self.imported.delete_all_images()
-        
-        import_img_dlg = ImportImageDlg(
-            self.imported,
-            os.path.join(self.acq.base_dir, 'imported'))
-        import_img_dlg.doubleSpinBox_pixelSize.setEnabled(False)
-        import_img_dlg.doubleSpinBox_pixelSize.setValue(1000)
-        import_img_dlg.doubleSpinBox_posX.setEnabled(False)
-        import_img_dlg.doubleSpinBox_posY.setEnabled(False)
-        import_img_dlg.spinBox_rotation.setEnabled(False)
-
-        # pre-filling the ImportImageDialog if wafer image (unique) present
         magc_file_dir = os.path.dirname(magc_file_path)
-        im_names = [im_name for im_name in os.listdir(magc_file_dir)
-            if ('wafer' in im_name)
-                and (os.path.splitext(im_name)[1] in ['.tif', '.png', 'jpg'])]
-        if len(im_names) == 0:
-            self._add_to_main_log('''No wafer picture was found.
-                Select the wafer image manually.''')
-        elif len(im_names) > 1:
-            self._add_to_main_log(
-                'There is more than one image available in the folder '
-                'containing the .magc section description file.'
-                'Select the wafer image manually')
-        elif len(im_names) == 1:
-            # pre-fill the import dialog
-            im_path = os.path.normpath(
-                os.path.join(magc_file_dir, im_names[0]))
-            import_img_dlg.lineEdit_fileName.setText(im_path)
-            import_img_dlg.lineEdit_name.setText(
-                os.path.splitext(
-                    os.path.basename(im_path))[0])
-
-        if import_img_dlg.exec_():
-            pass
         
-        if self.imported.number_imported != 1:
-            self._add_to_main_log(
-                'You have not added a wafer image overview.'
-                'You can still do it by right-clicking in the viewport.'
-                'and select "Import image"')
-        else:
-            wafer_im = self.imported[0]
-            width, height = wafer_im.size
-            wafer_im.pixel_size = 1000
-            wafer_im.centre_sx_sy = [width//2, height//2]
-            self.viewport.vp_draw()
+        import_wafer_dlg = ImportWaferImageDlg(
+            self.acq, self.imported, self.viewport, magc_file_dir,
+            self.trigger, self.queue)
         #--------------------------------------
 
         #---------------------------------------
@@ -238,22 +205,19 @@ class ImportMagCDlg(QDialog):
         # ---------------------------------------
 
         # enable wafer configuration button
-        self.queue.put('MAGC ENABLE CALIBRATION')
-        self.trigger.s.emit()
-        self.queue.put('MAGC WAFER NOT CALIBRATED')
-        self.trigger.s.emit()
+        self._transmit_cmd('MAGC ENABLE CALIBRATION')
+        self._transmit_cmd('MAGC WAFER NOT CALIBRATED')
+        self._transmit_cmd('MAGC ENABLE WAFER IMAGE IMPORT')
 
         self.accept()
 
     def select_file(self):
-        # # start_path = 'C:\\'
-        # # selected_file = str(QFileDialog.getOpenFileName(
-                # # self, 'Select MagC metadata file',
-                # # start_path,
-                # # 'MagC files (*.magc)'
-                # # )[0])
-        selected_file = os.path.join(
-            '..', 'magc', 'example', 'magc_433_sections.magc')
+        start_path = 'C:\\'
+        selected_file = str(QFileDialog.getOpenFileName(
+                self, 'Select MagC metadata file',
+                start_path,
+                'MagC files (*.magc)'
+                )[0])
         if len(selected_file) > 0:
             selected_file = os.path.normpath(selected_file)
             self.lineEdit_fileName.setText(selected_file)
@@ -266,78 +230,76 @@ class ImportMagCDlg(QDialog):
 class ImportWaferImageDlg(QDialog):
     """Import a wafer image into the viewport for MagC."""
 
-    def __init__(self, ovm, cs, target_dir):
-        self.ovm = ovm
-        self.cs = cs
-        self.target_dir = target_dir
+    def __init__(self, acq, imported, viewport, wafer_im_dir,
+                 trigger, queue):
         super().__init__()
-        loadUi(os.path.join('..','gui','import_wafer_image_dlg.ui'), self)
-        self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon(os.path.join('..','img','icon_16px.ico')))
-        self.setFixedSize(self.size())
-        self.show()
-        self.pushButton_selectFile.clicked.connect(self.select_file)
-        self.pushButton_selectFile.setIcon(
-            QIcon(os.path.join('..','img','selectdir.png')))
-        self.pushButton_selectFile.setIconSize(QSize(16, 16))
+        self.acq = acq
+        self.imported = imported
+        self.viewport = viewport
+        self.trigger = trigger
+        self.queue = queue
+        self.imported_dir = os.path.join(
+            self.acq.base_dir, 'overviews', 'imported')
+        self.wafer_im_dir = wafer_im_dir
+            
+        import_img_dlg = ImportImageDlg(
+            self.imported,
+            self.imported_dir)
+        import_img_dlg.doubleSpinBox_pixelSize.setEnabled(False)
+        import_img_dlg.doubleSpinBox_pixelSize.setValue(1000)
+        import_img_dlg.doubleSpinBox_posX.setEnabled(False)
+        import_img_dlg.doubleSpinBox_posY.setEnabled(False)
+        import_img_dlg.spinBox_rotation.setEnabled(False)
 
-    def select_file(self):
-        # Let user select image to be imported:
-        start_path = os.getenv('SystemDrive')
-        selected_file = str(QFileDialog.getOpenFileName(
-                self, 'Select image',
-                start_path,
-                'Images (*.tif *.png *.bmp *.jpg)'
-                )[0])
-        if len(selected_file) > 0:
-            selected_file = os.path.normpath(selected_file)
-            self.lineEdit_fileName.setText(selected_file)
+        # pre-filling the ImportImageDialog if wafer image (unique) present
+        im_names = [im_name for im_name in os.listdir(self.wafer_im_dir)
+            if ('wafer' in im_name)
+                and (os.path.splitext(im_name)[1] in ['.tif', '.png', 'jpg'])]
+        if len(im_names) == 0:
+            self._add_to_main_log('''No wafer picture was found.
+                Select the wafer image manually.''')
+        elif len(im_names) > 1:
+            self._add_to_main_log(
+                'There is more than one image available in the folder '
+                'containing the .magc section description file.'
+                'Select the wafer image manually')
+        elif len(im_names) == 1:
+            # pre-fill the import dialog
+            im_path = os.path.normpath(
+                os.path.join(self.wafer_im_dir, im_names[0]))
+            import_img_dlg.lineEdit_fileName.setText(im_path)
+            import_img_dlg.lineEdit_name.setText(
+                os.path.splitext(
+                    os.path.basename(im_path))[0])
 
-    def accept(self):
-        selection_success = True
-        selected_path = os.path.normpath(self.lineEdit_fileName.text())
-        selected_filename = os.path.basename(selected_path)
-        timestamp = str(datetime.datetime.now())
-        # Remove some characters from timestamp to get valid file name:
-        timestamp = timestamp[:19].translate({ord(c): None for c in ' :-.'})
-        target_path = os.path.join(self.target_dir,
-                       os.path.splitext(selected_filename)[0] +
-                       '_' + timestamp + '.png')
-        if os.path.isfile(selected_path):
-            # Copy file to data folder as png:
-            try:
-                imported_img = Image.open(selected_path)
-                imported_img.save(target_path)
-            except Exception as e:
-                QMessageBox.warning(
-                    self, 'Error',
-                    'Could not load image file.' + str(e),
-                     QMessageBox.Ok)
-                selection_success = False
-
-            if selection_success:
-                new_img_number = self.ovm.get_number_imported()
-                self.ovm.add_imported_img()
-                width, height = imported_img.size
-                self.ovm.set_imported_img_file(
-                    new_img_number, target_path)
-                self.ovm.set_imported_img_name(new_img_number,
-                                               selected_filename)
-                self.ovm.set_imported_img_size_px_py(
-                    new_img_number, width, height)
-                self.ovm.set_imported_img_pixel_size(
-                    new_img_number, 1000)
-                self.cs.set_imported_img_centre_s(
-                    new_img_number,
-                    [width//2, height//2])
+        current_imported_number = self.imported.number_imported
+        if import_img_dlg.exec_():
+            pass
+        
+        if self.imported.number_imported == current_imported_number:
+            self._add_to_main_log(
+                'You have not added a wafer image overview.'
+                'You can still do it by selecting "Import Wafer Image"'
+                'in the MagC tab.')
         else:
-            QMessageBox.warning(self, 'Error',
-                                'Specified file not found.',
-                                QMessageBox.Ok)
-            selection_success = False
+            wafer_im = self.imported[-1]
+            width, height = wafer_im.size
+            wafer_im.pixel_size = 1000
+            wafer_im.centre_sx_sy = [width//2, height//2]
+            self.viewport.vp_draw()
+            self._add_to_main_log(
+                'Wafer image succesfully imported.')
+                
+    def _transmit_cmd(self, cmd):
+        """Transmit command to the main window thread."""
+        self.queue.put(cmd)
+        self.trigger.s.emit()
 
-        if selection_success:
-            super().accept()
+    def _add_to_main_log(self, msg):
+        """Add entry to the log in the main window"""
+        msg = utils.format_log_entry(msg)
+        # Send entry to main window via queue and trigger:
+        self._transmit_cmd(msg)
 
 #------------------------------------------------------------------------------
 

@@ -39,7 +39,7 @@ import acq_func
 from viewport_dlg_windows import StubOVDlg, FocusGradientTileSelectionDlg, \
                                  GridRotationDlg, ImportImageDlg, \
                                  AdjustImageDlg, DeleteImageDlg
-
+from magc_dlg_windows import ImportWaferImageDlg
 
 class Trigger(QObject):
     """Custom signal for updating GUI from within running threads."""
@@ -566,7 +566,7 @@ class Viewport(QWidget):
                         # to the source magc sections
                         self.gm.update_source_ROIs_from_grids()
                         # deactivate roi_mode because grid manually moved
-                        self.acq.magc_roi_mode = False
+                        self.gm.magc_roi_mode = False
                     # ------ End of MagC code ------
 
             if self.ov_drag_active:
@@ -896,7 +896,7 @@ class Viewport(QWidget):
                 action_moveGridCurrentStage.triggered.connect(
                     self._vp_manual_stage_move)
                 if not ((self.selected_grid is not None)
-                    and self.acq.magc_wafer_calibrated):
+                    and self.gm.magc_wafer_calibrated):
                     action_moveGridCurrentStage.setEnabled(False)
 
             menu.addSeparator()
@@ -934,13 +934,20 @@ class Viewport(QWidget):
                 and self.selected_grid is not None):
                 menu.addSeparator()
                 action_propagateAll = menu.addAction(
-                    'MagC | Propagate grid properties to all sections')
-                action_progagateAll.triggered.connect(
-                    self.vp_propagate_grid_all_sections)
+                    'MagC | Propagate properties of grid '
+                    + str(self.selected_grid)
+                    + ' to all sections')
+                action_propagateAll.triggered.connect(
+                    self.vp_propagate_grid_properties_to_all_sections)
                 action_propagateSelected = menu.addAction(
-                    'MagC | Propagate grid properties to selected sections')
+                    'MagC | Propagate properties of grid '
+                    + str(self.selected_grid)
+                    + ' to selected sections')
                 action_propagateSelected.triggered.connect(
-                    self.vp_propagate_grid_selected_sections)
+                    self.vp_propagate_grid_properties_to_selected_sections)
+            # in MagC you only import wafer images from the MagC tab
+            if self.sem.magc_mode:
+                action_import.setEnabled(False)
             # ----- End of MagC items -----
 
             if (self.selected_tile is None) and (self.selected_ov is None):
@@ -1961,7 +1968,7 @@ class Viewport(QWidget):
         x, y = self.stage.get_xy()
         self.gm[self.selected_grid].centre_sx_sy = [x, y]
         self.gm[self.selected_grid].update_tile_positions()
-        self.cfg['magc']['roi_mode'] = 'False'
+        self.gm.magc_roi_mode = False
         self.gm.update_source_ROIs_from_grids()
         self.vp_draw()
 
@@ -2177,7 +2184,6 @@ class Viewport(QWidget):
         if dialog.exec_():
             self.vp_draw()
 
-
     def vp_show_new_stub_overview(self):
         self.checkBox_showStubOV.setChecked(True)
         self.show_stub_ov = True
@@ -2202,12 +2208,11 @@ class Viewport(QWidget):
                 selected_section,
                 sections)
         self.gm.update_source_ROIs_from_grids()
-        # update the autofocus tiles
-        # (done here because no access to autofocus from inside gm)
-        ref_tiles = json.loads(self.cfg['autofocus']['ref_tiles'])
-        self.af.set_ref_tiles(ref_tiles)
         self.vp_draw()
         self._transmit_cmd('SHOW CURRENT SETTINGS') # update statistics in GUI
+        self.add_to_log('Properties of grid '
+            + str(clicked_section_number) 
+            + ' have been propagated to the selected sections')
 
     def vp_propagate_grid_properties_to_all_sections(self):
         # TODO
@@ -2226,13 +2231,12 @@ class Viewport(QWidget):
                 sections)
 
         self.gm.update_source_ROIs_from_grids()
-        # update the autofocus tiles
-        # (done here because no access to autofocus from inside gm)
-        ref_tiles = json.loads(self.cfg['autofocus']['ref_tiles'])
-        self.af.set_ref_tiles(ref_tiles)
 
         self.vp_draw()
         self._transmit_cmd('SHOW CURRENT SETTINGS') # update statistics in GUI
+        self.add_to_log('Properties of grid '
+            + str(clicked_section_number) 
+            + ' have been propagated to all sections')
 
     # -------------------- End of MagC methods in Viewport ---------------------
 

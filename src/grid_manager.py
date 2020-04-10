@@ -727,6 +727,14 @@ class GridManager:
         self.magc_landmarks = json.loads(self.cfg['magc']['landmarks'])
         self.magc_wafer_transform = json.loads(
             self.cfg['magc']['wafer_transform'])
+            
+        # Some functionality is changed if SBEMimage is used in MagC mode
+        self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
+        # Boolean flags for MagC acquisition
+        self.magc_roi_mode = (self.cfg['magc']['roi_mode'].lower() == 'true')
+        self.magc_wafer_calibrated = (
+            self.cfg['magc']['wafer_calibrated'].lower() == 'true')
+            
 
     def __getitem__(self, grid_index):
         """Return the Grid object selected by index."""
@@ -823,7 +831,8 @@ class GridManager:
         self.cfg['magc']['landmarks'] = json.dumps(self.magc_landmarks)
         self.cfg['magc']['wafer_transform'] = json.dumps(
             self.magc_wafer_transform)
-
+        self.cfg['magc']['roi_mode'] = str(self.magc_roi_mode)
+        self.cfg['magc']['wafer_calibrated'] = str(self.magc_wafer_calibrated)
 
     def add_new_grid(self):
         """Add new grid with default parameters. A new grid is always added
@@ -1008,11 +1017,11 @@ class GridManager:
         sourceSectionAngle = sections[s]['angle'] % 360
         targetSectionAngle = sections[t]['angle'] % 360
 
-        sourceGridRotation = self.get_rotation(s)
+        sourceGridRotation = self.__grids[s].rotation
 
-        sourceGridCenter = np.array(self.get_grid_centre_s(s))
+        sourceGridCenter = np.array(self.__grids[s].centre_sx_sy)
 
-        if self.cfg['magc']['wafer_calibrated'] == 'True':
+        if self.magc_wafer_calibrated:
             # transform back the grid coordinates in non-transformed coordinates
             waferTransform = np.array(
                 json.loads(self.cfg['magc']['wafer_transform']))
@@ -1030,55 +1039,36 @@ class GridManager:
 
         new_grid_rotation = (((180-targetSectionAngle + sourceGridRotation -
                              (180-sourceSectionAngle))) % 360)
-        self.set_rotation(t, new_grid_rotation)
+        self.__grids[t].rotation = new_grid_rotation
+        self.__grids[t].size = self.__grids[s].size
+        self.__grids[t].overlap = self.__grids[s].overlap
+        self.__grids[t].row_shift = self.__grids[s].row_shift
 
-        self.set_grid_size(t, self.get_grid_size(s))
-        self.set_overlap(t, self.get_overlap(s))
-        self.set_row_shift(t, self.get_row_shift(s))
-        self.set_number_active_tiles(t, self.get_number_active_tiles(s))
-        self.set_active_tiles(t, self.get_active_tiles(s))
+        #xxx self.set_number_active_tiles(t, self.get_number_active_tiles(s))
+
+        self.__grids[t].active_tiles = self.__grids[s].active_tiles
+        
         if len(self.sem.STORE_RES) > 4:
             # Merlin
-            self.set_tile_size_px_py(t, self.get_tile_size_px_py(s))
-            self.set_tile_size_selector(t, self.get_tile_size_selector(s))
+            self.__grids[t].frame_size = self.__grids[s].frame_size
+            self.__grids[t].frame_size_selector = self.__grids[s].frame_size_selector
         else:
             # Sigma
-            self.set_tile_size_px_py(t, self.get_tile_size_px_py(s))
-            self.set_tile_size_selector(t, self.get_tile_size_selector(s))
-        self.set_pixel_size(t, self.get_pixel_size(s))
-        self.set_dwell_time(t, self.get_dwell_time(s))
-        self.set_dwell_time_selector(t, self.get_dwell_time_selector(s))
-        self.set_acq_interval(t, self.get_acq_interval(s))
-        self.set_acq_interval_offset(t, self.get_acq_interval_offset(s))
-        self.set_adaptive_focus_enabled(t, self.get_adaptive_focus_enabled(s))
-        self.set_adaptive_focus_tiles(t, self.get_adaptive_focus_tiles(s))
-        self.set_adaptive_focus_gradient(t, self.get_adaptive_focus_gradient(s))
+            self.__grids[t].frame_size = self.__grids[s].frame_size
+            self.__grids[t].frame_size_selector = self.__grids[s].frame_size_selector
+            
+        self.__grids[t].pixel_size = self.__grids[s].pixel_size
+        self.__grids[t].dwell_time = self.__grids[s].dwell_time
+        # xxxself.set_dwell_time_selector(t, self.get_dwell_time_selector(s))
+        self.__grids[t].acq_interval = self.__grids[s].acq_interval
+        
+        self.__grids[t].acq_interval_offset = self.__grids[s].acq_interval_offset
+        
+        self.__grids[t].autofocus_ref_tiles = self.__grids[s].autofocus_ref_tiles
+        # xxx self.set_adaptive_focus_enabled(t, self.get_adaptive_focus_enabled(s))
+        # xxx self.set_adaptive_focus_tiles(t, self.get_adaptive_focus_tiles(s))
+        # xxx self.set_adaptive_focus_gradient(t, self.get_adaptive_focus_gradient(s))
 
-        ###############################################
-        # --- setting the autofocus reference tiles ---
-        ref_tile_list = json.loads(self.cfg['autofocus']['ref_tiles'])
-        # get ref tiles from source
-        source_ref_tiles = []
-        for tile_key in ref_tile_list:
-            grid, tile = tile_key.split('.')
-            grid, tile = int(grid), int(tile)
-            if grid == s:
-                source_ref_tiles.append(tile)
-        # remove ref tiles from target
-        ref_tile_list = [key for key in ref_tile_list if
-            int(key.split('.')[0]) != t]
-
-        # add source ref tiles to target
-        for source_ref_tile in source_ref_tiles:
-            ref_tile_list.append(str(t) + '.' + str(source_ref_tile))
-
-        # sort the tile list
-        ref_tile_list.sort()
-
-        # save the new tile list
-        self.cfg['autofocus']['ref_tiles'] = json.dumps(ref_tile_list)
-
-        ###############################################
 
         targetSectionGridAngle = (
             sourceSectionGridAngle + sourceSectionAngle - targetSectionAngle)
@@ -1089,7 +1079,7 @@ class GridManager:
         targetGridCenter = (
             np.real(targetGridCenterComplex), np.imag(targetGridCenterComplex))
 
-        if self.cfg['magc']['wafer_calibrated'] == 'True':
+        if self.magc_wafer_calibrated:
             # transform the grid coordinates to wafer coordinates
             waferTransform = np.array(
                 json.loads(self.cfg['magc']['wafer_transform']))
@@ -1097,12 +1087,13 @@ class GridManager:
                 [targetGridCenter[0]], [targetGridCenter[1]], waferTransform)
             targetGridCenter = [result[0][0], result[1][0]]
 
-        self.set_grid_centre_s(t, targetGridCenter)
-        self.update_tile_positions(t)
+        self.__grids[t].centre_sx_sy = targetGridCenter
+        self.__grids[t].update_tile_positions()
 
     def update_source_ROIs_from_grids(self):
         # TODO
-        if self.cfg['magc']['wafer_calibrated'] == 'True':
+        if self.magc_wafer_calibrated:
+            # xxx recheck the flows of saving-to-file
             waferTransform = np.array(json.loads(
                 self.cfg['magc']['wafer_transform']))
             waferTransformInverse = utils.invertAffineT(waferTransform)
@@ -1114,10 +1105,10 @@ class GridManager:
         sections_yaml['sourceROIsUpdatedFromSBEMimage'] = {}
 
         for grid_number in range(self.number_grids):
-            target_ROI = self.get_grid_centre_s(grid_number)
-            target_ROI_angle = self.get_rotation(grid_number)
+            target_ROI = self.__grids[grid_number].centre_sx_sy
+            target_ROI_angle = self.__grids[grid_number].rotation
 
-            if self.cfg['magc']['wafer_calibrated'] == 'True':
+            if self.magc_wafer_calibrated:
                 # transform back the grid coordinates
                 # in non-transformed coordinates
                 result = utils.applyAffineT(

@@ -696,7 +696,7 @@ class MainControls(QMainWindow):
         self.gm.magc_checked_sections = []
         # for now, start of SBEMimage restarts all sections and
         # wafer_calibration
-        self.acq.magc_wafer_calibrated = False
+        self.gm.magc_wafer_calibrated = False
 
     def initialize_magc_gui(self):
         self.actionImportMagCMetadata.triggered.connect(
@@ -744,9 +744,11 @@ class MainControls(QMainWindow):
             self.magc_select_string_sections)
         self.pushButton_magc_importWaferImage.clicked.connect(
             self.magc_open_import_wafer_image)
+        if self.gm.magc_sections_path == '':
+            self.pushButton_magc_importWaferImage.setEnabled(False)
         self.pushButton_magc_addSection.clicked.connect(
             self.magc_add_section)
-        if not self.acq.magc_wafer_calibrated:
+        if not self.gm.magc_wafer_calibrated:
             self.pushButton_magc_addSection.setEnabled(False)
         self.pushButton_magc_deleteLastSection.clicked.connect(
             self.magc_delete_last_section)
@@ -828,8 +830,9 @@ class MainControls(QMainWindow):
         selectionModel.select(selection, QItemSelectionModel.Select)
         self.tableView_magc_sectionList.setFocus()
 
-    def magc_actions_selected_sections_changed(self, changedSelected,
-                                               changedDeselected):
+    def magc_actions_selected_sections_changed(
+        self, changedSelected, changedDeselected):
+
         # update color of selected/deselected sections
         for changedSelectedIndex in changedSelected.indexes():
             row = changedSelectedIndex.row()
@@ -862,7 +865,7 @@ class MainControls(QMainWindow):
         sectionKey = int(model.data(firstColumnIndex))
         self.cs.vp_centre_dx_dy = self.gm[row].centre_dx_dy
         self.viewport.vp_draw()
-        if self.acq.magc_wafer_calibrated:
+        if self.gm.magc_wafer_calibrated:
             self.add_to_log('Section ' + str(sectionKey)
                             + ' has been double-clicked. Moving to section...')
             # set scan rotation
@@ -892,17 +895,19 @@ class MainControls(QMainWindow):
             QAbstractItemView.PositionAtCenter)
 
     def magc_reset(self):
+        tableModel = self.tableView_magc_sectionList.model()
+        tableModel.removeRows(0, tableModel.rowCount(), QModelIndex())
         self.gm.magc_sections_path = ''
-        self.acq.magc_wafer_calibrated = False
+        self.gm.magc_wafer_calibrated = False
         self.gm.magc_selected_sections = []
         self.gm.magc_checked_sections = []
         self.gm.delete_all_grids_above_index(0)
         self.viewport.update_grids()
         self.viewport.vp_draw()
-        tableModel = self.tableView_magc_sectionList.model()
-        tableModel.removeRows(0, tableModel.rowCount(), QModelIndex())
         # unenable wafer calibration button
         self.pushButton_magc_waferCalibration.setEnabled(False)
+        # unenable wafer image import
+        self.pushButton_magc_importWaferImage.setEnabled(False)
         # change wafer flag
         self.pushButton_magc_waferCalibration.setStyleSheet(
             'background-color: lightgray')
@@ -922,12 +927,13 @@ class MainControls(QMainWindow):
 
     def magc_open_import_wafer_image(self):
         target_dir = os.path.join(self.acq.base_dir,
-                                  'overviews', 'imported')
+            'overviews', 'imported')
         if not os.path.exists(target_dir):
             self.try_to_create_directory(target_dir)
-        dialog = ImportWaferImageDlg(self.ovm, self.cs, target_dir)
-        if dialog.exec_():
-            self.viewport.vp_draw()
+        import_wafer_dlg = ImportWaferImageDlg(
+            self.acq, self.imported, self.viewport,
+            os.path.dirname(self.gm.magc_sections_path),
+            self.trigger, self.queue)
 
     def magc_add_section(self):
         self.gm.add_new_grid()
@@ -1321,6 +1327,8 @@ class MainControls(QMainWindow):
             self.pushButton_magc_waferCalibration.setEnabled(True)
         elif msg == 'MAGC UNENABLE CALIBRATION':
             self.pushButton_magc_waferCalibration.setEnabled(False)
+        elif msg == 'MAGC ENABLE WAFER IMAGE IMPORT':
+            self.pushButton_magc_importWaferImage.setEnabled(True)
         elif 'SET SECTION STATE' in msg:
             self.magc_set_section_state_in_table(msg)
         elif msg == 'REFRESH OV':

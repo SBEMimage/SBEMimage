@@ -143,14 +143,6 @@ class Acquisition:
         self.continue_after_max_sweeps = (
             self.cfg['debris']['continue_after_max_sweeps'].lower() == 'true')
 
-        # Some functionality is changed if SBEMimage is used in MagC mode
-        self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
-        # Boolean flags for MagC acquisition
-        self.magc_roi_mode = (self.cfg['magc']['roi_mode'].lower() == 'true')
-        self.magc_wafer_calibrated = (
-            self.cfg['magc']['wafer_calibrated'].lower() == 'true')
-
-
     def save_to_cfg(self):
         """Save current state of attributes to ConfigParser objects."""
         self.syscfg['metaserver']['url'] = self.metadata_server
@@ -194,10 +186,6 @@ class Acquisition:
         self.cfg['debris']['max_number_sweeps'] = str(self.max_number_sweeps)
         self.cfg['debris']['continue_after_max_sweeps'] = str(
             self.continue_after_max_sweeps)
-        # MagC
-        self.cfg['magc']['roi_mode'] = str(self.magc_roi_mode)
-        self.cfg['magc']['wafer_calibrated'] = str(self.magc_wafer_calibrated)
-
 
     def calculate_estimates(self):
         """Calculate the current electron dose (range), the dimensions of
