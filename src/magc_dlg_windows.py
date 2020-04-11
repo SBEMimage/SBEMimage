@@ -131,7 +131,7 @@ class ImportMagCDlg(QDialog):
                     'center': [float(a) for a in sectionXYA[:2]],
                     'angle': float( (-sectionXYA[2] + 90) % 360)}
                 self.gm.magc_roi_mode = False
-        
+
         n_sections = len(
             [k for k in sections.keys()
             if str(k).isdigit()]) # discard tissueROI-35
@@ -142,7 +142,7 @@ class ImportMagCDlg(QDialog):
         # # # import wafer overview
         # # self.imported.delete_all_images()
         # # magc_file_dir = os.path.dirname(magc_file_path)
-        
+
         # # import_wafer_dlg = ImportWaferImageDlg(
             # # self.acq, self.imported, self.viewport, magc_file_dir,
             # # self.trigger, self.queue)
@@ -169,10 +169,9 @@ class ImportMagCDlg(QDialog):
 
         self.gm.delete_all_grids_above_index(0)
         for s in range(n_sections-1):
-            self.gm.add_new_grid()
+            self.gm.add_new_grid([0, 0])
         for idx, section in sections.items():
             if str(idx).isdigit(): # to exclude tissueROI and landmarks
-                self.gm[idx].origin_sx_sy = [0,0]
                 self.gm[idx].size = [self.spinBox_rows.value(),
                                      self.spinBox_cols.value()]
                 self.gm[idx].display_colour = 1
@@ -181,13 +180,13 @@ class ImportMagCDlg(QDialog):
                 self.gm[idx].overlap = tile_overlap
                 self.gm[idx].activate_all_tiles()
                 self.gm[idx].rotation = (180 - float(section['angle'])) % 360
-                self.gm[idx].centre_sx_sy = list(map(float, section['center']))
-                if idx<5:
-                    print('centre_sx_sy before update', idx, self.gm[idx].centre_sx_sy)
+                # Update tile positions after setting rotation angle
                 self.gm[idx].update_tile_positions()
-                if idx<5:
-                    print('centre_sx_sy after update', idx, self.gm[idx].centre_sx_sy)
-                    # print('import origin sx sy', idx, self.gm[idx].origin_sx_sy)
+                # Setting new centre_sx_sy automatically updates tile positions
+                self.gm[idx].centre_sx_sy = list(map(float, section['center']))
+
+                if idx < 10:
+                    print('centre_sx_sy in SBEMimage', idx, self.gm[idx].centre_sx_sy)
                     print('section["center"]', idx, list(map(float, section['center'])))
 
                 # populate the sectionList
@@ -249,7 +248,7 @@ class ImportWaferImageDlg(QDialog):
         self.imported_dir = os.path.join(
             self.acq.base_dir, 'overviews', 'imported')
         self.wafer_im_dir = wafer_im_dir
-            
+
         import_img_dlg = ImportImageDlg(
             self.imported,
             self.imported_dir)
@@ -283,7 +282,7 @@ class ImportWaferImageDlg(QDialog):
         current_imported_number = self.imported.number_imported
         if import_img_dlg.exec_():
             pass
-        
+
         if self.imported.number_imported == current_imported_number:
             self._add_to_main_log(
                 'You have not added a wafer image overview.'
@@ -297,7 +296,7 @@ class ImportWaferImageDlg(QDialog):
             self.viewport.vp_draw()
             self._add_to_main_log(
                 'Wafer image succesfully imported.')
-                
+
     def _transmit_cmd(self, cmd):
         """Transmit command to the main window thread."""
         self.queue.put(cmd)

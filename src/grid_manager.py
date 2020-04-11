@@ -840,13 +840,17 @@ class GridManager:
         self.cfg['magc']['roi_mode'] = str(self.magc_roi_mode)
         self.cfg['magc']['wafer_calibrated'] = str(self.magc_wafer_calibrated)
 
-    def add_new_grid(self):
+    def add_new_grid(self, origin_sx_sy=None):
         """Add new grid with default parameters. A new grid is always added
         at the next available grid index, after all existing grids."""
         new_grid_index = self.number_grids
-        # Position new grid next to the previous grid
-        x_pos, y_pos = self.__grids[new_grid_index - 1].origin_sx_sy
-        y_pos += 50
+        if origin_sx_sy is None:
+            # Position new grid next to the previous grid
+            # (default behaviour for adding grids manually in the Viewport)
+            x_pos, y_pos = self.__grids[new_grid_index - 1].origin_sx_sy
+            y_pos += 50
+        else:
+            x_pos, y_pos = origin_sx_sy
         # Set tile size and overlap according to store resolutions available
         if len(self.sem.STORE_RES) > 4:
             frame_size = [4096, 3072]
