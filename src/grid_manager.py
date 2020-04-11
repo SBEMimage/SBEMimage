@@ -111,8 +111,6 @@ class Grid:
         # The boolean active indicates whether the grid will be acquired
         # or skipped.
         self.active = active
-        # active_tiles: a list of tile numbers that are active in this grid
-        self.active_tiles = active_tiles
         self.frame_size = frame_size
         self.frame_size_selector = frame_size_selector
         # Pixel size in nm (float)
@@ -128,9 +126,8 @@ class Grid:
         self.use_wd_gradient = use_wd_gradient
         self.initialize_tiles()
         self.update_tile_positions()
-        # Set boolean flags for active tiles
-        for tile_index in self.active_tiles:
-            self.__tiles[tile_index].tile_active = True
+        # active_tiles: a list of tile numbers that are active in this grid
+        self.active_tiles = active_tiles
         # Set wd_gradient_ref_tiles, which will set the bool flags in
         # self.__tiles
         self.wd_gradient_ref_tiles = wd_gradient_ref_tiles
@@ -272,7 +269,7 @@ class Grid:
         origin_x, origin_y = self._origin_sx_sy
         self.origin_sx_sy = [
             origin_x + new_x - old_x, origin_y + new_y - old_y]
-            
+
     @property
     def centre_dx_dy(self):
         return self.cs.convert_to_d(self.centre_sx_sy)
@@ -541,17 +538,34 @@ class Grid:
         dx2, dy2 = self.__tiles[tile_index2].dx_dy
         return sqrt((dx1 - dx2)**2 + (dy1 - dy2)**2)
 
+    @property
+    def active_tiles(self):
+        return self._active_tiles
+
+    @active_tiles.setter
+    def active_tiles(self, new_active_tiles):
+        self._active_tiles = new_active_tiles
+        # Set boolean flags to True for active tiles, otherwise to False
+        for tile_index in range(self.number_tiles):
+            if tile_index in new_active_tiles:
+                self.__tiles[tile_index].tile_active = True
+            else:
+                self.__tiles[tile_index].tile_active = False
+        # Update tile acquisition order
+        self.sort_tile_acq_order()
+
     def activate_tile(self, tile_index):
         """Set tile with tile_index to status 'active' (will be acquired)."""
         self.__tiles[tile_index].tile_active = True
-        self.active_tiles.append(tile_index)
+        self._active_tiles.append(tile_index)
         self.sort_tile_acq_order()
 
     def deactivate_tile(self, tile_index):
         """Set tile with tile_index to status 'inactive' (will not be
-        acquired)."""
+        acquired).
+        """
         self.__tiles[tile_index].tile_active = False
-        self.active_tiles.remove(tile_index)
+        self._active_tiles.remove(tile_index)
         self.sort_tile_acq_order()
 
     def toggle_active_tile(self, tile_index):
@@ -567,13 +581,10 @@ class Grid:
     def deactivate_all_tiles(self):
         for tile in self.__tiles:
             tile.tile_active = False
-        self.active_tiles = []
+        self._active_tiles = []
 
     def activate_all_tiles(self):
         self.active_tiles = [t for t in range(self.number_tiles)]
-        for tile in self.__tiles:
-            tile.tile_active = True
-        self.sort_tile_acq_order()
 
     def sort_tile_acq_order(self):
         """Use snake pattern to minimize number of long motor moves.
@@ -589,7 +600,7 @@ class Grid:
                 tile_index = row_pos * cols + col_pos
                 if self.__tiles[tile_index].tile_active:
                     ordered_active_tiles.append(tile_index)
-        self.active_tiles = ordered_active_tiles
+        self._active_tiles = ordered_active_tiles
 
     def tile_bounding_box(self, tile_index):
         """Return the bounding box of the specified tile in SEM coordinates."""
@@ -726,14 +737,14 @@ class GridManager:
         self.magc_landmarks = json.loads(self.cfg['magc']['landmarks'])
         self.magc_wafer_transform = json.loads(
             self.cfg['magc']['wafer_transform'])
-            
+
         # Some functionality is changed if SBEMimage is used in MagC mode
         self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
         # Boolean flags for MagC acquisition
         self.magc_roi_mode = (self.cfg['magc']['roi_mode'].lower() == 'true')
         self.magc_wafer_calibrated = (
             self.cfg['magc']['wafer_calibrated'].lower() == 'true')
-            
+
 
     def __getitem__(self, grid_index):
         """Return the Grid object selected by index."""
@@ -1003,7 +1014,7 @@ class GridManager:
         source_grid_number,
         target_grid_number,
         sections):
-        
+
         # TODO
         s = source_grid_number
         t = target_grid_number
@@ -1046,7 +1057,7 @@ class GridManager:
         #xxx self.set_number_active_tiles(t, self.get_number_active_tiles(s))
 
         self.__grids[t].active_tiles = self.__grids[s].active_tiles
-        
+
         if len(self.sem.STORE_RES) > 4:
             # Merlin
             self.__grids[t].frame_size = self.__grids[s].frame_size
@@ -1055,14 +1066,14 @@ class GridManager:
             # Sigma
             self.__grids[t].frame_size = self.__grids[s].frame_size
             self.__grids[t].frame_size_selector = self.__grids[s].frame_size_selector
-            
+
         self.__grids[t].pixel_size = self.__grids[s].pixel_size
         self.__grids[t].dwell_time = self.__grids[s].dwell_time
         # xxxself.set_dwell_time_selector(t, self.get_dwell_time_selector(s))
         self.__grids[t].acq_interval = self.__grids[s].acq_interval
-        
+
         self.__grids[t].acq_interval_offset = self.__grids[s].acq_interval_offset
-        
+
         self.__grids[t].autofocus_ref_tiles = self.__grids[s].autofocus_ref_tiles
         # xxx self.set_adaptive_focus_enabled(t, self.get_adaptive_focus_enabled(s))
         # xxx self.set_adaptive_focus_tiles(t, self.get_adaptive_focus_tiles(s))
@@ -1086,7 +1097,7 @@ class GridManager:
             result = utils.applyAffineT(
                 [targetGridCenter[0]], [targetGridCenter[1]], waferTransform)
             targetGridCenter = [result[0][0], result[1][0]]
-        
+
         if t<10:
             print('target', t, 'before', self.__grids[t].centre_sx_sy)
             print('target', t, 'before', self.__grids[t].rotation)
