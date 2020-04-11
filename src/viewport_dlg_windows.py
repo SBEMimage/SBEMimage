@@ -29,10 +29,6 @@ import utils
 import acq_func
 
 
-class Trigger(QObject):
-    """Custom signal for updating GUI from within running threads."""
-    s = pyqtSignal()
-
 # ------------------------------------------------------------------------------
 
 class StubOVDlg(QDialog):
@@ -41,7 +37,7 @@ class StubOVDlg(QDialog):
     """
 
     def __init__(self, centre_sx_sy, grid_size_selector,
-                 sem, stage, ovm, acq, viewport_trigger, viewport_queue):
+                 sem, stage, ovm, acq, viewport_trigger):
         super().__init__()
         loadUi('..\\gui\\stub_ov_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
@@ -53,13 +49,11 @@ class StubOVDlg(QDialog):
         self.ovm = ovm
         self.acq = acq
         self.viewport_trigger = viewport_trigger
-        self.viewport_queue = viewport_queue
         self.acq_in_progress = False
 
         # Set up trigger and queue to update dialog GUI during acquisition
-        self.stub_dlg_trigger = Trigger()
-        self.stub_dlg_trigger.s.connect(self.process_thread_signal)
-        self.stub_dlg_queue = Queue()
+        self.stub_dlg_trigger = utils.Trigger()
+        self.stub_dlg_trigger.signal.connect(self.process_thread_signal)
         self.abort_queue = Queue()
         self.pushButton_acquire.clicked.connect(self.start_stub_ov_acquisition)
         self.pushButton_abort.clicked.connect(self.abort)
@@ -104,15 +98,14 @@ class StubOVDlg(QDialog):
         """Process commands from the queue when a trigger signal occurs
         while the acquisition of the stub overview is running.
         """
-        msg = self.stub_dlg_queue.get()
+        msg = self.stub_dlg_trigger.queue.get()
         if msg == 'UPDATE XY':
-            self.show_new_stage_pos()
+            self.viewport_trigger.transmit('UPDATE XY')
         elif msg[:15] == 'UPDATE PROGRESS':
             percentage = int(msg[15:])
             self.progressBar.setValue(percentage)
         elif msg == 'STUB OV SUCCESS':
-            self.viewport_queue.put('STUB OV SUCCESS')
-            self.viewport_trigger.s.emit()
+            self.viewport_trigger.transmit('STUB OV SUCCESS')
             self.pushButton_acquire.setEnabled(True)
             self.pushButton_abort.setEnabled(False)
             self.buttonBox.setEnabled(True)
@@ -125,8 +118,7 @@ class StubOVDlg(QDialog):
                 QMessageBox.Ok)
             self.acq_in_progress = False
         elif msg == 'STUB OV FAILURE':
-            self.viewport_queue.put('STUB OV FAILURE')
-            self.viewport_trigger.s.emit()
+            self.viewport_trigger.transmit('STUB OV FAILURE')
             # Restore previous origin and grid size
             self.ovm['stub'].centre_sx_sy = self.previous_centre_sx_sy
             self.ovm['stub'].grid_size_selector = (
@@ -142,8 +134,7 @@ class StubOVDlg(QDialog):
             self.acq_in_progress = False
             self.close()
         elif msg == 'STUB OV ABORT':
-            self.viewport_queue.put('STATUS IDLE')
-            self.viewport_trigger.s.emit()
+            self.viewport_trigger.transmit('STATUS IDLE')
             # Restore previous origin and grid size
             self.ovm['stub'].centre_sx_sy = self.previous_centre_sx_sy
             self.ovm['stub'].grid_size_selector = (
@@ -159,14 +150,6 @@ class StubOVDlg(QDialog):
         self.label_duration.setText(self.durations[
             self.comboBox_sizeSelector.currentIndex()])
 
-    def show_new_stage_pos(self):
-        self.viewport_queue.put('UPDATE XY')
-        self.viewport_trigger.s.emit()
-
-    def add_to_log(self, msg):
-        self.viewport_queue.put(msg)
-        self.viewport_trigger.s.emit()
-
     def start_stub_ov_acquisition(self):
         """Acquire the stub overview. Acquisition routine runs in a thread."""
 
@@ -178,8 +161,7 @@ class StubOVDlg(QDialog):
             # Change the Stub Overview to the requested grid size and centre
             self.ovm['stub'].grid_size_selector = grid_size_selector
             self.ovm['stub'].centre_sx_sy = centre_sx_sy
-
-            self.add_to_log(
+            self.viewport_trigger.transmit(
                 'CTRL: Acquisition of stub overview image started.')
             self.pushButton_acquire.setEnabled(False)
             self.pushButton_abort.setEnabled(True)
@@ -188,15 +170,13 @@ class StubOVDlg(QDialog):
             self.spinBox_Y.setEnabled(False)
             self.comboBox_sizeSelector.setEnabled(False)
             self.progressBar.setValue(0)
-            self.viewport_queue.put('STATUS BUSY STUB')
-            self.viewport_trigger.s.emit()
+            self.viewport_trigger.transmit('STATUS BUSY STUB')
             QApplication.processEvents()
             stub_acq_thread = threading.Thread(
                                   target=acq_func.acquire_stub_ov,
                                   args=(self.sem, self.stage,
                                         self.ovm, self.acq,
                                         self.stub_dlg_trigger,
-                                        self.stub_dlg_queue,
                                         self.abort_queue,))
             stub_acq_thread.start()
         else:
@@ -263,13 +243,10 @@ class FocusGradientTileSelectionDlg(QDialog):
 class GridRotationDlg(QDialog):
     """Change the rotation angle of a selected grid."""
 
-    def __init__(self, selected_grid, gm,
-                 viewport_trigger, viewport_queue,
-                 magc_mode=False):
+    def __init__(self, selected_grid, gm, viewport_trigger, magc_mode=False):
         self.selected_grid = selected_grid
         self.gm = gm
         self.viewport_trigger = viewport_trigger
-        self.viewport_queue = viewport_queue
         self.magc_mode = magc_mode
         self.rotation_in_progress = False
         super().__init__()
@@ -334,31 +311,28 @@ class GridRotationDlg(QDialog):
         # Update tile positions:
         self.gm[self.selected_grid].update_tile_positions()
         # Emit signal to redraw:
-        self.viewport_queue.put('DRAW VP NO LABELS')
-        self.viewport_trigger.s.emit()
+        self.viewport_trigger.transmit('DRAW VP NO LABELS')
 
     def draw_with_labels(self):
-        self.viewport_queue.put('DRAW VP')
-        self.viewport_trigger.s.emit()
+        self.viewport_trigger.transmit('DRAW VP')
 
     def update_viewport_with_delay(self):
         """Redraw the viewport without suppressing labels/previews after at
         least 0.3 seconds have passed since last update of the rotation angle."""
-        finish_trigger = Trigger()
-        finish_trigger.s.connect(self.draw_with_labels)
+        finish_trigger = utils.Trigger()
+        finish_trigger.signal.connect(self.draw_with_labels)
         current_time = self.time_of_last_rotation
         while (current_time - self.time_of_last_rotation < 0.3):
             sleep(0.1)
             current_time += 0.1
         self.rotation_in_progress = False
-        finish_trigger.s.emit()
+        finish_trigger.signal.emit()
 
     def reject(self):
         # Revert to previous angle and origin:
         self.gm[self.selected_grid].rotation = self.previous_angle
         self.gm[self.selected_grid].origin_sx_sy = self.previous_origin_sx_sy
-        self.viewport_queue.put('DRAW VP')
-        self.viewport_trigger.s.emit()
+        self.viewport_trigger.transmit('DRAW VP')
         super().reject()
 
     def accept(self):
@@ -459,11 +433,9 @@ class ImportImageDlg(QDialog):
 class AdjustImageDlg(QDialog):
     """Adjust an imported image (size, rotation, transparency)"""
 
-    def __init__(self, imported_images, selected_img,
-                 viewport_trigger, viewport_queue):
+    def __init__(self, imported_images, selected_img, viewport_trigger):
         self.imported = imported_images
         self.viewport_trigger = viewport_trigger
-        self.viewport_queue = viewport_queue
         self.selected_img = selected_img
         super().__init__()
         loadUi('..\\gui\\adjust_imported_image_dlg.ui', self)
@@ -503,8 +475,7 @@ class AdjustImageDlg(QDialog):
         self.imported[self.selected_img].transparency = (
             self.spinBox_transparency.value())
         # Emit signals to redraw Viewport:
-        self.viewport_queue.put('DRAW VP')
-        self.viewport_trigger.s.emit()
+        self.viewport_trigger.transmit('DRAW VP')
 
 # ------------------------------------------------------------------------------
 

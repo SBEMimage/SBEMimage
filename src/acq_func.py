@@ -21,62 +21,59 @@ from PIL import Image
 
 import utils
 
-def acquire_ov(base_dir, selection, sem, stage, ovm, cs,
-               viewport_trigger, viewport_queue):
-    # Update current xy position:
+def acquire_ov(base_dir, selection, sem, stage, ovm,
+               main_controls_trigger, viewport_trigger):
+    # Update current XY stage position
     stage.get_xy()
-    viewport_queue.put('UPDATE XY')
-    viewport_trigger.s.emit()
     success = True
-    if selection == -1: # acquire all OVs
-        start, end = 0, ovm.number_ov
+    if selection == -1:
+        # acquire all OVs
+        start = 0
+        end = ovm.number_ov
     else:
-        start, end = selection, selection + 1 # acquire only one OV
-    # Acquisition loop:
-    for i in range(start, end):
-        viewport_queue.put('3VIEW: Moving stage to OV %d position.' % i)
-        viewport_trigger.s.emit()
-        # Move to OV stage coordinates:
-        stage.move_to_xy(ovm[i].centre_sx_sy)
-        # Check to see if error ocurred:
+        # acquire only one OV
+        start = selection
+        end = selection + 1
+    # Acquisition loop
+    for ov_index in range(start, end):
+        main_controls_trigger.transmit(utils.format_log_entry(
+            'STAGE: Moving stage to OV %d position.' % ov_index))
+        # Move to OV stage coordinates
+        stage.move_to_xy(ovm[ov_index].centre_sx_sy)
+        # Check to see if error ocurred
         if stage.error_state > 0:
             success = False
             stage.reset_error_state()
         if success:
-            # update stage position in GUI:
-            viewport_queue.put('UPDATE XY')
-            viewport_trigger.s.emit()
-            # Set specified OV frame settings:
-            sem.apply_frame_settings(ovm[i].frame_size_selector,
-                                     ovm[i].pixel_size,
-                                     ovm[i].dwell_time)
+            # Update stage position in Main Controls GUI
+            main_controls_trigger.transmit('UPDATE XY')
+            # Set specified OV frame settings
+            sem.apply_frame_settings(ovm[ov_index].frame_size_selector,
+                                     ovm[ov_index].pixel_size,
+                                     ovm[ov_index].dwell_time)
             save_path = os.path.join(
-                base_dir, 'workspace', 'OV' + str(i).zfill(3) + '.bmp')
-            viewport_queue.put('SEM: Acquiring OV %d.' % i)
-            viewport_trigger.s.emit()
+                base_dir, 'workspace', 'OV'
+                + str(ov_index).zfill(3) + '.bmp')
+            main_controls_trigger.transmit(utils.format_log_entry(
+                'SEM: Acquiring OV %d.' % ov_index))
             # Indicate the overview being acquired in the viewport
-            viewport_queue.put('ACQ IND OV' + str(i))
-            viewport_trigger.s.emit()
+            viewport_trigger.transmit('ACQ IND OV' + str(ov_index))
             success = sem.acquire_frame(save_path)
             # Remove indicator colour
-            viewport_queue.put('ACQ IND OV' + str(i))
-            viewport_trigger.s.emit()
-            # Show updated OV:
-            viewport_queue.put('DRAW VP')
-            viewport_trigger.s.emit()
+            viewport_trigger.transmit('ACQ IND OV' + str(ov_index))
             if success:
-                ovm[i].vp_file_path = save_path
+                ovm[ov_index].vp_file_path = save_path
+            # Show updated OV
+            viewport_trigger.transmit('DRAW VP')
         if not success:
             break # leave loop if error has occured
     if success:
-        viewport_queue.put('REFRESH OV SUCCESS')
-        viewport_trigger.s.emit()
+        viewport_trigger.transmit('REFRESH OV SUCCESS')
     else:
-        viewport_queue.put('REFRESH OV FAILURE')
-        viewport_trigger.s.emit()
+        viewport_trigger.transmit('REFRESH OV FAILURE')
 
 def acquire_stub_ov(sem, stage, ovm, acq,
-                    stub_dlg_trigger, stub_dlg_queue, abort_queue):
+                    stub_dlg_trigger, abort_queue):
     """Acquire a large tiled overview image of user-defined size that covers a
     part of or the entire stub (SEM sample holder).
 
@@ -88,8 +85,7 @@ def acquire_stub_ov(sem, stage, ovm, acq,
 
     # Update current XY position and display it in Main Controls GUI
     stage.get_xy()
-    stub_dlg_queue.put('UPDATE XY')
-    stub_dlg_trigger.s.emit()
+    stub_dlg_trigger.transmit('UPDATE XY')
 
     if stage.use_microtome:
         # When using the microtome stage, make sure the DigitalMicrograph script
@@ -118,8 +114,7 @@ def acquire_stub_ov(sem, stage, ovm, acq,
             if not abort_queue.empty():
                 # Check if user has clicked 'Abort' button in dialog GUI
                 if abort_queue.get() == 'ABORT':
-                    stub_dlg_queue.put('STUB OV ABORT')
-                    stub_dlg_trigger.s.emit()
+                    stub_dlg_trigger.transmit('STUB OV ABORT')
                     success = False
                     aborted = True
                     break
@@ -137,8 +132,7 @@ def acquire_stub_ov(sem, stage, ovm, acq,
                         stage.reset_error_state()
                 else:
                     # Show new stage coordinates in main control window
-                    stub_dlg_queue.put('UPDATE XY')
-                    stub_dlg_trigger.s.emit()
+                    stub_dlg_trigger.transmit('UPDATE XY')
                     save_path = os.path.join(
                         acq.base_dir, 'workspace',
                         'stub' + str(tile_index).zfill(2) + '.bmp')
@@ -162,9 +156,8 @@ def acquire_stub_ov(sem, stage, ovm, acq,
             image_counter += 1
             percentage_done = int(
                 image_counter / ovm['stub'].number_tiles * 100)
-            stub_dlg_queue.put(
+            stub_dlg_trigger.transmit(
                 'UPDATE PROGRESS' + str(percentage_done))
-            stub_dlg_trigger.s.emit()
 
         # Write full stub over image to disk unless acq aborted
         if not aborted:
@@ -184,49 +177,33 @@ def acquire_stub_ov(sem, stage, ovm, acq,
 
     if success:
         # Signal to dialog window that stub OV acquisition was successful
-        stub_dlg_queue.put('STUB OV SUCCESS')
-        stub_dlg_trigger.s.emit()
+        stub_dlg_trigger.transmit('STUB OV SUCCESS')
     elif not aborted:
         # Signal to dialog window that stub OV acquisition failed
-        stub_dlg_queue.put('STUB OV FAILURE')
-        stub_dlg_trigger.s.emit()
+        stub_dlg_trigger.transmit('STUB OV FAILURE')
 
-def manual_sweep(microtome, main_controls_trigger, main_controls_queue):
+def manual_sweep(microtome, main_controls_trigger):
     """Perform sweep requested by user in Main Controls window."""
-    success = True
     z_position = microtome.get_stage_z(wait_interval=1)
     if (z_position is not None) and (z_position >= 0):
         microtome.do_sweep(z_position)
-        if microtome.error_state > 0:
-            success = False
-            microtome.reset_error_state()
-    else:
-        success = False
+    if microtome.error_state > 0:
         microtome.reset_error_state()
-    if success:
-        main_controls_queue.put('MANUAL SWEEP SUCCESS')
-        main_controls_trigger.s.emit()
+        main_controls_trigger.transmit('MANUAL SWEEP FAILURE')
     else:
-        main_controls_queue.put('MANUAL SWEEP FAILURE')
-        main_controls_trigger.s.emit()
+        main_controls_trigger.transmit('MANUAL SWEEP SUCCESS')
 
-def manual_stage_move(stage, target_position,
-                      viewport_trigger, viewport_queue):
-    """Perform stage move to target_position requested by user in Viewport."""
-    # Update current xy position
+def manual_stage_move(stage, target_position, viewport_trigger):
+    """Move stage to target_position (X, Y), requested by user in Viewport.
+    This function is run in a thread started in viewport.py.
+    """
+    # Read current XY stage position to make sure that stage.last_known_xy
+    # is up-to-date. Expected duration of the move is calculated with
+    # stage.last_known_xy as the starting point.
     stage.get_xy()
-    viewport_queue.put('UPDATE XY')
-    viewport_trigger.s.emit()
-    success = True
     stage.move_to_xy(target_position)
     if stage.error_state > 0:
-        success = False
         stage.reset_error_state()
-    if success:
-        viewport_queue.put('UPDATE XY')
-        viewport_trigger.s.emit()
-        viewport_queue.put('MANUAL MOVE SUCCESS')
-        viewport_trigger.s.emit()
+        viewport_trigger.transmit('MANUAL MOVE FAILURE')
     else:
-        viewport_queue.put('MANUAL MOVE FAILURE')
-        viewport_trigger.s.emit()
+        viewport_trigger.transmit('MANUAL MOVE SUCCESS')

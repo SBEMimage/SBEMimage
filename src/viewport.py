@@ -25,7 +25,6 @@ import threading
 from time import time, sleep
 from PIL import Image
 from math import log, sqrt, sin, cos, radians
-from queue import Queue
 from statistics import mean
 
 from PyQt5.uic import loadUi
@@ -41,17 +40,11 @@ from viewport_dlg_windows import StubOVDlg, FocusGradientTileSelectionDlg, \
                                  AdjustImageDlg, DeleteImageDlg
 
 
-class Trigger(QObject):
-    """Custom signal for updating GUI from within running threads."""
-    s = pyqtSignal()
-
-
 class Viewport(QWidget):
 
     def __init__(self, config, sem, stage, coordinate_system,
                  ov_manager, grid_manager, imported_images,
-                 autofocus, acquisition,
-                 main_controls_trigger, main_controls_queue):
+                 autofocus, acquisition, main_controls_trigger):
         super().__init__()
         self.cfg = config
         self.sem = sem
@@ -63,7 +56,6 @@ class Viewport(QWidget):
         self.autofocus = autofocus
         self.acq = acquisition
         self.main_controls_trigger = main_controls_trigger
-        self.main_controls_queue = main_controls_queue
 
         # Set Viewport zoom parameters depending on which stage is used for XY
         if self.stage.use_microtome_xy:
@@ -91,9 +83,8 @@ class Viewport(QWidget):
 
         # Set up trigger and queue to update viewport from the
         # acquisition thread or dialog windows.
-        self.viewport_trigger = Trigger()
-        self.viewport_trigger.s.connect(self._process_signal)
-        self.viewport_queue = Queue()
+        self.viewport_trigger = utils.Trigger()
+        self.viewport_trigger.signal.connect(self._process_signal)
 
         self._load_gui()
         # Initialize viewport tabs:
@@ -248,19 +239,19 @@ class Viewport(QWidget):
     def _process_signal(self):
         """Process signals from the acquisition thread or from dialog windows.
         """
-        msg = self.viewport_queue.get()
+        msg = self.viewport_trigger.queue.get()
         if msg == 'DRAW VP':
             self.vp_draw()
         elif msg == 'DRAW VP NO LABELS':
             self.vp_draw(suppress_labels=True, suppress_previews=True)
         elif msg == 'UPDATE XY':
-            self._transmit_cmd(msg)
+            self.main_controls_trigger.transmit(msg)
         elif msg == 'STATUS IDLE':
-            self._transmit_cmd(msg)
+            self.main_controls_trigger.transmit(msg)
         elif msg == 'STATUS BUSY STUB':
-            self._transmit_cmd(msg)
+            self.main_controls_trigger.transmit(msg)
         elif msg == 'STATUS BUSY OV':
-            self._transmit_cmd(msg)
+            self.main_controls_trigger.transmit(msg)
         elif msg.startswith('ACQ IND OV'):
             self.vp_toggle_ov_acq_indicator(
                 int(msg[len('ACQ IND OV'):]))
@@ -279,16 +270,9 @@ class Viewport(QWidget):
         else:
             self._add_to_main_log(msg)
 
-    def _transmit_cmd(self, cmd):
-        """Transmit command to the main window thread."""
-        self.main_controls_queue.put(cmd)
-        self.main_controls_trigger.s.emit()
-
     def _add_to_main_log(self, msg):
-        """Add entry to the log in the main window"""
-        msg = utils.format_log_entry(msg)
-        # Send entry to main window via queue and trigger:
-        self._transmit_cmd(msg)
+        """Add entry to the log in the main window via main_controls_trigger."""
+        self.main_controls_trigger.transmit(utils.format_log_entry(msg))
 
     def closeEvent(self, event):
         """This overrides the QWidget's closeEvent(). Viewport must be
@@ -360,7 +344,8 @@ class Viewport(QWidget):
                                 f'{self.selected_tile}{new_tile_status}')
                             self.vp_update_after_active_tile_selection()
                             # Make sure folder exists:
-                            self._transmit_cmd('ADD TILE FOLDER')
+                            self.main_controls_trigger.transmit(
+                                'ADD TILE FOLDER')
                     else:
                         # If no acquisition in progress,
                         # first toggle current tile.
@@ -567,7 +552,7 @@ class Viewport(QWidget):
                         self.gm.update_source_ROIs_from_grids()
                         # deactivate roi_mode because grid manually moved
                         self.cfg['magc']['roi_mode'] = 'False'
-                        self._transmit_cmd('SAVE INI')
+                        self.main_controls_trigger.transmit('SAVE INI')
                     # ------ End of MagC code ------
 
             if self.ov_drag_active:
@@ -602,7 +587,7 @@ class Viewport(QWidget):
                         self.stage_pos_backup)
             # Update viewport
             self.vp_draw()
-            self._transmit_cmd('SHOW CURRENT SETTINGS')
+            self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS')
 
     def wheelEvent(self, event):
         if self.tabWidget.currentIndex() == 1:
@@ -811,7 +796,7 @@ class Viewport(QWidget):
         """Update debris detection areas, show updated settings and redraw
         Viewport after active tile selection has been changed by user."""
         self.ovm.update_all_debris_detections_areas(self.gm)
-        self._transmit_cmd('SHOW CURRENT SETTINGS')
+        self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS')
         self.vp_draw()
 
     def vp_show_context_menu(self, p):
@@ -976,7 +961,7 @@ class Viewport(QWidget):
             menu.exec_(self.mapToGlobal(p))
 
     def _vp_load_selected_in_ft(self):
-        self._transmit_cmd('LOAD IN FOCUS TOOL')
+        self.main_controls_trigger.transmit('LOAD IN FOCUS TOOL')
 
     def _vp_set_stub_ov_centre(self):
         self.stub_ov_centre = self.selected_stage_pos
@@ -1647,14 +1632,14 @@ class Viewport(QWidget):
     def _vp_draw_zoom_delay(self):
         """Redraw the viewport without suppressing labels/previews after at
         least 0.3 seconds have passed since last mouse/slider zoom action."""
-        finish_trigger = Trigger()
-        finish_trigger.s.connect(self.vp_draw)
+        finish_trigger = utils.Trigger()
+        finish_trigger.signal.connect(self.vp_draw)
         current_time = self.time_of_last_zoom_action
         while (current_time - self.time_of_last_zoom_action < 0.3):
             sleep(0.1)
             current_time += 0.1
         self.zooming_in_progress = False
-        finish_trigger.s.emit()
+        finish_trigger.signal.emit()
 
     def vp_adjust_zoom_slider(self):
         """Adjust the position of the viewport sliders according to the current
@@ -1955,7 +1940,8 @@ class Viewport(QWidget):
                 self.vp_update_after_active_tile_selection()
 
     def _vp_open_grid_settings(self):
-        self._transmit_cmd('OPEN GRID SETTINGS' + str(self.selected_grid))
+        self.main_controls_trigger.transmit(
+            'OPEN GRID SETTINGS' + str(self.selected_grid))
 
     def _vp_move_grid_to_current_stage_position(self):
         """Move the selected grid to the current stage position (MagC)."""
@@ -1988,7 +1974,7 @@ class Viewport(QWidget):
                     if dialog.selected is not None:
                         ref_tiles[dialog.selected] = self.selected_tile
             self.gm[self.selected_grid].wd_gradient_ref_tiles = ref_tiles
-            self._transmit_cmd('UPDATE FT TILE SELECTOR')
+            self.main_controls_trigger.transmit('UPDATE FT TILE SELECTOR')
             self.vp_draw()
 
     def _vp_toggle_measure(self):
@@ -2025,21 +2011,21 @@ class Viewport(QWidget):
             QMessageBox.Ok | QMessageBox.Cancel)
         if user_reply == QMessageBox.Ok:
             self._add_to_main_log('CTRL: Performing user-requested stage move')
-            self._transmit_cmd('RESTRICT GUI')
+            self.main_controls_trigger.transmit('RESTRICT GUI')
             self.restrict_gui(True)
             QApplication.processEvents()
             move_thread = threading.Thread(target=acq_func.manual_stage_move,
                                            args=(self.stage,
                                                  self.selected_stage_pos,
-                                                 self.viewport_trigger,
-                                                 self.viewport_queue,))
+                                                 self.viewport_trigger,))
             move_thread.start()
-            self._transmit_cmd('STATUS BUSY STAGE MOVE')
+            self.main_controls_trigger.transmit('STATUS BUSY STAGE MOVE')
 
     def _vp_manual_stage_move_success(self, success):
+        # Show new stage position in Main Controls GUI
+        self.main_controls_trigger.transmit('UPDATE XY')
         if success:
             self._add_to_main_log('CTRL: User-requested stage move completed.')
-            self.vp_draw()
         else:
             self._add_to_main_log('CTRL: ERROR ocurred during stage move.')
             QMessageBox.warning(
@@ -2047,9 +2033,10 @@ class Viewport(QWidget):
                 'An error occurred during the requested stage move. ' +
                 'Please check the microtome status in DM.',
                 QMessageBox.Ok)
+        self.vp_draw()
         self.restrict_gui(False)
-        self._transmit_cmd('UNRESTRICT GUI')
-        self._transmit_cmd('STATUS IDLE')
+        self.main_controls_trigger.transmit('UNRESTRICT GUI')
+        self.main_controls_trigger.transmit('STATUS IDLE')
 
     def vp_acquire_overview(self):
         """Acquire one selected or all overview images."""
@@ -2066,14 +2053,14 @@ class Viewport(QWidget):
                 self._add_to_main_log(
                     'CTRL: User-requested acquisition of OV image(s) started')
                 self.restrict_gui(True)
-                self._transmit_cmd('RESTRICT GUI')
-                self._transmit_cmd('STATUS BUSY OV')
-                # Start OV acquisition thread:
+                self.main_controls_trigger.transmit('RESTRICT GUI')
+                self.main_controls_trigger.transmit('STATUS BUSY OV')
+                # Start OV acquisition thread
                 ov_acq_thread = threading.Thread(
                     target=acq_func.acquire_ov,
                     args=(self.acq.base_dir, self.vp_current_ov,
-                          self.sem, self.stage, self.ovm, self.cs,
-                          self.viewport_trigger, self.viewport_queue,))
+                          self.sem, self.stage, self.ovm,
+                          self.main_controls_trigger, self.viewport_trigger,))
                 ov_acq_thread.start()
         else:
             QMessageBox.information(
@@ -2096,9 +2083,9 @@ class Viewport(QWidget):
                 'incorrect settings of the stage X/Y motor ranges or speeds. '
                 'Home the stage and check whether the range limits specified '
                 'in SBEMimage are correct.', QMessageBox.Ok)
-        self._transmit_cmd('UNRESTRICT GUI')
+        self.main_controls_trigger.transmit('UNRESTRICT GUI')
         self.restrict_gui(False)
-        self._transmit_cmd('STATUS IDLE')
+        self.main_controls_trigger.transmit('STATUS IDLE')
 
     def _vp_open_stub_overview_dlg(self):
         centre_sx_sy = self.stub_ov_centre
@@ -2108,7 +2095,7 @@ class Viewport(QWidget):
         grid_size_selector = self.ovm['stub'].grid_size_selector
         dialog = StubOVDlg(centre_sx_sy, grid_size_selector,
                            self.sem, self.stage, self.ovm, self.acq,
-                           self.viewport_trigger, self.viewport_queue)
+                           self.viewport_trigger)
         dialog.exec_()
 
     def _vp_stub_overview_acq_success(self, success):
@@ -2140,12 +2127,11 @@ class Viewport(QWidget):
         else:
             self._add_to_main_log('CTRL: ERROR ocurred during stub overview '
                                   'acquisition.')
-        self._transmit_cmd('STATUS IDLE')
+        self.main_controls_trigger.transmit('STATUS IDLE')
 
     def _vp_open_change_grid_rotation_dlg(self):
         dialog = GridRotationDlg(self.selected_grid, self.gm,
-                                 self.viewport_trigger, self.viewport_queue,
-                                 self.sem.magc_mode)
+                                 self.viewport_trigger, self.sem.magc_mode)
         if dialog.exec_():
             if self.ovm.use_auto_debris_area:
                 self.ovm.update_all_debris_detections_areas(self.gm)
@@ -2170,7 +2156,7 @@ class Viewport(QWidget):
 
     def _vp_open_adjust_image_dlg(self):
         dialog = AdjustImageDlg(self.imported, self.selected_imported,
-                                self.viewport_trigger, self.viewport_queue)
+                                self.viewport_trigger)
         dialog.exec_()
 
     def _vp_open_delete_image_dlg(self):
@@ -2208,7 +2194,7 @@ class Viewport(QWidget):
         ref_tiles = json.loads(self.cfg['autofocus']['ref_tiles'])
         self.af.set_ref_tiles(ref_tiles)
         self.vp_draw()
-        self._transmit_cmd('SHOW CURRENT SETTINGS') # update statistics in GUI
+        self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS') # update statistics in GUI
 
     def vp_propagate_grid_properties_to_all_sections(self):
         # TODO
@@ -2233,7 +2219,7 @@ class Viewport(QWidget):
         self.af.set_ref_tiles(ref_tiles)
 
         self.vp_draw()
-        self._transmit_cmd('SHOW CURRENT SETTINGS') # update statistics in GUI
+        self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS') # update statistics in GUI
 
     # -------------------- End of MagC methods in Viewport ---------------------
 

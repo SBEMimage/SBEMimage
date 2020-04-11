@@ -34,7 +34,7 @@ class Acquisition:
     def __init__(self, config, sysconfig, sem, microtome, stage,
                  overview_manager, grid_manager, coordinate_system,
                  image_inspector, autofocus, notifications,
-                 main_controls_trigger, main_controls_queue):
+                 main_controls_trigger):
         self.cfg = config
         self.syscfg = sysconfig
         self.sem = sem
@@ -46,8 +46,7 @@ class Acquisition:
         self.img_inspector = image_inspector
         self.autofocus = autofocus
         self.notifications = notifications
-        self.trigger = main_controls_trigger
-        self.queue = main_controls_queue
+        self.main_controls_trigger = main_controls_trigger
 
         self.error_state = 0
         self.error_info = ''
@@ -386,9 +385,9 @@ class Acquisition:
         success, exception_str = utils.create_subdirectories(
             self.base_dir, subdirectory_list)
         if not success:
-            # Use transmit_cmd() here to add a message to the log instead of
+            # Use transmit() here to add a message to the log instead of
             # add_to_main_log() because main log file is not open yet.
-            self.transmit_cmd(utils.format_log_entry(
+            self.main_controls_trigger.transmit(utils.format_log_entry(
                 'CTRL: Error while creating subdirectories: ' + exception_str))
             self.pause_acquisition(1)
             self.error_state = 401
@@ -396,7 +395,7 @@ class Acquisition:
             success, exception_str = utils.create_subdirectories(
                 self.mirror_drive_dir, subdirectory_list)
             if not success:
-                self.transmit_cmd(utils.format_log_entry(
+                self.main_controls_trigger.transmit(utils.format_log_entry(
                     'CTRL: Error while creating subdirectories on mirror '
                     'drive: ' + exception_str))
                 self.pause_acquisition(1)
@@ -501,7 +500,7 @@ class Acquisition:
             self.error_log_file.write(log_str + ': ' + str(e) + '\n')
             # Signal to main window to update log in viewport tab that shows
             # warnings
-            self.transmit_cmd('VP LOG' + log_str)
+            self.add_to_vp_log(log_str)
             sleep(2)
             # Try again
             try:
@@ -580,9 +579,9 @@ class Acquisition:
 
             # Save current configuration to disk
             # (send signal to call save_settings() in main_controls.py
-            self.transmit_cmd('SAVE CFG')
+            self.main_controls_trigger.transmit('SAVE CFG')
             # Update progress bar and slice counter in Main Controls GUI
-            self.transmit_cmd('UPDATE PROGRESS')
+            self.main_controls_trigger.transmit('UPDATE PROGRESS')
 
             # Create metadata summary for this run, write it to disk and send it
             # to remote server (if feature enabled).
@@ -678,12 +677,12 @@ class Acquisition:
                 self.error_state = 206
                 self.pause_acquisition(1)
                 # Show warning dialog in Main Controls GUI
-                self.transmit_cmd('Z WARNING')
+                self.main_controls_trigger.transmit('Z WARNING')
 
             # Show current stage position (Z and XY) in Main Controls GUI
-            self.transmit_cmd('UPDATE Z')
+            self.main_controls_trigger.transmit('UPDATE Z')
             self.stage.get_xy()  # calling stage.get_xy() updates last_known_xy
-            self.transmit_cmd('UPDATE XY')
+            self.main_controls_trigger.transmit('UPDATE XY')
 
         # ========================= ACQUISITION LOOP ===========================
         while not (self.acq_paused or self.stack_completed):
@@ -744,8 +743,8 @@ class Acquisition:
                 self.base_dir, 'workspace', 'viewport',
                 self.stack_name + '_viewport_' + 's'
                 + str(self.slice_counter).zfill(utils.SLICE_DIGITS) + '.png')
-            self.transmit_cmd('GRAB VP SCREENSHOT'
-                              + self.vp_screenshot_filename)
+            self.main_controls_trigger.transmit('GRAB VP SCREENSHOT'
+                                                + self.vp_screenshot_filename)
             # Allow enough time to grab and save viewport screenshot
             time_out = 0
             while (not os.path.isfile(self.vp_screenshot_filename)
@@ -799,10 +798,10 @@ class Acquisition:
                             self.add_to_main_log(
                                 'CTRL: ERROR sending notification email: '
                                 + error_msg)
-                        self.transmit_cmd('REMOTE STOP')
+                        self.main_controls_trigger.transmit('REMOTE STOP')
                     if command == 'SHOWMESSAGE':
                         # Show message received from metadata server in GUI
-                        self.transmit_cmd('SHOW MSG' + msg)
+                        self.main_controls_trigger.transmit('SHOW MSG' + msg)
                 else:
                     self.add_to_main_log(
                         'CTRL: Unknown signal from metadata server received.')
@@ -848,8 +847,8 @@ class Acquisition:
             # Imaging and cutting for current slice completed.
             # Save current configuration to disk, update progress in GUI,
             # and check if stack is completed.
-            self.transmit_cmd('SAVE CFG')
-            self.transmit_cmd('UPDATE PROGRESS')
+            self.main_controls_trigger.transmit('SAVE CFG')
+            self.main_controls_trigger.transmit('UPDATE PROGRESS')
             if self.slice_counter == self.number_slices:
                 self.stack_completed = True
 
@@ -864,7 +863,7 @@ class Acquisition:
         if self.use_autofocus:
             for grid_index in range(self.gm.number_grids):
                 self.do_autofocus_adjustments(grid_index)
-            self.transmit_cmd('DRAW VP')
+            self.main_controls_trigger.transmit('DRAW VP')
             if self.autofocus.method == 1:
                 self.wd_delta, self.stig_x_delta, self.stig_y_delta = 0, 0, 0
                 self.set_grid_wd_stig()
@@ -874,7 +873,7 @@ class Acquisition:
 
         if self.stack_completed and not (self.number_slices == 0):
             self.add_to_main_log('CTRL: Stack completed.')
-            self.transmit_cmd('COMPLETION STOP')
+            self.main_controls_trigger.transmit('COMPLETION STOP')
             if self.use_email_monitoring:
                 # Send notification email
                 msg_subject = 'Stack ' + self.stack_name + ' COMPLETED.'
@@ -894,7 +893,7 @@ class Acquisition:
             self.add_to_main_log('CTRL: Stack paused.')
 
         # Update acquisition status in Main Controls GUI
-        self.transmit_cmd('ACQ NOT IN PROGRESS')
+        self.main_controls_trigger.transmit('ACQ NOT IN PROGRESS')
 
         # Add last entry to main log
         self.main_log_file.write('*** END OF LOG ***\n')
@@ -932,7 +931,7 @@ class Acquisition:
                 self.add_to_main_log('CTRL: Error sending confirmation email: '
                                      + error_msg)
             # Signal to Main Controls that acquisition paused remotely.
-            self.transmit_cmd('REMOTE STOP')
+            self.main_controls_trigger.transmit('REMOTE STOP')
         elif command in ['continue', 'start', 'restart']:
             pass
             # TODO: let user continue paused acq with remote command
@@ -953,7 +952,7 @@ class Acquisition:
             str(self.slice_counter) + ': ERROR (' + error_str + ')')
         self.error_log_file.write(viewport_log_str + '\n')
         # Signal to main window to update error log in viewport
-        self.transmit_cmd('VP LOG' + viewport_log_str)
+        self.main_controls_trigger.transmit('VP LOG' + viewport_log_str)
         # Send notification e-mail
         if self.use_email_monitoring:
             status_msg1, status_msg2 = self.notifications.send_error_report(
@@ -963,7 +962,7 @@ class Acquisition:
             if status_msg2:
                 self.add_to_main_log(status_msg2)
         # Send signal to Main Controls that there was an error.
-        self.transmit_cmd('ERROR PAUSE')
+        self.main_controls_trigger.transmit('ERROR PAUSE')
 
     def do_cut(self):
         """Carry out a single cut. This function is called when the microtome
@@ -978,7 +977,7 @@ class Acquisition:
             self.stage_z_position))
         self.microtome.move_stage_to_z(self.stage_z_position)
         # Show new Z position in Main Controls GUI
-        self.transmit_cmd('UPDATE Z')
+        self.main_controls_trigger.transmit('UPDATE Z')
         # Check if there were microtome problems
         self.error_state = self.microtome.error_state
         if self.error_state in [103, 202]:
@@ -988,7 +987,7 @@ class Acquisition:
             # Try again after three-second delay
             sleep(3)
             self.microtome.move_stage_to_z(self.stage_z_position)
-            self.transmit_cmd('UPDATE Z')
+            self.main_controls_trigger.transmit('UPDATE Z')
             # Read new error_state
             self.error_state = self.microtome.error_state
 
@@ -1018,7 +1017,7 @@ class Acquisition:
             self.add_to_main_log('3VIEW: Attempt to move back to old Z: '
                                  + '{0:.3f}'.format(old_stage_z_position))
             self.microtome.move_stage_to_z(old_stage_z_position)
-            self.transmit_cmd('UPDATE Z')
+            self.main_controls_trigger.transmit('UPDATE Z')
             self.microtome.reset_error_state()
             self.pause_acquisition(1)
         else:
@@ -1147,8 +1146,7 @@ class Acquisition:
                                + ': Debris, ' + str(sweep_counter)
                                + ' sweep(s)')
                     self.debris_log_file.write(log_str + '\n')
-                    # Signal to main window to update log in Viewport
-                    self.transmit_cmd('VP LOG' + log_str)
+                    self.add_to_vp_log(log_str)
             else:
                 self.add_to_main_log(
                     'CTRL: Skip OV %d (intervallic acquisition)' % ov_index)
@@ -1172,7 +1170,7 @@ class Acquisition:
                 log_str = (str(self.slice_counter) + ': WARNING ('
                            + 'Move to OV%d position failed)' % ov_index)
                 self.error_log_file.write(log_str + '\n')
-                self.transmit_cmd('VP LOG' + log_str)
+                self.add_to_vp_log(log_str)
                 # Try again
                 sleep(2)
                 self.stage.move_to_xy(ov_stage_position)
@@ -1185,7 +1183,7 @@ class Acquisition:
                     move_success = False
                 else:
                     # Show new stage coordinates in GUI
-                    self.transmit_cmd('UPDATE XY')
+                    self.main_controls_trigger.transmit('UPDATE XY')
         if move_success:
             self.add_to_main_log(
                 'SEM: Acquiring OV at X:'
@@ -1212,11 +1210,11 @@ class Acquisition:
             ov_save_path = utils.ov_save_path(
                 self.base_dir, self.stack_name, ov_index, self.slice_counter)
             # Indicate the overview being acquired in the viewport
-            self.transmit_cmd('ACQ IND OV' + str(ov_index))
+            self.main_controls_trigger.transmit('ACQ IND OV' + str(ov_index))
             # Acquire the image
             self.sem.acquire_frame(ov_save_path)
             # Remove indicator colour
-            self.transmit_cmd('ACQ IND OV' + str(ov_index))
+            self.main_controls_trigger.transmit('ACQ IND OV' + str(ov_index))
 
             # Check if OV image file exists and show image in Viewport
             if os.path.isfile(ov_save_path):
@@ -1245,7 +1243,7 @@ class Acquisition:
                     # in the Viewport.
                     self.ovm[ov_index].vp_file_path = workspace_save_path
                     # Signal to update viewport
-                    self.transmit_cmd('DRAW VP')
+                    self.main_controls_trigger.transmit('DRAW VP')
                 if load_error:
                     self.error_state = 404
                     ov_accepted = False
@@ -1264,7 +1262,8 @@ class Acquisition:
                     # OV has passed all tests, but now check for debris
                     ov_accepted = True
                     if self.first_ov[ov_index]:
-                        self.transmit_cmd('ASK DEBRIS FIRST OV')
+                        self.main_controls_trigger.transmit(
+                            'ASK DEBRIS FIRST OV')
                         # The command above causes a message box to be displayed
                         # in Main Controls. The user is asked if debris can be
                         # seen in the first overview image acquired.
@@ -1287,7 +1286,8 @@ class Acquisition:
                             # If 'Ask User' mode is active, ask user to
                             # confirm that debris was detected correctly.
                             if self.ask_user_mode:
-                                self.transmit_cmd('ASK DEBRIS CONFIRMATION')
+                                self.main_controls_trigger.transmit(
+                                    'ASK DEBRIS CONFIRMATION')
                                 while not self.user_reply_received:
                                     sleep(0.1)
                                 # The OV is accepted if the user replies 'No'
@@ -1305,7 +1305,8 @@ class Acquisition:
 
         # Check for "Ask User" override
         if (self.ask_user_mode and self.error_state in [303, 502]):
-            self.transmit_cmd('ASK IMAGE ERROR OVERRIDE')
+            self.main_controls_trigger.transmit(
+                'ASK IMAGE ERROR OVERRIDE')
             while not self.user_reply_received:
                 sleep(0.1)
             if self.user_reply == QMessageBox.Yes:
@@ -1331,7 +1332,7 @@ class Acquisition:
             log_str = (str(self.slice_counter)
                        + ': WARNING (' + 'Problem during sweep)')
             self.error_log_file.write(log_str + '\n')
-            self.transmit_cmd('VP LOG' + log_str)
+            self.add_to_vp_log(log_str)
             # Trying again after 3 sec
             sleep(3)
             self.microtome.do_sweep(self.stage_z_position)
@@ -1422,8 +1423,8 @@ class Acquisition:
                 # In MagC mode: Track grid being acquired in Viewport
                 grid_centre_d = self.gm[grid_index].centre_dx_dy
                 self.cs.set_vp_centre_d(grid_centre_d)
-                self.transmit_cmd('DRAW VP')
-                self.transmit_cmd('SET SECTION STATE GUI-'
+                self.main_controls_trigger.transmit('DRAW VP')
+                self.main_controls_trigger.transmit('SET SECTION STATE GUI-'
                     + str(grid_index)
                     + '-acquiring')
 
@@ -1586,8 +1587,9 @@ class Acquisition:
                 if self.magc_mode:
                     grid_centre_d = self.gm[grid_index].centre_dx_dy
                     self.cs.set_vp_centre_d(grid_centre_d)
-                    self.transmit_cmd('DRAW VP')
-                    self.transmit_cmd('SET SECTION STATE GUI-'
+                    self.main_controls_trigger.transmit('DRAW VP')
+                    self.main_controls_trigger.transmit(
+                        'SET SECTION STATE GUI-'
                         + str(grid_index)
                         + '-acquired')
 
@@ -1626,8 +1628,7 @@ class Acquisition:
                 error_log_str = (str(self.slice_counter)
                                  + ': WARNING (Problem with XY stage move)')
                 self.error_log_file.write(error_log_str + '\n')
-                # Signal to Main Controls to update log in viewport
-                self.transmit_cmd('VP LOG' + error_log_str)
+                self.add_to_vp_log(error_log_str)
                 sleep(2)
                 # Try to move to tile position again
                 self.add_to_main_log('3VIEW: Moving stage to position '
@@ -1659,7 +1660,7 @@ class Acquisition:
         if self.error_state == 0 and not tile_skipped:
 
             # Show updated XY stage coordinates in Main Controls GUI
-            self.transmit_cmd('UPDATE XY')
+            self.main_controls_trigger.transmit('UPDATE XY')
 
             # Call autofocus routine (method 0, SmartSEM) on current tile?
             if (self.use_autofocus and self.autofocus.method == 0
@@ -1672,7 +1673,7 @@ class Acquisition:
                 # For tracking mode 0: Adjust wd/stig of other tiles
                 if self.error_state == 0 and self.autofocus.tracking_mode == 0:
                     self.autofocus.approximate_wd_stig_in_grid(grid_index)
-                    self.transmit_cmd('DRAW VP')
+                    self.main_controls_trigger.transmit('DRAW VP')
 
             # Check mag if locked
             if self.mag_locked and not self.error_state in [505, 506, 507]:
@@ -1688,13 +1689,13 @@ class Acquisition:
                                  + '{0:.3f}'.format(stage_x)
                                  + ', Y:' + '{0:.3f}'.format(stage_y))
             # Indicate current tile in Viewport
-            self.transmit_cmd('ACQ IND TILE'
-                              + str(grid_index) + '.' + str(tile_index))
+            self.main_controls_trigger.transmit(
+                'ACQ IND TILE' + str(grid_index) + '.' + str(tile_index))
             # Acquire the frame from the SEM
             self.sem.acquire_frame(save_path)
             # Remove indication in Viewport
-            self.transmit_cmd('ACQ IND TILE'
-                              + str(grid_index) + '.' + str(tile_index))
+            self.main_controls_trigger.transmit(
+                'ACQ IND TILE' + str(grid_index) + '.' + str(tile_index))
             # Copy image file to the mirror drive
             if self.use_mirror_drive:
                 self.mirror_files([save_path])
@@ -1714,7 +1715,7 @@ class Acquisition:
                                          + ': M:' + '{0:.2f}'.format(mean)
                                          + ', SD:' + '{0:.2f}'.format(stddev))
                     # New preview available, show it (if tile previews active)
-                    self.transmit_cmd('DRAW VP')
+                    self.main_controls_trigger.transmit('DRAW VP')
 
                     if self.error_state in [505, 506, 507]:
                         # Don't accept tile if autofocus error has ocurred
@@ -1761,7 +1762,7 @@ class Acquisition:
 
         # Check for "Ask User" override
         if self.ask_user_mode and self.error_state in [303, 304, 503, 504]:
-            self.transmit_cmd('ASK IMAGE ERROR OVERRIDE')
+            self.main_controls_trigger.transmit('ASK IMAGE ERROR OVERRIDE')
             while not self.user_reply_received:
                 sleep(0.1)
             if self.user_reply == QMessageBox.Yes:
@@ -1879,7 +1880,7 @@ class Acquisition:
                                  + ': WARNING (Problem with XY stage move)')
                 self.error_log_file.write(error_log_str + '\n')
                 # Signal to Main Controls to update log in Viewport
-                self.transmit_cmd('VP LOG' + error_log_str)
+                self.add_to_vp_log(error_log_str)
                 sleep(2)
                 # Try to move to tile position again
                 self.add_to_main_log(
@@ -1919,7 +1920,7 @@ class Acquisition:
                     self.sem.get_stig_xy())
 
                 # Show updated WD label(s) in Viewport
-                self.transmit_cmd('DRAW VP')
+                self.main_controls_trigger.transmit('DRAW VP')
 
             # Restore grid settings for tile acquisition
             self.sem.apply_frame_settings(
@@ -2062,7 +2063,7 @@ class Acquisition:
             self.add_to_main_log(
                 'CTRL: Restored previous stigmation parameters.')
         if change_detected:
-            self.transmit_cmd('FOCUS ALERT')
+            self.main_controls_trigger.transmit('FOCUS ALERT')
 
     def check_locked_mag(self):
         """Check if mag was accidentally changed and restore target mag."""
@@ -2076,7 +2077,7 @@ class Acquisition:
             # Restore previous magnification
             self.sem.set_mag(self.locked_mag)
             self.add_to_main_log('CTRL: Restored previous magnification.')
-            self.transmit_cmd('MAG ALERT')
+            self.main_controls_trigger.transmit('MAG ALERT')
 
     def show_wd_stig_in_log(self, wd, stig_x, stig_y):
         """Display formatted focus parameters in the main log."""
@@ -2101,19 +2102,17 @@ class Acquisition:
         self.tiles_acquired = []
         self.grids_acquired = []
 
-    def transmit_cmd(self, cmd):
-        """Transmit command to Main Controls."""
-        self.queue.put(cmd)
-        self.trigger.s.emit()
-
     def add_to_main_log(self, msg):
         """Add entry to the Main Controls log."""
         msg = utils.format_log_entry(msg)
         # Store entry in main log file
         self.main_log_file.write(msg + '\n')
         # Send entry to Main Controls via queue and trigger
-        self.queue.put(msg)
-        self.trigger.s.emit()
+        self.main_controls_trigger.transmit(msg)
+
+    def add_to_vp_log(self, msg):
+        """Add entry to the Viewport log (monitoring tab)."""
+        self.main_controls_trigger.transmit('VP LOG' + msg)
 
     def pause_acquisition(self, pause_state):
         """Pause the current acquisition."""
