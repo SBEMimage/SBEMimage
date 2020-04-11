@@ -729,22 +729,16 @@ class GridManager:
                 except:
                     self.__grids[g][t].preview_img = None
 
-        # Load MagC settings
-        self.magc_sections_path = self.cfg['magc']['sections_path']
-        self.magc_sections = json.loads(self.cfg['magc']['sections'])
+        # initialize MagC settings
+        self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
+        self.magc_sections_path = ''
+        self.magc_sections = []
         self.magc_selected_sections = []
         self.magc_checked_sections = []
-        self.magc_landmarks = json.loads(self.cfg['magc']['landmarks'])
-        self.magc_wafer_transform = json.loads(
-            self.cfg['magc']['wafer_transform'])
-
-        # Some functionality is changed if SBEMimage is used in MagC mode
-        self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
-        # Boolean flags for MagC acquisition
-        self.magc_roi_mode = (self.cfg['magc']['roi_mode'].lower() == 'true')
-        self.magc_wafer_calibrated = (
-            self.cfg['magc']['wafer_calibrated'].lower() == 'true')
-
+        self.magc_landmarks = []
+        self.magc_wafer_transform = []
+        self.magc_roi_mode = True
+        self.magc_wafer_calibrated = False
 
     def __getitem__(self, grid_index):
         """Return the Grid object selected by index."""
@@ -831,14 +825,7 @@ class GridManager:
                 if img is not None:
                     img.save(preview_path)
 
-        # Save MagC settings to config
-        self.cfg['magc']['sections_path'] = self.magc_sections_path
-        self.cfg['magc']['sections'] = json.dumps(self.magc_sections)
-        self.cfg['magc']['landmarks'] = json.dumps(self.magc_landmarks)
-        self.cfg['magc']['wafer_transform'] = json.dumps(
-            self.magc_wafer_transform)
-        self.cfg['magc']['roi_mode'] = str(self.magc_roi_mode)
-        self.cfg['magc']['wafer_calibrated'] = str(self.magc_wafer_calibrated)
+        # Save MagC settings to config (currently none)
 
     def add_new_grid(self, origin_sx_sy=None):
         """Add new grid with default parameters. A new grid is always added
@@ -1037,12 +1024,11 @@ class GridManager:
 
         if self.magc_wafer_calibrated:
             # transform back the grid coordinates in non-transformed coordinates
-            waferTransform = np.array(
-                json.loads(self.cfg['magc']['wafer_transform']))
             # inefficient but ok for now:
-            waferTransformInverse = utils.invertAffineT(waferTransform)
+            waferTransformInverse = utils.invertAffineT(self.magc_wafer_transform)
             result = utils.applyAffineT(
-                [sourceGridCenter[0]], [sourceGridCenter[1]],
+                [sourceGridCenter[0]],
+                [sourceGridCenter[1]],
                 waferTransformInverse)
             sourceGridCenter = [result[0][0], result[1][0]]
 
@@ -1080,21 +1066,13 @@ class GridManager:
 
         if self.magc_wafer_calibrated:
             # transform the grid coordinates to wafer coordinates
-            waferTransform = np.array(
-                json.loads(self.cfg['magc']['wafer_transform']))
             result = utils.applyAffineT(
-                [targetGridCenter[0]], [targetGridCenter[1]], waferTransform)
+                [targetGridCenter[0]],
+                [targetGridCenter[1]],
+                self.magc_wafer_transform)
             targetGridCenter = [result[0][0], result[1][0]]
 
-        if t<10:
-            print('target', t, 'before', self.__grids[t].centre_sx_sy)
-            print('target', t, 'before', self.__grids[t].rotation)
         self.__grids[t].centre_sx_sy = targetGridCenter
-        if t<10:
-            print('target', t, 'after', self.__grids[t].centre_sx_sy)
-            print('target', t, 'after', self.__grids[t].rotation)
-            print('sourceSectionCenter', sourceSectionCenter)
-            print('targetSectionCenter', targetSectionCenter)
         self.__grids[t].update_tile_positions()
 
     def update_source_ROIs_from_grids(self):
@@ -1102,11 +1080,8 @@ class GridManager:
             return
         # TODO
         if self.magc_wafer_calibrated:
-            # xxx recheck the flows of saving-to-file
-            waferTransform = np.array(json.loads(
-                self.cfg['magc']['wafer_transform']))
-            waferTransformInverse = utils.invertAffineT(waferTransform)
-            transform_angle = -utils.getAffineRotation(waferTransform)
+            waferTransformInverse = utils.invertAffineT(self.magc_wafer_transform)
+            transform_angle = -utils.getAffineRotation(self.magc_wafer_transform)
 
         with open(self.magc_sections_path, 'r') as f:
             sections_yaml = yaml.full_load(f)
@@ -1122,7 +1097,7 @@ class GridManager:
                 result = utils.applyAffineT(
                     [target_ROI[0]],
                     [target_ROI[1]],
-                    waferTransformInverse)
+                    self.magc_wafer_transform)
                 source_ROI = [result[0][0], result[1][0]]
                 source_ROI_angle = (
                     (-90 + target_ROI_angle - transform_angle) % 360)

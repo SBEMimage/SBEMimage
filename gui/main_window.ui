@@ -30,7 +30,7 @@
      <string/>
     </property>
     <property name="currentIndex">
-     <number>0</number>
+     <number>3</number>
     </property>
     <widget class="QWidget" name="mainControls">
      <attribute name="title">
@@ -1959,7 +1959,7 @@
      <attribute name="toolTip">
       <string>To enable the MagC module: set magc_mode = True in your config file</string>
      </attribute>
-     <widget class="QTableView" name="tableView_magc_sectionList">
+     <widget class="QTableView" name="tableView_magc_sections">
       <property name="enabled">
        <bool>true</bool>
       </property>
@@ -2364,7 +2364,7 @@ Wafer Image</string>
       </property>
      </widget>
      <zorder>collectomeLogo</zorder>
-     <zorder>tableView_magc_sectionList</zorder>
+     <zorder>tableView_magc_sections</zorder>
      <zorder>textEdit_magc_stringSections</zorder>
      <zorder>pushButton_magc_okStringSections</zorder>
      <zorder>pushButton_magc_checkSelected</zorder>
@@ -2416,7 +2416,7 @@ Wafer Image</string>
      <x>0</x>
      <y>0</y>
      <width>711</width>
-     <height>21</height>
+     <height>36</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">

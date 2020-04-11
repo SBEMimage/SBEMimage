@@ -421,18 +421,18 @@ def getRigidScaling(coefs):
 
 # ----------------- MagC utils ------------------
 def sectionsYAML_to_sections_landmarks(sectionsYAML):
-    ''' The two dictionnaries 'sections' and 'landmarks'
+    ''' The two dictionaries 'sections' and 'landmarks'
     are structured the following way.
-    
+
     Section number N is accessed like this
     sections[N]['center'] : [x,y]
     sections[N]['angle'] : a (in degrees)
-    
+
     The ROI is defined inside section number N
     sections['tissueROI-N']['center'] : [x,y]
     The ROI defined in one single section can be
     propagated to all other sections.
-    
+
     "Source" represents the pixel coordinates in the LM overview
     wafer image.
     "Target" represents the dimensioned coordinates in the physical
@@ -449,7 +449,7 @@ def sectionsYAML_to_sections_landmarks(sectionsYAML):
         tissueROIIndex = int(list(sectionsYAML['tissueROI'].keys())[0])
         sections['tissueROI-' + str(tissueROIIndex)] = {
         'center': sectionsYAML['tissueROI'][tissueROIIndex]}
-    
+
     landmarks = {}
     if 'landmarks' in sectionsYAML:
         for landmarkId, landmarkXY in sectionsYAML['landmarks'].items():
