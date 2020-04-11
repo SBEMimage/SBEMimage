@@ -138,15 +138,15 @@ class ImportMagCDlg(QDialog):
         self._add_to_main_log(
             str(n_sections)
             + ' MagC sections have been loaded.')
-        #--------------------------------------
-        # import wafer overview
-        self.imported.delete_all_images()
-        magc_file_dir = os.path.dirname(magc_file_path)
+        # # #--------------------------------------
+        # # # import wafer overview
+        # # self.imported.delete_all_images()
+        # # magc_file_dir = os.path.dirname(magc_file_path)
         
-        import_wafer_dlg = ImportWaferImageDlg(
-            self.acq, self.imported, self.viewport, magc_file_dir,
-            self.trigger, self.queue)
-        #--------------------------------------
+        # # import_wafer_dlg = ImportWaferImageDlg(
+            # # self.acq, self.imported, self.viewport, magc_file_dir,
+            # # self.trigger, self.queue)
+        # # #--------------------------------------
 
         #---------------------------------------
         # populate the grids and the sectionList
@@ -168,10 +168,11 @@ class ImportMagCDlg(QDialog):
         header.setStretchLastSection(True)
 
         self.gm.delete_all_grids_above_index(0)
-        for section in range(n_sections-1):
+        for s in range(n_sections-1):
             self.gm.add_new_grid()
         for idx, section in sections.items():
             if str(idx).isdigit(): # to exclude tissueROI and landmarks
+                self.gm[idx].origin_sx_sy = [0,0]
                 self.gm[idx].size = [self.spinBox_rows.value(),
                                      self.spinBox_cols.value()]
                 self.gm[idx].display_colour = 1
@@ -181,7 +182,13 @@ class ImportMagCDlg(QDialog):
                 self.gm[idx].activate_all_tiles()
                 self.gm[idx].rotation = (180 - float(section['angle'])) % 360
                 self.gm[idx].centre_sx_sy = list(map(float, section['center']))
+                if idx<5:
+                    print('centre_sx_sy before update', idx, self.gm[idx].centre_sx_sy)
                 self.gm[idx].update_tile_positions()
+                if idx<5:
+                    print('centre_sx_sy after update', idx, self.gm[idx].centre_sx_sy)
+                    # print('import origin sx sy', idx, self.gm[idx].origin_sx_sy)
+                    print('section["center"]', idx, list(map(float, section['center'])))
 
                 # populate the sectionList
                 item1 = QStandardItem(str(idx))
@@ -192,6 +199,7 @@ class ImportMagCDlg(QDialog):
                 item2.setSelectable(False)
                 sectionListModel.appendRow([item1, item2])
                 sectionListView.setRowHeight(idx, 40)
+        self.viewport.vp_draw()
         #---------------------------------------
 
         #---------------------------------------

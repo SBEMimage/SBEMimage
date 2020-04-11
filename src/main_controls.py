@@ -903,7 +903,6 @@ class MainControls(QMainWindow):
         self.gm.magc_checked_sections = []
         self.gm.delete_all_grids_above_index(0)
         self.viewport.update_grids()
-        self.viewport.vp_draw()
         # unenable wafer calibration button
         self.pushButton_magc_waferCalibration.setEnabled(False)
         # unenable wafer image import
@@ -911,20 +910,11 @@ class MainControls(QMainWindow):
         # change wafer flag
         self.pushButton_magc_waferCalibration.setStyleSheet(
             'background-color: lightgray')
-
-        # # remove wafer image (broken, do not understand why ...)
-        # imported_img_file_list = self.ovm.get_imported_img_file_list()
-        # wafer_img_number_list = [
-        #     i for (i,f) in enumerate(imported_img_file_list)
-        #     if 'afer' in os.path.basename(f)]
-        # if len(wafer_img_number_list) != 1:
-        #   print('Did not reset wafer image because more than one wafer image found')
-        # else:
-        #   wafer_img_number = wafer_img_number_list[0]
-        #   print('delete wafer image number', wafer_img_number)
-        #   self.ovm.delete_imported_img(wafer_img_number)
-        #   self.viewport.vp_draw()
-
+        # delete all imported images in viewport
+        self.imported.delete_all_images()
+        self.viewport.vp_draw()
+            
+            
     def magc_open_import_wafer_image(self):
         target_dir = os.path.join(self.acq.base_dir,
             'overviews', 'imported')

@@ -2196,7 +2196,7 @@ class Viewport(QWidget):
 
         # load original sections from file which might be different from
         # the grids adjusted in SBEMImage
-        with open(self.cfg['magc']['sections_path'], 'r') as f:
+        with open(self.gm.magc_sections_path, 'r') as f:
             sections, landmarks = utils.sectionsYAML_to_sections_landmarks(
             yaml.full_load(f))
 
@@ -2215,14 +2215,14 @@ class Viewport(QWidget):
     def vp_propagate_grid_properties_to_all_sections(self):
         # TODO
         clicked_section_number = self.selected_grid
-        section_number = self.gm.number_grids
+        n_sections = self.gm.number_grids
 
         # load original sections from file which might be different from
         # the grids adjusted in SBEMImage
-        with open(self.cfg['magc']['sections_path'], 'r') as f:
+        with open(self.gm.magc_sections_path, 'r') as f:
             sections, landmarks = utils.sectionsYAML_to_sections_landmarks(
             yaml.full_load(f))
-        for section in range(section_number):
+        for section in range(n_sections):
             self.gm.propagate_source_grid_properties_to_target_grid(
                 clicked_section_number,
                 section,

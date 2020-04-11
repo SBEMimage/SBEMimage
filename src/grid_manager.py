@@ -272,6 +272,7 @@ class Grid:
         origin_x, origin_y = self._origin_sx_sy
         self.origin_sx_sy = [
             origin_x + new_x - old_x, origin_y + new_y - old_y]
+            
     @property
     def centre_dx_dy(self):
         return self.cs.convert_to_d(self.centre_sx_sy)
@@ -997,8 +998,12 @@ class GridManager:
 
 # ----------------------------- MagC functions ---------------------------------
 
-    def propagate_source_grid_properties_to_target_grid(self, source_grid_number,
-        target_grid_number, sections):
+    def propagate_source_grid_properties_to_target_grid(
+        self,
+        source_grid_number,
+        target_grid_number,
+        sections):
+        
         # TODO
         s = source_grid_number
         t = target_grid_number
@@ -1031,9 +1036,9 @@ class GridManager:
         sourceSectionGridAngle = np.angle(
             np.dot(sourceSectionGrid, [1, 1j]), deg=True)
 
-        new_grid_rotation = (((180-targetSectionAngle + sourceGridRotation -
+        target_grid_rotation = (((180-targetSectionAngle + sourceGridRotation -
                              (180-sourceSectionAngle))) % 360)
-        self.__grids[t].rotation = new_grid_rotation
+        self.__grids[t].rotation = target_grid_rotation
         self.__grids[t].size = self.__grids[s].size
         self.__grids[t].overlap = self.__grids[s].overlap
         self.__grids[t].row_shift = self.__grids[s].row_shift
@@ -1071,7 +1076,8 @@ class GridManager:
             + sourceSectionGridDistance \
             * np.exp(1j * np.radians(targetSectionGridAngle))
         targetGridCenter = (
-            np.real(targetGridCenterComplex), np.imag(targetGridCenterComplex))
+            np.real(targetGridCenterComplex),
+            np.imag(targetGridCenterComplex))
 
         if self.magc_wafer_calibrated:
             # transform the grid coordinates to wafer coordinates
@@ -1080,11 +1086,21 @@ class GridManager:
             result = utils.applyAffineT(
                 [targetGridCenter[0]], [targetGridCenter[1]], waferTransform)
             targetGridCenter = [result[0][0], result[1][0]]
-
+        
+        if t<10:
+            print('target', t, 'before', self.__grids[t].centre_sx_sy)
+            print('target', t, 'before', self.__grids[t].rotation)
         self.__grids[t].centre_sx_sy = targetGridCenter
+        if t<10:
+            print('target', t, 'after', self.__grids[t].centre_sx_sy)
+            print('target', t, 'after', self.__grids[t].rotation)
+            print('sourceSectionCenter', sourceSectionCenter)
+            print('targetSectionCenter', targetSectionCenter)
         self.__grids[t].update_tile_positions()
 
     def update_source_ROIs_from_grids(self):
+        if self.magc_sections_path == '':
+            return
         # TODO
         if self.magc_wafer_calibrated:
             # xxx recheck the flows of saving-to-file
@@ -1093,8 +1109,7 @@ class GridManager:
             waferTransformInverse = utils.invertAffineT(waferTransform)
             transform_angle = -utils.getAffineRotation(waferTransform)
 
-        sections_path = self.cfg['magc']['sections_path']
-        with open(sections_path, 'r') as f:
+        with open(self.magc_sections_path, 'r') as f:
             sections_yaml = yaml.full_load(f)
         sections_yaml['sourceROIsUpdatedFromSBEMimage'] = {}
 
@@ -1120,7 +1135,7 @@ class GridManager:
                 float(source_ROI[1]),
                 float(source_ROI_angle)]
 
-        with open(sections_path, 'w') as f:
+        with open(self.magc_sections_path, 'w') as f:
             yaml.dump(sections_yaml,
                 f,
                 default_flow_style=False,
