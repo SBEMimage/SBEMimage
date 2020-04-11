@@ -1057,32 +1057,16 @@ class GridManager:
         self.__grids[t].size = self.__grids[s].size
         self.__grids[t].overlap = self.__grids[s].overlap
         self.__grids[t].row_shift = self.__grids[s].row_shift
-
-        #xxx self.set_number_active_tiles(t, self.get_number_active_tiles(s))
-
         self.__grids[t].active_tiles = self.__grids[s].active_tiles
-
-        if len(self.sem.STORE_RES) > 4:
-            # Merlin
-            self.__grids[t].frame_size = self.__grids[s].frame_size
-            self.__grids[t].frame_size_selector = self.__grids[s].frame_size_selector
-        else:
-            # Sigma
-            self.__grids[t].frame_size = self.__grids[s].frame_size
-            self.__grids[t].frame_size_selector = self.__grids[s].frame_size_selector
-
+        self.__grids[t].frame_size_selector = self.__grids[s].frame_size_selector
         self.__grids[t].pixel_size = self.__grids[s].pixel_size
-        self.__grids[t].dwell_time = self.__grids[s].dwell_time
-        # xxxself.set_dwell_time_selector(t, self.get_dwell_time_selector(s))
+        self.__grids[t].dwell_time_selector = self.__grids[s].dwell_time_selector
         self.__grids[t].acq_interval = self.__grids[s].acq_interval
-
         self.__grids[t].acq_interval_offset = self.__grids[s].acq_interval_offset
-
         self.__grids[t].autofocus_ref_tiles = self.__grids[s].autofocus_ref_tiles
         # xxx self.set_adaptive_focus_enabled(t, self.get_adaptive_focus_enabled(s))
         # xxx self.set_adaptive_focus_tiles(t, self.get_adaptive_focus_tiles(s))
         # xxx self.set_adaptive_focus_gradient(t, self.get_adaptive_focus_gradient(s))
-
 
         targetSectionGridAngle = (
             sourceSectionGridAngle + sourceSectionAngle - targetSectionAngle)

@@ -185,10 +185,6 @@ class ImportMagCDlg(QDialog):
                 # Setting new centre_sx_sy automatically updates tile positions
                 self.gm[idx].centre_sx_sy = list(map(float, section['center']))
 
-                if idx < 10:
-                    print('centre_sx_sy in SBEMimage', idx, self.gm[idx].centre_sx_sy)
-                    print('section["center"]', idx, list(map(float, section['center'])))
-
                 # populate the sectionList
                 item1 = QStandardItem(str(idx))
                 item1.setCheckable(True)
