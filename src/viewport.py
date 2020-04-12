@@ -944,9 +944,13 @@ class Viewport(QWidget):
                     + ' to selected sections')
                 action_propagateSelected.triggered.connect(
                     self.vp_propagate_grid_properties_to_selected_sections)
-            # in MagC you only import wafer images from the MagC tab
             if self.sem.magc_mode:
+                # in MagC you only import wafer images from the MagC tab
                 action_import.setEnabled(False)
+                # in MagC you cannot remove the wafer image, the only
+                # way is to Reset MagC
+                action_deleteImported.setEnabled(False)
+
             # ----- End of MagC items -----
 
             if (self.selected_tile is None) and (self.selected_ov is None):
@@ -2175,6 +2179,7 @@ class Viewport(QWidget):
 
     def _vp_open_adjust_image_dlg(self):
         dialog = AdjustImageDlg(self.imported, self.selected_imported,
+                                self.sem.magc_mode,
                                 self.viewport_trigger, self.viewport_queue)
         dialog.exec_()
 
@@ -2209,7 +2214,7 @@ class Viewport(QWidget):
         self.vp_draw()
         self._transmit_cmd('SHOW CURRENT SETTINGS') # update statistics in GUI
         self.add_to_log('Properties of grid '
-            + str(clicked_section_number) 
+            + str(clicked_section_number)
             + ' have been propagated to the selected sections')
 
     def vp_propagate_grid_properties_to_all_sections(self):
@@ -2233,7 +2238,7 @@ class Viewport(QWidget):
         self.vp_draw()
         self._transmit_cmd('SHOW CURRENT SETTINGS') # update statistics in GUI
         self.add_to_log('Properties of grid '
-            + str(clicked_section_number) 
+            + str(clicked_section_number)
             + ' have been propagated to all sections')
 
     # -------------------- End of MagC methods in Viewport ---------------------

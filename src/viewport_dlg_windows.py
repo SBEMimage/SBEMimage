@@ -464,17 +464,28 @@ class ImportImageDlg(QDialog):
 class AdjustImageDlg(QDialog):
     """Adjust an imported image (size, rotation, transparency)"""
 
-    def __init__(self, imported_images, selected_img,
+    def __init__(self, imported_images, selected_img, magc_mode,
                  viewport_trigger, viewport_queue):
         self.imported = imported_images
         self.viewport_trigger = viewport_trigger
         self.viewport_queue = viewport_queue
         self.selected_img = selected_img
+        self.magc_mode = magc_mode
         super().__init__()
         loadUi('..\\gui\\adjust_imported_image_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
+
+        if self.magc_mode:
+            # magc_mode is restrictive about imported images
+            # the only imported image is a wafer image
+            # and should not be modified (except the transparency)
+            self.doubleSpinBox_posX.setEnabled(False)
+            self.doubleSpinBox_posY.setEnabled(False)
+            self.doubleSpinBox_pixelSize.setEnabled(False)
+            self.spinBox_rotation.setEnabled(False)
+
         self.show()
         self.lineEdit_selectedImage.setText(
             self.imported[self.selected_img].description)
