@@ -929,27 +929,38 @@ class Viewport(QWidget):
                 self._vp_open_delete_image_dlg)
 
             # ----- MagC items -----
-            if (self.sem.magc_mode
-                and self.selected_grid is not None):
-                menu.addSeparator()
-                action_propagateAll = menu.addAction(
-                    'MagC | Propagate properties of grid '
-                    + str(self.selected_grid)
-                    + ' to all sections')
-                action_propagateAll.triggered.connect(
-                    self.vp_propagate_grid_properties_to_all_sections)
-                action_propagateSelected = menu.addAction(
-                    'MagC | Propagate properties of grid '
-                    + str(self.selected_grid)
-                    + ' to selected sections')
-                action_propagateSelected.triggered.connect(
-                    self.vp_propagate_grid_properties_to_selected_sections)
             if self.sem.magc_mode:
                 # in MagC you only import wafer images from the MagC tab
                 action_import.setEnabled(False)
                 # in MagC you cannot remove the wafer image, the only
                 # way is to Reset MagC
                 action_deleteImported.setEnabled(False)
+            if (self.sem.magc_mode
+                and self.selected_grid is not None):
+                menu.addSeparator()
+                # propagate to all sections
+                action_propagateToAll = menu.addAction(
+                    'MagC | Propagate properties of grid '
+                    + str(self.selected_grid)
+                    + ' to all sections')
+                action_propagateToAll.triggered.connect(
+                    self.vp_propagate_grid_properties_to_all_sections)
+
+                # propagate to selected sections
+                action_propagateToSelected = menu.addAction(
+                    'MagC | Propagate properties of grid '
+                    + str(self.selected_grid)
+                    + ' to selected sections')
+                action_propagateToSelected.triggered.connect(
+                    self.vp_propagate_grid_properties_to_selected_sections)
+
+                # revert location to file-defined location
+                action_revertLocation = menu.addAction(
+                    'MagC | Revert location of grid  '
+                    + str(self.selected_grid)
+                    + ' to original file-defined location')
+                action_revertLocation.triggered.connect(
+                    self.vp_revert_grid_location_to_file)
 
             # ----- End of MagC items -----
 
@@ -2240,6 +2251,32 @@ class Viewport(QWidget):
         self.add_to_log('Properties of grid '
             + str(clicked_section_number)
             + ' have been propagated to all sections')
+
+    def vp_revert_grid_location_to_file(self):
+        clicked_section_number = self.selected_grid
+        # load original sections from file which might be different from
+        # the grids adjusted in SBEMImage
+        with open(self.gm.magc_sections_path, 'r') as f:
+            sections, landmarks = utils.sectionsYAML_to_sections_landmarks(
+            yaml.full_load(f))
+
+        source_location = sections[clicked_section_number]['center']
+        # source_location is in LM image pixel coordinates
+        if not self.gm.magc_wafer_calibrated:
+            (self.gm[clicked_section_number]
+                .centre_sx_sy) = list(map(float, source_location))
+        else:
+            # transform into wafer coordinates
+            result = utils.applyAffineT(
+                [source_location[0]],
+                [source_location[1]],
+                self.gm.magc_wafer_transform)
+            target_location = [result[0][0], result[1][0]]
+            self.gm[clicked_section_number].centre_sx_sy = target_location
+
+        self.vp_draw()
+        self.gm.update_source_ROIs_from_grids()
+        self._transmit_cmd('SHOW CURRENT SETTINGS') # update statistics in GUI
 
     # -------------------- End of MagC methods in Viewport ---------------------
 
