@@ -507,16 +507,62 @@ class MainControls(QMainWindow):
         self.textarea_log.setMaximumBlockCount(
             int(self.cfg['monitoring']['max_log_line_count']))
 
+        # Enable plasma cleaner GUI elements if plasma cleaner installed.
+        self.toolButton_plasmaCleaner.setEnabled(self.plc_installed)
+        self.checkBox_plasmaCleaner.setEnabled(self.plc_installed)
+        self.actionPlasmaCleanerSettings.setEnabled(self.plc_installed)
+
+        #-------MagC-------#
+        # activate MagC with a double-click on the MagC tab
+        self.tabWidget.setTabToolTip(3, 'Double-click to toggle MagC mode')
+        self.tabWidget.tabBarDoubleClicked.connect(self.activate_magc_mode)
+
         if not self.magc_mode:
             # If not in MagC mode, disable MagC tab
             self.tabWidget.setTabEnabled(3, False)
             self.actionImportMagCMetadata.setEnabled(False)
         else:
             self.initialize_magc_gui()
-        # Enable plasma cleaner GUI elements if plasma cleaner installed.
-        self.toolButton_plasmaCleaner.setEnabled(self.plc_installed)
-        self.checkBox_plasmaCleaner.setEnabled(self.plc_installed)
-        self.actionPlasmaCleanerSettings.setEnabled(self.plc_installed)
+
+    def activate_magc_mode(self, tabIndex):
+        if tabIndex != 3:
+            return
+        answer = QMessageBox.question(
+            self, 'Activating MagC mode',
+            'Do you want to activate the MagC mode?'
+            '\n\nMake sure you have saved everything you need '
+            'in the current session. \nYou will be prompted to '
+            'enter a name for a new configuration file and '
+            'SBEMimage will close. \nThe MagC mode will be active '
+            'at the next start if you select the new configuration file.',
+            QMessageBox.Yes| QMessageBox.No)
+        if answer != QMessageBox.Yes:
+            return
+
+        dialog = SaveConfigDlg()
+        dialog.label.setText('Name of new MagC config file')
+        dialog.label_4.setText('Choose a name for the new MagC configuration file.')
+        dialog.label_2.setText('If the configuration file already exists, then it will')
+        dialog.label_3.setText('be overwritten.')
+        dialog.label_5.setText('')
+        dialog.label_6.setText('')
+        if dialog.exec_():
+            self.cfg_file = dialog.file_name
+            self.cfg['sys']['magc_mode'] = 'True'
+            self.cfg['sys']['use_microtome'] = 'False'
+            self.save_config_to_disk()
+
+            # close SBEMimage properly
+            self.viewport.active = False
+            self.viewport.close()
+            QApplication.processEvents()
+            sleep(1)
+            # Recreate status.dat to indicate that program was closed
+            # normally and didn't crash:
+            with open(os.path.join('..','cfg','status.dat'), 'w+') as f:
+                f.write(self.cfg_file)
+            print('Closed by user.\n')
+            sys.exit()
 
     def try_to_create_directory(self, new_directory):
         """Create directory. If not possible: error message"""

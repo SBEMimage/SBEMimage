@@ -938,6 +938,7 @@ class Viewport(QWidget):
             if (self.sem.magc_mode
                 and self.selected_grid is not None):
                 menu.addSeparator()
+
                 # propagate to all sections
                 action_propagateToAll = menu.addAction(
                     'MagC | Propagate properties of grid '
