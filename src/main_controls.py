@@ -508,14 +508,14 @@ class MainControls(QMainWindow):
         self.actionPlasmaCleanerSettings.setEnabled(self.plc_installed)
 
         #-------MagC-------#
-        # activate MagC with a double-click on the MagC tab
-        self.tabWidget.setTabToolTip(3, 'Double-click to toggle MagC mode')
-        self.tabWidget.tabBarDoubleClicked.connect(self.activate_magc_mode)
 
         if not self.magc_mode:
-            # If not in MagC mode, disable MagC tab
+            # disable MagC tab
             self.tabWidget.setTabEnabled(3, False)
             self.actionImportMagCMetadata.setEnabled(False)
+            # activate MagC with a double-click on the MagC tab
+            self.tabWidget.setTabToolTip(3, 'Double-click to toggle MagC mode')
+            self.tabWidget.tabBarDoubleClicked.connect(self.activate_magc_mode)
         else:
             self.initialize_magc_gui()
 
@@ -789,6 +789,12 @@ class MainControls(QMainWindow):
         self.pushButton_magc_waferCalibration.setStyleSheet(
             'background-color: lightgray')
         self.pushButton_magc_waferCalibration.setEnabled(False)
+
+        # deactivate some core SBEMimage functions
+        self.pushButton_microtomeSettings.setEnabled(False)
+        self.actionMicrotomeSettings.setEnabled(False)
+        self.actionDebrisDetectionSettings.setEnabled(False)
+        self.actionAskUserModeSettings.setEnabled(False)
 
     def magc_select_all(self):
         model = self.tableView_magc_sections.model()
@@ -1068,16 +1074,20 @@ class MainControls(QMainWindow):
                     QMessageBox.Ok)
 
     def open_microtome_dlg(self):
-        if self.microtome.device_name == 'Gatan 3View':
-            dialog = MicrotomeSettingsDlg(self.microtome, self.sem, self.cs,
-                                          self.use_microtome)
-            if dialog.exec_():
-                self.show_current_settings()
-                self.show_stack_acq_estimates()
-                self.viewport.vp_draw()
-        elif self.microtome.device_name == 'ConnectomX katana':
-            dialog = KatanaSettingsDlg(self.microtome)
-            dialog.exec_()
+        if self.microtome is not None:
+            if self.microtome.device_name == 'Gatan 3View':
+                dialog = MicrotomeSettingsDlg(self.microtome, self.sem, self.cs,
+                                              self.use_microtome)
+                if dialog.exec_():
+                    self.show_current_settings()
+                    self.show_stack_acq_estimates()
+                    self.viewport.vp_draw()
+            elif self.microtome.device_name == 'ConnectomX katana':
+                dialog = KatanaSettingsDlg(self.microtome)
+                dialog.exec_()
+        else:
+            self.add_to_log('No microtome-related functions are available'
+                ' because no microtome is configured in the current session')
 
     def open_calibration_dlg(self):
         dialog = StageCalibrationDlg(self.cs, self.stage, self.sem,
