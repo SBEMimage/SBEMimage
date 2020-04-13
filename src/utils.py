@@ -19,6 +19,7 @@ import requests
 import numpy as np
 
 from time import sleep
+from queue import Queue
 from serial.tools import list_ports
 
 from PyQt5.QtCore import QObject, pyqtSignal
@@ -129,8 +130,19 @@ COLOUR_SELECTOR = [
 ]
 
 class Trigger(QObject):
-    """A custom signal for receiving updates and requests from threads."""
-    s = pyqtSignal()
+    """A custom QObject for receiving notifications and commands from threads.
+    The trigger signal is emitted by calling signal.emit(). The queue can
+    be used to send commands: queue.put(cmd) puts a cmd into the
+    queue, and queue.get() reads the cmd and empties the queue.
+    """
+    signal = pyqtSignal()
+    queue = Queue()
+
+    def transmit(self, cmd):
+        """Transmit a single command."""
+        self.queue.put(cmd)
+        self.signal.emit()
+
 
 def try_to_open(file_name, mode):
     """Try to open file and retry twice if unsucessful."""

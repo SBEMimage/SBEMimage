@@ -28,13 +28,11 @@ import utils
 
 
 class Notifications:
-    def __init__(self, config, sysconfig,
-                 main_controls_trigger, main_controls_queue):
+    def __init__(self, config, sysconfig, main_controls_trigger):
         """Load all settings."""
         self.cfg = config
         self.syscfg = sysconfig
-        self.trigger = main_controls_trigger
-        self.queue = main_controls_queue
+        self.main_controls_trigger = main_controls_trigger
 
         # E-mail settings from sysconfig (read only)
         self.email_account = self.syscfg['email']['account']
@@ -138,8 +136,8 @@ class Notifications:
 
         if self.send_logfile:
             # Generate log file from current content of log in Main Controls
-            self.queue.put('GET CURRENT LOG' + recent_main_log)
-            self.trigger.s.emit()
+            self.main_controls_trigger.transmit(
+                'GET CURRENT LOG' + recent_main_log)
             sleep(0.5)  # wait for file to be written
             attachment_list.append(recent_main_log)
             temp_file_list.append(recent_main_log)
@@ -247,7 +245,6 @@ class Notifications:
             except Exception as e:
                 status_msg2 = ('CTRL: ERROR while trying to remove '
                                'temporary file: ' + str(e))
-                self.trigger.s.emit()
         return status_msg1, status_msg2
 
 
@@ -258,8 +255,7 @@ class Notifications:
         # Status messages returned by this function to be added to main log
         status_msg1, status_msg2 = '', ''
         # Generate log file from current content of log
-        self.queue.put('GET CURRENT LOG' + recent_main_log)
-        self.trigger.s.emit()
+        self.main_controls_trigger.transmit('GET CURRENT LOG' + recent_main_log)
         sleep(0.5)  # wait for file to be written
         if vp_screenshot is not None:
             attachment_list = [recent_main_log, vp_screenshot]

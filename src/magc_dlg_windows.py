@@ -25,7 +25,6 @@ import yaml
 
 from random import random
 from time import sleep, time
-from queue import Queue
 from PIL import Image
 from skimage.io import imread
 from skimage.feature import register_translation
@@ -52,17 +51,15 @@ YELLOW = QColor(Qt.yellow)
 class ImportMagCDlg(QDialog):
     """Import MagC metadata."""
 
-    def __init__(self, acq, grid_manager, sem, imported, viewport,
-                 gui_items, trigger, queue):
+    def __init__(self, acq, grid_manager, sem, imported,
+                 gui_items, main_controls_trigger):
         super().__init__()
         self.acq = acq
         self.gm = grid_manager
         self.sem = sem
         self.imported = imported
-        self.viewport = viewport
         self.gui_items = gui_items
-        self.trigger = trigger
-        self.queue = queue
+        self.main_controls_trigger = main_controls_trigger
         self.target_dir = os.path.join(
             self.acq.base_dir, 'overviews', 'imported')
         loadUi(os.path.join(
@@ -89,16 +86,10 @@ class ImportMagCDlg(QDialog):
         self.comboBox_frameSize.setCurrentIndex(5)
         self.show()
 
-    def _transmit_cmd(self, cmd):
-        """Transmit command to the main window thread."""
-        self.queue.put(cmd)
-        self.trigger.s.emit()
-
     def _add_to_main_log(self, msg):
         """Add entry to the log in the main window"""
         msg = utils.format_log_entry(msg)
-        # Send entry to main window via queue and trigger:
-        self._transmit_cmd(msg)
+        self.main_controls_trigger.transmit(msg)
 
     def import_metadata(self):
         #-----------------------------
@@ -154,8 +145,8 @@ class ImportMagCDlg(QDialog):
         magc_file_dir = os.path.dirname(magc_file_path)
 
         import_wafer_dlg = ImportWaferImageDlg(
-            self.acq, self.imported, self.viewport, magc_file_dir,
-            self.trigger, self.queue)
+            self.acq, self.imported, magc_file_dir,
+            self.main_controls_trigger)
         #-----------------------
 
         #-----------------------------------------
@@ -205,7 +196,7 @@ class ImportMagCDlg(QDialog):
                 item2.setSelectable(False)
                 table_model.appendRow([item1, item2])
                 table_view.setRowHeight(idx, 40)
-        self.viewport.vp_draw()
+        self.main_controls_trigger.transmit('DRAW VP')
         #-----------------------------------------
 
         #------------------------------
@@ -220,9 +211,9 @@ class ImportMagCDlg(QDialog):
         #------------------------------
 
         # enable wafer configuration buttons
-        self._transmit_cmd('MAGC ENABLE CALIBRATION')
-        self._transmit_cmd('MAGC WAFER NOT CALIBRATED')
-        self._transmit_cmd('MAGC ENABLE WAFER IMAGE IMPORT')
+        self.main_controls_trigger.transmit('MAGC ENABLE CALIBRATION')
+        self.main_controls_trigger.transmit('MAGC WAFER NOT CALIBRATED')
+        self.main_controls_trigger.transmit('MAGC ENABLE WAFER IMAGE IMPORT')
 
         self.accept()
 
@@ -245,14 +236,12 @@ class ImportMagCDlg(QDialog):
 class ImportWaferImageDlg(QDialog):
     """Import a wafer image into the viewport for MagC."""
 
-    def __init__(self, acq, imported, viewport, wafer_im_dir,
-                 trigger, queue):
+    def __init__(self, acq, imported, wafer_im_dir,
+                 main_controls_trigger):
         super().__init__()
         self.acq = acq
         self.imported = imported
-        self.viewport = viewport
-        self.trigger = trigger
-        self.queue = queue
+        self.main_controls_trigger = main_controls_trigger
         self.imported_dir = os.path.join(
             self.acq.base_dir, 'overviews', 'imported')
         self.wafer_im_dir = wafer_im_dir
@@ -301,37 +290,29 @@ class ImportWaferImageDlg(QDialog):
             width, height = wafer_im.size
             wafer_im.pixel_size = 1000
             wafer_im.centre_sx_sy = [width//2, height//2]
-            self.viewport.vp_draw()
+            self.main_controls_trigger.transmit('DRAW VP')
             self._add_to_main_log(
                 'Wafer image succesfully imported.')
-
-    def _transmit_cmd(self, cmd):
-        """Transmit command to the main window thread."""
-        self.queue.put(cmd)
-        self.trigger.s.emit()
 
     def _add_to_main_log(self, msg):
         """Add entry to the log in the main window"""
         msg = utils.format_log_entry(msg)
-        # Send entry to main window via queue and trigger:
-        self._transmit_cmd(msg)
+        self.main_controls_trigger.transmit(msg)
 
 #------------------------------------------------------------------------------
 
 class WaferCalibrationDlg(QDialog):
     """Wafer calibration."""
 
-    def __init__(self, config, stage, ovm, cs, gm, viewport, imported, queue, trigger):
+    def __init__(self, config, stage, ovm, cs, gm, imported, main_controls_trigger):
         super().__init__()
         self.cfg = config
         self.stage = stage
         self.ovm = ovm
         self.cs = cs
         self.gm = gm
-        self.viewport = viewport
         self.imported = imported
-        self.trigger = trigger
-        self.queue = queue
+        self.main_controls_trigger = main_controls_trigger
         loadUi(os.path.join('..', 'gui', 'wafer_calibration_dlg.ui'), self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon(os.path.join('..', 'img', 'icon_16px.ico')))
@@ -582,7 +563,8 @@ class WaferCalibrationDlg(QDialog):
             # xxx move viewport
             # self.cs.set_mv_centre_d(
             #     self.cs.get_grid_origin_d(grid_number=row))
-            # self.viewport.vp_draw()
+            # self.main_controls_trigger.transmit('DRAW VP')
+
         return callback_goto_landmark
 
     def validate_calibration(self):
@@ -659,7 +641,7 @@ class WaferCalibrationDlg(QDialog):
                     y_target[grid_number]]
                 self.gm[grid_number].update_tile_positions()
 
-            self.viewport.vp_draw()
+            self.main_controls_trigger.transmit('DRAW VP')
 
             # update wafer picture
             waferTransformAngle = -utils.getAffineRotation(
@@ -686,8 +668,7 @@ class WaferCalibrationDlg(QDialog):
             self.imported[0].centre_sx_sy = im_center_target_s
 
             # update drawn image
-            # self.viewport.mv_load_imported_image(wafer_img_number)
-            self.viewport.vp_draw()
+            self.main_controls_trigger.transmit('DRAW VP')
 
             # update calibration flag
             self.gm.magc_wafer_calibrated = True
@@ -698,13 +679,7 @@ class WaferCalibrationDlg(QDialog):
     def accept(self):
         super().accept()
 
-    def _transmit_cmd(self, cmd):
-        """Transmit command to the main window thread."""
-        self.queue.put(cmd)
-        self.trigger.s.emit()
-
     def _add_to_main_log(self, msg):
         """Add entry to the log in the main window"""
         msg = utils.format_log_entry(msg)
-        # Send entry to main window via queue and trigger:
-        self._transmit_cmd(msg)
+        self.main_controls_trigger.transmit(msg)

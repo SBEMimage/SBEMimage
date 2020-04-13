@@ -27,7 +27,6 @@ import threading
 import json
 
 from time import sleep
-from queue import Queue
 
 from PyQt5.QtWidgets import QApplication, QTableWidgetSelectionRange, \
                             QAbstractItemView
@@ -109,8 +108,7 @@ class MainControls(QMainWindow):
         # Set up trigger and queue to update Main Controls from the
         # acquisition thread or dialog windows.
         self.trigger = utils.Trigger()
-        self.trigger.s.connect(self.process_signal)
-        self.queue = Queue()
+        self.trigger.signal.connect(self.process_signal)
 
         utils.show_progress_in_console(10)
 
@@ -237,17 +235,14 @@ class MainControls(QMainWindow):
 
         self.img_inspector = ImageInspector(self.cfg, self.ovm, self.gm)
 
-        self.autofocus = Autofocus(self.cfg, self.sem, self.gm,
-                                   self.trigger, self.queue)
+        self.autofocus = Autofocus(self.cfg, self.sem, self.gm)
 
-        self.notifications = Notifications(self.cfg, self.syscfg,
-                                           self.trigger, self.queue)
+        self.notifications = Notifications(self.cfg, self.syscfg, self.trigger)
 
         self.acq = Acquisition(self.cfg, self.syscfg,
                                self.sem, self.microtome, self.stage,
                                self.ovm, self.gm, self.cs, self.img_inspector,
-                               self.autofocus, self.notifications,
-                               self.trigger, self.queue)
+                               self.autofocus, self.notifications, self.trigger)
 
         # Check if plasma cleaner is installed and load its COM port.
         self.cfg['sys']['plc_installed'] = self.syscfg['plc']['installed']
@@ -289,7 +284,7 @@ class MainControls(QMainWindow):
         self.viewport = Viewport(self.cfg, self.sem, self.stage, self.cs,
                                  self.ovm, self.gm, self.imported,
                                  self.autofocus, self.acq,
-                                 self.trigger, self.queue)
+                                 self.trigger)
         self.viewport.show()
 
         # Draw the viewport canvas
@@ -967,9 +962,9 @@ class MainControls(QMainWindow):
         if not os.path.exists(target_dir):
             self.try_to_create_directory(target_dir)
         import_wafer_dlg = ImportWaferImageDlg(
-            self.acq, self.imported, self.viewport,
+            self.acq, self.imported,
             os.path.dirname(self.gm.magc_sections_path),
-            self.trigger, self.queue)
+            self.trigger)
 
     def magc_add_section(self):
         self.gm.add_new_grid()
@@ -1017,19 +1012,16 @@ class MainControls(QMainWindow):
     def magc_open_import_dlg(self):
         gui_items = {'section_table': self.tableView_magc_sections,}
         dialog = ImportMagCDlg(self.acq, self.gm, self.sem, self.imported,
-                               self.viewport, gui_items,
-                               self.trigger, self.queue)
+                               gui_items, self.trigger)
         if dialog.exec_():
             # self.tabWidget.setTabEnabled(3, True)
             self.update_from_grid_dlg()
 
     def magc_open_wafer_calibration_dlg(self):
         dialog = WaferCalibrationDlg(self.cfg, self.stage, self.ovm, self.cs,
-                                     self.gm, self.viewport, self.imported,
-                                     self.queue, self.trigger)
+                                     self.gm, self.imported, self.trigger)
         if dialog.exec_():
             pass
-
 # --------------------------- End of MagC tab ----------------------------------
 
 
@@ -1101,7 +1093,7 @@ class MainControls(QMainWindow):
 
     def open_ov_dlg(self):
         dialog = OVSettingsDlg(self.ovm, self.sem, self.ov_index_dropdown,
-                               self.trigger, self.queue)
+                               self.trigger)
         # self.update_from_ov_dlg() is called when user saves settings
         # or adds/deletes OVs.
         dialog.exec_()
@@ -1118,8 +1110,7 @@ class MainControls(QMainWindow):
 
     def open_grid_dlg(self, selected_grid):
         dialog = GridSettingsDlg(self.gm, self.sem, selected_grid,
-                                 self.trigger, self.queue,
-                                 self.magc_mode)
+                                 self.trigger, self.magc_mode)
         # self.update_from_grid_dlg() is called when user saves settings
         # or adds/deletes grids.
         dialog.exec_()
@@ -1199,13 +1190,11 @@ class MainControls(QMainWindow):
         dialog.exec_()
 
     def open_approach_dlg(self):
-        # Trigger and queue needed to pass updates to main window (z coordinate)
-        dialog = ApproachDlg(self.microtome, self.trigger, self.queue)
+        dialog = ApproachDlg(self.microtome, self.trigger)
         dialog.exec_()
 
     def open_grab_frame_dlg(self):
-        dialog = GrabFrameDlg(self.sem, self.acq,
-                              self.trigger, self.queue)
+        dialog = GrabFrameDlg(self.sem, self.acq, self.trigger)
         dialog.exec_()
 
     def open_eht_dlg(self):
@@ -1213,8 +1202,7 @@ class MainControls(QMainWindow):
         dialog.exec_()
 
     def open_motor_test_dlg(self):
-        dialog = MotorTestDlg(self.microtome, self.acq,
-                              self.trigger, self.queue)
+        dialog = MotorTestDlg(self.microtome, self.acq, self.trigger)
         dialog.exec_()
 
     def open_about_box(self):
@@ -1281,7 +1269,7 @@ class MainControls(QMainWindow):
         information between threads and to allow the GUI to be updated from a
         thread.
         """
-        msg = self.queue.get()
+        msg = self.trigger.queue.get()
         if msg == 'STATUS IDLE':
             self.set_status('')
             self.set_statusbar('Ready.')
@@ -1307,10 +1295,8 @@ class MainControls(QMainWindow):
             self.show_stack_progress()
             self.show_stack_acq_estimates()
         elif msg == 'MANUAL SWEEP SUCCESS':
-            self.show_current_stage_z()
             self.manual_sweep_success(True)
         elif msg == 'MANUAL SWEEP FAILURE':
-            self.show_current_stage_z()
             self.manual_sweep_success(False)
         elif msg == 'REMOTE STOP':
             self.remote_stop()
@@ -1560,13 +1546,13 @@ class MainControls(QMainWindow):
             QApplication.processEvents()
             user_sweep_thread = threading.Thread(target=acq_func.manual_sweep,
                                                  args=(self.microtome,
-                                                       self.trigger,
-                                                       self.queue,))
+                                                       self.trigger,))
             user_sweep_thread.start()
             self.set_status('Busy.')
             self.set_statusbar('Sweep in progress...')
 
     def manual_sweep_success(self, success):
+        self.show_current_stage_z()
         if success:
             self.add_to_log('CTRL: User-requested sweep completed.')
         else:
@@ -2295,8 +2281,8 @@ class MainControls(QMainWindow):
                 move_success = False
                 self.add_to_log('CTRL: Stage failed to move to selected tile '
                                 'for focus tool cycle.')
-        self.queue.put('UPDATE XY FT')
-        self.trigger.s.emit() # need to use signal because running in thread
+        # Use signal for update because we are in the focus tool acq thread
+        self.trigger.transmit('UPDATE XY FT')
         if move_success:
             if self.radioButton_focus.isChecked():
                 self.ft_delta = (

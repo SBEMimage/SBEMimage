@@ -27,7 +27,6 @@ from random import random
 from time import sleep, time
 from validate_email import validate_email
 from math import atan, sqrt
-from queue import Queue
 from PIL import Image
 from skimage.io import imread
 from skimage.feature import register_translation
@@ -382,9 +381,9 @@ class StageCalibrationDlg(QDialog):
         self.x_shift_vector = [0, 0]
         self.y_shift_vector = [0, 0]
         self.finish_trigger = utils.Trigger()
-        self.finish_trigger.s.connect(self.process_pixel_shifts)
+        self.finish_trigger.signal.connect(self.process_pixel_shifts)
         self.update_calc_trigger = utils.Trigger()
-        self.update_calc_trigger.s.connect(self.update_log)
+        self.update_calc_trigger.signal.connect(self.update_log)
         self.calc_exception = None
         self.busy = False
 
@@ -518,7 +517,7 @@ class StageCalibrationDlg(QDialog):
         # Move back to starting position
         self.stage.move_to_xy((start_x, start_y))
         # Show in log that calculation begins now
-        self.update_calc_trigger.s.emit()
+        self.update_calc_trigger.signal.emit()
         # Load images
         start_img = imread(os.path.join(self.base_dir, 'start.tif'),
                            as_gray=True)
@@ -542,7 +541,7 @@ class StageCalibrationDlg(QDialog):
             self.y_shift_vector = [y_shift[0], y_shift[1]]
         except Exception as e:
             self.calc_exception = str(e)
-        self.finish_trigger.s.emit()
+        self.finish_trigger.signal.emit()
 
     def update_log(self):
         self.plainTextEdit_calibLog.appendPlainText(
@@ -763,14 +762,12 @@ class OVSettingsDlg(QDialog):
     overview images.
     """
 
-    def __init__(self, ovm, sem, current_ov,
-                 main_window_trigger, main_window_queue):
+    def __init__(self, ovm, sem, current_ov, main_controls_trigger):
         super().__init__()
         self.ovm = ovm
         self.sem = sem
         self.current_ov = current_ov
-        self.main_window_queue = main_window_queue
-        self.main_window_trigger = main_window_trigger
+        self.main_controls_trigger = main_controls_trigger
         loadUi('..\\gui\\overview_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -864,8 +861,7 @@ class OVSettingsDlg(QDialog):
         if self.comboBox_frameSize.currentIndex() != self.prev_frame_size:
             # Delete current preview image:
             self.ovm[self.current_ov].vp_file_path = ''
-        self.main_window_queue.put('OV SETTINGS CHANGED')
-        self.main_window_trigger.s.emit()
+        self.main_controls_trigger.transmit('OV SETTINGS CHANGED')
 
     def add_ov(self):
         self.ovm.add_new_overview()
@@ -879,8 +875,7 @@ class OVSettingsDlg(QDialog):
         self.update_buttons()
         self.show_current_settings()
         self.show_frame_size()
-        self.main_window_queue.put('OV SETTINGS CHANGED')
-        self.main_window_trigger.s.emit()
+        self.main_controls_trigger.transmit('OV SETTINGS CHANGED')
 
     def delete_ov(self):
         self.ovm.delete_overview()
@@ -894,22 +889,20 @@ class OVSettingsDlg(QDialog):
         self.update_buttons()
         self.show_current_settings()
         self.show_frame_size()
-        self.main_window_queue.put('OV SETTINGS CHANGED')
-        self.main_window_trigger.s.emit()
+        self.main_controls_trigger.transmit('OV SETTINGS CHANGED')
 
 # ------------------------------------------------------------------------------
 
 class GridSettingsDlg(QDialog):
     """Dialog for changing grid settings and for adding/deleting grids."""
 
-    def __init__(self, grid_manager, sem, selected_grid,
-                 main_window_trigger, main_window_queue, magc_mode=False):
+    def __init__(self, grid_manager, sem, selected_grid, main_controls_trigger,
+                 magc_mode=False):
         super().__init__()
         self.gm = grid_manager
         self.sem = sem
         self.current_grid = selected_grid
-        self.main_window_queue = main_window_queue
-        self.main_window_trigger = main_window_trigger
+        self.main_controls_trigger = main_controls_trigger
         self.magc_mode = magc_mode
         loadUi('..\\gui\\grid_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
@@ -1031,8 +1024,7 @@ class GridSettingsDlg(QDialog):
         self.update_buttons()
         self.show_current_settings()
         self.show_frame_size_and_dose()
-        self.main_window_queue.put('GRID SETTINGS CHANGED')
-        self.main_window_trigger.s.emit()
+        self.main_controls_trigger.transmit('GRID SETTINGS CHANGED')
 
     def delete_grid(self):
         user_reply = QMessageBox.question(
@@ -1052,8 +1044,7 @@ class GridSettingsDlg(QDialog):
             self.update_buttons()
             self.show_current_settings()
             self.show_frame_size_and_dose()
-            self.main_window_queue.put('GRID SETTINGS CHANGED')
-            self.main_window_trigger.s.emit()
+            self.main_controls_trigger.transmit('GRID SETTINGS CHANGED')
 
     def reset_wd_stig_params(self):
         user_reply = QMessageBox.question(
@@ -1065,8 +1056,7 @@ class GridSettingsDlg(QDialog):
         if user_reply == QMessageBox.Ok:
             self.gm[self.current_grid].set_wd_for_all_tiles(0)
             self.gm[self.current_grid].set_stig_xy_for_all_tiles([0, 0])
-            self.main_window_queue.put('GRID SETTINGS CHANGED')
-            self.main_window_trigger.s.emit()
+            self.main_controls_trigger.transmit('GRID SETTINGS CHANGED')
 
     def save_current_settings(self):
         if self.magc_mode:
@@ -1116,8 +1106,7 @@ class GridSettingsDlg(QDialog):
         if error_msg:
             QMessageBox.warning(self, 'Error', error_msg, QMessageBox.Ok)
         else:
-            self.main_window_queue.put('GRID SETTINGS CHANGED')
-            self.main_window_trigger.s.emit()
+            self.main_controls_trigger.transmit('GRID SETTINGS CHANGED')
 
     def open_focus_gradient_dlg(self):
         sub_dialog = FocusGradientSettingsDlg(self.gm, self.current_grid)
@@ -2185,11 +2174,10 @@ class ApproachDlg(QDialog):
     the cutting thickness.
     """
 
-    def __init__(self, microtome, main_window_trigger, main_window_queue):
+    def __init__(self, microtome, main_controls_trigger):
         super().__init__()
         self.microtome = microtome
-        self.main_window_queue = main_window_queue
-        self.main_window_trigger = main_window_trigger
+        self.main_controls_trigger = main_controls_trigger
         loadUi('..\\gui\\approach_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -2197,9 +2185,9 @@ class ApproachDlg(QDialog):
         self.show()
         # Set up trigger and queue to update dialog GUI during approach
         self.progress_trigger = utils.Trigger()
-        self.progress_trigger.s.connect(self.update_progress)
+        self.progress_trigger.signal.connect(self.update_progress)
         self.finish_trigger = utils.Trigger()
-        self.finish_trigger.s.connect(self.finish_approach)
+        self.finish_trigger.signal.connect(self.finish_approach)
         self.spinBox_numberSlices.setRange(1, 100)
         self.spinBox_numberSlices.setSingleStep(1)
         self.spinBox_numberSlices.setValue(5)
@@ -2216,8 +2204,7 @@ class ApproachDlg(QDialog):
         self.update_progress()
 
     def add_to_log(self, msg):
-        self.main_window_queue.put(utils.format_log_entry(msg))
-        self.main_window_trigger.s.emit()
+        self.main_controls_trigger.transmit(utils.format_log_entry(msg))
 
     def update_progress(self):
         self.max_slices = self.spinBox_numberSlices.value()
@@ -2239,8 +2226,7 @@ class ApproachDlg(QDialog):
         self.buttonBox.setEnabled(False)
         self.spinBox_thickness.setEnabled(False)
         self.spinBox_numberSlices.setEnabled(False)
-        self.main_window_queue.put('STATUS BUSY APPROACH')
-        self.main_window_trigger.s.emit()
+        self.main_controls_trigger.transmit('STATUS BUSY APPROACH')
         thread = threading.Thread(target=self.approach_thread)
         thread.start()
 
@@ -2254,8 +2240,7 @@ class ApproachDlg(QDialog):
             QMessageBox.warning(self, 'Error',
                                 'Warning: Clearing the knife failed. '
                                 'Try to clear manually.', QMessageBox.Ok)
-        self.main_window_queue.put('STATUS IDLE')
-        self.main_window_trigger.s.emit()
+        self.main_controls_trigger.transmit('STATUS IDLE')
         # Show message box to user and reset counter and progress bar
         if not self.aborted:
             QMessageBox.information(
@@ -2298,7 +2283,7 @@ class ApproachDlg(QDialog):
         self.slice_counter = 0
         self.max_slices = self.spinBox_numberSlices.value()
         self.thickness = self.spinBox_thickness.value()
-        self.progress_trigger.s.emit()
+        self.progress_trigger.signal.emit()
         # Get current z position of stage
         z_position = self.microtome.get_stage_z(wait_interval=1)
         if z_position is None or z_position < 0:
@@ -2315,8 +2300,7 @@ class ApproachDlg(QDialog):
             self.aborted = True
             self.add_to_log(
                 'CTRL: Z position mismatch. Approach aborted.')
-        self.main_window_queue.put('UPDATE Z')
-        self.main_window_trigger.s.emit()
+        self.main_controls_trigger.transmit('UPDATE Z')
         if not self.aborted:
             self.microtome.near_knife()
             self.add_to_log('3VIEW: Moving knife to near position.')
@@ -2334,8 +2318,7 @@ class ApproachDlg(QDialog):
                 '3VIEW: Move to new Z: ' + '{0:.3f}'.format(z_position))
             self.microtome.move_stage_to_z(z_position)
             # Show new Z position in main window
-            self.main_window_queue.put('UPDATE Z')
-            self.main_window_trigger.s.emit()
+            self.main_controls_trigger.transmit('UPDATE Z')
             # Check if there were microtome problems
             if self.microtome.error_state > 0:
                 self.add_to_log(
@@ -2358,10 +2341,10 @@ class ApproachDlg(QDialog):
                 self.add_to_log('3VIEW: Approach cut completed.')
                 self.slice_counter += 1
                 # Update progress bar and slice counter
-                self.progress_trigger.s.emit()
+                self.progress_trigger.signal.emit()
         # ====== End of approach loop =========
         # Signal that thread is done:
-        self.finish_trigger.s.emit()
+        self.finish_trigger.signal.emit()
 
     def abort_approach(self):
         self.aborted = True
@@ -2382,14 +2365,13 @@ class ApproachDlg(QDialog):
 class GrabFrameDlg(QDialog):
     """Acquires or saves a single frame from SmartSEM."""
 
-    def __init__(self, sem, acq, main_window_trigger, main_window_queue):
+    def __init__(self, sem, acq, main_controls_trigger):
         super().__init__()
         self.sem = sem
         self.acq = acq
-        self.main_window_queue = main_window_queue
-        self.main_window_trigger = main_window_trigger
+        self.main_controls_trigger = main_controls_trigger
         self.finish_trigger = utils.Trigger()
-        self.finish_trigger.s.connect(self.scan_complete)
+        self.finish_trigger.signal.connect(self.scan_complete)
         loadUi('..\\gui\\grab_frame_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -2435,7 +2417,7 @@ class GrabFrameDlg(QDialog):
         """
         self.scan_success = self.sem.acquire_frame(
             self.acq.base_dir + '\\' + self.file_name + '.tif')
-        self.finish_trigger.s.emit()
+        self.finish_trigger.signal.emit()
 
     def scan_complete(self):
         """This function is called when the scan is complete.
@@ -2483,8 +2465,7 @@ class GrabFrameDlg(QDialog):
 
     def add_to_log(self, msg):
         """Use trigger and queue to add an entry to the main log."""
-        self.main_window_queue.put(utils.format_log_entry(msg))
-        self.main_window_trigger.s.emit()
+        self.main_controls_trigger.transmit(utils.format_log_entry(msg))
 
 # ------------------------------------------------------------------------------
 
@@ -2610,7 +2591,7 @@ class FTMoveDlg(QDialog):
         self.tile_index = tile_index
         self.error = False
         self.finish_trigger = utils.Trigger()
-        self.finish_trigger.s.connect(self.move_completed)
+        self.finish_trigger.signal.connect(self.move_completed)
         loadUi('..\\gui\\focus_tool_move_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -2642,7 +2623,7 @@ class FTMoveDlg(QDialog):
             self.error = True
             self.microtome.reset_error_state()
         # Signal that move complete
-        self.finish_trigger.s.emit()
+        self.finish_trigger.signal.emit()
 
     def move_completed(self):
         if self.error:
@@ -2666,13 +2647,11 @@ class MotorTestDlg(QDialog):
     """Perform a random-walk-like XYZ motor test. Experimental, only for
     testing/debugging. Only works with a microtome for now."""
 
-    def __init__(self, microtome, acq,
-                 main_window_trigger, main_window_queue):
+    def __init__(self, microtome, acq, main_controls_trigger):
         super().__init__()
         self.microtome = microtome
         self.acq = acq
-        self.main_window_queue = main_window_queue
-        self.main_window_trigger = main_window_trigger
+        self.main_controls_trigger = main_controls_trigger
         loadUi('..\\gui\\motor_test_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -2680,9 +2659,9 @@ class MotorTestDlg(QDialog):
         self.show()
         # Set up trigger and queue to update dialog GUI during approach
         self.progress_trigger = utils.Trigger()
-        self.progress_trigger.s.connect(self.update_progress)
+        self.progress_trigger.signal.connect(self.update_progress)
         self.finish_trigger = utils.Trigger()
-        self.finish_trigger.s.connect(self.test_finished)
+        self.finish_trigger.signal.connect(self.test_finished)
         self.spinBox_duration.setRange(1, 9999)
         self.spinBox_duration.setSingleStep(10)
         self.spinBox_duration.setValue(10)
@@ -2694,8 +2673,7 @@ class MotorTestDlg(QDialog):
         self.start_time = None
 
     def add_to_log(self, msg):
-        self.main_window_queue.put(utils.format_log_entry(msg))
-        self.main_window_trigger.s.emit()
+        self.main_controls_trigger.transmit(utils.format_log_entry(msg))
 
     def update_progress(self):
         if self.start_time is not None:
@@ -2766,7 +2744,7 @@ class MotorTestDlg(QDialog):
         self.test_in_progress = True
         self.duration = self.spinBox_duration.value()
         self.start_time = time()
-        self.progress_trigger.s.emit()
+        self.progress_trigger.signal.emit()
         self.number_tests = 0
         self.number_errors = 0
         current_x, current_y = 0, 0
@@ -2816,11 +2794,11 @@ class MotorTestDlg(QDialog):
                     logfile.write('OK\n')
 
             self.number_tests += 1
-            self.progress_trigger.s.emit()
+            self.progress_trigger.signal.emit()
         logfile.write('NUMBER OF ERRORS: ' + str(self.number_errors))
         logfile.close()
         # Signal that thread is done
-        self.finish_trigger.s.emit()
+        self.finish_trigger.signal.emit()
 
     def abort_test(self):
         self.aborted = True
