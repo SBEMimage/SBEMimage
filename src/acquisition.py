@@ -96,8 +96,6 @@ class Acquisition:
         # Remove trailing slashes and whitespace from base directory string
         self.cfg['acq']['base_dir'] = self.cfg['acq']['base_dir'].rstrip(r'\/ ')
         self.base_dir = self.cfg['acq']['base_dir']
-        # Extract the name of the stack from the base directory
-        self.stack_name = self.base_dir[self.base_dir.rfind('\\') + 1:]
         self.vp_screenshot_filename = None
         self.mirror_drive = self.cfg['sys']['mirror_drive']
         # mirror_drive_directory: same as base_dir, only drive letter changes
@@ -145,6 +143,15 @@ class Acquisition:
         self.continue_after_max_sweeps = (
             self.cfg['debris']['continue_after_max_sweeps'].lower() == 'true')
 
+    @property
+    def base_dir(self):
+        return self._base_dir
+
+    @base_dir.setter
+    def base_dir(self, new_base_dir):
+        self._base_dir = new_base_dir
+        # Extract the name of the stack from the base directory
+        self.stack_name = self.base_dir[self.base_dir.rfind('\\') + 1:]
 
     def save_to_cfg(self):
         """Save current state of attributes to ConfigParser objects."""
