@@ -2011,6 +2011,9 @@ class MainControls(QMainWindow):
         self.ft_selected_stig_y = None
         self.ft_cycle_counter = 0
         self.ft_zoom = False
+        self.ft_use_current_position = False
+        self.checkBox_useCurrentPos.stateChanged.connect(
+            self.ft_toggle_use_current_position)
 
         # self.ft_locations: Focus locations around the centre of the selected
         # tile / starting position. The first cycle uses the centre coordinates.
@@ -2056,30 +2059,37 @@ class MainControls(QMainWindow):
         the best image.
         """
         if self.ft_mode == 0: # User has clicked on "Run cycle"
-            if (self.ft_selected_tile >=0) or (self.ft_selected_ov >= 0):
+            if ((self.ft_selected_tile >=0) or (self.ft_selected_ov >= 0)
+                    or self.ft_use_current_position):
                 self.ft_run_cycle()
             else:
                 QMessageBox.information(
-                    self, 'Select target tile/OV',
+                    self, 'Select tile/OV',
                     'Before starting a through-focus cycle, you must select a '
-                    'tile or an overview image.',
+                    'tile or an overview image, or choose the option "Use '
+                    'current stage position".',
                     QMessageBox.Ok)
 
         elif self.ft_mode == 1:
             # User has clicked 'Done' to select the best focus from the acquired
-            # images. The selected working distance is saved for this tile/OV.
+            # images. The selected working distance is saved for this tile/OV
+            # unless 'use current stage position' is selected.
             self.ft_selected_wd += self.ft_fdeltas[self.ft_index]
             self.sem.set_wd(self.ft_selected_wd)
-            # Save working distance for OV or in tile grid:
-            if self.ft_selected_ov >= 0:
-                self.ovm[self.ft_selected_ov].wd_stig_xy[0] = self.ft_selected_wd
-            elif self.ft_selected_tile >= 0:
-                self.gm[self.ft_selected_grid][self.ft_selected_tile].wd = (
-                    self.ft_selected_wd)
-                if self.gm[self.ft_selected_grid].use_wd_gradient:
-                    # Recalculate with new wd:
-                    self.gm[self.ft_selected_grid].calculate_wd_gradient()
-                self.viewport.vp_draw()
+            save_new_wd = True
+            if self.ft_use_current_position:
+                save_new_wd = self.ft_ask_user_save()
+            if save_new_wd:
+                if self.ft_selected_ov >= 0:
+                    self.ovm[self.ft_selected_ov].wd_stig_xy[0] = (
+                        self.ft_selected_wd)
+                elif self.ft_selected_tile >= 0:
+                    self.gm[self.ft_selected_grid][self.ft_selected_tile].wd = (
+                        self.ft_selected_wd)
+                    if self.gm[self.ft_selected_grid].use_wd_gradient:
+                        # Recalculate with new wd
+                        self.gm[self.ft_selected_grid].calculate_wd_gradient()
+                    self.viewport.vp_draw()
             self.ft_reset()
 
         elif self.ft_mode == 2:
@@ -2087,13 +2097,17 @@ class MainControls(QMainWindow):
             # parameter. The selected stig_x parameter is saved.
             self.ft_selected_stig_x += self.ft_sdeltas[self.ft_index]
             self.sem.set_stig_x(self.ft_selected_stig_x)
-            if self.ft_selected_ov >= 0:
-                self.ovm[self.ft_selected_ov].wd_stig_xy[1] = (
-                    self.ft_selected_stig_x)
-            elif self.ft_selected_tile >= 0:
-                self.gm[self.ft_selected_grid][
-                        self.ft_selected_tile].stig_xy[0] = (
-                    self.ft_selected_stig_x)
+            save_new_stig_x = True
+            if self.ft_use_current_position:
+                save_new_stig_x = self.ft_ask_user_save()
+            if save_new_stig_x:
+                if self.ft_selected_ov >= 0:
+                    self.ovm[self.ft_selected_ov].wd_stig_xy[1] = (
+                        self.ft_selected_stig_x)
+                elif self.ft_selected_tile >= 0:
+                    self.gm[self.ft_selected_grid][
+                            self.ft_selected_tile].stig_xy[0] = (
+                        self.ft_selected_stig_x)
             self.ft_reset()
 
         elif self.ft_mode == 3:
@@ -2101,18 +2115,46 @@ class MainControls(QMainWindow):
             # parameter. The selected stig_y parameter is saved.
             self.ft_selected_stig_y += self.ft_sdeltas[self.ft_index]
             self.sem.set_stig_y(self.ft_selected_stig_y)
-            if self.ft_selected_ov >= 0:
-                self.ovm[self.ft_selected_ov].wd_stig_xy[2] = (
-                    self.ft_selected_stig_y)
-            elif self.ft_selected_tile >= 0:
-                self.gm[self.ft_selected_grid][
-                        self.ft_selected_tile].stig_xy[1] = (
-                    self.ft_selected_stig_y)
+            save_new_stig_y = True
+            if self.ft_use_current_position:
+                save_new_stig_y = self.ft_ask_user_save()
+            if save_new_stig_y:
+                if self.ft_selected_ov >= 0:
+                    self.ovm[self.ft_selected_ov].wd_stig_xy[2] = (
+                        self.ft_selected_stig_y)
+                elif self.ft_selected_tile >= 0:
+                    self.gm[self.ft_selected_grid][
+                            self.ft_selected_tile].stig_xy[1] = (
+                        self.ft_selected_stig_y)
             self.ft_reset()
+
+    def ft_ask_user_save(self):
+        selected_str = ''
+        if self.ft_selected_ov >= 0:
+            selected_str = 'overview ' + str(self.ft_selected_ov)
+        elif self.ft_selected_tile >= 0:
+            selected_str = ('tile ' + str(self.ft_selected_grid)
+                            + '.' + str(self.ft_selected_tile))
+        if self.ft_mode == 1:
+            parameter_str = 'working distance'
+        elif self.ft_mode == 2:
+            parameter_str = 'X stigmation parameter'
+        elif self.ft_mode == 3:
+            parameter_str = 'Y stigmation parameter'
+        if selected_str:
+            user_response = QMessageBox.question(
+                self, f'Save updated {parameter_str}?',
+                f'Save updated {parameter_str} for selected {selected_str}?',
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes)
+            return (user_response == QMessageBox.Yes)
+        else:
+            return False
 
     def ft_open_set_params_dlg(self):
         """Open a dialog box to let user manually set the working distance and
-        stigmation x/y for the selected tile/OV."""
+        stigmation x/y for the selected tile/OV.
+        """
         if (self.ft_selected_tile >=0) or (self.ft_selected_ov >= 0):
             dialog = FTSetParamsDlg(self.sem, self.ft_selected_wd,
                                     self.ft_selected_stig_x,
@@ -2139,7 +2181,7 @@ class MainControls(QMainWindow):
                         # Recalculate with new wd:
                         self.gm[self.ft_selected_grid].calculate_wd_gradient()
                     self.viewport.vp_draw()
-                # Also set SEM to new values:
+                # Set SEM to new values
                 self.sem.set_wd(self.ft_selected_wd)
                 self.sem.set_stig_xy(
                     self.ft_selected_stig_x, self.ft_selected_stig_y)
@@ -2186,7 +2228,8 @@ class MainControls(QMainWindow):
     def ft_run_cycle(self):
         """Restrict the GUI, read the cycle parameters from the GUI, and
         launch the cycle (stage move followed by through-focus acquisition)
-        in a thread."""
+        in a thread.
+        """
         self.pushButton_focusToolStart.setText('Busy')
         self.pushButton_focusToolStart.setEnabled(False)
         self.pushButton_focusToolMove.setEnabled(False)
@@ -2208,8 +2251,8 @@ class MainControls(QMainWindow):
         self.tabWidget.setTabEnabled(2, False)
         # Restrict viewport:
         self.viewport.restrict_gui(True)
-        # Use current WD/Stig if selected working distance == 0:
-        if self.ft_selected_wd == 0:
+        # Use current WD/Stig if selected working distance == 0 or None:
+        if self.ft_selected_wd is None or self.ft_selected_wd == 0:
             self.ft_selected_wd = self.sem.get_wd()
             self.ft_selected_stig_x, self.ft_selected_stig_y = (
                 self.sem.get_stig_xy())
@@ -2224,30 +2267,33 @@ class MainControls(QMainWindow):
 
     def ft_move_and_acq_thread(self):
         """Move to the target stage position with error handling, then acquire
-        through-focus series."""
-        if self.ft_selected_ov >= 0:
-            stage_x, stage_y = self.ovm[self.ft_selected_ov].centre_dx_dy
-        elif self.ft_selected_tile >= 0:
-            stage_x, stage_y = self.cs.convert_to_d(
-                self.gm[self.ft_selected_grid][self.ft_selected_tile].sx_sy)
-        # Get the shifts for the current focus area and add them to the centre
-        # coordinates in the SEM coordinate system. Then convert to stage
-        # coordinates and move.
-        delta_x, delta_y = self.ft_locations[self.ft_cycle_counter]
-        stage_x += delta_x * self.ft_pixel_size/1000
-        stage_y += delta_y * self.ft_pixel_size/1000
-        stage_x, stage_y = self.cs.convert_to_s((stage_x, stage_y))
+        through-focus series.
+        """
         move_success = True
-        self.stage.move_to_xy((stage_x, stage_y))
-        if self.stage.error_state > 0:
-            self.stage.reset_error_state()
-            # Try again
-            sleep(2)
+        if not self.ft_use_current_position:
+            if self.ft_selected_ov >= 0:
+                stage_x, stage_y = self.ovm[self.ft_selected_ov].centre_dx_dy
+            elif self.ft_selected_tile >= 0:
+                stage_x, stage_y = self.cs.convert_to_d(
+                    self.gm[self.ft_selected_grid][self.ft_selected_tile].sx_sy)
+            # Get the shifts for the current focus area and add them to the
+            # centre coordinates in the SEM coordinate system. Then convert to
+            # stage coordinates and move.
+            delta_x, delta_y = self.ft_locations[self.ft_cycle_counter]
+            stage_x += delta_x * self.ft_pixel_size/1000
+            stage_y += delta_y * self.ft_pixel_size/1000
+            stage_x, stage_y = self.cs.convert_to_s((stage_x, stage_y))
             self.stage.move_to_xy((stage_x, stage_y))
             if self.stage.error_state > 0:
-                move_success = False
-                self.add_to_log('CTRL: Stage failed to move to selected tile '
-                                'for focus tool cycle.')
+                self.stage.reset_error_state()
+                # Try again
+                sleep(2)
+                self.stage.move_to_xy((stage_x, stage_y))
+                if self.stage.error_state > 0:
+                    move_success = False
+                    self.add_to_log('CTRL: Stage failed to move to selected '
+                                    ' tile/OV for focus tool cycle.')
+
         # Use signal for update because we are in the focus tool acq thread
         self.trigger.transmit('UPDATE XY FT')
         if move_success:
@@ -2281,9 +2327,10 @@ class MainControls(QMainWindow):
         self.radioButton_focus.setEnabled(True)
         self.radioButton_stigX.setEnabled(True)
         self.radioButton_stigY.setEnabled(True)
-        self.comboBox_selectGridFT.setEnabled(True)
-        self.comboBox_selectTileFT.setEnabled(True)
-        self.comboBox_selectOVFT.setEnabled(True)
+        if not self.ft_use_current_position:
+            self.comboBox_selectGridFT.setEnabled(True)
+            self.comboBox_selectTileFT.setEnabled(True)
+            self.comboBox_selectOVFT.setEnabled(True)
         # Enable menu
         self.menubar.setEnabled(True)
         # Enable the other tabs:
@@ -2328,7 +2375,8 @@ class MainControls(QMainWindow):
 
     def ft_acquire_stig_series(self, xy_choice):
         """Acquire image series with incrementally changing XY stigmation
-        parameters."""
+        parameters.
+        """
         self.sem.apply_frame_settings(
             1, self.ft_pixel_size, self.ft_dwell_time)
         self.sem.set_beam_blanking(0)
@@ -2562,6 +2610,13 @@ class MainControls(QMainWindow):
         self.ft_zoom ^= True
         if self.ft_mode > 0:
             self.ft_display_during_cycle()
+
+    def ft_toggle_use_current_position(self):
+        self.ft_use_current_position = self.checkBox_useCurrentPos.isChecked()
+        # Disable tile/OV selectors if 'use current position' option active
+        self.comboBox_selectGridFT.setEnabled(not self.ft_use_current_position)
+        self.comboBox_selectTileFT.setEnabled(not self.ft_use_current_position)
+        self.comboBox_selectOVFT.setEnabled(not self.ft_use_current_position)
 
     def keyPressEvent(self, event):
         if (type(event) == QKeyEvent) and (self.tabWidget.currentIndex() == 1):
