@@ -117,7 +117,15 @@ class MainControls(QMainWindow):
         startup_log_messages = []
 
         # Initialize SEM
-        if self.syscfg['device']['sem'] in ['1', '2', '3', '4']:  # ZEISS SEMs
+        if self.syscfg['device']['sem'] == 'ZEISS MultiSEM':
+            QMessageBox.critical(
+                self, 'STAGE COLLISION WARNING'
+                'THIS MODULE FOR MULTISEM IS STILL IN DEVELOPMENT.'
+                ' IT CAN PRODUCE UNSAFE STAGE MOVEMENTS LEADING TO '
+                ' COLLISIONS WITH THE LENS. ',
+                QMessageBox.Ok)
+
+        if self.syscfg['device']['sem'] in ['1', '2', '3', '4', '6']:  # ZEISS SEMs
             # Create SEM instance to control SEM via SmartSEM API
             self.sem = SEM_SmartSEM(self.cfg, self.syscfg)
             if self.sem.error_state > 0:
@@ -518,6 +526,11 @@ class MainControls(QMainWindow):
             self.tabWidget.tabBarDoubleClicked.connect(self.activate_magc_mode)
         else:
             self.initialize_magc_gui()
+
+        #-------MultiSEM-----#
+        if 'MultiSEM' in self.sem.device_name:
+            # no aboutBox in MultiSEM API
+            self.pushButton_testZeissAPIVersion.setEnabled(False)
 
     def activate_magc_mode(self, tabIndex):
         if tabIndex != 3:

@@ -14,3 +14,4 @@ imreg_dft
 imageio
 pyyaml
 psutil
+comtypes

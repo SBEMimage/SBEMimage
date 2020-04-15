@@ -27,7 +27,7 @@
      </rect>
     </property>
     <property name="toolTip">
-     <string/>
+     <string>Double-click on the MagC tab to enable MagC mode</string>
     </property>
     <property name="currentIndex">
      <number>3</number>

@@ -2387,6 +2387,9 @@ class GrabFrameDlg(QDialog):
         self.comboBox_frameSize.addItems(store_res_list)
         self.comboBox_frameSize.setCurrentIndex(
             self.sem.grab_frame_size_selector)
+        # no frame size selection with the MultiSEM
+        if self.sem.device == 'MultiSEM':
+            self.comboBox_frameSize.setEnabled(False)
         self.doubleSpinBox_pixelSize.setValue(self.sem.grab_pixel_size)
         self.comboBox_dwellTime.addItems(map(str, self.sem.DWELL_TIME))
         self.comboBox_dwellTime.setCurrentIndex(

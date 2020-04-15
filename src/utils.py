@@ -108,7 +108,13 @@ ERROR_LIST = {
     601: 'Test case error',
 
     # First digit 7: error in configuration
-    701: 'Configuration error'
+    701: 'Configuration error',
+
+    # First digit 9: error in MuliSEM
+    901: 'Error: beam control',
+    902: 'Error: imaging not possible',
+    903: 'Error: auto alignment not possible',
+    904: 'Error: failed to write metadata or thumbnails'
 }
 
 # List of selectable colours for grids (0-9), overviews (10)
