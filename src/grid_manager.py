@@ -111,8 +111,6 @@ class Grid:
         # The boolean active indicates whether the grid will be acquired
         # or skipped.
         self.active = active
-        # active_tiles: a list of tile numbers that are active in this grid
-        self.active_tiles = active_tiles
         self.frame_size = frame_size
         self.frame_size_selector = frame_size_selector
         # Pixel size in nm (float)
@@ -128,9 +126,8 @@ class Grid:
         self.use_wd_gradient = use_wd_gradient
         self.initialize_tiles()
         self.update_tile_positions()
-        # Set boolean flags for active tiles
-        for tile_index in self.active_tiles:
-            self.__tiles[tile_index].tile_active = True
+        # active_tiles: a list of tile numbers that are active in this grid
+        self.active_tiles = active_tiles
         # Set wd_gradient_ref_tiles, which will set the bool flags in
         # self.__tiles
         self.wd_gradient_ref_tiles = wd_gradient_ref_tiles
@@ -438,11 +435,17 @@ class Grid:
 
     @wd_gradient_ref_tiles.setter
     def wd_gradient_ref_tiles(self, ref_tiles):
-        self._wd_gradient_ref_tiles = ref_tiles
-        # Set bool flags for ref tiles
-        for tile_index in range(self.number_tiles):
-            self.__tiles[tile_index].wd_grad_active = (
-                tile_index in ref_tiles)
+        if len(ref_tiles) != 3:
+            self._wd_gradient_ref_tiles = [-1, -1, -1]
+        else:
+            for i in range(3):
+                if ref_tiles[i] > self.number_tiles:
+                    ref_tiles[i] = -1
+            self._wd_gradient_ref_tiles = ref_tiles
+            # Set bool flags for ref tiles
+            for tile_index in range(self.number_tiles):
+                self.__tiles[tile_index].wd_grad_active = (
+                    tile_index in ref_tiles)
 
     def wd_gradient_ref_tile_selector_list(self):
         selector_list = []
@@ -540,17 +543,35 @@ class Grid:
         dx2, dy2 = self.__tiles[tile_index2].dx_dy
         return sqrt((dx1 - dx2)**2 + (dy1 - dy2)**2)
 
+    @property
+    def active_tiles(self):
+        return self._active_tiles
+
+    @active_tiles.setter
+    def active_tiles(self, new_active_tiles):
+        # Remove out-of-range active tiles
+        self._active_tiles = [tile_index for tile_index in new_active_tiles
+                             if tile_index < self.number_tiles]
+        # Set boolean flags to True for active tiles, otherwise to False
+        for tile_index in range(self.number_tiles):
+            if tile_index in new_active_tiles:
+                self.__tiles[tile_index].tile_active = True
+            else:
+                self.__tiles[tile_index].tile_active = False
+        # Update tile acquisition order
+        self.sort_tile_acq_order()
+
     def activate_tile(self, tile_index):
         """Set tile with tile_index to status 'active' (will be acquired)."""
         self.__tiles[tile_index].tile_active = True
-        self.active_tiles.append(tile_index)
+        self._active_tiles.append(tile_index)
         self.sort_tile_acq_order()
 
     def deactivate_tile(self, tile_index):
         """Set tile with tile_index to status 'inactive' (will not be
         acquired)."""
         self.__tiles[tile_index].tile_active = False
-        self.active_tiles.remove(tile_index)
+        self._active_tiles.remove(tile_index)
         self.sort_tile_acq_order()
 
     def toggle_active_tile(self, tile_index):
@@ -566,13 +587,10 @@ class Grid:
     def deactivate_all_tiles(self):
         for tile in self.__tiles:
             tile.tile_active = False
-        self.active_tiles = []
+        self._active_tiles = []
 
     def activate_all_tiles(self):
         self.active_tiles = [t for t in range(self.number_tiles)]
-        for tile in self.__tiles:
-            tile.tile_active = True
-        self.sort_tile_acq_order()
 
     def sort_tile_acq_order(self):
         """Use snake pattern to minimize number of long motor moves.
@@ -588,7 +606,7 @@ class Grid:
                 tile_index = row_pos * cols + col_pos
                 if self.__tiles[tile_index].tile_active:
                     ordered_active_tiles.append(tile_index)
-        self.active_tiles = ordered_active_tiles
+        self._active_tiles = ordered_active_tiles
 
     def tile_bounding_box(self, tile_index):
         """Return the bounding box of the specified tile in SEM coordinates."""
@@ -694,27 +712,27 @@ class GridManager:
         # Load working distance and stigmation parameters
         wd_stig_dict = json.loads(self.cfg['grids']['wd_stig_params'])
         for tile_key, wd_stig_xy in wd_stig_dict.items():
-            g_str, t_str = tile_key.split('.')
-            g, t = int(g_str), int(t_str)
-            self.__grids[g][t].wd = wd_stig_xy[0]
-            self.__grids[g][t].stig_xy = [wd_stig_xy[1], wd_stig_xy[2]]
+            g, t = (int(s) for s in tile_key.split('.'))
+            if (g < self.number_grids) and (t < self.__grids[g].number_tiles):
+                self.__grids[g][t].wd = wd_stig_xy[0]
+                self.__grids[g][t].stig_xy = [wd_stig_xy[1], wd_stig_xy[2]]
 
         # Load autofocus reference tiles
         self._autofocus_ref_tiles = json.loads(
             self.cfg['autofocus']['ref_tiles'])
         for tile_key in self._autofocus_ref_tiles:
             g, t = (int(s) for s in tile_key.split('.'))
-            self.__grids[g][t].autofocus_active = True
+            if (g < self.number_grids) and (t < self.__grids[g].number_tiles):
+                self.__grids[g][t].autofocus_active = True
 
         # Load tile previews for active tiles if available
         base_dir = self.cfg['acq']['base_dir']
         for g in range(self.number_grids):
             for t in self.__grids[g].active_tiles:
-                preview_path = utils.tile_preview_save_path(
-                    base_dir, g, t)
-                try:
+                preview_path = utils.tile_preview_save_path(base_dir, g, t)
+                if os.path.isfile(preview_path):
                     self.__grids[g][t].preview_img = QPixmap(preview_path)
-                except:
+                else:
                     self.__grids[g][t].preview_img = None
 
     def __getitem__(self, grid_index):

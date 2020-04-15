@@ -340,7 +340,7 @@ class Viewport(QWidget):
                                     self.selected_grid][
                                     self.selected_tile].autofocus_active ^= True
                             self._add_to_main_log(
-                                f'Tile {self.selected_grid}.'
+                                f'CTRL: Tile {self.selected_grid}.'
                                 f'{self.selected_tile}{new_tile_status}')
                             self.vp_update_after_active_tile_selection()
                             # Make sure folder exists:
