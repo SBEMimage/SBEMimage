@@ -773,11 +773,17 @@ class OVSettingsDlg(QDialog):
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
-        # Set up OV selector:
+        # Set up OV selector
         self.comboBox_OVSelector.addItems(self.ovm.ov_selector_list())
         self.comboBox_OVSelector.setCurrentIndex(self.current_ov)
         self.comboBox_OVSelector.currentIndexChanged.connect(self.change_ov)
-        # Set up other comboboxes:
+        if self.ovm[self.current_ov].active:
+            self.radioButton_active.setChecked(True)
+        else:
+            self.radioButton_inactive.setChecked(True)
+        self.radioButton_active.toggled.connect(self.update_active_status)
+        self.update_active_status()
+        # Set up other comboboxes
         store_res_list = [
             '%d × %d' % (res[0], res[1]) for res in self.sem.STORE_RES]
         self.comboBox_frameSize.addItems(store_res_list)
@@ -793,6 +799,16 @@ class OVSettingsDlg(QDialog):
         self.update_buttons()
         self.show_current_settings()
         self.show_frame_size()
+
+    def update_active_status(self):
+        # If current OV is inactive, disable GUI elements
+        b = self.radioButton_active.isChecked()
+        self.comboBox_frameSize.setEnabled(b)
+        self.spinBox_magnification.setEnabled(b)
+        self.doubleSpinBox_pixelSize.setEnabled(b)
+        self.comboBox_dwellTime.setEnabled(b)
+        self.spinBox_acqInterval.setEnabled(b)
+        self.spinBox_acqIntervalOffset.setEnabled(b)
 
     def show_current_settings(self):
         self.comboBox_frameSize.setCurrentIndex(
@@ -827,6 +843,11 @@ class OVSettingsDlg(QDialog):
 
     def change_ov(self):
         self.current_ov = self.comboBox_OVSelector.currentIndex()
+        if self.ovm[self.current_ov].active:
+            self.radioButton_active.setChecked(True)
+        else:
+            self.radioButton_inactive.setChecked(True)
+        self.update_active_status()
         self.update_buttons()
         self.show_current_settings()
 
@@ -847,6 +868,7 @@ class OVSettingsDlg(QDialog):
         self.pushButton_deleteOV.setText('Delete OV %d' % self.current_ov)
 
     def save_current_settings(self):
+        self.ovm[self.current_ov].active = self.radioButton_active.isChecked()
         self.prev_frame_size = self.ovm[self.current_ov].frame_size_selector
         self.ovm[self.current_ov].frame_size_selector = (
             self.comboBox_frameSize.currentIndex())
@@ -872,9 +894,7 @@ class OVSettingsDlg(QDialog):
         self.comboBox_OVSelector.addItems(self.ovm.ov_selector_list())
         self.comboBox_OVSelector.setCurrentIndex(self.current_ov)
         self.comboBox_OVSelector.blockSignals(False)
-        self.update_buttons()
-        self.show_current_settings()
-        self.show_frame_size()
+        self.change_ov()
         self.main_controls_trigger.transmit('OV SETTINGS CHANGED')
 
     def delete_ov(self):
@@ -886,9 +906,7 @@ class OVSettingsDlg(QDialog):
         self.comboBox_OVSelector.addItems(self.ovm.ov_selector_list())
         self.comboBox_OVSelector.setCurrentIndex(self.current_ov)
         self.comboBox_OVSelector.blockSignals(False)
-        self.update_buttons()
-        self.show_current_settings()
-        self.show_frame_size()
+        self.change_ov()
         self.main_controls_trigger.transmit('OV SETTINGS CHANGED')
 
 # ------------------------------------------------------------------------------
@@ -920,6 +938,12 @@ class GridSettingsDlg(QDialog):
             colour_icon = QPixmap(20, 10)
             colour_icon.fill(QColor(rgb[0], rgb[1], rgb[2]))
             self.comboBox_colourSelector.addItem(QIcon(colour_icon), '')
+        if self.gm[self.current_grid].active:
+            self.radioButton_active.setChecked(True)
+        else:
+            self.radioButton_inactive.setChecked(True)
+        self.radioButton_active.toggled.connect(self.update_active_status)
+        self.update_active_status()
         store_res_list = [
             '%d × %d' % (res[0], res[1]) for res in self.sem.STORE_RES]
         self.comboBox_tileSize.addItems(store_res_list)
@@ -948,10 +972,26 @@ class GridSettingsDlg(QDialog):
         if self.magc_mode:
             self.pushButton_addGrid.setEnabled(False)
 
+    def update_active_status(self):
+        # If current grid is inactive, disable GUI elements
+        b = self.radioButton_active.isChecked()
+        self.spinBox_rows.setEnabled(b)
+        self.spinBox_cols.setEnabled(b)
+        self.spinBox_overlap.setEnabled(b)
+        self.spinBox_shift.setEnabled(b)
+        self.doubleSpinBox_rotation.setEnabled(b)
+        self.comboBox_tileSize.setEnabled(b)
+        self.comboBox_dwellTime.setEnabled(b)
+        self.doubleSpinBox_pixelSize.setEnabled(b)
+        self.checkBox_focusGradient.setEnabled(b)
+        self.toolButton_focusGradient.setEnabled(b)
+        self.pushButton_resetFocusParams.setEnabled(b)
+        self.spinBox_acqInterval.setEnabled(b)
+        self.spinBox_acqIntervalOffset.setEnabled(b)
+
     def show_current_settings(self):
         self.comboBox_colourSelector.setCurrentIndex(
             self.gm[self.current_grid].display_colour)
-        # Adaptive focus:
         self.checkBox_focusGradient.setChecked(
             self.gm[self.current_grid].use_wd_gradient)
 
@@ -993,6 +1033,11 @@ class GridSettingsDlg(QDialog):
 
     def change_grid(self):
         self.current_grid = self.comboBox_gridSelector.currentIndex()
+        if self.gm[self.current_grid].active:
+            self.radioButton_active.setChecked(True)
+        else:
+            self.radioButton_inactive.setChecked(True)
+        self.update_active_status()
         self.update_buttons()
         self.show_current_settings()
         self.show_frame_size_and_dose()
@@ -1021,9 +1066,7 @@ class GridSettingsDlg(QDialog):
         self.comboBox_gridSelector.addItems(self.gm.grid_selector_list())
         self.comboBox_gridSelector.setCurrentIndex(self.current_grid)
         self.comboBox_gridSelector.blockSignals(False)
-        self.update_buttons()
-        self.show_current_settings()
-        self.show_frame_size_and_dose()
+        self.change_grid()
         self.main_controls_trigger.transmit('GRID SETTINGS CHANGED')
 
     def delete_grid(self):
@@ -1041,9 +1084,7 @@ class GridSettingsDlg(QDialog):
             self.comboBox_gridSelector.addItems(self.gm.grid_selector_list())
             self.comboBox_gridSelector.setCurrentIndex(self.current_grid)
             self.comboBox_gridSelector.blockSignals(False)
-            self.update_buttons()
-            self.show_current_settings()
-            self.show_frame_size_and_dose()
+            self.change_grid()
             self.main_controls_trigger.transmit('GRID SETTINGS CHANGED')
 
     def reset_wd_stig_params(self):
@@ -1064,6 +1105,7 @@ class GridSettingsDlg(QDialog):
             prev_grid_centre = self.gm[self.current_grid].centre_sx_sy
 
         error_msg = ''
+        self.gm[self.current_grid].active = self.radioButton_active.isChecked()
         self.gm[self.current_grid].size = [self.spinBox_rows.value(),
                                            self.spinBox_cols.value()]
         self.gm[self.current_grid].frame_size_selector = (

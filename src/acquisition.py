@@ -1064,6 +1064,10 @@ class Acquisition:
         for ov_index in range(self.ovm.number_ov):
             if (self.error_state > 0) or (self.pause_state == 1):
                 break
+            if not self.ovm[ov_index].active:
+                self.add_to_main_log(
+                    f'CTRL: OV {ov_index} inactive, skipped.')
+                continue
             if self.ovm[ov_index].slice_active(self.slice_counter):
                 ov_accepted = False
                 sweep_limit = False
@@ -1377,7 +1381,10 @@ class Acquisition:
         for grid_index in range(self.gm.number_grids):
             if self.error_state > 0 or self.pause_state == 1:
                 break
-
+            if not self.gm[grid_index].active:
+                self.add_to_main_log(
+                    f'CTRL: Grid {grid_index} inactive, skipped.')
+                continue
             if self.gm[grid_index].slice_active(self.slice_counter):
                 num_active_tiles = self.gm[grid_index].number_active_tiles()
                 self.add_to_main_log('CTRL: Grid ' + str(grid_index)
