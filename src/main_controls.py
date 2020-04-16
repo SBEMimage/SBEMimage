@@ -176,9 +176,9 @@ class MainControls(QMainWindow):
             self.microtome = Microtome_3View(self.cfg, self.syscfg)
             if self.microtome.error_state == 101:
                 startup_log_messages.append(
-                    '3VIEW: Error initializing DigitalMicrograph API.')
+                    'CTRL: Error initializing DigitalMicrograph API.')
                 startup_log_messages.append(
-                    '3VIEW: ' + self.microtome.error_info)
+                    'CTRL: ' + self.microtome.error_info)
                 QMessageBox.warning(
                     self, 'Error initializing DigitalMicrograph API',
                     'Have you forgotten to start the communication '
@@ -191,10 +191,10 @@ class MainControls(QMainWindow):
                 self.microtome = Microtome_3View(self.cfg, self.syscfg)
                 if self.microtome.error_state > 0:
                     startup_log_messages.append(
-                        '3VIEW: Error initializing DigitalMicrograph API '
+                        'CTRL: Error initializing DigitalMicrograph API '
                         '(second attempt).')
                     startup_log_messages.append(
-                        '3VIEW: ' + self.microtome.error_info)
+                        'CTRL: ' + self.microtome.error_info)
                     QMessageBox.warning(
                         self, 'Error initializing DigitalMicrograph API',
                         'The second attempt to initalize the DigitalMicrograph '
@@ -204,7 +204,7 @@ class MainControls(QMainWindow):
                     self.simulation_mode = True
                 else:
                     startup_log_messages.append(
-                        '3VIEW: Second attempt to initialize '
+                        'CTRL: Second attempt to initialize '
                         'DigitalMicrograph API successful.')
         elif self.use_microtome and (self.syscfg['device']['microtome'] == '5'):
             # Initialize katana microtome
@@ -215,7 +215,7 @@ class MainControls(QMainWindow):
 
         if self.microtome is not None and self.microtome.error_state == 701:
             startup_log_messages.append(
-                '3VIEW: Error loading microtome configuration.')
+                'CTRL: Error loading microtome configuration.')
             QMessageBox.warning(
                 self, 'Error loading microtome configuration',
                 'While loading the microtome settings SBEMimage encountered '
@@ -1510,7 +1510,7 @@ class MainControls(QMainWindow):
             QMessageBox.Ok | QMessageBox.Cancel, QMessageBox.Cancel)
         if user_reply == QMessageBox.Ok:
             # Perform sweep: do a cut slightly above current surface
-            self.add_to_log('CTRL: Performing user-requested sweep')
+            self.add_to_log('KNIFE: Performing user-requested sweep.')
             self.restrict_gui(True)
             self.viewport.restrict_gui(True)
             QApplication.processEvents()
@@ -1524,9 +1524,9 @@ class MainControls(QMainWindow):
     def manual_sweep_success(self, success):
         self.show_current_stage_z()
         if success:
-            self.add_to_log('CTRL: User-requested sweep completed.')
+            self.add_to_log('KNIFE: User-requested sweep completed.')
         else:
-            self.add_to_log('CTRL: ERROR ocurred during sweep.')
+            self.add_to_log('KNIFE: ERROR ocurred during sweep.')
             QMessageBox.warning(self, 'Error during sweep',
                 'An error occurred during the sweep cycle. '
                 'Please check the microtome status in DM '
@@ -1544,7 +1544,8 @@ class MainControls(QMainWindow):
         if ok_button_clicked:
             self.viewport.grab_viewport_screenshot(
                 os.path.join(self.acq.base_dir, file_name + '.png'))
-            self.add_to_log('CTRL: Saved current viewport to base directory.')
+            self.add_to_log(
+                'CTRL: Saved screenshot of current Viewport to base directory.')
 
 # ======================= Test functions in third tab ==========================
 
@@ -1593,39 +1594,39 @@ class MainControls(QMainWindow):
         current_x = self.stage.get_x()
         if current_x is not None:
             self.add_to_log(
-                '3VIEW: Current stage X position: '
+                'STAGE: Current X position: '
                 '{0:.2f}'.format(current_x))
         else:
             self.add_to_log(
-                '3VIEW: Error - could not read current stage x position.')
+                'STAGE: Error - could not read current X position.')
 
     def test_set_stage(self):
         current_x = self.stage.get_x()
         self.stage.move_to_x(current_x + 10)
         self.add_to_log(
-            '3VIEW: New stage X position should be: '
+            'STAGE: New X position should be: '
             + '{0:.2f}'.format(current_x + 10))
 
     def test_near_knife(self):
         if self.use_microtome:
             self.microtome.near_knife()
-            self.add_to_log('3VIEW: Knife position should be NEAR')
+            self.add_to_log('KNIFE: Position should be NEAR.')
         else:
-            self.add_to_log('3VIEW: Microtome not active.')
+            self.add_to_log('CTRL: No microtome, or microtome not active.')
 
     def test_clear_knife(self):
         if self.use_microtome:
             self.microtome.clear_knife()
-            self.add_to_log('3VIEW: Knife position should be CLEAR')
+            self.add_to_log('KNIFE: Position should be CLEAR.')
         else:
-            self.add_to_log('3VIEW: Microtome not active.')
+            self.add_to_log('CTRL: No microtome, or microtome not active.')
 
     def test_stop_dm_script(self):
         if self.use_microtome:
             self.microtome.stop_script()
-            self.add_to_log('3VIEW: STOP command sent to DM script.')
+            self.add_to_log('CTRL: STOP command sent to DM script.')
         else:
-            self.add_to_log('3VIEW: Microtome not active.')
+            self.add_to_log('CTRL: No microtome, or microtome not active.')
 
     def test_send_email(self):
         """Send test e-mail to the specified user email addresses."""
@@ -1931,7 +1932,7 @@ class MainControls(QMainWindow):
                     if (self.use_microtome
                             and self.microtome.device_name == 'Gatan 3View'):
                         self.microtome.stop_script()
-                        self.add_to_log('3VIEW: Disconnected from DM/3View.')
+                        self.add_to_log('CTRL: Disconnected from DM/3View.')
                     elif (self.use_microtome
                         and self.microtome.device_name == 'ConnectomX katana'):
                         self.microtome.disconnect()
@@ -2292,8 +2293,8 @@ class MainControls(QMainWindow):
                 self.stage.move_to_xy((stage_x, stage_y))
                 if self.stage.error_state > 0:
                     move_success = False
-                    self.add_to_log('CTRL: Stage failed to move to selected '
-                                    ' tile/OV for focus tool cycle.')
+                    self.add_to_log('STAGE: Failed to move to selected '
+                                    'tile/OV for focus tool cycle.')
 
         # Use signal for update because we are in the focus tool acq thread
         self.trigger.transmit('UPDATE XY FT')

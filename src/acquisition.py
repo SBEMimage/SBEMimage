@@ -648,7 +648,7 @@ class Acquisition:
                 if not success:
                     self.error_state = 101
                     self.pause_acquisition(1)
-                    self.add_to_main_log('3VIEW: ERROR: Could not update '
+                    self.add_to_main_log('STAGE: ERROR: Could not update '
                                          'XY motor speeds.')
 
             # Get current Z position of microtome/stage
@@ -661,7 +661,7 @@ class Acquisition:
                     self.stage.reset_error_state()
                     self.pause_acquisition(1)
                     self.add_to_main_log(
-                        'CTRL: Error reading initial Z position.')
+                        'STAGE: Error reading initial Z position.')
             # Check for Z mismatch
             if self.microtome is not None and self.microtome.error_state == 206:
                 self.microtome.reset_error_state()
@@ -950,7 +950,7 @@ class Acquisition:
         # slice_thickness is provided in nanometres!
         self.stage_z_position = (self.stage_z_position
                                  + (self.slice_thickness / 1000))
-        self.add_to_main_log('3VIEW: Move to new Z: ' + '{0:.3f}'.format(
+        self.add_to_main_log('STAGE: Move to new Z: ' + '{0:.3f}'.format(
             self.stage_z_position))
         self.microtome.move_stage_to_z(self.stage_z_position)
         # Show new Z position in Main Controls GUI
@@ -958,7 +958,8 @@ class Acquisition:
         # Check if there were microtome problems
         self.error_state = self.microtome.error_state
         if self.error_state in [103, 202]:
-            self.add_to_main_log('CTRL: Problem detected. Trying again.')
+            self.add_to_main_log(
+                'STAGE: Problem during Z move. Trying again.')
             self.error_state = 0
             self.microtome.reset_error_state()
             # Try again after three-second delay
@@ -969,7 +970,7 @@ class Acquisition:
             self.error_state = self.microtome.error_state
 
         if self.error_state == 0:
-            self.add_to_main_log('3VIEW: Cutting in progress ('
+            self.add_to_main_log('KNIFE: Cutting in progress ('
                                  + str(self.slice_thickness)
                                  + ' nm cutting thickness).')
             # Do the full cut cycle (near, cut, retract, clear)
@@ -985,20 +986,20 @@ class Acquisition:
             duration_exceeded = self.microtome.check_for_cut_cycle_error()
             if duration_exceeded:
                 self.add_to_main_log(
-                    'CTRL: Warning: Cut cycle took longer than specified.')
+                    'KNIFE: Warning: Cut cycle took longer than specified.')
             self.error_state = self.microtome.error_state
             self.microtome.reset_error_state()
         if self.error_state > 0:
-            self.add_to_main_log('CTRL: Problem detected.')
+            self.add_to_main_log('STAGE: Z move failed.')
             # Try to move back to previous Z position
-            self.add_to_main_log('3VIEW: Attempt to move back to old Z: '
+            self.add_to_main_log('STAGE: Attempt to move back to old Z: '
                                  + '{0:.3f}'.format(old_stage_z_position))
             self.microtome.move_stage_to_z(old_stage_z_position)
             self.main_controls_trigger.transmit('UPDATE Z')
             self.microtome.reset_error_state()
             self.pause_acquisition(1)
         else:
-            self.add_to_main_log('3VIEW: Cut completed.')
+            self.add_to_main_log('KNIFE: Cut completed.')
             self.slice_counter += 1
             self.total_z_diff += self.slice_thickness/1000
         sleep(1)
@@ -1162,7 +1163,7 @@ class Acquisition:
         # with move_required=False if the stage is already at the OV position.)
         if move_required:
             self.add_to_main_log(
-                '3VIEW: Moving stage to OV %d position.' % ov_index)
+                'STAGE: Moving to OV %d position.' % ov_index)
             self.stage.move_to_xy(ov_stage_position)
             if self.stage.error_state > 0:
                 self.stage.reset_error_state()
@@ -1176,8 +1177,8 @@ class Acquisition:
                 self.stage.move_to_xy(ov_stage_position)
                 self.error_state = self.stage.error_state
                 if self.error_state > 0:
-                    self.add_to_main_log('CTRL: Stage failed to move to '
-                                         'OV position.')
+                    self.add_to_main_log(
+                        'STAGE: Failed to move to OV position.')
                     self.pause_acquisition(1)
                     self.stage.reset_error_state()
                     move_success = False
@@ -1323,11 +1324,11 @@ class Acquisition:
         """Try to remove detected debris by sweeping the surface. Microtome must
         be active for this function.
         """
-        self.add_to_main_log('CTRL: Sweeping to remove debris.')
+        self.add_to_main_log('KNIFE: Sweeping to remove debris.')
         self.microtome.do_sweep(self.stage_z_position)
         if self.microtome.error_state > 0:
             self.microtome.reset_error_state()
-            self.add_to_main_log('CTRL: Problem during sweep. Trying again.')
+            self.add_to_main_log('KNIFE: Problem during sweep. Trying again.')
             # Add warning to log in Viewport
             log_str = (str(self.slice_counter)
                        + ': WARNING (' + 'Problem during sweep)')
@@ -1341,8 +1342,8 @@ class Acquisition:
                 self.microtome.reset_error_state()
                 self.error_state = 205
                 self.pause_acquisition(1)
-                self.add_to_main_log('CTRL: Error during second sweep '
-                                     'attempt.')
+                self.add_to_main_log(
+                    'KNIFE: Error during second sweep attempt.')
 
     def save_debris_image(self, ov_file_name, ov_index, sweep_counter):
         debris_save_path = utils.ov_debris_save_path(
@@ -1507,7 +1508,7 @@ class Acquisition:
                             # if self.error_state == 304:
                             #    self.handle_frozen_frame(grid_index)
                             self.add_to_main_log(
-                                'CTRL: Trying again to image tile.')
+                                'SEM: Trying again to image tile.')
                             # Reset error state
                             self.error_state = 0
                     elif self.error_state > 0:
@@ -1614,16 +1615,16 @@ class Acquisition:
             # Read target coordinates for current tile
             stage_x, stage_y = self.gm[grid_index][tile_index].sx_sy
             # Move to that position
-            self.add_to_main_log('3VIEW: Moving stage to position '
-                                 'of tile %s' % tile_id)
+            self.add_to_main_log(
+                'STAGE: Moving to position of tile %s' % tile_id)
             self.stage.move_to_xy((stage_x, stage_y))
             # The move function waits for the specified stage move wait interval
             # Check if there were microtome problems:
             # If yes, try one more time before pausing acquisition.
             if self.stage.error_state > 0:
                 self.stage.reset_error_state()
-                self.add_to_main_log('CTRL: Problem detected (XY '
-                                     'stage move). Trying again.')
+                self.add_to_main_log(
+                    'STAGE: Problem with XY move. Trying again.')
                 # Add warning to log in viewport window
                 error_log_str = (str(self.slice_counter)
                                  + ': WARNING (Problem with XY stage move)')
@@ -1631,8 +1632,8 @@ class Acquisition:
                 self.add_to_vp_log(error_log_str)
                 sleep(2)
                 # Try to move to tile position again
-                self.add_to_main_log('3VIEW: Moving stage to position '
-                                     'of tile ' + tile_id)
+                self.add_to_main_log(
+                    'STAGE: Moving to position of tile ' + tile_id)
                 self.stage.move_to_xy((stage_x, stage_y))
                 # Check again if there is an error
                 self.error_state = self.stage.error_state
@@ -1640,8 +1641,7 @@ class Acquisition:
                 # If yes, pause stack
                 if self.error_state > 0:
                     self.add_to_main_log(
-                        'CTRL: Problem detected (XY stage move failed). '
-                        'Stack will be paused.')
+                        'STAGE: XY move failed. Stack will be paused.')
         else:
             if tile_index in self.tiles_acquired:
                 tile_skipped = True
@@ -1726,13 +1726,13 @@ class Acquisition:
                             tile_accepted = False
                             self.error_state = 304
                             self.add_to_main_log(
-                                'CTRL: Tile ' + tile_id
+                                'SEM: Tile ' + tile_id
                                 + ': SmartSEM frozen frame error!')
                         elif grab_incomplete:
                             tile_accepted = False
                             self.error_state = 303
                             self.add_to_main_log(
-                                'CTRL: Tile ' + tile_id
+                                'SEM: Tile ' + tile_id
                                 + ': SmartSEM grab incomplete error!')
                         elif self.monitor_images:
                             # Two additional checks if 'image monitoring'
@@ -1757,7 +1757,7 @@ class Acquisition:
                     self.error_state = 404
             else:
                 # File was not saved
-                self.add_to_main_log('CTRL: Tile image acquisition failure. ')
+                self.add_to_main_log('SEM: Tile image acquisition failure. ')
                 self.error_state = 302
 
         # Check for "Ask User" override
@@ -1865,7 +1865,7 @@ class Acquisition:
             stage_x, stage_y = self.gm[grid_index][tile_index].sx_sy
             # Move to that position
             self.add_to_main_log(
-                '3VIEW: Moving stage to position of tile '
+                'STAGE: Moving to position of tile '
                 + str(grid_index) + '.' + str(tile_index) + ' for autofocus')
             self.stage.move_to_xy((stage_x, stage_y))
             # The move function waits for the specified stage move wait interval
@@ -1873,8 +1873,8 @@ class Acquisition:
             # If yes, try one more time before pausing acquisition.
             if self.stage.error_state > 0:
                 self.stage.reset_error_state()
-                self.add_to_main_log('CTRL: Problem detected (XY '
-                                     'stage move). Trying again.')
+                self.add_to_main_log(
+                    'STAGE: Problem with XY move. Trying again.')
                 # Update log in Viewport window with a warning
                 error_log_str = (str(self.slice_counter)
                                  + ': WARNING (Problem with XY stage move)')
@@ -1884,7 +1884,7 @@ class Acquisition:
                 sleep(2)
                 # Try to move to tile position again
                 self.add_to_main_log(
-                    '3VIEW: Moving stage to position of tile '
+                    'STAGE: Moving to position of tile '
                     + str(grid_index) + '.' + str(tile_index))
                 self.stage.move_to_xy((stage_x, stage_y))
                 # Check again if there is an error
@@ -1892,9 +1892,7 @@ class Acquisition:
                 self.stage.reset_error_state()
                 # If yes, pause stack
                 if self.error_state > 0:
-                    self.add_to_main_log(
-                        'CTRL: Problem detected (XY stage move for autofocus '
-                        'failed).')
+                    self.add_to_main_log('STAGE: XY move for autofocus failed.')
         if self.error_state == 0 and (do_focus or do_stig):
             if do_focus and do_stig:
                 af_type = '(focus+stig)'
@@ -1904,7 +1902,7 @@ class Acquisition:
                 af_type = '(stig only)'
             wd = self.sem.get_wd()
             sx, sy = self.sem.get_stig_xy()
-            self.add_to_main_log('CTRL: Running SmartSEM AF procedure '
+            self.add_to_main_log('SEM: Running SmartSEM AF procedure '
                                  + af_type + ' for tile '
                                  + str(grid_index) + '.' + str(tile_index))
             return_msg = self.autofocus.run_zeiss_af(do_focus, do_stig)
@@ -2049,19 +2047,19 @@ class Acquisition:
         if diff_wd > 0.000001:
             change_detected = True
             self.add_to_main_log(
-                'CTRL: Warning: Change in working distance detected.')
+                'SEM: Warning: Change in working distance detected.')
             # Restore previous working distance
             self.sem.set_wd(self.locked_wd)
-            self.add_to_main_log('CTRL: Restored previous working distance.')
+            self.add_to_main_log('SEM: Restored previous working distance.')
 
         if (diff_stig_x > 0.000001 or diff_stig_y > 0.000001):
             change_detected = True
             self.add_to_main_log(
-                'CTRL: Warning: Change in stigmation settings detected.')
+                'SEM: Warning: Change in stigmation settings detected.')
             # Restore previous settings
             self.sem.set_stig_xy(self.locked_stig_x, self.locked_stig_y)
             self.add_to_main_log(
-                'CTRL: Restored previous stigmation parameters.')
+                'SEM: Restored previous stigmation parameters.')
         if change_detected:
             self.main_controls_trigger.transmit('FOCUS ALERT')
 
@@ -2070,13 +2068,13 @@ class Acquisition:
         current_mag = self.sem.get_mag()
         if current_mag != self.locked_mag:
             self.add_to_main_log(
-                'CTRL: Warning: Change in magnification detected.')
+                'SEM: Warning: Change in magnification detected.')
             self.add_to_main_log(
-                'CTRL: Current mag: ' + str(current_mag)
+                'SEM: Current mag: ' + str(current_mag)
                 + '; target mag: ' + str(self.locked_mag))
             # Restore previous magnification
             self.sem.set_mag(self.locked_mag)
-            self.add_to_main_log('CTRL: Restored previous magnification.')
+            self.add_to_main_log('SEM: Restored previous magnification.')
             self.main_controls_trigger.transmit('MAG ALERT')
 
     def show_wd_stig_in_log(self, wd, stig_x, stig_y):
