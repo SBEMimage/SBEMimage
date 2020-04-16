@@ -17,11 +17,11 @@ main_controls.py.
 
 import os
 import shutil
-import time
 import datetime
 import json
 
-from time import sleep
+from time import sleep, time
+from statistics import mean
 from imageio import imwrite
 from dateutil.relativedelta import relativedelta
 from PyQt5.QtWidgets import QMessageBox
@@ -213,6 +213,13 @@ class Acquisition:
         total_stage_move_time = 0
         total_imaging_time = 0
 
+        # Default estimate: overhead per acquired frame for saving the frame on
+        # primary drive and for inspection
+        overhead_per_frame = 1.0
+        # Add 0.5 s per frame when mirroring files
+        if self.use_mirror_drive:
+            overhead_per_frame += 0.5
+
         max_offset_slice_number = max(
             self.gm.max_acq_interval_offset(),
             self.ovm.max_acq_interval_offset())
@@ -243,6 +250,7 @@ class Acquisition:
                                 self.stage.stage_move_duration(x0, y0, x1, y1))
                             x0, y0 = x1, y1
                             imaging_time += self.ovm[ov_index].tile_cycle_time()
+                            imaging_time += overhead_per_frame
                             frame_size = (self.ovm[ov_index].width_p()
                                           * self.ovm[ov_index].height_p())
                             amount_of_data += frame_size
@@ -257,7 +265,8 @@ class Acquisition:
                         number_active_tiles = (
                             self.gm[grid_index].number_active_tiles())
                         imaging_time += (
-                            self.gm[grid_index].tile_cycle_time()
+                            (self.gm[grid_index].tile_cycle_time()
+                            + overhead_per_frame)
                             * number_active_tiles)
                         frame_size = (self.gm[grid_index].tile_width_p()
                                       * self.gm[grid_index].tile_height_p())
@@ -559,6 +568,11 @@ class Acquisition:
             # to False.
             self.first_ov = [True] * self.ovm.number_ov
 
+            # Track the durations for grabbing, mirroring and inspecting tiles
+            self.tile_grab_durations = []
+            self.tile_mirror_durations = []
+            self.tile_inspect_durations = []
+
             # Discard previous tile statistics stored in image inspector that is
             # used for tile-by-tile comparisons and quality checks.
             self.img_inspector.reset_tile_stats()
@@ -575,7 +589,7 @@ class Acquisition:
 
             # Create metadata summary for this run, write it to disk and send it
             # to remote server (if feature enabled).
-            timestamp = int(time.time())
+            timestamp = int(time())
             grid_list = [str(i).zfill(utils.GRID_DIGITS)
                          for i in range(self.gm.number_grids)]
             session_metadata = {
@@ -1009,7 +1023,7 @@ class Acquisition:
         and that the surface was cut. Write entry to metadata file and send
         notification to metadata server.
         """
-        timestamp = int(time.time())
+        timestamp = int(time())
         slice_complete_metadata = {
             'timestamp': timestamp,
             'completed_slice': self.slice_counter}
@@ -1572,8 +1586,27 @@ class Acquisition:
                                - self.sem.DEFAULT_DELAY)
             if cycle_time_diff > 0.15:
                 self.add_to_main_log(
-                    f'CTRL: Warning: Grid {grid_index} cycle time was '
+                    f'CTRL: Warning: Grid {grid_index} tile cycle time was '
                     f'{cycle_time_diff:.2f} s longer than expected.')
+
+            # Show the average durations for grabbing, inspecting and mirroring
+            # tiles in the current grid
+            if self.tile_grab_durations and self.tile_inspect_durations:
+                self.add_to_main_log(
+                    f'CTRL: Grid {grid_index}: avg. tile grab duration: '
+                    f'{mean(self.tile_grab_durations):.1f} s '
+                    f'(cycle time: {self.sem.current_cycle_time:.1f})')
+                self.add_to_main_log(
+                    f'CTRL: Grid {grid_index}: avg. tile inspect '
+                    f'duration: {mean(self.tile_inspect_durations):.1f} s')
+            if self.use_mirror_drive and self.tile_mirror_durations:
+                self.add_to_main_log(
+                    f'CTRL: Grid {grid_index}: avg. time to copy tile to '
+                    f'mirror drive: {mean(self.tile_mirror_durations):.1f} s')
+            # Clear duration lists for the next grid
+            self.tile_grab_durations = []
+            self.tile_inspect_durations = []
+            self.tile_mirror_durations = []
 
             if theta > 0:
                 # Disable scan rotation
@@ -1691,16 +1724,40 @@ class Acquisition:
             # Indicate current tile in Viewport
             self.main_controls_trigger.transmit(
                 'ACQ IND TILE' + str(grid_index) + '.' + str(tile_index))
-            # Acquire the frame from the SEM
+            start_time = time()
+            # Acquire the frame
             self.sem.acquire_frame(save_path)
+            # Time how long it takes to acquire the frame. Display a warning in
+            # the log if the overhead is larger than 1.5 seconds.
+            end_time = time()
+            grab_duration = end_time - start_time
+            self.tile_grab_durations.append(grab_duration)
+            grab_overhead = grab_duration - self.sem.current_cycle_time
+            if grab_overhead > 1.5:
+                self.add_to_main_log(
+                    f'SEM: Warning: Grab overhead too large '
+                    f'({grab_overhead:.1f} s).')
             # Remove indication in Viewport
             self.main_controls_trigger.transmit(
                 'ACQ IND TILE' + str(grid_index) + '.' + str(tile_index))
+
             # Copy image file to the mirror drive
             if self.use_mirror_drive:
+                start_time = time()
                 self.mirror_files([save_path])
+                # Time how long it takes to copy the file. Add a warning if
+                # it took longer than 1.5 seconds.
+                end_time = time()
+                mirror_duration = end_time - start_time
+                self.tile_mirror_durations.append(mirror_duration)
+                if mirror_duration > 1.5:
+                    self.add_to_main_log(
+                        f'CTRL: Warning: Copying tile to mirror drive took too '
+                        f'long ({mirror_duration:.1f} s).')
+
             # Check if image was saved and process it
             if os.path.isfile(save_path):
+                start_time = time()
                 (tile_img, mean, stddev,
                  range_test_passed, slice_by_slice_test_passed, tile_selected,
                  load_error, load_exception,
@@ -1708,6 +1765,15 @@ class Acquisition:
                     self.img_inspector.process_tile(save_path,
                                                     grid_index, tile_index,
                                                     self.slice_counter))
+                # Time the duration of process_tile()
+                end_time = time()
+                inspect_duration = end_time - start_time
+                self.tile_inspect_durations.append(inspect_duration)
+                if inspect_duration > 1.5:
+                    self.add_to_main_log(
+                        f'CTRL: Warning: Inspecting tile took too '
+                        f'long ({inspect_duration:.1f} s).')
+
                 if not load_error:
                     # Assume tile_accepted, check against various errors below
                     tile_accepted = True
@@ -1781,7 +1847,7 @@ class Acquisition:
         """Register the tile image in the image list file and the metadata
         file. Send metadata to remote server.
         """
-        timestamp = int(time.time())
+        timestamp = int(time())
         tile_id = utils.tile_id(grid_index, tile_index,
                                 self.slice_counter)
         global_x, global_y = (
