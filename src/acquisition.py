@@ -1264,7 +1264,7 @@ class Acquisition:
                     ov_accepted = True
                     if self.first_ov[ov_index]:
                         self.main_controls_trigger.transmit(
-                            'ASK DEBRIS FIRST OV')
+                            'ASK DEBRIS FIRST OV' + str(ov_index))
                         # The command above causes a message box to be displayed
                         # in Main Controls. The user is asked if debris can be
                         # seen in the first overview image acquired.
@@ -1288,7 +1288,7 @@ class Acquisition:
                             # confirm that debris was detected correctly.
                             if self.ask_user_mode:
                                 self.main_controls_trigger.transmit(
-                                    'ASK DEBRIS CONFIRMATION')
+                                    'ASK DEBRIS CONFIRMATION' + str(ov_index))
                                 while not self.user_reply_received:
                                     sleep(0.1)
                                 # The OV is accepted if the user replies 'No'
@@ -1299,8 +1299,8 @@ class Acquisition:
                                     self.pause_acquisition(1)
                                 self.user_reply_received = False
             else:
-                self.add_to_main_log('CTRL: OV acquisition failure.')
-                self.error_state = 502
+                self.add_to_main_log('SEM: OV acquisition failure.')
+                self.error_state = 302
                 self.pause_acquisition(1)
                 ov_accepted = False
 

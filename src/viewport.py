@@ -2164,11 +2164,34 @@ class Viewport(QWidget):
         if dialog.exec_():
             self.vp_draw()
 
-
     def vp_show_new_stub_overview(self):
         self.checkBox_showStubOV.setChecked(True)
         self.show_stub_ov = True
         self.vp_draw()
+
+    def vp_show_overview_for_user_inspection(self, ov_index):
+        """Show the overview image with ov_index in the centre of the Viewport
+        with no grids, tile previews or other objects obscuring it.
+        """
+        # Switch to Viewport tab
+        self.tabWidget.setCurrentIndex(0)
+        # Preserve previous display settings
+        vp_current_ov_prev = self.vp_current_ov
+        vp_current_grid_prev = self.vp_current_grid
+        vp_centre_dx_dy_prev = self.cs.vp_centre_dx_dy
+        vp_scale_prev = self.cs.vp_scale
+        # Show ov_index only and hide the grids
+        self.vp_current_ov = ov_index
+        self.vp_current_grid = -2
+        # Position the viewing window and adjust the scale to show the full OV
+        self.cs.vp_centre_dx_dy = self.ovm[ov_index].centre_dx_dy
+        self.cs.vp_scale = (utils.VP_WIDTH - 100) / self.ovm[ov_index].width_d()
+        self.vp_draw(suppress_labels=False, suppress_previews=True)
+        # Revert to previous settings
+        self.vp_current_ov = vp_current_ov_prev
+        self.vp_current_grid = vp_current_grid_prev
+        self.cs.vp_centre_dx_dy = vp_centre_dx_dy_prev
+        self.cs.vp_scale = vp_scale_prev
 
     # ---------------------- MagC methods in Viewport --------------------------
 

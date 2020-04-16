@@ -1368,22 +1368,33 @@ class MainControls(QMainWindow):
                 'SBEMimage has detected an unexpected change in '
                 'magnification. Target setting has been restored.',
                 QMessageBox.Ok)
-        elif msg == 'ASK DEBRIS FIRST OV':
+        elif msg.startswith('ASK DEBRIS FIRST OV'):
+            ov_index = int(msg[len('ASK DEBRIS FIRST OV'):])
+            self.viewport.vp_show_overview_for_user_inspection(ov_index)
             reply = QMessageBox.question(
-                self, 'Debris on first OV? User input required',
-                'Is the overview image that has just been acquired free from '
-                'debris?',
+                self, 'Confirm overview image quality',
+                f'This is the first slice to be imaged after (re)starting the '
+                f'acquisition. Please confirm:\nIs the overview image OV '
+                f'{ov_index}, which has just been acquired (now shown in the '
+                f'Viewport) free from debris or other image defects?',
                 QMessageBox.Yes | QMessageBox.No | QMessageBox.Abort,
                 QMessageBox.Yes)
+            # Redraw with previous settings
+            self.viewport.vp_draw()
             self.acq.set_user_reply(reply)
-        elif msg == 'ASK DEBRIS CONFIRMATION':
+        elif msg.startswith('ASK DEBRIS CONFIRMATION'):
+            ov_index = int(msg[len('ASK DEBRIS CONFIRMATION'):])
+            self.viewport.vp_show_overview_for_user_inspection(ov_index)
             reply = QMessageBox.question(
                 self, 'Debris detection',
-                'Potential debris has been detected in the area of interest. '
-                'Can you confirm that debris is visible in the detection '
-                'area?',
+                f'Potential debris has been detected in overview OV '
+                f'{ov_index}. Please confirm:\nIs debris visible in the '
+                f'detection area? (If you get several false positives in a '
+                f'row, you may need to adjust your detection thresholds.)',
                 QMessageBox.Yes | QMessageBox.No | QMessageBox.Abort,
                 QMessageBox.Yes)
+            # Redraw with previous settings
+            self.viewport.vp_draw()
             self.acq.set_user_reply(reply)
         elif msg == 'ASK IMAGE ERROR OVERRIDE':
             reply = QMessageBox.question(
