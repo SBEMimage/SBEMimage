@@ -257,11 +257,11 @@ class ImportWaferImageDlg(QDialog):
 
         # pre-filling the ImportImageDialog if wafer image (unique) present
         im_names = [im_name for im_name in os.listdir(self.wafer_im_dir)
-            if ('wafer' in im_name)
+            if ('wafer' in im_name.lower())
                 and (os.path.splitext(im_name)[1] in ['.tif', '.png', 'jpg'])]
         if len(im_names) == 0:
-            self._add_to_main_log('''No wafer picture was found.
-                Select the wafer image manually.''')
+            self._add_to_main_log('No wafer picture was found. '
+                'Select the wafer image manually.')
         elif len(im_names) > 1:
             self._add_to_main_log(
                 'There is more than one image available in the folder '

@@ -378,7 +378,8 @@ class ImportImageDlg(QDialog):
 
     def accept(self):
         selection_success = True
-        selected_path = self.lineEdit_fileName.text()
+        selected_path = os.path.normpath(
+            self.lineEdit_fileName.text())
         selected_filename = os.path.basename(selected_path)
         timestamp = str(datetime.datetime.now())
         # Remove some characters from timestap to get valid file name:
