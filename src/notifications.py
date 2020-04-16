@@ -15,6 +15,7 @@ import os
 import json
 import imaplib
 import smtplib
+import requests
 
 from time import sleep
 from PIL import Image
@@ -69,6 +70,11 @@ class Notifications:
         self.remote_commands_enabled = (
             self.cfg['monitoring']['remote_commands_enabled'].lower() == 'true')
 
+        # Metadata server settings (VIME)
+        self.metadata_server_url = self.syscfg['metaserver']['url']
+        self.metadata_server_admin_email = (
+            self.syscfg['metaserver']['admin_email'])
+
     def save_to_cfg(self):
         self.cfg['monitoring']['user_email'] = self.user_email_addresses[0]
         self.cfg['monitoring']['cc_user_email'] = self.user_email_addresses[1]
@@ -90,6 +96,13 @@ class Notifications:
             self.send_tile_reslices)
         self.cfg['monitoring']['remote_commands_enabled'] = str(
             self.remote_commands_enabled)
+
+        self.syscfg['metaserver']['url'] = self.metadata_server_url
+        self.cfg['sys']['metadata_server_url'] = self.metadata_server_url
+        self.syscfg['metaserver']['admin_email'] = (
+            self.metadata_server_admin_email)
+        self.cfg['sys']['metadata_server_admin'] = (
+            self.metadata_server_admin_email)
 
     def send_email(self, subject, main_text, attached_files=[]):
         """Send email to user email addresses specified in configuration, with
@@ -316,3 +329,70 @@ class Notifications:
         except:
             return 'ERROR'
 
+    def metadata_put_request(self, endpoint, data):
+        """Send a PUT request to the metadata server."""
+        exception_str = ''
+        try:
+            r = requests.put(self.metadata_server_url + endpoint, json=data)
+            status = r.status_code
+        except Exception as e:
+            status = 100
+            exception_str = str(e)
+        return status, exception_str
+
+    def metadata_post_request(self, endpoint, data):
+        """Send a POST request to the metadata server."""
+        exception_str = ''
+        try:
+            r = requests.post(self.metadata_server_url + endpoint, json=data)
+            status = r.status_code
+        except Exception as e:
+            status = 100
+            exception_str = str(e)
+        return status, exception_str
+
+    def metadata_get_request(self, endpoint):
+        """Send a GET request to the metadata server."""
+        command = None
+        msg = None
+        exception_str = ''
+        try:
+            r = requests.get(self.metadata_server_url + endpoint)
+            received = json.loads(r.content)
+            status = r.status_code
+            if 'command' in received:
+                command = received['command']
+            if 'message' in received:
+                msg = received['message']
+            if 'version' in received:
+                msg = received['version']
+        except Exception as e:
+            status = 100
+            msg = 'Metadata server request failed.'
+            exception_str = str(e)
+        return status, command, msg, exception_str
+
+    def send_session_metadata(self, project_name, stack_name, session_metadata):
+        return self.metadata_put_request(
+            '/project/' + project_name
+            + '/stack/' + stack_name
+            + '/session/metadata', session_metadata)
+
+    def send_slice_completed(self, project_name, stack_name,
+                             slice_complete_metadata):
+        return self.metadata_put_request(
+           '/project/' + project_name
+            + '/stack/' + stack_name
+            + '/slice/completed', slice_complete_metadata)
+
+    def send_tile_metadata(self, project_name, stack_name, tile_metadata):
+        return self.metadata_post_request(
+           '/project/' + project_name
+            + '/stack/' + stack_name
+            + '/tile/metadata/update', tile_metadata)
+
+    def read_server_message(self, project_name, stack_name):
+        return self.metadata_get_request(
+           '/project/' + project_name
+            + '/stack/' + stack_name
+            + '/signal/read')

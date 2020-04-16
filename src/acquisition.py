@@ -101,20 +101,10 @@ class Acquisition:
         # mirror_drive_directory: same as base_dir, only drive letter changes
         self.mirror_drive_dir = os.path.join(
             self.cfg['sys']['mirror_drive'], self.base_dir[2:])
-        # Metadata is sent to metadata_server_project_url (VIME)
-        # TODO: move metadata server attributes and functions in utils
-        # to notifications.py
-        self.metadata_server = self.syscfg['metaserver']['url']
-        self.metadata_server_admin_email = (
-            self.syscfg['metaserver']['admin_email'])
-        self.metadata_project_name = self.cfg['sys']['metadata_project_name']
-        self.metadata_server_project_url = (self.metadata_server
-                                            + '/project/'
-                                            + self.metadata_project_name
-                                            + '/stack/'
-                                            + self.stack_name)
+        # send_metadata: True if metadata to be sent to metadata (VIME) server
         self.send_metadata = (
             self.cfg['sys']['send_metadata'].lower() == 'true')
+        self.metadata_project_name = self.cfg['sys']['metadata_project_name']
         # The following two features (mirror drive, overviews) can not be
         # enabled/disabled during a run. Other features such as debris
         # detection and monitoring can be enabled/disabled during a run
@@ -155,15 +145,6 @@ class Acquisition:
 
     def save_to_cfg(self):
         """Save current state of attributes to ConfigParser objects."""
-        self.syscfg['metaserver']['url'] = self.metadata_server
-        self.cfg['sys']['metadata_server_url'] = self.metadata_server
-        self.syscfg['metaserver']['admin_email'] = (
-            self.metadata_server_admin_email)
-        self.cfg['sys']['metadata_server_admin'] = (
-            self.metadata_server_admin_email)
-        self.cfg['sys']['metadata_project_name'] = (
-            self.metadata_project_name)
-        self.cfg['sys']['send_metadata'] = str(self.send_metadata)
         self.cfg['acq']['base_dir'] = self.base_dir
         self.cfg['acq']['paused'] = str(self.acq_paused)
         self.cfg['acq']['slice_counter'] = str(self.slice_counter)
@@ -178,6 +159,8 @@ class Acquisition:
 
         self.cfg['sys']['mirror_drive'] = self.mirror_drive
         self.cfg['sys']['use_mirror_drive'] = str(self.use_mirror_drive)
+        self.cfg['sys']['send_metadata'] = str(self.send_metadata)
+        self.cfg['sys']['metadata_project_name'] = self.metadata_project_name
         self.cfg['acq']['take_overviews'] = str(self.take_overviews)
         # Options that can be changed while acq is running
         self.cfg['acq']['use_email_monitoring'] = str(
@@ -613,16 +596,17 @@ class Acquisition:
             self.metadata_file.write('SESSION: ' + str(session_metadata) + '\n')
             # Send to server?
             if self.send_metadata:
-                url = self.metadata_server + '/session/metadata'
-                response = utils.meta_server_put_request(url, session_metadata)
-                if response == 100:
+                status, exc_str = self.notifications.send_session_metadata(
+                    self.metadata_project_name, self.stack_name,
+                    session_metadata)
+                if status == 100:
                     self.error_state = 508
                     self.pause_acquisition(1)
                     self.add_to_main_log('CTRL: Error sending session metadata '
-                                         'to server.')
-                elif response == 200:
+                                         'to server. ' + exc_str)
+                elif status == 200:
                     self.add_to_main_log(
-                        'CTRL: Metadata server active.')
+                        'CTRL: Session data sent. Metadata server active.')
 
             # Set SEM to target parameters.
             # EHT is assumed to be on at this point
@@ -759,33 +743,40 @@ class Acquisition:
                 sleep(0.1)
                 time_out += 1
 
-            # Confirm slice completion in metadata
-            timestamp = int(time.time())
-            slice_complete_metadata = {
-                'timestamp': timestamp,
-                'completed_slice': self.slice_counter}
-            self.metadata_file.write('SLICE COMPLETE: '
-                                      + str(slice_complete_metadata) + '\n')
+            # ======== E-mail monitoring / Signal from metadata server =========
+            report_scheduled = (
+                self.slice_counter % self.status_report_interval == 0)
+
+            # If remote commands are enabled, check email account
+            if (self.use_email_monitoring
+                    and self.notifications.remote_commands_enabled
+                    and self.slice_counter % self.remote_check_interval == 0):
+                self.add_to_main_log('CTRL: Checking for remote commands.')
+                self.process_remote_commands()
+
+            # Send status report if scheduled or requested by remote command
+            if (self.use_email_monitoring
+                    and (self.slice_counter > 0)
+                    and (report_scheduled or self.report_requested)):
+                msg1, msg2 = self.notifications.send_status_report(
+                    self.base_dir, self.stack_name, self.slice_counter,
+                    self.recent_log_filename, self.debris_log_filename,
+                    self.error_log_filename, self.vp_screenshot_filename)
+                self.add_to_main_log(msg1)
+                if msg2:
+                    self.add_to_main_log(msg2)
+                self.report_requested = False
 
             if self.send_metadata:
-                # Notify remote server that slice has been imaged
-                url = self.metadata_server + '/slice/completed'
-                response = utils.meta_server_put_request(
-                    url, slice_complete_metadata)
-                if response == 100:
-                    self.error_state = 508
-                    self.pause_acquisition(1)
-                    self.add_to_main_log('CTRL: Error sending "slice complete" '
-                                         'signal to server.')
-
-                # Get commands or messages from server
-                url = self.metadata_server + '/signal/read'
-                status, command, msg = utils.meta_server_get_request(url)
+                # Get commands or messages from metadata server
+                status, command, msg, exc_str = (
+                    self.notifications.read_server_message(
+                        self.metadata_project_name, self.stack_name))
                 if status == 100:
                     self.error_state = 508
                     self.pause_acquisition(1)
                     self.add_to_main_log('CTRL: Error during get request '
-                                         'to server.')
+                                         'to server. ' + exc_str)
                 elif status == 200:
                     if command in ['STOP', 'PAUSE']:
                         self.pause_acquisition(1)
@@ -813,29 +804,6 @@ class Acquisition:
                     self.add_to_main_log(
                         'CTRL: Unknown signal from metadata server received.')
 
-            # ======================= E-mail monitoring ========================
-            report_scheduled = (
-                self.slice_counter % self.status_report_interval == 0)
-            # If remote commands are enabled, check email account
-            if (self.use_email_monitoring
-                    and self.notifications.remote_commands_enabled
-                    and self.slice_counter % self.remote_check_interval == 0):
-                self.add_to_main_log('CTRL: Checking for remote commands.')
-                self.process_remote_commands()
-
-            # Send status report if scheduled or requested by remote command
-            if (self.use_email_monitoring
-                    and (self.slice_counter > 0)
-                    and (report_scheduled or self.report_requested)):
-                msg1, msg2 = self.notifications.send_status_report(
-                    self.base_dir, self.stack_name, self.slice_counter,
-                    self.recent_log_filename, self.debris_log_filename,
-                    self.error_log_filename, self.vp_screenshot_filename)
-                self.add_to_main_log(msg1)
-                if msg2:
-                    self.add_to_main_log(msg2)
-                self.report_requested = False
-
             # Check if single slice acquisition -> NO CUT
             if self.number_slices == 0:
                 self.pause_acquisition(1)
@@ -850,6 +818,8 @@ class Acquisition:
                     self.acq_interrupted_at = []
                     self.acquired_tiles = []
                     self.acquired_grids = []
+                    # Confirm slice completion
+                    self.confirm_slice_complete()
 
             # Imaging and cutting for current slice completed.
             # Save current configuration to disk, update progress in GUI,
@@ -1032,6 +1002,29 @@ class Acquisition:
             self.slice_counter += 1
             self.total_z_diff += self.slice_thickness/1000
         sleep(1)
+
+    def confirm_slice_complete(self):
+        """Confirm that the current slice is completely acquired without error
+        and that the surface was cut. Write entry to metadata file and send
+        notification to metadata server.
+        """
+        timestamp = int(time.time())
+        slice_complete_metadata = {
+            'timestamp': timestamp,
+            'completed_slice': self.slice_counter}
+        self.metadata_file.write('SLICE COMPLETE: '
+                                  + str(slice_complete_metadata) + '\n')
+
+        if self.send_metadata:
+            # Notify remote server that slice has been imaged
+            status, exc_str = self.notifications.send_slice_completed(
+                self.metadata_project_name, self.stack_name,
+                slice_complete_metadata)
+            if status == 100:
+                self.error_state = 508
+                self.pause_acquisition(1)
+                self.add_to_main_log('CTRL: Error sending "slice complete" '
+                                     'signal to server. ' + exc_str)
 
     def process_heuristic_af_queue(self):
         """Process tiles for heuristic autofocus while cut cycle is carried out.
@@ -1819,13 +1812,13 @@ class Acquisition:
         self.metadata_file.write('TILE: ' + str(tile_metadata) + '\n')
         # Server notification
         if self.send_metadata:
-            url = self.metadata_server + '/tile/metadata/update'
-            response = utils.meta_server_post_request(url, tile_metadata)
-            if response == 100:
+            status, exc_str = self.notifications.send_tile_metadata(
+                self.metadata_project_name, self.stack_name, tile_metadata)
+            if status == 100:
                 self.error_state = 508
                 self.pause_acquisition(1)
                 self.add_to_main_log('CTRL: Error sending tile metadata '
-                                     'to server.')
+                                     'to server. ' + exc_str)
 
     def save_rejected_tile(self, tile_save_path, grid_index, tile_index,
                            fail_counter):

@@ -1099,7 +1099,8 @@ class MainControls(QMainWindow):
         self.viewport.vp_draw()
 
     def open_acq_settings_dlg(self):
-        dialog = AcqSettingsDlg(self.acq, self.use_microtome)
+        dialog = AcqSettingsDlg(self.acq, self.notifications,
+                                self.use_microtome)
         if dialog.exec_():
             self.show_current_settings()
             self.show_stack_acq_estimates()

@@ -1231,9 +1231,10 @@ class FocusGradientSettingsDlg(QDialog):
 class AcqSettingsDlg(QDialog):
     """Dialog for adjusting acquisition settings."""
 
-    def __init__(self, acquisition, use_microtome=True):
+    def __init__(self, acquisition, notifications, use_microtome=True):
         super().__init__()
         self.acq = acquisition
+        self.notifications = notifications
         loadUi('..\\gui\\acq_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -1256,8 +1257,10 @@ class AcqSettingsDlg(QDialog):
         self.checkBox_sendMetaData.stateChanged.connect(
             self.update_server_lineedit)
         self.checkBox_EHTOff.setChecked(self.acq.eht_off_after_stack)
-        self.lineEdit_metaDataServer.setText(self.acq.metadata_server)
-        self.lineEdit_adminEmail.setText(self.acq.metadata_server_admin_email)
+        self.lineEdit_metaDataServer.setText(
+            self.notifications.metadata_server_url)
+        self.lineEdit_adminEmail.setText(
+            self.notifications.metadata_server_admin_email)
         self.lineEdit_projectName.setText(self.acq.metadata_project_name)
         # Disable two spinboxes when SEM stage used
         if not use_microtome:
