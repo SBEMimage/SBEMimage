@@ -487,8 +487,8 @@ class TranslationTransform(ProjectiveTransform):
 
 
 def align_images_cv2(src: np.ndarray, target: np.ndarray) -> np.ndarray:
-    MAX_FEATURES = 500
-    GOOD_MATCH_PERCENT = 0.25
+    MAX_FEATURES = 1000
+    GOOD_MATCH_PERCENT = 0.3
     # Detect ORB features and compute descriptors.
     orb = cv2.ORB_create(MAX_FEATURES, nlevels=10, patchSize=60)
 

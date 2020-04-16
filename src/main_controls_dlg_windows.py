@@ -1436,25 +1436,29 @@ class PreStackDlg(QDialog):
                 f'at tile {acq.acq_interrupted_at[1]}')
         else:
             self.label_interruption.setText('None')
-        self.doubleSpinBox_cutSpeed.setValue(
-            self.microtome.knife_cut_speed / 1000)
-        self.doubleSpinBox_retractSpeed.setValue(
-            self.microtome.knife_retract_speed / 1000)
+
         self.doubleSpinBox_brightness.setValue(self.sem.bsd_brightness)
         self.doubleSpinBox_contrast.setValue(self.sem.bsd_contrast)
         self.spinBox_bias.setValue(self.sem.bsd_bias)
-        self.checkBox_oscillation.setChecked(self.microtome.use_oscillation)
+
+        if self.microtome is not None:
+            self.doubleSpinBox_cutSpeed.setValue(
+                self.microtome.knife_cut_speed / 1000)
+            self.doubleSpinBox_retractSpeed.setValue(
+                self.microtome.knife_retract_speed / 1000)
+            self.checkBox_oscillation.setChecked(self.microtome.use_oscillation)
 
     def accept(self):
         # Save updated settings
-        self.microtome.knife_cut_speed = int(
-            self.doubleSpinBox_cutSpeed.value() * 1000)
-        self.microtome.knife_retract_speed = int(
-            self.doubleSpinBox_retractSpeed.value() * 1000)
         self.sem.bsd_contrast = self.doubleSpinBox_contrast.value()
         self.sem.bsd_brightness = self.doubleSpinBox_brightness.value()
         self.sem.bsd_bias = self.spinBox_bias.value()
-        self.microtome.use_oscillation = self.checkBox_oscillation.isChecked()
+        if self.microtome is not None:
+            self.microtome.use_oscillation = self.checkBox_oscillation.isChecked()
+            self.microtome.knife_cut_speed = int(
+                self.doubleSpinBox_cutSpeed.value() * 1000)
+            self.microtome.knife_retract_speed = int(
+                self.doubleSpinBox_retractSpeed.value() * 1000)
         super().accept()
 
 # ------------------------------------------------------------------------------
