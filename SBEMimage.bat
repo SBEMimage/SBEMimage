@@ -8,6 +8,7 @@ cd cfg
 IF EXIST status.dat (
 rem Console window will be closed
 ) ELSE (
+cd..
 rem Console window will stay open
 cmd /k
 )

@@ -3,34 +3,37 @@
 # ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2018-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
 
-"""This module controls the main window GUI, from which acquisitions are
-   started. The window contains four tabs: (1) main controls, settings, stack
-   progress and main log; (2) focus tool; (3) functions for testing/debugging;
-   (4) MagC module.
-   The 'Main Controls' window is a QMainWindow, and it launches the Viewport
-   window as a QWidget.
+"""This module contains MainControls, the main window of the application, from
+which the acquisition thread is started.
+
+The 'Main Controls' window consists of four tabs:
+    (1) Main controls: action buttons, settings, stack progress and main log;
+    (2) Focus tool;
+    (3) Functions for testing/debugging;
+    (4) MagC module.
+
+The 'Main Controls' window is a QMainWindow, and it launches the Viewport
+window (in viewport.py) as a QWidget.
 """
 
 import os
+import sys
 import threading
-import shutil
 import json
 
 from time import sleep
-from queue import Queue
 
 from PyQt5.QtWidgets import QApplication, QTableWidgetSelectionRange, \
                             QAbstractItemView
-from PyQt5.QtCore import QObject, Qt, QRect, QSize, pyqtSignal, QEvent, \
-                        QItemSelection, QItemSelectionModel, QModelIndex
+from PyQt5.QtCore import Qt, QRect, QSize, QEvent, QItemSelection, \
+                         QItemSelectionModel, QModelIndex
 from PyQt5.QtGui import QIcon, QPalette, QColor, QPixmap, QKeyEvent, \
-                        QStatusTipEvent, \
-                        QStandardItem, QStandardItemModel
+                        QStatusTipEvent, QStandardItem, QStandardItemModel
 from PyQt5.QtWidgets import QMainWindow, QMessageBox, QInputDialog, QLineEdit, \
                             QHeaderView
 from PyQt5.uic import loadUi
@@ -41,32 +44,31 @@ from sem_control import SEM_SmartSEM
 from microtome_control import Microtome_3View, Microtome_katana
 from stage import Stage
 from plasma_cleaner import PlasmaCleaner
-from stack_acquisition import Stack
+from acquisition import Acquisition
+from notifications import Notifications
 from overview_manager import OverviewManager
+from imported_img import ImportedImages
 from grid_manager import GridManager
 from coordinate_system import CoordinateSystem
 from viewport import Viewport
 from image_inspector import ImageInspector
 from autofocus import Autofocus
-from dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
-                        GridSettingsDlg, AutofocusSettingsDlg, \
-                        EmailMonitoringSettingsDlg, DebrisSettingsDlg, \
-                        ImageMonitoringSettingsDlg, AcqSettingsDlg, \
-                        SaveConfigDlg, PlasmaCleanerDlg, OVSettingsDlg, \
-                        ApproachDlg, MirrorDriveDlg, ExportDlg, MotorTestDlg, \
-                        StageCalibrationDlg, MagCalibrationDlg, PreStackDlg, \
-                        PauseDlg, StubOVDlg, EHTDlg, GrabFrameDlg, \
-                        FTSetParamsDlg, FTMoveDlg, AskUserDlg, \
-                        ImportImageDlg, AdjustImageDlg, DeleteImageDlg, \
-                        UpdateDlg, CutDurationDlg, GridRotationDlg, \
-                        KatanaSettingsDlg, AboutBox
+from main_controls_dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
+                                      GridSettingsDlg, OVSettingsDlg, \
+                                      AcqSettingsDlg, PreStackDlg, PauseDlg, \
+                                      AutofocusSettingsDlg, DebrisSettingsDlg, \
+                                      EmailMonitoringSettingsDlg, \
+                                      ImageMonitoringSettingsDlg, ExportDlg, \
+                                      SaveConfigDlg, PlasmaCleanerDlg, \
+                                      ApproachDlg, MirrorDriveDlg, EHTDlg, \
+                                      StageCalibrationDlg, MagCalibrationDlg, \
+                                      GrabFrameDlg, FTSetParamsDlg, FTMoveDlg, \
+                                      AskUserDlg, UpdateDlg, CutDurationDlg, \
+                                      KatanaSettingsDlg, AboutBox
 
-from magc_controls import ImportMagCDlg, ImportWaferImageDlg, WaferCalibrationDlg
+from magc_controls import ImportMagCDlg, ImportWaferImageDlg, \
+                          WaferCalibrationDlg
 
-class Trigger(QObject):
-    # A custom signal for receiving updates and requests from the viewport
-    # window and the stack acquisition thread
-    s = pyqtSignal()
 
 class MainControls(QMainWindow):
 
@@ -77,38 +79,222 @@ class MainControls(QMainWindow):
         self.cfg_file = config_file
         self.syscfg_file = self.cfg['sys']['sys_config_file']
         self.VERSION = VERSION
-        self.calibration_found = None
 
-        # Show progress of initialization in console window:
+        # Show progress bar in console during start-up. The percentages are
+        # just estimates, but helpful for user to see that initialization
+        # is in progress.
         utils.show_progress_in_console(0)
-        self.load_gui()
-        utils.show_progress_in_console(30)
-        self.import_system_settings()
-        self.initial_setup()
 
-        # MagC settings:
-        if self.cfg['sys']['magc_mode'] == 'True':
+        # Set up the main control variables
+        self.acq_in_progress = False
+        self.acq_paused = False
+        self.simulation_mode = (
+            self.cfg['sys']['simulation_mode'].lower() == 'true')
+        self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
+        self.use_microtome = (
+            self.cfg['sys']['use_microtome'].lower() == 'true')
+        self.statusbar_msg = ''
+
+        # If workspace folder does not exist, create it.
+        workspace_dir = os.path.join(self.cfg['acq']['base_dir'], 'workspace')
+        if not os.path.exists(workspace_dir):
+            self.try_to_create_directory(workspace_dir)
+
+        # Current OV and grid indices selected from dropdown list,
+        # displayed in Main Controls GUI.
+        self.ov_index_dropdown = 0
+        self.grid_index_dropdown = 0
+
+        # Set up trigger and queue to update Main Controls from the
+        # acquisition thread or dialog windows.
+        self.trigger = utils.Trigger()
+        self.trigger.signal.connect(self.process_signal)
+
+        utils.show_progress_in_console(10)
+
+        # Store log messages during startup in startup_log_messages to be
+        # displayed when Main Controls window has been loaded.
+        startup_log_messages = []
+
+        # Initialize SEM
+        if self.syscfg['device']['sem'] in ['1', '2', '3', '4']:  # ZEISS SEMs
+            # Create SEM instance to control SEM via SmartSEM API
+            self.sem = SEM_SmartSEM(self.cfg, self.syscfg)
+            if self.sem.error_state > 0:
+                startup_log_messages.append(
+                    'SEM: Error initializing SmartSEM Remote API.')
+                startup_log_messages.append(
+                    'SEM: ' + self.sem.error_info)
+                QMessageBox.warning(
+                    self, 'Error initializing SmartSEM Remote API',
+                    'Initalization of the SmartSEM Remote API failed. Please '
+                    'verify that the Remote API is installed and configured '
+                    'correctly.'
+                    '\nSBEMimage will be run in simulation mode.',
+                    QMessageBox.Ok)
+                self.simulation_mode = True
+        else:
+            # No other SEMs supported at the moment
+            self.sem = None
+            startup_log_messages.append(
+                'SEM: No SEM found, or incompatible SEM selected.')
+            QMessageBox.warning(
+                self, 'No SEM found',
+                'No SEM was found, or an incompatible SEM was selected. '
+                'Check your system configuration file.'
+                '\nSBEMimage will be run in simulation mode.',
+                QMessageBox.Ok)
+            self.simulation_mode = True
+
+        utils.show_progress_in_console(20)
+
+        # Initialize coordinate system object
+        self.cs = CoordinateSystem(self.cfg, self.syscfg)
+
+        # Set up the objects to manage overviews, grids, and imported images
+        self.ovm = OverviewManager(self.cfg, self.sem, self.cs)
+        self.gm = GridManager(self.cfg, self.sem, self.cs)
+        self.imported = ImportedImages(self.cfg)
+
+        # Notify user if imported images could not be loaded
+        for i in range(self.imported.number_imported):
+            if self.imported[i].image is None:
+                QMessageBox.warning(self, 'Error loading imported image',
+                    f'Imported image number {i} could not '
+                    f'be loaded. Check if the folder containing '
+                    f'the image ({self.imported[i].image_src}) was deleted or '
+                    f'moved, or if the image file is damaged or in '
+                    f'the wrong format.', QMessageBox.Ok)
+                startup_log_messages.append(
+                    f'CTRL: Error loading imported image {i}')
+
+        utils.show_progress_in_console(30)
+
+        # Initialize microtome
+        if self.use_microtome and (self.syscfg['device']['microtome'] == '0'):
+            # Create object for 3View microtome (control via DigitalMicrograph)
+            self.microtome = Microtome_3View(self.cfg, self.syscfg)
+            if self.microtome.error_state == 101:
+                startup_log_messages.append(
+                    '3VIEW: Error initializing DigitalMicrograph API.')
+                startup_log_messages.append(
+                    '3VIEW: ' + self.microtome.error_info)
+                QMessageBox.warning(
+                    self, 'Error initializing DigitalMicrograph API',
+                    'Have you forgotten to start the communication '
+                    'script in DM? \nIf yes, please load the '
+                    'script and click "Execute".'
+                    '\n\nIs the Z coordinate negative? \nIf yes, '
+                    'please set it to zero or a positive value.',
+                    QMessageBox.Retry)
+                # Try again
+                self.microtome = Microtome_3View(self.cfg, self.syscfg)
+                if self.microtome.error_state > 0:
+                    startup_log_messages.append(
+                        '3VIEW: Error initializing DigitalMicrograph API '
+                        '(second attempt).')
+                    startup_log_messages.append(
+                        '3VIEW: ' + self.microtome.error_info)
+                    QMessageBox.warning(
+                        self, 'Error initializing DigitalMicrograph API',
+                        'The second attempt to initalize the DigitalMicrograph '
+                        'API failed.\nSBEMimage will be run in simulation '
+                        'mode.',
+                        QMessageBox.Ok)
+                    self.simulation_mode = True
+                else:
+                    startup_log_messages.append(
+                        '3VIEW: Second attempt to initialize '
+                        'DigitalMicrograph API successful.')
+        elif self.use_microtome and (self.syscfg['device']['microtome'] == '5'):
+            # Initialize katana microtome
+            self.microtome = Microtome_katana(self.cfg, self.syscfg)
+        else:
+            # Otherwise use SEM stage
+            self.microtome = None
+
+        if self.microtome is not None and self.microtome.error_state == 701:
+            startup_log_messages.append(
+                '3VIEW: Error loading microtome configuration.')
+            QMessageBox.warning(
+                self, 'Error loading microtome configuration',
+                'While loading the microtome settings SBEMimage encountered '
+                'the following error: \n'
+                + self.microtome.error_info
+                + '\nPlease inspect the configuration file(s). SBEMimage will '
+                'be closed.' ,
+                QMessageBox.Ok)
+            self.close()
+
+        utils.show_progress_in_console(60)
+
+        # Initialize the stage object to control either the microtome
+        # or SEM stage
+        self.stage = Stage(self.sem, self.microtome,
+                           self.use_microtome)
+
+        self.img_inspector = ImageInspector(self.cfg, self.ovm, self.gm)
+
+        self.autofocus = Autofocus(self.cfg, self.sem, self.gm)
+
+        self.notifications = Notifications(self.cfg, self.syscfg, self.trigger)
+
+        self.acq = Acquisition(self.cfg, self.syscfg,
+                               self.sem, self.microtome, self.stage,
+                               self.ovm, self.gm, self.cs, self.img_inspector,
+                               self.autofocus, self.notifications, self.trigger)
+
+        # Check if plasma cleaner is installed and load its COM port.
+        self.cfg['sys']['plc_installed'] = self.syscfg['plc']['installed']
+        self.cfg['sys']['plc_com_port'] = self.syscfg['plc']['com_port']
+        self.plc_installed = (
+            self.cfg['sys']['plc_installed'].lower() == 'true')
+        self.plc_initialized = False
+
+        # Load MagC settings if in MacC mode
+        if self.magc_mode:
             self.initialize_magc_settings()
 
-        # Display all settings read from config file:
+        self.initialize_main_controls_gui()
+
+        # Set up grid/tile selectors.
+        self.update_main_controls_grid_selector()
+        self.update_main_controls_ov_selector()
+
+        # Display current settings and stage position in Main Controls Window.
         self.show_current_settings()
         self.show_current_stage_xy()
         self.show_current_stage_z()
-        utils.show_progress_in_console(80)
-        self.show_estimates()
+
+        # Show estimates for stack acquisition
+        self.show_stack_acq_estimates()
+
+        # Restrict GUI (microtome-specific functionality) if no microtome used
+        if not self.use_microtome:
+            self.restrict_gui_for_sem_stage()
+
         # Now show main window:
         self.show()
         QApplication.processEvents()
-        # Initialize viewport window:
-        self.viewport = Viewport(self.cfg, self.sem, self.stage,
-                                 self.ovm, self.gm, self.cs, self.af,
-                                 self.viewport_trigger,
-                                 self.viewport_queue)
-        self.viewport.show()
-        # Draw the workspace
-        self.viewport.mv_draw()
 
-        # Initialize focus tool:
+        utils.show_progress_in_console(80)
+
+        # First log messages
+        self.add_to_log('CTRL: SBEMimage Version ' + self.VERSION)
+        for msg in startup_log_messages:
+            self.add_to_log(msg)
+
+        # Initialize viewport window
+        self.viewport = Viewport(self.cfg, self.sem, self.stage, self.cs,
+                                 self.ovm, self.gm, self.imported,
+                                 self.autofocus, self.acq,
+                                 self.trigger)
+        self.viewport.show()
+
+        # Draw the viewport canvas
+        self.viewport.vp_draw()
+
+        # Initialize focus tool
         self.ft_initialize()
 
         # When simulation mode active, disable all acquisition-related functions
@@ -117,18 +303,17 @@ class MainControls(QMainWindow):
         else:
             self.actionLeaveSimulationMode.setEnabled(False)
 
-        utils.show_progress_in_console(100)
-
-        # Finally, check if there is a previous acquisition
-        # to be be restarted:
-        if self.stack.is_paused():
-            self.acq_paused = True
-            self.update_stack_progress()
+        # Check if there is a previous acquisition to be be restarted.
+        if self.acq.acq_paused:
+            self.show_stack_progress()
             self.pushButton_startAcq.setText('CONTINUE')
             self.pushButton_resetAcq.setEnabled(True)
 
+        utils.show_progress_in_console(100)
+
         print('\n\nReady.\n')
         self.set_statusbar('Ready.')
+
         if self.simulation_mode:
             self.add_to_log('CTRL: Simulation mode active.')
             QMessageBox.information(
@@ -140,7 +325,7 @@ class MainControls(QMainWindow):
                 '\n\nTo leave simulation mode, select: '
                 '\nMenu  →  Configuration  →  Leave simulation mode',
                 QMessageBox.Ok)
-        elif not self.calibration_found:
+        elif not self.cs.calibration_found:
             QMessageBox.warning(
                 self, 'Missing stage calibration',
                 'No stage calibration settings were found for the currently '
@@ -148,20 +333,29 @@ class MainControls(QMainWindow):
                 '\nMenu  →  Calibration  →  Stage calibration',
                 QMessageBox.Ok)
         # Diplay warning if z coordinate differs from previous session
-        if self.use_microtome and self.microtome.get_error_state() == 206:
+        if self.use_microtome and self.microtome.error_state == 206:
             self.microtome.reset_error_state()
             QMessageBox.warning(
                 self, 'Stage Z position',
                 'The current Z position does not match the Z position '
                 'recorded in the current configuration file '
-                '({0:.3f}).'.format(self.microtome.get_stage_z_prev_session())
+                '({0:.3f}).'.format(self.microtome.stage_z_prev_session)
                 + ' Please make sure that the Z position is correct.',
                 QMessageBox.Ok)
 
-    def load_gui(self):
-        """Load and set up the GUI."""
+    def initialize_main_controls_gui(self):
+        """Load and set up the Main Controls GUI"""
         loadUi('..\\gui\\main_window.ui', self)
-        self.setWindowTitle('SBEMimage - Main Controls')
+        if self.VERSION.lower() == 'dev':
+            self.setWindowTitle(
+                'SBEMimage - Main Controls - DEVELOPMENT VERSION')
+            # Disable 'Update' function (would overwrite current (local) changes
+            # in the code of the development version with the current version
+            # in the master branch.)
+            self.actionUpdate.setEnabled(False)
+        else:
+            self.setWindowTitle('SBEMimage - Main Controls')
+
         app_icon = QIcon()
         app_icon.addFile('..\\img\\icon_16px.ico', QSize(16, 16))
         app_icon.addFile('..\\img\\icon_48px.ico', QSize(48, 48))
@@ -179,7 +373,7 @@ class MainControls(QMainWindow):
             QIcon('..\\img\\settings.png'))
         self.pushButton_microtomeSettings.setIconSize(QSize(16, 16))
         self.pushButton_gridSettings.clicked.connect(
-            lambda: self.open_grid_dlg(self.current_grid))
+            lambda: self.open_grid_dlg(self.grid_index_dropdown))
         self.pushButton_gridSettings.setIcon(QIcon('..\\img\\settings.png'))
         self.pushButton_gridSettings.setIconSize(QSize(16, 16))
         self.pushButton_OVSettings.setIcon(QIcon('..\\img\\settings.png'))
@@ -191,9 +385,10 @@ class MainControls(QMainWindow):
         self.pushButton_acqSettings.setIconSize(QSize(16, 16))
         # Command buttons
         self.pushButton_doApproach.clicked.connect(self.open_approach_dlg)
-        self.pushButton_doSweep.clicked.connect(self.sweep)
+        self.pushButton_doSweep.clicked.connect(self.manual_sweep)
         self.pushButton_grabFrame.clicked.connect(self.open_grab_frame_dlg)
-        self.pushButton_saveViewport.clicked.connect(self.save_viewport)
+        self.pushButton_saveViewport.clicked.connect(
+            self.save_viewport_screenshot)
         self.pushButton_EHTToggle.clicked.connect(self.open_eht_dlg)
         # Acquisition control buttons
         self.pushButton_startAcq.clicked.connect(self.open_pre_stack_dlg)
@@ -216,7 +411,7 @@ class MainControls(QMainWindow):
         self.actionSEMSettings.triggered.connect(self.open_sem_dlg)
         self.actionMicrotomeSettings.triggered.connect(self.open_microtome_dlg)
         self.actionGridSettings.triggered.connect(
-            lambda: self.open_grid_dlg(self.current_grid))
+            lambda: self.open_grid_dlg(self.grid_index_dropdown))
         self.actionAcquisitionSettings.triggered.connect(
             self.open_acq_settings_dlg)
         self.actionMonitoringSettings.triggered.connect(
@@ -274,26 +469,22 @@ class MainControls(QMainWindow):
             self.debris_detection_test)
         self.pushButton_testCustom.clicked.connect(self.custom_test)
         # Checkboxes:
-        self.checkBox_useMonitoring.setChecked(
-            self.cfg['acq']['use_email_monitoring'] == 'True')
-        self.checkBox_takeOV.setChecked(
-            self.cfg['acq']['take_overviews'] == 'True')
+        self.checkBox_useMonitoring.setChecked(self.acq.use_email_monitoring)
+        self.checkBox_takeOV.setChecked(self.acq.take_overviews)
         if not self.checkBox_takeOV.isChecked():
             # Deactivate debris detection option when overviews deactivated:
-            self.cfg['acq']['use_debris_detection'] = 'False'
+            self.acq.use_debris_detection = False
             self.checkBox_useDebrisDetection.setChecked(False)
             self.checkBox_useDebrisDetection.setEnabled(False)
         self.checkBox_useDebrisDetection.setChecked(
-            self.cfg['acq']['use_debris_detection'] == 'True')
-        self.checkBox_askUser.setChecked(
-            self.cfg['acq']['ask_user'] == 'True')
-        self.checkBox_mirrorDrive.setChecked(
-            self.cfg['sys']['use_mirror_drive'] == 'True')
-        self.checkBox_monitorTiles.setChecked(
-            self.cfg['acq']['monitor_images'] == 'True')
-        self.checkBox_useAutofocus.setChecked(
-            self.cfg['acq']['use_autofocus'] == 'True')
-        if int(self.cfg['autofocus']['method']) == 2:
+            self.acq.use_debris_detection)
+        self.checkBox_askUser.setChecked(self.acq.ask_user_mode)
+        self.checkBox_mirrorDrive.setChecked(self.acq.use_mirror_drive)
+        self.checkBox_monitorTiles.setChecked(self.acq.monitor_images)
+        self.checkBox_useAutofocus.setChecked(self.acq.use_autofocus)
+        # Change label of option 'Autofocus' to 'Focus tracking'
+        # if method 2 (focus tracking) is selected
+        if self.autofocus.method == 2:
             self.checkBox_useAutofocus.setText('Focus tracking')
         # Checkbox updates:
         self.checkBox_useMonitoring.stateChanged.connect(
@@ -311,275 +502,74 @@ class MainControls(QMainWindow):
         self.checkBox_zoom.stateChanged.connect(self.ft_toggle_zoom)
         # Progress bar for stack acquisitions:
         self.progressBar.setValue(0)
-        # Limit the log to user-specified number of most recent lines:
+        # Limit the log to user-specified number of most recent lines
         self.textarea_log.setMaximumBlockCount(
             int(self.cfg['monitoring']['max_log_line_count']))
 
-        if self.cfg['sys']['magc_mode'] == 'False':
+        if not self.magc_mode:
             # If not in MagC mode, disable MagC tab
             self.tabWidget.setTabEnabled(3, False)
             self.actionImportMagCMetadata.setEnabled(False)
         else:
             self.initialize_magc_gui()
-
-    def import_system_settings(self):
-        """Import settings from the system configuration file."""
-        # Device names
-        recognized_devices = json.loads(self.syscfg['device']['recognized'])
-        try:
-            self.cfg['sem']['device'] = (
-                recognized_devices[int(self.syscfg['device']['sem'])])
-        except:
-            self.cfg['sem']['device'] = 'NOT RECOGNIZED'
-        try:
-            self.cfg['microtome']['device'] = (
-                recognized_devices[int(self.syscfg['device']['microtome'])])
-        except:
-            self.cfg['microtome']['device'] = 'NOT RECOGNIZED'
-
-        # Get microtome motor limits from system cfg file:
-        motor_limits = json.loads(self.syscfg['stage']['microtome_motor_limits'])
-        self.cfg['microtome']['stage_min_x'] = str(motor_limits[0])
-        self.cfg['microtome']['stage_max_x'] = str(motor_limits[1])
-        self.cfg['microtome']['stage_min_y'] = str(motor_limits[2])
-        self.cfg['microtome']['stage_max_y'] = str(motor_limits[3])
-        # Get SEM motor limits from system cfg file:
-        motor_limits = json.loads(self.syscfg['stage']['sem_motor_limits'])
-        self.cfg['sem']['stage_min_x'] = str(motor_limits[0])
-        self.cfg['sem']['stage_max_x'] = str(motor_limits[1])
-        self.cfg['sem']['stage_min_y'] = str(motor_limits[2])
-        self.cfg['sem']['stage_max_y'] = str(motor_limits[3])
-        # Get microtome motor speeds from system cfg file:
-        motor_speed = json.loads(self.syscfg['stage']['microtome_motor_speed'])
-        self.cfg['microtome']['motor_speed_x'] = str(motor_speed[0])
-        self.cfg['microtome']['motor_speed_y'] = str(motor_speed[1])
-        # Get SEM motor speeds from system cfg file:
-        motor_speed = json.loads(self.syscfg['stage']['sem_motor_speed'])
-        self.cfg['sem']['motor_speed_x'] = str(motor_speed[0])
-        self.cfg['sem']['motor_speed_y'] = str(motor_speed[1])
-        # Knife settings:
-        self.cfg['microtome']['full_cut_duration'] = (
-            self.syscfg['knife']['full_cut_duration'])
-        self.cfg['microtome']['sweep_distance'] = (
-            self.syscfg['knife']['sweep_distance'])
-        # Plasma cleaner:
-        self.cfg['sys']['plc_installed'] = self.syscfg['plc']['installed']
-        self.cfg['sys']['plc_com_port'] = self.syscfg['plc']['com_port']
-        # E-Mail settings:
-        self.cfg['sys']['email_account'] = self.syscfg['email']['account']
-        self.cfg['sys']['email_smtp'] = self.syscfg['email']['smtp_server']
-        self.cfg['sys']['email_imap'] = self.syscfg['email']['imap_server']
-        # Meta server:
-        self.cfg['sys']['metadata_server_url'] = (
-            self.syscfg['metaserver']['url'])
-        self.cfg['sys']['metadata_server_admin'] = (
-            self.syscfg['metaserver']['admin_email'])
-
-    def initial_setup(self):
-        """Set up the main control variables, the triggers/queues,
-           the instances for controlling the SEM and the 3View. Also create
-           instances of the grid manager, OV manager, image_inspector,
-           autofocus and the stack object. Initialize the APIs.
-        """
-        self.acq_in_progress = False
-        self.acq_paused = False
-        self.simulation_mode = self.cfg['sys']['simulation_mode'] == 'True'
-        self.use_microtome = self.cfg['sys']['use_microtome'] == 'True'
-        self.plc_installed = self.cfg['sys']['plc_installed'] == 'True'
-        self.plc_initialized = False
-        self.statusbar_msg = ''
-
-        # If workspace does not exist, create directories:
-        workspace_dir = self.cfg['acq']['base_dir'] + '\\workspace'
-        if not os.path.exists(workspace_dir):
-            self.try_to_create_directory(workspace_dir)
-
-        # Current OV and grid settings displayed in GUI:
-        self.current_ov = 0
-        self.current_grid = 0
-
-        # Set up trigger to update information from Viewport:
-        self.viewport_trigger = Trigger()
-        self.viewport_trigger.s.connect(self.process_viewport_signal)
-        self.viewport_queue = Queue()
-
-        # Set up update function that is called during main acquisition loop
-        # in thread:
-        self.acq_trigger = Trigger()
-        self.acq_trigger.s.connect(self.process_acq_signal)
-        self.acq_queue = Queue()
-
-        # First log message:
-        self.add_to_log('CTRL: SBEMimage Version ' + self.VERSION)
-
-        utils.show_progress_in_console(40)
-
-        # Initialize coordinate system
-        self.cs = CoordinateSystem(self.cfg)
-
-        if self.cfg['sem']['device'] in [
-            "ZEISS Merlin", "ZEISS Sigma", "ZEISS GeminiSEM",
-            "ZEISS Ultra Plus"]:
-            # Initialize SEM instance to control SmartSEM API:
-            self.sem = SEM_SmartSEM(self.cfg, self.syscfg)
-            if self.sem.get_error_state() > 0:
-                self.add_to_log('SEM: Error initializing SmartSEM Remote API.')
-                self.add_to_log('SEM: ' + self.sem.get_error_cause())
-                QMessageBox.warning(
-                    self, 'Error initializing SmartSEM Remote API',
-                    'Initalization of the SmartSEM Remote API failed. Please '
-                    'verify that the Remote API is installed and configured '
-                    'correctly.'
-                    '\nSBEMimage will be run in simulation mode.',
-                    QMessageBox.Ok)
-                self.simulation_mode = True
-                self.cfg['sys']['simulation_mode'] = 'True'
-
-        # Set up overviews:
-        self.ovm = OverviewManager(self.cfg, self.sem, self.cs)
-        # Set up grids:
-        self.gm = GridManager(self.cfg, self.sem, self.cs)
-        # Set up grid/tile selectors:
-        self.update_main_controls_grid_selector()
-        self.update_main_controls_ov_selector()
-
-        utils.show_progress_in_console(50)
-
-        # Initialize DM-3View interface:
-        if (self.use_microtome
-            and self.cfg['microtome']['device'] == 'Gatan 3View'):
-            self.microtome = Microtome_3View(self.cfg, self.syscfg)
-            if self.microtome.get_error_state() == 101:
-                self.add_to_log('3VIEW: Error initializing DigitalMicrograph API.')
-                self.add_to_log('3VIEW: ' + self.microtome.get_error_cause())
-                QMessageBox.warning(
-                    self, 'Error initializing DigitalMicrograph API',
-                    'Have you forgotten to start the communication '
-                    'script in DM? \nIf yes, please load the '
-                    'script and click "Execute".'
-                    '\n\nIs the Z coordinate negative? \nIf yes, '
-                    'please set it to zero or a positive value.',
-                    QMessageBox.Retry)
-                # Try again:
-                self.microtome = Microtome_3View(self.cfg, self.syscfg)
-                if self.microtome.get_error_state() > 0:
-                    self.add_to_log(
-                        '3VIEW: Error initializing DigitalMicrograph API '
-                        '(second attempt).')
-                    self.add_to_log('3VIEW: ' + self.microtome.get_error_cause())
-                    QMessageBox.warning(
-                        self, 'Error initializing DigitalMicrograph API',
-                        'The second attempt to initalize the DigitalMicrograph '
-                        'API failed.\nSBEMimage will be run in simulation mode.',
-                        QMessageBox.Ok)
-                    self.simulation_mode = True
-                    self.cfg['sys']['simulation_mode'] = 'True'
-                else:
-                    self.add_to_log('3VIEW: Second attempt to initialize '
-                                    'DigitalMicrograph API successful.')
-
-            # Update calibration of microtome stage for current EHT:
-            self.calibration_found = (
-                self.microtome.update_stage_calibration(self.sem.get_eht()))
-            self.cs.apply_stage_calibration()
-            if not self.calibration_found:
-                self.add_to_log(
-                    'CTRL: Warning - No stage calibration found for current EHT.')
-
-        elif (self.use_microtome
-              and self.cfg['microtome']['device'] == 'ConnectomX katana'):
-            self.microtome = Microtome_katana(self.cfg, self.syscfg)
-
-        else:
-            # No microtome - use SEM stage
-            self.microtome = None
-            # Update calibration of SEM stage for current EHT:
-            self.calibration_found = (
-                self.sem.update_stage_calibration(self.sem.get_eht()))
-            self.cs.apply_stage_calibration()
-            if not self.calibration_found:
-                self.add_to_log(
-                    'CTRL: Warning - No stage calibration found for current EHT.')
-            # Restrict GUI: microtome functions are not available:
-            self.restrict_gui_for_sem_stage()
-
-        utils.show_progress_in_console(70)
-        # Stage instance:
-        self.stage = Stage(self.sem, self.microtome,
-                           self.use_microtome)
-
-        # Enable plasma cleaner tool button if plasma cleaner installed:
+        # Enable plasma cleaner GUI elements if plasma cleaner installed.
         self.toolButton_plasmaCleaner.setEnabled(self.plc_installed)
         self.checkBox_plasmaCleaner.setEnabled(self.plc_installed)
         self.actionPlasmaCleanerSettings.setEnabled(self.plc_installed)
-
-        # Set up Image Inspector instance:
-        self.img_inspector = ImageInspector(self.cfg, self.ovm)
-
-        # Set up autofocus instance:
-        self.af = Autofocus(self.cfg, self.sem, self.gm,
-                            self.acq_queue, self.acq_trigger)
-        # Finally, the stack instance:
-        self.stack = Stack(self.cfg,
-                           self.sem, self.microtome, self.stage,
-                           self.ovm, self.gm, self.cs,
-                           self.img_inspector, self.af,
-                           self.acq_queue, self.acq_trigger)
 
     def try_to_create_directory(self, new_directory):
         """Create directory. If not possible: error message"""
         try:
             os.makedirs(new_directory)
-        except:
+        except Exception as e:
             QMessageBox.warning(
                 self, 'Could not create directory',
-                'Could not create directory "%s". Make sure the drive/folder '
-                'is available for write access.' % new_directory,
+                f'Could not create directory {new_directory}: {str(e)}',
                 QMessageBox.Ok)
 
-    def update_main_controls_grid_selector(self, current_grid=0):
-        """Update the combo box for grid selection in the main window."""
-        if current_grid >= self.gm.get_number_grids():
-            current_grid = 0
+    def update_main_controls_grid_selector(self, grid_index=0):
+        """Update the combo box for grid selection in Main Controls window."""
+        if grid_index >= self.gm.number_grids:
+            grid_index = 0
         self.comboBox_gridSelector.blockSignals(True)
         self.comboBox_gridSelector.clear()
-        grid_list_str = self.gm.get_grid_str_list()
-        for i in range(self.gm.get_number_grids()):
+        grid_list_str = self.gm.grid_selector_list()
+        for i in range(self.gm.number_grids):
             colour_icon = QPixmap(18, 9)
-            rgb = self.gm.get_display_colour(i)
+            rgb = self.gm[i].display_colour_rgb()
             colour_icon.fill(QColor(rgb[0], rgb[1], rgb[2]))
             self.comboBox_gridSelector.addItem(
                 QIcon(colour_icon), '   ' + grid_list_str[i])
-        self.current_grid = current_grid
-        self.comboBox_gridSelector.setCurrentIndex(current_grid)
+        self.grid_index_dropdown = grid_index
+        self.comboBox_gridSelector.setCurrentIndex(grid_index)
         self.comboBox_gridSelector.currentIndexChanged.connect(
             self.change_grid_settings_display)
         self.comboBox_gridSelector.blockSignals(False)
 
-    def update_main_controls_ov_selector(self, current_ov=0):
-        """Update the combo box for OV selection in the main window."""
-        if current_ov >= self.ovm.get_number_ov():
-            current_ov = 0
+    def update_main_controls_ov_selector(self, ov_index=0):
+        """Update the combo box for OV selection in the Main Controls window."""
+        if ov_index >= self.ovm.number_ov:
+            ov_index = 0
         self.comboBox_OVSelector.blockSignals(True)
         self.comboBox_OVSelector.clear()
-        ov_list_str = self.ovm.get_ov_str_list()
+        ov_list_str = self.ovm.ov_selector_list()
         self.comboBox_OVSelector.addItems(ov_list_str)
-        self.current_ov = current_ov
-        self.comboBox_OVSelector.setCurrentIndex(current_ov)
+        self.ov_index_dropdown = ov_index
+        self.comboBox_OVSelector.setCurrentIndex(ov_index)
         self.comboBox_OVSelector.currentIndexChanged.connect(
             self.change_ov_settings_display)
         self.comboBox_OVSelector.blockSignals(False)
 
     def change_grid_settings_display(self):
-        self.current_grid = self.comboBox_gridSelector.currentIndex()
+        self.grid_index_dropdown = self.comboBox_gridSelector.currentIndex()
         self.show_current_settings()
 
     def change_ov_settings_display(self):
-        self.current_ov = self.comboBox_OVSelector.currentIndex()
+        self.ov_index_dropdown = self.comboBox_OVSelector.currentIndex()
         self.show_current_settings()
 
     def show_current_settings(self):
-        """Show current settings in the upper part of the main window"""
+        """Show current settings in the upper part of the Main Conrols window"""
         # Installed devices:
         self.label_SEM.setText(self.sem.device_name)
         if self.use_microtome:
@@ -589,64 +579,62 @@ class MainControls(QMainWindow):
             self.label_microtome.setText(self.sem.device_name)
         # SEM beam settings:
         self.label_beamSettings.setText(
-            '{0:.2f}'.format(self.sem.get_eht()) + ' kV / '
-            + str(self.sem.get_beam_current()) + ' pA')
+            '{0:.2f}'.format(self.sem.target_eht) + ' kV / '
+            + str(self.sem.target_beam_current) + ' pA')
         # Show dwell time, pixel size, and frame size for current grid:
         self.label_tileDwellTime.setText(
-            str(self.gm.get_dwell_time(self.current_grid)) + ' µs')
+            str(self.gm[self.grid_index_dropdown].dwell_time) + ' µs')
         self.label_tilePixelSize.setText(
-            str(self.gm.get_pixel_size(self.current_grid)) + ' nm')
+            str(self.gm[self.grid_index_dropdown].pixel_size) + ' nm')
         self.label_tileSize.setText(
-            str(self.gm.get_tile_width_p(self.current_grid))
+            str(self.gm[self.grid_index_dropdown].tile_width_p())
             + ' × '
-            + str(self.gm.get_tile_height_p(self.current_grid)))
+            + str(self.gm[self.grid_index_dropdown].tile_height_p()))
         # Show settings for current OV:
         self.label_OVDwellTime.setText(
-            str(self.ovm.get_ov_dwell_time(self.current_ov)) + ' µs')
+            str(self.ovm[self.ov_index_dropdown].dwell_time) + ' µs')
         self.label_OVMagnification.setText(
-            str(self.ovm.get_ov_magnification(self.current_ov)))
+            str(self.ovm[self.ov_index_dropdown].magnification))
         self.label_OVSize.setText(
-            str(self.ovm.get_ov_width_p(self.current_ov))
+            str(self.ovm[self.ov_index_dropdown].width_p())
             + ' × '
-            + str(self.ovm.get_ov_height_p(self.current_ov)))
-        ov_centre = self.cs.get_ov_centre_s(self.current_ov)
-        ov_centre_str = ('X: {0:.3f}'.format(ov_centre[0])
-                         + ', Y: {0:.3f}'.format(ov_centre[1]))
-        self.label_OVLocation.setText(ov_centre_str)
-        # Debris detection area:
-        if bool(self.cfg['acq']['use_debris_detection']):
+            + str(self.ovm[self.ov_index_dropdown].height_p()))
+        ov_centre = self.ovm[self.ov_index_dropdown].centre_sx_sy
+        self.label_OVLocation.setText('X: {0:.3f}'.format(ov_centre[0])
+                                      + ', Y: {0:.3f}'.format(ov_centre[1]))
+        # Debris detection area
+        if self.acq.use_debris_detection:
             self.label_debrisDetectionArea.setText(
-                str(self.ovm.get_ov_debris_detection_area(self.current_ov)))
+                str(self.ovm[self.ov_index_dropdown].debris_detection_area))
         else:
             self.label_debrisDetectionArea.setText('-')
         # Grid parameters
-        grid_origin = self.cs.get_grid_origin_s(self.current_grid)
-        grid_origin_str = ('X: {0:.3f}'.format(grid_origin[0])
-                           + ', Y: {0:.3f}'.format(grid_origin[1]))
-        self.label_gridOrigin.setText(grid_origin_str)
-        # Tile grid parameters:
-        grid_size = self.gm.get_grid_size(self.current_grid)
+        grid_origin = self.gm[self.grid_index_dropdown].origin_sx_sy
+        self.label_gridOrigin.setText('X: {0:.3f}'.format(grid_origin[0])
+                                      + ', Y: {0:.3f}'.format(grid_origin[1]))
+        # Tile grid parameters
+        grid_size = self.gm[self.grid_index_dropdown].size
         self.label_gridSize.setText(str(grid_size[0]) + ' × ' +
                                     str(grid_size[1]))
         self.label_numberActiveTiles.setText(
-            str(self.gm.get_number_active_tiles(self.current_grid)))
+            str(self.gm[self.grid_index_dropdown].number_active_tiles()))
         # Acquisition parameters
-        self.lineEdit_baseDir.setText(self.cfg['acq']['base_dir'])
-        self.label_numberSlices.setText(self.cfg['acq']['number_slices'])
+        self.lineEdit_baseDir.setText(self.acq.base_dir)
+        self.label_numberSlices.setText(str(self.acq.number_slices))
         if self.use_microtome:
             self.label_sliceThickness.setText(
-                self.cfg['acq']['slice_thickness'] + ' nm')
+                str(self.acq.slice_thickness) + ' nm')
         else:
             self.label_sliceThickness.setText('---')
 
-    def show_estimates(self):
+    def show_stack_acq_estimates(self):
         """Read current estimates from the stack instance and display
            them in the main window.
         """
         # Get current estimates:
         (min_dose, max_dose, total_area, total_z, total_data,
         total_imaging, total_stage_moves, total_cutting,
-        date_estimate, remaining_time) = self.stack.calculate_estimates()
+        date_estimate, remaining_time) = self.acq.calculate_estimates()
         total_duration = total_imaging + total_stage_moves + total_cutting
         if min_dose == max_dose:
             self.label_dose.setText(
@@ -671,77 +659,95 @@ class MainControls(QMainWindow):
             date_estimate + f'   ({days} d {hours} h {minutes} min remaining)')
 
     def update_acq_options(self):
-        self.cfg['acq']['use_email_monitoring'] = str(
+        """Update the options for the stack acquisition selected by the user
+        in the GUI (check boxes in acquisition panel)."""
+        self.acq.use_email_monitoring = (
             self.checkBox_useMonitoring.isChecked())
-        self.cfg['acq']['take_overviews'] = str(
-            self.checkBox_takeOV.isChecked())
+        self.acq.take_overviews = self.checkBox_takeOV.isChecked()
         if not self.checkBox_takeOV.isChecked():
-            # Deactivate debris detection option when no overviews:
+            # Deactivate debris detection option when no overviews are taken
             self.checkBox_useDebrisDetection.setChecked(False)
             self.checkBox_useDebrisDetection.setEnabled(False)
         else:
-            # Activate
+            # Activate debris detection
             self.checkBox_useDebrisDetection.setEnabled(True)
-        self.cfg['acq']['use_debris_detection'] = str(
+        self.acq.use_debris_detection = (
             self.checkBox_useDebrisDetection.isChecked())
-        self.cfg['acq']['ask_user'] = str(self.checkBox_askUser.isChecked())
-        self.cfg['sys']['use_mirror_drive'] = str(
-            self.checkBox_mirrorDrive.isChecked())
-        self.cfg['acq']['monitor_images'] = str(
-            self.checkBox_monitorTiles.isChecked())
-        self.cfg['acq']['use_autofocus'] = str(
-            self.checkBox_useAutofocus.isChecked())
-        self.show_estimates()
-        self.viewport.mv_draw()
+        self.acq.ask_user_mode = self.checkBox_askUser.isChecked()
+        self.acq.use_mirror_drive = self.checkBox_mirrorDrive.isChecked()
+        self.acq.monitor_images = self.checkBox_monitorTiles.isChecked()
+        self.acq.use_autofocus = self.checkBox_useAutofocus.isChecked()
+        # Show updated stack estimates (depend on options selected)
+        self.show_stack_acq_estimates()
+        # Show updated debris detectiona area
+        self.show_current_settings()
+        # Redraw Viewport canvas (some labels may have changed)
+        self.viewport.vp_draw()
 
 # ----------------------------- MagC tab ---------------------------------------
 
     def initialize_magc_settings(self):
         self.cfg['magc']['selected_sections'] = '[]'
         self.cfg['magc']['checked_sections'] = '[]'
-        # for now, start of SBEMimage restarts all sections and wafer_calibration
+        # for now, start of SBEMimage restarts all sections and
+        # wafer_calibration
         self.cfg['magc']['wafer_calibrated'] = 'False'
 
     def initialize_magc_gui(self):
         self.actionImportMagCMetadata.triggered.connect(
-        self.magc_open_import_dlg)
+            self.magc_open_import_dlg)
 
         # initialize the sectionList (QTableView)
         sectionListModel = QStandardItemModel(0, 0)
         sectionListModel.setHorizontalHeaderItem(0, QStandardItem('Section'))
         sectionListModel.setHorizontalHeaderItem(1, QStandardItem('State'))
         self.tableView_magc_sectionList.setModel(sectionListModel)
-        self.tableView_magc_sectionList.selectionModel().selectionChanged.connect(self.magc_actions_selected_sections_changed)
+        self.tableView_magc_sectionList.selectionModel(
+            ).selectionChanged.connect(
+                self.magc_actions_selected_sections_changed)
 
         header = self.tableView_magc_sectionList.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
         header.setStretchLastSection(True)
 
-        self.tableView_magc_sectionList.doubleClicked.connect(self.magc_double_clicked_section)
+        self.tableView_magc_sectionList.doubleClicked.connect(
+            self.magc_double_clicked_section)
 
         # set logo
         self.collectomeLogo.setScaledContents(True)
-        self.collectomeLogo.setPixmap(QPixmap(os.path.join('..','magc','img','collectome_logo.png')))
+        self.collectomeLogo.setPixmap(
+            QPixmap(os.path.join('..','magc','img','collectome_logo.png')))
 
         # initialize other MagC GUI items
-        self.pushButton_magc_importMagc.clicked.connect(self.magc_open_import_dlg)
-        self.pushButton_magc_waferCalibration.clicked.connect(self.magc_open_wafer_calibration_dlg)
+        self.pushButton_magc_importMagc.clicked.connect(
+            self.magc_open_import_dlg)
+        self.pushButton_magc_waferCalibration.clicked.connect(
+            self.magc_open_wafer_calibration_dlg)
         self.pushButton_magc_resetMagc.clicked.connect(self.magc_reset)
         self.pushButton_magc_selectAll.clicked.connect(self.magc_select_all)
         self.pushButton_magc_deselectAll.clicked.connect(self.magc_deselect_all)
-        self.pushButton_magc_checkSelected.clicked.connect(self.magc_check_selected)
-        self.pushButton_magc_uncheckSelected.clicked.connect(self.magc_uncheck_selected)
-        self.pushButton_magc_invertSelection.clicked.connect(self.magc_invert_selection)
-        self.pushButton_magc_selectChecked.clicked.connect(self.magc_select_checked)
-        self.pushButton_magc_okStringSections.clicked.connect(self.magc_select_string_sections)
-        self.pushButton_magc_importWaferImage.clicked.connect(self.magc_open_import_wafer_image)
-        self.pushButton_magc_addSection.clicked.connect(self.magc_add_section)
-        if self.cfg['magc']['wafer_calibrated'] == 'False':
+        self.pushButton_magc_checkSelected.clicked.connect(
+            self.magc_check_selected)
+        self.pushButton_magc_uncheckSelected.clicked.connect(
+            self.magc_uncheck_selected)
+        self.pushButton_magc_invertSelection.clicked.connect(
+            self.magc_invert_selection)
+        self.pushButton_magc_selectChecked.clicked.connect(
+            self.magc_select_checked)
+        self.pushButton_magc_okStringSections.clicked.connect(
+            self.magc_select_string_sections)
+        self.pushButton_magc_importWaferImage.clicked.connect(
+            self.magc_open_import_wafer_image)
+        self.pushButton_magc_addSection.clicked.connect(
+            self.magc_add_section)
+        if self.cfg['magc']['wafer_calibrated'].lower() == 'false':
             self.pushButton_magc_addSection.setEnabled(False)
-        self.pushButton_magc_deleteLastSection.clicked.connect(self.magc_delete_last_section)
+        self.pushButton_magc_deleteLastSection.clicked.connect(
+            self.magc_delete_last_section)
 
-        self.pushButton_magc_waferCalibration.setStyleSheet('background-color: lightgray')
+        self.pushButton_magc_waferCalibration.setStyleSheet(
+            'background-color: lightgray')
         self.pushButton_magc_waferCalibration.setEnabled(False)
 
     def magc_select_all(self):
@@ -787,10 +793,12 @@ class MainControls(QMainWindow):
         indexes = utils.get_indexes_from_user_string(userString)
         if indexes:
             self.magc_select_rows(indexes)
-            self.tableView_magc_sectionList.verticalScrollBar().setValue(indexes[0])
+            self.tableView_magc_sectionList.verticalScrollBar().setValue(
+                indexes[0])
             self.add_to_log('Custom section string selection: ' + userString)
         else:
-            self.add_to_log('Something wrong in your input. Use 2,5,3 or 2-30 or 2-30-5')
+            self.add_to_log(
+                'Something wrong in your input. Use 2,5,3 or 2-30 or 2-30-5')
 
     def magc_set_check_rows(self, rows, check_state):
         tableView = self.tableView_magc_sectionList
@@ -810,19 +818,21 @@ class MainControls(QMainWindow):
         selection = QItemSelection()
         for row in rows:
             index = model.index(row, 0)
-            selection.merge(QItemSelection(index, index), QItemSelectionModel.Select)
+            selection.merge(
+                QItemSelection(index, index), QItemSelectionModel.Select)
         selectionModel.select(selection, QItemSelectionModel.Select)
         self.tableView_magc_sectionList.setFocus()
 
-    def magc_actions_selected_sections_changed(self, changedSelected, changedDeselected):
+    def magc_actions_selected_sections_changed(self, changedSelected,
+                                               changedDeselected):
         # update color of selected/deselected sections
         for changedSelectedIndex in changedSelected.indexes():
             row = changedSelectedIndex.row()
-            self.gm.set_display_colour(grid_number=row, colour=0)
+            self.gm[row].display_colour = 0
         for changedDeselectedIndex in changedDeselected.indexes():
             row = changedDeselectedIndex.row()
-            self.gm.set_display_colour(grid_number=row, colour=1)
-        self.viewport.mv_draw()
+            self.gm[row].display_colour = 1
+        self.viewport.vp_draw()
         # update config
         tableView = self.tableView_magc_sectionList
         selectedRows = [id.row() for id in tableView.selectedIndexes()]
@@ -843,19 +853,24 @@ class MainControls(QMainWindow):
         row = doubleClickedIndex.row()
         model = doubleClickedIndex.model()
         firstColumnIndex = model.index(row, 0)
-        sectionKey = int(model.data(firstColumnIndex)) # the index and the key of the section should in theory be the same, just in case
-        self.cs.set_mv_centre_d(self.gm.get_grid_centre_d(grid_number=row))
-        self.viewport.mv_draw()
+        # the index and the key of the section should in theory be the same,
+        # just in case
+        sectionKey = int(model.data(firstColumnIndex))
+        self.cs.vp_centre_dx_dy = self.gm[row].centre_dx_dy
+        self.viewport.vp_draw()
         if self.cfg['magc']['wafer_calibrated'] == 'True':
-            self.add_to_log('Section ' + str(sectionKey) + ' has been double-clicked. Moving to section...')
+            self.add_to_log('Section ' + str(sectionKey)
+                            + ' has been double-clicked. Moving to section...')
             # set scan rotation
-            theta = self.gm.get_rotation(row)
+            theta = self.gm[row].rotation
             self.sem.set_scan_rotation(theta)
             # set stage
-            grid_center_s = self.gm.get_grid_center_s(grid_number=row)
+            grid_center_s = self.gm[row].centre_sx_sy
             self.stage.move_to_xy(grid_center_s)
         else:
-            self.add_to_log('Section ' + str(sectionKey) + ' has been double-clicked. Wafer is not calibrated, therefore no stage movement.')
+            self.add_to_log('Section ' + str(sectionKey)
+                            + ' has been double-clicked. Wafer is not '
+                            + 'calibrated, therefore no stage movement.')
 
     def magc_set_section_state_in_table(self, msg):
         tableModel = self.tableView_magc_sectionList.model()
@@ -879,56 +894,57 @@ class MainControls(QMainWindow):
         self.cfg['magc']['checked_sections'] = '[]'
         self.gm.delete_all_but_last_grid()
         self.viewport.update_grids()
-        self.viewport.mv_draw()
+        self.viewport.vp_draw()
         tableModel = self.tableView_magc_sectionList.model()
         tableModel.removeRows(0, tableModel.rowCount(), QModelIndex())
         # unenable wafer calibration button
         self.pushButton_magc_waferCalibration.setEnabled(False)
         # change wafer flag
-        self.pushButton_magc_waferCalibration.setStyleSheet('background-color: lightgray')
+        self.pushButton_magc_waferCalibration.setStyleSheet(
+            'background-color: lightgray')
         self.save_ini()
 
         # # remove wafer image (broken, do not understand why ...)
         # imported_img_file_list = self.ovm.get_imported_img_file_list()
-        # wafer_img_number_list = [i for (i,f) in enumerate(imported_img_file_list)
-            # if 'afer' in os.path.basename(f)]
+        # wafer_img_number_list = [
+        #     i for (i,f) in enumerate(imported_img_file_list)
+        #     if 'afer' in os.path.basename(f)]
         # if len(wafer_img_number_list) != 1:
-            # print('Did not reset wafer image because more than one wafer image found')
+        #   print('Did not reset wafer image because more than one wafer image found')
         # else:
-            # wafer_img_number = wafer_img_number_list[0]
-            # print('delete wafer image number', wafer_img_number)
-            # self.ovm.delete_imported_img(wafer_img_number)
-            # self.viewport.mv_draw()
+        #   wafer_img_number = wafer_img_number_list[0]
+        #   print('delete wafer image number', wafer_img_number)
+        #   self.ovm.delete_imported_img(wafer_img_number)
+        #   self.viewport.vp_draw()
 
     def magc_open_import_wafer_image(self):
-        target_dir = os.path.join(self.cfg['acq']['base_dir'], 'overviews', 'imported')
+        target_dir = os.path.join(self.acq.base_dir,
+                                  'overviews', 'imported')
         if not os.path.exists(target_dir):
             self.try_to_create_directory(target_dir)
         dialog = ImportWaferImageDlg(self.ovm, self.cs, target_dir)
         if dialog.exec_():
-            self.viewport.mv_load_last_imported_image()
-            self.viewport.mv_draw()
+            self.viewport.vp_load_last_imported_image()
+            self.viewport.vp_draw()
 
     def magc_add_section(self):
         self.gm.add_new_grid()
-        grid_number = self.gm.get_number_grids() - 1
-        self.cs.set_grid_origin_s(grid_number, list(*self.stage.get_xy()))
+        grid_index = self.gm.number_grids - 1
+        self.gm[grid_index].origin_sx_sy = list(*self.stage.get_xy())
 
         # set same properties as previous section if it exists
-        if grid_number != 0:
-            self.gm.set_rotation(grid_number,
-                    self.gm.get_rotation(grid_number-1))
-            self.gm.set_grid_size(grid_number,
-                    *self.gm.get_grid_size(grid_number-1))
-            self.gm.set_tile_size_selector(grid_number,
-                    self.gm.get_tile_size_selector(grid_number-1))
-            self.gm.set_pixel_size(grid_number,
-                    self.gm.get_pixel_size(grid_number-1))
-        self.gm.calculate_grid_map(grid_number)
+        if grid_index != 0:
+            self.gm[grid_index].rotation = self.gm[grid_index-1].rotation
+            self.gm[grid_index].size = self.gm[grid_index-1].size
+            self.gm[grid_index].frame_size_selector = (
+                self.gm[grid_index-1].frame_size_selector)
+            self.gm[grid_index].pixel_size = self.gm[grid_index-1].pixel_size
+
+        self.gm[grid_index].update_tile_positions()
         self.update_from_grid_dlg()
 
         # add section to the sectionList
-        item1 = QStandardItem(str(grid_number))
+        item1 = QStandardItem(str(grid_index))
         item1.setCheckable(True)
         item2 = QStandardItem('')
         item2.setBackground(color_not_acquired)
@@ -951,7 +967,8 @@ class MainControls(QMainWindow):
         selected_sections = json.loads(self.cfg['magc']['selected_sections'])
         if lastSectionNumber in selected_sections:
             selected_sections.remove(lastSectionNumber)
-            self.cfg['magc']['selected_sections'] = json.dumps(selected_sections)
+            self.cfg['magc']['selected_sections'] = json.dumps(
+                selected_sections)
 
         checked_sections = json.loads(self.cfg['magc']['checked_sections'])
         if lastSectionNumber in checked_sections:
@@ -960,28 +977,29 @@ class MainControls(QMainWindow):
         self.save_ini()
 
     def magc_open_import_dlg(self):
-        gui_items = {
-        'sectionList': self.tableView_magc_sectionList,
-        }
-        dialog = ImportMagCDlg(self.cfg, self.gm, self.cs, self.stage, self.sem, self.ovm, self.viewport, gui_items, self.acq_trigger, self.acq_queue)
+        gui_items = {'sectionList': self.tableView_magc_sectionList,}
+        dialog = ImportMagCDlg(self.cfg, self.gm, self.cs, self.stage,
+                               self.sem, self.ovm, self.viewport, gui_items,
+                               self.trigger)
         if dialog.exec_():
             # self.tabWidget.setTabEnabled(3, True)
             self.update_from_grid_dlg()
 
     def magc_open_wafer_calibration_dlg(self):
-        dialog = WaferCalibrationDlg(self.cfg, self.stage, self.ovm, self.cs, self.gm, self.viewport, self.acq_queue, self.acq_trigger)
+        dialog = WaferCalibrationDlg(self.cfg, self.stage, self.ovm, self.cs,
+                                     self.gm, self.viewport, self.trigger)
         if dialog.exec_():
             pass
 
 # --------------------------- End of MagC tab ----------------------------------
 
 
-# ============== Below: all methods that open dialog windows ==================
+# =============== Below: all methods that open dialog windows ==================
 
     def open_mag_calibration_dlg(self):
-        dialog = MagCalibrationDlg(self.sem, self.ovm)
+        dialog = MagCalibrationDlg(self.sem)
         if dialog.exec_():
-            # Show updated OV mag:
+            # Show updated OV magnification
             self.show_current_settings()
 
     def open_save_settings_new_file_dlg(self):
@@ -989,156 +1007,115 @@ class MainControls(QMainWindow):
         if dialog.exec_():
             if self.cfg['sys']['sys_config_file'] == 'system.cfg':
                 self.cfg['sys']['sys_config_file'] = 'this_system.cfg'
-            self.gm.save_wd_stig_data_to_cfg()
-            self.cfg_file = dialog.get_file_name()
-            # Write all settings to disk
-            file = open('..\\cfg\\' + self.cfg_file, 'w')
-            self.cfg.write(file)
-            file.close()
-            # also save system settings:
-            file = open('..\\cfg\\' + self.cfg['sys']['sys_config_file'], 'w')
-            self.syscfg.write(file)
-            file.close()
-            self.add_to_log('CTRL: Settings saved to disk.')
-            # Show new config file name in status bar:
+            self.cfg_file = dialog.file_name
+            self.save_config_to_disk()
+            # Show new config file name in status bar
             self.set_statusbar('Ready.')
 
     def open_sem_dlg(self):
         dialog = SEMSettingsDlg(self.sem)
         if dialog.exec_():
-            self.calibration_found = True
             if self.microtome is not None:
-                # Update stage calibration (EHT may have changed):
-                self.calibration_found = (
-                    self.microtome.update_stage_calibration(self.sem.get_eht()))
+                # Update stage calibration (EHT may have changed)
+                self.cs.load_stage_calibration(self.sem.target_eht)
                 self.cs.apply_stage_calibration()
             self.show_current_settings()
-            # Electron dose may have changed:
-            self.show_estimates()
-            if (self.cfg['debris']['auto_detection_area'] == 'True'):
-                self.ovm.update_all_ov_debris_detections_areas(self.gm)
-            self.viewport.mv_draw()
-            if not self.calibration_found:
+            # Electron dose may have changed
+            self.show_stack_acq_estimates()
+            if self.ovm.use_auto_debris_area:
+                self.ovm.update_all_debris_detections_areas(self.gm)
+            self.viewport.vp_draw()
+            if not self.cs.calibration_found:
                 self.add_to_log(
-                    'CTRL: Warning - No stage calibration found for current EHT.')
+                    'CTRL: Warning - No stage calibration found for '
+                    'current EHT.')
                 QMessageBox.warning(
                     self, 'Missing stage calibration',
-                    'No stage calibration settings were found for the currently '
-                    'selected EHT. Please calibrate the stage:'
+                    'No stage calibration settings were found for the '
+                    'currently selected EHT. Please calibrate the stage:'
                     '\nMenu  →  Calibration  →  Stage calibration',
                     QMessageBox.Ok)
 
     def open_microtome_dlg(self):
-        if self.cfg['microtome']['device'] == 'Gatan 3View':
-            dialog = MicrotomeSettingsDlg(self.microtome, self.sem,
+        if self.microtome.device_name == 'Gatan 3View':
+            dialog = MicrotomeSettingsDlg(self.microtome, self.sem, self.cs,
                                           self.use_microtome)
             if dialog.exec_():
-                self.cs.load_stage_limits()
-                self.viewport.mv_load_stage_limits()
                 self.show_current_settings()
-                self.show_estimates()
-                self.viewport.mv_draw()
-        elif self.cfg['microtome']['device'] == 'ConnectomX katana':
+                self.show_stack_acq_estimates()
+                self.viewport.vp_draw()
+        elif self.microtome.device_name == 'ConnectomX katana':
             dialog = KatanaSettingsDlg(self.microtome)
             dialog.exec_()
 
     def open_calibration_dlg(self):
-        dialog = StageCalibrationDlg(self.cfg, self.stage, self.sem)
+        dialog = StageCalibrationDlg(self.cs, self.stage, self.sem,
+                                     self.acq.base_dir)
         if dialog.exec_():
-            self.cs.apply_stage_calibration()
-            if (self.cfg['debris']['auto_detection_area'] == 'True'):
-                self.ovm.update_all_ov_debris_detections_areas(self.gm)
-            self.viewport.mv_draw()
+            if self.ovm.use_auto_debris_area:
+                self.ovm.update_all_debris_detections_areas(self.gm)
+            self.viewport.vp_draw()
 
     def open_cut_duration_dlg(self):
         dialog = CutDurationDlg(self.microtome)
         dialog.exec_()
 
     def open_ov_dlg(self):
-        dialog = OVSettingsDlg(self.ovm, self.sem, self.current_ov,
-                               self.acq_queue, self.acq_trigger)
+        dialog = OVSettingsDlg(self.ovm, self.sem, self.ov_index_dropdown,
+                               self.trigger)
         # self.update_from_ov_dlg() is called when user saves settings
         # or adds/deletes OVs.
         dialog.exec_()
 
     def update_from_ov_dlg(self):
-        self.update_main_controls_ov_selector(self.current_ov)
+        self.update_main_controls_ov_selector(self.ov_index_dropdown)
         self.ft_update_ov_selector(self.ft_selected_ov)
         self.viewport.update_ov()
-        if bool(self.cfg['debris']['auto_detection_area']):
-            self.ovm.update_all_ov_debris_detections_areas(self.gm)
+        if self.ovm.use_auto_debris_area:
+            self.ovm.update_all_debris_detections_areas(self.gm)
         self.show_current_settings()
-        self.show_estimates()
-        self.viewport.mv_draw()
-
-    def open_import_image_dlg(self):
-        target_dir = self.cfg['acq']['base_dir'] + '\\overviews\\imported'
-        if not os.path.exists(target_dir):
-            self.try_to_create_directory(target_dir)
-        dialog = ImportImageDlg(self.ovm, self.cs, target_dir)
-        if dialog.exec_():
-            self.viewport.mv_load_last_imported_image()
-            self.viewport.mv_draw()
-
-    def open_adjust_image_dlg(self, selected_img):
-        dialog = AdjustImageDlg(self.ovm, self.cs, selected_img,
-                                self.acq_queue, self.acq_trigger)
-        dialog.exec_()
-
-    def open_delete_image_dlg(self):
-        dialog = DeleteImageDlg(self.ovm)
-        if dialog.exec_():
-            self.viewport.mv_load_all_imported_images()
-            self.viewport.mv_draw()
+        self.show_stack_acq_estimates()
+        self.viewport.vp_draw()
 
     def open_grid_dlg(self, selected_grid):
         dialog = GridSettingsDlg(self.gm, self.sem, selected_grid,
-                                 self.cfg, self.acq_queue, self.acq_trigger)
+                                 self.trigger, self.magc_mode)
         # self.update_from_grid_dlg() is called when user saves settings
         # or adds/deletes grids.
         dialog.exec_()
 
     def update_from_grid_dlg(self):
         # Update selectors:
-        self.update_main_controls_grid_selector(self.current_grid)
+        self.update_main_controls_grid_selector(self.grid_index_dropdown)
         self.ft_update_grid_selector(self.ft_selected_grid)
         self.ft_update_tile_selector()
         if self.ft_selected_ov == -1:
             self.ft_clear_wd_stig_display()
         self.viewport.update_grids()
-        if (self.cfg['debris']['auto_detection_area'] == 'True'):
-            self.ovm.update_all_ov_debris_detections_areas(self.gm)
+        if self.ovm.use_auto_debris_area:
+            self.ovm.update_all_debris_detections_areas(self.gm)
         self.show_current_settings()
-        self.show_estimates()
-        self.viewport.mv_draw()
-
-    def open_change_grid_rotation_dlg(self, selected_grid):
-        dialog = GridRotationDlg(selected_grid, self.gm, self.cfg,
-            self.acq_queue, self.acq_trigger)
-        if dialog.exec_():
-            if self.cfg['debris']['auto_detection_area'] == 'True':
-                self.ovm.update_all_ov_debris_detections_areas(self.gm)
-                self.viewport.mv_draw()
+        self.show_stack_acq_estimates()
+        self.viewport.vp_draw()
 
     def open_acq_settings_dlg(self):
-        dialog = AcqSettingsDlg(self.cfg, self.stack)
+        dialog = AcqSettingsDlg(self.acq, self.use_microtome)
         if dialog.exec_():
             self.show_current_settings()
-            self.show_estimates()
-            self.img_inspector.update_acq_settings()
-            self.update_stack_progress()   # Slice number may have changed.
+            self.show_stack_acq_estimates()
+            self.show_stack_progress()   # Slice number may have changed.
 
     def open_pre_stack_dlg(self):
         # Calculate new estimates first, then open dialog:
-        self.show_estimates()
-        dialog = PreStackDlg(self.cfg, self.ovm, self.gm,
-                             paused=self.acq_paused)
+        self.show_stack_acq_estimates()
+        dialog = PreStackDlg(self.acq, self.sem, self.microtome,
+                             self.autofocus, self.ovm, self.gm)
         if dialog.exec_():
             self.show_current_settings()
             self.start_acquisition()
 
     def open_export_dlg(self):
-        dialog = ExportDlg(self.cfg)
+        dialog = ExportDlg(self.acq)
         dialog.exec_()
 
     def open_update_dlg(self):
@@ -1146,53 +1123,47 @@ class MainControls(QMainWindow):
         dialog.exec_()
 
     def open_email_monitoring_dlg(self):
-        dialog = EmailMonitoringSettingsDlg(self.cfg, self.stack)
+        dialog = EmailMonitoringSettingsDlg(self.acq, self.notifications)
         dialog.exec_()
 
     def open_debris_dlg(self):
-        dialog = DebrisSettingsDlg(self.cfg, self.ovm)
+        dialog = DebrisSettingsDlg(self.ovm, self.img_inspector, self.acq)
         if dialog.exec_():
-            self.ovm.update_all_ov_debris_detections_areas(self.gm)
+            self.ovm.update_all_debris_detections_areas(self.gm)
             self.show_current_settings()
-            self.img_inspector.update_debris_settings()
-            self.viewport.mv_draw()
+            self.viewport.vp_draw()
 
     def open_ask_user_dlg(self):
         dialog = AskUserDlg()
         dialog.exec_()
 
     def open_mirror_drive_dlg(self):
-        dialog = MirrorDriveDlg(self.cfg)
+        dialog = MirrorDriveDlg(self.acq)
         dialog.exec_()
 
     def open_image_monitoring_dlg(self):
-        dialog = ImageMonitoringSettingsDlg(self.cfg)
-        if dialog.exec_():
-            self.img_inspector.update_monitoring_settings()
+        dialog = ImageMonitoringSettingsDlg(self.img_inspector)
+        dialog.exec_()
 
     def open_autofocus_dlg(self):
-        dialog = AutofocusSettingsDlg(
-            self.af, self.gm,
-            self.cfg['sys']['magc_mode'] == 'True')
+        dialog = AutofocusSettingsDlg(self.autofocus, self.gm, self.magc_mode)
         if dialog.exec_():
-            if self.af.get_method() == 2:
+            if self.autofocus.method == 2:
                 self.checkBox_useAutofocus.setText('Focus tracking')
             else:
                 self.checkBox_useAutofocus.setText('Autofocus')
-            self.viewport.mv_draw()
+            self.viewport.vp_draw()
 
     def open_plasma_cleaner_dlg(self):
         dialog = PlasmaCleanerDlg(self.plasma_cleaner)
         dialog.exec_()
 
     def open_approach_dlg(self):
-        # Trigger and queue needed to pass updates to main window (z coordinate)
-        dialog = ApproachDlg(self.microtome, self.acq_queue, self.acq_trigger)
+        dialog = ApproachDlg(self.microtome, self.trigger)
         dialog.exec_()
 
     def open_grab_frame_dlg(self):
-        dialog = GrabFrameDlg(self.cfg, self.sem,
-                              self.acq_queue, self.acq_trigger)
+        dialog = GrabFrameDlg(self.sem, self.acq, self.trigger)
         dialog.exec_()
 
     def open_eht_dlg(self):
@@ -1200,44 +1171,29 @@ class MainControls(QMainWindow):
         dialog.exec_()
 
     def open_motor_test_dlg(self):
-        dialog = MotorTestDlg(self.cfg, self.microtome,
-                              self.acq_queue, self.acq_trigger)
-        dialog.exec_()
-
-    def open_stub_ov_dlg(self):
-        position = self.viewport.mv_get_stub_ov_centre()
-        if position[0] is None:
-            position = self.cs.get_stub_ov_centre_s()
-        size_selector = self.ovm.get_stub_ov_size_selector()
-        dialog = StubOVDlg(position,
-                           size_selector,
-                           self.cfg['acq']['base_dir'],
-                           self.stack.get_slice_counter(),
-                           self.sem, self.stage,
-                           self.ovm, self.cs,
-                           self.acq_queue, self.acq_trigger)
+        dialog = MotorTestDlg(self.microtome, self.acq, self.trigger)
         dialog.exec_()
 
     def open_about_box(self):
         dialog = AboutBox(self.VERSION)
         dialog.exec_()
 
-# ============ Below: stack progress update and signal processing =============
+# ============ Below: stack progress update and signal processing ==============
 
-    def update_stack_progress(self):
-        current_slice = self.stack.get_slice_counter()
-        if self.stack.get_number_slices() > 0:
+    def show_stack_progress(self):
+        current_slice = self.acq.slice_counter
+        if self.acq.number_slices > 0:
             self.label_sliceCounter.setText(
                 str(current_slice) + '      (' + chr(8710) + 'Z = '
-                + '{0:.3f}'.format(self.stack.get_total_z_diff()) + ' µm)')
+                + '{0:.3f}'.format(self.acq.total_z_diff) + ' µm)')
             self.progressBar.setValue(
-                current_slice / self.stack.get_number_slices() * 100)
+                current_slice / self.acq.number_slices * 100)
         else:
             self.label_sliceCounter.setText(
                 str(current_slice) + "      (no cut after acq.)")
 
     def show_current_stage_xy(self):
-        xy_pos = self.stage.get_last_known_xy()
+        xy_pos = self.stage.last_known_xy
         if xy_pos[0] is None or xy_pos[1] is None:
             pos_info = ('X: unknown    Y: unknown')
         else:
@@ -1246,7 +1202,7 @@ class MainControls(QMainWindow):
         QApplication.processEvents() # ensures changes are shown without delay
 
     def show_current_stage_z(self):
-        z_pos = self.stage.get_last_known_z()
+        z_pos = self.stage.last_known_z
         if z_pos is None:
             pos_info = 'Z: unknown'
         else:
@@ -1276,41 +1232,121 @@ class MainControls(QMainWindow):
             e = QStatusTipEvent(self.statusbar_msg)
         return super().event(e)
 
-    def process_acq_signal(self):
-        """Process signals from acquisition thread and from dialog windows.
-           The trigger/queue approach is required to pass information
-           between threads.
+    def process_signal(self):
+        """Process signals from the acquisition thread, the viewport, or from
+        dialog windows. The trigger/queue approach is required to pass
+        information between threads and to allow the GUI to be updated from a
+        thread.
         """
-        msg = self.acq_queue.get()
-        if msg == 'OV SUCCESS':
-            self.acquire_ov_success(True)
-        elif msg == 'OV FAILURE':
-            self.acquire_ov_success(False)
-        elif msg == 'STUB OV SUCCESS':
-            self.acquire_stub_ov_success(True)
-        elif msg == 'STUB OV FAILURE':
-            self.acquire_stub_ov_success(False)
-        elif msg == 'STUB OV BUSY':
-            self.set_status('Busy.')
-            self.set_statusbar(
-                'Stub overview acquisition in progress...')
-        elif msg == 'APPROACH BUSY':
-            self.set_status('Busy.')
-            self.set_statusbar(
-                'Approach cutting in progress...')
-        elif msg == 'STATUS IDLE':
+        msg = self.trigger.queue.get()
+        if msg == 'STATUS IDLE':
             self.set_status('')
             self.set_statusbar('Ready.')
-        elif msg == 'SWEEP SUCCESS':
+        elif msg == 'STATUS BUSY APPROACH':
+            self.set_status('Busy.')
+            self.set_statusbar('Approach cutting in progress...')
+        elif msg == 'STATUS BUSY OV':
+            self.set_status('Busy.')
+            self.set_statusbar('Overview acquisition in progress...')
+        elif msg == 'STATUS BUSY STUB':
+            self.set_status('Busy.')
+            self.set_statusbar('Stub overview acquisition in progress...')
+        elif msg == 'STATUS BUSY STAGE MOVE':
+            self.set_status('Busy.')
+            self.set_statusbar('Stage move in progress...')
+        elif msg == 'UPDATE XY':
+            self.show_current_stage_xy()
+        elif msg == 'UPDATE XY FT':
+            self.ft_show_updated_stage_position()
+        elif msg == 'UPDATE Z':
             self.show_current_stage_z()
-            self.sweep_success(True)
-        elif msg == 'SWEEP FAILURE':
-            self.show_current_stage_z()
-            self.sweep_success(False)
-        elif msg == 'MOVE SUCCESS':
-            self.move_stage_success(True)
-        elif msg == 'MOVE FAILURE':
-            self.move_stage_success(False)
+        elif msg == 'UPDATE PROGRESS':
+            self.show_stack_progress()
+            self.show_stack_acq_estimates()
+        elif msg == 'MANUAL SWEEP SUCCESS':
+            self.manual_sweep_success(True)
+        elif msg == 'MANUAL SWEEP FAILURE':
+            self.manual_sweep_success(False)
+        elif msg == 'REMOTE STOP':
+            self.remote_stop()
+        elif msg == 'ERROR PAUSE':
+            self.error_pause()
+        elif msg == 'COMPLETION STOP':
+            self.completion_stop()
+        elif msg == 'ACQ NOT IN PROGRESS':
+            self.acq_not_in_progress_update_gui()
+        elif msg == 'SAVE CFG':
+            self.save_settings()
+        elif msg.startswith('ACQ IND OV'):
+            self.viewport.vp_toggle_ov_acq_indicator(
+                int(msg[len('ACQ IND OV'):]))
+        elif msg[:12] == 'ACQ IND TILE':
+            position = msg[12:].split('.')
+            self.viewport.vp_toggle_tile_acq_indicator(
+                int(position[0]), int(position[1]))
+        elif msg == 'RESTRICT GUI':
+            self.restrict_gui(True)
+        elif msg == 'RESTRICT VP GUI':
+            self.viewport.restrict_gui(True)
+        elif msg == 'UNRESTRICT GUI':
+            self.restrict_gui(False)
+        elif msg[:8] == 'SHOW MSG':
+            QMessageBox.information(self,
+                'Message received from remote server',
+                'Message text: ' + msg[8:],
+                 QMessageBox.Ok)
+        elif msg == 'GRID SETTINGS CHANGED':
+            self.update_from_grid_dlg()
+        elif msg == 'OV SETTINGS CHANGED':
+            self.update_from_ov_dlg()
+        elif msg[:18] == 'GRAB VP SCREENSHOT':
+            self.viewport.grab_viewport_screenshot(msg[18:])
+        elif msg == 'DRAW VP':
+            self.viewport.vp_draw()
+        elif msg == 'DRAW VP NO LABELS':
+            self.viewport.vp_draw(suppress_labels=True, suppress_previews=True)
+        elif msg[:6] == 'VP LOG':
+            self.viewport.add_to_log(msg[6:])
+        elif msg[:15] == 'GET CURRENT LOG':
+            self.write_current_log_to_file(msg[15:])
+        elif msg == 'MAGC WAFER CALIBRATED':
+            self.pushButton_magc_waferCalibration.setStyleSheet('background-color: green')
+        elif msg == 'MAGC WAFER NOT CALIBRATED':
+            self.pushButton_magc_waferCalibration.setStyleSheet('background-color: yellow')
+        elif msg == 'MAGC ENABLE CALIBRATION':
+            self.pushButton_magc_waferCalibration.setEnabled(True)
+        elif msg == 'MAGC UNENABLE CALIBRATION':
+            self.pushButton_magc_waferCalibration.setEnabled(False)
+        elif 'SET SECTION STATE' in msg:
+            self.magc_set_section_state_in_table(msg)
+        elif msg == 'SAVE INI':
+            self.save_ini()
+        elif msg == 'REFRESH OV':
+            self.acquire_ov()
+        elif msg == 'SHOW CURRENT SETTINGS':
+            self.show_current_settings()
+            self.show_stack_acq_estimates()
+        elif msg == 'LOAD IN FOCUS TOOL':
+            self.ft_set_selection_from_mv()
+        elif msg == 'UPDATE FT TILE SELECTOR':
+            self.ft_update_tile_selector()
+        elif msg == 'MOVE STAGE':
+            self.move_stage()
+        elif msg == 'ADD TILE FOLDER':
+            self.add_tile_folder()
+        elif msg == 'IMPORT IMG':
+            self.open_import_image_dlg()
+        elif msg[:19] == 'ADJUST IMPORTED IMG':
+            selected_img = int(msg[19:])
+            self.open_adjust_image_dlg(selected_img)
+        elif msg == 'DELETE IMPORTED IMG':
+            self.open_delete_image_dlg()
+        elif msg[:20] == 'CHANGE GRID ROTATION':
+            selected_grid = int(msg[20:])
+            self.open_change_grid_rotation_dlg(selected_grid)
+        elif 'OPEN GRID SETTINGS' in msg:
+            grid_index = int(msg.split('INGS')[1])
+            self.open_grid_dlg(grid_index)
         elif msg == 'Z WARNING':
             QMessageBox.warning(
                 self, 'Z position mismatch',
@@ -1331,15 +1367,6 @@ class MainControls(QMainWindow):
                 'SBEMimage has detected an unexpected change in '
                 'magnification. Target setting has been restored.',
                 QMessageBox.Ok)
-        elif msg == 'UPDATE XY':
-            self.show_current_stage_xy()
-        elif msg == 'UPDATE XY FT':
-            self.ft_show_updated_stage_position()
-        elif msg == 'UPDATE Z':
-            self.show_current_stage_z()
-        elif msg == 'UPDATE PROGRESS':
-            self.update_stack_progress()
-            self.show_estimates()
         elif msg == 'ASK DEBRIS FIRST OV':
             reply = QMessageBox.question(
                 self, 'Debris on first OV? User input required',
@@ -1347,7 +1374,7 @@ class MainControls(QMainWindow):
                 'debris?',
                 QMessageBox.Yes | QMessageBox.No | QMessageBox.Abort,
                 QMessageBox.Yes)
-            self.stack.set_user_reply(reply)
+            self.acq.set_user_reply(reply)
         elif msg == 'ASK DEBRIS CONFIRMATION':
             reply = QMessageBox.question(
                 self, 'Debris detection',
@@ -1356,7 +1383,7 @@ class MainControls(QMainWindow):
                 'area?',
                 QMessageBox.Yes | QMessageBox.No | QMessageBox.Abort,
                 QMessageBox.Yes)
-            self.stack.set_user_reply(reply)
+            self.acq.set_user_reply(reply)
         elif msg == 'ASK IMAGE ERROR OVERRIDE':
             reply = QMessageBox.question(
                 self, 'Image inspector',
@@ -1364,141 +1391,46 @@ class MainControls(QMainWindow):
                 'Would you like to proceed anyway?',
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.Yes)
-            self.stack.set_user_reply(reply)
-        elif msg == 'REMOTE STOP':
-            self.remote_stop()
-        elif msg == 'ERROR PAUSE':
-            self.error_pause()
-        elif msg == 'COMPLETION STOP':
-            self.completion_stop()
-        elif msg == 'ACQ NOT IN PROGRESS':
-            self.acq_not_in_progress_update_gui()
-        elif msg == 'SAVE CFG':
-            self.save_settings()
-        elif msg[:10] == 'ACQ IND OV':
-            self.viewport.mv_toggle_ov_acq_indicator(int(msg[10:]))
-        elif msg[:12] == 'ACQ IND TILE':
-            position = msg[12:].split('.')
-            self.viewport.mv_toggle_tile_acq_indicator(
-                int(position[0]), int(position[1]))
-        elif msg == 'RESTRICT GUI':
-            self.restrict_gui(True)
-        elif msg == 'RESTRICT VP GUI':
-            self.viewport.restrict_gui(True)
-        elif msg == 'UNRESTRICT GUI':
-            self.restrict_gui(False)
-        elif msg[:8] == 'SHOW MSG':
-            QMessageBox.information(self,
-                'Message received from remote server',
-                'Message text: ' + msg[8:],
-                 QMessageBox.Ok)
-        elif msg == 'GRID SETTINGS CHANGED':
-            self.update_from_grid_dlg()
-        elif msg == 'OV SETTINGS CHANGED':
-            self.update_from_ov_dlg()
-        elif msg[:12] == 'MV UPDATE OV':
-            self.viewport.mv_load_overview(int(msg[12:]))
-            self.viewport.mv_draw()
-        elif msg[:18] == 'GRAB VP SCREENSHOT':
-            self.viewport.grab_viewport_screenshot(msg[18:])
-        elif msg[:15] == 'RELOAD IMPORTED':
-            self.viewport.mv_load_imported_image(int(msg[15:]))
-            self.viewport.mv_draw()
-        elif msg == 'DRAW MV':
-            self.viewport.mv_draw()
-        elif msg == 'DRAW MV NO LABELS':
-            self.viewport.mv_draw(suppress_labels=True, suppress_previews=True)
-        elif msg[:6] == 'VP LOG':
-            self.viewport.add_to_viewport_log(msg[6:])
-        elif msg[:15] == 'GET CURRENT LOG':
-            self.write_current_log_to_file(msg[15:])
-        elif msg == 'MAGC WAFER CALIBRATED':
-            self.pushButton_magc_waferCalibration.setStyleSheet('background-color: green')
-        elif msg == 'MAGC WAFER NOT CALIBRATED':
-            self.pushButton_magc_waferCalibration.setStyleSheet('background-color: yellow')
-        elif msg == 'MAGC ENABLE CALIBRATION':
-            self.pushButton_magc_waferCalibration.setEnabled(True)
-        elif msg == 'MAGC UNENABLE CALIBRATION':
-            self.pushButton_magc_waferCalibration.setEnabled(False)
-        elif 'SET SECTION STATE' in msg:
-            self.magc_set_section_state_in_table(msg)
-        elif msg == 'SAVE INI':
-            self.save_ini()
-        else:
-            # If msg is not a command, show it in log:
-            self.textarea_log.appendPlainText(msg)
-
-    def process_viewport_signal(self):
-        """Process signals from the viewport."""
-        msg = self.viewport_queue.get()
-        if msg == 'REFRESH OV':
-            self.acquire_ov()
-        elif msg == 'ACQUIRE STUB OV':
-            self.open_stub_ov_dlg()
-        elif msg == 'SHOW CURRENT SETTINGS':
-            self.show_current_settings()
-            self.show_estimates()
-        elif msg == 'LOAD IN FOCUS TOOL':
-            self.ft_set_selection_from_mv()
-        elif msg == 'UPDATE FT TILE SELECTOR':
-            self.ft_update_tile_selector()
-        elif msg == 'MOVE STAGE':
-            self.move_stage()
-        elif msg == 'ADD TILE FOLDER':
-            self.add_tile_folder()
-        elif msg == 'IMPORT IMG':
-            self.open_import_image_dlg()
-        elif msg[:19] == 'ADJUST IMPORTED IMG':
-            selected_img = int(msg[19:])
-            self.open_adjust_image_dlg(selected_img)
-        elif msg == 'DELETE IMPORTED IMG':
-            self.open_delete_image_dlg()
-        elif msg[:20] == 'CHANGE GRID ROTATION':
-            selected_grid = int(msg[20:])
-            self.open_change_grid_rotation_dlg(selected_grid)
-        elif 'OPEN GRID SETTINGS' in msg:
-            grid_number = int(msg.split('INGS')[1])
-            self.open_grid_dlg(grid_number)
-        elif msg == 'SAVE INI':
-            self.save_ini()
+            self.acq.set_user_reply(reply)
         else:
             # If msg is not a command, show it in log:
             self.textarea_log.appendPlainText(msg)
 
     def add_tile_folder(self):
-        grid = self.viewport.mv_get_selected_grid()
-        tile = self.viewport.mv_get_selected_tile()
-        tile_folder = (self.cfg['acq']['base_dir']
-                      + '\\tiles\\g'
-                      + str(grid).zfill(utils.GRID_DIGITS)
-                      + '\\t'
-                      + str(tile).zfill(utils.TILE_DIGITS))
+        """Add a folder for a new tile to be acquired while the acquisition
+        is running."""
+        grid = self.viewport.selected_grid
+        tile = self.viewport.selected_tile
+        tile_folder = os.path.join(
+            self.acq.base_dir, 'tiles',
+            'g' + str(grid).zfill(utils.GRID_DIGITS),
+            't' + str(tile).zfill(utils.TILE_DIGITS))
         if not os.path.exists(tile_folder):
             self.try_to_create_directory(tile_folder)
-        if self.cfg['sys']['use_mirror_drive'] == 'True':
-            mirror_tile_folder = (
-                self.cfg['sys']['mirror_drive'] + tile_folder[2:])
+        if self.acq.use_mirror_drive:
+            mirror_tile_folder = os.path.join(
+                self.acq.mirror_drive, tile_folder[2:])
             if not os.path.exists(mirror_tile_folder):
                 self.try_to_create_directory(mirror_tile_folder)
 
     def restrict_gui(self, b):
         """Disable GUI elements during acq or when program is busy."""
-        # Partially disable/enable the tests and the focus tool:
+        # Partially disable/enable the tests and the focus tool
         self.restrict_focus_tool_gui(b)
         self.restrict_tests_gui(b)
         b ^= True
-        # Settings buttons:
+        # Settings buttons
         self.pushButton_SEMSettings.setEnabled(b)
         self.pushButton_microtomeSettings.setEnabled(b)
         self.pushButton_OVSettings.setEnabled(b)
         self.pushButton_gridSettings.setEnabled(b)
         self.pushButton_acqSettings.setEnabled(b)
-        # Other buttons:
+        # Other buttons
         self.pushButton_doApproach.setEnabled(b)
         self.pushButton_doSweep.setEnabled(b)
         self.pushButton_grabFrame.setEnabled(b)
         self.pushButton_EHTToggle.setEnabled(b)
-        # Checkboxes:
+        # Checkboxes
         self.checkBox_mirrorDrive.setEnabled(b)
         self.toolButton_mirrorDrive.setEnabled(b)
         self.checkBox_takeOV.setEnabled(b)
@@ -1506,7 +1438,7 @@ class MainControls(QMainWindow):
         if self.plc_installed:
             self.checkBox_plasmaCleaner.setEnabled(b)
             self.toolButton_plasmaCleaner.setEnabled(b)
-        # Start, reset buttons:
+        # Start, reset buttons
         self.pushButton_startAcq.setEnabled(b)
         self.pushButton_resetAcq.setEnabled(b)
         # Disable/enable menu
@@ -1546,7 +1478,7 @@ class MainControls(QMainWindow):
         self.actionSEMSettings.setEnabled(False)
         self.actionStageCalibration.setEnabled(False)
         self.actionPlasmaCleanerSettings.setEnabled(False)
-        # Tests and focus tool:
+        # Tests and focus tool
         self.restrict_focus_tool_gui(True)
         self.restrict_tests_gui(True)
 
@@ -1568,155 +1500,28 @@ class MainControls(QMainWindow):
         with open(filename, 'w') as f:
             f.write(self.textarea_log.toPlainText())
 
-# ==================== Below: Manual SBEM commands ============================
+# ====================== Below: Manual SBEM commands ===========================
 
-    def acquire_ov(self):
-        """Acquire one selected or all overview images."""
-        ov_selection = self.viewport.mv_get_current_ov()
-        if ov_selection > -2:
-            user_reply = None
-            if (ov_selection == -1) and (self.ovm.get_number_ov() > 1):
-                user_reply = QMessageBox.question(
-                    self, 'Acquisition of all overview images',
-                    'This will acquire all overview images.\n\n' +
-                    'Do you wish to proceed?',
-                    QMessageBox.Ok | QMessageBox.Cancel)
-            if (user_reply == QMessageBox.Ok or ov_selection >= 0
-                or (self.ovm.get_number_ov() == 1 and ov_selection == -1)):
-                base_dir = self.cfg['acq']['base_dir']
-                self.add_to_log(
-                    'CTRL: User-requested acquisition of OV image(s) started')
-                self.restrict_gui(True)
-                self.viewport.restrict_gui(True)
-                self.set_status('Busy.')
-                self.set_statusbar('Overview acquisition in progress...')
-                # Start OV acquisition thread:
-                ov_acq_thread = threading.Thread(
-                    target=acq_func.acquire_ov,
-                    args=(base_dir, ov_selection,
-                          self.sem, self.stage,
-                          self.ovm, self.cs,
-                          self.acq_queue, self.acq_trigger,))
-                ov_acq_thread.start()
-        else:
-            QMessageBox.information(
-                self, 'Acquisition of overview image(s)',
-                'Please select "All OVs" or a single OV from the '
-                'pull-down menu.',
-                QMessageBox.Ok)
-
-    def acquire_ov_success(self, success):
-        if success:
-            self.add_to_log(
-                'CTRL: User-requested acquisition of overview(s) completed.')
-        else:
-            self.add_to_log('CTRL: ERROR ocurred during overview acquisition.')
-            QMessageBox.warning(
-                self, 'Error during overview acquisition',
-                'An error occurred during the acquisition of the overview(s) '
-                'at the current location(s). The most likely cause are incorrect '
-                'settings of the stage X/Y motor ranges or speeds. Home the '
-                'stage and check whether the range limits specified in '
-                'SBEMimage are correct.', QMessageBox.Ok)
-        self.restrict_gui(False)
-        self.viewport.restrict_gui(False)
-        self.set_status('')
-        self.set_statusbar('Ready.')
-
-    def acquire_stub_ov_success(self, success):
-        if success:
-            self.add_to_log(
-                'CTRL: User-requested acquisition of stub overview mosaic '
-                'completed.')
-            # Load and show new OV images:
-            self.viewport.mv_show_new_stub_overview()
-            # Reset user-selected stub_ov_centre:
-            self.viewport.mv_reset_stub_ov_centre()
-            # Copy to mirror drive:
-            if self.cfg['sys']['use_mirror_drive'] == 'True':
-                mirror_path = (self.cfg['sys']['mirror_drive']
-                              + self.cfg['acq']['base_dir'][2:]
-                              + '\\overviews\\stub')
-                if not os.path.exists(mirror_path):
-                    try:
-                        os.makedirs(mirror_path)
-                    except:
-                        self.add_to_log(
-                            'CTRL: Creating directory on mirror drive failed.')
-                try:
-                    shutil.copy(self.ovm.get_stub_ov_file(), mirror_path)
-                except:
-                    self.add_to_log(
-                        'CTRL: Copying stub overview image to mirror drive '
-                        'failed.')
-
-        else:
-            self.add_to_log('CTRL: ERROR ocurred during stub overview '
-                            'acquisition.')
-
-        self.set_status('')
-        self.set_statusbar('Ready.')
-
-    def move_stage(self):
-        target_pos = self.viewport.mv_get_selected_stage_pos()
+    def manual_sweep(self):
         user_reply = QMessageBox.question(
-            self, 'Move to selected stage position',
-            'This will move the stage to the coordinates '
-            'X: {0:.3f}, '.format(target_pos[0])
-            + 'Y: {0:.3f}'.format(target_pos[1]),
-            QMessageBox.Ok | QMessageBox.Cancel)
+            self, 'Sweep surface',
+            'This will perform a sweep cycle.\n\nDo you wish to proceed?',
+            QMessageBox.Ok | QMessageBox.Cancel, QMessageBox.Cancel)
         if user_reply == QMessageBox.Ok:
-            self.add_to_log('CTRL: Performing user-requested stage move')
-            self.restrict_gui(True)
-            self.viewport.restrict_gui(True)
-            QApplication.processEvents()
-            move_thread = threading.Thread(target=acq_func.move,
-                                           args=(self.stage,
-                                                 target_pos,
-                                                 self.acq_queue,
-                                                 self.acq_trigger,))
-            move_thread.start()
-            self.set_status('Busy.')
-            self.set_statusbar('Stage move in progress...')
-
-    def move_stage_success(self, success):
-        if success:
-            self.add_to_log('CTRL: User-requested stage move completed.')
-            self.viewport.mv_draw()
-        else:
-            self.add_to_log('CTRL: ERROR ocurred during stage move.')
-            QMessageBox.warning(
-                self, 'Error during stage move',
-                'An error occurred during the requested stage move. ' +
-                'Please check the microtome status in DM.',
-                QMessageBox.Ok)
-        self.restrict_gui(False)
-        self.viewport.restrict_gui(False)
-        self.set_status('')
-        self.set_statusbar('Ready.')
-
-    def sweep(self):
-        user_reply = QMessageBox.question(
-                        self, 'Sweep surface',
-                        'This will perform a sweep cycle.\n\n' +
-                        'Do you wish to proceed?',
-                        QMessageBox.Ok | QMessageBox.Cancel,
-                        QMessageBox.Cancel)
-        if user_reply == QMessageBox.Ok:
-            # Perform sweep: do a cut slightly above current surface:
+            # Perform sweep: do a cut slightly above current surface
             self.add_to_log('CTRL: Performing user-requested sweep')
             self.restrict_gui(True)
             self.viewport.restrict_gui(True)
             QApplication.processEvents()
-            user_sweep_thread = threading.Thread(target=acq_func.sweep,
+            user_sweep_thread = threading.Thread(target=acq_func.manual_sweep,
                                                  args=(self.microtome,
-                                                       self.acq_queue,
-                                                       self.acq_trigger,))
+                                                       self.trigger,))
             user_sweep_thread.start()
             self.set_status('Busy.')
             self.set_statusbar('Sweep in progress...')
 
-    def sweep_success(self, success):
+    def manual_sweep_success(self, success):
+        self.show_current_stage_z()
         if success:
             self.add_to_log('CTRL: User-requested sweep completed.')
         else:
@@ -1730,17 +1535,17 @@ class MainControls(QMainWindow):
         self.set_status('')
         self.set_statusbar('Ready.')
 
-    def save_viewport(self):
-        (file_name, user_edit) = QInputDialog.getText(
+    def save_viewport_screenshot(self):
+        file_name, ok_button_clicked = QInputDialog.getText(
             self, 'Save current viewport screenshot as',
             'File name (.png will be added; File will be saved in '
             'current base directory): ', QLineEdit.Normal, 'current_viewport')
-        if user_edit:
+        if ok_button_clicked:
             self.viewport.grab_viewport_screenshot(
-                self.cfg['acq']['base_dir'] + '\\' + file_name + '.png')
-            self.add_to_log('CTRL: Saved current viewport to disk.')
+                os.path.join(self.acq.base_dir, file_name + '.png'))
+            self.add_to_log('CTRL: Saved current viewport to base directory.')
 
-# ===================== Test functions in third tab ===========================
+# ======================= Test functions in third tab ==========================
 
     def test_get_mag(self):
         mag = self.sem.get_mag()
@@ -1748,8 +1553,8 @@ class MainControls(QMainWindow):
 
     def test_set_mag(self):
         self.sem.set_mag(1000)
-        if self.sem.get_error_state() > 0:
-            self.add_to_log('SEM: ' + self.sem.get_error_cause())
+        if self.sem.error_state > 0:
+            self.add_to_log('SEM: ' + self.sem.error_info)
             self.sem.reset_error_state()
         else:
             self.add_to_log('SEM: Magnification set to 1000.00')
@@ -1762,8 +1567,8 @@ class MainControls(QMainWindow):
 
     def test_set_wd(self):
         self.sem.set_wd(0.006)
-        if self.sem.get_error_state() > 0:
-            self.add_to_log('SEM: ' + self.sem.get_error_cause())
+        if self.sem.error_state > 0:
+            self.add_to_log('SEM: ' + self.sem.error_info)
             self.sem.reset_error_state()
         else:
             self.add_to_log('SEM: Working distance set to 6 mm.')
@@ -1822,22 +1627,17 @@ class MainControls(QMainWindow):
             self.add_to_log('3VIEW: Microtome not active.')
 
     def test_send_email(self):
-        """Send test e-mail to the primary user."""
+        """Send test e-mail to the specified user email addresses."""
         self.add_to_log('CTRL: Trying to send test e-mail.')
-        success, error_msg = utils.send_email(
-            smtp_server=self.cfg['sys']['email_smtp'],
-            sender=self.cfg['sys']['email_account'],
-            recipients=[self.cfg['monitoring']['user_email']],
-            subject='Test mail',
-            main_text='This mail was sent for testing purposes.',
-            files=[])
+        success, error_msg = self.notifications.send_email(
+            'Test mail', 'This mail was sent for testing purposes.')
         if success:
             self.add_to_log('CTRL: E-mail was sent via '
-                            + self.cfg['sys']['email_smtp'])
+                            + self.notifications.smtp_server)
             QMessageBox.information(
                 self, 'E-mail test',
-                'E-mail was sent via ' + self.cfg['sys']['email_smtp']
-                + ' to ' + self.cfg['monitoring']['user_email']
+                'E-mail was sent via ' + self.notifications.smtp_server
+                + ' to ' + str(self.notifications.user_email_addresses)
                 + '. Check your inbox.',
                 QMessageBox.Ok)
         else:
@@ -1845,8 +1645,8 @@ class MainControls(QMainWindow):
             QMessageBox.warning(
                 self, 'E-mail test failed',
                 'A error occurred while trying to send a test e-mail to '
-                + self.cfg['monitoring']['user_email'] + ' via '
-                + self.cfg['sys']['email_smtp']
+                + str(self.notifications.user_email_addresses) + ' via '
+                + self.notifications.smtp_server
                 + ': ' + error_msg,
                 QMessageBox.Ok)
 
@@ -1863,7 +1663,8 @@ class MainControls(QMainWindow):
         status, command, msg = utils.meta_server_get_request(url)
         if status == 100:
             QMessageBox.warning(self, 'Server test',
-                                'Server test failed. Server probably not active.',
+                                'Server test failed. Server probably '
+                                'not active.',
                                 QMessageBox.Ok)
         else:
             QMessageBox.information(self, 'Server test',
@@ -1873,13 +1674,13 @@ class MainControls(QMainWindow):
     def debris_detection_test(self):
         # Uses overview images t1.tif and t2.tif in current base directory
         # to run the debris detection in the current detection area.
-        test_image1 = self.cfg['acq']['base_dir'] + '\\t1.tif'
-        test_image2 = self.cfg['acq']['base_dir'] + '\\t2.tif'
+        test_image1 = os.path.join(self.acq.base_dir, 't1.tif')
+        test_image2 = os.path.join(self.acq.base_dir, 't2.tif')
 
         if os.path.isfile(test_image1) and os.path.isfile(test_image2):
             self.img_inspector.process_ov(test_image1, 0, 0)
             self.img_inspector.process_ov(test_image2, 0, 1)
-            # Run the tests:
+            # Run the tests
             debris_detected0, msg0 = self.img_inspector.detect_debris(0, 0)
             debris_detected1, msg1 = self.img_inspector.detect_debris(0, 1)
             debris_detected2, msg2 = self.img_inspector.detect_debris(0, 2)
@@ -1887,8 +1688,8 @@ class MainControls(QMainWindow):
                 self, 'Debris detection test results',
                 'Method 0:\n' + str(debris_detected0) + '; ' + msg0
                 + '\nThresholds were (mean/stddev): '
-                + self.cfg['debris']['mean_diff_threshold']
-                + ', ' + self.cfg['debris']['stddev_diff_threshold']
+                + str(self.img_inspector.mean_diff_threshold)
+                + ', ' + str(self.img_inspector.stddev_diff_threshold)
                 + '\n\nMethod 1: ' + str(debris_detected1) + '; ' + msg1
                 + '\n\nMethod 2: ' + str(debris_detected2) + '; ' + msg2,
                 QMessageBox.Ok)
@@ -1906,7 +1707,7 @@ class MainControls(QMainWindow):
         # Used for custom tests...
         pass
 
-# =============================================================================
+# ==============================================================================
 
     def initialize_plasma_cleaner(self):
         if not self.plc_initialized:
@@ -1933,15 +1734,15 @@ class MainControls(QMainWindow):
            clicks on start button. All functionality is contained
            in module stack_acquisition.py
         """
-        slice_counter = self.stack.get_slice_counter()
-        number_slices = self.stack.get_number_slices()
-        if slice_counter > number_slices and number_slices != 0:
+        if (self.acq.slice_counter > self.acq.number_slices
+                and self.acq.number_slices != 0):
             QMessageBox.warning(
                 self, 'Check Slice Counter',
                 'Slice counter is larger than maximum slice number. Please '
                 'adjust the slice counter.',
                 QMessageBox.Ok)
-        elif slice_counter == number_slices and number_slices != 0:
+        elif (self.acq.slice_counter == self.acq.number_slices
+                and self.acq.number_slices != 0):
             QMessageBox.information(
                 self, 'Target number of slices reached',
                 'The target number of slices has been acquired. Please click '
@@ -1953,51 +1754,49 @@ class MainControls(QMainWindow):
                 'Please save the current configuration file "default.ini" '
                 'under a new name before starting the stack.',
                 QMessageBox.Ok)
-        elif not self.sem.is_eht_on():
+        elif self.sem.is_eht_off():
             QMessageBox.warning(
                 self, 'EHT off',
                 'EHT / high voltage is off. Please turn '
                 'it on before starting the acquisition.',
                 QMessageBox.Ok)
-        elif not self.acq_in_progress:
-            self.acq_in_progress = True
-            self.acq_paused = False
+        else:
             self.restrict_gui(True)
             self.viewport.restrict_gui(True)
             self.pushButton_startAcq.setText('START')
             self.pushButton_startAcq.setEnabled(False)
             self.pushButton_pauseAcq.setEnabled(True)
             self.pushButton_resetAcq.setEnabled(False)
-            self.show_estimates()
-            # Indicate in GUI that stack is running now:
+            self.show_stack_acq_estimates()
+            # Indicate in GUI that stack is running now
             self.set_status('Acquisition in progress')
             self.set_statusbar('Acquisition in progress.')
 
             # Start the thread running the stack acquisition
             # All source code in stack_acquisition.py
             # Thread is stopped by either stop or pause button
-            stack_thread = threading.Thread(target=self.stack.run)
+            stack_thread = threading.Thread(target=self.acq.run)
             stack_thread.start()
 
     def pause_acquisition(self):
-        """Let user pause the acquisition."""
-        if self.acq_in_progress and not self.acq_paused:
+        """Pause the acquisition after user has clicked 'Pause' button. Let
+        user decide whether to stop immediately or after finishing current
+        slice.
+        """
+        if not self.acq.acq_paused:
             dialog = PauseDlg()
             dialog.exec_()
-            pause_type = dialog.get_user_choice()
-        else:
-            pause_type = 0
-        if pause_type == 1 or pause_type == 2:
-            self.add_to_log('CTRL: PAUSE command received.')
-            self.pushButton_pauseAcq.setEnabled(False)
-            self.stack.pause_acquisition(pause_type)
-            self.pushButton_startAcq.setText('CONTINUE')
-            self.acq_paused = True
-            QMessageBox.information(
-                self, 'Acquisition being paused',
-                'Please wait until the pause status is confirmed in the log '+
-                'before interacting with the program.',
-                QMessageBox.Ok)
+            pause_type = dialog.pause_type
+            if pause_type == 1 or pause_type == 2:
+                self.add_to_log('CTRL: PAUSE command received.')
+                self.pushButton_pauseAcq.setEnabled(False)
+                self.acq.pause_acquisition(pause_type)
+                self.pushButton_startAcq.setText('CONTINUE')
+                QMessageBox.information(
+                    self, 'Acquisition being paused',
+                    'Please wait until the pause status is confirmed in '
+                    'the log before interacting with the program.',
+                    QMessageBox.Ok)
 
     def reset_acquisition(self):
         """Reset the acquisition status."""
@@ -2011,21 +1810,17 @@ class MainControls(QMainWindow):
                     QMessageBox.Yes| QMessageBox.No)
         if result == QMessageBox.Yes:
             self.add_to_log('CTRL: RESET command received.')
-            self.stack.reset_acquisition()
+            self.acq.reset_acquisition()
             self.pushButton_resetAcq.setEnabled(False)
             self.pushButton_pauseAcq.setEnabled(False)
             self.pushButton_startAcq.setEnabled(True)
             self.label_sliceCounter.setText('---')
             self.progressBar.setValue(0)
-            self.show_estimates()
-            self.acq_in_progress = False
-            self.acq_paused = False
+            self.show_stack_acq_estimates()
             self.pushButton_startAcq.setText('START')
 
     def completion_stop(self):
         self.add_to_log('CTRL: Target slice number reached.')
-        self.acq_in_progress = False
-        self.acq_paused = True
         self.pushButton_resetAcq.setEnabled(True)
         QMessageBox.information(
             self, 'Acquisition complete',
@@ -2037,8 +1832,6 @@ class MainControls(QMainWindow):
         self.pushButton_resetAcq.setEnabled(True)
         self.pushButton_pauseAcq.setEnabled(False)
         self.pushButton_startAcq.setEnabled(True)
-        self.acq_in_progress = False
-        self.acq_paused = True
         self.pushButton_startAcq.setText('CONTINUE')
         QMessageBox.information(
             self, 'Acquisition stopped',
@@ -2049,8 +1842,6 @@ class MainControls(QMainWindow):
         """Notify user in main window that an error has occurred. All error
            handling inside stack_acquisition.py.
         """
-        self.acq_in_progress = False
-        self.acq_paused = True
         self.pushButton_resetAcq.setEnabled(True)
         self.pushButton_pauseAcq.setEnabled(False)
         self.pushButton_startAcq.setText('CONTINUE')
@@ -2060,14 +1851,13 @@ class MainControls(QMainWindow):
             QMessageBox.Ok)
 
     def acq_not_in_progress_update_gui(self):
-        self.acq_in_progress = False
         self.set_status('')
         self.set_statusbar('Ready.')
         self.restrict_gui(False)
         self.viewport.restrict_gui(False)
         self.pushButton_startAcq.setEnabled(True)
         self.pushButton_pauseAcq.setEnabled(False)
-        if self.acq_paused == True:
+        if self.acq.acq_paused:
             self.pushButton_resetAcq.setEnabled(True)
 
     def leave_simulation_mode(self):
@@ -2078,7 +1868,7 @@ class MainControls(QMainWindow):
             'for the change to take effect.',
             QMessageBox.Ok | QMessageBox.Cancel)
         if reply == QMessageBox.Ok:
-            self.cfg['sys']['simulation_mode'] = 'False'
+            self.simulation_mode = False
             self.actionLeaveSimulationMode.setEnabled(False)
             self.save_settings()
 
@@ -2087,19 +1877,8 @@ class MainControls(QMainWindow):
             if self.cfg['sys']['sys_config_file'] == 'system.cfg':
                 # Preserve system.cfg as template, rename:
                 self.cfg['sys']['sys_config_file'] = 'this_system.cfg'
-            # Save current WD/STIG data to config:
-            self.gm.save_wd_stig_data_to_cfg()
-            # Write config to disk:
-            cfgfile = open('..\\cfg\\' + self.cfg_file, 'w')
-            self.cfg.write(cfgfile)
-            cfgfile.close()
-            # Also save system settings:
-            syscfgfile = open('..\\cfg\\'
-                              + self.cfg['sys']['sys_config_file'], 'w')
-            self.syscfg.write(syscfgfile)
-            syscfgfile.close()
-            self.add_to_log('CTRL: Settings saved to disk.')
-        elif not self.acq_in_progress:
+            self.save_config_to_disk()
+        elif self.acq.acq_paused:
             QMessageBox.information(
                 self, 'Cannot save configuration',
                 'The current configuration file "default.ini" cannot be '
@@ -2108,12 +1887,40 @@ class MainControls(QMainWindow):
                 'the menu.',
                 QMessageBox.Ok)
 
-    def save_ini(self):
+    def save_config_to_disk(self):
+        """Save the updated ConfigParser objects for the user and the
+        system configuration to disk."""
+        self.acq.save_to_cfg()
+        self.gm.save_to_cfg()
+        self.ovm.save_to_cfg()
+        self.imported.save_to_cfg()
+        self.autofocus.save_to_cfg()
+        self.sem.save_to_cfg()
+        self.microtome.save_to_cfg()
+        self.cs.save_to_cfg()
+        self.viewport.save_to_cfg()
+        self.img_inspector.save_to_cfg()
+        self.notifications.save_to_cfg()
+        # Save settings from Main Controls
+        self.cfg['sys']['simulation_mode'] = str(self.simulation_mode)
+
+        # Write config to disk:
         with open(os.path.join('..', 'cfg', self.cfg_file), 'w') as f:
             self.cfg.write(f)
+        # Also save system settings:
+        with open(os.path.join(
+            '..', 'cfg', self.cfg['sys']['sys_config_file']), 'w') as f:
+            self.syscfg.write(f)
+        self.add_to_log('CTRL: Settings saved to disk.')
 
     def closeEvent(self, event):
-        if not self.acq_in_progress:
+        if self.microtome.error_state == 701:
+            if self.sem is not None:
+                self.sem.disconnect()
+            print('\n\nError in configuration file. Aborted.\n')
+            event.accept()
+            sys.exit()
+        elif not self.acq_in_progress:
             result = QMessageBox.question(
                 self, 'Exit',
                 'Are you sure you want to exit the program?',
@@ -2121,11 +1928,11 @@ class MainControls(QMainWindow):
             if result == QMessageBox.Yes:
                 if not self.simulation_mode:
                     if (self.use_microtome
-                        and self.cfg['microtome']['device'] == 'Gatan 3View'):
+                            and self.microtome.device_name == 'Gatan 3View'):
                         self.microtome.stop_script()
                         self.add_to_log('3VIEW: Disconnected from DM/3View.')
                     elif (self.use_microtome
-                          and self.cfg['microtome']['device'] == 'ConnectomX katana'):
+                        and self.microtome.device_name == 'ConnectomX katana'):
                         self.microtome.disconnect()
                     sem_log_msg = self.sem.disconnect()
                     self.add_to_log('SEM: ' + sem_log_msg)
@@ -2169,7 +1976,7 @@ class MainControls(QMainWindow):
                             QMessageBox.Yes| QMessageBox.No)
                         if result == QMessageBox.Yes:
                             self.open_save_settings_new_file_dlg()
-                self.viewport.deactivate()
+                self.viewport.active = False
                 self.viewport.close()
                 QApplication.processEvents()
                 sleep(1)
@@ -2204,6 +2011,9 @@ class MainControls(QMainWindow):
         self.ft_selected_stig_y = None
         self.ft_cycle_counter = 0
         self.ft_zoom = False
+        self.ft_use_current_position = False
+        self.checkBox_useCurrentPos.stateChanged.connect(
+            self.ft_toggle_use_current_position)
 
         # self.ft_locations: Focus locations around the centre of the selected
         # tile / starting position. The first cycle uses the centre coordinates.
@@ -2228,6 +2038,9 @@ class MainControls(QMainWindow):
             self.ft_open_set_params_dlg)
         # Default pixel size is 6 nm.
         self.spinBox_ftPixelSize.setValue(6)
+        # Default dwell time is dwell time selector 4
+        self.comboBox_dwellTime.addItems(map(str, self.sem.DWELL_TIME))
+        self.comboBox_dwellTime.setCurrentIndex(4)
         # Selectors
         self.ft_update_grid_selector()
         self.ft_update_tile_selector()
@@ -2246,31 +2059,37 @@ class MainControls(QMainWindow):
         the best image.
         """
         if self.ft_mode == 0: # User has clicked on "Run cycle"
-            if (self.ft_selected_tile >=0) or (self.ft_selected_ov >= 0):
+            if ((self.ft_selected_tile >=0) or (self.ft_selected_ov >= 0)
+                    or self.ft_use_current_position):
                 self.ft_run_cycle()
             else:
                 QMessageBox.information(
-                    self, 'Select target tile/OV',
+                    self, 'Select tile/OV',
                     'Before starting a through-focus cycle, you must select a '
-                    'tile or an overview image.',
+                    'tile or an overview image, or choose the option "Use '
+                    'current stage position".',
                     QMessageBox.Ok)
 
         elif self.ft_mode == 1:
             # User has clicked 'Done' to select the best focus from the acquired
-            # images. The selected working distance is saved for this tile/OV.
+            # images. The selected working distance is saved for this tile/OV
+            # unless 'use current stage position' is selected.
             self.ft_selected_wd += self.ft_fdeltas[self.ft_index]
             self.sem.set_wd(self.ft_selected_wd)
-            # Save working distance for OV or in tile grid:
-            if self.ft_selected_ov >= 0:
-                self.ovm.set_ov_wd(self.ft_selected_ov, self.ft_selected_wd)
-            elif self.ft_selected_tile >= 0:
-                self.gm.set_tile_wd(self.ft_selected_grid,
-                                    self.ft_selected_tile,
-                                    self.ft_selected_wd)
-                if self.gm.is_adaptive_focus_active(self.ft_selected_grid):
-                    # Recalculate with new wd:
-                    self.gm.calculate_focus_gradient(self.ft_selected_grid)
-                self.viewport.mv_draw()
+            save_new_wd = True
+            if self.ft_use_current_position:
+                save_new_wd = self.ft_ask_user_save()
+            if save_new_wd:
+                if self.ft_selected_ov >= 0:
+                    self.ovm[self.ft_selected_ov].wd_stig_xy[0] = (
+                        self.ft_selected_wd)
+                elif self.ft_selected_tile >= 0:
+                    self.gm[self.ft_selected_grid][self.ft_selected_tile].wd = (
+                        self.ft_selected_wd)
+                    if self.gm[self.ft_selected_grid].use_wd_gradient:
+                        # Recalculate with new wd
+                        self.gm[self.ft_selected_grid].calculate_wd_gradient()
+                    self.viewport.vp_draw()
             self.ft_reset()
 
         elif self.ft_mode == 2:
@@ -2278,13 +2097,17 @@ class MainControls(QMainWindow):
             # parameter. The selected stig_x parameter is saved.
             self.ft_selected_stig_x += self.ft_sdeltas[self.ft_index]
             self.sem.set_stig_x(self.ft_selected_stig_x)
-            if self.ft_selected_ov >= 0:
-                self.ovm.set_ov_stig_x(
-                    self.ft_selected_ov, self.ft_selected_stig_x)
-            elif self.ft_selected_tile >= 0:
-                self.gm.set_tile_stig_x(self.ft_selected_grid,
-                                        self.ft_selected_tile,
-                                        self.ft_selected_stig_x)
+            save_new_stig_x = True
+            if self.ft_use_current_position:
+                save_new_stig_x = self.ft_ask_user_save()
+            if save_new_stig_x:
+                if self.ft_selected_ov >= 0:
+                    self.ovm[self.ft_selected_ov].wd_stig_xy[1] = (
+                        self.ft_selected_stig_x)
+                elif self.ft_selected_tile >= 0:
+                    self.gm[self.ft_selected_grid][
+                            self.ft_selected_tile].stig_xy[0] = (
+                        self.ft_selected_stig_x)
             self.ft_reset()
 
         elif self.ft_mode == 3:
@@ -2292,50 +2115,73 @@ class MainControls(QMainWindow):
             # parameter. The selected stig_y parameter is saved.
             self.ft_selected_stig_y += self.ft_sdeltas[self.ft_index]
             self.sem.set_stig_y(self.ft_selected_stig_y)
-            if self.ft_selected_ov >= 0:
-                self.ovm.set_ov_stig_y(
-                    self.ft_selected_ov, self.ft_selected_stig_y)
-            elif self.ft_selected_tile >= 0:
-                self.gm.set_tile_stig_y(self.ft_selected_grid,
-                                        self.ft_selected_tile,
-                                        self.ft_selected_stig_y)
+            save_new_stig_y = True
+            if self.ft_use_current_position:
+                save_new_stig_y = self.ft_ask_user_save()
+            if save_new_stig_y:
+                if self.ft_selected_ov >= 0:
+                    self.ovm[self.ft_selected_ov].wd_stig_xy[2] = (
+                        self.ft_selected_stig_y)
+                elif self.ft_selected_tile >= 0:
+                    self.gm[self.ft_selected_grid][
+                            self.ft_selected_tile].stig_xy[1] = (
+                        self.ft_selected_stig_y)
             self.ft_reset()
+
+    def ft_ask_user_save(self):
+        selected_str = ''
+        if self.ft_selected_ov >= 0:
+            selected_str = 'overview ' + str(self.ft_selected_ov)
+        elif self.ft_selected_tile >= 0:
+            selected_str = ('tile ' + str(self.ft_selected_grid)
+                            + '.' + str(self.ft_selected_tile))
+        if self.ft_mode == 1:
+            parameter_str = 'working distance'
+        elif self.ft_mode == 2:
+            parameter_str = 'X stigmation parameter'
+        elif self.ft_mode == 3:
+            parameter_str = 'Y stigmation parameter'
+        if selected_str:
+            user_response = QMessageBox.question(
+                self, f'Save updated {parameter_str}?',
+                f'Save updated {parameter_str} for selected {selected_str}?',
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes)
+            return (user_response == QMessageBox.Yes)
+        else:
+            return False
 
     def ft_open_set_params_dlg(self):
         """Open a dialog box to let user manually set the working distance and
-        stigmation x/y for the selected tile/OV."""
+        stigmation x/y for the selected tile/OV.
+        """
         if (self.ft_selected_tile >=0) or (self.ft_selected_ov >= 0):
             dialog = FTSetParamsDlg(self.sem, self.ft_selected_wd,
                                     self.ft_selected_stig_x,
                                     self.ft_selected_stig_y,
                                     self.simulation_mode)
             if dialog.exec_():
-                new_params = dialog.return_params()
-                self.ft_selected_wd = new_params[0]
-                self.ft_selected_stig_x, self.ft_selected_stig_y = (
-                    new_params[1:3])
+                self.ft_selected_wd = dialog.new_wd
+                self.ft_selected_stig_x = dialog.new_stig_x
+                self.ft_selected_stig_y = dialog.new_stig_y
                 self.ft_update_wd_display()
                 self.ft_update_stig_display()
                 if self.ft_selected_ov >= 0:
-                    self.ovm.set_ov_wd(self.ft_selected_ov,
-                                       self.ft_selected_wd)
-                    self.ovm.set_ov_stig_xy(self.ft_selected_ov,
-                                            self.ft_selected_stig_x,
-                                            self.ft_selected_stig_y)
-                elif self.ft_selected_tile >= 0:
-                    self.gm.set_tile_wd(self.ft_selected_grid,
-                                        self.ft_selected_tile,
-                                        self.ft_selected_wd)
-                    self.gm.set_tile_stig_xy(
-                        self.ft_selected_grid,
-                        self.ft_selected_tile,
+                    self.ovm[self.ft_selected_ov] = [
+                        self.ft_selected_wd,
                         self.ft_selected_stig_x,
-                        self.ft_selected_stig_y)
-                    if self.gm.is_adaptive_focus_active(self.ft_selected_grid):
+                        self.ft_selected_stig_y]
+                elif self.ft_selected_tile >= 0:
+                    self.gm[self.ft_selected_grid][self.ft_selected_tile].wd = (
+                        self.ft_selected_wd)
+                    self.gm[self.ft_selected_grid][
+                            self.ft_selected_tile].stig_xy = (
+                        [self.ft_selected_stig_x, self.ft_selected_stig_y])
+                    if self.gm[self.ft_selected_grid].use_wd_gradient:
                         # Recalculate with new wd:
-                        self.gm.calculate_focus_gradient(self.ft_selected_grid)
-                    self.viewport.mv_draw()
-                # Also set SEM to new values:
+                        self.gm[self.ft_selected_grid].calculate_wd_gradient()
+                    self.viewport.vp_draw()
+                # Set SEM to new values
                 self.sem.set_wd(self.ft_selected_wd)
                 self.sem.set_stig_xy(
                     self.ft_selected_stig_x, self.ft_selected_stig_y)
@@ -2351,14 +2197,13 @@ class MainControls(QMainWindow):
         self.show_current_stage_xy()
         # Activate stage position indicator if not active already
         if not self.viewport.show_stage_pos:
-            self.viewport.mv_activate_checkbox_show_stage_pos()
+            self.viewport.vp_activate_checkbox_show_stage_pos()
         # Set zoom
-        self.cs.set_mv_scale(8)
-        self.viewport.mv_adjust_zoom_slider(8)
+        self.cs.vp_scale = 8
+        self.viewport.vp_adjust_zoom_slider()
         # Recentre at current stage position and redraw
-        self.cs.set_mv_centre_d(
-            self.cs.convert_to_d(self.stage.get_last_known_xy()))
-        self.viewport.mv_draw()
+        self.cs.vp_centre_dx_dy = self.cs.convert_to_d(self.stage.last_known_xy)
+        self.viewport.vp_draw()
 
     def ft_open_move_dlg(self):
         """Open dialog box to let user manually move to the stage position of
@@ -2383,13 +2228,15 @@ class MainControls(QMainWindow):
     def ft_run_cycle(self):
         """Restrict the GUI, read the cycle parameters from the GUI, and
         launch the cycle (stage move followed by through-focus acquisition)
-        in a thread."""
+        in a thread.
+        """
         self.pushButton_focusToolStart.setText('Busy')
         self.pushButton_focusToolStart.setEnabled(False)
         self.pushButton_focusToolMove.setEnabled(False)
         self.pushButton_focusToolSet.setEnabled(False)
         self.spinBox_ftPixelSize.setEnabled(False)
         self.checkBox_zoom.setEnabled(False)
+        self.comboBox_dwellTime.setEnabled(False)
         self.verticalSlider_ftDelta.setEnabled(False)
         self.radioButton_focus.setEnabled(False)
         self.radioButton_stigX.setEnabled(False)
@@ -2404,12 +2251,14 @@ class MainControls(QMainWindow):
         self.tabWidget.setTabEnabled(2, False)
         # Restrict viewport:
         self.viewport.restrict_gui(True)
-        # Use current WD/Stig if selected working distance == 0:
-        if self.ft_selected_wd == 0:
+        # Use current WD/Stig if selected working distance == 0 or None:
+        if self.ft_selected_wd is None or self.ft_selected_wd == 0:
             self.ft_selected_wd = self.sem.get_wd()
             self.ft_selected_stig_x, self.ft_selected_stig_y = (
                 self.sem.get_stig_xy())
         self.ft_pixel_size = self.spinBox_ftPixelSize.value()
+        self.ft_dwell_time = self.sem.DWELL_TIME[
+            self.comboBox_dwellTime.currentIndex()]
         self.ft_slider_delta = self.verticalSlider_ftDelta.value() + 1
         self.ft_clear_display()
         QApplication.processEvents()
@@ -2418,32 +2267,35 @@ class MainControls(QMainWindow):
 
     def ft_move_and_acq_thread(self):
         """Move to the target stage position with error handling, then acquire
-        through-focus series."""
-        if self.ft_selected_ov >= 0:
-            stage_x, stage_y = self.cs.get_ov_centre_d(self.ft_selected_ov)
-        elif self.ft_selected_tile >= 0:
-            stage_x, stage_y = self.gm.get_tile_coordinates_d(
-                self.ft_selected_grid, self.ft_selected_tile)
-        # Get the shifts for the current focus area and add them to the centre
-        # coordinates in the SEM coordinate system. Then convert to stage
-        # coordinates and move.
-        delta_x, delta_y = self.ft_locations[self.ft_cycle_counter]
-        stage_x += delta_x * self.ft_pixel_size/1000
-        stage_y += delta_y * self.ft_pixel_size/1000
-        stage_x, stage_y = self.cs.convert_to_s((stage_x, stage_y))
+        through-focus series.
+        """
         move_success = True
-        self.stage.move_to_xy((stage_x, stage_y))
-        if self.stage.get_error_state() > 0:
-            self.stage.reset_error_state()
-            # Try again
-            sleep(2)
+        if not self.ft_use_current_position:
+            if self.ft_selected_ov >= 0:
+                stage_x, stage_y = self.ovm[self.ft_selected_ov].centre_dx_dy
+            elif self.ft_selected_tile >= 0:
+                stage_x, stage_y = self.cs.convert_to_d(
+                    self.gm[self.ft_selected_grid][self.ft_selected_tile].sx_sy)
+            # Get the shifts for the current focus area and add them to the
+            # centre coordinates in the SEM coordinate system. Then convert to
+            # stage coordinates and move.
+            delta_x, delta_y = self.ft_locations[self.ft_cycle_counter]
+            stage_x += delta_x * self.ft_pixel_size/1000
+            stage_y += delta_y * self.ft_pixel_size/1000
+            stage_x, stage_y = self.cs.convert_to_s((stage_x, stage_y))
             self.stage.move_to_xy((stage_x, stage_y))
-            if self.stage.get_error_state() > 0:
-                move_success = False
-                self.add_to_log('CTRL: Stage failed to move to selected tile '
-                                'for focus tool cycle.')
-        self.acq_queue.put('UPDATE XY FT')
-        self.acq_trigger.s.emit() # need to use signal because running in thread
+            if self.stage.error_state > 0:
+                self.stage.reset_error_state()
+                # Try again
+                sleep(2)
+                self.stage.move_to_xy((stage_x, stage_y))
+                if self.stage.error_state > 0:
+                    move_success = False
+                    self.add_to_log('CTRL: Stage failed to move to selected '
+                                    ' tile/OV for focus tool cycle.')
+
+        # Use signal for update because we are in the focus tool acq thread
+        self.trigger.transmit('UPDATE XY FT')
         if move_success:
             if self.radioButton_focus.isChecked():
                 self.ft_delta = (
@@ -2470,13 +2322,15 @@ class MainControls(QMainWindow):
         self.pushButton_focusToolSet.setEnabled(True)
         self.spinBox_ftPixelSize.setEnabled(True)
         self.checkBox_zoom.setEnabled(True)
+        self.comboBox_dwellTime.setEnabled(True)
         self.verticalSlider_ftDelta.setEnabled(True)
         self.radioButton_focus.setEnabled(True)
         self.radioButton_stigX.setEnabled(True)
         self.radioButton_stigY.setEnabled(True)
-        self.comboBox_selectGridFT.setEnabled(True)
-        self.comboBox_selectTileFT.setEnabled(True)
-        self.comboBox_selectOVFT.setEnabled(True)
+        if not self.ft_use_current_position:
+            self.comboBox_selectGridFT.setEnabled(True)
+            self.comboBox_selectTileFT.setEnabled(True)
+            self.comboBox_selectOVFT.setEnabled(True)
         # Enable menu
         self.menubar.setEnabled(True)
         # Enable the other tabs:
@@ -2497,7 +2351,8 @@ class MainControls(QMainWindow):
 
     def ft_acquire_focus_series(self):
         """Acquire through-focus series."""
-        self.sem.apply_frame_settings(1, self.ft_pixel_size, 0.8)
+        self.sem.apply_frame_settings(
+            1, self.ft_pixel_size, self.ft_dwell_time)
         self.sem.set_beam_blanking(0)
         self.ft_series_img = []
         self.ft_series_wd_values = []
@@ -2508,8 +2363,7 @@ class MainControls(QMainWindow):
             self.ft_series_wd_values.append(
                 self.ft_selected_wd + self.ft_fdeltas[i])
             filename = os.path.join(
-                self.cfg['acq']['base_dir'],
-                'workspace', 'ft' + str(i) + '.bmp')
+                self.acq.base_dir, 'workspace', 'ft' + str(i) + '.bmp')
             self.sem.acquire_frame(filename)
             self.ft_series_img.append(QPixmap(filename))
         self.sem.set_beam_blanking(1)
@@ -2521,8 +2375,10 @@ class MainControls(QMainWindow):
 
     def ft_acquire_stig_series(self, xy_choice):
         """Acquire image series with incrementally changing XY stigmation
-        parameters."""
-        self.sem.apply_frame_settings(1, self.ft_pixel_size, 0.8)
+        parameters.
+        """
+        self.sem.apply_frame_settings(
+            1, self.ft_pixel_size, self.ft_dwell_time)
         self.sem.set_beam_blanking(0)
         self.ft_series_img = []
         self.ft_series_stig_x_values = []
@@ -2541,8 +2397,7 @@ class MainControls(QMainWindow):
                 self.ft_series_stig_y_values.append(
                     self.ft_selected_stig_y + self.ft_sdeltas[i])
             filename = os.path.join(
-                self.cfg['acq']['base_dir'],
-                'workspace', 'ft' + str(i) + '.bmp')
+                self.acq.base_dir, 'workspace', 'ft' + str(i) + '.bmp')
             self.sem.acquire_frame(filename)
             self.ft_series_img.append(QPixmap(filename))
         self.sem.set_beam_blanking(1)
@@ -2601,14 +2456,14 @@ class MainControls(QMainWindow):
         self.lineEdit_currentStigX.setText('')
         self.lineEdit_currentStigY.setText('')
 
-    def ft_update_grid_selector(self, current_grid=0):
-        if current_grid >= self.gm.get_number_grids():
-            current_grid = 0
+    def ft_update_grid_selector(self, grid_index=0):
+        if grid_index >= self.gm.number_grids:
+            grid_index = 0
         self.comboBox_selectGridFT.blockSignals(True)
         self.comboBox_selectGridFT.clear()
-        self.comboBox_selectGridFT.addItems(self.gm.get_grid_str_list())
-        self.comboBox_selectGridFT.setCurrentIndex(current_grid)
-        self.ft_selected_grid = current_grid
+        self.comboBox_selectGridFT.addItems(self.gm.grid_selector_list())
+        self.comboBox_selectGridFT.setCurrentIndex(grid_index)
+        self.ft_selected_grid = grid_index
         self.comboBox_selectGridFT.currentIndexChanged.connect(
             self.ft_change_grid_selection)
         self.comboBox_selectGridFT.blockSignals(False)
@@ -2616,39 +2471,40 @@ class MainControls(QMainWindow):
     def ft_update_tile_selector(self, current_tile=-1):
         self.comboBox_selectTileFT.blockSignals(True)
         self.comboBox_selectTileFT.clear()
-        # If adaptive focus activated for selected grid, only show af_tiles!
-        if self.gm.is_adaptive_focus_active(self.ft_selected_grid):
+        # If wd gradient activated for selected grid, only show reference tiles!
+        if self.gm[self.ft_selected_grid].use_wd_gradient:
             self.comboBox_selectTileFT.addItems(
                 ['Select tile']
-                + self.gm.get_af_tile_str_list(self.ft_selected_grid))
+                + self.gm[self.ft_selected_grid].wd_gradient_ref_tile_selector_list())
             self.label_AFnotification.setText(
                 'Adaptive focus active in this grid.')
         else:
             self.comboBox_selectTileFT.addItems(
                 ['Select tile']
-                + self.gm.get_tile_str_list(self.ft_selected_grid))
+                + self.gm[self.ft_selected_grid].tile_selector_list())
             self.label_AFnotification.setText('')
 
         self.comboBox_selectTileFT.setCurrentIndex(current_tile + 1)
-        if (self.gm.is_adaptive_focus_active(self.ft_selected_grid)
+        if (self.gm[self.ft_selected_grid].use_wd_gradient
             and current_tile >= 0):
-            self.ft_selected_tile = self.gm.get_adaptive_focus_tiles(
-                self.ft_selected_grid)[current_tile]
+            self.ft_selected_tile = (
+                self.gm[self.ft_selected_grid].wd_gradient_ref_tiles[
+                    current_tile])
         else:
             self.ft_selected_tile = current_tile
         self.comboBox_selectTileFT.currentIndexChanged.connect(
             self.ft_load_selected_tile)
         self.comboBox_selectTileFT.blockSignals(False)
 
-    def ft_update_ov_selector(self, current_ov=-1):
-        if current_ov >= self.ovm.get_number_ov():
-            current_ov = -1
+    def ft_update_ov_selector(self, ov_index=-1):
+        if ov_index >= self.ovm.number_ov:
+            ov_index = -1
         self.comboBox_selectOVFT.blockSignals(True)
         self.comboBox_selectOVFT.clear()
         self.comboBox_selectOVFT.addItems(
-            ['Select OV'] + self.ovm.get_ov_str_list())
-        self.comboBox_selectOVFT.setCurrentIndex(current_ov + 1)
-        self.ft_selected_ov = current_ov
+            ['Select OV'] + self.ovm.ov_selector_list())
+        self.comboBox_selectOVFT.setCurrentIndex(ov_index + 1)
+        self.ft_selected_ov = ov_index
         self.comboBox_selectOVFT.currentIndexChanged.connect(
             self.ft_load_selected_ov)
         self.comboBox_selectOVFT.blockSignals(False)
@@ -2659,30 +2515,31 @@ class MainControls(QMainWindow):
 
     def ft_load_selected_tile(self):
         current_selection = self.comboBox_selectTileFT.currentIndex() - 1
-        if (self.gm.is_adaptive_focus_active(self.ft_selected_grid)
+        if (self.gm[self.ft_selected_grid].use_wd_gradient
             and current_selection >= 0):
-            self.ft_selected_tile = self.gm.get_adaptive_focus_tiles(
-                self.ft_selected_grid)[current_selection]
+            self.ft_selected_tile = (
+                self.gm[self.ft_selected_grid].wd_gradient_ref_tiles[
+                    current_selection])
         else:
             self.ft_selected_tile = current_selection
         # show current focus and stig:
         if self.ft_selected_tile >= 0:
             self.ft_update_ov_selector(-1)
-            self.ft_selected_wd = self.gm.get_tile_wd(
-                self.ft_selected_grid, self.ft_selected_tile)
+            self.ft_selected_wd = (
+                self.gm[self.ft_selected_grid][self.ft_selected_tile].wd)
             self.ft_selected_stig_x, self.ft_selected_stig_y = (
-                self.gm.get_tile_stig_xy(
-                    self.ft_selected_grid, self.ft_selected_tile))
+                self.gm[self.ft_selected_grid][self.ft_selected_tile].stig_xy)
             self.ft_update_wd_display()
             self.ft_update_stig_display()
         elif self.ft_selected_ov == -1:
             self.ft_clear_wd_stig_display()
 
-        if (self.af.is_active() and self.af.is_ref_tile(
-                self.ft_selected_grid, self.ft_selected_tile)):
+        if (self.acq.use_autofocus
+            and self.gm[self.ft_selected_grid][
+                        self.ft_selected_tile].autofocus_active):
             self.label_AFnotification.setText(
                 'WD/STIG of selected tile are being tracked.')
-        elif self.gm.is_adaptive_focus_active(self.ft_selected_grid):
+        elif self.gm[self.ft_selected_grid].use_wd_gradient:
             self.label_AFnotification.setText(
                 'Adaptive focus active in this grid.')
         else:
@@ -2695,9 +2552,8 @@ class MainControls(QMainWindow):
         self.ft_selected_ov = self.comboBox_selectOVFT.currentIndex() - 1
         if self.ft_selected_ov >= 0:
             self.ft_update_tile_selector(-1)
-            self.ft_selected_wd = self.ovm.get_ov_wd(self.ft_selected_ov)
-            self.ft_selected_stig_x, self.ft_selected_stig_y = (
-                self.ovm.get_ov_stig_xy(self.ft_selected_ov))
+            (self.ft_selected_wd, self.ft_selected_stig_x,
+             self.ft_selected_stig_y) = self.ovm[self.ft_selected_ov].wd_stig_xy
             self.ft_update_wd_display()
             self.ft_update_stig_display()
         elif self.ft_selected_tile == -1:
@@ -2709,13 +2565,13 @@ class MainControls(QMainWindow):
     def ft_set_selection_from_mv(self):
         """Load the tile/OV selected in the viewport with mouse click and
         context menu."""
-        selected_ov = self.viewport.mv_get_selected_ov()
-        selected_grid = self.viewport.mv_get_selected_grid()
-        selected_tile = self.viewport.mv_get_selected_tile()
+        selected_ov = self.viewport.selected_ov
+        selected_grid = self.viewport.selected_grid
+        selected_tile = self.viewport.selected_tile
         if (selected_grid is not None) and (selected_tile is not None):
             self.ft_selected_grid = selected_grid
-            if self.gm.is_adaptive_focus_active(selected_grid):
-                af_tiles = self.gm.get_adaptive_focus_tiles(selected_grid)
+            if self.gm[selected_grid].use_wd_gradient:
+                af_tiles = self.gm[selected_grid].wd_gradient_ref_tiles
                 if selected_tile in af_tiles:
                     self.ft_selected_tile = af_tiles.index(selected_tile)
                 else:
@@ -2754,6 +2610,13 @@ class MainControls(QMainWindow):
         self.ft_zoom ^= True
         if self.ft_mode > 0:
             self.ft_display_during_cycle()
+
+    def ft_toggle_use_current_position(self):
+        self.ft_use_current_position = self.checkBox_useCurrentPos.isChecked()
+        # Disable tile/OV selectors if 'use current position' option active
+        self.comboBox_selectGridFT.setEnabled(not self.ft_use_current_position)
+        self.comboBox_selectTileFT.setEnabled(not self.ft_use_current_position)
+        self.comboBox_selectOVFT.setEnabled(not self.ft_use_current_position)
 
     def keyPressEvent(self, event):
         if (type(event) == QKeyEvent) and (self.tabWidget.currentIndex() == 1):

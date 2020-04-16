@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>gradientTiles</class>
- <widget class="QDialog" name="gradientTiles">
+ <class>gradientTileSelection</class>
+ <widget class="QDialog" name="gradientTileSelection">
   <property name="windowModality">
    <enum>Qt::ApplicationModal</enum>
   </property>
@@ -14,7 +14,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Adaptive focus tile selection</string>
+   <string>Focus gradient tile selection</string>
   </property>
   <property name="locale">
    <locale language="English" country="UnitedKingdom"/>
@@ -115,7 +115,7 @@
   <connection>
    <sender>buttonBox</sender>
    <signal>accepted()</signal>
-   <receiver>gradientTiles</receiver>
+   <receiver>gradientTileSelection</receiver>
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
@@ -131,7 +131,7 @@
   <connection>
    <sender>buttonBox</sender>
    <signal>rejected()</signal>
-   <receiver>gradientTiles</receiver>
+   <receiver>gradientTileSelection</receiver>
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">

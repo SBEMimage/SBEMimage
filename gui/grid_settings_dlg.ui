@@ -457,7 +457,7 @@
      <number>1000</number>
     </property>
    </widget>
-   <widget class="QToolButton" name="toolButton_adaptiveFocus">
+   <widget class="QToolButton" name="toolButton_focusGradient">
     <property name="geometry">
      <rect>
       <x>206</x>
@@ -496,7 +496,7 @@
      <string>Grid acquisition interval:</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox_adaptiveFocus">
+   <widget class="QCheckBox" name="checkBox_focusGradient">
     <property name="geometry">
      <rect>
       <x>10</x>
@@ -581,8 +581,8 @@
   <tabstop>comboBox_dwellTime</tabstop>
   <tabstop>spinBox_acqInterval</tabstop>
   <tabstop>spinBox_acqIntervalOffset</tabstop>
-  <tabstop>checkBox_adaptiveFocus</tabstop>
-  <tabstop>toolButton_adaptiveFocus</tabstop>
+  <tabstop>checkBox_focusGradient</tabstop>
+  <tabstop>toolButton_focusGradient</tabstop>
   <tabstop>pushButton_resetFocusParams</tabstop>
   <tabstop>pushButton_save</tabstop>
   <tabstop>pushButton_addGrid</tabstop>

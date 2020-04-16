@@ -3,7 +3,7 @@
 # ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2018-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
@@ -14,9 +14,6 @@ import os
 import datetime
 import json
 import re
-import imaplib
-import smtplib
-import socket
 import requests
 
 import numpy as np
@@ -25,15 +22,33 @@ from skimage.transform import ProjectiveTransform
 from skimage.measure import ransac
 
 from time import sleep
+from queue import Queue
 from serial.tools import list_ports
 
-from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
-from email.mime.text import MIMEText
-from email.utils import formatdate
-from email import encoders, message_from_string
+from PyQt5.QtCore import QObject, pyqtSignal
 
-# Number of digits used to format image file names
+# Size of the Viewport canvas. This is currently fixed and values other
+# than 1000 and 800 are not fully supported/tested. In the future, these could
+# become parameters to allow resizing of the Viewport window.
+VP_WIDTH = 1000
+VP_HEIGHT = 800
+
+# XY margins between display area and the top-left corner of the Viewport
+# window. These margins must be subtracted from the coordinates provided
+# when the user clicks onto the window.
+VP_MARGIN_X = 20
+VP_MARGIN_Y = 40
+
+# Zoom parameters to convert between the scale factors and the position
+# of the zoom sliders in the Viewport (VP) and the Slice-by-Slice viewer
+# (SV). Zoom settings for tiles and for OVs are stored separately because
+# tiles and OVs usually differ in pixel size by an order of magnitude.
+VP_ZOOM_MICROTOME_STAGE = (0.2, 1.05)
+VP_ZOOM_SEM_STAGE = (0.0055, 1.085)
+SV_ZOOM_OV = (1.0, 1.03)
+SV_ZOOM_TILE = (5.0, 1.04)
+
+# Number of digits used to format image file names.
 OV_DIGITS = 3         # up to 999 overview images
 GRID_DIGITS = 4       # up to 9999 grids
 TILE_DIGITS = 4       # up to 9999 tiles per grid
@@ -44,19 +59,92 @@ RE_TILE_LIST = re.compile('^((0|[1-9][0-9]*)[.](0|[1-9][0-9]*))'
                           '([ ]*,[ ]*(0|[1-9][0-9]*)[.](0|[1-9][0-9]*))*$')
 RE_OV_LIST = re.compile('^([0-9]+)([ ]*,[ ]*[0-9]+)*$')
 
-# Set of selectable colours for grids:
+ERROR_LIST = {
+    0: 'No error',
+
+    # First digit 1: DM communication
+    101: 'DM script initialization error',
+    102: 'DM communication error (command could not be sent)',
+    103: 'DM communication error (unresponsive)',
+    104: 'DM communication error (return values could not be read)',
+
+    # First digit 2: 3View/SBEM hardware
+    201: 'Stage error (XY target position not reached)',
+    202: 'Stage error (Z target position not reached)',
+    203: 'Stage error (Z move too large)',
+    204: 'Cutting error',
+    205: 'Sweeping error',
+    206: 'Z mismatch error',
+
+    # First digit 3: SmartSEM/SEM
+    301: 'SmartSEM API initialization error',
+    302: 'Grab image error',
+    303: 'Grab incomplete error',
+    304: 'Frozen frame error',
+    305: 'SmartSEM unresponsive error',
+    306: 'EHT error',
+    307: 'Beam current error',
+    308: 'Frame size error',
+    309: 'Magnification error',
+    310: 'Scan rate error',
+    311: 'WD error',
+    312: 'STIG XY error',
+    313: 'Beam blanking error',
+
+    # First digit 4: I/O error
+    401: 'Primary drive error',
+    402: 'Mirror drive error',
+    403: 'Overwrite file error',
+    404: 'Load image error',
+
+    # First digit 5: Other errors during acq
+    501: 'Maximum sweeps error',
+    502: 'Overview image error (outside of range)',
+    503: 'Tile image error (outside of range)',
+    504: 'Tile image error (slice-by-slice comparison)',
+    505: 'Autofocus error (SmartSEM)' ,
+    506: 'Autofocus error (heuristic)',
+    507: 'WD/STIG difference error',
+    508: 'Metadata server error',
+
+    # First digit 6: reserved for user-defined errors
+    601: 'Test case error',
+
+    # First digit 7: error in configuration
+    701: 'Configuration error'
+}
+
+# List of selectable colours for grids (0-9), overviews (10)
+# acquisition indicator (11):
 COLOUR_SELECTOR = [
-    [255, 0, 0],      # red
-    [0, 255, 0],      # green
-    [255, 255, 0],    # yellow
-    [0, 255, 255],    # cyan
-    [128, 0, 0],      # dark red
-    [0, 128, 0],      # dark green
-    [255, 165, 0],    # orange
-    [255, 0, 255],    # pink
-    [173, 216, 230],  # grey
-    [184, 134, 11]    # brown
+    [255, 0, 0],        #0  red (default colour for grid 0)
+    [0, 255, 0],        #1  green
+    [255, 255, 0],      #2  yellow
+    [0, 255, 255],      #3  cyan
+    [128, 0, 0],        #4  dark red
+    [0, 128, 0],        #5  dark green
+    [255, 165, 0],      #6  orange (also used for measuring tool)
+    [255, 0, 255],      #7  pink
+    [173, 216, 230],    #8  grey
+    [184, 134, 11],     #9  brown
+    [0, 0, 255],        #10 blue (used only for OVs)
+    [50, 50, 50],       #11 dark grey for stub OV border
+    [128, 0, 128, 80]   #12 transparent violet (to indicate live acq)
 ]
+
+class Trigger(QObject):
+    """A custom QObject for receiving notifications and commands from threads.
+    The trigger signal is emitted by calling signal.emit(). The queue can
+    be used to send commands: queue.put(cmd) puts a cmd into the
+    queue, and queue.get() reads the cmd and empties the queue.
+    """
+    signal = pyqtSignal()
+    queue = Queue()
+
+    def transmit(self, cmd):
+        """Transmit a single command."""
+        self.queue.put(cmd)
+        self.signal.emit()
 
 
 def try_to_open(file_name, mode):
@@ -75,7 +163,18 @@ def try_to_open(file_name, mode):
                 file_handle = open(file_name, mode)
             except:
                 success = False
-    return (success, file_handle)
+    return success, file_handle
+
+def create_subdirectories(base_dir, dir_list):
+    """Create subdirectories given in dir_list in the base folder base_dir."""
+    try:
+        for dir_name in dir_list:
+            new_dir = os.path.join(base_dir, dir_name)
+            if not os.path.exists(new_dir):
+                os.makedirs(new_dir)
+        return True, ''
+    except Exception as e:
+        return False, str(e)
 
 def fit_in_range(value, min_value, max_value):
     """Make the given value fit into the range min_value..max_value"""
@@ -102,46 +201,57 @@ def show_progress_in_console(progress):
         + ' ' * (10 - int(progress/10)),
         progress), end='')
 
-def get_ov_save_path(stack_name, ov_number, slice_counter):
-    return ('overviews\\ov' + str(ov_number).zfill(OV_DIGITS) + '\\'
-            + stack_name
-            + '_ov' + str(ov_number).zfill(OV_DIGITS)
-            + '_s' + str(slice_counter).zfill(SLICE_DIGITS)
-            + '.tif')
+def ov_save_path(base_dir, stack_name, ov_index, slice_counter):
+    return os.path.join(
+        base_dir, 'overviews', 'ov' + str(ov_index).zfill(OV_DIGITS),
+        stack_name + '_ov' + str(ov_index).zfill(OV_DIGITS)
+        + '_s' + str(slice_counter).zfill(SLICE_DIGITS) + '.tif')
 
-def get_ov_debris_save_path(stack_name, ov_number, slice_counter, sw_counter):
-    return ('overviews\\debris\\'
-            + stack_name
-            + '_ov' + str(ov_number).zfill(OV_DIGITS)
-            + '_s' + str(slice_counter).zfill(SLICE_DIGITS)
-            + '_' + str(sw_counter)
-            + '.tif')
+def ov_debris_save_path(base_dir, stack_name, ov_index, slice_counter,
+                        sweep_counter):
+    return os.path.join(
+        base_dir, 'overviews', 'debris',
+        stack_name + '_ov' + str(ov_index).zfill(OV_DIGITS)
+        + '_s' + str(slice_counter).zfill(SLICE_DIGITS)
+        + '_' + str(sweep_counter) + '.tif')
 
-def get_tile_save_path(stack_name, grid_number, tile_number, slice_counter):
-    return ('tiles\\g' + str(grid_number).zfill(GRID_DIGITS)
-            + '\\t' + str(tile_number).zfill(TILE_DIGITS)
-            + '\\' + stack_name
-            + '_g' + str(grid_number).zfill(GRID_DIGITS)
-            + '_t' + str(tile_number).zfill(TILE_DIGITS)
-            + '_s' + str(slice_counter).zfill(SLICE_DIGITS)
-            + '.tif')
+def tile_relative_save_path(stack_name, grid_index, tile_index, slice_counter):
+    return os.path.join(
+        'tiles', 'g' + str(grid_index).zfill(GRID_DIGITS),
+        't' + str(tile_index).zfill(TILE_DIGITS),
+        stack_name + '_g' + str(grid_index).zfill(GRID_DIGITS)
+        + '_t' + str(tile_index).zfill(TILE_DIGITS)
+        + '_s' + str(slice_counter).zfill(SLICE_DIGITS) + '.tif')
 
-def get_tile_preview_save_path(grid_number, tile_number):
-    return ('workspace\\g' + str(grid_number).zfill(GRID_DIGITS)
-            + '_t' + str(tile_number).zfill(TILE_DIGITS) + '.png')
+def rejected_tile_save_path(base_dir, stack_name, grid_index, tile_index,
+                            slice_counter, fail_counter):
+    return os.path.join(
+        base_dir, 'tiles', 'rejected',
+        stack_name + '_g' + str(grid_index).zfill(GRID_DIGITS)
+        + '_t' + str(tile_index).zfill(TILE_DIGITS)
+        + '_s' + str(slice_counter).zfill(SLICE_DIGITS)
+        + '_'  + str(fail_counter) + '.tif')
 
-def get_tile_reslice_save_path(grid_number, tile_number):
-    return ('workspace\\reslices\\r_g' + str(grid_number).zfill(GRID_DIGITS)
-            + '_t' + str(tile_number).zfill(TILE_DIGITS) + '.png')
+def tile_preview_save_path(base_dir, grid_index, tile_index):
+    return os.path.join(
+        base_dir, 'workspace', 'g' + str(grid_index).zfill(GRID_DIGITS)
+         + '_t' + str(tile_index).zfill(TILE_DIGITS) + '.png')
 
-def get_ov_reslice_save_path(ov_number):
-    return ('workspace\\reslices\\r_OV'
-            + str(ov_number).zfill(OV_DIGITS) + '.png')
+def tile_reslice_save_path(base_dir, grid_index, tile_index):
+    return os.path.join(
+        base_dir, 'workspace', 'reslices',
+        'r_g' + str(grid_index).zfill(GRID_DIGITS)
+        + '_t' + str(tile_index).zfill(TILE_DIGITS) + '.png')
 
-def get_tile_id(grid_number, tile_number, slice_number):
-    return (str(grid_number).zfill(GRID_DIGITS)
-            + '.' + str(tile_number).zfill(TILE_DIGITS)
-            + '.' + str(slice_number).zfill(SLICE_DIGITS))
+def ov_reslice_save_path(base_dir, ov_index):
+    return os.path.join(
+        base_dir, 'workspace', 'reslices',
+        'r_OV' + str(ov_index).zfill(OV_DIGITS) + '.png')
+
+def tile_id(grid_index, tile_index, slice_counter):
+    return (str(grid_index).zfill(GRID_DIGITS)
+            + '.' + str(tile_index).zfill(TILE_DIGITS)
+            + '.' + str(slice_counter).zfill(SLICE_DIGITS))
 
 def validate_tile_list(input_str):
     input_str = input_str.strip()
@@ -168,64 +278,6 @@ def validate_ov_list(input_str):
             ov_list = []
             success = False
     return success, ov_list
-
-def send_email(smtp_server, sender, recipients, subject, main_text, files=[]):
-    try:
-        msg = MIMEMultipart()
-        msg['From'] = sender
-        msg['To'] = recipients[0]
-        msg['Date'] = formatdate(localtime = True)
-        msg['Subject'] = subject
-        msg.attach(MIMEText(main_text))
-        for f in files:
-            part = MIMEBase('application', 'octet-stream')
-            part.set_payload(open(f, 'rb').read())
-            encoders.encode_base64(part)
-            part.add_header('Content-Disposition',
-                            'attachment; filename="{0}"'.format(
-                                os.path.basename(f)))
-            msg.attach(part)
-        mail_server = smtplib.SMTP(smtp_server)
-        #mail_server = smtplib.SMTP_SSL(smtp_server)
-        mail_server.sendmail(sender, recipients, msg.as_string())
-        mail_server.quit()
-        return True, None
-    except Exception as e:
-        return False, str(e)
-
-def get_remote_command(imap_server, email_account, email_pw, allowed_senders):
-    try:
-        #print('Trying to log in to', imap_server, email_account, email_pw)
-        mail_server = imaplib.IMAP4_SSL(imap_server)
-        mail_server.login(email_account, email_pw)
-        mail_server.list()
-        mail_server.select('inbox')
-        result, data = mail_server.search(None, 'ALL')
-        if data is not None:
-            id_list = data[0].split()
-            latest_email_id = id_list[-1]
-            # fetch the email body (RFC822) for latest_email_id
-            result, data = mail_server.fetch(latest_email_id, '(RFC822)')
-            for response_part in data:
-                if isinstance(response_part, tuple):
-                    msg = message_from_string(response_part[1].decode('utf-8'))
-                    subject = msg['subject'].strip().lower()
-                    sender = msg['from']
-            mail_server.logout()
-            # Check sender and subject
-            # Sender email must be main user email or cc email:
-            sender_allowed = (allowed_senders[0] in sender
-                              or allowed_senders[1] in sender)
-            allowed_commands = ['pause', 'stop', 'continue', 'start', 'restart',
-                                'report']
-            if (subject in allowed_commands) and sender_allowed:
-                return subject
-            else:
-                return 'NONE'
-        else:
-            return 'NONE'
-    except:
-        return 'ERROR'
 
 def meta_server_put_request(url, data):
     try:
@@ -259,7 +311,7 @@ def meta_server_get_request(url):
     except:
         status = 100
         msg = 'Metadata server request failed.'
-    return (status, command, msg)
+    return status, command, msg
 
 def suppress_console_warning():
     # Suppress TIFFReadDirectory warnings that otherwise flood console window
@@ -314,6 +366,10 @@ def get_days_hours_minutes(duration_in_seconds):
 
 def get_serial_ports():
     return [port.device for port in list_ports.comports()]
+
+def round_xy(coordinates):
+    x, y = coordinates
+    return [round(x, 3), round(y, 3)]
 
 # ----------------- Functions for geometric transforms (MagC) ------------------
 def affineT(x_in, y_in, x_out, y_out):

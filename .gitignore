@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Pytest
+.pytest_cache
+
 # Ignore configuration files, except defaults
 *.ini
 *.cfg

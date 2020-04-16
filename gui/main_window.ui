@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>700</width>
+    <width>711</width>
     <height>950</height>
    </rect>
   </property>
@@ -53,7 +53,7 @@
         <rect>
          <x>50</x>
          <y>55</y>
-         <width>91</width>
+         <width>111</width>
          <height>16</height>
         </rect>
        </property>
@@ -512,7 +512,7 @@
         <rect>
          <x>560</x>
          <y>75</y>
-         <width>81</width>
+         <width>91</width>
          <height>16</height>
         </rect>
        </property>
@@ -661,7 +661,7 @@
         <rect>
          <x>360</x>
          <y>75</y>
-         <width>101</width>
+         <width>111</width>
          <height>16</height>
         </rect>
        </property>
@@ -925,7 +925,7 @@
         <rect>
          <x>80</x>
          <y>55</y>
-         <width>71</width>
+         <width>81</width>
          <height>16</height>
         </rect>
        </property>
@@ -938,7 +938,7 @@
         <rect>
          <x>80</x>
          <y>95</y>
-         <width>71</width>
+         <width>81</width>
          <height>16</height>
         </rect>
        </property>
@@ -1045,7 +1045,7 @@
         <rect>
          <x>80</x>
          <y>115</y>
-         <width>71</width>
+         <width>81</width>
          <height>16</height>
         </rect>
        </property>
@@ -1284,7 +1284,7 @@
       <property name="geometry">
        <rect>
         <x>20</x>
-        <y>440</y>
+        <y>420</y>
         <width>101</width>
         <height>23</height>
        </rect>
@@ -1348,24 +1348,24 @@
      <widget class="QLabel" name="label_5">
       <property name="geometry">
        <rect>
-        <x>587</x>
-        <y>325</y>
-        <width>51</width>
+        <x>580</x>
+        <y>305</y>
+        <width>81</width>
         <height>20</height>
        </rect>
       </property>
       <property name="text">
-       <string>Pixel size</string>
+       <string>Pixel size (nm):</string>
       </property>
       <property name="alignment">
-       <set>Qt::AlignCenter</set>
+       <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
       </property>
      </widget>
      <widget class="QSpinBox" name="spinBox_ftPixelSize">
       <property name="geometry">
        <rect>
-        <x>592</x>
-        <y>360</y>
+        <x>580</x>
+        <y>325</y>
         <width>42</width>
         <height>22</height>
        </rect>
@@ -1383,8 +1383,8 @@
      <widget class="QSlider" name="verticalSlider_ftDelta">
       <property name="geometry">
        <rect>
-        <x>606</x>
-        <y>65</y>
+        <x>596</x>
+        <y>50</y>
         <width>20</width>
         <height>141</height>
        </rect>
@@ -1405,8 +1405,8 @@
      <widget class="QLabel" name="label_7">
       <property name="geometry">
        <rect>
-        <x>591</x>
-        <y>45</y>
+        <x>581</x>
+        <y>30</y>
         <width>47</width>
         <height>13</height>
        </rect>
@@ -1421,8 +1421,8 @@
      <widget class="QLabel" name="label_8">
       <property name="geometry">
        <rect>
-        <x>590</x>
-        <y>215</y>
+        <x>580</x>
+        <y>195</y>
         <width>47</width>
         <height>13</height>
        </rect>
@@ -1437,8 +1437,8 @@
      <widget class="QCheckBox" name="checkBox_zoom">
       <property name="geometry">
        <rect>
-        <x>605</x>
-        <y>265</y>
+        <x>595</x>
+        <y>223</y>
         <width>16</width>
         <height>17</height>
        </rect>
@@ -1456,8 +1456,8 @@
      <widget class="QLabel" name="label_9">
       <property name="geometry">
        <rect>
-        <x>590</x>
-        <y>285</y>
+        <x>580</x>
+        <y>240</y>
         <width>47</width>
         <height>13</height>
        </rect>
@@ -1557,22 +1557,6 @@
        </rect>
       </property>
      </widget>
-     <widget class="QLabel" name="label_14">
-      <property name="geometry">
-       <rect>
-        <x>592</x>
-        <y>340</y>
-        <width>41</width>
-        <height>20</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>(nm):</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignCenter</set>
-      </property>
-     </widget>
      <widget class="QComboBox" name="comboBox_selectOVFT">
       <property name="geometry">
        <rect>
@@ -1612,20 +1596,62 @@
        </font>
       </property>
       <property name="text">
-       <string/>
+       <string>Information about current selection.</string>
       </property>
      </widget>
      <widget class="QPushButton" name="pushButton_focusToolMove">
       <property name="geometry">
        <rect>
         <x>20</x>
-        <y>460</y>
+        <y>450</y>
         <width>101</width>
         <height>23</height>
        </rect>
       </property>
       <property name="text">
        <string>Move to tile/OV</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_19">
+      <property name="geometry">
+       <rect>
+        <x>580</x>
+        <y>350</y>
+        <width>91</width>
+        <height>20</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Dwell time (µm):</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+      </property>
+     </widget>
+     <widget class="QComboBox" name="comboBox_dwellTime">
+      <property name="geometry">
+       <rect>
+        <x>580</x>
+        <y>370</y>
+        <width>51</width>
+        <height>22</height>
+       </rect>
+      </property>
+      <property name="layoutDirection">
+       <enum>Qt::LeftToRight</enum>
+      </property>
+     </widget>
+     <widget class="QCheckBox" name="checkBox_useCurrentPos">
+      <property name="geometry">
+       <rect>
+        <x>140</x>
+        <y>425</y>
+        <width>271</width>
+        <height>17</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Use current stage position</string>
       </property>
      </widget>
     </widget>
@@ -2402,7 +2428,7 @@ Wafer Image</string>
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>700</width>
+     <width>711</width>
      <height>21</height>
     </rect>
    </property>

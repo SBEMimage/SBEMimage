@@ -3,7 +3,7 @@
 # ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2018-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
@@ -26,21 +26,18 @@ from scipy.signal import correlate2d, fftconvolve
 
 class Autofocus():
 
-    def __init__(self, config, sem, grid_manager, acq_queue, acq_trigger):
+    def __init__(self, config, sem, grid_manager):
         self.cfg = config
         self.sem = sem
         self.gm = grid_manager
-        self.queue = acq_queue
-        self.trigger = acq_trigger
         self.method = int(self.cfg['autofocus']['method'])
-        self.ref_tiles = json.loads(self.cfg['autofocus']['ref_tiles'])
         self.tracking_mode = int(self.cfg['autofocus']['tracking_mode'])
         self.interval = int(self.cfg['autofocus']['interval'])
         self.autostig_delay = int(self.cfg['autofocus']['autostig_delay'])
         self.pixel_size = float(self.cfg['autofocus']['pixel_size'])
         # Maximum allowed change in focus/stigmation:
-        self.max_wd_diff, self.max_sx_diff, self.max_sy_diff = json.loads(
-            self.cfg['autofocus']['max_wd_stig_diff'])
+        self.max_wd_diff, self.max_stig_x_diff, self.max_stig_y_diff = (
+            json.loads(self.cfg['autofocus']['max_wd_stig_diff']))
         # For heuristic autofocus:
         # Dictionary of cropped central tile areas, kept in memory
         # for processing during cut cycle:
@@ -65,160 +62,68 @@ class Autofocus():
         self.astgy_est = {}
         # Computed corrections:
         self.wd_stig_corr = {}
-        # If MagC mode active, enforce method and tracking mode:
-        if self.cfg['sys']['magc_mode'] == 'True':
+        # If MagC mode active, enforce method and tracking mode
+        self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
+        if self.magc_mode:
             self.set_method(0)         # SmartSEM autofocus
             self.set_tracking_mode(0)  # Track selected, approx. others
 
-    def is_active(self):
-        return (self.cfg['acq']['use_autofocus'] == 'True')
+    def save_to_cfg(self):
+        """Save current status of autofocus to ConfigParser object. Note that
+        autofocus reference tiles are managed by the grid_manager."""
+        self.cfg['autofocus']['method'] = str(self.method)
+        self.cfg['autofocus']['tracking_mode'] = str(self.tracking_mode)
+        self.cfg['autofocus']['max_wd_stig_diff'] = str(
+            [self.max_wd_diff, self.max_stig_x_diff, self.max_stig_y_diff])
+        self.cfg['autofocus']['interval'] = str(self.interval)
+        self.cfg['autofocus']['autostig_delay'] = str(self.autostig_delay)
+        self.cfg['autofocus']['pixel_size'] = str(self.pixel_size)
+        self.cfg['autofocus']['heuristic_deltas'] = str(
+            [self.wd_delta, self.stig_x_delta, self.stig_y_delta])
+        self.cfg['autofocus']['heuristic_calibration'] = str(
+            self.heuristic_calibration)
+        self.cfg['autofocus']['heuristic_rot_scale'] = str(
+            [self.rot_angle, self.scale_factor])
 
-    def get_method(self):
-        return self.method
-
-    def set_method(self, method):
-        self.method = method
-        self.cfg['autofocus']['method'] = str(method)
-
-    def get_ref_tiles(self):
-        return self.ref_tiles
-
-    def get_ref_tiles_in_grid(self, grid_number):
-        tile_list = []
-        for tile_key in self.ref_tiles:
-            grid, tile = tile_key.split('.')
-            grid, tile = int(grid), int(tile)
-            if grid == grid_number:
-                tile_list.append(tile)
-        return tile_list
-
-    def is_ref_tile(self, grid_number, tile_number):
-        return tile_number in self.get_ref_tiles_in_grid(grid_number)
-
-    def set_ref_tiles(self, ref_tile_list):
-        self.ref_tiles = ref_tile_list
-        self.cfg['autofocus']['ref_tiles'] = json.dumps(ref_tile_list)
-
-    def get_ref_tile_average_wd_stig(self, grid_number):
-        wd_list = []
-        stig_x_list = []
-        stig_y_list = []
-        for ref_tile in self.ref_tiles:
-            grid, tile = ref_tile.split('.')
-            grid, tile = int(grid), int(tile)
-            if grid == grid_number:
-                wd = self.gm.get_tile_wd(grid, tile)
-                wd_list.append(wd)
-                stig_x, stig_y = self.gm.get_tile_stig_xy(grid, tile)
-                stig_x_list.append(stig_x)
-                stig_y_list.append(stig_y)
-        if wd_list and stig_x_list and stig_y_list:
-            return mean(wd_list), mean(stig_x_list), mean(stig_y_list)
-        else:
-            return None, None, None
-
-    def approximate_tile_wd_stig(self, grid_number):
+    def approximate_wd_stig_in_grid(self, grid_index):
         """Approximate the working distance and stigmation parameters for all
-        non-selected active tiles. Simple approach for now: use the settings
-        of the nearest (selected) neighbour."""
-        active_tiles = self.gm.get_active_tiles(grid_number)
-        autofocus_tiles = self.get_ref_tiles_in_grid(grid_number)
-        if active_tiles and autofocus_tiles:
+        non-selected active tiles in the specified grid. Simple approach for
+        now: use the settings of the nearest (selected) neighbour."""
+        active_tiles = self.gm[grid_index].active_tiles
+        autofocus_ref_tiles = self.gm[grid_index].autofocus_ref_tiles()
+        if active_tiles and autofocus_ref_tiles:
             for tile in active_tiles:
                 min_dist = 10**6
-                nearest = None
-                for af_tile in autofocus_tiles:
-                    dist = self.gm.get_distance_between_tiles(
-                        grid_number, tile, af_tile)
+                nearest_tile = None
+                for af_tile in autofocus_ref_tiles:
+                    dist = self.gm[grid_index].distance_between_tiles(
+                        tile, af_tile)
                     if dist < min_dist:
                         min_dist = dist
-                        nearest = af_tile
-                # Set focus parameters for current tile to nearest autofocus tile:
-                self.gm.set_tile_wd(
-                    grid_number, tile,
-                    self.gm.get_tile_wd(grid_number, nearest))
-                self.gm.set_tile_stig_xy(
-                    grid_number, tile,
-                    *self.gm.get_tile_stig_xy(grid_number, nearest))
+                        nearest_tile = af_tile
+                # Set focus parameters for current tile to those of the nearest
+                # autofocus tile
+                self.gm[grid_index][tile].wd = (
+                    self.gm[grid_index][nearest_tile].wd)
+                self.gm[grid_index][tile].stig_xy = (
+                    self.gm[grid_index][nearest_tile].stig_xy)
 
-    def is_ref_tile(self, grid_number, tile_number):
-        tile_key = str(grid_number) + '.' + str(tile_number)
-        return (tile_key in self.ref_tiles)
-
-    def toggle_ref_tile(self, grid_number, tile_number):
-        tile_key = str(grid_number) + '.' + str(tile_number)
-        if tile_key in self.ref_tiles:
-            self.ref_tiles.remove(tile_key)
-        else:
-            self.ref_tiles.append(tile_key)
-
-    def get_tracking_mode(self):
-        return self.tracking_mode
-
-    def set_tracking_mode(self, mode):
-        self.tracking_mode = mode
-        self.cfg['autofocus']['tracking_mode'] = str(self.tracking_mode)
-
-    def get_interval(self):
-        return self.interval
-
-    def set_interval(self, interval):
-        self.interval = interval
-        self.cfg['autofocus']['interval'] = str(interval)
-
-    def get_autostig_delay(self):
-        return self.autostig_delay
-
-    def set_autostig_delay(self, delay):
-        self.autostig_delay = delay
-        self.cfg['autofocus']['autostig_delay'] = str(delay)
-
-    def get_pixel_size(self):
-        return self.pixel_size
-
-    def set_pixel_size(self, pixel_size):
-        self.pixel_size = pixel_size
-        self.cfg['autofocus']['pixel_size'] = str(pixel_size)
-
-    def get_max_wd_stig_diff(self):
-        return [self.max_wd_diff, self.max_sx_diff, self.max_sy_diff]
-
-    def set_max_wd_stig_diff(self, max_diffs):
-        self.max_wd_diff, self.max_sx_diff, self.max_sy_diff = max_diffs
-        self.cfg['autofocus']['max_wd_stig_diff'] = str(max_diffs)
-
-    def check_wd_stig_diff(self, prev_wd, prev_sx, prev_sy):
+    def wd_stig_diff_below_max(self, prev_wd, prev_sx, prev_sy):
         diff_wd = abs(self.sem.get_wd() - prev_wd)
         diff_sx = abs(self.sem.get_stig_x() - prev_sx)
         diff_sy = abs(self.sem.get_stig_y() - prev_sy)
         return (diff_wd <= self.max_wd_diff
-                and diff_sx <= self.max_sx_diff
-                and diff_sy <= self.max_sy_diff)
+                and diff_sx <= self.max_stig_x_diff
+                and diff_sy <= self.max_stig_y_diff)
 
-    def is_active_current_slice(self, slice_counter):
-        autofocus_current_slice, autostig_current_slice = False, False
+    def current_slice_active(self, slice_counter):
+        autofocus_active, autostig_active = False, False
         if slice_counter > 0:
-            autofocus_current_slice = (slice_counter % self.interval == 0)
+            autofocus_active = (slice_counter % self.interval == 0)
         if -1 < self.autostig_delay < slice_counter:
-            autostig_current_slice = ((
+            autostig_active = ((
                 (slice_counter - self.autostig_delay) % self.interval) == 0)
-        return (autofocus_current_slice, autostig_current_slice)
-
-    def is_tile_selected(self, grid_number, tile_number):
-        grid_tile_str = str(grid_number) + '.' + str(tile_number)
-        return (grid_tile_str in self.ref_tiles)
-
-    def select_all_active_tiles(self):
-        """Delete the current autofocus reference tile selection and
-        select all active tiles."""
-        self.ref_tiles = []
-        number_grids = int(self.cfg['grids']['number_grids'])
-        for grid in range(number_grids):
-            for tile in self.gm.get_active_tiles(grid):
-                self.ref_tiles.append(str(grid) + '.' + str(tile))
-
-    def reset_ref_tiles(self):
-        self.ref_tiles = []
+        return autofocus_active, autostig_active
 
     def run_zeiss_af(self, autofocus=True, autostig=True):
         """Call the SmartSEM autofocus and autostigmation routines
@@ -235,7 +140,7 @@ class Autofocus():
             sleep(0.5)
 
             if autofocus and autostig:
-                if self.cfg['sys']['magc_mode'] == 'True':
+                if self.magc_mode:
                     # Run SmartSEM autofocus-autostig-autofocus sequence:
                     msg = 'SmartSEM autofocus-autostig-autofocus (MagC)'
                     success = self.sem.run_autofocus()
@@ -341,8 +246,8 @@ class Autofocus():
             ay_corr *= self.scale_factor
             # Are results within permissible range?
             within_range = (abs(wd_corr/1000) <= self.max_wd_diff
-                            and abs(ax_corr) <= self.max_sx_diff
-                            and abs(ay_corr) <= self.max_sy_diff)
+                            and abs(ax_corr) <= self.max_stig_x_diff
+                            and abs(ay_corr) <= self.max_stig_y_diff)
             if within_range:
                 # Store corrections for this tile:
                 self.wd_stig_corr[tile_key] = [wd_corr/1000, ax_corr, ay_corr]
@@ -353,13 +258,13 @@ class Autofocus():
         else:
             return None, None, None, False
 
-    def get_heuristic_average_grid_correction(self, grid_number):
+    def get_heuristic_average_grid_correction(self, grid_index):
         wd_corr = []
         stig_x_corr = []
         stig_y_corr = []
         for tile_key in self.wd_stig_corr:
             g = int(tile_key.split('.')[0])
-            if g == grid_number:
+            if g == grid_index:
                 wd_corr.append(self.wd_stig_corr[tile_key][0])
                 stig_x_corr.append(self.wd_stig_corr[tile_key][1])
                 stig_y_corr.append(self.wd_stig_corr[tile_key][2])
@@ -413,25 +318,3 @@ class Autofocus():
                 numerator_sum += autocorr[i, j] * mask[i, j]
                 norm += mask[i, j]
         return numerator_sum / norm
-
-    def get_heuristic_deltas(self):
-        return [self.wd_delta, self.stig_x_delta, self.stig_y_delta]
-
-    def set_heuristic_deltas(self, deltas):
-        self.wd_delta, self.stig_x_delta, self.stig_y_delta = deltas
-        self.cfg['autofocus']['heuristic_deltas'] = str(deltas)
-
-    def get_heuristic_calibration(self):
-        return self.heuristic_calibration
-
-    def set_heuristic_calibration(self, calib):
-        self.heuristic_calibration = calib
-        self.cfg['autofocus']['heuristic_calibration'] = str(calib)
-
-    def get_heuristic_rot_scale(self):
-        return [self.rot_angle, self.scale_factor]
-
-    def set_heuristic_rot_scale(self, rot_scale):
-        self.rot_angle, self.scale_factor = rot_scale
-        self.cfg['autofocus']['heuristic_rot_scale'] = str(
-            [self.rot_angle, self.scale_factor])

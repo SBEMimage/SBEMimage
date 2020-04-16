@@ -3,619 +3,124 @@
 # ==============================================================================
 #   SBEMimage, ver. 2.0
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2018-2019 Friedrich Miescher Institute for Biomedical Research, Basel.
+#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
 
-"""This module manages the overview images, the stub overview image, and
-   the imported images.
+"""This module manages the overview images (region-of-interest overviews [OV])
+and the stub overview images. It can add, delete and modify overviews, and read
+parameters from existing overviews.
+The classes Overview and StubOverview are derived from class Grid in
+grid_manager.py.
+One instance of the OverviewManager class is used throughout SBEMimage as
+self.ovm ('ovm' short for overview_manager).
+The attributes of overviews be accessed with square brackets, for
+example:
+self.ovm[ov_index].dwell_time  (dwell_time of the specified overview)
+self.ovm['stub'].size  (size of the stub overview grid)
 """
 
 import os
 import json
+from PyQt5.QtGui import QPixmap, QPainter, QColor
 
 import utils
+from grid_manager import Grid
 
 
-class OverviewManager(object):
+class Overview(Grid):
+    def __init__(self, coordinate_system, sem,
+                 ov_active, centre_sx_sy, frame_size, frame_size_selector,
+                 pixel_size, dwell_time, dwell_time_selector, acq_interval,
+                 acq_interval_offset, wd_stig_xy, vp_file_path,
+                 debris_detection_area):
 
-    def __init__(self, config, sem, coordinate_system):
-        self.cfg = config
-        self.sem = sem
-        self.cs = coordinate_system
-        self.number_ov = int(self.cfg['overviews']['number_ov'])
-        self.ov_rotation = json.loads(self.cfg['overviews']['ov_rotation'])
-        self.ov_size_selector = json.loads(
-            self.cfg['overviews']['ov_size_selector'])
-        self.ov_size_px_py = json.loads(
-            self.cfg['overviews']['ov_size_px_py'])
-        self.ov_pixel_size = json.loads(
-            self.cfg['overviews']['ov_pixel_size'])
-        self.calculate_ov_mag_from_pixel_size()
-        self.cfg['overviews']['ov_magnification'] = str(
-            self.ov_magnification)
-        self.ov_dwell_time = json.loads(self.cfg['overviews']['ov_dwell_time'])
-        self.ov_dwell_time_selector = json.loads(
-            self.cfg['overviews']['ov_dwell_time_selector'])
-        self.ov_wd = json.loads(self.cfg['overviews']['ov_wd'])
-        self.ov_stig_xy = json.loads(self.cfg['overviews']['ov_stig_xy'])
-        self.ov_file_list = json.loads(
-            self.cfg['overviews']['ov_viewport_images'])
-        self.ov_acq_interval = json.loads(
-            self.cfg['overviews']['ov_acq_interval'])
-        self.ov_acq_interval_offset = json.loads(
-            self.cfg['overviews']['ov_acq_interval_offset'])
-        self.debris_detection_area = json.loads(
-            self.cfg['debris']['detection_area'])
-        self.auto_debris_area_margin = int(
-            self.cfg['debris']['auto_area_margin'])
-        # Stub OV settings:
-        # The acq parameters (frame size, dwell time, magnification) can only
-        # be changed manually in the config file, are therefore loaded as
-        # constants.
-        self.stub_ov_grid = []
-        self.stub_ov_size_selector = int(
-            self.cfg['overviews']['stub_ov_size_selector'])
-        self.STUB_OV_SIZE = json.loads(self.cfg['overviews']['stub_ov_size'])
-        self.STUB_OV_FRAME_SIZE_SELECTOR = int(
-            self.cfg['overviews']['stub_ov_frame_size_selector'])
-        self.STUB_OV_PIXEL_SIZE = int(
-            self.cfg['overviews']['stub_ov_pixel_size'])
-        self.STUB_OV_DWELL_TIME = float(
-            self.cfg['overviews']['stub_ov_dwell_time'])
-        self.stub_ov_file = self.cfg['overviews']['stub_ov_viewport_image']
-        self.STUB_OV_FRAME_WIDTH = (
-            self.sem.STORE_RES[self.STUB_OV_FRAME_SIZE_SELECTOR][0])
-        self.STUB_OV_FRAME_HEIGHT = (
-            self.sem.STORE_RES[self.STUB_OV_FRAME_SIZE_SELECTOR][1])
-        self.STUB_OV_OVERLAP = int(self.cfg['overviews']['stub_ov_overlap'])
-        self.calculate_stub_ov_grid()
+        # Initialize the overview as a 1x1 grid
+        super().__init__(coordinate_system, sem,
+                         active=ov_active, origin_sx_sy=centre_sx_sy,
+                         rotation=0, size=[1, 1], overlap=0, row_shift=0,
+                         active_tiles=[0], frame_size=frame_size,
+                         frame_size_selector=frame_size_selector,
+                         pixel_size=pixel_size, dwell_time=dwell_time,
+                         dwell_time_selector=dwell_time_selector,
+                         display_colour=10, acq_interval=acq_interval,
+                         acq_interval_offset=acq_interval_offset,
+                         wd_stig_xy=wd_stig_xy)
 
-        # Imported images:
-        self.number_imported = int(self.cfg['overviews']['number_imported'])
-        self.imported_file_list = json.loads(
-            self.cfg['overviews']['imported_images'])
-        self.imported_names = json.loads(
-            self.cfg['overviews']['imported_names'])
-        self.imported_rotation = json.loads(
-            self.cfg['overviews']['imported_rotation'])
-        self.imported_pixel_size = json.loads(
-            self.cfg['overviews']['imported_pixel_size'])
-        self.imported_size_px_py = json.loads(
-            self.cfg['overviews']['imported_size_px_py'])
-        self.imported_transparency = json.loads(
-            self.cfg['overviews']['imported_transparency'])
+        self.image = None
+        self.vp_file_path = vp_file_path    # this will load the image if found
+        self.debris_detection_area = debris_detection_area
 
-    def add_new_ov(self):
-        new_ov_number = self.number_ov
-        # Position new OV next to previous OV
-        x_pos, y_pos = self.cs.get_ov_centre_s(new_ov_number-1)
-        self.cs.set_ov_centre_s(new_ov_number, [x_pos, y_pos+50])
-        self.set_ov_size_selector(new_ov_number, 2)
-        self.set_ov_rotation(new_ov_number, 0)
-        self.set_ov_pixel_size(new_ov_number, 155.0)
-        self.set_ov_dwell_time_selector(new_ov_number, 4)
-        self.set_ov_wd(new_ov_number, 0)
-        self.set_ov_stig_xy(new_ov_number, 0, 0)
-        self.set_ov_acq_interval(new_ov_number, 1)
-        self.set_ov_acq_interval_offset(new_ov_number, 0)
-        self.update_ov_file_list(new_ov_number, '')
-        self.set_ov_debris_detection_area(new_ov_number, [])
-        self.number_ov += 1
-        self.cfg['overviews']['number_ov'] = str(self.number_ov)
 
-    def delete_ov(self):
-        # Delete last item from each variable:
-        self.cs.delete_ov_centre(self.number_ov - 1)
-        del self.ov_rotation[-1]
-        self.cfg['overviews']['ov_rotation'] = str(self.ov_rotation)
-        del self.ov_size_selector[-1]
-        self.cfg['overviews']['ov_size_selector'] = str(self.ov_size_selector)
-        del self.ov_size_px_py[-1]
-        self.cfg['overviews']['ov_size_px_py'] = str(self.ov_size_px_py)
-        del self.ov_magnification[-1]
-        self.cfg['overviews']['ov_magnification'] = str(self.ov_magnification)
-        del self.ov_pixel_size[-1]
-        self.cfg['overviews']['ov_pixel_size'] = str(self.ov_pixel_size)
-        del self.ov_dwell_time[-1]
-        self.cfg['overviews']['ov_dwell_time'] = str(self.ov_dwell_time)
-        del self.ov_dwell_time_selector[-1]
-        self.cfg['overviews']['ov_dwell_time_selector'] = str(
-            self.ov_dwell_time_selector)
-        del self.ov_wd[-1]
-        self.cfg['overviews']['ov_wd'] = str(self.ov_wd)
-        del self.ov_stig_xy[-1]
-        self.cfg['overviews']['ov_stig_xy'] = str(self.ov_stig_xy)
-        del self.debris_detection_area[-1]
-        self.cfg['debris']['detection_area'] = str(self.debris_detection_area)
-        del self.ov_file_list[-1]
-        self.cfg['overviews']['ov_viewport_images'] = json.dumps(
-            self.ov_file_list)
-        del self.ov_acq_interval[-1]
-        self.cfg['overviews']['ov_acq_interval'] = str(self.ov_acq_interval)
-        del self.ov_acq_interval_offset[-1]
-        self.cfg['overviews']['ov_acq_interval_offset'] = str(
-            self.ov_acq_interval_offset)
-        # Number of OV:
-        self.number_ov -= 1
-        self.cfg['overviews']['number_ov'] = str(self.number_ov)
+    # The following property overrides centre_sx_sy from the parent class.
+    # Since overviews are 1x1 grids, the centre is the same as the origin.
+    @property
+    def centre_sx_sy(self):
+        return self._origin_sx_sy
 
-    def get_number_ov(self):
-        return self.number_ov
+    @centre_sx_sy.setter
+    def centre_sx_sy(self, sx_sy):
+        self._origin_sx_sy = list(sx_sy)
 
-    def get_ov_str_list(self):
-        return ['OV %d' % r for r in range(0, self.number_ov)]
+    @property
+    def magnification(self):
+        return (self.sem.MAG_PX_SIZE_FACTOR
+                / (self.frame_size[0] * self.pixel_size))
 
-    def get_ov_size_selector(self, ov_number):
-        return self.ov_size_selector[ov_number]
+    @magnification.setter
+    def magnification(self, mag):
+        # Calculate and set pixel size:
+        self.pixel_size = (self.sem.MAG_PX_SIZE_FACTOR
+                           / (self.frame_size[0] * mag))
 
-    def set_ov_size_selector(self, ov_number, size_selector):
-        if ov_number < len(self.ov_size_selector):
-            self.ov_size_selector[ov_number] = size_selector
+    @property
+    def vp_file_path(self):
+        return self._vp_file_path
+
+    @vp_file_path.setter
+    def vp_file_path(self, file_path):
+        self._vp_file_path = file_path
+        # Load OV image as QPixmap:
+        if os.path.isfile(file_path):
+            self.image = QPixmap(file_path)
         else:
-            self.ov_size_selector.append(size_selector)
-        self.cfg['overviews']['ov_size_selector'] = str(
-            self.ov_size_selector)
-        # Update explicit storage of frame size:
-        if ov_number < len(self.ov_size_px_py):
-            self.ov_size_px_py[ov_number] = (
-                self.sem.STORE_RES[size_selector])
-        else:
-            self.ov_size_px_py.append(
-                self.sem.STORE_RES[size_selector])
-        self.cfg['overviews']['ov_size_px_py'] = str(self.ov_size_px_py)
+            # Show blue transparent ROI when no OV image found
+            blank = QPixmap(self.width_p(), self.height_p())
+            blank.fill(QColor(255, 255, 255, 0))
+            self.image = blank
+            qp = QPainter()
+            qp.begin(self.image)
+            qp.setPen(QColor(0, 0, 255, 0))
+            qp.setBrush(QColor(0, 0, 255, 70))
+            qp.drawRect(0, 0, self.width_p(), self.height_p())
+            qp.end()
 
-    def get_ov_size_px_py(self, ov_number):
-        return self.ov_size_px_py[ov_number]
-
-    def get_ov_width_p(self, ov_number):
-        return self.sem.STORE_RES[self.ov_size_selector[ov_number]][0]
-
-    def get_ov_height_p(self, ov_number):
-        return self.sem.STORE_RES[self.ov_size_selector[ov_number]][1]
-
-    def get_ov_width_d(self, ov_number):
-        return (self.get_ov_width_p(ov_number)
-               * self.get_ov_pixel_size(ov_number) / 1000)
-
-    def get_ov_height_d(self, ov_number):
-        return (self.get_ov_height_p(ov_number)
-               * self.get_ov_pixel_size(ov_number) / 1000)
-
-    def get_ov_size_dx_dy(self, ov_number):
-        return (self.get_ov_width_p(ov_number)
-               * self.get_ov_pixel_size(ov_number) / 1000,
-               self.get_ov_height_p(ov_number)
-               * self.get_ov_pixel_size(ov_number) / 1000)
-
-    def get_ov_rotation(self, ov_number):
-        return self.ov_rotation[ov_number]
-
-    def set_ov_rotation(self, ov_number, rotation):
-        if ov_number < len(self.ov_rotation):
-            self.ov_rotation[ov_number] = rotation
-        else:
-            self.ov_rotation.append(rotation)
-        self.cfg['overviews']['ov_rotation'] = str(self.ov_rotation)
-
-    def get_ov_magnification(self, ov_number):
-        return self.ov_magnification[ov_number]
-
-    def set_ov_magnification(self, ov_number, mag):
-        if ov_number < len(self.ov_magnification):
-            self.ov_magnification[ov_number] = mag
-        else:
-            self.ov_magnification.append(mag)
-        self.cfg['overviews']['ov_magnification'] = str(
-            self.ov_magnification)
-        # Calculate pixel size:
-        pixel_size = (
-            self.sem.MAG_PX_SIZE_FACTOR
-            / (self.get_ov_width_p(ov_number) * mag))
-        if ov_number < len(self.ov_pixel_size):
-            self.ov_pixel_size[ov_number] = pixel_size
-        else:
-            self.ov_pixel_size.append(pixel_size)
-        self.cfg['overviews']['ov_pixel_size'] = str(
-            self.ov_pixel_size)
-
-    def calculate_ov_mag_from_pixel_size(self):
-        self.ov_magnification = []
-        for i in range(self.number_ov):
-            self.ov_magnification.append(
-                int(self.sem.MAG_PX_SIZE_FACTOR
-                / (self.ov_size_px_py[i][0] * self.ov_pixel_size[i])))
-
-    def get_ov_pixel_size(self, ov_number):
-        return self.ov_pixel_size[ov_number]
-
-    def set_ov_pixel_size(self, ov_number, pixel_size):
-        if ov_number < len(self.ov_pixel_size):
-            self.ov_pixel_size[ov_number] = pixel_size
-        else:
-            self.ov_pixel_size.append(pixel_size)
-        self.cfg['overviews']['ov_pixel_size'] = str(
-            self.ov_pixel_size)
-        # Calculate magnification:
-        mag = (
-            int(self.sem.MAG_PX_SIZE_FACTOR
-            / (self.get_ov_width_p(ov_number) * pixel_size)))
-        if ov_number < len(self.ov_magnification):
-            self.ov_magnification[ov_number] = mag
-        else:
-            self.ov_magnification.append(mag)
-        self.cfg['overviews']['ov_magnification'] = str(
-            self.ov_magnification)
-
-    def get_ov_dwell_time(self, ov_number):
-        return self.ov_dwell_time[ov_number]
-
-    def set_ov_dwell_time(self, ov_number, dwell_time):
-        self.ov_dwell_time[ov_number] = dwell_time
-        self.cfg['overviews']['ov_dwell_time'] = str(
-            self.ov_dwell_time)
-
-    def get_ov_dwell_time_selector(self, ov_number):
-        return self.ov_dwell_time_selector[ov_number]
-
-    def set_ov_dwell_time_selector(self, ov_number, selector):
-        if ov_number < len(self.ov_dwell_time_selector):
-            self.ov_dwell_time_selector[ov_number] = selector
-        else:
-            self.ov_dwell_time_selector.append(selector)
-        self.cfg['overviews']['ov_dwell_time_selector'] = str(
-            self.ov_dwell_time_selector)
-        # Update explict storage of dwell times:
-        if ov_number < len(self.ov_dwell_time):
-            self.ov_dwell_time[ov_number] = self.sem.DWELL_TIME[selector]
-        else:
-            self.ov_dwell_time.append(self.sem.DWELL_TIME[selector])
-        self.cfg['overviews']['ov_dwell_time'] = str(self.ov_dwell_time)
-
-    def get_ov_wd(self, ov_number):
-        return self.ov_wd[ov_number]
-
-    def set_ov_wd(self, ov_number, wd):
-        if ov_number < len(self.ov_wd):
-            self.ov_wd[ov_number] = round(wd, 9)
-        else:
-            self.ov_wd.append(round(wd, 9))
-        self.cfg['overviews']['ov_wd'] = str(self.ov_wd)
-
-    def get_ov_stig_xy(self, ov_number):
-        return self.ov_stig_xy[ov_number]
-
-    def set_ov_stig_xy(self, ov_number, stig_x, stig_y):
-        if ov_number < len(self.ov_stig_xy):
-            self.ov_stig_xy[ov_number] = [
-                round(stig_x, 6),
-                round(stig_y, 6)]
-        else:
-            self.ov_stig_xy.append([
-                round(stig_x, 6),
-                round(stig_y, 6)])
-        self.cfg['overviews']['ov_stig_xy'] = json.dumps(
-            self.ov_stig_xy)
-
-    def get_ov_stig_x(self, ov_number):
-        return self.ov_stig_xy[ov_number][0]
-
-    def set_ov_stig_x(self, ov_number, stig_x):
-        if ov_number < len(self.ov_stig_xy):
-            self.ov_stig_xy[ov_number][0] = round(stig_x, 6)
-        self.cfg['overviews']['ov_stig_xy'] = json.dumps(
-            self.ov_stig_xy)
-
-    def get_ov_stig_y(self, ov_number):
-        return self.ov_stig_xy[ov_number][1]
-
-    def set_ov_stig_y(self, ov_number, stig_y):
-        if ov_number < len(self.ov_stig_xy):
-            self.ov_stig_xy[ov_number][1] = round(stig_y, 6)
-        self.cfg['overviews']['ov_stig_xy'] = json.dumps(
-            self.ov_stig_xy)
-
-    def get_ov_acq_settings(self, ov_number):
-        return [self.ov_size_selector[ov_number],
-                self.ov_magnification[ov_number],
-                self.ov_dwell_time[ov_number],
-                self.ov_wd[ov_number]]
-
-    def get_ov_acq_interval(self, ov_number):
-        return self.ov_acq_interval[ov_number]
-
-    def get_max_ov_acq_interval(self):
-        return max(self.ov_acq_interval)
-
-    def set_ov_acq_interval(self, ov_number, interval):
-        if ov_number < len(self.ov_acq_interval):
-            self.ov_acq_interval[ov_number] = interval
-        else:
-            self.ov_acq_interval.append(interval)
-        self.cfg['overviews']['ov_acq_interval'] = str(self.ov_acq_interval)
-
-    def get_ov_acq_interval_offset(self, ov_number):
-        return self.ov_acq_interval_offset[ov_number]
-
-    def get_max_ov_acq_interval_offset(self):
-        return max(self.ov_acq_interval_offset)
-
-    def set_ov_acq_interval_offset(self, ov_number, offset):
-        if ov_number < len(self.ov_acq_interval_offset):
-            self.ov_acq_interval_offset[ov_number] = offset
-        else:
-            self.ov_acq_interval_offset.append(offset)
-        self.cfg['overviews']['ov_acq_interval_offset'] = str(
-            self.ov_acq_interval_offset)
-
-    def is_intervallic_acq_active(self):
-        sum_intervals = 0
-        for ov_number in range(self.number_ov):
-            sum_intervals += self.ov_acq_interval[ov_number]
-        if sum_intervals > self.number_ov:
-            return True
-        else:
-            return False
-
-    def is_slice_active(self, ov_number, slice_counter):
-        offset = self.ov_acq_interval_offset[ov_number]
-        if slice_counter >= offset:
-            is_active = (slice_counter - offset) % self.ov_acq_interval[ov_number] == 0
-        else:
-            is_active = False
-        return is_active
-
-    def get_ov_file_list(self):
-        return self.ov_file_list
-
-    def get_ov_bounding_box(self, ov_number):
-        centre_dx, centre_dy = self.cs.get_ov_centre_d(ov_number)
+    def bounding_box(self):
+        centre_dx, centre_dy = self.centre_dx_dy
         # Top left corner of OV in d coordinate system:
-        width, height = self.get_ov_size_dx_dy(ov_number)
-        top_left_dx = centre_dx - width/2
-        top_left_dy = centre_dy - height/2
-        bottom_right_dx = top_left_dx + width
-        bottom_right_dy = top_left_dy + height
+        top_left_dx = centre_dx - self.width_d()/2
+        top_left_dy = centre_dy - self.height_d()/2
+        bottom_right_dx = top_left_dx + self.width_d()
+        bottom_right_dy = top_left_dy + self.height_d()
         return (top_left_dx, top_left_dy, bottom_right_dx, bottom_right_dy)
 
-    def update_ov_file_list(self, ov_number, img_path_file_name):
-        if ov_number < len(self.ov_file_list):
-            self.ov_file_list[ov_number] = img_path_file_name
-        else:
-            self.ov_file_list.append(img_path_file_name)
-        self.cfg['overviews']['ov_viewport_images'] = json.dumps(
-            self.ov_file_list)
-
-    def get_ov_cycle_time(self, ov_number):
-        # Calculate cycle time from SmartSEM data:
-        scan_speed = self.sem.DWELL_TIME.index(self.ov_dwell_time[ov_number])
-        size_selector = self.ov_size_selector[ov_number]
-        return (self.sem.CYCLE_TIME[size_selector][scan_speed] + 0.2)
-
-    def get_stub_ov_file(self):
-        return self.stub_ov_file
-
-    def set_stub_ov_file(self, img_path_file_name):
-        self.stub_ov_file = img_path_file_name
-        self.cfg['overviews']['stub_ov_viewport_image'] = str(
-            self.stub_ov_file)
-
-    def get_stub_ov_size_selector(self):
-        return self.stub_ov_size_selector
-
-    def set_stub_ov_size_selector(self, size_selector):
-        self.stub_ov_size_selector = size_selector
-        self.cfg['overviews']['stub_ov_size_selector'] = str(
-            self.stub_ov_size_selector)
-        self.calculate_stub_ov_grid()
-
-    def get_stub_ov_grid(self):
-        return self.stub_ov_grid
-
-    def calculate_stub_ov_grid(self):
-        self.stub_ov_grid = []
-        if self.stub_ov_size_selector not in range(7):
-            self.stub_ov_size_selector = 4
-        self.stub_ov_rows = self.STUB_OV_SIZE[self.stub_ov_size_selector][0]
-        self.stub_ov_cols = self.STUB_OV_SIZE[self.stub_ov_size_selector][1]
-
-        ij_grid = []
-        for i in range(self.stub_ov_rows):
-            for j in range(self.stub_ov_cols):
-                if i % 2 == 0:
-                    ij_grid.append((j, i))
-                else:
-                    ij_grid.append((self.stub_ov_cols-1-j, i))
-        for (col, row) in ij_grid:
-            delta_x = (col * (self.STUB_OV_FRAME_WIDTH
-                       - self.STUB_OV_OVERLAP)
-                       * self.STUB_OV_PIXEL_SIZE / 1000)
-            delta_y = (row * (self.STUB_OV_FRAME_HEIGHT
-                       - self.STUB_OV_OVERLAP)
-                       * self.STUB_OV_PIXEL_SIZE / 1000)
-            (rel_stage_x, rel_stage_y) = (
-                self.cs.convert_to_s((delta_x, delta_y)))
-            target_x, target_y = (
-                self.cs.add_stub_ov_origin_s((rel_stage_x, rel_stage_y)))
-            if self.cs.is_within_stage_limits((target_x, target_y)):
-                self.stub_ov_grid.append((col, row, target_x, target_y))
-
-    def get_stub_ov_full_size(self):
-        width = (self.stub_ov_cols * self.STUB_OV_FRAME_WIDTH
-                 - (self.stub_ov_cols-1) * self.STUB_OV_OVERLAP)
-        height = (self.stub_ov_rows * self.STUB_OV_FRAME_HEIGHT
-                  - (self.stub_ov_rows-1) * self.STUB_OV_OVERLAP)
-        return width, height
-
-    def add_imported_img(self):
-        new_img_number = self.number_imported
-        self.cs.set_imported_img_centre_s(new_img_number, [0, 0])
-        self.set_imported_img_rotation(new_img_number, 0)
-        self.set_imported_img_file(new_img_number, '')
-        self.set_imported_img_size_px_py(new_img_number, 0, 0)
-        self.set_imported_img_pixel_size(new_img_number, 10)
-        self.set_imported_img_transparency(new_img_number, 0)
-
-        self.number_imported += 1
-        self.cfg['overviews']['number_imported'] = str(self.number_imported)
-
-    def delete_imported_img(self, img_number):
-        if img_number < self.number_imported:
-            self.cs.delete_imported_img_centre(img_number)
-            del self.imported_file_list[img_number]
-            self.cfg['overviews']['imported_images'] = json.dumps(
-                self.imported_file_list)
-            del self.imported_names[img_number]
-            self.cfg['overviews']['imported_names'] = json.dumps(
-                self.imported_names)
-            del self.imported_pixel_size[img_number]
-            self.cfg['overviews']['imported_pixel_size'] = str(
-                self.imported_pixel_size)
-            del self.imported_size_px_py[img_number]
-            self.cfg['overviews']['imported_size_px_py'] = str(
-                self.imported_size_px_py)
-            del self.imported_transparency[img_number]
-            self.cfg['overviews']['imported_transparency'] = str(
-                self.imported_transparency)
-            del self.imported_rotation[img_number]
-            self.cfg['overviews']['imported_rotation'] = str(
-                self.imported_rotation)
-            # Number of imported images:
-            self.number_imported -= 1
-            self.cfg['overviews']['number_imported'] = str(
-                self.number_imported)
-
-    def get_number_imported(self):
-        return self.number_imported
-
-    def get_imported_img_name(self, img_number):
-        return self.imported_names[img_number]
-
-    def set_imported_img_name(self, img_number, name):
-        if img_number < len(self.imported_names):
-            self.imported_names[img_number] = name
-        else:
-            self.imported_names.append(name)
-        self.cfg['overviews']['imported_names'] = json.dumps(
-            self.imported_names)
-
-    def get_imported_img_rotation(self, img_number):
-        return self.imported_rotation[img_number]
-
-    def set_imported_img_rotation(self, img_number, angle):
-        if img_number < len(self.imported_rotation):
-            self.imported_rotation[img_number] = angle
-        else:
-            self.imported_rotation.append(angle)
-        self.cfg['overviews']['imported_rotation'] = str(
-            self.imported_rotation)
-
-    def get_imported_img_pixel_size(self, img_number):
-        return self.imported_pixel_size[img_number]
-
-    def set_imported_img_pixel_size(self, img_number, pixel_size):
-        if img_number < len(self.imported_pixel_size):
-            self.imported_pixel_size[img_number] = pixel_size
-        else:
-            self.imported_pixel_size.append(pixel_size)
-        self.cfg['overviews']['imported_pixel_size'] = str(
-            self.imported_pixel_size)
-
-    def get_imported_img_width_p(self, img_number):
-        return self.imported_size_px_py[img_number][0]
-
-    def get_imported_img_height_p(self, img_number):
-        return self.imported_size_px_py[img_number][1]
-
-    def get_imported_img_width_d(self, img_number):
-        return (self.get_imported_img_width_p(img_number)
-                * self.get_imported_img_pixel_size(img_number) / 1000)
-
-    def get_imported_img_height_d(self, img_number):
-        return (self.get_imported_img_height_p(img_number)
-                * self.get_imported_img_pixel_size(img_number) / 1000)
-
-    def set_imported_img_size_px_py(self, img_number, px, py):
-        if img_number < len(self.imported_size_px_py):
-            self.imported_size_px_py[img_number] = [px, py]
-        else:
-            self.imported_size_px_py.append([px, py])
-        self.cfg['overviews']['imported_size_px_py'] = str(
-            self.imported_size_px_py)
-
-    def get_imported_img_file(self, img_number):
-        return self.imported_file_list[img_number]
-
-    def set_imported_img_file(self, img_number, file):
-        if img_number < len(self.imported_file_list):
-            self.imported_file_list[img_number] = file
-        else:
-            self.imported_file_list.append(file)
-        self.cfg['overviews']['imported_images'] = json.dumps(
-            self.imported_file_list)
-
-    def get_imported_img_file_list(self):
-        return self.imported_file_list
-
-    def get_imported_img_file_name_list(self):
-        return [os.path.basename(s) for s in self.imported_file_list]
-
-    def get_imported_img_transparency(self, img_number):
-        return self.imported_transparency[img_number]
-
-    def set_imported_img_transparency(self, img_number, transparency):
-        if img_number < len(self.imported_transparency):
-            self.imported_transparency[img_number] = transparency
-        else:
-            self.imported_transparency.append(transparency)
-        self.cfg['overviews']['imported_transparency'] = str(
-            self.imported_transparency)
-
-    def get_ov_auto_debris_detection_area_margin(self):
-        return self.auto_debris_area_margin
-
-    def set_ov_auto_debris_detection_area_margin(self, margin):
-        self.auto_debris_area_margin = margin
-        self.cfg['debris']['auto_area_margin'] = str(self.auto_debris_area_margin)
-
-    def get_ov_debris_detection_area(self, ov_number):
-        return self.debris_detection_area[ov_number]
-
-    def set_ov_debris_detection_area(self, ov_number, area):
-        if ov_number < len(self.debris_detection_area):
-            self.debris_detection_area[ov_number] = list(area)
-        else:
-            self.debris_detection_area.append(list(area))
-        self.cfg['debris']['detection_area'] = str(
-            self.debris_detection_area)
-
-    def update_all_ov_debris_detections_areas(self, gm):
-        for ov_number in range(self.number_ov):
-            self.update_ov_debris_detection_area(ov_number, gm)
-
-    def update_ov_debris_detection_area(self, ov_number, gm):
+    def update_debris_detection_area(self, grid_manager,
+                                     auto_detection=True, margin=0):
         """Change the debris detection area to cover all tiles from all grids
         that fall within the overview specified by ov_number."""
-        if self.cfg['debris']['auto_detection_area'] == 'False':
-            # set full detection area:
-            self.set_ov_debris_detection_area(ov_number,
-                [0, 0,
-                 self.get_ov_width_p(ov_number),
-                 self.get_ov_height_p(ov_number)])
-        else:
+        if auto_detection:
             (ov_top_left_dx, ov_top_left_dy,
-             ov_bottom_right_dx, ov_bottom_right_dy) = (
-                self.get_ov_bounding_box(ov_number))
-            ov_pixel_size = self.get_ov_pixel_size(ov_number)
+             ov_bottom_right_dx, ov_bottom_right_dy) = self.bounding_box()
+            ov_pixel_size = self.pixel_size
             # The following corner coordinates define the debris detection area
             top_left_dx_min, top_left_dy_min = None, None
             bottom_right_dx_max, bottom_right_dy_max = None, None
             # Check all grids for active tile overlap with OV
-            for grid_number in range(gm.get_number_grids()):
-                for tile_number in gm.get_active_tiles(grid_number):
+            for grid_index in range(grid_manager.number_grids):
+                for tile_index in grid_manager[grid_index].active_tiles:
                     (min_dx, max_dx, min_dy, max_dy) = (
-                        gm.get_tile_bounding_box(grid_number, tile_number))
+                        grid_manager[grid_index].tile_bounding_box(tile_index))
                     # Is tile within OV?
                     overlap = not (min_dx >= ov_bottom_right_dx
                                    or min_dy >= ov_bottom_right_dy
@@ -643,8 +148,8 @@ class OverviewManager(object):
 
             if top_left_dx_min is None:
                 top_left_px, top_left_py = 0, 0
-                bottom_right_px = self.get_ov_width_p(ov_number)
-                bottom_right_py = self.get_ov_height_p(ov_number)
+                bottom_right_px = self.width_p()
+                bottom_right_py = self.height_p()
             else:
                 # Now in pixel coordinates of OV image:
                 top_left_px = int(top_left_dx_min * 1000 / ov_pixel_size)
@@ -655,18 +160,264 @@ class OverviewManager(object):
                     bottom_right_dy_max * 1000 / ov_pixel_size)
                 # Add/subract margin and must fit in OV image:
                 top_left_px = utils.fit_in_range(
-                    top_left_px - self.auto_debris_area_margin,
-                    0, self.get_ov_width_p(ov_number))
+                    top_left_px - margin, 0, self.width_p())
                 top_left_py = utils.fit_in_range(
-                    top_left_py - self.auto_debris_area_margin,
-                    0, self.get_ov_height_p(ov_number))
+                    top_left_py - margin, 0, self.height_p())
                 bottom_right_px = utils.fit_in_range(
-                    bottom_right_px + self.auto_debris_area_margin,
-                    0, self.get_ov_width_p(ov_number))
+                    bottom_right_px + margin, 0, self.width_p())
                 bottom_right_py = utils.fit_in_range(
-                    bottom_right_py + self.auto_debris_area_margin,
-                    0, self.get_ov_height_p(ov_number))
+                    bottom_right_py + margin, 0, self.height_p())
+            # set calculated detection area:
+            self.debris_detection_area = [
+                top_left_px, top_left_py, bottom_right_px, bottom_right_py]
+        else:
+            # set full detection area:
+            self.debris_detection_area = [0, 0, self.width_p(), self.height_p()]
 
-            # set detection area:
-            self.set_ov_debris_detection_area(ov_number,
-                [top_left_px, top_left_py, bottom_right_px, bottom_right_py])
+class StubOverview(Grid):
+
+    GRID_SIZE = [[2, 2], [3, 3], [5, 4], [6, 5], [7, 6], [8, 7], [9, 8]]
+
+    def __init__(self, coordinate_system, sem,
+                 centre_sx_sy, grid_size_selector, overlap, frame_size_selector,
+                 pixel_size, dwell_time_selector, vp_file_path):
+
+        # Initialize the stub overview as a grid
+        super().__init__(coordinate_system, sem,
+                         active=True, origin_sx_sy=[0, 0],
+                         rotation=0, size=self.GRID_SIZE[grid_size_selector],
+                         overlap=overlap, row_shift=0, active_tiles=[],
+                         frame_size=[], frame_size_selector=frame_size_selector,
+                         pixel_size=pixel_size, dwell_time=0.8,
+                         dwell_time_selector=dwell_time_selector,
+                         display_colour=11)
+
+        # Set the centre coordinates, which will update the origin.
+        self.centre_sx_sy = centre_sx_sy
+        self.image = None
+        # Image is loaded when file path is set/changed.
+        self.vp_file_path = vp_file_path
+        self._grid_size_selector = grid_size_selector
+
+    @property
+    def grid_size_selector(self):
+        return self._grid_size_selector
+
+    @grid_size_selector.setter
+    def grid_size_selector(self, selector):
+        self._grid_size_selector = selector
+        self.size = self.GRID_SIZE[selector]
+        self.update_tile_positions()
+
+    @property
+    def vp_file_path(self):
+        return self._vp_file_path
+
+    @vp_file_path.setter
+    def vp_file_path(self, file_path):
+        self._vp_file_path = file_path
+        # Load image as QPixmap
+        if os.path.isfile(self._vp_file_path):
+            try:
+                self.image = QPixmap(self._vp_file_path)
+            except:
+                self.image = None
+        else:
+            self.image = None
+
+class OverviewManager:
+
+    def __init__(self, config, sem, coordinate_system):
+        self.cfg = config
+        self.sem = sem
+        self.cs = coordinate_system
+        self.number_ov = int(self.cfg['overviews']['number_ov'])
+
+        # Load OV parameters from user configuration
+        ov_active = json.loads(self.cfg['overviews']['ov_active'])
+        ov_centre_sx_sy = json.loads(self.cfg['overviews']['ov_centre_sx_sy'])
+        ov_rotation = json.loads(self.cfg['overviews']['ov_rotation'])
+        ov_size = json.loads(self.cfg['overviews']['ov_size'])
+        ov_size_selector = json.loads(self.cfg['overviews']['ov_size_selector'])
+
+        ov_pixel_size = json.loads(
+            self.cfg['overviews']['ov_pixel_size'])
+        # self.calculate_ov_mag_from_pixel_size()
+        ov_dwell_time = json.loads(self.cfg['overviews']['ov_dwell_time'])
+        ov_dwell_time_selector = json.loads(
+            self.cfg['overviews']['ov_dwell_time_selector'])
+        ov_wd_stig_xy = json.loads(self.cfg['overviews']['ov_wd_stig_xy'])
+        ov_acq_interval = json.loads(
+            self.cfg['overviews']['ov_acq_interval'])
+        ov_acq_interval_offset = json.loads(
+            self.cfg['overviews']['ov_acq_interval_offset'])
+        ov_vp_file_paths = json.loads(
+            self.cfg['overviews']['ov_viewport_images'])
+        debris_detection_area = json.loads(
+            self.cfg['debris']['detection_area'])
+
+        # Backward compatibility for loading older config files
+        if len(ov_active) < self.number_ov:
+            ov_active = [1] * self.number_ov
+        if len(ov_wd_stig_xy) < self.number_ov:
+            ov_wd_stig_xy = [[0, 0, 0]] * self.number_ov
+
+        # Create OV objects
+        self.__overviews = []
+        for i in range(self.number_ov):
+            overview = Overview(self.cs, self.sem, ov_active[i]==1,
+                                ov_centre_sx_sy[i], ov_size[i],
+                                ov_size_selector[i], ov_pixel_size[i],
+                                ov_dwell_time[i], ov_dwell_time_selector[i],
+                                ov_acq_interval[i], ov_acq_interval_offset[i],
+                                ov_wd_stig_xy[i], ov_vp_file_paths[i],
+                                debris_detection_area[i])
+            self.__overviews.append(overview)
+
+        self.use_auto_debris_area = (
+            self.cfg['debris']['auto_detection_area'].lower() == 'true')
+        self.auto_debris_area_margin = int(
+            self.cfg['debris']['auto_area_margin'])
+        self.detection_area_visible = (
+            self.cfg['debris']['show_detection_area'].lower() == 'true')
+
+        # Load stub OV settings
+        # The acq parameters (frame size, pixel size, dwell time) can at the
+        # moment only be changed manually in the config file.
+
+        stub_ov_centre_sx_sy = json.loads(
+            self.cfg['overviews']['stub_ov_centre_sx_sy'])
+        stub_ov_grid_size_selector = int(
+            self.cfg['overviews']['stub_ov_grid_size_selector'])
+        stub_ov_overlap = int(self.cfg['overviews']['stub_ov_overlap'])
+        stub_ov_frame_size_selector = int(
+            self.cfg['overviews']['stub_ov_frame_size_selector'])
+        stub_ov_pixel_size = float(self.cfg['overviews']['stub_ov_pixel_size'])
+        stub_ov_dwell_time = int(
+            self.cfg['overviews']['stub_ov_dwell_time_selector'])
+        stub_ov_file_path = (
+            self.cfg['overviews']['stub_ov_viewport_image'])
+
+        self.__stub_overview = StubOverview(self.cs, self.sem,
+                                            stub_ov_centre_sx_sy,
+                                            stub_ov_grid_size_selector,
+                                            stub_ov_overlap,
+                                            stub_ov_frame_size_selector,
+                                            stub_ov_pixel_size,
+                                            stub_ov_dwell_time,
+                                            stub_ov_file_path)
+
+    def __getitem__(self, ov_index):
+        """Return the Overview object selected by index."""
+        if ov_index == 'stub':
+            return self.__stub_overview
+        elif ov_index < self.number_ov:
+            return self.__overviews[ov_index]
+        else:
+            return None
+
+    def save_to_cfg(self):
+        self.cfg['overviews']['number_ov'] = str(self.number_ov)
+        self.cfg['overviews']['ov_active'] = str(
+            [int(ov.active) for ov in self.__overviews])
+        self.cfg['overviews']['ov_centre_sx_sy'] = str(
+            [utils.round_xy(ov.centre_sx_sy) for ov in self.__overviews])
+        self.cfg['overviews']['ov_rotation'] = str(
+            [ov.rotation for ov in self.__overviews])
+        self.cfg['overviews']['ov_size'] = str(
+            [ov.frame_size for ov in self.__overviews])
+        self.cfg['overviews']['ov_size_selector'] = str(
+            [ov.frame_size_selector for ov in self.__overviews])
+        self.cfg['overviews']['ov_pixel_size'] = str(
+            [ov.pixel_size for ov in self.__overviews])
+        self.cfg['overviews']['ov_dwell_time'] = str(
+            [ov.dwell_time for ov in self.__overviews])
+        self.cfg['overviews']['ov_dwell_time_selector'] = str(
+            [ov.dwell_time_selector for ov in self.__overviews])
+        self.cfg['overviews']['ov_wd_stig_xy'] = str(
+            [ov.wd_stig_xy for ov in self.__overviews])
+        self.cfg['overviews']['ov_acq_interval'] = str(
+            [ov.acq_interval for ov in self.__overviews])
+        self.cfg['overviews']['ov_acq_interval_offset'] = str(
+            [ov.acq_interval_offset for ov in self.__overviews])
+        self.cfg['overviews']['ov_viewport_images'] = json.dumps(
+            [ov.vp_file_path for ov in self.__overviews])
+        self.cfg['debris']['auto_detection_area'] = str(
+            self.use_auto_debris_area)
+        self.cfg['debris']['detection_area'] = str(
+            [ov.debris_detection_area for ov in self.__overviews])
+        self.cfg['debris']['auto_area_margin'] = str(
+            self.auto_debris_area_margin)
+        self.cfg['debris']['show_detection_area'] = str(
+            self.detection_area_visible)
+        # Stub OV
+        self.cfg['overviews']['stub_ov_centre_sx_sy'] = str(
+            utils.round_xy(self.__stub_overview.centre_sx_sy))
+        self.cfg['overviews']['stub_ov_grid_size_selector'] = str(
+            self.__stub_overview.grid_size_selector)
+        self.cfg['overviews']['stub_ov_overlap'] = str(
+            self.__stub_overview.overlap)
+        self.cfg['overviews']['stub_ov_frame_size_selector'] = str(
+            self.__stub_overview.frame_size_selector)
+        self.cfg['overviews']['stub_ov_pixel_size'] = str(
+            self.__stub_overview.pixel_size)
+        self.cfg['overviews']['stub_ov_dwell_time'] = str(
+            self.__stub_overview.dwell_time)
+        self.cfg['overviews']['stub_ov_viewport_image'] = str(
+            self.__stub_overview.vp_file_path)
+
+
+    def add_new_overview(self):
+        new_ov_index = self.number_ov
+        # Position new OV next to previous OV
+        x_pos, y_pos = self.__overviews[new_ov_index - 1].centre_sx_sy
+        y_pos += 50
+
+        new_ov = Overview(self.cs, self.sem, ov_active=True,
+                          centre_sx_sy=[x_pos, y_pos], frame_size=[2048, 1536],
+                          frame_size_selector=2, pixel_size=155.0,
+                          dwell_time=0.8, dwell_time_selector=4,
+                          acq_interval=1, acq_interval_offset=0,
+                          wd_stig_xy=0, vp_file_path='',
+                          debris_detection_area=[])
+        self.__overviews.append(new_ov)
+        self.number_ov += 1
+
+    def delete_overview(self):
+        """Delete the overview with the highest grid index."""
+        self.number_ov -= 1
+        del self.__overviews[-1]
+
+    def ov_selector_list(self):
+        return ['OV %d' % r for r in range(0, self.number_ov)]
+
+    def max_acq_interval(self):
+        """Return the maximum value of the acquisition interval across
+        all overviews."""
+        acq_intervals = []
+        for overview in self.__overviews:
+            acq_intervals.append(overview.acq_interval)
+        return max(acq_intervals)
+
+    def max_acq_interval_offset(self):
+        """Return the maximum value of the acquisition interval offset
+        across all overviews."""
+        acq_interval_offsets = []
+        for overview in self.__overviews:
+            acq_interval_offsets.append(overview.acq_interval_offset)
+        return max(acq_interval_offsets)
+
+    def intervallic_acq_active(self):
+        """Return True if intervallic acquisition is active for at least
+        one overview, otherwise return False."""
+        for overview in self.__overviews:
+            if overview.acq_interval > 1:
+                return True
+        return False
+
+    def update_all_debris_detections_areas(self, grid_manager):
+        for overview in self.__overviews:
+            overview.update_debris_detection_area(
+                grid_manager,
+                self.use_auto_debris_area,
+                self.auto_debris_area_margin)
