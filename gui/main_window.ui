@@ -27,7 +27,7 @@
      </rect>
     </property>
     <property name="toolTip">
-     <string>Double-click on the MagC tab to enable MagC mode</string>
+     <string/>
     </property>
     <property name="currentIndex">
      <number>3</number>
@@ -1955,9 +1955,6 @@
     <widget class="QWidget" name="tab">
      <attribute name="title">
       <string>MagC</string>
-     </attribute>
-     <attribute name="toolTip">
-      <string>To enable the MagC module: set magc_mode = True in your config file</string>
      </attribute>
      <widget class="QTableView" name="tableView_magc_sections">
       <property name="enabled">
