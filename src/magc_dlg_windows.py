@@ -66,7 +66,7 @@ class ImportMagCDlg(QDialog):
             '..', 'gui', 'import_magc_metadata_dlg.ui'),
             self)
         self.default_magc_path = os.path.join(
-            '..', 'magc', 'example', 'magc_433_sections.magc')
+            '..', 'magc', 'example', 'wafer_example1.magc')
         self.lineEdit_fileName.setText(self.default_magc_path)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon(os.path.join(
@@ -258,7 +258,7 @@ class ImportWaferImageDlg(QDialog):
         # pre-filling the ImportImageDialog if wafer image (unique) present
         im_names = [im_name for im_name in os.listdir(self.wafer_im_dir)
             if ('wafer' in im_name.lower())
-                and (os.path.splitext(im_name)[1] in ['.tif', '.png', 'jpg'])]
+                and (os.path.splitext(im_name)[1] in ['.tif', '.png', '.jpg'])]
         if len(im_names) == 0:
             self._add_to_main_log('No wafer picture was found. '
                 'Select the wafer image manually.')
