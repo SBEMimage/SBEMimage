@@ -536,13 +536,17 @@ class MainControls(QMainWindow):
 
         dialog = SaveConfigDlg()
         dialog.label.setText('Name of new MagC config file')
-        dialog.label_4.setText('Choose a name for the new MagC configuration file.')
-        dialog.label_2.setText('If the configuration file already exists, then it will')
-        dialog.label_3.setText('be overwritten.')
-        dialog.label_5.setText('')
-        dialog.label_6.setText('')
+        dialog.label_line1.setText('Choose a name for the new MagC configuration')
+        dialog.label_line2.setText('file. If the configuration file already exists,')
+        dialog.label_line3.setText('then it will be overwritten.')
+        dialog.label_line4.setText('Use only A-Z, a-z, 0-9, and hyphen/underscore.')
+        dialog.label_line5.setText('.ini will be added automatically')
+
         if dialog.exec_():
             self.cfg_file = dialog.file_name
+            # Ensure system.cfg is preserved if MagC mode activated from default.ini
+            if self.cfg['sys']['sys_config_file'] == 'system.cfg':
+                self.cfg['sys']['sys_config_file'] = 'this_system.cfg'
             self.cfg['sys']['magc_mode'] = 'True'
             self.cfg['sys']['use_microtome'] = 'False'
             self.save_config_to_disk()

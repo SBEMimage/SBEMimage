@@ -61,7 +61,7 @@
     </rect>
    </property>
   </widget>
-  <widget class="QLabel" name="label_2">
+  <widget class="QLabel" name="label_line2">
    <property name="geometry">
     <rect>
      <x>10</x>
@@ -74,7 +74,7 @@
     <string>.ini will be added automatically. Spaces will be </string>
    </property>
   </widget>
-  <widget class="QLabel" name="label_3">
+  <widget class="QLabel" name="label_line3">
    <property name="geometry">
     <rect>
      <x>10</x>
@@ -87,7 +87,7 @@
     <string>converted to underscores. Existing files may</string>
    </property>
   </widget>
-  <widget class="QLabel" name="label_4">
+  <widget class="QLabel" name="label_line1">
    <property name="geometry">
     <rect>
      <x>10</x>
@@ -100,7 +100,7 @@
     <string>Use only A-Z, a-z, 0-9, and hyphen/underscore.</string>
    </property>
   </widget>
-  <widget class="QLabel" name="label_5">
+  <widget class="QLabel" name="label_line4">
    <property name="geometry">
     <rect>
      <x>10</x>
@@ -113,7 +113,7 @@
     <string>not be overwritten. To delete a configuration,</string>
    </property>
   </widget>
-  <widget class="QLabel" name="label_6">
+  <widget class="QLabel" name="label_line5">
    <property name="geometry">
     <rect>
      <x>10</x>
