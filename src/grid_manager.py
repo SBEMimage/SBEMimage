@@ -436,11 +436,17 @@ class Grid:
 
     @wd_gradient_ref_tiles.setter
     def wd_gradient_ref_tiles(self, ref_tiles):
-        self._wd_gradient_ref_tiles = ref_tiles
-        # Set bool flags for ref tiles
-        for tile_index in range(self.number_tiles):
-            self.__tiles[tile_index].wd_grad_active = (
-                tile_index in ref_tiles)
+        if len(ref_tiles) != 3:
+            self._wd_gradient_ref_tiles = [-1, -1, -1]
+        else:
+            for i in range(3):
+                if ref_tiles[i] > self.number_tiles:
+                    ref_tiles[i] = -1
+            self._wd_gradient_ref_tiles = ref_tiles
+            # Set bool flags for ref tiles
+            for tile_index in range(self.number_tiles):
+                self.__tiles[tile_index].wd_grad_active = (
+                    tile_index in ref_tiles)
 
     def wd_gradient_ref_tile_selector_list(self):
         selector_list = []
@@ -544,7 +550,9 @@ class Grid:
 
     @active_tiles.setter
     def active_tiles(self, new_active_tiles):
-        self._active_tiles = new_active_tiles
+        # Remove out-of-range active tiles
+        self._active_tiles = [tile_index for tile_index in new_active_tiles
+                             if tile_index < self.number_tiles]
         # Set boolean flags to True for active tiles, otherwise to False
         for tile_index in range(self.number_tiles):
             if tile_index in new_active_tiles:
@@ -706,27 +714,27 @@ class GridManager:
         # Load working distance and stigmation parameters
         wd_stig_dict = json.loads(self.cfg['grids']['wd_stig_params'])
         for tile_key, wd_stig_xy in wd_stig_dict.items():
-            g_str, t_str = tile_key.split('.')
-            g, t = int(g_str), int(t_str)
-            self.__grids[g][t].wd = wd_stig_xy[0]
-            self.__grids[g][t].stig_xy = [wd_stig_xy[1], wd_stig_xy[2]]
+            g, t = (int(s) for s in tile_key.split('.'))
+            if (g < self.number_grids) and (t < self.__grids[g].number_tiles):
+                self.__grids[g][t].wd = wd_stig_xy[0]
+                self.__grids[g][t].stig_xy = [wd_stig_xy[1], wd_stig_xy[2]]
 
         # Load autofocus reference tiles
         self._autofocus_ref_tiles = json.loads(
             self.cfg['autofocus']['ref_tiles'])
         for tile_key in self._autofocus_ref_tiles:
             g, t = (int(s) for s in tile_key.split('.'))
-            self.__grids[g][t].autofocus_active = True
+            if (g < self.number_grids) and (t < self.__grids[g].number_tiles):
+                self.__grids[g][t].autofocus_active = True
 
         # Load tile previews for active tiles if available
         base_dir = self.cfg['acq']['base_dir']
         for g in range(self.number_grids):
             for t in self.__grids[g].active_tiles:
-                preview_path = utils.tile_preview_save_path(
-                    base_dir, g, t)
-                try:
+                preview_path = utils.tile_preview_save_path(base_dir, g, t)
+                if os.path.isfile(preview_path):
                     self.__grids[g][t].preview_img = QPixmap(preview_path)
-                except:
+                else:
                     self.__grids[g][t].preview_img = None
 
         # initialize MagC settings

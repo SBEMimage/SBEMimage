@@ -14,7 +14,6 @@ import os
 import datetime
 import json
 import re
-import requests
 
 import numpy as np
 
@@ -184,10 +183,10 @@ def fit_in_range(value, min_value, max_value):
 def format_log_entry(msg):
     """Add timestamp and align msg for logging purposes"""
     timestamp = str(datetime.datetime.now())
-    # Align colon (msg must begin with 'CTRL', 'SEM' or '3VIEW'):
-    try:
-        i = msg.index(':')
-    except:
+    # Align colon (msg must begin with a tag of up to five capital letters,
+    # such as 'STAGE' followed by a colon)
+    i = msg.find(':')
+    if i == -1:   # colon not found
         i = 0
     return (timestamp[:22] + ' | ' + msg[:i] + (6-i) * ' ' + msg[i:])
 
@@ -275,40 +274,6 @@ def validate_ov_list(input_str):
             ov_list = []
             success = False
     return success, ov_list
-
-def meta_server_put_request(url, data):
-    try:
-        r = requests.put(url, json=data)
-        status = r.status_code
-    except:
-        status = 100
-    return status
-
-def meta_server_post_request(url, data):
-    try:
-        r = requests.post(url, json=data)
-        status = r.status_code
-    except:
-        status = 100
-    return status
-
-def meta_server_get_request(url):
-    command = None
-    msg = None
-    try:
-        r = requests.get(url)
-        received = json.loads(r.content)
-        status = r.status_code
-        if 'command' in received:
-            command = received['command']
-        if 'message' in received:
-            msg = received['message']
-        if 'version' in received:
-            msg = received['version']
-    except:
-        status = 100
-        msg = 'Metadata server request failed.'
-    return status, command, msg
 
 def suppress_console_warning():
     # Suppress TIFFReadDirectory warnings that otherwise flood console window

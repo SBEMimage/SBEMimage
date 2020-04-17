@@ -339,7 +339,7 @@ class Viewport(QWidget):
                                     self.selected_grid][
                                     self.selected_tile].autofocus_active ^= True
                             self._add_to_main_log(
-                                f'Tile {self.selected_grid}.'
+                                f'CTRL: Tile {self.selected_grid}.'
                                 f'{self.selected_tile}{new_tile_status}')
                             self.vp_update_after_active_tile_selection()
                             # Make sure folder exists:
@@ -1264,6 +1264,28 @@ class Viewport(QWidget):
         height_px = self.ovm[ov_index].height_p()
         # Convert to viewport window coordinates.
         vx, vy = self.cs.convert_to_v((dx, dy))
+
+        # Show only OV label in upper left corner if OV inactive
+        if not self.ovm[ov_index].active:
+            if self.show_labels and not suppress_labels:
+                font_size = int(self.cs.vp_scale * 8)
+                if font_size < 12:
+                    font_size = 12
+                self.vp_qp.setPen(QColor(*utils.COLOUR_SELECTOR[10]))
+                self.vp_qp.setBrush(QColor(*utils.COLOUR_SELECTOR[10]))
+                ov_label_rect = QRect(
+                    vx, vy - int(4/3 * font_size),
+                    int(font_size * 9), int(4/3 * font_size))
+                self.vp_qp.drawRect(ov_label_rect)
+                self.vp_qp.setPen(QColor(255, 255, 255))
+                font = QFont()
+                font.setPixelSize(font_size)
+                self.vp_qp.setFont(font)
+                self.vp_qp.drawText(ov_label_rect,
+                                    Qt.AlignVCenter | Qt.AlignHCenter,
+                                    'OV %d (inactive)' % ov_index)
+            return
+
         # Crop and resize OV before placing it.
         visible, crop_area, vx_cropped, vy_cropped = self._vp_visible_area(
             vx, vy, width_px, height_px, resize_ratio)
@@ -1360,6 +1382,36 @@ class Viewport(QWidget):
         theta = self.gm[grid_index].rotation
         use_rotation = theta > 0
 
+        font = QFont()
+        grid_colour_rgb = self.gm[grid_index].display_colour_rgb()
+        grid_colour = QColor(*grid_colour_rgb, 255)
+        indicator_colour = QColor(*utils.COLOUR_SELECTOR[12])
+
+        # Show only grid label in upper left corner if grid inactive
+        if not self.gm[grid_index].active:
+            if self.show_labels and not suppress_labels:
+                fontsize = int(self.cs.vp_scale * 8)
+                if fontsize < 12:
+                    fontsize = 12
+                font.setPixelSize(fontsize)
+                self.vp_qp.setFont(font)
+                self.vp_qp.setPen(grid_colour)
+                self.vp_qp.setBrush(grid_colour)
+                grid_label_rect = QRect(topleft_vx,
+                                        topleft_vy - int(4/3 * fontsize),
+                                        int(10.5 * fontsize),
+                                        int(4/3 * fontsize))
+                self.vp_qp.drawRect(grid_label_rect)
+                if self.gm[grid_index].display_colour in [1, 2, 3]:
+                # Use black for light and white for dark background colour.
+                    self.vp_qp.setPen(QColor(0, 0, 0))
+                else:
+                    self.vp_qp.setPen(QColor(255, 255, 255))
+                self.vp_qp.drawText(grid_label_rect,
+                                    Qt.AlignVCenter | Qt.AlignHCenter,
+                                    'GRID %d (inactive)' % grid_index)
+            return
+
         visible = self._vp_element_visible(
             topleft_vx, topleft_vy, width_px, height_px, resize_ratio,
             origin_vx, origin_vy, theta)
@@ -1426,15 +1478,11 @@ class Viewport(QWidget):
 
         # Display grid lines
         rows, cols = self.gm[grid_index].size
-        grid_colour_rgb = self.gm[grid_index].display_colour_rgb()
-        grid_colour = QColor(*grid_colour_rgb, 255)
-        indicator_colour = QColor(*utils.COLOUR_SELECTOR[12])
         grid_pen = QPen(grid_colour, 1, Qt.SolidLine)
         grid_brush_active_tile = QBrush(QColor(*grid_colour_rgb, 40),
                                         Qt.SolidPattern)
         grid_brush_transparent = QBrush(QColor(255, 255, 255, 0),
                                         Qt.SolidPattern)
-        font = QFont()
 
         # Suppress labels when zoomed out or when user is moving a grid or
         # panning the view, under the condition that there are >10 grids.
@@ -2189,6 +2237,30 @@ class Viewport(QWidget):
         self.checkBox_showStubOV.setChecked(True)
         self.show_stub_ov = True
         self.vp_draw()
+
+    def vp_show_overview_for_user_inspection(self, ov_index):
+        """Show the overview image with ov_index in the centre of the Viewport
+        with no grids, tile previews or other objects obscuring it.
+        """
+        # Switch to Viewport tab
+        self.tabWidget.setCurrentIndex(0)
+        # Preserve previous display settings
+        vp_current_ov_prev = self.vp_current_ov
+        vp_current_grid_prev = self.vp_current_grid
+        vp_centre_dx_dy_prev = self.cs.vp_centre_dx_dy
+        vp_scale_prev = self.cs.vp_scale
+        # Show ov_index only and hide the grids
+        self.vp_current_ov = ov_index
+        self.vp_current_grid = -2
+        # Position the viewing window and adjust the scale to show the full OV
+        self.cs.vp_centre_dx_dy = self.ovm[ov_index].centre_dx_dy
+        self.cs.vp_scale = (utils.VP_WIDTH - 100) / self.ovm[ov_index].width_d()
+        self.vp_draw(suppress_labels=False, suppress_previews=True)
+        # Revert to previous settings
+        self.vp_current_ov = vp_current_ov_prev
+        self.vp_current_grid = vp_current_grid_prev
+        self.cs.vp_centre_dx_dy = vp_centre_dx_dy_prev
+        self.cs.vp_scale = vp_scale_prev
 
     # ---------------------- MagC methods in Viewport --------------------------
 
