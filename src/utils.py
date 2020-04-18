@@ -14,7 +14,6 @@ import os
 import datetime
 import json
 import re
-import requests
 
 import numpy as np
 import cv2
@@ -187,10 +186,10 @@ def fit_in_range(value, min_value, max_value):
 def format_log_entry(msg):
     """Add timestamp and align msg for logging purposes"""
     timestamp = str(datetime.datetime.now())
-    # Align colon (msg must begin with 'CTRL', 'SEM' or '3VIEW'):
-    try:
-        i = msg.index(':')
-    except:
+    # Align colon (msg must begin with a tag of up to five capital letters,
+    # such as 'STAGE' followed by a colon)
+    i = msg.find(':')
+    if i == -1:   # colon not found
         i = 0
     return (timestamp[:22] + ' | ' + msg[:i] + (6-i) * ' ' + msg[i:])
 
@@ -278,40 +277,6 @@ def validate_ov_list(input_str):
             ov_list = []
             success = False
     return success, ov_list
-
-def meta_server_put_request(url, data):
-    try:
-        r = requests.put(url, json=data)
-        status = r.status_code
-    except:
-        status = 100
-    return status
-
-def meta_server_post_request(url, data):
-    try:
-        r = requests.post(url, json=data)
-        status = r.status_code
-    except:
-        status = 100
-    return status
-
-def meta_server_get_request(url):
-    command = None
-    msg = None
-    try:
-        r = requests.get(url)
-        received = json.loads(r.content)
-        status = r.status_code
-        if 'command' in received:
-            command = received['command']
-        if 'message' in received:
-            msg = received['message']
-        if 'version' in received:
-            msg = received['version']
-    except:
-        status = 100
-        msg = 'Metadata server request failed.'
-    return status, command, msg
 
 def suppress_console_warning():
     # Suppress TIFFReadDirectory warnings that otherwise flood console window
@@ -436,8 +401,26 @@ def getRigidScaling(coefs):
 
 # ----------------- MagC utils ------------------
 def sectionsYAML_to_sections_landmarks(sectionsYAML):
+    ''' The two dictionaries 'sections' and 'landmarks'
+    are structured the following way.
+
+    Section number N is accessed like this
+    sections[N]['center'] : [x,y]
+    sections[N]['angle'] : a (in degrees)
+
+    The ROI is defined inside section number N
+    sections['tissueROI-N']['center'] : [x,y]
+    The ROI defined in one single section can be
+    propagated to all other sections.
+
+    "Source" represents the pixel coordinates in the LM overview
+    wafer image.
+    "Target" represents the dimensioned coordinates in the physical
+    stage coordinates.
+    landmarks[N]['source']: [x,y]
+    landmarks[N]['target']: [x,y]
+    '''
     sections = {}
-    landmarks = {}
     for sectionId, sectionXYA in sectionsYAML['tissue'].items():
         sections[int(sectionId)] = {
         'center': [float(a) for a in sectionXYA[:2]],
@@ -446,6 +429,8 @@ def sectionsYAML_to_sections_landmarks(sectionsYAML):
         tissueROIIndex = int(list(sectionsYAML['tissueROI'].keys())[0])
         sections['tissueROI-' + str(tissueROIIndex)] = {
         'center': sectionsYAML['tissueROI'][tissueROIIndex]}
+
+    landmarks = {}
     if 'landmarks' in sectionsYAML:
         for landmarkId, landmarkXY in sectionsYAML['landmarks'].items():
             landmarks[int(landmarkId)] = {

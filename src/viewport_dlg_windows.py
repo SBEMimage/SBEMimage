@@ -370,21 +370,27 @@ class ImportImageDlg(QDialog):
             )[0])
         if len(selected_file) > 0:
             # Replace forward slashes with backward slashes:
-            selected_file = selected_file.replace('/', '\\')
+            # selected_file = selected_file.replace('/', '\\')
+            selected_file = os.path.normpath(selected_file)
             self.lineEdit_fileName.setText(selected_file)
             self.lineEdit_name.setText(
                 os.path.splitext(os.path.basename(selected_file))[0])
 
     def accept(self):
         selection_success = True
-        selected_path = self.lineEdit_fileName.text()
+        selected_path = os.path.normpath(
+            self.lineEdit_fileName.text())
         selected_filename = os.path.basename(selected_path)
         timestamp = str(datetime.datetime.now())
         # Remove some characters from timestap to get valid file name:
         timestamp = timestamp[:19].translate({ord(c): None for c in ' :-.'})
-        target_path = (self.target_dir + '\\'
-                       + os.path.splitext(selected_filename)[0]
-                       + '_' + timestamp + '.png')
+        # target_path = (self.target_dir + '\\'
+                       # + os.path.splitext(selected_filename)[0]
+                       # + '_' + timestamp + '.png')
+        target_path = os.path.join(
+            self.target_dir,
+            os.path.splitext(selected_filename)[0]
+            + '_' + timestamp + '.png')
         if os.path.isfile(selected_path):
             # Copy file to data folder as png:
             try:
@@ -433,15 +439,27 @@ class ImportImageDlg(QDialog):
 class AdjustImageDlg(QDialog):
     """Adjust an imported image (size, rotation, transparency)"""
 
-    def __init__(self, imported_images, selected_img, viewport_trigger):
+    def __init__(self, imported_images, selected_img, magc_mode,
+    		viewport_trigger):
         self.imported = imported_images
         self.viewport_trigger = viewport_trigger
         self.selected_img = selected_img
+        self.magc_mode = magc_mode
         super().__init__()
         loadUi('..\\gui\\adjust_imported_image_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
+
+        if self.magc_mode:
+            # magc_mode is restrictive about imported images
+            # the only imported image is a wafer image
+            # and should not be modified (except the transparency)
+            self.doubleSpinBox_posX.setEnabled(False)
+            self.doubleSpinBox_posY.setEnabled(False)
+            self.doubleSpinBox_pixelSize.setEnabled(False)
+            self.spinBox_rotation.setEnabled(False)
+
         self.show()
         self.lineEdit_selectedImage.setText(
             self.imported[self.selected_img].description)

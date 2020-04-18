@@ -137,7 +137,13 @@ class ImportedImages:
         """Delete the imported image at index"""
         self.number_imported -= 1
         del self.__imported_images[index]
-
+        
+    def delete_all_images(self):
+        """Delete all imported images"""
+        if self.number_imported>0:
+            for id in range(self.number_imported):
+                self.delete_image(self.number_imported - id - 1)
+        
     def get_imported_img_file_list(self):
         return self.imported_file_list
 
