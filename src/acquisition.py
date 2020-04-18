@@ -8,7 +8,7 @@
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
 
-"""This module controls the stack acquisition process.
+"""This module controls the acquisition process for SBEM stacks or wafers.
 
 The instance self.acq from class Acquisition is created in main_controls.py. Its
 method run(), which contains the acquisition loop, is started in a thread from
@@ -50,9 +50,6 @@ class Acquisition:
 
         self.error_state = 0
         self.error_info = ''
-
-        # Some functionality is changed if SBEMimage is used in MagC mode
-        self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
 
         # Log file handles
         self.main_log_file = None
@@ -1405,8 +1402,7 @@ class Acquisition:
                             f'CTRL: Grid {grid_index} already acquired. '
                             f'Skipping.')
                     elif (self.magc_mode
-                          and grid_index not in json.loads(
-                              self.cfg['magc']['checked_sections'])):
+                          and grid_index not in self.gm.magc_checked_sections):
                         self.add_to_main_log(
                             f'CTRL: Grid {grid_index} not checked. Skipping.')
                     else:

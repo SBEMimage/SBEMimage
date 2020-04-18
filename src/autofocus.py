@@ -65,8 +65,8 @@ class Autofocus():
         # If MagC mode active, enforce method and tracking mode
         self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
         if self.magc_mode:
-            self.set_method(0)         # SmartSEM autofocus
-            self.set_tracking_mode(0)  # Track selected, approx. others
+            self.method = 0         # SmartSEM autofocus
+            self.tracking_mode = 0  # Track selected, approx. others
 
     def save_to_cfg(self):
         """Save current status of autofocus to ConfigParser object. Note that

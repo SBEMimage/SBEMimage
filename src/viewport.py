@@ -39,7 +39,6 @@ from viewport_dlg_windows import StubOVDlg, FocusGradientTileSelectionDlg, \
                                  GridRotationDlg, ImportImageDlg, \
                                  AdjustImageDlg, DeleteImageDlg
 
-
 class Viewport(QWidget):
 
     def __init__(self, config, sem, stage, coordinate_system,
@@ -551,8 +550,7 @@ class Viewport(QWidget):
                         # to the source magc sections
                         self.gm.update_source_ROIs_from_grids()
                         # deactivate roi_mode because grid manually moved
-                        self.cfg['magc']['roi_mode'] = 'False'
-                        self.main_controls_trigger.transmit('SAVE INI')
+                        self.gm.magc_roi_mode = False
                     # ------ End of MagC code ------
 
             if self.ov_drag_active:
@@ -882,7 +880,7 @@ class Viewport(QWidget):
                 action_moveGridCurrentStage.triggered.connect(
                     self._vp_manual_stage_move)
                 if not ((self.selected_grid is not None)
-                    and self.cfg['magc']['wafer_calibrated'].lower() == 'true'):
+                    and self.gm.magc_wafer_calibrated):
                     action_moveGridCurrentStage.setEnabled(False)
 
             menu.addSeparator()
@@ -916,17 +914,40 @@ class Viewport(QWidget):
                 self._vp_open_delete_image_dlg)
 
             # ----- MagC items -----
+            if self.sem.magc_mode:
+                # in MagC you only import wafer images from the MagC tab
+                action_import.setEnabled(False)
+                # in MagC you cannot remove the wafer image, the only
+                # way is to Reset MagC
+                action_deleteImported.setEnabled(False)
             if (self.sem.magc_mode
                 and self.selected_grid is not None):
                 menu.addSeparator()
-                action_propagateAll = menu.addAction(
-                    'MagC | Propagate grid properties to all sections')
-                action_progagateAll.triggered.connect(
-                    self.vp_propagate_grid_all_sections)
-                action_propagateSelected = menu.addAction(
-                    'MagC | Propagate grid properties to selected sections')
-                action_propagateSelected.triggered.connect(
-                    self.vp_propagate_grid_selected_sections)
+
+                # propagate to all sections
+                action_propagateToAll = menu.addAction(
+                    'MagC | Propagate properties of grid '
+                    + str(self.selected_grid)
+                    + ' to all sections')
+                action_propagateToAll.triggered.connect(
+                    self.vp_propagate_grid_properties_to_all_sections)
+
+                # propagate to selected sections
+                action_propagateToSelected = menu.addAction(
+                    'MagC | Propagate properties of grid '
+                    + str(self.selected_grid)
+                    + ' to selected sections')
+                action_propagateToSelected.triggered.connect(
+                    self.vp_propagate_grid_properties_to_selected_sections)
+
+                # revert location to file-defined location
+                action_revertLocation = menu.addAction(
+                    'MagC | Revert location of grid  '
+                    + str(self.selected_grid)
+                    + ' to original file-defined location')
+                action_revertLocation.triggered.connect(
+                    self.vp_revert_grid_location_to_file)
+
             # ----- End of MagC items -----
 
             if (self.selected_tile is None) and (self.selected_ov is None):
@@ -1996,7 +2017,7 @@ class Viewport(QWidget):
         x, y = self.stage.get_xy()
         self.gm[self.selected_grid].centre_sx_sy = [x, y]
         self.gm[self.selected_grid].update_tile_positions()
-        self.cfg['magc']['roi_mode'] = 'False'
+        self.gm.magc_roi_mode = False
         self.gm.update_source_ROIs_from_grids()
         self.vp_draw()
 
@@ -2204,7 +2225,7 @@ class Viewport(QWidget):
 
     def _vp_open_adjust_image_dlg(self):
         dialog = AdjustImageDlg(self.imported, self.selected_imported,
-                                self.viewport_trigger)
+                                self.sem.magc_mode, self.viewport_trigger)
         dialog.exec_()
 
     def _vp_open_delete_image_dlg(self):
@@ -2246,51 +2267,74 @@ class Viewport(QWidget):
     def vp_propagate_grid_properties_to_selected_sections(self):
         # TODO
         clicked_section_number = self.selected_grid
-        selected_sections = json.loads(self.cfg['magc']['selected_sections'])
 
         # load original sections from file which might be different from
         # the grids adjusted in SBEMImage
-        with open(self.cfg['magc']['sections_path'], 'r') as f:
+        with open(self.gm.magc_sections_path, 'r') as f:
             sections, landmarks = utils.sectionsYAML_to_sections_landmarks(
             yaml.full_load(f))
 
-        for selected_section in selected_sections:
+        for selected_section in self.gm.magc_selected_sections:
             self.gm.propagate_source_grid_properties_to_target_grid(
                 clicked_section_number,
                 selected_section,
                 sections)
         self.gm.update_source_ROIs_from_grids()
-        # update the autofocus tiles
-        # (done here because no access to autofocus from inside gm)
-        ref_tiles = json.loads(self.cfg['autofocus']['ref_tiles'])
-        self.af.set_ref_tiles(ref_tiles)
         self.vp_draw()
         self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS') # update statistics in GUI
+        self.add_to_log('Properties of grid '
+            + str(clicked_section_number)
+            + ' have been propagated to the selected sections')
 
     def vp_propagate_grid_properties_to_all_sections(self):
         # TODO
         clicked_section_number = self.selected_grid
-        section_number = self.gm.number_grids
+        n_sections = self.gm.number_grids
 
         # load original sections from file which might be different from
         # the grids adjusted in SBEMImage
-        with open(self.cfg['magc']['sections_path'], 'r') as f:
+        with open(self.gm.magc_sections_path, 'r') as f:
             sections, landmarks = utils.sectionsYAML_to_sections_landmarks(
             yaml.full_load(f))
-        for section in range(section_number):
+        for section in range(n_sections):
             self.gm.propagate_source_grid_properties_to_target_grid(
                 clicked_section_number,
                 section,
                 sections)
 
         self.gm.update_source_ROIs_from_grids()
-        # update the autofocus tiles
-        # (done here because no access to autofocus from inside gm)
-        ref_tiles = json.loads(self.cfg['autofocus']['ref_tiles'])
-        self.af.set_ref_tiles(ref_tiles)
 
         self.vp_draw()
         self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS') # update statistics in GUI
+        self.add_to_log('Properties of grid '
+            + str(clicked_section_number)
+            + ' have been propagated to all sections')
+
+    def vp_revert_grid_location_to_file(self):
+        clicked_section_number = self.selected_grid
+        # load original sections from file which might be different from
+        # the grids adjusted in SBEMImage
+        with open(self.gm.magc_sections_path, 'r') as f:
+            sections, landmarks = utils.sectionsYAML_to_sections_landmarks(
+            yaml.full_load(f))
+
+        source_location = sections[clicked_section_number]['center']
+        # source_location is in LM image pixel coordinates
+        if not self.gm.magc_wafer_calibrated:
+            (self.gm[clicked_section_number]
+                .centre_sx_sy) = list(map(float, source_location))
+        else:
+            # transform into wafer coordinates
+            result = utils.applyAffineT(
+                [source_location[0]],
+                [source_location[1]],
+                self.gm.magc_wafer_transform)
+            target_location = [result[0][0], result[1][0]]
+            self.gm[clicked_section_number].centre_sx_sy = target_location
+
+        self.vp_draw()
+        self.gm.update_source_ROIs_from_grids()
+        self._transmit_cmd('SHOW CURRENT SETTINGS') # update statistics in GUI
 
     # -------------------- End of MagC methods in Viewport ---------------------
 
@@ -3332,7 +3376,7 @@ class Viewport(QWidget):
         else:
             # Use current image in SmartSEM
             selected_file = os.path.join(
-                self.base_dir, 'workspace', 'current_frame.tif')
+                self.stack.base_dir, 'workspace', 'current_frame.tif')
             self.sem.save_frame(selected_file)
             self.m_reset_view()
             self.m_tab_populated = False
