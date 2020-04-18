@@ -130,6 +130,8 @@ class Acquisition:
         self.continue_after_max_sweeps = (
             self.cfg['debris']['continue_after_max_sweeps'].lower() == 'true')
 
+        self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
+
     @property
     def base_dir(self):
         return self._base_dir
