@@ -1417,11 +1417,11 @@ class MainControls(QMainWindow):
             ov_index = int(msg[len('ASK DEBRIS FIRST OV'):])
             self.viewport.vp_show_overview_for_user_inspection(ov_index)
             reply = QMessageBox.question(
-                self, 'Confirm overview image quality',
-                f'This is the first slice to be imaged after (re)starting the '
-                f'acquisition. Please confirm:\nIs the overview image OV '
-                f'{ov_index}, which has just been acquired (now shown in the '
-                f'Viewport) free from debris or other image defects?',
+                self, 'Please inspect overview image quality',
+                f'Is the overview image OV {ov_index} now shown in the '
+                f'Viewport free from debris or other image defects?\n\n'
+                f'(This confirmation is required for the first slice to be '
+                f'imaged after (re)starting the acquisition.)',
                 QMessageBox.Yes | QMessageBox.No | QMessageBox.Abort,
                 QMessageBox.Yes)
             # Redraw with previous settings
@@ -1431,11 +1431,12 @@ class MainControls(QMainWindow):
             ov_index = int(msg[len('ASK DEBRIS CONFIRMATION'):])
             self.viewport.vp_show_overview_for_user_inspection(ov_index)
             reply = QMessageBox.question(
-                self, 'Debris detection',
-                f'Potential debris has been detected in overview OV '
-                f'{ov_index}. Please confirm:\nIs debris visible in the '
-                f'detection area? (If you get several false positives in a '
-                f'row, you may need to adjust your detection thresholds.)',
+                self, 'Potential debris detected - please confirm',
+                f'Is debris visible in the detection area of OV {ov_index} now '
+                f'shown in the Viewport?\n\n'
+                f'(Potential debris has been detected in this overview image. '
+                f'If you get several false positives in a row, you may need to '
+                f'adjust your detection thresholds.)',
                 QMessageBox.Yes | QMessageBox.No | QMessageBox.Abort,
                 QMessageBox.Yes)
             # Redraw with previous settings
