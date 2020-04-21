@@ -15,6 +15,7 @@ Depending on the initialization, either the microtome stage or the SEM stage or
 some other custom stage will be used when carrying out the commands.
 """
 
+
 class Stage():
 
     def __init__(self, sem, microtome, use_microtome=True):
@@ -31,6 +32,11 @@ class Stage():
             self._stage = sem
             self.use_microtome_xy = False
             self.use_microtome_z = True
+        elif use_microtome and microtome.device_name == 'GCIB':
+            # Use SEM stage for X, Y control, and microtome for Z control
+            self._stage = sem
+            self.use_microtome_xy = False
+            self.use_microtome_z = False
         else:
             # Use SEM stage for X, Y, Z control
             self._stage = sem

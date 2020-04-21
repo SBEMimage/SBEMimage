@@ -8,24 +8,37 @@
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
 
-"""This module controls the microtome hardware (knife and motorized stage) via
-   DigitalMicrograph (3View) or a serial port (katana).
+"""
+This module controls the microtome hardware (knife and motorized stage) via
+DigitalMicrograph (3View) or a serial port (katana). In addition, it implements an
+alternative removal approach via the separate GCIB class.
 
-                Microtome (base class)
-                  /                \
-                 /                  \
-         Microtome_3View     Microtome_katana
 
-   In addition, it implements an alternative removal approach via the separated GCIB class.
+                                  BFRemover (abc)
+                                /               \
+                               /                 \
+            Microtome (base class)               GCIB
+              /                \
+             /                  \
+     Microtome_3View     Microtome_katana
+
 """
 
 import os
+import time
+from time import sleep
 import json
 import serial
 from abc import ABC, abstractmethod
-from time import sleep
+import numpy as np
 
 import utils
+
+try:
+    import ftdidio
+    _ftdidio_avail = True
+except ImportError as e:
+    _ftdidio_avail = False
 
 
 class BFRemover(ABC):
@@ -34,7 +47,14 @@ class BFRemover(ABC):
         * rename abstract methods which are too specific (e.g. cut, knife, etc).
         * add __init__ with generic properties here? e.g. passing cfg and sys_cfg and setting device_name
     """
-    device_name = 'Abstract block-face remover.'
+
+    def __init__(self, config, sysconfig):
+        self.cfg = config
+        self.syscfg = sysconfig
+        self.error_state = 0
+        self.error_info = ''
+        self.device_name = 'Abstract block-face remover.'
+        self.full_cut_duration = None  # use @property, @abstractmethod
 
     def __str__(self):
         return self.device_name
@@ -52,46 +72,20 @@ class BFRemover(ABC):
         pass
 
     @abstractmethod
-    def stop_script(self):
+    def check_for_cut_cycle_error(self):
         pass
 
-    # Methods which are kept to keep compatibility
-    def do_full_approach_cut(self):
-        """Perform a full cut cycle under the assumption that knife is
-           already neared."""
-        pass
-
+    @abstractmethod
     def do_sweep(self, z_position):
         """Perform a sweep by cutting slightly above the surface."""
         pass
 
-    def cut(self):
-        # only used for testing
-        pass
-
-    def retract_knife(self):
-        # only used for testing
-        pass
-
-    def near_knife(self):
-        pass
-
-    def clear_knife(self):
-        pass
-
-    def check_for_cut_cycle_error(self):
-        pass
-
     def reset_error_state(self):
-        pass
+        self.error_state = 0
+        self.error_info = ''
 
     # Optional motor movements, e.g. these are available if SEM stage is active and must then
     # not be used from this class.
-    def set_motor_speeds(self, motor_speed_x, motor_speed_y):
-        raise NotImplementedError
-
-    def write_motor_speeds_to_script(self):
-        raise NotImplementedError
 
     def move_stage_to_x(self, x):
         # only used for testing
@@ -99,16 +93,6 @@ class BFRemover(ABC):
 
     def move_stage_to_y(self, y):
         # only used for testing
-        raise NotImplementedError
-
-    def rel_stage_move_duration(self, target_x, target_y):
-        """Use the last known position and the given target position
-           to calculate how much time it will take for the motors to move
-           to target position. Add self.stage_move_wait_interval.
-        """
-        raise NotImplementedError
-
-    def stage_move_duration(self, from_x, from_y, to_x, to_y):
         raise NotImplementedError
 
     def get_stage_xy(self, wait_interval=0.25):
@@ -149,10 +133,7 @@ class Microtome(BFRemover):
     otherwise NotImplementedError is raised.
     """
     def __init__(self, config, sysconfig):
-        self.cfg = config
-        self.syscfg = sysconfig
-        self.error_state = 0
-        self.error_info = ''
+        super().__init__(config, sysconfig)
         self.motor_warning = False  # True when motors slower than expected
         # Load device name and other settings from sysconfig. These
         # settings overwrite the settings in config.
@@ -322,14 +303,6 @@ class Microtome(BFRemover):
     def write_motor_speeds_to_script(self):
         raise NotImplementedError
 
-    def move_stage_to_x(self, x):
-        # only used for testing
-        raise NotImplementedError
-
-    def move_stage_to_y(self, y):
-        # only used for testing
-        raise NotImplementedError
-
     def rel_stage_move_duration(self, target_x, target_y):
         """Use the last known position and the given target position
            to calculate how much time it will take for the motors to move
@@ -343,37 +316,6 @@ class Microtome(BFRemover):
         duration_x = abs(to_x - from_x) / self.motor_speed_x
         duration_y = abs(to_y - from_y) / self.motor_speed_y
         return max(duration_x, duration_y) + self.stage_move_wait_interval
-
-    def get_stage_xy(self, wait_interval=0.25):
-        """Get current XY coordinates from DM"""
-        raise NotImplementedError
-
-    def get_stage_x(self):
-        return self.get_stage_xy()[0]
-
-    def get_stage_y(self):
-        return self.get_stage_xy()[1]
-
-    def get_stage_xyz(self):
-        x, y = self.get_stage_xy()
-        z = self.get_stage_z()
-        return x, y, z
-
-    def move_stage_to_xy(self, coordinates):
-        """Move stage to coordinates X/Y. This function is called during
-           acquisitions. It includes waiting times. The other move functions
-           below do not.
-        """
-        raise NotImplementedError
-
-    def get_stage_z(self, wait_interval=0.5):
-        """Get current Z coordinate from DM"""
-        raise NotImplementedError
-
-    def move_stage_to_z(self, z, safe_mode=True):
-        """Move stage to new z position. Used during stack acquisition
-           before each cut and for sweeps."""
-        raise NotImplementedError
 
     def stop_script(self):
         raise NotImplementedError
@@ -1046,11 +988,28 @@ class Microtome_katana(Microtome):
 
 class GCIB(BFRemover):
     """
-    WIP
+    [WIP]
+    Requires stage hook.
+    Todo:
+        * use consistent error states.
+        * add tilt_abs and rotate_deg_delta to stage
     """
-    def __init__(self, config, sysconfig):
+
+    def __init__(self, config: dict, sysconfig: dict, stage):
+        """
+
+        Args:
+            config:
+            sysconfig:
+            stage: Stage class must implement XYZ translation, tilt and rotation.
+        """
+        super().__init__(config, sysconfig)
+        if not _ftdidio_avail:
+            raise ImportError(f'ImportError: {self} implementation requires the package "ftdidio" '
+                              f'which could not be imported.')
         self.cfg = config
         self.syscfg = sysconfig
+        self.stage = stage
         self.error_state = 0
         self.error_info = ''
         # Load device name and other settings from sysconfig. These
@@ -1070,14 +1029,88 @@ class GCIB(BFRemover):
         # the string values into floats or integers
         try:
             # Duration of a full cut cycle in seconds
-            self.full_cut_duration = float(
-                self.cfg['microtome']['full_cut_duration'])
-
+            self._mill_cycle = float(self.cfg['gcib']['mill_cycle'])
+            self._ftdi_serial = str(self.cfg['gcib']['ftdi_serial'])
+            self.xyzt_milling = np.array(json.loads(self.cfg['gcib']['xyzt_milling']))
+            self.full_cut_duration = self._mill_cycle
+        except Exception as e:
+            self.error_state = 701
+            self.error_info = str(e)
+            return  # return here otherwise this error will be overwritten by the next lines
+        try:
+            self._ftdi_device = ftdidio.Ftdidio()
+            self._connect_blanking()
         except Exception as e:
             self.error_state = 701
             self.error_info = str(e)
 
+    def _connect_blanking(self):
+        try:
+            self._ftdi_device.open(serial=self._ftdi_serial)
+            self._ftdi_device.set_mask(1)
+            self._ftdi_device.set_bit(1)  # 1 = blanking?
+        except ftdidio.FtdidioError as e:
+            self.error_state = 42
+            self.error_info = str(e)
+
+    def _disconnect_blanking(self):
+        """
+        TODO: This will also disable blanking!
+        """
+        try:
+            self._ftdi_device.clear_bit(1)
+            self._ftdi_device.close()
+        except ftdidio.FtdidioError as e:
+            self.error_state = 42
+            self.error_info = str(e)
+
+    def _blank_beam(self):
+        self._ftdi_device.set_bit(1)
+
+    def _unblank_beam(self):
+        self._ftdi_device.clear_bit(1)
+
     def save_to_cfg(self):
         # Save full cut duration in both cfg and syscfg
         self.cfg['microtome']['full_cut_duration'] = str(self.full_cut_duration)
-        self.syscfg['knife']['full_cut_duration'] = str(self.full_cut_duration)
+        self.cfg['gcib']['ftdi_serial'] = str(self._ftdi_serial)
+        self.cfg['gcib']['xyzt_milling'] = str(self.xyzt_milling.tolist())
+        self.cfg['gcib']['mill_cycle'] = str(self._mill_cycle)
+
+    def do_full_cut(self):
+        """Perform a full milling cycle. This is the removal function
+           used during stack acquisitions.
+        """
+        curr_x, curr_y, curr_z = self.stage.get_xyz()
+        if np.all(self.xyzt_milling == 0):
+            self.error_info = 'NotInitializedError: Location parameters for milling have not been set.'
+            self.error_state = 44
+            return
+        x_mill, y_mill, z_mill, t_mill, r_mill = self.xyzt_milling
+        if curr_z < z_mill:
+            self.error_state = 43
+            self.error_info = (f'ValueError: Current z position is smaller than the '
+                               f'one given as milling location: {curr_z} < {z_mill}.')
+            return
+        return
+        if self.simulation_mode:
+            time.sleep(self.full_cut_duration)
+
+        self.stage.move_to_xy(x_mill, y_mill)
+        self.stage.move_to_z(z_mill)
+        self.stage.tilt_abs(t_mill)
+        # Hayworth et al, 2019, Nat. Methods: Three evenly spaced azimuthal
+        # directions for 360 deg and 360 s per mill cycle
+        for ii in range(3):
+            self.stage.rotate_delta_deg(120)
+            sleep(120)
+        # move stage to initial position
+        self.stage.tilt_abs(0)
+        self.stage.move_to_xy(curr_x, curr_y)
+        self.stage.move_to_z(curr_z)
+
+    def check_for_cut_cycle_error(self):
+        return
+
+    def do_sweep(self, z_position):
+        return

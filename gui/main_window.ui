@@ -1885,6 +1885,19 @@
         <string>XYZ motor test</string>
        </property>
       </widget>
+      <widget class="QPushButton" name="pushButton_testMillPos">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>180</y>
+         <width>121</width>
+         <height>23</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Mill position</string>
+       </property>
+      </widget>
      </widget>
      <widget class="QGroupBox" name="groupBox_7">
       <property name="geometry">
@@ -2705,6 +2718,7 @@ Wafer Image</string>
   <tabstop>pushButton_testSetStage</tabstop>
   <tabstop>pushButton_testNearKnife</tabstop>
   <tabstop>pushButton_testClearKnife</tabstop>
+  <tabstop>pushButton_testMillPos</tabstop>
   <tabstop>pushButton_testMotors</tabstop>
   <tabstop>pushButton_testStopDMScript</tabstop>
   <tabstop>pushButton_testSendEMail</tabstop>

@@ -41,7 +41,7 @@ from PyQt5.uic import loadUi
 import acq_func
 import utils
 from sem_control import SEM_SmartSEM
-from microtome_control import Microtome_3View, Microtome_katana
+from microtome_control import Microtome_3View, Microtome_katana, GCIB
 from stage import Stage
 from plasma_cleaner import PlasmaCleaner
 from acquisition import Acquisition
@@ -209,6 +209,8 @@ class MainControls(QMainWindow):
         elif self.use_microtome and (self.syscfg['device']['microtome'] == '5'):
             # Initialize katana microtome
             self.microtome = Microtome_katana(self.cfg, self.syscfg)
+        elif self.use_microtome and (self.syscfg['device']['microtome'] == '6'):
+            self.microtome = GCIB(self.cfg, self.syscfg, self.sem)
         else:
             # Otherwise use SEM stage
             self.microtome = None
@@ -222,7 +224,7 @@ class MainControls(QMainWindow):
                 'the following error: \n'
                 + self.microtome.error_info
                 + '\nPlease inspect the configuration file(s). SBEMimage will '
-                'be closed.' ,
+                'be closed.',
                 QMessageBox.Ok)
             self.close()
 
@@ -266,8 +268,11 @@ class MainControls(QMainWindow):
         self.show_stack_acq_estimates()
 
         # Restrict GUI (microtome-specific functionality) if no microtome used
-        if not self.use_microtome:
+        if not self.use_microtome or self.syscfg['device']['microtome'] == '6':
             self.restrict_gui_for_sem_stage()
+
+        if self.syscfg['device']['microtome'] != '6':
+            self.restrict_gui_wo_gcib()
 
         # Now show main window:
         self.show()
@@ -453,6 +458,7 @@ class MainControls(QMainWindow):
         self.pushButton_testSetStage.clicked.connect(self.test_set_stage)
         self.pushButton_testNearKnife.clicked.connect(self.test_near_knife)
         self.pushButton_testClearKnife.clicked.connect(self.test_clear_knife)
+        self.pushButton_testMillPos.clicked.connect(self.test_mill_pos)
         self.pushButton_testStopDMScript.clicked.connect(
             self.test_stop_dm_script)
         self.pushButton_testSendEMail.clicked.connect(self.test_send_email)
@@ -1521,6 +1527,7 @@ class MainControls(QMainWindow):
         self.pushButton_testSetStage.setEnabled(b)
         self.pushButton_testNearKnife.setEnabled(b)
         self.pushButton_testClearKnife.setEnabled(b)
+        self.pushButton_testMillPos.setEnabled(b)
         self.pushButton_testStopDMScript.setEnabled(b)
         self.pushButton_testPlasmaCleaner.setEnabled(b)
         self.pushButton_testMotors.setEnabled(b)
@@ -1548,6 +1555,9 @@ class MainControls(QMainWindow):
         self.checkBox_useDebrisDetection.setEnabled(False)
         self.toolButton_debrisDetection.setEnabled(False)
         self.actionCutDuration.setEnabled(False)
+
+    def restrict_gui_wo_gcib(self):
+        self.pushButton_testMillPos.setEnabled(False)
 
     def add_to_log(self, text):
         """Update the log from the main thread."""
@@ -1674,6 +1684,13 @@ class MainControls(QMainWindow):
         if self.use_microtome:
             self.microtome.clear_knife()
             self.add_to_log('KNIFE: Position should be CLEAR.')
+        else:
+            self.add_to_log('CTRL: No microtome, or microtome not active.')
+
+    def test_mill_pos(self):
+        if self.use_microtome:
+            self.add_to_log(f'GCIB: Mill position (XYZT) {self.microtome.xyzt_milling}. '
+                            f'Type: {type(self.microtome.xyzt_milling)}')
         else:
             self.add_to_log('CTRL: No microtome, or microtome not active.')
 
