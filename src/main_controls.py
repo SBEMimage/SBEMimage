@@ -967,21 +967,35 @@ class MainControls(QMainWindow):
         model.removeRows(0, model.rowCount(), QModelIndex())
         self.gm.magc_sections_path = ''
         self.gm.magc_wafer_calibrated = False
+        self.magc_trigger_wafer_uncalibrated()
+        # the trigger shows only that the wafer is not calibrated
+        # but the reset is stronger: it means that the wafer
+        # is not calibratable, therefore setting gray color
+        self.pushButton_magc_waferCalibration.setStyleSheet(
+            'background-color: lightgray')
         self.gm.magc_selected_sections = []
         self.gm.magc_checked_sections = []
         self.gm.delete_all_grids_above_index(0)
         self.viewport.update_grids()
-        # unenable wafer calibration button
-        self.pushButton_magc_waferCalibration.setEnabled(False)
         # unenable wafer image import
         self.pushButton_magc_importWaferImage.setEnabled(False)
-        # change wafer flag
-        self.pushButton_magc_waferCalibration.setStyleSheet(
-            'background-color: lightgray')
         # delete all imported images in viewport
         self.imported.delete_all_images()
         self.viewport.vp_draw()
 
+    def magc_trigger_wafer_calibrated(self):
+        (self.pushButton_magc_waferCalibration
+            .setStyleSheet('background-color: green'))
+        self.pushButton_msem_transferToZen.setEnabled(True)
+        
+    def magc_trigger_wafer_uncalibrated(self):
+        # unenable wafer calibration button
+        self.pushButton_magc_waferCalibration.setEnabled(False)
+        # change wafer flag
+        (self.pushButton_magc_waferCalibration
+            .setStyleSheet('background-color: yellow'))
+        # inactivate msem transfer to ZEN
+        self.pushButton_msem_transferToZen.setEnabled(False)
 
     def magc_open_import_wafer_image(self):
         target_dir = os.path.join(
@@ -1374,13 +1388,9 @@ class MainControls(QMainWindow):
         elif msg[:15] == 'GET CURRENT LOG':
             self.write_current_log_to_file(msg[15:])
         elif msg == 'MAGC WAFER CALIBRATED':
-            (self.pushButton_magc_waferCalibration
-                .setStyleSheet('background-color: green'))
-            self.pushButton_msem_transferToZen.setEnabled(True)
+            self.magc_trigger_wafer_uncalibrated()
         elif msg == 'MAGC WAFER NOT CALIBRATED':
-            (self.pushButton_magc_waferCalibration
-                .setStyleSheet('background-color: yellow'))
-            self.pushButton_msem_transferToZen.setEnabled(False)
+            self.magc_trigger_wafer_uncalibrated()
         elif msg == 'MAGC ENABLE CALIBRATION':
             self.pushButton_magc_waferCalibration.setEnabled(True)
         elif msg == 'MAGC UNENABLE CALIBRATION':
