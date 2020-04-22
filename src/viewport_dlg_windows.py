@@ -249,6 +249,7 @@ class GridRotationDlg(QDialog):
         self.viewport_trigger = viewport_trigger
         self.magc_mode = magc_mode
         self.rotation_in_progress = False
+        self.gm[self.selected_grid].auto_update_tile_positions = False
         super().__init__()
         loadUi('..\\gui\\change_grid_rotation_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
@@ -290,7 +291,7 @@ class GridRotationDlg(QDialog):
         self.update_grid()
 
     def update_grid(self):
-        """Apply the new rotation angle and redraw the viewport"""
+        """Apply the new rotation angle and redraw the viewport."""
         self.time_of_last_rotation = time()
         if not self.rotation_in_progress:
             # Start thread to ensure viewport is drawn with labels and previews
@@ -340,6 +341,8 @@ class GridRotationDlg(QDialog):
         self.gm[self.selected_grid].update_tile_positions()
         if self.magc_mode:
             self.gm.update_source_ROIs_from_grids()
+        # Restore default behaviour for updating tile positions
+        self.gm[self.selected_grid].auto_update_tile_positions = True
         super().accept()
 
 # ------------------------------------------------------------------------------

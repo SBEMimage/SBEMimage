@@ -1100,11 +1100,14 @@ class GridSettingsDlg(QDialog):
             self.main_controls_trigger.transmit('GRID SETTINGS CHANGED')
 
     def save_current_settings(self):
+        error_msg = ''
+        # Update tile positions only once after updating all grid attributes
+        self.gm[self.current_grid].auto_update_tile_positions = False
+
         if self.magc_mode:
             # Preserve centre coordinates of MagC grids
             prev_grid_centre = self.gm[self.current_grid].centre_sx_sy
 
-        error_msg = ''
         self.gm[self.current_grid].active = self.radioButton_active.isChecked()
         self.gm[self.current_grid].size = [self.spinBox_rows.value(),
                                            self.spinBox_cols.value()]
@@ -1140,11 +1143,13 @@ class GridSettingsDlg(QDialog):
             self.spinBox_acqInterval.value())
         self.gm[self.current_grid].acq_interval_offset = (
             self.spinBox_acqIntervalOffset.value())
-        # Recalculate grid:
-        self.gm[self.current_grid].update_tile_positions()
         if self.magc_mode:
             self.gm[self.current_grid].centre_sx_sy = prev_grid_centre
             self.gm.update_source_ROIs_from_grids()
+        # Finally, recalculate tile positions
+        self.gm[self.current_grid].update_tile_positions()
+        # Restore default behaviour for updating tile positions
+        self.gm[self.current_grid].auto_update_tile_positions = True
         if error_msg:
             QMessageBox.warning(self, 'Error', error_msg, QMessageBox.Ok)
         else:
