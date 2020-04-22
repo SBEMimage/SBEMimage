@@ -117,12 +117,13 @@ class MainControls(QMainWindow):
         startup_log_messages = []
 
         # Initialize SEM
-        if self.syscfg['device']['sem'] == 'ZEISS MultiSEM':
+        if self.syscfg['device']['sem'] == '6':
             QMessageBox.critical(
-                self, 'STAGE COLLISION WARNING'
-                'THIS MODULE FOR MULTISEM IS STILL IN DEVELOPMENT.'
-                ' IT CAN PRODUCE UNSAFE STAGE MOVEMENTS LEADING TO '
-                ' COLLISIONS WITH THE LENS. ',
+                self, 'STAGE COLLISION WARNING - MULTISEM',
+                'THIS MODULE FOR MULTISEM IS STILL IN DEVELOPMENT.\n\n\n\n'
+                'IT CAN PRODUCE UNSAFE STAGE MOVEMENTS LEADING TO '
+                'COLLISIONS WITH THE LENS. \n\n\n\n'
+                '\n ONLY PROCEED IF YOU KNOW WHAT YOU ARE DOING',
                 QMessageBox.Ok)
 
         if self.syscfg['device']['sem'] in ['1', '2', '3', '4', '6']:  # ZEISS SEMs
