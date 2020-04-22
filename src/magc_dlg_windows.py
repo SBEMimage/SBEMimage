@@ -672,7 +672,7 @@ class WaferCalibrationDlg(QDialog):
 
             # update calibration flag
             self.gm.magc_wafer_calibrated = True
-            self._transmit_cmd('MAGC WAFER CALIBRATED')
+            self.main_controls_trigger.transmit('MAGC WAFER CALIBRATED')
 
             self.accept()
 

@@ -527,12 +527,16 @@ class MainControls(QMainWindow):
             self.tabWidget.tabBarDoubleClicked.connect(self.activate_magc_mode)
         else:
             self.initialize_magc_gui()
+        #------------------#
 
-        #-------MultiSEM-----#
-        if 'MultiSEM' in self.sem.device_name:
+        #-------MultiSEM-------#
+        if 'multisem' in self.sem.device_name.lower():
             # no aboutBox in MultiSEM API
             self.pushButton_testZeissAPIVersion.setEnabled(False)
 
+            self.pushButton_msem_transferToZen.setEnabled(False)
+        #----------------------#
+            
     def activate_magc_mode(self, tabIndex):
         if tabIndex != 3:
             return
@@ -1370,9 +1374,13 @@ class MainControls(QMainWindow):
         elif msg[:15] == 'GET CURRENT LOG':
             self.write_current_log_to_file(msg[15:])
         elif msg == 'MAGC WAFER CALIBRATED':
-            self.pushButton_magc_waferCalibration.setStyleSheet('background-color: green')
+            (self.pushButton_magc_waferCalibration
+                .setStyleSheet('background-color: green'))
+            self.pushButton_msem_transferToZen.setEnabled(True)
         elif msg == 'MAGC WAFER NOT CALIBRATED':
-            self.pushButton_magc_waferCalibration.setStyleSheet('background-color: yellow')
+            (self.pushButton_magc_waferCalibration
+                .setStyleSheet('background-color: yellow'))
+            self.pushButton_msem_transferToZen.setEnabled(False)
         elif msg == 'MAGC ENABLE CALIBRATION':
             self.pushButton_magc_waferCalibration.setEnabled(True)
         elif msg == 'MAGC UNENABLE CALIBRATION':
