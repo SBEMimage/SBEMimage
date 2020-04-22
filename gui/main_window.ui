@@ -30,7 +30,7 @@
      <string/>
     </property>
     <property name="currentIndex">
-     <number>4</number>
+     <number>0</number>
     </property>
     <widget class="QWidget" name="mainControls">
      <attribute name="title">
@@ -1284,7 +1284,7 @@
       <property name="geometry">
        <rect>
         <x>20</x>
-        <y>440</y>
+        <y>420</y>
         <width>101</width>
         <height>23</height>
        </rect>
@@ -1596,14 +1596,14 @@
        </font>
       </property>
       <property name="text">
-       <string/>
+       <string>Information about current selection.</string>
       </property>
      </widget>
      <widget class="QPushButton" name="pushButton_focusToolMove">
       <property name="geometry">
        <rect>
         <x>20</x>
-        <y>460</y>
+        <y>450</y>
         <width>101</width>
         <height>23</height>
        </rect>
@@ -1639,6 +1639,19 @@
       </property>
       <property name="layoutDirection">
        <enum>Qt::LeftToRight</enum>
+      </property>
+     </widget>
+     <widget class="QCheckBox" name="checkBox_useCurrentPos">
+      <property name="geometry">
+       <rect>
+        <x>140</x>
+        <y>425</y>
+        <width>271</width>
+        <height>17</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Use current stage position</string>
       </property>
      </widget>
     </widget>

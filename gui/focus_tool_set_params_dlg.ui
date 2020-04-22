@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>221</width>
-    <height>158</height>
+    <height>188</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -20,7 +20,7 @@
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>120</y>
+     <y>150</y>
      <width>191</width>
      <height>32</height>
     </rect>
@@ -36,7 +36,7 @@
    <property name="geometry">
     <rect>
      <x>192</x>
-     <y>50</y>
+     <y>80</y>
      <width>21</width>
      <height>16</height>
     </rect>
@@ -49,7 +49,7 @@
    <property name="geometry">
     <rect>
      <x>104</x>
-     <y>7</y>
+     <y>37</y>
      <width>81</width>
      <height>22</height>
     </rect>
@@ -65,7 +65,7 @@
    <property name="geometry">
     <rect>
      <x>104</x>
-     <y>27</y>
+     <y>57</y>
      <width>81</width>
      <height>22</height>
     </rect>
@@ -87,7 +87,7 @@
    <property name="geometry">
     <rect>
      <x>192</x>
-     <y>30</y>
+     <y>60</y>
      <width>31</width>
      <height>16</height>
     </rect>
@@ -100,7 +100,7 @@
    <property name="geometry">
     <rect>
      <x>192</x>
-     <y>10</y>
+     <y>40</y>
      <width>46</width>
      <height>13</height>
     </rect>
@@ -113,7 +113,7 @@
    <property name="geometry">
     <rect>
      <x>104</x>
-     <y>47</y>
+     <y>77</y>
      <width>81</width>
      <height>22</height>
     </rect>
@@ -135,20 +135,20 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>80</y>
+     <y>110</y>
      <width>201</width>
      <height>23</height>
     </rect>
    </property>
    <property name="text">
-    <string>Get values from SmartSEM</string>
+    <string>Get current parameters from SEM</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_14">
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>10</y>
+     <y>40</y>
      <width>91</width>
      <height>13</height>
     </rect>
@@ -161,7 +161,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>30</y>
+     <y>60</y>
      <width>91</width>
      <height>13</height>
     </rect>
@@ -174,13 +174,32 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>50</y>
+     <y>80</y>
      <width>91</width>
      <height>13</height>
     </rect>
    </property>
    <property name="text">
     <string>Stigmator Y:</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>10</y>
+     <width>201</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <weight>50</weight>
+     <bold>false</bold>
+    </font>
+   </property>
+   <property name="text">
+    <string>Stored parameters for selected tile/OV:</string>
    </property>
   </widget>
  </widget>

@@ -773,11 +773,17 @@ class OVSettingsDlg(QDialog):
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
-        # Set up OV selector:
+        # Set up OV selector
         self.comboBox_OVSelector.addItems(self.ovm.ov_selector_list())
         self.comboBox_OVSelector.setCurrentIndex(self.current_ov)
         self.comboBox_OVSelector.currentIndexChanged.connect(self.change_ov)
-        # Set up other comboboxes:
+        if self.ovm[self.current_ov].active:
+            self.radioButton_active.setChecked(True)
+        else:
+            self.radioButton_inactive.setChecked(True)
+        self.radioButton_active.toggled.connect(self.update_active_status)
+        self.update_active_status()
+        # Set up other comboboxes
         store_res_list = [
             '%d × %d' % (res[0], res[1]) for res in self.sem.STORE_RES]
         self.comboBox_frameSize.addItems(store_res_list)
@@ -793,6 +799,16 @@ class OVSettingsDlg(QDialog):
         self.update_buttons()
         self.show_current_settings()
         self.show_frame_size()
+
+    def update_active_status(self):
+        # If current OV is inactive, disable GUI elements
+        b = self.radioButton_active.isChecked()
+        self.comboBox_frameSize.setEnabled(b)
+        self.spinBox_magnification.setEnabled(b)
+        self.doubleSpinBox_pixelSize.setEnabled(b)
+        self.comboBox_dwellTime.setEnabled(b)
+        self.spinBox_acqInterval.setEnabled(b)
+        self.spinBox_acqIntervalOffset.setEnabled(b)
 
     def show_current_settings(self):
         self.comboBox_frameSize.setCurrentIndex(
@@ -827,6 +843,11 @@ class OVSettingsDlg(QDialog):
 
     def change_ov(self):
         self.current_ov = self.comboBox_OVSelector.currentIndex()
+        if self.ovm[self.current_ov].active:
+            self.radioButton_active.setChecked(True)
+        else:
+            self.radioButton_inactive.setChecked(True)
+        self.update_active_status()
         self.update_buttons()
         self.show_current_settings()
 
@@ -847,6 +868,7 @@ class OVSettingsDlg(QDialog):
         self.pushButton_deleteOV.setText('Delete OV %d' % self.current_ov)
 
     def save_current_settings(self):
+        self.ovm[self.current_ov].active = self.radioButton_active.isChecked()
         self.prev_frame_size = self.ovm[self.current_ov].frame_size_selector
         self.ovm[self.current_ov].frame_size_selector = (
             self.comboBox_frameSize.currentIndex())
@@ -872,9 +894,7 @@ class OVSettingsDlg(QDialog):
         self.comboBox_OVSelector.addItems(self.ovm.ov_selector_list())
         self.comboBox_OVSelector.setCurrentIndex(self.current_ov)
         self.comboBox_OVSelector.blockSignals(False)
-        self.update_buttons()
-        self.show_current_settings()
-        self.show_frame_size()
+        self.change_ov()
         self.main_controls_trigger.transmit('OV SETTINGS CHANGED')
 
     def delete_ov(self):
@@ -886,9 +906,7 @@ class OVSettingsDlg(QDialog):
         self.comboBox_OVSelector.addItems(self.ovm.ov_selector_list())
         self.comboBox_OVSelector.setCurrentIndex(self.current_ov)
         self.comboBox_OVSelector.blockSignals(False)
-        self.update_buttons()
-        self.show_current_settings()
-        self.show_frame_size()
+        self.change_ov()
         self.main_controls_trigger.transmit('OV SETTINGS CHANGED')
 
 # ------------------------------------------------------------------------------
@@ -920,6 +938,12 @@ class GridSettingsDlg(QDialog):
             colour_icon = QPixmap(20, 10)
             colour_icon.fill(QColor(rgb[0], rgb[1], rgb[2]))
             self.comboBox_colourSelector.addItem(QIcon(colour_icon), '')
+        if self.gm[self.current_grid].active:
+            self.radioButton_active.setChecked(True)
+        else:
+            self.radioButton_inactive.setChecked(True)
+        self.radioButton_active.toggled.connect(self.update_active_status)
+        self.update_active_status()
         store_res_list = [
             '%d × %d' % (res[0], res[1]) for res in self.sem.STORE_RES]
         self.comboBox_tileSize.addItems(store_res_list)
@@ -948,10 +972,26 @@ class GridSettingsDlg(QDialog):
         if self.magc_mode:
             self.pushButton_addGrid.setEnabled(False)
 
+    def update_active_status(self):
+        # If current grid is inactive, disable GUI elements
+        b = self.radioButton_active.isChecked()
+        self.spinBox_rows.setEnabled(b)
+        self.spinBox_cols.setEnabled(b)
+        self.spinBox_overlap.setEnabled(b)
+        self.spinBox_shift.setEnabled(b)
+        self.doubleSpinBox_rotation.setEnabled(b)
+        self.comboBox_tileSize.setEnabled(b)
+        self.comboBox_dwellTime.setEnabled(b)
+        self.doubleSpinBox_pixelSize.setEnabled(b)
+        self.checkBox_focusGradient.setEnabled(b)
+        self.toolButton_focusGradient.setEnabled(b)
+        self.pushButton_resetFocusParams.setEnabled(b)
+        self.spinBox_acqInterval.setEnabled(b)
+        self.spinBox_acqIntervalOffset.setEnabled(b)
+
     def show_current_settings(self):
         self.comboBox_colourSelector.setCurrentIndex(
             self.gm[self.current_grid].display_colour)
-        # Adaptive focus:
         self.checkBox_focusGradient.setChecked(
             self.gm[self.current_grid].use_wd_gradient)
 
@@ -993,6 +1033,11 @@ class GridSettingsDlg(QDialog):
 
     def change_grid(self):
         self.current_grid = self.comboBox_gridSelector.currentIndex()
+        if self.gm[self.current_grid].active:
+            self.radioButton_active.setChecked(True)
+        else:
+            self.radioButton_inactive.setChecked(True)
+        self.update_active_status()
         self.update_buttons()
         self.show_current_settings()
         self.show_frame_size_and_dose()
@@ -1021,9 +1066,7 @@ class GridSettingsDlg(QDialog):
         self.comboBox_gridSelector.addItems(self.gm.grid_selector_list())
         self.comboBox_gridSelector.setCurrentIndex(self.current_grid)
         self.comboBox_gridSelector.blockSignals(False)
-        self.update_buttons()
-        self.show_current_settings()
-        self.show_frame_size_and_dose()
+        self.change_grid()
         self.main_controls_trigger.transmit('GRID SETTINGS CHANGED')
 
     def delete_grid(self):
@@ -1041,9 +1084,7 @@ class GridSettingsDlg(QDialog):
             self.comboBox_gridSelector.addItems(self.gm.grid_selector_list())
             self.comboBox_gridSelector.setCurrentIndex(self.current_grid)
             self.comboBox_gridSelector.blockSignals(False)
-            self.update_buttons()
-            self.show_current_settings()
-            self.show_frame_size_and_dose()
+            self.change_grid()
             self.main_controls_trigger.transmit('GRID SETTINGS CHANGED')
 
     def reset_wd_stig_params(self):
@@ -1064,6 +1105,7 @@ class GridSettingsDlg(QDialog):
             prev_grid_centre = self.gm[self.current_grid].centre_sx_sy
 
         error_msg = ''
+        self.gm[self.current_grid].active = self.radioButton_active.isChecked()
         self.gm[self.current_grid].size = [self.spinBox_rows.value(),
                                            self.spinBox_cols.value()]
         self.gm[self.current_grid].frame_size_selector = (
@@ -1231,9 +1273,10 @@ class FocusGradientSettingsDlg(QDialog):
 class AcqSettingsDlg(QDialog):
     """Dialog for adjusting acquisition settings."""
 
-    def __init__(self, acquisition, use_microtome=True):
+    def __init__(self, acquisition, notifications, use_microtome=True):
         super().__init__()
         self.acq = acquisition
+        self.notifications = notifications
         loadUi('..\\gui\\acq_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -1256,8 +1299,10 @@ class AcqSettingsDlg(QDialog):
         self.checkBox_sendMetaData.stateChanged.connect(
             self.update_server_lineedit)
         self.checkBox_EHTOff.setChecked(self.acq.eht_off_after_stack)
-        self.lineEdit_metaDataServer.setText(self.acq.metadata_server)
-        self.lineEdit_adminEmail.setText(self.acq.metadata_server_admin_email)
+        self.lineEdit_metaDataServer.setText(
+            self.notifications.metadata_server_url)
+        self.lineEdit_adminEmail.setText(
+            self.notifications.metadata_server_admin_email)
         self.lineEdit_projectName.setText(self.acq.metadata_project_name)
         # Disable two spinboxes when SEM stage used
         if not use_microtome:
@@ -2231,15 +2276,16 @@ class ApproachDlg(QDialog):
         thread.start()
 
     def finish_approach(self):
-        # Clear knife
-        self.add_to_log('3VIEW: Clearing knife.')
+        # Move knife to "Clear" position
+        self.add_to_log('KNIFE: Moving to "Clear" position.')
         self.microtome.clear_knife()
         if self.microtome.error_state > 0:
-            self.add_to_log('CTRL: Error clearing knife.')
+            self.add_to_log('KNIFE: Error moving to "Clear" position.')
             self.microtome.reset_error_state()
             QMessageBox.warning(self, 'Error',
-                                'Warning: Clearing the knife failed. '
-                                'Try to clear manually.', QMessageBox.Ok)
+                                'Warning: Move to "Clear" position failed. '
+                                'Try to move to "Clear" position manually.',
+                                QMessageBox.Ok)
         self.main_controls_trigger.transmit('STATUS IDLE')
         # Show message box to user and reset counter and progress bar
         if not self.aborted:
@@ -2291,7 +2337,7 @@ class ApproachDlg(QDialog):
             z_position = self.microtome.get_stage_z(wait_interval=2)
             if z_position is None or z_position < 0:
                 self.add_to_log(
-                    'CTRL: Error reading Z position. Approach aborted.')
+                    'STAGE: Error reading Z position. Approach aborted.')
                 self.microtome.reset_error_state()
                 self.aborted = True
         if self.microtome.error_state == 206:
@@ -2299,14 +2345,14 @@ class ApproachDlg(QDialog):
             self.z_mismatch = True
             self.aborted = True
             self.add_to_log(
-                'CTRL: Z position mismatch. Approach aborted.')
+                'STAGE: Z position mismatch. Approach aborted.')
         self.main_controls_trigger.transmit('UPDATE Z')
         if not self.aborted:
             self.microtome.near_knife()
-            self.add_to_log('3VIEW: Moving knife to near position.')
+            self.add_to_log('KNIFE: Moving to "Near" position.')
             if self.microtome.error_state > 0:
                 self.add_to_log(
-                    'CTRL: Error moving knife to near position. '
+                    'KNIFE: Error moving to "Near" position. '
                     'Approach aborted.')
                 self.aborted = True
                 self.microtome.reset_error_state()
@@ -2315,30 +2361,30 @@ class ApproachDlg(QDialog):
             # Move to new z position
             z_position = z_position + (self.thickness / 1000)
             self.add_to_log(
-                '3VIEW: Move to new Z: ' + '{0:.3f}'.format(z_position))
+                'STAGE: Move to new Z: ' + '{0:.3f}'.format(z_position))
             self.microtome.move_stage_to_z(z_position)
             # Show new Z position in main window
             self.main_controls_trigger.transmit('UPDATE Z')
             # Check if there were microtome problems
             if self.microtome.error_state > 0:
                 self.add_to_log(
-                    'CTRL: Z stage problem detected. Approach aborted.')
+                    'STAGE: Problem during Z move. Approach aborted.')
                 self.aborted = True
                 self.microtome.reset_error_state()
                 break
-            self.add_to_log('3VIEW: Cutting in progress ('
+            self.add_to_log('KNIFE: Cutting in progress ('
                             + str(self.thickness) + ' nm cutting thickness).')
             # Do the approach cut (cut, retract, in near position)
             self.microtome.do_full_approach_cut()
             sleep(self.microtome.full_cut_duration - 5)
             if self.microtome.error_state > 0:
                 self.add_to_log(
-                    'CTRL: Cutting problem detected. Approach aborted.')
+                    'KNIFE: Cutting problem detected. Approach aborted.')
                 self.aborted = True
                 self.microtome.reset_error_state()
                 break
             else:
-                self.add_to_log('3VIEW: Approach cut completed.')
+                self.add_to_log('KNIFE: Approach cut completed.')
                 self.slice_counter += 1
                 # Update progress bar and slice counter
                 self.progress_trigger.signal.emit()
@@ -2430,7 +2476,7 @@ class GrabFrameDlg(QDialog):
         self.pushButton_scan.setEnabled(True)
         self.pushButton_save.setEnabled(True)
         if self.scan_success:
-            self.add_to_log('CTRL: Single frame acquired by user.')
+            self.add_to_log('SEM: Single frame acquired (Grab dialog).')
             QMessageBox.information(
                 self, 'Frame acquired',
                 'The image was acquired and saved as '
@@ -2451,7 +2497,7 @@ class GrabFrameDlg(QDialog):
         success = self.sem.save_frame(os.path.join(
             self.acq.base_dir, self.file_name + '.tif'))
         if success:
-            self.add_to_log('CTRL: Single frame saved by user.')
+            self.add_to_log('SEM: Single frame saved (Grab dialog).')
             QMessageBox.information(
                 self, 'Frame saved',
                 'The current image shown in SmartSEM was saved as '
@@ -2710,8 +2756,8 @@ class MotorTestDlg(QDialog):
         self.test_in_progress = False
 
     def test_finished(self):
-        self.add_to_log('3VIEW: Motor test finished.')
-        self.add_to_log('3VIEW: Moving back to starting z position.')
+        self.add_to_log('CTRL: Motor test finished.')
+        self.add_to_log('STAGE: Moving back to starting Z position.')
         # Safe mode must be set to false because diff likely > 200 nm
         self.microtome.move_stage_to_z(self.start_z, safe_mode=False)
         if self.microtome.error_state > 0:

@@ -37,7 +37,7 @@ def acquire_ov(base_dir, selection, sem, stage, ovm,
     # Acquisition loop
     for ov_index in range(start, end):
         main_controls_trigger.transmit(utils.format_log_entry(
-            'STAGE: Moving stage to OV %d position.' % ov_index))
+            'STAGE: Moving to OV %d position.' % ov_index))
         # Move to OV stage coordinates
         stage.move_to_xy(ovm[ov_index].centre_sx_sy)
         # Check to see if error ocurred

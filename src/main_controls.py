@@ -185,9 +185,9 @@ class MainControls(QMainWindow):
             self.microtome = Microtome_3View(self.cfg, self.syscfg)
             if self.microtome.error_state == 101:
                 startup_log_messages.append(
-                    '3VIEW: Error initializing DigitalMicrograph API.')
+                    'CTRL: Error initializing DigitalMicrograph API.')
                 startup_log_messages.append(
-                    '3VIEW: ' + self.microtome.error_info)
+                    'CTRL: ' + self.microtome.error_info)
                 QMessageBox.warning(
                     self, 'Error initializing DigitalMicrograph API',
                     'Have you forgotten to start the communication '
@@ -200,10 +200,10 @@ class MainControls(QMainWindow):
                 self.microtome = Microtome_3View(self.cfg, self.syscfg)
                 if self.microtome.error_state > 0:
                     startup_log_messages.append(
-                        '3VIEW: Error initializing DigitalMicrograph API '
+                        'CTRL: Error initializing DigitalMicrograph API '
                         '(second attempt).')
                     startup_log_messages.append(
-                        '3VIEW: ' + self.microtome.error_info)
+                        'CTRL: ' + self.microtome.error_info)
                     QMessageBox.warning(
                         self, 'Error initializing DigitalMicrograph API',
                         'The second attempt to initalize the DigitalMicrograph '
@@ -213,7 +213,7 @@ class MainControls(QMainWindow):
                     self.simulation_mode = True
                 else:
                     startup_log_messages.append(
-                        '3VIEW: Second attempt to initialize '
+                        'CTRL: Second attempt to initialize '
                         'DigitalMicrograph API successful.')
         elif self.use_microtome and (self.syscfg['device']['microtome'] == '5'):
             # Initialize katana microtome
@@ -224,7 +224,7 @@ class MainControls(QMainWindow):
 
         if self.microtome is not None and self.microtome.error_state == 701:
             startup_log_messages.append(
-                '3VIEW: Error loading microtome configuration.')
+                'CTRL: Error loading microtome configuration.')
             QMessageBox.warning(
                 self, 'Error loading microtome configuration',
                 'While loading the microtome settings SBEMimage encountered '
@@ -550,13 +550,17 @@ class MainControls(QMainWindow):
 
         dialog = SaveConfigDlg()
         dialog.label.setText('Name of new MagC config file')
-        dialog.label_4.setText('Choose a name for the new MagC configuration file.')
-        dialog.label_2.setText('If the configuration file already exists, then it will')
-        dialog.label_3.setText('be overwritten.')
-        dialog.label_5.setText('')
-        dialog.label_6.setText('')
+        dialog.label_line1.setText('Choose a name for the new MagC configuration')
+        dialog.label_line2.setText('file. If the configuration file already exists,')
+        dialog.label_line3.setText('then it will be overwritten.')
+        dialog.label_line4.setText('Use only A-Z, a-z, 0-9, and hyphen/underscore.')
+        dialog.label_line5.setText('.ini will be added automatically')
+
         if dialog.exec_():
             self.cfg_file = dialog.file_name
+            # Ensure system.cfg is preserved if MagC mode activated from default.ini
+            if self.cfg['sys']['sys_config_file'] == 'system.cfg':
+                self.cfg['sys']['sys_config_file'] = 'this_system.cfg'
             self.cfg['sys']['magc_mode'] = 'True'
             self.cfg['sys']['use_microtome'] = 'False'
             self.save_config_to_disk()
@@ -1154,7 +1158,8 @@ class MainControls(QMainWindow):
         self.viewport.vp_draw()
 
     def open_acq_settings_dlg(self):
-        dialog = AcqSettingsDlg(self.acq, self.use_microtome)
+        dialog = AcqSettingsDlg(self.acq, self.notifications,
+                                self.use_microtome)
         if dialog.exec_():
             self.show_current_settings()
             self.show_stack_acq_estimates()
@@ -1422,22 +1427,33 @@ class MainControls(QMainWindow):
                 'SBEMimage has detected an unexpected change in '
                 'magnification. Target setting has been restored.',
                 QMessageBox.Ok)
-        elif msg == 'ASK DEBRIS FIRST OV':
+        elif msg.startswith('ASK DEBRIS FIRST OV'):
+            ov_index = int(msg[len('ASK DEBRIS FIRST OV'):])
+            self.viewport.vp_show_overview_for_user_inspection(ov_index)
             reply = QMessageBox.question(
-                self, 'Debris on first OV? User input required',
-                'Is the overview image that has just been acquired free from '
-                'debris?',
+                self, 'Confirm overview image quality',
+                f'This is the first slice to be imaged after (re)starting the '
+                f'acquisition. Please confirm:\nIs the overview image OV '
+                f'{ov_index}, which has just been acquired (now shown in the '
+                f'Viewport) free from debris or other image defects?',
                 QMessageBox.Yes | QMessageBox.No | QMessageBox.Abort,
                 QMessageBox.Yes)
+            # Redraw with previous settings
+            self.viewport.vp_draw()
             self.acq.set_user_reply(reply)
-        elif msg == 'ASK DEBRIS CONFIRMATION':
+        elif msg.startswith('ASK DEBRIS CONFIRMATION'):
+            ov_index = int(msg[len('ASK DEBRIS CONFIRMATION'):])
+            self.viewport.vp_show_overview_for_user_inspection(ov_index)
             reply = QMessageBox.question(
                 self, 'Debris detection',
-                'Potential debris has been detected in the area of interest. '
-                'Can you confirm that debris is visible in the detection '
-                'area?',
+                f'Potential debris has been detected in overview OV '
+                f'{ov_index}. Please confirm:\nIs debris visible in the '
+                f'detection area? (If you get several false positives in a '
+                f'row, you may need to adjust your detection thresholds.)',
                 QMessageBox.Yes | QMessageBox.No | QMessageBox.Abort,
                 QMessageBox.Yes)
+            # Redraw with previous settings
+            self.viewport.vp_draw()
             self.acq.set_user_reply(reply)
         elif msg == 'ASK IMAGE ERROR OVERRIDE':
             reply = QMessageBox.question(
@@ -1564,7 +1580,7 @@ class MainControls(QMainWindow):
             QMessageBox.Ok | QMessageBox.Cancel, QMessageBox.Cancel)
         if user_reply == QMessageBox.Ok:
             # Perform sweep: do a cut slightly above current surface
-            self.add_to_log('CTRL: Performing user-requested sweep')
+            self.add_to_log('KNIFE: Performing user-requested sweep.')
             self.restrict_gui(True)
             self.viewport.restrict_gui(True)
             QApplication.processEvents()
@@ -1578,9 +1594,9 @@ class MainControls(QMainWindow):
     def manual_sweep_success(self, success):
         self.show_current_stage_z()
         if success:
-            self.add_to_log('CTRL: User-requested sweep completed.')
+            self.add_to_log('KNIFE: User-requested sweep completed.')
         else:
-            self.add_to_log('CTRL: ERROR ocurred during sweep.')
+            self.add_to_log('KNIFE: ERROR ocurred during sweep.')
             QMessageBox.warning(self, 'Error during sweep',
                 'An error occurred during the sweep cycle. '
                 'Please check the microtome status in DM '
@@ -1598,7 +1614,8 @@ class MainControls(QMainWindow):
         if ok_button_clicked:
             self.viewport.grab_viewport_screenshot(
                 os.path.join(self.acq.base_dir, file_name + '.png'))
-            self.add_to_log('CTRL: Saved current viewport to base directory.')
+            self.add_to_log(
+                'CTRL: Saved screenshot of current Viewport to base directory.')
 
 # ======================= Test functions in third tab ==========================
 
@@ -1647,39 +1664,39 @@ class MainControls(QMainWindow):
         current_x = self.stage.get_x()
         if current_x is not None:
             self.add_to_log(
-                '3VIEW: Current stage X position: '
+                'STAGE: Current X position: '
                 '{0:.2f}'.format(current_x))
         else:
             self.add_to_log(
-                '3VIEW: Error - could not read current stage x position.')
+                'STAGE: Error - could not read current X position.')
 
     def test_set_stage(self):
         current_x = self.stage.get_x()
         self.stage.move_to_x(current_x + 10)
         self.add_to_log(
-            '3VIEW: New stage X position should be: '
+            'STAGE: New X position should be: '
             + '{0:.2f}'.format(current_x + 10))
 
     def test_near_knife(self):
         if self.use_microtome:
             self.microtome.near_knife()
-            self.add_to_log('3VIEW: Knife position should be NEAR')
+            self.add_to_log('KNIFE: Position should be NEAR.')
         else:
-            self.add_to_log('3VIEW: Microtome not active.')
+            self.add_to_log('CTRL: No microtome, or microtome not active.')
 
     def test_clear_knife(self):
         if self.use_microtome:
             self.microtome.clear_knife()
-            self.add_to_log('3VIEW: Knife position should be CLEAR')
+            self.add_to_log('KNIFE: Position should be CLEAR.')
         else:
-            self.add_to_log('3VIEW: Microtome not active.')
+            self.add_to_log('CTRL: No microtome, or microtome not active.')
 
     def test_stop_dm_script(self):
         if self.use_microtome:
             self.microtome.stop_script()
-            self.add_to_log('3VIEW: STOP command sent to DM script.')
+            self.add_to_log('CTRL: STOP command sent to DM script.')
         else:
-            self.add_to_log('3VIEW: Microtome not active.')
+            self.add_to_log('CTRL: No microtome, or microtome not active.')
 
     def test_send_email(self):
         """Send test e-mail to the specified user email addresses."""
@@ -1987,7 +2004,7 @@ class MainControls(QMainWindow):
                     if (self.use_microtome
                             and self.microtome.device_name == 'Gatan 3View'):
                         self.microtome.stop_script()
-                        self.add_to_log('3VIEW: Disconnected from DM/3View.')
+                        self.add_to_log('CTRL: Disconnected from DM/3View.')
                     elif (self.use_microtome
                         and self.microtome.device_name == 'ConnectomX katana'):
                         self.microtome.disconnect()
@@ -2068,6 +2085,9 @@ class MainControls(QMainWindow):
         self.ft_selected_stig_y = None
         self.ft_cycle_counter = 0
         self.ft_zoom = False
+        self.ft_use_current_position = False
+        self.checkBox_useCurrentPos.stateChanged.connect(
+            self.ft_toggle_use_current_position)
 
         # self.ft_locations: Focus locations around the centre of the selected
         # tile / starting position. The first cycle uses the centre coordinates.
@@ -2113,30 +2133,37 @@ class MainControls(QMainWindow):
         the best image.
         """
         if self.ft_mode == 0: # User has clicked on "Run cycle"
-            if (self.ft_selected_tile >=0) or (self.ft_selected_ov >= 0):
+            if ((self.ft_selected_tile >=0) or (self.ft_selected_ov >= 0)
+                    or self.ft_use_current_position):
                 self.ft_run_cycle()
             else:
                 QMessageBox.information(
-                    self, 'Select target tile/OV',
+                    self, 'Select tile/OV',
                     'Before starting a through-focus cycle, you must select a '
-                    'tile or an overview image.',
+                    'tile or an overview image, or choose the option "Use '
+                    'current stage position".',
                     QMessageBox.Ok)
 
         elif self.ft_mode == 1:
             # User has clicked 'Done' to select the best focus from the acquired
-            # images. The selected working distance is saved for this tile/OV.
+            # images. The selected working distance is saved for this tile/OV
+            # unless 'use current stage position' is selected.
             self.ft_selected_wd += self.ft_fdeltas[self.ft_index]
             self.sem.set_wd(self.ft_selected_wd)
-            # Save working distance for OV or in tile grid:
-            if self.ft_selected_ov >= 0:
-                self.ovm[self.ft_selected_ov].wd_stig_xy[0] = self.ft_selected_wd
-            elif self.ft_selected_tile >= 0:
-                self.gm[self.ft_selected_grid][self.ft_selected_tile].wd = (
-                    self.ft_selected_wd)
-                if self.gm[self.ft_selected_grid].use_wd_gradient:
-                    # Recalculate with new wd:
-                    self.gm[self.ft_selected_grid].calculate_wd_gradient()
-                self.viewport.vp_draw()
+            save_new_wd = True
+            if self.ft_use_current_position:
+                save_new_wd = self.ft_ask_user_save()
+            if save_new_wd:
+                if self.ft_selected_ov >= 0:
+                    self.ovm[self.ft_selected_ov].wd_stig_xy[0] = (
+                        self.ft_selected_wd)
+                elif self.ft_selected_tile >= 0:
+                    self.gm[self.ft_selected_grid][self.ft_selected_tile].wd = (
+                        self.ft_selected_wd)
+                    if self.gm[self.ft_selected_grid].use_wd_gradient:
+                        # Recalculate with new wd
+                        self.gm[self.ft_selected_grid].calculate_wd_gradient()
+                    self.viewport.vp_draw()
             self.ft_reset()
 
         elif self.ft_mode == 2:
@@ -2144,13 +2171,17 @@ class MainControls(QMainWindow):
             # parameter. The selected stig_x parameter is saved.
             self.ft_selected_stig_x += self.ft_sdeltas[self.ft_index]
             self.sem.set_stig_x(self.ft_selected_stig_x)
-            if self.ft_selected_ov >= 0:
-                self.ovm[self.ft_selected_ov].wd_stig_xy[1] = (
-                    self.ft_selected_stig_x)
-            elif self.ft_selected_tile >= 0:
-                self.gm[self.ft_selected_grid][
-                        self.ft_selected_tile].stig_xy[0] = (
-                    self.ft_selected_stig_x)
+            save_new_stig_x = True
+            if self.ft_use_current_position:
+                save_new_stig_x = self.ft_ask_user_save()
+            if save_new_stig_x:
+                if self.ft_selected_ov >= 0:
+                    self.ovm[self.ft_selected_ov].wd_stig_xy[1] = (
+                        self.ft_selected_stig_x)
+                elif self.ft_selected_tile >= 0:
+                    self.gm[self.ft_selected_grid][
+                            self.ft_selected_tile].stig_xy[0] = (
+                        self.ft_selected_stig_x)
             self.ft_reset()
 
         elif self.ft_mode == 3:
@@ -2158,18 +2189,46 @@ class MainControls(QMainWindow):
             # parameter. The selected stig_y parameter is saved.
             self.ft_selected_stig_y += self.ft_sdeltas[self.ft_index]
             self.sem.set_stig_y(self.ft_selected_stig_y)
-            if self.ft_selected_ov >= 0:
-                self.ovm[self.ft_selected_ov].wd_stig_xy[2] = (
-                    self.ft_selected_stig_y)
-            elif self.ft_selected_tile >= 0:
-                self.gm[self.ft_selected_grid][
-                        self.ft_selected_tile].stig_xy[1] = (
-                    self.ft_selected_stig_y)
+            save_new_stig_y = True
+            if self.ft_use_current_position:
+                save_new_stig_y = self.ft_ask_user_save()
+            if save_new_stig_y:
+                if self.ft_selected_ov >= 0:
+                    self.ovm[self.ft_selected_ov].wd_stig_xy[2] = (
+                        self.ft_selected_stig_y)
+                elif self.ft_selected_tile >= 0:
+                    self.gm[self.ft_selected_grid][
+                            self.ft_selected_tile].stig_xy[1] = (
+                        self.ft_selected_stig_y)
             self.ft_reset()
+
+    def ft_ask_user_save(self):
+        selected_str = ''
+        if self.ft_selected_ov >= 0:
+            selected_str = 'overview ' + str(self.ft_selected_ov)
+        elif self.ft_selected_tile >= 0:
+            selected_str = ('tile ' + str(self.ft_selected_grid)
+                            + '.' + str(self.ft_selected_tile))
+        if self.ft_mode == 1:
+            parameter_str = 'working distance'
+        elif self.ft_mode == 2:
+            parameter_str = 'X stigmation parameter'
+        elif self.ft_mode == 3:
+            parameter_str = 'Y stigmation parameter'
+        if selected_str:
+            user_response = QMessageBox.question(
+                self, f'Save updated {parameter_str}?',
+                f'Save updated {parameter_str} for selected {selected_str}?',
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes)
+            return (user_response == QMessageBox.Yes)
+        else:
+            return False
 
     def ft_open_set_params_dlg(self):
         """Open a dialog box to let user manually set the working distance and
-        stigmation x/y for the selected tile/OV."""
+        stigmation x/y for the selected tile/OV.
+        """
         if (self.ft_selected_tile >=0) or (self.ft_selected_ov >= 0):
             dialog = FTSetParamsDlg(self.sem, self.ft_selected_wd,
                                     self.ft_selected_stig_x,
@@ -2196,7 +2255,7 @@ class MainControls(QMainWindow):
                         # Recalculate with new wd:
                         self.gm[self.ft_selected_grid].calculate_wd_gradient()
                     self.viewport.vp_draw()
-                # Also set SEM to new values:
+                # Set SEM to new values
                 self.sem.set_wd(self.ft_selected_wd)
                 self.sem.set_stig_xy(
                     self.ft_selected_stig_x, self.ft_selected_stig_y)
@@ -2243,7 +2302,8 @@ class MainControls(QMainWindow):
     def ft_run_cycle(self):
         """Restrict the GUI, read the cycle parameters from the GUI, and
         launch the cycle (stage move followed by through-focus acquisition)
-        in a thread."""
+        in a thread.
+        """
         self.pushButton_focusToolStart.setText('Busy')
         self.pushButton_focusToolStart.setEnabled(False)
         self.pushButton_focusToolMove.setEnabled(False)
@@ -2265,8 +2325,8 @@ class MainControls(QMainWindow):
         self.tabWidget.setTabEnabled(2, False)
         # Restrict viewport:
         self.viewport.restrict_gui(True)
-        # Use current WD/Stig if selected working distance == 0:
-        if self.ft_selected_wd == 0:
+        # Use current WD/Stig if selected working distance == 0 or None:
+        if self.ft_selected_wd is None or self.ft_selected_wd == 0:
             self.ft_selected_wd = self.sem.get_wd()
             self.ft_selected_stig_x, self.ft_selected_stig_y = (
                 self.sem.get_stig_xy())
@@ -2281,30 +2341,33 @@ class MainControls(QMainWindow):
 
     def ft_move_and_acq_thread(self):
         """Move to the target stage position with error handling, then acquire
-        through-focus series."""
-        if self.ft_selected_ov >= 0:
-            stage_x, stage_y = self.ovm[self.ft_selected_ov].centre_dx_dy
-        elif self.ft_selected_tile >= 0:
-            stage_x, stage_y = self.cs.convert_to_d(
-                self.gm[self.ft_selected_grid][self.ft_selected_tile].sx_sy)
-        # Get the shifts for the current focus area and add them to the centre
-        # coordinates in the SEM coordinate system. Then convert to stage
-        # coordinates and move.
-        delta_x, delta_y = self.ft_locations[self.ft_cycle_counter]
-        stage_x += delta_x * self.ft_pixel_size/1000
-        stage_y += delta_y * self.ft_pixel_size/1000
-        stage_x, stage_y = self.cs.convert_to_s((stage_x, stage_y))
+        through-focus series.
+        """
         move_success = True
-        self.stage.move_to_xy((stage_x, stage_y))
-        if self.stage.error_state > 0:
-            self.stage.reset_error_state()
-            # Try again
-            sleep(2)
+        if not self.ft_use_current_position:
+            if self.ft_selected_ov >= 0:
+                stage_x, stage_y = self.ovm[self.ft_selected_ov].centre_dx_dy
+            elif self.ft_selected_tile >= 0:
+                stage_x, stage_y = self.cs.convert_to_d(
+                    self.gm[self.ft_selected_grid][self.ft_selected_tile].sx_sy)
+            # Get the shifts for the current focus area and add them to the
+            # centre coordinates in the SEM coordinate system. Then convert to
+            # stage coordinates and move.
+            delta_x, delta_y = self.ft_locations[self.ft_cycle_counter]
+            stage_x += delta_x * self.ft_pixel_size/1000
+            stage_y += delta_y * self.ft_pixel_size/1000
+            stage_x, stage_y = self.cs.convert_to_s((stage_x, stage_y))
             self.stage.move_to_xy((stage_x, stage_y))
             if self.stage.error_state > 0:
-                move_success = False
-                self.add_to_log('CTRL: Stage failed to move to selected tile '
-                                'for focus tool cycle.')
+                self.stage.reset_error_state()
+                # Try again
+                sleep(2)
+                self.stage.move_to_xy((stage_x, stage_y))
+                if self.stage.error_state > 0:
+                    move_success = False
+                    self.add_to_log('STAGE: Failed to move to selected '
+                                    'tile/OV for focus tool cycle.')
+
         # Use signal for update because we are in the focus tool acq thread
         self.trigger.transmit('UPDATE XY FT')
         if move_success:
@@ -2338,9 +2401,10 @@ class MainControls(QMainWindow):
         self.radioButton_focus.setEnabled(True)
         self.radioButton_stigX.setEnabled(True)
         self.radioButton_stigY.setEnabled(True)
-        self.comboBox_selectGridFT.setEnabled(True)
-        self.comboBox_selectTileFT.setEnabled(True)
-        self.comboBox_selectOVFT.setEnabled(True)
+        if not self.ft_use_current_position:
+            self.comboBox_selectGridFT.setEnabled(True)
+            self.comboBox_selectTileFT.setEnabled(True)
+            self.comboBox_selectOVFT.setEnabled(True)
         # Enable menu
         self.menubar.setEnabled(True)
         # Enable the other tabs:
@@ -2385,7 +2449,8 @@ class MainControls(QMainWindow):
 
     def ft_acquire_stig_series(self, xy_choice):
         """Acquire image series with incrementally changing XY stigmation
-        parameters."""
+        parameters.
+        """
         self.sem.apply_frame_settings(
             1, self.ft_pixel_size, self.ft_dwell_time)
         self.sem.set_beam_blanking(0)
@@ -2619,6 +2684,13 @@ class MainControls(QMainWindow):
         self.ft_zoom ^= True
         if self.ft_mode > 0:
             self.ft_display_during_cycle()
+
+    def ft_toggle_use_current_position(self):
+        self.ft_use_current_position = self.checkBox_useCurrentPos.isChecked()
+        # Disable tile/OV selectors if 'use current position' option active
+        self.comboBox_selectGridFT.setEnabled(not self.ft_use_current_position)
+        self.comboBox_selectTileFT.setEnabled(not self.ft_use_current_position)
+        self.comboBox_selectOVFT.setEnabled(not self.ft_use_current_position)
 
     def keyPressEvent(self, event):
         if (type(event) == QKeyEvent) and (self.tabWidget.currentIndex() == 1):
