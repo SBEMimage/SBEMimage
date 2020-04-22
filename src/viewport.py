@@ -2334,7 +2334,7 @@ class Viewport(QWidget):
 
         self.vp_draw()
         self.gm.update_source_ROIs_from_grids()
-        self._transmit_cmd('SHOW CURRENT SETTINGS') # update statistics in GUI
+        self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS') # update statistics in GUI
 
     # -------------------- End of MagC methods in Viewport ---------------------
 
