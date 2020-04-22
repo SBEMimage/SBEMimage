@@ -117,7 +117,7 @@ class MainControls(QMainWindow):
         startup_log_messages = []
 
         # Initialize SEM
-        if self.syscfg['device']['sem'] == '6':
+        if self.syscfg['device']['sem'] == '6': # MultiSEM
             QMessageBox.critical(
                 self, 'STAGE COLLISION WARNING - MULTISEM',
                 'THIS MODULE FOR MULTISEM IS STILL IN DEVELOPMENT.\n\n\n\n'

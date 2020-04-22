@@ -30,7 +30,7 @@
      <string/>
     </property>
     <property name="currentIndex">
-     <number>3</number>
+     <number>4</number>
     </property>
     <widget class="QWidget" name="mainControls">
      <attribute name="title">
@@ -2380,6 +2380,40 @@ Wafer Image</string>
      <zorder>pushButton_magc_deleteLastSection</zorder>
      <zorder>line_3</zorder>
      <zorder>pushButton_magc_waferCalibration</zorder>
+    </widget>
+    <widget class="QWidget" name="tab_2">
+     <attribute name="title">
+      <string>MultiSEM</string>
+     </attribute>
+     <widget class="QPushButton" name="pushButton_msem_transferToZen">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>30</y>
+        <width>169</width>
+        <height>58</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Transfer setup
+to ZEN experiment</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_msem_adjustAfterWaferInsertion">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>100</y>
+        <width>283</width>
+        <height>81</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Prepare start of ZEN experiment
+ by performing AF/AS/BoD 
+after wafer insertion</string>
+      </property>
+     </widget>
     </widget>
    </widget>
    <widget class="QPlainTextEdit" name="textarea_log">
