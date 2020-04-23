@@ -458,7 +458,8 @@ class MainControls(QMainWindow):
         self.pushButton_testSetStage.clicked.connect(self.test_set_stage)
         self.pushButton_testNearKnife.clicked.connect(self.test_near_knife)
         self.pushButton_testClearKnife.clicked.connect(self.test_clear_knife)
-        self.pushButton_testMillPos.clicked.connect(self.test_mill_pos)
+        self.pushButton_testGetMillPos.clicked.connect(self.test_get_mill_pos)
+        self.pushButton_testMoveMillPos.clicked.connect(self.test_move_mill_pos_and_back)
         self.pushButton_testStopDMScript.clicked.connect(
             self.test_stop_dm_script)
         self.pushButton_testSendEMail.clicked.connect(self.test_send_email)
@@ -1527,7 +1528,8 @@ class MainControls(QMainWindow):
         self.pushButton_testSetStage.setEnabled(b)
         self.pushButton_testNearKnife.setEnabled(b)
         self.pushButton_testClearKnife.setEnabled(b)
-        self.pushButton_testMillPos.setEnabled(b)
+        self.pushButton_testGetMillPos.setEnabled(b)
+        self.pushButton_testMoveMillPos.setEnabled(b)
         self.pushButton_testStopDMScript.setEnabled(b)
         self.pushButton_testPlasmaCleaner.setEnabled(b)
         self.pushButton_testMotors.setEnabled(b)
@@ -1557,7 +1559,8 @@ class MainControls(QMainWindow):
         self.actionCutDuration.setEnabled(False)
 
     def restrict_gui_wo_gcib(self):
-        self.pushButton_testMillPos.setEnabled(False)
+        self.pushButton_testGetMillPos.setEnabled(False)
+        self.pushButton_testMoveMillPos.setEnabled(False)
 
     def add_to_log(self, text):
         """Update the log from the main thread."""
@@ -1657,11 +1660,18 @@ class MainControls(QMainWindow):
         self.sem.show_about_box()
 
     def test_get_stage(self):
-        current_x = self.stage.get_x()
-        if current_x is not None:
-            self.add_to_log(
-                'STAGE: Current X position: '
-                '{0:.2f}'.format(current_x))
+        try:
+            current_pos = self.stage.get_xyztr()
+        except AttributeError:
+            current_pos = self.stage.get_xy()
+        if current_pos is not None:
+            pos_fmt = [f"{p:.2f}" for p in current_pos]
+            if len(current_pos) > 2:
+                self.add_to_log(
+                    f'{self.stage}: Current XYZTR parameters: {pos_fmt}')
+            else:
+                self.add_to_log(
+                    f'{self.stage}: Current XY parameters: {pos_fmt}')
         else:
             self.add_to_log(
                 'STAGE: Error - could not read current X position.')
@@ -1687,10 +1697,19 @@ class MainControls(QMainWindow):
         else:
             self.add_to_log('CTRL: No microtome, or microtome not active.')
 
-    def test_mill_pos(self):
+    def test_get_mill_pos(self):
         if self.use_microtome:
-            self.add_to_log(f'GCIB: Mill position (XYZT) {self.microtome.xyzt_milling}. '
-                            f'Type: {type(self.microtome.xyzt_milling)}')
+            pos_fmt = [f"{p:.2f}" for p in self.microtome.xyzt_milling]
+            self.add_to_log(f'GCIB: Mill position (XYZT) {pos_fmt}.')
+        else:
+            self.add_to_log('CTRL: No microtome, or microtome not active.')
+
+    def test_move_mill_pos_and_back(self):
+        if self.use_microtome:
+            self.microtome.test_set_reset_mill_position()
+            if self.microtome.error_state != 0:
+                self.add_to_log(f'CTRL: Microtome error {self.microtome.error_state}: {self.microtome.error_info}')
+                self.microtome.reset_error_state()
         else:
             self.add_to_log('CTRL: No microtome, or microtome not active.')
 

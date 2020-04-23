@@ -692,6 +692,7 @@ class StageCalibrationDlg(QDialog):
             success = self.stage.set_motor_speeds(
                 self.doubleSpinBox_motorSpeedX.value(),
                 self.doubleSpinBox_motorSpeedY.value())
+
             if not success:
                 QMessageBox.warning(
                     self, 'Error updating motor speeds',
@@ -1486,7 +1487,7 @@ class PreStackDlg(QDialog):
         self.doubleSpinBox_contrast.setValue(self.sem.bsd_contrast)
         self.spinBox_bias.setValue(self.sem.bsd_bias)
 
-        if self.microtome is not None:
+        if self.microtome is not None and self.microtome.device_name != 'GCIB':
             self.doubleSpinBox_cutSpeed.setValue(
                 self.microtome.knife_cut_speed / 1000)
             self.doubleSpinBox_retractSpeed.setValue(
@@ -1498,7 +1499,7 @@ class PreStackDlg(QDialog):
         self.sem.bsd_contrast = self.doubleSpinBox_contrast.value()
         self.sem.bsd_brightness = self.doubleSpinBox_brightness.value()
         self.sem.bsd_bias = self.spinBox_bias.value()
-        if self.microtome is not None:
+        if self.microtome is not None and self.microtome.device_name != 'GCIB':
             self.microtome.use_oscillation = self.checkBox_oscillation.isChecked()
             self.microtome.knife_cut_speed = int(
                 self.doubleSpinBox_cutSpeed.value() * 1000)

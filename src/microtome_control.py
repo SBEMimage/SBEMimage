@@ -80,6 +80,13 @@ class BFRemover(ABC):
         """Perform a sweep by cutting slightly above the surface."""
         pass
 
+    @abstractmethod
+    def move_stage_to_z(self, z):
+        """Move stage to new z position. Used during stack acquisition
+           before each cut and for sweeps. Required in Acquisition.do_cut.
+        """
+        pass
+
     def reset_error_state(self):
         self.error_state = 0
         self.error_info = ''
@@ -119,11 +126,6 @@ class BFRemover(ABC):
 
     def get_stage_z(self, wait_interval=0.5):
         """Get current Z coordinate from DM"""
-        raise NotImplementedError
-
-    def move_stage_to_z(self, z, safe_mode=True):
-        """Move stage to new z position. Used during stack acquisition
-           before each cut and for sweeps."""
         raise NotImplementedError
 
 
@@ -1078,36 +1080,98 @@ class GCIB(BFRemover):
         self.cfg['gcib']['mill_cycle'] = str(self._mill_cycle)
 
     def do_full_cut(self):
-        """Perform a full milling cycle. This is the removal function
+        return self.do_full_removal()
+
+    def do_full_removal(self):
+        """Perform a full milling cycle. This is the only removal function
            used during stack acquisitions.
         """
-        curr_x, curr_y, curr_z = self.stage.get_xyz()
+        # move_to_xyzt will set rotation to self.stage.rotation, no need to store r explicitly
+        x, y, z, t, _ = self.stage.get_stage_xyztr()
+        # This is pure safety measure - this would be possible
+        if not np.isclose(t, 0):
+            self.error_info = 'UnsafeMovementError: Current tilt angle is not close to 0. As a safety measure, ' \
+                              'this is currently not supported.'
+            self.error_state = 45
+            return
         if np.all(self.xyzt_milling == 0):
             self.error_info = 'NotInitializedError: Location parameters for milling have not been set.'
             self.error_state = 44
             return
-        x_mill, y_mill, z_mill, t_mill, r_mill = self.xyzt_milling
-        if curr_z < z_mill:
-            self.error_state = 43
-            self.error_info = (f'ValueError: Current z position is smaller than the '
-                               f'one given as milling location: {curr_z} < {z_mill}.')
+        x_mill, y_mill, z_mill, t_mill = self.xyzt_milling
+        if z < z_mill:
+            self.error_state = 45
+            self.error_info = (f'UnsafeMovementError: Current z position is smaller than the '
+                               f'one given as milling location: {z} < {z_mill}.')
             return
-        return
+
         if self.simulation_mode:
             time.sleep(self.full_cut_duration)
-
-        self.stage.move_to_xy(x_mill, y_mill)
-        self.stage.move_to_z(z_mill)
-        self.stage.tilt_abs(t_mill)
+            return
+        # move stage to target z first! all motors run at the same time!
+        self.stage.move_stage_to_z(z_mill)
+        self.stage.move_stage_to_xyzt(x_mill, y_mill, z_mill, t_mill)
+        self._unblank_beam()
         # Hayworth et al, 2019, Nat. Methods: Three evenly spaced azimuthal
         # directions for 360 deg and 360 s per mill cycle
+        # TODO: decide whether a continuous rotation scheme would be beneficial
         for ii in range(3):
-            self.stage.rotate_delta_deg(120)
+            self.stage.move_stage_delta_r(120)
             sleep(120)
+        self._blank_beam()
+        # monitor current rotation angle for now
+        _, _, _, _, r = self.stage.get_stage_xyztr()
+        if not np.isclose(r, 0, atol=1e-4):
+            self.error_state = 45
+            self.error_info = (f'IncosistentMoveError: Current r position is supposed to be close to 0,'
+                               f'instead got: {r} != 0.')
         # move stage to initial position
-        self.stage.tilt_abs(0)
-        self.stage.move_to_xy(curr_x, curr_y)
-        self.stage.move_to_z(curr_z)
+        self.stage.move_stage_to_xyzt(x, y, z, t)
+
+    def test_set_reset_mill_position(self):
+        # move_to_xyzt will set rotation to self.stage.rotation, no need to store r explicitly
+        x, y, z, t, _ = self.stage.get_stage_xyztr()
+        # This is pure safety measure - this would be possible
+        if not np.isclose(t, 0):
+            self.error_info = 'UnsafeMovementError: Current tilt angle is not close to 0. As a safety measure, ' \
+                              'this is currently not supported.'
+            self.error_state = 45
+            return
+        if np.all(self.xyzt_milling == 0):
+            self.error_info = 'NotInitializedError: Location parameters for milling have not been set.'
+            self.error_state = 44
+            return
+        x_mill, y_mill, z_mill, t_mill = self.xyzt_milling
+        if z < z_mill:
+            self.error_state = 45
+            self.error_info = (f'UnsafeMovementError: Current z position is smaller than the '
+                               f'one given as milling location: {z} < {z_mill}.')
+            return
+
+        if self.simulation_mode:
+            time.sleep(self.full_cut_duration)
+        # move stage to target z first! all motors run at the same time!
+        self.stage.move_stage_to_z(z_mill)
+        self.stage.move_stage_to_xyzt(x_mill, y_mill, z_mill, t_mill)
+        # self._unblank_beam()
+        # Hayworth et al, 2019, Nat. Methods: Three evenly spaced azimuthal
+        # directions for 360 deg and 360 s per mill cycle
+        # TODO: decide whether a continuous rotation scheme would be beneficial
+        for ii in range(3):
+            self.stage.move_stage_delta_r(120)
+            sleep(2)
+        # self._blank_beam()
+        # monitor current rotation angle for now
+        _, _, _, _, r = self.stage.get_stage_xyztr()
+        if not np.isclose(r, 0, atol=1e-4):
+            self.error_state = 45
+            self.error_info = (f'IncosistentMoveError: Current r position is supposed to be close to 0,'
+                               f'instead got: {r} != 0.')
+        # move stage to initial position
+        self.stage.move_stage_to_xyzt(x, y, z, t)
+
+    def move_stage_to_z(self, z):
+        return self.stage.move_stage_to_z(z)
 
     def check_for_cut_cycle_error(self):
         return

@@ -16,8 +16,8 @@ some other custom stage will be used when carrying out the commands.
 """
 
 
-class Stage():
-
+class Stage:
+    # TODO: error handling for missing stage attributes required?
     def __init__(self, sem, microtome, use_microtome=True):
         self.microtome = microtome
         self.use_microtome = use_microtome
@@ -68,6 +68,9 @@ class Stage():
             return x, y, z
         else:
             return self._stage.get_stage_xyz()
+
+    def get_xyztr(self):
+        return self._stage.get_stage_xyztr()
 
     def move_to_x(self, x):
         return self._stage.move_stage_to_x(x)
@@ -127,15 +130,19 @@ class Stage():
         return self._stage.motor_speed_y
 
     def set_motor_speeds(self, motor_speed_x, motor_speed_y):
-        if self.use_microtome:
+        if self.use_microtome and not self.microtome.device_name == 'GCIB':
             return self._stage.set_motor_speeds(motor_speed_x, motor_speed_y)
+        elif self.microtome.device_name == 'GCIB':
+            return True
         else:
             # motor speeds can currently not be set for SEM stage
             return False
 
     def update_motor_speed(self):
-        if self.use_microtome:
+        if self.use_microtome and not self.microtome.device_name == 'GCIB':
             return self._stage.write_motor_speeds_to_script()
+        elif self.microtome.device_name == 'GCIB':
+            return True
         else:
             # Speeds can currently not be updated for SEM stage
             return False
@@ -143,6 +150,7 @@ class Stage():
     def stage_move_duration(self, from_x, from_y, to_x, to_y):
         return self._stage.stage_move_duration(
             from_x, from_y, to_x, to_y)
+
     @property
     def limits(self):
         return self._stage.stage_limits
@@ -154,3 +162,15 @@ class Stage():
         within_x = limits[0] <= s_coordinates[0] <= limits[1]
         within_y = limits[2] <= s_coordinates[1] <= limits[3]
         return within_x and within_y
+
+    def move_to_r(self, new_r):
+        """Move stage to rotation angle r (in degrees)"""
+        return self._stage.move_stage_to_r(new_r)
+
+    def move_delta_r(self, delta_r):
+        """Rotate stage by angle r (in degrees)"""
+        return self._stage.move_stage_delta_r(delta_r)
+
+    def move_to_xyzt(self, x, y, z, t):
+        """Move stage to coordinates x and y, z (in microns) and tilt angle t (in degrees)."""
+        return self._stage.move_stage_to_xyzt(x, y, z, t)
