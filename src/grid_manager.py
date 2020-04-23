@@ -94,16 +94,26 @@ class Grid:
                  wd_stig_xy=[0, 0, 0], use_wd_gradient=False,
                  wd_gradient_ref_tiles=[-1, -1, -1],
                  wd_gradient_params=[0, 0, 0]):
-        # The origin of the grid (origin_sx_sy) is the stage position of tile 0.
         self.cs = coordinate_system
         self.sem = sem
+
+        # If auto_update_tile_positions is True, every change to an attribute
+        # that influences the tile positions (for example, rotation or overlap)
+        # will automatically update the tile positions (default behaviour).
+        # For the initialization of the grid here in __init__,
+        # auto_update_tile_positions is first set to False to avoid repeated
+        # tile position updates. After initialization is complete, it is set
+        # to True.
+        self.auto_update_tile_positions = False
+
+        # The origin of the grid (origin_sx_sy) is the stage position of tile 0.
         self._origin_sx_sy = origin_sx_sy
         self._origin_dx_dy = self.cs.convert_to_d(origin_sx_sy)
-        # Rotation in degrees
-        self.rotation = rotation
         # Size of the grid: [rows, cols]
         self._size = size
         self.number_tiles = self.size[0] * self.size[1]
+        # Rotation in degrees
+        self.rotation = rotation
         # Overlap between neighbouring tiles in pixels
         self.overlap = overlap
         # Every other row of tiles is shifted by row_shift (number of pixels)
@@ -112,6 +122,8 @@ class Grid:
         # or skipped.
         self.active = active
         self.frame_size = frame_size
+        # Setting the frame_size_selector will automatically update the frame
+        # size.
         self.frame_size_selector = frame_size_selector
         # Pixel size in nm (float)
         self.pixel_size = pixel_size
@@ -126,6 +138,8 @@ class Grid:
         self.use_wd_gradient = use_wd_gradient
         self.initialize_tiles()
         self.update_tile_positions()
+        # Restore default for updating tile positions
+        self.auto_update_tile_positions = True
         # active_tiles: a list of tile numbers that are active in this grid
         self.active_tiles = active_tiles
         # Set wd_gradient_ref_tiles, which will set the bool flags in
@@ -149,7 +163,8 @@ class Grid:
         coordinates (unrotated), in SEM coordinates taking into account
         rotation, and absolute stage positions. This method must be called
         when a new grid is created or an existing grid is changed in order
-        to update the coordinates."""
+        to update the coordinates.
+        """
         rows, cols = self.size
         width_p, height_p = self.frame_size
         theta = radians(self.rotation)
@@ -186,7 +201,8 @@ class Grid:
         """Calculate the working distance gradient for this grid using
         the three reference tiles. At the moment, this method requires
         that the three reference tiles form a right-angled triangle. This
-        could be made more flexible."""
+        could be made more flexible.
+        """
         success = True
         ref_tiles = self.wd_gradient_ref_tiles
         if ref_tiles[0] >= 0:
@@ -242,7 +258,8 @@ class Grid:
     def origin_sx_sy(self, sx_sy):
         self._origin_sx_sy = list(sx_sy)
         self._origin_dx_dy = self.cs.convert_to_d(sx_sy)
-        self.update_tile_positions()
+        if self.auto_update_tile_positions:
+            self.update_tile_positions()
 
     @property
     def origin_dx_dy(self):
@@ -252,7 +269,8 @@ class Grid:
     def origin_dx_dy(self, dx_dy):
         self._origin_dx_dy = list(dx_dy)
         self._origin_sx_sy = self.cs.convert_to_s(dx_dy)
-        self.update_tile_positions()
+        if self.auto_update_tile_positions:
+            self.update_tile_positions()
 
     @property
     def centre_sx_sy(self):
@@ -274,9 +292,20 @@ class Grid:
     def centre_dx_dy(self):
         return self.cs.convert_to_d(self.centre_sx_sy)
 
+    @property
+    def rotation(self):
+        return self._rotation
+
+    @rotation.setter
+    def rotation(self, new_rotation):
+        self._rotation = new_rotation
+        if self.auto_update_tile_positions:
+            self.update_tile_positions()
+
     def rotate_around_grid_centre(self, centre_dx, centre_dy):
         """Update the grid origin after rotating the grid around the
-        grid centre by the current rotation angle."""
+        grid centre by the current rotation angle.
+        """
         # Calculate origin of the unrotated grid:
         origin_dx = centre_dx - self.width_d() / 2 + self.tile_width_d() / 2
         origin_dy = centre_dy - self.height_d() / 2 + self.tile_height_d() / 2
@@ -320,7 +349,8 @@ class Grid:
     def size(self, new_size):
         """Change the size (rows, cols) of the specified grid. Preserve
         current pattern of actives tiles and tile parameters when grid
-        is extended. The tile positions are not updated automatically."""
+        is extended.
+        """
         if self._size != list(new_size):
             old_rows, old_cols = self._size
             old_number_tiles = old_rows * old_cols
@@ -351,6 +381,8 @@ class Grid:
             self.active_tiles = new_active_tiles
             self.wd_gradient_ref_tiles = (
                 new_wd_gradient_ref_tiles)
+            if self.auto_update_tile_positions:
+                self.update_tile_positions()
 
     def width_p(self):
         """Return width of the grid in pixels."""
@@ -377,12 +409,38 @@ class Grid:
     def number_cols(self):
         return self.size[1]
 
+    @property
+    def overlap(self):
+        return self._overlap
+
+    @overlap.setter
+    def overlap(self, new_overlap):
+        self._overlap = new_overlap
+        if self.auto_update_tile_positions:
+            self.update_tile_positions()
+
+    @property
+    def row_shift(self):
+        return self._row_shift
+
+    @row_shift.setter
+    def row_shift(self, new_row_shift):
+        self._row_shift = new_row_shift
+        if self.auto_update_tile_positions:
+            self.update_tile_positions()
+
     def display_colour_rgb(self):
         return utils.COLOUR_SELECTOR[self.display_colour]
 
     def set_display_colour(self, colour):
         self.display_colour = colour
 
+    # Note: At the moment, all supported SEMs use a frame size selector that
+    # determines the frame size. Changing the frame size selector automatically
+    # updates the frame size (width, height), which is stored separately.
+    # TODO: To support custom (individually settable) frame sizes, the frame
+    # size selector can be set to -1 and SBEMimage would then use the stored
+    # frame size.
     @property
     def frame_size_selector(self):
         return self._frame_size_selector
@@ -393,6 +451,8 @@ class Grid:
         # Update explicit storage of frame size:
         if selector < len(self.sem.STORE_RES):
             self.frame_size = self.sem.STORE_RES[selector]
+        if self.auto_update_tile_positions:
+            self.update_tile_positions()
 
     def tile_width_p(self):
         """Return tile width in pixels."""
@@ -409,6 +469,16 @@ class Grid:
     def tile_height_d(self):
         """Return tile height in microns."""
         return self.frame_size[1] * self.pixel_size / 1000
+
+    @property
+    def pixel_size(self):
+        return self._pixel_size
+
+    @pixel_size.setter
+    def pixel_size(self, new_pixel_size):
+        self._pixel_size = new_pixel_size
+        if self.auto_update_tile_positions:
+            self.update_tile_positions()
 
     @property
     def dwell_time_selector(self):
