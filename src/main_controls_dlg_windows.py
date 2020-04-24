@@ -971,6 +971,16 @@ class GridSettingsDlg(QDialog):
         # (should be done in MagC panel instead)
         if self.magc_mode:
             self.pushButton_addGrid.setEnabled(False)
+        if 'multisem' in self.sem.device_name.lower():
+            # in multisem ROIs are used instead of grids
+            # the smallest possible grid is kept for compatibility
+            self.spinBox_rows.setEnabled(False)
+            self.spinBox_rows.setValue(1)
+            self.spinBox_cols.setEnabled(False)
+            self.spinBox_cols.setValue(1)
+            self.comboBox_tileSize.setEnabled(False)
+            self.comboBox_tileSize.setCurrentIndex(0)
+            self.spinBox_shift.setEnabled(False)
 
     def update_active_status(self):
         # If current grid is inactive, disable GUI elements

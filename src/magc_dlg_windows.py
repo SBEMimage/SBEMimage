@@ -85,6 +85,13 @@ class ImportMagCDlg(QDialog):
             '%d × %d' % (res[0], res[1]) for res in self.sem.STORE_RES]
         self.comboBox_frameSize.addItems(store_res_list)
         self.comboBox_frameSize.setCurrentIndex(5)
+        if 'multisem' in self.sem.device_name.lower():
+            self.comboBox_frameSize.setEnabled(False)
+            self.comboBox_frameSize.setCurrentIndex(0)
+            self.spinBox_rows.setEnabled(False)
+            self.spinBox_cols.setEnabled(False)
+            self.spinBox_rows.setValue(1)
+            self.spinBox_cols.setValue(1)
         self.show()
 
     def _add_to_main_log(self, msg):
