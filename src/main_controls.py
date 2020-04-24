@@ -958,6 +958,7 @@ class MainControls(QMainWindow):
         self.gm.magc_selected_sections = []
         self.gm.magc_checked_sections = []
         self.gm.delete_all_grids_above_index(0)
+        self.gm[0].magc_delete_autofocus_points()
         self.viewport.update_grids()
         # unenable wafer image import
         self.pushButton_magc_importWaferImage.setEnabled(False)
