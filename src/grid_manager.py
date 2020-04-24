@@ -157,33 +157,87 @@ class Grid:
         without wafer transform.
         This getter calculates the af_points according to current
         grid location and rotation"""
-        transformed_af_points = []
+
+        return self.magc_convert_to_current_grid(
+            self.magc_autofocus_points_source)
+
+    def magc_convert_to_current_grid(self, input_points):
+        if input_points == []:
+            return []
+
+        transformed_points = []
+
+        # if single point given
+        if type(input_points[0]) != list:
+            input_points = [input_points]
+
         grid_center_c = np.dot(self.centre_sx_sy, [1,1j])
-        for af_point in self.magc_autofocus_points_source:
-            af_point_c = np.dot(af_point, [1,1j])
-            transformed_af_point_c = (
+        for point in input_points:
+            point_c = np.dot(point, [1,1j])
+            transformed_point_c = (
                 grid_center_c
-                + af_point_c
+                + point_c
                     * np.exp(1j * np.radians(self.rotation)))
 
-            transformed_af_point = (
-                np.real(transformed_af_point_c),
-                np.imag(transformed_af_point_c))
+            transformed_point = (
+                np.real(transformed_point_c),
+                np.imag(transformed_point_c))
 
             if self.cs.magc_wafer_calibrated:
-                (transformed_af_point_x,
-                transformed_af_point_y) = utils.applyAffineT(
-                    [transformed_af_point[0]],
-                    [transformed_af_point[1]],
+                (transformed_point_x,
+                transformed_point_y) = utils.applyAffineT(
+                    [transformed_point[0]],
+                    [transformed_point[1]],
                     self.magc_wafer_transform)
-                transformed_af_point = [
-                    transformed_af_point_x[0],
-                    transformed_af_point_y[0]]
+                transformed_point = [
+                    transformed_point_x[0],
+                    transformed_point_y[0]]
 
-            transformed_af_points.append(
-                transformed_af_point)
+            transformed_points.append(
+                transformed_point)
 
-        return transformed_af_points
+        return transformed_points
+
+    def magc_convert_to_source(self, input_points):
+        transformed_points = []
+
+        # if single point given
+        if type(input_points[0]) != list:
+            input_points = [input_points]
+
+        # _c indicates complex number
+        grid_center_c = np.dot(
+            self.centre_sx_sy,
+            [1,1j])
+
+        # updating input_points if wafer_calibrated
+        # overwriting same variable
+        if self.cs.magc_wafer_calibrated:
+            (transformed_points_x,
+            transformed_points_y ) = utils.applyAffineT(
+                [input_point[0] for input_point in input_points],
+                [input_point[1] for input_point in input_points],
+                utils.invertAffineT(self.magc_wafer_transform))
+            input_points = [
+                [transformed_point_x, transformed_point_y]
+                for transformed_point_x, transformed_point_y
+                in zip(transformed_points_x, transformed_points_y)]
+
+        for point in input_points:
+            point_c = np.dot(
+                point,
+                [1,1j])
+
+            transformed_point_c = (
+                (point_c - grid_center_c)
+                * np.exp(1j * np.radians(-self.rotation)))
+
+            transformed_point = (
+                np.real(transformed_point_c),
+                np.imag(transformed_point_c))
+
+            transformed_points.append(transformed_point)
+        return transformed_points
 
     def magc_add_autofocus_point(self, input_af_point):
         """input_af_point is in stage coordinates of
@@ -192,33 +246,10 @@ class Grid:
         the coordinates relative to a non-translated, non-rotated grid
         in source pixel coordinates (LM wafer image)"""
 
-        if self.cs.magc_wafer_calibrated:
-            (input_af_point_x,
-            input_af_point_y) = utils.applyAffineT(
-                [input_af_point[0]],
-                [input_af_point[1]],
-                utils.invertAffineT(self.magc_wafer_transform))
-            input_af_point = [
-                input_af_point_x[0],
-                input_af_point_y[0]]
-
-        # _c indicates complex number
-        grid_center_c = np.dot(
-            self.centre_sx_sy,
-            [1,1j])
-        input_af_point_c = np.dot(
-            input_af_point,
-            [1,1j])
-
-        af_point_c = (
-            (input_af_point_c - grid_center_c)
-            * np.exp(1j * np.radians(-self.rotation)))
-
-        af_point = (
-            np.real(af_point_c),
-            np.imag(af_point_c))
-
-        self.magc_autofocus_points_source.append(af_point)
+        transformed_af_point = self.magc_convert_to_source(
+            input_af_point)
+        self.magc_autofocus_points_source.append(
+            transformed_af_point)
 
     def magc_delete_last_autofocus_point(self):
         if self.magc_autofocus_points_source != []:
