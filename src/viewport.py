@@ -22,6 +22,7 @@ import json
 import yaml
 import numpy as np
 import threading
+import scipy
 from time import time, sleep
 from PIL import Image
 from math import log, sqrt, sin, cos, radians
@@ -880,7 +881,7 @@ class Viewport(QWidget):
                 action_moveGridCurrentStage.triggered.connect(
                     self._vp_manual_stage_move)
                 if not ((self.selected_grid is not None)
-                    and self.gm.magc_wafer_calibrated):
+                    and self.cs.magc_wafer_calibrated):
                     action_moveGridCurrentStage.setEnabled(False)
 
             menu.addSeparator()
@@ -915,14 +916,18 @@ class Viewport(QWidget):
 
             # ----- MagC items -----
             if self.sem.magc_mode:
+                menu.addSeparator()
                 # in MagC you only import wafer images from the MagC tab
                 action_import.setEnabled(False)
                 # in MagC you cannot remove the wafer image, the only
                 # way is to Reset MagC
                 action_deleteImported.setEnabled(False)
+                # get closest grid
+                self._closest_grid_number = self._vp_get_closest_grid_id(
+                    self.selected_stage_pos)
+
             if (self.sem.magc_mode
                 and self.selected_grid is not None):
-                menu.addSeparator()
 
                 # propagate to all sections
                 action_propagateToAll = menu.addAction(
@@ -947,6 +952,22 @@ class Viewport(QWidget):
                     + ' to original file-defined location')
                 action_revertLocation.triggered.connect(
                     self.vp_revert_grid_location_to_file)
+
+            if self.sem.magc_mode:
+                action_addAutofocusPoint = menu.addAction(
+                    'MagC | Add autofocus point to grid '
+                    + str(self._closest_grid_number))
+                action_addAutofocusPoint.triggered.connect(
+                    self.vp_add_autofocus_point)
+
+            if (self.sem.magc_mode
+                and (self.gm[self._closest_grid_number]
+                    .magc_autofocus_points) != []):
+                action_removeAutofocusPoint = menu.addAction(
+                    'MagC | Remove last autofocus point to grid '
+                    + str(self._closest_grid_number))
+                action_removeAutofocusPoint.triggered.connect(
+                    self.vp_remove_autofocus_point)
 
             # ----- End of MagC items -----
 
@@ -980,6 +1001,24 @@ class Viewport(QWidget):
                 action_move.setEnabled(False)
                 action_stub.setEnabled(False)
             menu.exec_(self.mapToGlobal(p))
+
+    def _vp_get_closest_grid_id(self, sx_sy):
+        closest_id = (scipy.spatial.distance.cdist(
+            [np.array(sx_sy)],
+            [self.gm[id].centre_sx_sy for id in range(self.gm.number_grids)])
+            .argmin())
+        return closest_id
+
+    def vp_add_autofocus_point(self):
+        (self.gm[self._closest_grid_number]
+            .magc_add_autofocus_point(
+                self.selected_stage_pos))
+        self.vp_draw()
+
+    def vp_remove_autofocus_point(self):
+        (self.gm[self._closest_grid_number]
+            .magc_delete_last_autofocus_point())
+        self.vp_draw()
 
     def _vp_load_selected_in_ft(self):
         self.main_controls_trigger.transmit('LOAD IN FOCUS TOOL')
@@ -1621,6 +1660,20 @@ class Viewport(QWidget):
                                 'GRID %d' % grid_index)
         # Reset painter (undo translation and rotation).
         self.vp_qp.resetTransform()
+
+        # ---- Autofocus points in MagC mode ---- #
+        focus_point_brush = QBrush(QColor(Qt.red), Qt.SolidPattern)
+        self.vp_qp.setBrush(focus_point_brush)
+        for autofocus_point in self.gm[grid_index].magc_autofocus_points:
+            autofocus_point_v = self.cs.convert_to_v(autofocus_point)
+            diameter = 2 * self.cs.vp_scale
+            self.vp_qp.drawEllipse(
+                autofocus_point_v[0]-diameter/2,
+                autofocus_point_v[1]-diameter/2,
+                diameter,
+                diameter)
+        #-----------------------------------------#
+
 
     def _vp_draw_stage_boundaries(self):
         """Calculate and show bounding box around the area accessible to the
@@ -2320,7 +2373,7 @@ class Viewport(QWidget):
 
         source_location = sections[clicked_section_number]['center']
         # source_location is in LM image pixel coordinates
-        if not self.gm.magc_wafer_calibrated:
+        if not self.cs.magc_wafer_calibrated:
             (self.gm[clicked_section_number]
                 .centre_sx_sy) = list(map(float, source_location))
         else:
@@ -2328,7 +2381,7 @@ class Viewport(QWidget):
             result = utils.applyAffineT(
                 [source_location[0]],
                 [source_location[1]],
-                self.gm.magc_wafer_transform)
+                self.cs.magc_wafer_transform)
             target_location = [result[0][0], result[1][0]]
             self.gm[clicked_section_number].centre_sx_sy = target_location
 

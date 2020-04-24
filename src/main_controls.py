@@ -753,7 +753,7 @@ class MainControls(QMainWindow):
     def initialize_magc_gui(self):
         self.gm.magc_selected_sections = []
         self.gm.magc_checked_sections = []
-        self.gm.magc_wafer_calibrated = False
+        self.cs.magc_wafer_calibrated = False
         self.actionImportMagCMetadata.triggered.connect(
             self.magc_open_import_dlg)
 
@@ -803,7 +803,7 @@ class MainControls(QMainWindow):
             self.pushButton_magc_importWaferImage.setEnabled(False)
         self.pushButton_magc_addSection.clicked.connect(
             self.magc_add_section)
-        if not self.gm.magc_wafer_calibrated:
+        if not self.cs.magc_wafer_calibrated:
             self.pushButton_magc_addSection.setEnabled(False)
         self.pushButton_magc_deleteLastSection.clicked.connect(
             self.magc_delete_last_section)
@@ -932,7 +932,7 @@ class MainControls(QMainWindow):
         sectionKey = int(model.data(firstColumnIndex))
         self.cs.vp_centre_dx_dy = self.gm[row].centre_dx_dy
         self.viewport.vp_draw()
-        if self.gm.magc_wafer_calibrated:
+        if self.cs.magc_wafer_calibrated:
             self.add_to_log('Section ' + str(sectionKey)
                             + ' has been double-clicked. Moving to section...')
             # set scan rotation
@@ -966,7 +966,7 @@ class MainControls(QMainWindow):
         model = self.tableView_magc_sections.model()
         model.removeRows(0, model.rowCount(), QModelIndex())
         self.gm.magc_sections_path = ''
-        self.gm.magc_wafer_calibrated = False
+        self.cs.magc_wafer_calibrated = False
         self.magc_trigger_wafer_uncalibrated()
         # the trigger shows only that the wafer is not calibrated
         # but the reset is stronger: it means that the wafer
@@ -976,6 +976,7 @@ class MainControls(QMainWindow):
         self.gm.magc_selected_sections = []
         self.gm.magc_checked_sections = []
         self.gm.delete_all_grids_above_index(0)
+        self.gm[0].magc_delete_autofocus_points()
         self.viewport.update_grids()
         # unenable wafer image import
         self.pushButton_magc_importWaferImage.setEnabled(False)
@@ -1054,7 +1055,7 @@ class MainControls(QMainWindow):
     def magc_open_import_dlg(self):
         gui_items = {'section_table': self.tableView_magc_sections,}
         dialog = ImportMagCDlg(self.acq, self.gm, self.sem, self.imported,
-                               gui_items, self.trigger)
+                               self.cs, gui_items, self.trigger)
         if dialog.exec_():
             # self.tabWidget.setTabEnabled(3, True)
             self.update_from_grid_dlg()
@@ -1449,11 +1450,11 @@ class MainControls(QMainWindow):
             ov_index = int(msg[len('ASK DEBRIS FIRST OV'):])
             self.viewport.vp_show_overview_for_user_inspection(ov_index)
             reply = QMessageBox.question(
-                self, 'Confirm overview image quality',
-                f'This is the first slice to be imaged after (re)starting the '
-                f'acquisition. Please confirm:\nIs the overview image OV '
-                f'{ov_index}, which has just been acquired (now shown in the '
-                f'Viewport) free from debris or other image defects?',
+                self, 'Please inspect overview image quality',
+                f'Is the overview image OV {ov_index} now shown in the '
+                f'Viewport free from debris or other image defects?\n\n'
+                f'(This confirmation is required for the first slice to be '
+                f'imaged after (re)starting the acquisition.)',
                 QMessageBox.Yes | QMessageBox.No | QMessageBox.Abort,
                 QMessageBox.Yes)
             # Redraw with previous settings
@@ -1463,11 +1464,12 @@ class MainControls(QMainWindow):
             ov_index = int(msg[len('ASK DEBRIS CONFIRMATION'):])
             self.viewport.vp_show_overview_for_user_inspection(ov_index)
             reply = QMessageBox.question(
-                self, 'Debris detection',
-                f'Potential debris has been detected in overview OV '
-                f'{ov_index}. Please confirm:\nIs debris visible in the '
-                f'detection area? (If you get several false positives in a '
-                f'row, you may need to adjust your detection thresholds.)',
+                self, 'Potential debris detected - please confirm',
+                f'Is debris visible in the detection area of OV {ov_index} now '
+                f'shown in the Viewport?\n\n'
+                f'(Potential debris has been detected in this overview image. '
+                f'If you get several false positives in a row, you may need to '
+                f'adjust your detection thresholds.)',
                 QMessageBox.Yes | QMessageBox.No | QMessageBox.Abort,
                 QMessageBox.Yes)
             # Redraw with previous settings
