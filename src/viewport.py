@@ -953,13 +953,6 @@ class Viewport(QWidget):
                 action_revertLocation.triggered.connect(
                     self.vp_revert_grid_location_to_file)
 
-            if self.sem.magc_mode:
-                action_addAutofocusPoint = menu.addAction(
-                    'MagC | Add autofocus point to grid '
-                    + str(self._closest_grid_number))
-                action_addAutofocusPoint.triggered.connect(
-                    self.vp_add_autofocus_point)
-
             if (self.sem.magc_mode
                 and (self.gm[self._closest_grid_number]
                     .magc_autofocus_points) != []):
@@ -968,6 +961,14 @@ class Viewport(QWidget):
                     + str(self._closest_grid_number))
                 action_removeAutofocusPoint.triggered.connect(
                     self.vp_remove_autofocus_point)
+
+            if self.sem.magc_mode:
+                action_addAutofocusPoint = menu.addAction(
+                    'MagC | Add autofocus point to grid '
+                    + str(self._closest_grid_number))
+                action_addAutofocusPoint.triggered.connect(
+                    self.vp_add_autofocus_point)
+
 
             # ----- End of MagC items -----
 
@@ -1673,7 +1674,6 @@ class Viewport(QWidget):
                 diameter,
                 diameter)
         #-----------------------------------------#
-
 
     def _vp_draw_stage_boundaries(self):
         """Calculate and show bounding box around the area accessible to the
