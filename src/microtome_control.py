@@ -1167,7 +1167,8 @@ class GCIB(BFRemover):
             self.error_state = 45
             self.error_info = (f'IncosistentMoveError: Current r position is supposed to be close to 0,'
                                f'instead got: {r} != 0.')
-        # move stage to initial position
+        # move stage to initial position, first tilt to 0 degree
+        self.stage.move_stage_to_xyzt(x_mill, y_mill, z_mill, t)
         self.stage.move_stage_to_xyzt(x, y, z, t)
 
     def move_stage_to_z(self, z):
