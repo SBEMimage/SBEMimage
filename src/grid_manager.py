@@ -23,6 +23,7 @@ self.gm[grid_index][tile_index].sx_sy  (stage position of specified tile)
 import os
 import json
 import yaml
+import copy
 
 import numpy as np
 from statistics import mean
@@ -146,6 +147,85 @@ class Grid:
         # self.__tiles
         self.wd_gradient_ref_tiles = wd_gradient_ref_tiles
         self.wd_gradient_params = wd_gradient_params
+        # used in MagC: these autofocus locations are defined relative to the
+        # center of the non-rotated grid. Use setter and getter
+        self.magc_autofocus_points_source = []
+
+    @property
+    def magc_autofocus_points(self):
+        """The magc_autofocus_points_source are in non-rotated grid coordinates
+        without wafer transform.
+        This getter calculates the af_points according to current
+        grid location and rotation"""
+        transformed_af_points = []
+        grid_center_c = np.dot(self.centre_sx_sy, [1,1j])
+        for af_point in self.magc_autofocus_points_source:
+            af_point_c = np.dot(af_point, [1,1j])
+            transformed_af_point_c = (
+                grid_center_c
+                + af_point_c
+                    * np.exp(1j * np.radians(self.rotation)))
+
+            transformed_af_point = (
+                np.real(transformed_af_point_c),
+                np.imag(transformed_af_point_c))
+
+            # # if self.gm.magc_wafer_calibrated:
+                # # (transformed_af_point_x,
+                # # transformed_af_point_y) = utils.applyAffineT(
+                    # # [transformed_af_point[0]],
+                    # # [transformed_af_point[1]],
+                    # # self.magc_wafer_transform)
+                # # transformed_af_point = [
+                    # # transformed_af_point_x[0],
+                    # # transformed_af_point_y[0]]
+
+            transformed_af_points.append(
+                transformed_af_point)
+
+        return transformed_af_points
+
+    def magc_add_autofocus_point(self, input_af_point):
+        """input_af_point is in stage coordinates of
+        the translated, rotated grid.
+        This function takes care of transforming the input af_point to
+        the coordinates relative to a non-translated, non-rotated grid
+        in source pixel coordinates (LM wafer image)"""
+
+        # # if self.magc_wafer_calibrated:
+            # # (input_af_point_x,
+            # # input_af_point_y) = utils.applyAffineT(
+                # # [input_af_point[0]],
+                # # [input_af_point[1]],
+                # # utils.invertAffineT(self.magc_wafer_transform))
+            # # input_af_point = [
+                # # input_af_point_x[0],
+                # # input_af_point_y[0]]
+
+        # _c indicates complex number
+        grid_center_c = np.dot(
+            self.centre_sx_sy,
+            [1,1j])
+        input_af_point_c = np.dot(
+            input_af_point,
+            [1,1j])
+
+        af_point_c = (
+            (input_af_point_c - grid_center_c)
+            * np.exp(1j * np.radians(-self.rotation)))
+
+        af_point = (
+            np.real(af_point_c),
+            np.imag(af_point_c))
+
+        self.magc_autofocus_points_source.append(af_point)
+
+    def magc_delete_last_autofocus_point(self):
+        if self.magc_autofocus_points_source != []:
+            del self.magc_autofocus_points_source[-1]
+
+    def magc_delete_autofocus_points(self):
+        self.magc_autofocus_points_source = []
 
     def __getitem__(self, tile_index):
         """Return the Tile object selected by tile_index."""
@@ -1128,6 +1208,8 @@ class GridManager:
         self.__grids[t].acq_interval = self.__grids[s].acq_interval
         self.__grids[t].acq_interval_offset = self.__grids[s].acq_interval_offset
         self.__grids[t].autofocus_ref_tiles = self.__grids[s].autofocus_ref_tiles
+        self.__grids[t].magc_autofocus_points_source = copy.deepcopy(
+            self.__grids[s].magc_autofocus_points_source)
         # xxx self.set_adaptive_focus_enabled(t, self.get_adaptive_focus_enabled(s))
         # xxx self.set_adaptive_focus_tiles(t, self.get_adaptive_focus_tiles(s))
         # xxx self.set_adaptive_focus_gradient(t, self.get_adaptive_focus_gradient(s))
