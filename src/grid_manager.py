@@ -170,15 +170,15 @@ class Grid:
                 np.real(transformed_af_point_c),
                 np.imag(transformed_af_point_c))
 
-            # # if self.gm.magc_wafer_calibrated:
-                # # (transformed_af_point_x,
-                # # transformed_af_point_y) = utils.applyAffineT(
-                    # # [transformed_af_point[0]],
-                    # # [transformed_af_point[1]],
-                    # # self.magc_wafer_transform)
-                # # transformed_af_point = [
-                    # # transformed_af_point_x[0],
-                    # # transformed_af_point_y[0]]
+            if self.cs.magc_wafer_calibrated:
+                (transformed_af_point_x,
+                transformed_af_point_y) = utils.applyAffineT(
+                    [transformed_af_point[0]],
+                    [transformed_af_point[1]],
+                    self.magc_wafer_transform)
+                transformed_af_point = [
+                    transformed_af_point_x[0],
+                    transformed_af_point_y[0]]
 
             transformed_af_points.append(
                 transformed_af_point)
@@ -192,15 +192,15 @@ class Grid:
         the coordinates relative to a non-translated, non-rotated grid
         in source pixel coordinates (LM wafer image)"""
 
-        # # if self.magc_wafer_calibrated:
-            # # (input_af_point_x,
-            # # input_af_point_y) = utils.applyAffineT(
-                # # [input_af_point[0]],
-                # # [input_af_point[1]],
-                # # utils.invertAffineT(self.magc_wafer_transform))
-            # # input_af_point = [
-                # # input_af_point_x[0],
-                # # input_af_point_y[0]]
+        if self.cs.magc_wafer_calibrated:
+            (input_af_point_x,
+            input_af_point_y) = utils.applyAffineT(
+                [input_af_point[0]],
+                [input_af_point[1]],
+                utils.invertAffineT(self.magc_wafer_transform))
+            input_af_point = [
+                input_af_point_x[0],
+                input_af_point_y[0]]
 
         # _c indicates complex number
         grid_center_c = np.dot(
@@ -893,10 +893,10 @@ class GridManager:
         self.magc_sections = []
         self.magc_selected_sections = []
         self.magc_checked_sections = []
-        self.magc_landmarks = []
-        self.magc_wafer_transform = []
         self.magc_roi_mode = True
-        self.magc_wafer_calibrated = False
+        # self.cs.magc_landmarks = []
+        # self.cs.magc_wafer_transform = []
+        # self.cs.magc_wafer_calibrated = False
 
     def __getitem__(self, grid_index):
         """Return the Grid object selected by index."""
@@ -1180,10 +1180,10 @@ class GridManager:
 
         sourceGridCenter = np.array(self.__grids[s].centre_sx_sy)
 
-        if self.magc_wafer_calibrated:
+        if self.cs.magc_wafer_calibrated:
             # transform back the grid coordinates in non-transformed coordinates
             # inefficient but ok for now:
-            waferTransformInverse = utils.invertAffineT(self.magc_wafer_transform)
+            waferTransformInverse = utils.invertAffineT(self.cs.magc_wafer_transform)
             result = utils.applyAffineT(
                 [sourceGridCenter[0]],
                 [sourceGridCenter[1]],
@@ -1224,12 +1224,12 @@ class GridManager:
             np.real(targetGridCenterComplex),
             np.imag(targetGridCenterComplex))
 
-        if self.magc_wafer_calibrated:
+        if self.cs.magc_wafer_calibrated:
             # transform the grid coordinates to wafer coordinates
             result = utils.applyAffineT(
                 [targetGridCenter[0]],
                 [targetGridCenter[1]],
-                self.magc_wafer_transform)
+                self.cs.magc_wafer_transform)
             targetGridCenter = [result[0][0], result[1][0]]
 
         self.__grids[t].centre_sx_sy = targetGridCenter
@@ -1239,9 +1239,9 @@ class GridManager:
         if self.magc_sections_path == '':
             return
         # TODO
-        if self.magc_wafer_calibrated:
-            waferTransformInverse = utils.invertAffineT(self.magc_wafer_transform)
-            transform_angle = -utils.getAffineRotation(self.magc_wafer_transform)
+        if self.cs.magc_wafer_calibrated:
+            waferTransformInverse = utils.invertAffineT(self.cs.magc_wafer_transform)
+            transform_angle = -utils.getAffineRotation(self.cs.magc_wafer_transform)
 
         with open(self.magc_sections_path, 'r') as f:
             sections_yaml = yaml.full_load(f)
@@ -1251,13 +1251,13 @@ class GridManager:
             target_ROI = self.__grids[grid_number].centre_sx_sy
             target_ROI_angle = self.__grids[grid_number].rotation
 
-            if self.magc_wafer_calibrated:
+            if self.cs.magc_wafer_calibrated:
                 # transform back the grid coordinates
                 # in non-transformed coordinates
                 result = utils.applyAffineT(
                     [target_ROI[0]],
                     [target_ROI[1]],
-                    self.magc_wafer_transform)
+                    self.cs.magc_wafer_transform)
                 source_ROI = [result[0][0], result[1][0]]
                 source_ROI_angle = (
                     (-90 + target_ROI_angle - transform_angle) % 360)

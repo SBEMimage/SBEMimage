@@ -52,12 +52,13 @@ class ImportMagCDlg(QDialog):
     """Import MagC metadata."""
 
     def __init__(self, acq, grid_manager, sem, imported,
-                 gui_items, main_controls_trigger):
+                 coordinate_system, gui_items, main_controls_trigger):
         super().__init__()
         self.acq = acq
         self.gm = grid_manager
         self.sem = sem
         self.imported = imported
+        self.cs = coordinate_system
         self.gui_items = gui_items
         self.main_controls_trigger = main_controls_trigger
         self.target_dir = os.path.join(
@@ -205,10 +206,10 @@ class ImportMagCDlg(QDialog):
         self.gm.magc_sections = sections
         self.gm.magc_selected_sections = []
         self.gm.magc_checked_sections = []
-        self.gm.magc_landmarks = landmarks
+        self.cs.magc_landmarks = landmarks
         # xxx does importing a new magc file always require
         # a wafer_calibration ?
-        self.gm.magc_wafer_calibrated = False
+        self.cs.magc_wafer_calibrated = False
         #------------------------------
 
         # enable wafer configuration buttons
@@ -352,7 +353,7 @@ class WaferCalibrationDlg(QDialog):
 
         landmark_model = self.lTable.model()
         for id,(key,source_target) \
-            in enumerate(self.gm.magc_landmarks.items()):
+            in enumerate(self.cs.magc_landmarks.items()):
 
             # source_target is a dictionary for each landmark
             # that contains two keys
@@ -423,7 +424,7 @@ class WaferCalibrationDlg(QDialog):
             item4.setData('', Qt.DisplayRole)
             item4.setBackground(GRAY)
 
-            del self.gm.magc_landmarks[str(row)]['target']
+            del self.cs.magc_landmarks[str(row)]['target']
 
             # update table
             item0 = self.lTable.model().item(row, 0)
@@ -462,13 +463,13 @@ class WaferCalibrationDlg(QDialog):
             item7.setEnabled(True)
 
             # update landmarks
-            self.gm.magc_landmarks[str(row)]['target'] = [x,y]
+            self.cs.magc_landmarks[str(row)]['target'] = [x,y]
 
             # compute transform and update landmarks
-            nLandmarks = len(self.gm.magc_landmarks)
+            nLandmarks = len(self.cs.magc_landmarks)
             calibratedLandmarkIds = [
                 int(id) for id,landmark
-                in self.gm.magc_landmarks.items()
+                in self.cs.magc_landmarks.items()
                 if (self.lTable.model().item(int(id), 0)
                     .background().color() == GREEN)]
                 # the green color shows that the landmark has been
@@ -486,29 +487,29 @@ class WaferCalibrationDlg(QDialog):
                 # (minimum 2)
 
                 x_landmarks_source = np.array([
-                    self.gm.magc_landmarks[str(i)]['source'][0]
+                    self.cs.magc_landmarks[str(i)]['source'][0]
                     for i in range(nLandmarks)])
                 y_landmarks_source = np.array([
-                    self.gm.magc_landmarks[str(i)]['source'][1]
+                    self.cs.magc_landmarks[str(i)]['source'][1]
                     for i in range(nLandmarks)])
 
                 # taking only the source landmarks for which there is a
                 # corresponding target landmark
                 x_landmarks_source_partial = np.array(
-                    [self.gm.magc_landmarks[str(i)]['source'][0]
+                    [self.cs.magc_landmarks[str(i)]['source'][0]
                      for i in calibratedLandmarkIds])
                 y_landmarks_source_partial = np.array(
-                    [self.gm.magc_landmarks[str(i)]['source'][1]
+                    [self.cs.magc_landmarks[str(i)]['source'][1]
                      for i in calibratedLandmarkIds])
 
                 x_landmarks_target_partial = np.array(
-                    [self.gm.magc_landmarks[str(i)]['target'][0]
+                    [self.cs.magc_landmarks[str(i)]['target'][0]
                      for i in calibratedLandmarkIds])
                 y_landmarks_target_partial = np.array(
-                    [self.gm.magc_landmarks[str(i)]['target'][1]
+                    [self.cs.magc_landmarks[str(i)]['target'][1]
                      for i in calibratedLandmarkIds])
 
-                self.gm.magc_wafer_transform = utils.rigidT(
+                self.cs.magc_wafer_transform = utils.rigidT(
                     x_landmarks_source_partial, y_landmarks_source_partial,
                     x_landmarks_target_partial, y_landmarks_target_partial)[0]
 
@@ -517,7 +518,7 @@ class WaferCalibrationDlg(QDialog):
                     utils.applyRigidT(
                         x_landmarks_source,
                         y_landmarks_source,
-                        self.gm.magc_wafer_transform))
+                        self.cs.magc_wafer_transform))
 
                 # x_target_updated_landmarks = -x_target_updated_landmarks
                 # x axis flipping on Merlin
@@ -526,7 +527,7 @@ class WaferCalibrationDlg(QDialog):
                 for noncalibratedLandmarkId in noncalibratedLandmarkIds:
                     x = x_target_updated_landmarks[noncalibratedLandmarkId]
                     y = y_target_updated_landmarks[noncalibratedLandmarkId]
-                    (self.gm.magc_landmarks
+                    (self.cs.magc_landmarks
                         [str(noncalibratedLandmarkId)]['target']) = [x,y]
 
                     item0 = self.lTable.model().item(noncalibratedLandmarkId, 0)
@@ -571,11 +572,11 @@ class WaferCalibrationDlg(QDialog):
     def validate_calibration(self):
         calibratedLandmarkIds = [
             int(id) for id,landmark
-            in self.gm.magc_landmarks.items()
+            in self.cs.magc_landmarks.items()
             if (self.lTable.model().item(int(id), 0)
                 .background().color() == GREEN)]
 
-        n_landmarks = len(self.gm.magc_landmarks)
+        n_landmarks = len(self.cs.magc_landmarks)
 
         if len(calibratedLandmarkIds) != n_landmarks:
             self._add_to_main_log(
@@ -583,28 +584,28 @@ class WaferCalibrationDlg(QDialog):
                 'must first be validated.')
         else:
             x_landmarks_source = [
-                self.gm.magc_landmarks[str(i)]['source'][0]
+                self.cs.magc_landmarks[str(i)]['source'][0]
                 for i in range(n_landmarks)]
             y_landmarks_source = [
-                self.gm.magc_landmarks[str(i)]['source'][1]
+                self.cs.magc_landmarks[str(i)]['source'][1]
                 for i in range(n_landmarks)]
 
             x_landmarks_target = [
-                self.gm.magc_landmarks[str(i)]['target'][0]
+                self.cs.magc_landmarks[str(i)]['target'][0]
                 for i in range(n_landmarks)]
             y_landmarks_target = [
-                self.gm.magc_landmarks[str(i)]['target'][1]
+                self.cs.magc_landmarks[str(i)]['target'][1]
                 for i in range(n_landmarks)]
 
             print('x_landmarks_source, y_landmarks_source, x_landmarks_target, '
                   'y_landmarks_target', x_landmarks_source, y_landmarks_source,
                   x_landmarks_target, y_landmarks_target)
 
-            self.gm.magc_wafer_transform = utils.affineT(
+            self.cs.magc_wafer_transform = utils.affineT(
                 x_landmarks_source, y_landmarks_source,
                 x_landmarks_target, y_landmarks_target)
 
-            print('waferTransform', self.gm.magc_wafer_transform)
+            print('waferTransform', self.cs.magc_wafer_transform)
 
             # compute new grid locations
             # (always transform from reference source)
@@ -623,10 +624,10 @@ class WaferCalibrationDlg(QDialog):
             x_target, y_target = utils.applyAffineT(
                 x_source,
                 y_source,
-                self.gm.magc_wafer_transform)
+                self.cs.magc_wafer_transform)
 
             transformAngle = -utils.getAffineRotation(
-                self.gm.magc_wafer_transform)
+                self.cs.magc_wafer_transform)
             angles_target = [
                 (180 - self.gm.magc_sections[str(k)]['angle'] + transformAngle) % 360
                 for k in range(nSections)]
@@ -646,14 +647,14 @@ class WaferCalibrationDlg(QDialog):
 
             # update wafer picture
             waferTransformAngle = -utils.getAffineRotation(
-                self.gm.magc_wafer_transform)
+                self.cs.magc_wafer_transform)
             waferTransformScaling = utils.getAffineScaling(
-                self.gm.magc_wafer_transform)
+                self.cs.magc_wafer_transform)
 
             im_center_target_s = utils.applyAffineT(
                 [self.imported[0].centre_sx_sy[0]],
                 [self.imported[0].centre_sx_sy[1]],
-                self.gm.magc_wafer_transform)
+                self.cs.magc_wafer_transform)
 
             im_center_target_s = [float(a[0]) for a in im_center_target_s]
 
@@ -672,7 +673,7 @@ class WaferCalibrationDlg(QDialog):
             self.main_controls_trigger.transmit('DRAW VP')
 
             # update calibration flag
-            self.gm.magc_wafer_calibrated = True
+            self.cs.magc_wafer_calibrated = True
             self.main_controls_trigger.transmit('MAGC WAFER CALIBRATED')
 
             self.accept()

@@ -881,7 +881,7 @@ class Viewport(QWidget):
                 action_moveGridCurrentStage.triggered.connect(
                     self._vp_manual_stage_move)
                 if not ((self.selected_grid is not None)
-                    and self.gm.magc_wafer_calibrated):
+                    and self.cs.magc_wafer_calibrated):
                     action_moveGridCurrentStage.setEnabled(False)
 
             menu.addSeparator()
@@ -2373,7 +2373,7 @@ class Viewport(QWidget):
 
         source_location = sections[clicked_section_number]['center']
         # source_location is in LM image pixel coordinates
-        if not self.gm.magc_wafer_calibrated:
+        if not self.cs.magc_wafer_calibrated:
             (self.gm[clicked_section_number]
                 .centre_sx_sy) = list(map(float, source_location))
         else:
@@ -2381,7 +2381,7 @@ class Viewport(QWidget):
             result = utils.applyAffineT(
                 [source_location[0]],
                 [source_location[1]],
-                self.gm.magc_wafer_transform)
+                self.cs.magc_wafer_transform)
             target_location = [result[0][0], result[1][0]]
             self.gm[clicked_section_number].centre_sx_sy = target_location
 

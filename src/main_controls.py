@@ -735,7 +735,7 @@ class MainControls(QMainWindow):
     def initialize_magc_gui(self):
         self.gm.magc_selected_sections = []
         self.gm.magc_checked_sections = []
-        self.gm.magc_wafer_calibrated = False
+        self.cs.magc_wafer_calibrated = False
         self.actionImportMagCMetadata.triggered.connect(
             self.magc_open_import_dlg)
 
@@ -785,7 +785,7 @@ class MainControls(QMainWindow):
             self.pushButton_magc_importWaferImage.setEnabled(False)
         self.pushButton_magc_addSection.clicked.connect(
             self.magc_add_section)
-        if not self.gm.magc_wafer_calibrated:
+        if not self.cs.magc_wafer_calibrated:
             self.pushButton_magc_addSection.setEnabled(False)
         self.pushButton_magc_deleteLastSection.clicked.connect(
             self.magc_delete_last_section)
@@ -914,7 +914,7 @@ class MainControls(QMainWindow):
         sectionKey = int(model.data(firstColumnIndex))
         self.cs.vp_centre_dx_dy = self.gm[row].centre_dx_dy
         self.viewport.vp_draw()
-        if self.gm.magc_wafer_calibrated:
+        if self.cs.magc_wafer_calibrated:
             self.add_to_log('Section ' + str(sectionKey)
                             + ' has been double-clicked. Moving to section...')
             # set scan rotation
@@ -948,7 +948,7 @@ class MainControls(QMainWindow):
         model = self.tableView_magc_sections.model()
         model.removeRows(0, model.rowCount(), QModelIndex())
         self.gm.magc_sections_path = ''
-        self.gm.magc_wafer_calibrated = False
+        self.cs.magc_wafer_calibrated = False
         self.magc_trigger_wafer_uncalibrated()
         # the trigger shows only that the wafer is not calibrated
         # but the reset is stronger: it means that the wafer
@@ -1029,7 +1029,7 @@ class MainControls(QMainWindow):
     def magc_open_import_dlg(self):
         gui_items = {'section_table': self.tableView_magc_sections,}
         dialog = ImportMagCDlg(self.acq, self.gm, self.sem, self.imported,
-                               gui_items, self.trigger)
+                               self.cs, gui_items, self.trigger)
         if dialog.exec_():
             # self.tabWidget.setTabEnabled(3, True)
             self.update_from_grid_dlg()
