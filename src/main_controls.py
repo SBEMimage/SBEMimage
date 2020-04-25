@@ -832,6 +832,21 @@ class MainControls(QMainWindow):
         rowsToSelect = set(range(model.rowCount())) - set(selectedRows)
         self.magc_select_rows(rowsToSelect)
 
+    def magc_toggle_selection(self, section_number):
+        # ctrl+click in viewport: select or deselect clicked
+        # section without changing existing selected sections
+        selectedRows = [
+            id.row() for id
+                in self.tableView_magc_sections
+                    .selectedIndexes()]
+        rowsToSelect = set(selectedRows)
+        if section_number in selectedRows:
+            rowsToSelect.remove(section_number)
+        else:
+            rowsToSelect.add(section_number)
+        rowsToSelect = list(rowsToSelect)
+        self.magc_select_rows(rowsToSelect)
+
     def magc_select_checked(self):
         model = self.tableView_magc_sections.model()
         checkedRows = []
@@ -931,18 +946,34 @@ class MainControls(QMainWindow):
 
     def magc_set_section_state_in_table(self, msg):
         model = self.tableView_magc_sections.model()
-        section_number, state = msg.split('-')[1:]
-        if state == 'acquiring':
-            state_color = QColor(Qt.yellow)
-        elif state == 'acquired':
-            state_color = QColor(Qt.green)
-        else:
-            state_color = QColor(Qt.lightGray)
-        item = model.item(int(section_number), 1)
-        item.setBackground(state_color)
-        index = model.index(int(section_number), 1)
-        self.tableView_magc_sections.scrollTo(index,
-            QAbstractItemView.PositionAtCenter)
+        section_number = int(msg.split('-')[-2])
+        state = msg.split('-')[-1]
+        index = model.index(section_number, 1)
+        if 'acquir' in state:
+            if state == 'acquiring':
+                state_color = QColor(Qt.yellow)
+            elif state == 'acquired':
+                state_color = QColor(Qt.green)
+            else:
+                state_color = QColor(Qt.lightGray)
+            item = model.item(section_number, 1)
+            item.setBackground(state_color)
+            self.tableView_magc_sections.scrollTo(
+                index,
+                QAbstractItemView.PositionAtCenter)
+        if state == 'select':
+            self.magc_select_rows([section_number])
+            self.tableView_magc_sections.scrollTo(
+                index,
+                QAbstractItemView.PositionAtCenter)
+        if state == 'toggle':
+            self.magc_toggle_selection(section_number)
+            if section_number in self.gm.magc_selected_sections:
+                self.tableView_magc_sections.scrollTo(
+                    index,
+                    QAbstractItemView.PositionAtCenter)
+        if state == 'deselectall':
+            self.magc_deselect_all()
 
     def magc_reset(self):
         model = self.tableView_magc_sections.model()
@@ -1373,7 +1404,7 @@ class MainControls(QMainWindow):
             self.pushButton_magc_waferCalibration.setEnabled(False)
         elif msg == 'MAGC ENABLE WAFER IMAGE IMPORT':
             self.pushButton_magc_importWaferImage.setEnabled(True)
-        elif 'SET SECTION STATE' in msg:
+        elif 'MAGC SET SECTION STATE' in msg:
             self.magc_set_section_state_in_table(msg)
         elif msg == 'REFRESH OV':
             self.acquire_ov()

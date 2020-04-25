@@ -1444,7 +1444,8 @@ class Acquisition:
                 grid_centre_d = self.gm[grid_index].centre_dx_dy
                 self.cs.set_vp_centre_d(grid_centre_d)
                 self.main_controls_trigger.transmit('DRAW VP')
-                self.main_controls_trigger.transmit('SET SECTION STATE GUI-'
+                self.main_controls_trigger.transmit(
+                    'MAGC SET SECTION STATE GUI-'
                     + str(grid_index)
                     + '-acquiring')
 
@@ -1628,7 +1629,7 @@ class Acquisition:
                     self.cs.set_vp_centre_d(grid_centre_d)
                     self.main_controls_trigger.transmit('DRAW VP')
                     self.main_controls_trigger.transmit(
-                        'SET SECTION STATE GUI-'
+                        'MAGC SET SECTION STATE GUI-'
                         + str(grid_index)
                         + '-acquired')
 

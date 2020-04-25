@@ -307,6 +307,12 @@ class Viewport(QWidget):
         mouse_pos_within_plot_area = (
             px in range(445, 940) and py in range(22, 850))
 
+        # --- MagC --- #
+        self.control_down_at_mouse_press = (
+            QApplication.keyboardModifiers() == Qt.ControlModifier)
+        # keep in memory the origin when button pressed
+        self.drag_origin_at_press_event = px, py
+        #--------------#
         if ((event.button() == Qt.LeftButton)
             and (self.tabWidget.currentIndex() < 2)
             and mouse_pos_within_viewer):
@@ -531,9 +537,7 @@ class Viewport(QWidget):
             self.doubleclick_registered = False
 
         elif (event.button() == Qt.LeftButton):
-            self.fov_drag_active = False
             if self.grid_drag_active:
-                self.grid_drag_active = False
                 user_reply = QMessageBox.question(
                     self, 'Repositioning grid',
                     'You have moved the selected grid. Please '
@@ -545,17 +549,16 @@ class Viewport(QWidget):
                         self.stage_pos_backup)
                 else:
                     self.ovm.update_all_debris_detections_areas(self.gm)
-                    # ------ MagC code ------
+                    # ------ MagC ------#
                     if self.sem.magc_mode:
                         # in magc_mode, save the new grid location back
                         # to the source magc sections
                         self.gm.update_source_ROIs_from_grids()
                         # deactivate roi_mode because grid manually moved
                         self.gm.magc_roi_mode = False
-                    # ------ End of MagC code ------
+                    #------------------------#
 
             if self.ov_drag_active:
-                self.ov_drag_active = False
                 user_reply = QMessageBox.question(
                     self, 'Repositioning overview',
                     'You have moved the selected overview. Please '
@@ -571,10 +574,8 @@ class Viewport(QWidget):
                     self.ovm.update_all_debris_detections_areas(self.gm)
 
             if self.tile_paint_mode_active:
-                self.tile_paint_mode_active = False
                 self.vp_update_after_active_tile_selection()
             if self.imported_img_drag_active:
-                self.imported_img_drag_active = False
                 user_reply = QMessageBox.question(
                     self, 'Repositioning imported image',
                     'You have moved the selected imported image. Please '
@@ -584,6 +585,41 @@ class Viewport(QWidget):
                     # Restore centre coordinates
                     self.imported[self.selected_imported].centre_sx_sy = (
                         self.stage_pos_backup)
+
+            if self.gm.magc_mode:
+                # checking whether no other action than
+                # simple section click was performed
+                if not any([
+                    self.grid_drag_active,
+                    self.ov_drag_active,
+                    self.tile_paint_mode_active,
+                    self.imported_img_drag_active]):
+                    p = event.pos()
+                    px = p.x() - utils.VP_MARGIN_X
+                    py = p.y() - utils.VP_MARGIN_Y
+                    if self.drag_origin_at_press_event == (px, py):
+                        if self.control_down_at_mouse_press:
+                            if self.selected_grid is not None:
+                                self.main_controls_trigger.transmit(
+                                    'MAGC SET SECTION STATE-'
+                                    + str(self.selected_grid)
+                                    + '-toggle')
+                            else:
+                                self.main_controls_trigger.transmit(
+                                    'MAGC SET SECTION STATE-99999-deselectall')
+                        else:
+                            if self.selected_grid is not None:
+                                self.main_controls_trigger.transmit(
+                                    'MAGC SET SECTION STATE-'
+                                    + str(self.selected_grid)
+                                    + '-select')
+
+            self.fov_drag_active = False
+            self.grid_drag_active = False
+            self.ov_drag_active = False
+            self.tile_paint_mode_active = False
+            self.imported_img_drag_active = False
+
             # Update viewport
             self.vp_draw()
             self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS')
