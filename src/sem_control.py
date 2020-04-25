@@ -831,6 +831,16 @@ class SEM_SmartSEM(SEM):
             sleep(self.stage_move_check_interval)
         sleep(self.stage_move_wait_interval)
 
+    def move_stage_to_xyztr(self, x, y, z, t, r):
+        """Move stage to coordinates x and y, z (in microns), tilt and rotation angles t, r (in degrees)."""
+        x /= 10**6   # convert to metres
+        y /= 10**6
+        z /= 10**6
+        self.sem_api.MoveStage(x, y, z, t, r, 0)
+        while self.sem_api.Get('DP_STAGE_IS')[1] == 'Busy':
+            sleep(self.stage_move_check_interval)
+        sleep(self.stage_move_wait_interval)
+
     def show_about_box(self):
         """Display the SmartSEM Remote API About Dialog Box."""
         self.sem_api.AboutBox()

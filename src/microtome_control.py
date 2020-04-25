@@ -87,6 +87,14 @@ class BFRemover(ABC):
         """
         pass
 
+    @abstractmethod
+    def move_stage_to_xy(self, coordinates):
+        """Move stage to coordinates X/Y. This function is called during
+           acquisitions. It includes waiting times. The other move functions
+           below do not.
+        """
+        raise NotImplementedError
+
     def reset_error_state(self):
         self.error_state = 0
         self.error_info = ''
@@ -102,8 +110,7 @@ class BFRemover(ABC):
         # only used for testing
         raise NotImplementedError
 
-    def get_stage_xy(self, wait_interval=0.25):
-        """Get current XY coordinates from DM"""
+    def get_stage_xy(self):
         raise NotImplementedError
 
     def get_stage_x(self):
@@ -116,13 +123,6 @@ class BFRemover(ABC):
         x, y = self.get_stage_xy()
         z = self.get_stage_z()
         return x, y, z
-
-    def move_stage_to_xy(self, coordinates):
-        """Move stage to coordinates X/Y. This function is called during
-           acquisitions. It includes waiting times. The other move functions
-           below do not.
-        """
-        raise NotImplementedError
 
     def get_stage_z(self, wait_interval=0.5):
         """Get current Z coordinate from DM"""
@@ -994,7 +994,7 @@ class GCIB(BFRemover):
     Requires stage hook.
     Todo:
         * use consistent error states.
-        * add tilt_abs and rotate_deg_delta to stage
+        * remove redundant interface to SEMstage
     """
 
     def __init__(self, config: dict, sysconfig: dict, stage):
@@ -1050,7 +1050,7 @@ class GCIB(BFRemover):
         try:
             self._ftdi_device.open(serial=self._ftdi_serial)
             self._ftdi_device.set_mask(1)
-            self._ftdi_device.set_bit(1)  # 1 = blanking?
+            self._blank_beam()  # 1 = blanking?
         except ftdidio.FtdidioError as e:
             self.error_state = 42
             self.error_info = str(e)
@@ -1060,7 +1060,7 @@ class GCIB(BFRemover):
         TODO: This will also disable blanking!
         """
         try:
-            self._ftdi_device.clear_bit(1)
+            self._unblank_beam()
             self._ftdi_device.close()
         except ftdidio.FtdidioError as e:
             self.error_state = 42
@@ -1078,16 +1078,20 @@ class GCIB(BFRemover):
         self.cfg['gcib']['ftdi_serial'] = str(self._ftdi_serial)
         self.cfg['gcib']['xyzt_milling'] = str(self.xyzt_milling.tolist())
         self.cfg['gcib']['mill_cycle'] = str(self._mill_cycle)
+        self.stage.save_to_cfg()
 
     def do_full_cut(self):
         return self.do_full_removal()
 
-    def do_full_removal(self):
+    def do_full_removal(self, mill_duration=None):
         """Perform a full milling cycle. This is the only removal function
            used during stack acquisitions.
         """
+        if mill_duration is None:
+            mill_duration = self._mill_cycle
         # move_to_xyzt will set rotation to self.stage.rotation, no need to store r explicitly
-        x, y, z, t, _ = self.stage.get_stage_xyztr()
+        x, y, z, t, r = self.stage.get_stage_xyztr()
+        print(f'GCIB: start/end position for milling cycle X={x}, Y={y}, Z={z}, T={t}, R={r}.')
         # This is pure safety measure - this would be possible
         if not np.isclose(t, 0):
             self.error_info = 'UnsafeMovementError: Current tilt angle is not close to 0. As a safety measure, ' \
@@ -1110,75 +1114,77 @@ class GCIB(BFRemover):
             return
         # move stage to target z first! all motors run at the same time!
         self.stage.move_stage_to_z(z_mill)
-        self.stage.move_stage_to_xyzt(x_mill, y_mill, z_mill, t_mill)
-        self._unblank_beam()
+        self.stage.move_stage_to_xyztr(x_mill, y_mill, z_mill, t_mill, 120)
+        if mill_duration > 0:
+            self._unblank_beam()
         # Hayworth et al, 2019, Nat. Methods: Three evenly spaced azimuthal
         # directions for 360 deg and 360 s per mill cycle
-        # TODO: decide whether a continuous rotation scheme would be beneficial
-        for ii in range(3):
+        # TODO: decide whether a continuous rotation scheme would be beneficial; then also remove rotation above
+        for ii in range(2):
+            sleep(mill_duration / 3)  # this will wait 120s at 120° (was rotated above, at the same time with the other axes)
             self.stage.move_stage_delta_r(120)
-            sleep(120)
-        self._blank_beam()
+        sleep(mill_duration / 3)  # mill at 0°
+        if mill_duration > 0:
+            self._blank_beam()
         # monitor current rotation angle for now
         _, _, _, _, r = self.stage.get_stage_xyztr()
-        if not np.isclose(r, 0, atol=1e-4):
+        if not np.isclose(r, self.stage.stage_rotation, atol=1e-4):
             self.error_state = 45
             self.error_info = (f'IncosistentMoveError: Current r position is supposed to be close to 0,'
                                f'instead got: {r} != 0.')
             return
         # move stage to initial position, first tilt to 0 degree
         self.stage.move_stage_to_xyzt(x_mill, y_mill, z_mill, t)
+        _, _, _, t, _ = self.stage.get_stage_xyztr()
+        if not np.isclose(t, 0, atol=1e-4):
+            self.error_state = 45
+            self.error_info = (f'IncosistentMoveError: Current t position is supposed to be close to 0,'
+                               f'instead got: {t} != 0.')
+            return
         self.stage.move_stage_to_xyzt(x, y, z, t)
+        print(f'GCIB: start/end position for milling cycle X={x}, Y={y}, Z={z}, T={t}, R={r}.')
 
     def test_set_reset_mill_position(self):
-        # move_to_xyzt will set rotation to self.stage.rotation, no need to store r explicitly
-        x, y, z, t, _ = self.stage.get_stage_xyztr()
-        # This is pure safety measure - this would be possible
-        if not np.isclose(t, 0):
-            self.error_info = 'UnsafeMovementError: Current tilt angle is not close to 0. As a safety measure, ' \
-                              'this is currently not supported.'
-            self.error_state = 45
-            return
-        if np.all(self.xyzt_milling == 0):
-            self.error_info = 'NotInitializedError: Location parameters for milling have not been set.'
-            self.error_state = 44
-            return
-        x_mill, y_mill, z_mill, t_mill = self.xyzt_milling
-        if z < z_mill:
-            self.error_state = 45
-            self.error_info = (f'UnsafeMovementError: Current z position is smaller than the '
-                               f'one given as milling location: {z} < {z_mill}.')
-            return
-
-        if self.simulation_mode:
-            time.sleep(self.full_cut_duration)
-        # move stage to target z first! all motors run at the same time!
-        self.stage.move_stage_to_z(z_mill)
-        self.stage.move_stage_to_xyzt(x_mill, y_mill, z_mill, t_mill)
-        self._unblank_beam()
-        # Hayworth et al, 2019, Nat. Methods: Three evenly spaced azimuthal
-        # directions for 360 deg and 360 s per mill cycle
-        # TODO: decide whether a continuous rotation scheme would be beneficial
-        for ii in range(3):
-            self.stage.move_stage_delta_r(120)
-            sleep(2)
-        self._blank_beam()
-        # monitor current rotation angle for now
-        _, _, _, _, r = self.stage.get_stage_xyztr()
-        if not np.isclose(r, 0, atol=1e-4):
-            self.error_state = 45
-            self.error_info = (f'IncosistentMoveError: Current r position is supposed to be close to 0,'
-                               f'instead got: {r} != 0.')
-            return
-        # move stage to initial position, first tilt to 0 degree
-        self.stage.move_stage_to_xyzt(x_mill, y_mill, z_mill, t)
-        self.stage.move_stage_to_xyzt(x, y, z, t)
+        # no milling
+        return self.do_full_removal(mill_duration=0)
 
     def move_stage_to_z(self, z):
         return self.stage.move_stage_to_z(z)
 
+    def move_stage_to_xy(self, coordinates):
+        return self.stage.move_stage_to_xy(coordinates)
+
+    def get_stage_x(self):
+        return self.stage.get_stage_x()
+
+    def get_stage_y(self):
+        return self.stage.get_stage_y()
+
+    def get_stage_xy(self):
+        return self.stage.get_stage_xy()
+
+    def get_stage_xyz(self):
+        return self.stage.get_stage_xyz()
+
+    @property
+    def last_known_y(self):
+        return self.stage.last_known_xy[1]
+
+    @property
+    def last_known_x(self):
+        return self.stage.last_known_xy[0]
+
+    @property
+    def last_known_z(self):
+        return self.stage.last_known_z
+
     def check_for_cut_cycle_error(self):
-        return
+        """
+
+        Returns: If cut time exceed return True.
+
+        """
+        return False
 
     def do_sweep(self, z_position):
         return

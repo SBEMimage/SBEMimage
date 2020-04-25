@@ -64,7 +64,8 @@ from main_controls_dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                                       StageCalibrationDlg, MagCalibrationDlg, \
                                       GrabFrameDlg, FTSetParamsDlg, FTMoveDlg, \
                                       AskUserDlg, UpdateDlg, CutDurationDlg, \
-                                      KatanaSettingsDlg, AboutBox, MotorTestDlg
+                                      KatanaSettingsDlg, AboutBox, MotorTestDlg, \
+                                      GCIBSettingsDlg
 
 from magc_dlg_windows import ImportMagCDlg, ImportWaferImageDlg, \
                           WaferCalibrationDlg
@@ -1095,6 +1096,9 @@ class MainControls(QMainWindow):
                     self.viewport.vp_draw()
             elif self.microtome.device_name == 'ConnectomX katana':
                 dialog = KatanaSettingsDlg(self.microtome)
+                dialog.exec_()
+            elif self.microtome.device_name == 'GCIB':
+                dialog = GCIBSettingsDlg(self.microtome)
                 dialog.exec_()
         else:
             self.add_to_log('No microtome-related functions are available'

@@ -32,11 +32,6 @@ class Stage:
             self._stage = sem
             self.use_microtome_xy = False
             self.use_microtome_z = True
-        elif use_microtome and microtome.device_name == 'GCIB':
-            # Use SEM stage for X, Y control, and microtome for Z control
-            self._stage = sem
-            self.use_microtome_xy = False
-            self.use_microtome_z = False
         else:
             # Use SEM stage for X, Y, Z control
             self._stage = sem
