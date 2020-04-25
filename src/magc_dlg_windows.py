@@ -173,6 +173,7 @@ class ImportMagCDlg(QDialog):
             self.gm.add_new_grid([0, 0])
         for idx, section in sections.items():
             if str(idx).isdigit(): # to exclude tissueROI and landmarks
+                self.gm[idx].auto_update_tile_positions = False
                 self.gm[idx].size = [
                     self.spinBox_rows.value(),
                     self.spinBox_cols.value()]
@@ -182,10 +183,10 @@ class ImportMagCDlg(QDialog):
                 self.gm[idx].overlap = tile_overlap
                 self.gm[idx].activate_all_tiles()
                 self.gm[idx].rotation = (180 - float(section['angle'])) % 360
-                # Update tile positions after setting rotation angle
-                self.gm[idx].update_tile_positions()
-                # Setting new centre_sx_sy automatically updates tile positions
                 self.gm[idx].centre_sx_sy = list(map(float, section['center']))
+                # Update tile positions after initializing all grid attributes
+                self.gm[idx].update_tile_positions()
+                self.gm[idx].auto_update_tile_positions = True
 
                 # populate the section_table
                 item1 = QStandardItem(str(idx))
