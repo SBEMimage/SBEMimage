@@ -535,8 +535,9 @@ class MainControls(QMainWindow):
             self.pushButton_testZeissAPIVersion.setEnabled(False)
 
             self.pushButton_msem_transferToZen.setEnabled(False)
+            self.gm[0].size = [1,1]
         #----------------------#
-            
+
     def activate_magc_mode(self, tabIndex):
         if tabIndex != 3:
             return
@@ -977,6 +978,7 @@ class MainControls(QMainWindow):
         self.gm.magc_checked_sections = []
         self.gm.delete_all_grids_above_index(0)
         self.gm[0].magc_delete_autofocus_points()
+        self.gm[0].magc_delete_polyroi()
         self.viewport.update_grids()
         # unenable wafer image import
         self.pushButton_magc_importWaferImage.setEnabled(False)
@@ -988,7 +990,7 @@ class MainControls(QMainWindow):
         (self.pushButton_magc_waferCalibration
             .setStyleSheet('background-color: green'))
         self.pushButton_msem_transferToZen.setEnabled(True)
-        
+
     def magc_trigger_wafer_uncalibrated(self):
         # unenable wafer calibration button
         self.pushButton_magc_waferCalibration.setEnabled(False)

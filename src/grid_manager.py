@@ -24,6 +24,7 @@ import os
 import json
 import yaml
 import copy
+import itertools
 
 import numpy as np
 from statistics import mean
@@ -147,29 +148,87 @@ class Grid:
         # self.__tiles
         self.wd_gradient_ref_tiles = wd_gradient_ref_tiles
         self.wd_gradient_params = wd_gradient_params
+        #----- MagC variables -----#
         # used in MagC: these autofocus locations are defined relative to the
         # center of the non-rotated grid. Use setter and getter
         self.magc_autofocus_points_source = []
+        self.magc_polyroi_points_source = []
+
+        #--------------------------#
+
+    @property
+    def magc_polyroi_points(self):
+        """The vertices of the ROI polygon"""
+        return self.magc_convert_to_current_grid(
+            self.magc_polyroi_points_source)
+
+    def magc_add_polyroi_point(self, input_poly_point):
+        """Add point only if it creates a convex polygon """
+        transformed_poly_point = self.magc_convert_to_source(
+            [input_poly_point])[0]
+
+        if len(self.magc_polyroi_points_source) < 3:
+            self.magc_polyroi_points_source.append(
+                transformed_poly_point)
+            return
+        else:
+            for i in range(len(self.magc_polyroi_points_source) + 1):
+                # rotate polygon
+                self.magc_polyroi_points_source = (
+                    self.magc_polyroi_points_source[1:]
+                    + self.magc_polyroi_points_source[:1])
+                # insert new point
+                self.magc_polyroi_points_source.append(
+                    transformed_poly_point)
+
+                if utils.is_convex_polygon(
+                    self.magc_polyroi_points_source):
+                    return
+                else:
+                    del self.magc_polyroi_points_source[-1]
+
+    def magc_delete_last_polyroi_point(self):
+        if self.magc_polyroi_points_source != []:
+            del self.magc_polyroi_points_source[-1]
+
+    def magc_delete_polyroi(self):
+        self.magc_polyroi_points_source = []
 
     @property
     def magc_autofocus_points(self):
         """The magc_autofocus_points_source are in non-rotated grid coordinates
         without wafer transform.
         This getter calculates the af_points according to current
-        grid location and rotation"""
+        grid location and rotation in stage coordinates"""
 
         return self.magc_convert_to_current_grid(
             self.magc_autofocus_points_source)
+
+    def magc_add_autofocus_point(self, input_af_point):
+        """input_af_point is in stage coordinates of
+        the translated, rotated grid.
+        This function takes care of transforming the input af_point to
+        the coordinates relative to a non-translated, non-rotated grid
+        in source pixel coordinates (LM wafer image)"""
+
+        transformed_af_point = self.magc_convert_to_source(
+            [input_af_point])[0]
+
+        self.magc_autofocus_points_source.append(
+            transformed_af_point)
+
+    def magc_delete_last_autofocus_point(self):
+        if self.magc_autofocus_points_source != []:
+            del self.magc_autofocus_points_source[-1]
+
+    def magc_delete_autofocus_points(self):
+        self.magc_autofocus_points_source = []
 
     def magc_convert_to_current_grid(self, input_points):
         if input_points == []:
             return []
 
         transformed_points = []
-
-        # if single point given
-        if type(input_points[0]) != list:
-            input_points = [input_points]
 
         grid_center_c = np.dot(self.centre_sx_sy, [1,1j])
         for point in input_points:
@@ -189,9 +248,9 @@ class Grid:
                     [transformed_point[0]],
                     [transformed_point[1]],
                     self.magc_wafer_transform)
-                transformed_point = [
+                transformed_point = (
                     transformed_point_x[0],
-                    transformed_point_y[0]]
+                    transformed_point_y[0])
 
             transformed_points.append(
                 transformed_point)
@@ -200,10 +259,6 @@ class Grid:
 
     def magc_convert_to_source(self, input_points):
         transformed_points = []
-
-        # if single point given
-        if type(input_points[0]) != list:
-            input_points = [input_points]
 
         # _c indicates complex number
         grid_center_c = np.dot(
@@ -219,7 +274,7 @@ class Grid:
                 [input_point[1] for input_point in input_points],
                 utils.invertAffineT(self.magc_wafer_transform))
             input_points = [
-                [transformed_point_x, transformed_point_y]
+                (transformed_point_x, transformed_point_y)
                 for transformed_point_x, transformed_point_y
                 in zip(transformed_points_x, transformed_points_y)]
 
@@ -238,25 +293,6 @@ class Grid:
 
             transformed_points.append(transformed_point)
         return transformed_points
-
-    def magc_add_autofocus_point(self, input_af_point):
-        """input_af_point is in stage coordinates of
-        the translated, rotated grid.
-        This function takes care of transforming the input af_point to
-        the coordinates relative to a non-translated, non-rotated grid
-        in source pixel coordinates (LM wafer image)"""
-
-        transformed_af_point = self.magc_convert_to_source(
-            input_af_point)
-        self.magc_autofocus_points_source.append(
-            transformed_af_point)
-
-    def magc_delete_last_autofocus_point(self):
-        if self.magc_autofocus_points_source != []:
-            del self.magc_autofocus_points_source[-1]
-
-    def magc_delete_autofocus_points(self):
-        self.magc_autofocus_points_source = []
 
     def __getitem__(self, tile_index):
         """Return the Tile object selected by tile_index."""
@@ -1241,6 +1277,8 @@ class GridManager:
         self.__grids[t].autofocus_ref_tiles = self.__grids[s].autofocus_ref_tiles
         self.__grids[t].magc_autofocus_points_source = copy.deepcopy(
             self.__grids[s].magc_autofocus_points_source)
+        self.__grids[t].magc_polyroi_points_source = copy.deepcopy(
+            self.__grids[s].magc_polyroi_points_source)
         # xxx self.set_adaptive_focus_enabled(t, self.get_adaptive_focus_enabled(s))
         # xxx self.set_adaptive_focus_tiles(t, self.get_adaptive_focus_tiles(s))
         # xxx self.set_adaptive_focus_gradient(t, self.get_adaptive_focus_gradient(s))

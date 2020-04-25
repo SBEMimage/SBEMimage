@@ -178,6 +178,7 @@ class ImportMagCDlg(QDialog):
 
         self.gm.delete_all_grids_above_index(0)
         self.gm[0].magc_delete_autofocus_points()
+        self.gm[0].magc_delete_polyroi()
         for s in range(n_sections-1):
             self.gm.add_new_grid([0, 0])
         for idx, section in sections.items():

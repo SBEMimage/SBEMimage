@@ -926,49 +926,71 @@ class Viewport(QWidget):
                 self._closest_grid_number = self._vp_get_closest_grid_id(
                     self.selected_stage_pos)
 
-            if (self.sem.magc_mode
-                and self.selected_grid is not None):
+                if self.selected_grid is not None:
 
-                # propagate to all sections
-                action_propagateToAll = menu.addAction(
-                    'MagC | Propagate properties of grid '
-                    + str(self.selected_grid)
-                    + ' to all sections')
-                action_propagateToAll.triggered.connect(
-                    self.vp_propagate_grid_properties_to_all_sections)
+                    # propagate to all sections
+                    action_propagateToAll = menu.addAction(
+                        'MagC | Propagate properties of grid '
+                        + str(self.selected_grid)
+                        + ' to all sections')
+                    action_propagateToAll.triggered.connect(
+                        self.vp_propagate_grid_properties_to_all_sections)
 
-                # propagate to selected sections
-                action_propagateToSelected = menu.addAction(
-                    'MagC | Propagate properties of grid '
-                    + str(self.selected_grid)
-                    + ' to selected sections')
-                action_propagateToSelected.triggered.connect(
-                    self.vp_propagate_grid_properties_to_selected_sections)
+                    # propagate to selected sections
+                    action_propagateToSelected = menu.addAction(
+                        'MagC | Propagate properties of grid '
+                        + str(self.selected_grid)
+                        + ' to selected sections')
+                    action_propagateToSelected.triggered.connect(
+                        self.vp_propagate_grid_properties_to_selected_sections)
 
-                # revert location to file-defined location
-                action_revertLocation = menu.addAction(
-                    'MagC | Revert location of grid  '
-                    + str(self.selected_grid)
-                    + ' to original file-defined location')
-                action_revertLocation.triggered.connect(
-                    self.vp_revert_grid_location_to_file)
+                    # revert location to file-defined location
+                    action_revertLocation = menu.addAction(
+                        'MagC | Revert location of grid  '
+                        + str(self.selected_grid)
+                        + ' to original file-defined location')
+                    action_revertLocation.triggered.connect(
+                        self.vp_revert_grid_location_to_file)
 
-            if (self.sem.magc_mode
-                and (self.gm[self._closest_grid_number]
-                    .magc_autofocus_points) != []):
-                action_removeAutofocusPoint = menu.addAction(
-                    'MagC | Remove last autofocus point to grid '
-                    + str(self._closest_grid_number))
-                action_removeAutofocusPoint.triggered.connect(
-                    self.vp_remove_autofocus_point)
+                if (self.gm[self._closest_grid_number]
+                    .magc_autofocus_points) != []:
+                    action_removeAutofocusPoint = menu.addAction(
+                        'MagC | Remove last autofocus point of grid '
+                        + str(self._closest_grid_number))
+                    action_removeAutofocusPoint.triggered.connect(
+                        self.vp_remove_autofocus_point)
 
-            if self.sem.magc_mode:
+                    action_removeAllAutofocusPoint = menu.addAction(
+                        'MagC | Remove all autofocus points of grid '
+                        + str(self._closest_grid_number))
+                    action_removeAllAutofocusPoint.triggered.connect(
+                        self.vp_remove_all_autofocus_point)
+
                 action_addAutofocusPoint = menu.addAction(
                     'MagC | Add autofocus point to grid '
                     + str(self._closest_grid_number))
                 action_addAutofocusPoint.triggered.connect(
                     self.vp_add_autofocus_point)
 
+                if (self.gm[self._closest_grid_number]
+                    .magc_polyroi_points) != []:
+                    action_removePolyroiPoint = menu.addAction(
+                        'MagC | Remove last ROI point of grid '
+                        + str(self._closest_grid_number))
+                    action_removePolyroiPoint.triggered.connect(
+                        self.vp_remove_polyroi_point)
+
+                    action_removePolyroi = menu.addAction(
+                        'MagC | Remove ROI of grid '
+                        + str(self._closest_grid_number))
+                    action_removePolyroi.triggered.connect(
+                        self.vp_remove_polyroi)
+
+                action_addPolyroiPoint = menu.addAction(
+                    'MagC | Add &ROI point to grid '
+                    + str(self._closest_grid_number))
+                action_addPolyroiPoint.triggered.connect(
+                    self.vp_add_polyroi_point)
 
             # ----- End of MagC items -----
 
@@ -1019,6 +1041,27 @@ class Viewport(QWidget):
     def vp_remove_autofocus_point(self):
         (self.gm[self._closest_grid_number]
             .magc_delete_last_autofocus_point())
+        self.vp_draw()
+
+    def vp_remove_all_autofocus_point(self):
+        (self.gm[self._closest_grid_number]
+            .magc_delete_autofocus_points())
+        self.vp_draw()
+
+    def vp_add_polyroi_point(self):
+        (self.gm[self._closest_grid_number]
+            .magc_add_polyroi_point(
+                self.selected_stage_pos))
+        self.vp_draw()
+
+    def vp_remove_polyroi_point(self):
+        (self.gm[self._closest_grid_number]
+            .magc_delete_last_polyroi_point())
+        self.vp_draw()
+
+    def vp_remove_polyroi(self):
+        (self.gm[self._closest_grid_number]
+            .magc_delete_polyroi())
         self.vp_draw()
 
     def _vp_load_selected_in_ft(self):
@@ -1673,6 +1716,32 @@ class Viewport(QWidget):
                 autofocus_point_v[1]-diameter/2,
                 diameter,
                 diameter)
+        #-----------------------------------------#
+
+        # ---- Polygon ROI in MultiSEM mode ---- #
+        roi_point_brush = QBrush(QColor(Qt.green), Qt.SolidPattern)
+        self.vp_qp.setBrush(roi_point_brush)
+        self.vp_qp.setPen(grid_pen)
+
+        polyroi_number = len(self.gm[grid_index].magc_polyroi_points)
+        for id,polyroi_point in enumerate(
+            self.gm[grid_index].magc_polyroi_points):
+            polyroi_point_v = self.cs.convert_to_v(polyroi_point)
+            diameter = 2 * self.cs.vp_scale
+            self.vp_qp.drawEllipse(
+                polyroi_point_v[0]-diameter/2,
+                polyroi_point_v[1]-diameter/2,
+                diameter,
+                diameter)
+
+            next_polyroi_point_v = self.cs.convert_to_v(
+                self.gm[grid_index]
+                    .magc_polyroi_points[(id+1)%polyroi_number])
+            self.vp_qp.drawLine(
+                polyroi_point_v[0],
+                polyroi_point_v[1],
+                next_polyroi_point_v[0],
+                next_polyroi_point_v[1])
         #-----------------------------------------#
 
     def _vp_draw_stage_boundaries(self):
