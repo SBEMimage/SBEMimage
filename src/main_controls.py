@@ -64,7 +64,7 @@ from main_controls_dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                                       StageCalibrationDlg, MagCalibrationDlg, \
                                       GrabFrameDlg, FTSetParamsDlg, FTMoveDlg, \
                                       AskUserDlg, UpdateDlg, CutDurationDlg, \
-                                      KatanaSettingsDlg, AboutBox
+                                      KatanaSettingsDlg, AboutBox, MotorTestDlg
 
 from magc_dlg_windows import ImportMagCDlg, ImportWaferImageDlg, \
                           WaferCalibrationDlg

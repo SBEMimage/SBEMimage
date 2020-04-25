@@ -1125,7 +1125,9 @@ class GCIB(BFRemover):
             self.error_state = 45
             self.error_info = (f'IncosistentMoveError: Current r position is supposed to be close to 0,'
                                f'instead got: {r} != 0.')
-        # move stage to initial position
+            return
+        # move stage to initial position, first tilt to 0 degree
+        self.stage.move_stage_to_xyzt(x_mill, y_mill, z_mill, t)
         self.stage.move_stage_to_xyzt(x, y, z, t)
 
     def test_set_reset_mill_position(self):
@@ -1153,20 +1155,21 @@ class GCIB(BFRemover):
         # move stage to target z first! all motors run at the same time!
         self.stage.move_stage_to_z(z_mill)
         self.stage.move_stage_to_xyzt(x_mill, y_mill, z_mill, t_mill)
-        # self._unblank_beam()
+        self._unblank_beam()
         # Hayworth et al, 2019, Nat. Methods: Three evenly spaced azimuthal
         # directions for 360 deg and 360 s per mill cycle
         # TODO: decide whether a continuous rotation scheme would be beneficial
         for ii in range(3):
             self.stage.move_stage_delta_r(120)
             sleep(2)
-        # self._blank_beam()
+        self._blank_beam()
         # monitor current rotation angle for now
         _, _, _, _, r = self.stage.get_stage_xyztr()
         if not np.isclose(r, 0, atol=1e-4):
             self.error_state = 45
             self.error_info = (f'IncosistentMoveError: Current r position is supposed to be close to 0,'
                                f'instead got: {r} != 0.')
+            return
         # move stage to initial position, first tilt to 0 degree
         self.stage.move_stage_to_xyzt(x_mill, y_mill, z_mill, t)
         self.stage.move_stage_to_xyzt(x, y, z, t)
