@@ -87,6 +87,14 @@ class BFRemover(ABC):
         """
         pass
 
+    @abstractmethod
+    def move_stage_to_xy(self, coordinates):
+        """Move stage to coordinates X/Y. This function is called during
+           acquisitions. It includes waiting times. The other move functions
+           below do not.
+        """
+        raise NotImplementedError
+
     def reset_error_state(self):
         self.error_state = 0
         self.error_info = ''
@@ -116,13 +124,6 @@ class BFRemover(ABC):
         x, y = self.get_stage_xy()
         z = self.get_stage_z()
         return x, y, z
-
-    def move_stage_to_xy(self, coordinates):
-        """Move stage to coordinates X/Y. This function is called during
-           acquisitions. It includes waiting times. The other move functions
-           below do not.
-        """
-        raise NotImplementedError
 
     def get_stage_z(self, wait_interval=0.5):
         """Get current Z coordinate from DM"""
@@ -1086,6 +1087,8 @@ class GCIB(BFRemover):
         """Perform a full milling cycle. This is the only removal function
            used during stack acquisitions.
         """
+        sleep(1)
+        return
         # move_to_xyzt will set rotation to self.stage.rotation, no need to store r explicitly
         x, y, z, t, _ = self.stage.get_stage_xyztr()
         # This is pure safety measure - this would be possible
@@ -1117,7 +1120,7 @@ class GCIB(BFRemover):
         # TODO: decide whether a continuous rotation scheme would be beneficial
         for ii in range(3):
             self.stage.move_stage_delta_r(120)
-            sleep(120)
+            sleep(12)
         self._blank_beam()
         # monitor current rotation angle for now
         _, _, _, _, r = self.stage.get_stage_xyztr()
@@ -1128,6 +1131,12 @@ class GCIB(BFRemover):
             return
         # move stage to initial position, first tilt to 0 degree
         self.stage.move_stage_to_xyzt(x_mill, y_mill, z_mill, t)
+        _, _, _, t, _ = self.stage.get_stage_xyztr()
+        if not np.isclose(t, 0, atol=1e-4):
+            self.error_state = 45
+            self.error_info = (f'IncosistentMoveError: Current t position is supposed to be close to 0,'
+                               f'instead got: {t} != 0.')
+            return
         self.stage.move_stage_to_xyzt(x, y, z, t)
 
     def test_set_reset_mill_position(self):
@@ -1177,8 +1186,34 @@ class GCIB(BFRemover):
     def move_stage_to_z(self, z):
         return self.stage.move_stage_to_z(z)
 
+    def move_stage_to_xy(self, coordinates):
+        return self.stage.move_stage_to_xy(coordinates)
+
+    def get_stage_x(self):
+        return self.stage.get_stage_x()
+
+    def get_stage_y(self):
+        return self.stage.get_stage_y()
+
+    @property
+    def last_known_y(self):
+        return self.stage.last_known_xy[1]
+
+    @property
+    def last_known_x(self):
+        return self.stage.last_known_xy[0]
+
+    @property
+    def last_known_z(self):
+        return self.stage.last_known_z
+
     def check_for_cut_cycle_error(self):
-        return
+        """
+
+        Returns: If cut time exceed return True.
+
+        """
+        return False
 
     def do_sweep(self, z_position):
         return

@@ -982,6 +982,7 @@ class Acquisition:
             # Read new error_state
             self.error_state = self.microtome.error_state
 
+        start_cut = time()
         if self.error_state == 0:
             self.add_to_main_log('KNIFE: Cutting in progress ('
                                  + str(self.slice_thickness)
@@ -989,13 +990,19 @@ class Acquisition:
             # Do the full cut cycle (near, cut, retract, clear)
             self.microtome.do_full_cut()
             # Process tiles for heuristic autofocus during cut
+            # TODO: support threading for heuristic AF
             if self.heuristic_af_queue:
                 self.process_heuristic_af_queue()
                 # Apply all corrections to tiles
                 self.add_to_main_log('CTRL: Applying corrections to WD/STIG.')
                 self.autofocus.apply_heuristic_tile_corrections()
             else:
-                sleep(self.microtome.full_cut_duration)
+                # TODO: why is that? all microtomes already wait for completion during do_full_cut.
+                if not self.microtome.device_name == 'GCIB':
+                    sleep(self.microtome.full_cut_duration)
+                else:
+                    self.add_to_main_log(
+                        'GCIB: Omitting post-cut sleep.')
             duration_exceeded = self.microtome.check_for_cut_cycle_error()
             if duration_exceeded:
                 self.add_to_main_log(
@@ -1012,7 +1019,9 @@ class Acquisition:
             self.microtome.reset_error_state()
             self.pause_acquisition(1)
         else:
-            self.add_to_main_log('KNIFE: Cut completed.')
+
+            self.add_to_main_log(f'KNIFE: Cut completed after '
+                                 f'{(time()-start_cut)/60:.2f} min.')
             self.slice_counter += 1
             self.total_z_diff += self.slice_thickness/1000
         sleep(1)
