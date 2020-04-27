@@ -828,7 +828,7 @@ class MainControls(QMainWindow):
             id.row() for id
                 in self.tableView_magc_sections
                     .selectedIndexes()]
-        model = tableView.model()
+        model = self.tableView_magc_sections.model()
         rowsToSelect = set(range(model.rowCount())) - set(selectedRows)
         self.magc_select_rows(rowsToSelect)
 
@@ -892,7 +892,7 @@ class MainControls(QMainWindow):
                 QItemSelection(index, index),
                 QItemSelectionModel.Select)
         selectionModel.select(selection, QItemSelectionModel.Select)
-        self.tableView_magc_sections.setFocus()
+        tableView.setFocus()
 
     def magc_actions_selected_sections_changed(
         self, changedSelected, changedDeselected):
@@ -1038,8 +1038,7 @@ class MainControls(QMainWindow):
         item2.setBackground(color_not_acquired)
         item2.setCheckable(False)
         item2.setSelectable(False)
-        tableView = self.tableView_magc_sections
-        model = tableView.model()
+        model = self.tableView_magc_sections.model()
         model.appendRow([item1, item2])
 
     def magc_delete_last_section(self):
