@@ -1121,8 +1121,18 @@ class GridSettingsDlg(QDialog):
         else:
             error_msg = ('Overlap outside of allowed '
                          'range (-30% .. 30% frame width).')
-        self.gm[self.current_grid].rotation = (
-            self.doubleSpinBox_rotation.value())
+        if not self.magc_mode:
+            self.gm[self.current_grid].rotation = (
+                self.doubleSpinBox_rotation.value())
+        # in magc always rotate around center of grid
+        # (not around center of tile 0)
+        else:
+            # Get current centre of grid:
+            centre_dx, centre_dy = self.gm[self.current_grid].centre_dx_dy
+            # Set new angle
+            self.gm[self.current_grid].rotation = (
+                self.doubleSpinBox_rotation.value())
+            self.gm[self.current_grid].rotate_around_grid_centre(centre_dx, centre_dy)
         if 0 <= input_shift <= tile_width_p:
             self.gm[self.current_grid].row_shift = input_shift
         else:
