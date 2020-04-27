@@ -1143,13 +1143,13 @@ class GridSettingsDlg(QDialog):
             self.spinBox_acqInterval.value())
         self.gm[self.current_grid].acq_interval_offset = (
             self.spinBox_acqIntervalOffset.value())
+        # Finally, recalculate tile positions
+        self.gm[self.current_grid].update_tile_positions()
+        self.gm[self.current_grid].auto_update_tile_positions = True
         if self.magc_mode:
             self.gm[self.current_grid].centre_sx_sy = prev_grid_centre
             self.gm.update_source_ROIs_from_grids()
-        # Finally, recalculate tile positions
-        self.gm[self.current_grid].update_tile_positions()
         # Restore default behaviour for updating tile positions
-        self.gm[self.current_grid].auto_update_tile_positions = True
         if error_msg:
             QMessageBox.warning(self, 'Error', error_msg, QMessageBox.Ok)
         else:
