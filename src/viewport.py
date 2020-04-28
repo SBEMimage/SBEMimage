@@ -961,6 +961,8 @@ class Viewport(QWidget):
                 # get closest grid
                 self._closest_grid_number = self._vp_get_closest_grid_id(
                     self.selected_stage_pos)
+                if self.gm.magc_selected_sections != []:
+                    magc_selected_section = self.gm.magc_selected_sections[0]
 
             if (self.sem.magc_mode
                 and self.selected_grid is not None):
@@ -985,7 +987,8 @@ class Viewport(QWidget):
                 action_revertLocation = menu.addAction(
                     'MagC | Revert location of grid  '
                     + str(self.selected_grid)
-                    + ' to original file-defined location')
+                    + ' to original file-defined location'
+                    + ' | Shortcut &Z')
                 action_revertLocation.triggered.connect(
                     self.vp_revert_grid_location_to_file)
 
@@ -994,21 +997,34 @@ class Viewport(QWidget):
                     action_propagateToSelected.setEnabled(False)
                     action_revertLocation.setEnabled(False)
 
+            #---autofocus points---#
             if (self.sem.magc_mode
-                and (self.gm[self._closest_grid_number]
-                    .magc_autofocus_points) != []):
-                action_removeAutofocusPoint = menu.addAction(
-                    'MagC | Remove last autofocus point to grid '
-                    + str(self._closest_grid_number))
-                action_removeAutofocusPoint.triggered.connect(
-                    self.vp_remove_autofocus_point)
+                and len(self.gm.magc_selected_sections) == 1):
 
-            if self.sem.magc_mode:
+                if (self.gm[magc_selected_section]
+                    .magc_autofocus_points != []):
+
+                    action_removeAutofocusPoint = menu.addAction(
+                        'MagC | Remove last autofocus point of grid '
+                        + str(magc_selected_section)
+                        + ' | Shortcut &E')
+                    action_removeAutofocusPoint.triggered.connect(
+                        self.vp_remove_autofocus_point)
+
+                    action_removeAllAutofocusPoint = menu.addAction(
+                        'MagC | Remove all autofocus points of grid '
+                        + str(magc_selected_section)
+                        + ' | Shortcut &W')
+                    action_removeAllAutofocusPoint.triggered.connect(
+                        self.vp_remove_all_autofocus_point)
+
                 action_addAutofocusPoint = menu.addAction(
                     'MagC | Add autofocus point to grid '
-                    + str(self._closest_grid_number))
+                    + str(magc_selected_section)
+                    + ' | Shortcut &R')
                 action_addAutofocusPoint.triggered.connect(
                     self.vp_add_autofocus_point)
+            #----------------------#
 
 
             # ----- End of MagC items -----
@@ -1052,14 +1068,19 @@ class Viewport(QWidget):
         return closest_id
 
     def vp_add_autofocus_point(self):
-        (self.gm[self._closest_grid_number]
+        (self.gm[self.gm.magc_selected_sections[0]]
             .magc_add_autofocus_point(
                 self.selected_stage_pos))
         self.vp_draw()
 
     def vp_remove_autofocus_point(self):
-        (self.gm[self._closest_grid_number]
+        (self.gm[self.gm.magc_selected_sections[0]]
             .magc_delete_last_autofocus_point())
+        self.vp_draw()
+
+    def vp_remove_all_autofocus_point(self):
+        (self.gm[self.gm.magc_selected_sections[0]]
+            .magc_delete_autofocus_points())
         self.vp_draw()
 
     def _vp_load_selected_in_ft(self):
