@@ -962,71 +962,82 @@ class Viewport(QWidget):
                 self._closest_grid_number = self._vp_get_closest_grid_id(
                     self.selected_stage_pos)
 
-                if self.selected_grid is not None:
+            if (self.sem.magc_mode
+                and self.selected_grid is not None):
 
-                    # propagate to all sections
-                    action_propagateToAll = menu.addAction(
-                        'MagC | Propagate properties of grid '
-                        + str(self.selected_grid)
-                        + ' to all sections')
-                    action_propagateToAll.triggered.connect(
-                        self.vp_propagate_grid_properties_to_all_sections)
+                # propagate to all sections
+                action_propagateToAll = menu.addAction(
+                    'MagC | Propagate properties of grid '
+                    + str(self.selected_grid)
+                    + ' to all sections')
+                action_propagateToAll.triggered.connect(
+                    self.vp_propagate_grid_properties_to_all_sections)
 
-                    # propagate to selected sections
-                    action_propagateToSelected = menu.addAction(
-                        'MagC | Propagate properties of grid '
-                        + str(self.selected_grid)
-                        + ' to selected sections')
-                    action_propagateToSelected.triggered.connect(
-                        self.vp_propagate_grid_properties_to_selected_sections)
+                # propagate to selected sections
+                action_propagateToSelected = menu.addAction(
+                    'MagC | Propagate properties of grid '
+                    + str(self.selected_grid)
+                    + ' to selected sections')
+                action_propagateToSelected.triggered.connect(
+                    self.vp_propagate_grid_properties_to_selected_sections)
 
-                    # revert location to file-defined location
-                    action_revertLocation = menu.addAction(
-                        'MagC | Revert location of grid  '
-                        + str(self.selected_grid)
-                        + ' to original file-defined location')
-                    action_revertLocation.triggered.connect(
-                        self.vp_revert_grid_location_to_file)
+                # revert location to file-defined location
+                action_revertLocation = menu.addAction(
+                    'MagC | Revert location of grid  '
+                    + str(self.selected_grid)
+                    + ' to original file-defined location')
+                action_revertLocation.triggered.connect(
+                    self.vp_revert_grid_location_to_file)
 
-                if (self.gm[self._closest_grid_number]
-                    .magc_autofocus_points) != []:
-                    action_removeAutofocusPoint = menu.addAction(
-                        'MagC | Remove last autofocus point of grid '
-                        + str(self._closest_grid_number))
-                    action_removeAutofocusPoint.triggered.connect(
-                        self.vp_remove_autofocus_point)
+                if self.gm.magc_sections_path == '':
+                    action_propagateToAll.setEnabled(False)
+                    action_propagateToSelected.setEnabled(False)
+                    action_revertLocation.setEnabled(False)
 
-                    action_removeAllAutofocusPoint = menu.addAction(
-                        'MagC | Remove all autofocus points of grid '
-                        + str(self._closest_grid_number))
-                    action_removeAllAutofocusPoint.triggered.connect(
-                        self.vp_remove_all_autofocus_point)
-
-                action_addAutofocusPoint = menu.addAction(
-                    'MagC | Add autofocus point to grid '
+            #---autofocus points---#
+            if (self.sem.magc_mode
+                and (self.gm[self._closest_grid_number]
+                    .magc_autofocus_points) != []):
+                action_removeAutofocusPoint = menu.addAction(
+                    'MagC | Remove last autofocus point of grid '
                     + str(self._closest_grid_number))
-                action_addAutofocusPoint.triggered.connect(
-                    self.vp_add_autofocus_point)
+                action_removeAutofocusPoint.triggered.connect(
+                    self.vp_remove_autofocus_point)
 
-                if (self.gm[self._closest_grid_number]
-                    .magc_polyroi_points) != []:
-                    action_removePolyroiPoint = menu.addAction(
-                        'MagC | Remove last ROI point of grid '
-                        + str(self._closest_grid_number))
-                    action_removePolyroiPoint.triggered.connect(
-                        self.vp_remove_polyroi_point)
-
-                    action_removePolyroi = menu.addAction(
-                        'MagC | Remove ROI of grid '
-                        + str(self._closest_grid_number))
-                    action_removePolyroi.triggered.connect(
-                        self.vp_remove_polyroi)
-
-                action_addPolyroiPoint = menu.addAction(
-                    'MagC | Add &ROI point to grid '
+                action_removeAllAutofocusPoint = menu.addAction(
+                    'MagC | Remove all autofocus points of grid '
                     + str(self._closest_grid_number))
-                action_addPolyroiPoint.triggered.connect(
-                    self.vp_add_polyroi_point)
+                action_removeAllAutofocusPoint.triggered.connect(
+                    self.vp_remove_all_autofocus_point)
+
+            action_addAutofocusPoint = menu.addAction(
+                'MagC | Add autofocus point to grid '
+                + str(self._closest_grid_number))
+            action_addAutofocusPoint.triggered.connect(
+                self.vp_add_autofocus_point)
+            #----------------------#
+
+            #---ROI---#
+            if (self.gm[self._closest_grid_number]
+                .magc_polyroi_points) != []:
+                action_removePolyroiPoint = menu.addAction(
+                    'MagC | Remove last ROI point of grid '
+                    + str(self._closest_grid_number))
+                action_removePolyroiPoint.triggered.connect(
+                    self.vp_remove_polyroi_point)
+
+                action_removePolyroi = menu.addAction(
+                    'MagC | Remove ROI of grid '
+                    + str(self._closest_grid_number))
+                action_removePolyroi.triggered.connect(
+                    self.vp_remove_polyroi)
+
+            action_addPolyroiPoint = menu.addAction(
+                'MagC | Add &ROI point to grid '
+                + str(self._closest_grid_number))
+            action_addPolyroiPoint.triggered.connect(
+                self.vp_add_polyroi_point)
+            #---------#
 
             # ----- End of MagC items -----
 
@@ -2449,24 +2460,25 @@ class Viewport(QWidget):
         clicked_section_number = self.selected_grid
         n_sections = self.gm.number_grids
 
-        # load original sections from file which might be different from
-        # the grids adjusted in SBEMImage
-        with open(self.gm.magc_sections_path, 'r') as f:
-            sections, landmarks = utils.sectionsYAML_to_sections_landmarks(
-            yaml.full_load(f))
-        for section in range(n_sections):
-            self.gm.propagate_source_grid_properties_to_target_grid(
-                clicked_section_number,
-                section,
-                sections)
+        if self.gm.magc_sections_path != '':
+            # load original sections from file which might be different from
+            # the grids adjusted in SBEMImage
+            with open(self.gm.magc_sections_path, 'r') as f:
+                sections, landmarks = utils.sectionsYAML_to_sections_landmarks(
+                yaml.full_load(f))
+            for section in range(n_sections):
+                self.gm.propagate_source_grid_properties_to_target_grid(
+                    clicked_section_number,
+                    section,
+                    sections)
 
-        self.gm.update_source_ROIs_from_grids()
+            self.gm.update_source_ROIs_from_grids()
 
-        self.vp_draw()
-        self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS') # update statistics in GUI
-        self.add_to_log('Properties of grid '
-            + str(clicked_section_number)
-            + ' have been propagated to all sections')
+            self.vp_draw()
+            self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS') # update statistics in GUI
+            self.add_to_log('Properties of grid '
+                + str(clicked_section_number)
+                + ' have been propagated to all sections')
 
     def vp_revert_grid_location_to_file(self):
         clicked_section_number = self.selected_grid
