@@ -1112,6 +1112,11 @@ class Viewport(QWidget):
             .magc_delete_autofocus_points())
         self.vp_draw()
 
+    def vp_remove_all_autofocus_point(self):
+        (self.gm[self.gm.magc_selected_sections[0]]
+            .magc_delete_autofocus_points())
+        self.vp_draw()
+
     def vp_add_polyroi_point(self):
         (self.gm[self.gm.magc_selected_sections[0]]
             .magc_add_polyroi_point(
