@@ -2075,20 +2075,31 @@ class Viewport(QWidget):
                 # Correction for top-left corner.
                 x += tile_width_p / 2 * pixel_size / 1000 * self.cs.vp_scale
                 y += tile_height_p / 2 * pixel_size / 1000 * self.cs.vp_scale
-            # Check if mouse click position is within current grid.
-            if x >= 0 and y >= 0:
-                j = y // tile_height_v
-                if j % 2 == 0:
-                    i = x // tile_width_v
-                elif x > shift_v:
-                    # Subtract shift for odd rows.
-                    i = (x - shift_v) // tile_width_v
-                else:
-                    i = cols
-                if (i < cols) and (j < rows):
-                    selected_tile = int(i + j * cols)
-                    selected_grid = grid_index
-                    break
+            if not 'multisem' in self.sem.device_name.lower():
+                # Check if mouse click position is within current grid.
+                if x >= 0 and y >= 0:
+                    j = y // tile_height_v
+                    if j % 2 == 0:
+                        i = x // tile_width_v
+                    elif x > shift_v:
+                        # Subtract shift for odd rows.
+                        i = (x - shift_v) // tile_width_v
+                    else:
+                        i = cols
+                    if (i < cols) and (j < rows):
+                        selected_tile = int(i + j * cols)
+                        selected_grid = grid_index
+                        break
+            else: # Check if mouse click position is within current ROI.
+                polyroi_s = self.gm[grid_index].magc_polyroi_points
+                if len(polyroi_s) > 2:
+                    polyroi_v = [
+                        self.cs.convert_to_v(point)
+                        for point in polyroi_s]
+                    if utils.is_point_inside_polygon((px, py), polyroi_v):
+                        selected_grid = grid_index
+                        break
+
             # Also check whether grid label clicked. This selects only the grid
             # and not a specific tile.
             f = int(self.cs.vp_scale * 8)

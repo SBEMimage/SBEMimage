@@ -23,6 +23,7 @@ from queue import Queue
 from serial.tools import list_ports
 
 from shapely.geometry import Polygon
+from shapely.geometry import Point
 
 from PyQt5.QtCore import QObject, pyqtSignal
 
@@ -515,5 +516,10 @@ def is_convex_polygon(polygon):
 def is_valid_polygon(polygon):
     p = Polygon(polygon)
     return p.is_valid
+
+def is_point_inside_polygon(point, polygon):
+    p = Polygon(polygon)
+    point = Point(point)
+    return p.contains(point)
 
 # -------------- End of MagC utils --------------
