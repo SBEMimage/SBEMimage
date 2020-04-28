@@ -179,6 +179,7 @@ class ImportMagCDlg(QDialog):
         self.gm.delete_all_grids_above_index(0)
         self.gm[0].magc_delete_autofocus_points()
         self.gm[0].magc_delete_polyroi()
+        self.gm[0].origin_sx_sy = [0,0]
         for s in range(n_sections-1):
             self.gm.add_new_grid([0, 0])
         for idx, section in sections.items():
@@ -193,10 +194,11 @@ class ImportMagCDlg(QDialog):
                 self.gm[idx].overlap = tile_overlap
                 self.gm[idx].activate_all_tiles()
                 self.gm[idx].rotation = (180 - float(section['angle'])) % 360
-                self.gm[idx].centre_sx_sy = list(map(float, section['center']))
                 # Update tile positions after initializing all grid attributes
                 self.gm[idx].update_tile_positions()
+                # centre must be finally set after updating tile positions
                 self.gm[idx].auto_update_tile_positions = True
+                self.gm[idx].centre_sx_sy = list(map(float, section['center']))
 
                 # populate the section_table
                 item1 = QStandardItem(str(idx))

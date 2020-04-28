@@ -1131,8 +1131,12 @@ class GridSettingsDlg(QDialog):
         else:
             error_msg = ('Overlap outside of allowed '
                          'range (-30% .. 30% frame width).')
+        # Get current centre of grid:
+        centre_dx, centre_dy = self.gm[self.current_grid].centre_dx_dy
+        # Set new angle
         self.gm[self.current_grid].rotation = (
             self.doubleSpinBox_rotation.value())
+        self.gm[self.current_grid].rotate_around_grid_centre(centre_dx, centre_dy)
         if 0 <= input_shift <= tile_width_p:
             self.gm[self.current_grid].row_shift = input_shift
         else:
@@ -1153,13 +1157,13 @@ class GridSettingsDlg(QDialog):
             self.spinBox_acqInterval.value())
         self.gm[self.current_grid].acq_interval_offset = (
             self.spinBox_acqIntervalOffset.value())
+        # Finally, recalculate tile positions
+        self.gm[self.current_grid].update_tile_positions()
+        self.gm[self.current_grid].auto_update_tile_positions = True
         if self.magc_mode:
             self.gm[self.current_grid].centre_sx_sy = prev_grid_centre
             self.gm.update_source_ROIs_from_grids()
-        # Finally, recalculate tile positions
-        self.gm[self.current_grid].update_tile_positions()
         # Restore default behaviour for updating tile positions
-        self.gm[self.current_grid].auto_update_tile_positions = True
         if error_msg:
             QMessageBox.warning(self, 'Error', error_msg, QMessageBox.Ok)
         else:
