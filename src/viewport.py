@@ -891,7 +891,8 @@ class Viewport(QWidget):
             menu.addSeparator()
             if self.selected_grid is not None:
                 action_openGridSettings = menu.addAction(
-                    f'Open settings of grid {self.selected_grid}')
+                    f'Open settings of grid {self.selected_grid}'
+                    f' | Shortcut &G')
             else:
                 action_openGridSettings = menu.addAction(
                     'Open settings of selected grid')
@@ -985,7 +986,8 @@ class Viewport(QWidget):
                 action_revertLocation = menu.addAction(
                     'MagC | Revert location of grid  '
                     + str(self.selected_grid)
-                    + ' to original file-defined location')
+                    + ' to original file-defined location'
+                    + ' | Shortcut &Z')
                 action_revertLocation.triggered.connect(
                     self.vp_revert_grid_location_to_file)
 
@@ -1000,19 +1002,24 @@ class Viewport(QWidget):
                     .magc_autofocus_points) != []):
                 action_removeAutofocusPoint = menu.addAction(
                     'MagC | Remove last autofocus point of grid '
-                    + str(self._closest_grid_number))
+                    + str(self._closest_grid_number)
+                    + ' | Shortcut &E')
+
                 action_removeAutofocusPoint.triggered.connect(
                     self.vp_remove_autofocus_point)
 
                 action_removeAllAutofocusPoint = menu.addAction(
                     'MagC | Remove all autofocus points of grid '
-                    + str(self._closest_grid_number))
+                    + str(self._closest_grid_number)
+                    + ' | Shortcut &W')
                 action_removeAllAutofocusPoint.triggered.connect(
                     self.vp_remove_all_autofocus_point)
 
             action_addAutofocusPoint = menu.addAction(
                 'MagC | Add autofocus point to grid '
-                + str(self._closest_grid_number))
+                + str(self._closest_grid_number)
+                + ' | Shortcut &R')
+
             action_addAutofocusPoint.triggered.connect(
                 self.vp_add_autofocus_point)
             #----------------------#
@@ -1022,19 +1029,22 @@ class Viewport(QWidget):
                 .magc_polyroi_points) != []:
                 action_removePolyroiPoint = menu.addAction(
                     'MagC | Remove last ROI point of grid '
-                    + str(self._closest_grid_number))
+                    + str(self._closest_grid_number)
+                    + ' | Shortcut &D')
                 action_removePolyroiPoint.triggered.connect(
                     self.vp_remove_polyroi_point)
 
                 action_removePolyroi = menu.addAction(
                     'MagC | Remove ROI of grid '
-                    + str(self._closest_grid_number))
+                    + str(self._closest_grid_number)
+                    + ' | Shortcut &S')
                 action_removePolyroi.triggered.connect(
                     self.vp_remove_polyroi)
 
             action_addPolyroiPoint = menu.addAction(
-                'MagC | Add &ROI point to grid '
-                + str(self._closest_grid_number))
+                'MagC | Add ROI point to grid '
+                + str(self._closest_grid_number)
+                + ' | Shortcut &F')
             action_addPolyroiPoint.triggered.connect(
                 self.vp_add_polyroi_point)
             #---------#

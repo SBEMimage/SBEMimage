@@ -15,3 +15,4 @@ imageio
 pyyaml
 psutil
 comtypes
+shapely

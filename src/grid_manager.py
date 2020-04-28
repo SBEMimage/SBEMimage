@@ -172,20 +172,29 @@ class Grid:
                 transformed_poly_point)
             return
         else:
-            for i in range(len(self.magc_polyroi_points_source) + 1):
-                # rotate polygon
-                self.magc_polyroi_points_source = (
-                    self.magc_polyroi_points_source[1:]
-                    + self.magc_polyroi_points_source[:1])
-                # insert new point
-                self.magc_polyroi_points_source.append(
-                    transformed_poly_point)
+            self.magc_polyroi_points_source.append(
+                transformed_poly_point)
+            # check polygon
+            if utils.is_valid_polygon(
+                self.magc_polyroi_points_source):
+                return
+            else:
+                del self.magc_polyroi_points_source[-1]
 
-                if utils.is_convex_polygon(
-                    self.magc_polyroi_points_source):
-                    return
-                else:
-                    del self.magc_polyroi_points_source[-1]
+            # # for i in range(len(self.magc_polyroi_points_source) + 1):
+                # # # insert new point
+                # # self.magc_polyroi_points_source.append(
+                    # # transformed_poly_point)
+                # # # check polygon
+                # # if utils.is_valid_polygon(
+                    # # self.magc_polyroi_points_source):
+                    # # return
+                # # else:
+                    # # del self.magc_polyroi_points_source[-1]
+                # # # rotate polygon and try again
+                # # self.magc_polyroi_points_source = (
+                    # # self.magc_polyroi_points_source[1:]
+                    # # + self.magc_polyroi_points_source[:1])
 
     def magc_delete_last_polyroi_point(self):
         if self.magc_polyroi_points_source != []:

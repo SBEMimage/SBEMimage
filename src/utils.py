@@ -22,6 +22,8 @@ from time import sleep
 from queue import Queue
 from serial.tools import list_ports
 
+from shapely.geometry import Polygon
+
 from PyQt5.QtCore import QObject, pyqtSignal
 
 # Size of the Viewport canvas. This is currently fixed and values other
@@ -509,5 +511,9 @@ def is_convex_polygon(polygon):
         return abs(round(angle_sum / (2 * math.pi) )) == 1
     except (ArithmeticError, TypeError, ValueError):
         return False  # any exception means not a proper convex polygon
+
+def is_valid_polygon(polygon):
+    p = Polygon(polygon)
+    return p.is_valid
 
 # -------------- End of MagC utils --------------
