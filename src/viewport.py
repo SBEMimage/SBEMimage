@@ -989,6 +989,11 @@ class Viewport(QWidget):
                 action_revertLocation.triggered.connect(
                     self.vp_revert_grid_location_to_file)
 
+                if self.gm.magc_sections_path == '':
+                    action_propagateToAll.setEnabled(False)
+                    action_propagateToSelected.setEnabled(False)
+                    action_revertLocation.setEnabled(False)
+
             if (self.sem.magc_mode
                 and (self.gm[self._closest_grid_number]
                     .magc_autofocus_points) != []):
@@ -2380,24 +2385,25 @@ class Viewport(QWidget):
         clicked_section_number = self.selected_grid
         n_sections = self.gm.number_grids
 
-        # load original sections from file which might be different from
-        # the grids adjusted in SBEMImage
-        with open(self.gm.magc_sections_path, 'r') as f:
-            sections, landmarks = utils.sectionsYAML_to_sections_landmarks(
-            yaml.full_load(f))
-        for section in range(n_sections):
-            self.gm.propagate_source_grid_properties_to_target_grid(
-                clicked_section_number,
-                section,
-                sections)
+        if self.gm.magc_sections_path != '':
+            # load original sections from file which might be different from
+            # the grids adjusted in SBEMImage
+            with open(self.gm.magc_sections_path, 'r') as f:
+                sections, landmarks = utils.sectionsYAML_to_sections_landmarks(
+                yaml.full_load(f))
+            for section in range(n_sections):
+                self.gm.propagate_source_grid_properties_to_target_grid(
+                    clicked_section_number,
+                    section,
+                    sections)
 
-        self.gm.update_source_ROIs_from_grids()
+            self.gm.update_source_ROIs_from_grids()
 
-        self.vp_draw()
-        self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS') # update statistics in GUI
-        self.add_to_log('Properties of grid '
-            + str(clicked_section_number)
-            + ' have been propagated to all sections')
+            self.vp_draw()
+            self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS') # update statistics in GUI
+            self.add_to_log('Properties of grid '
+                + str(clicked_section_number)
+                + ' have been propagated to all sections')
 
     def vp_revert_grid_location_to_file(self):
         clicked_section_number = self.selected_grid
