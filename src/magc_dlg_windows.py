@@ -172,7 +172,12 @@ class ImportMagCDlg(QDialog):
 
         self.gm.delete_all_grids_above_index(0)
         self.gm[0].magc_delete_autofocus_points()
-        self.gm[0].magc_delete_polyroi()
+        self.gm[0].magc_polyroi_points_source = [
+            (-10, 0),
+            ( 10, 0),
+            ( 10, 20),
+            (-10, 20)]
+
         self.gm[0].origin_sx_sy = [0,0]
         for s in range(n_sections-1):
             self.gm.add_new_grid([0, 0])
@@ -193,6 +198,11 @@ class ImportMagCDlg(QDialog):
                 # centre must be finally set after updating tile positions
                 self.gm[idx].auto_update_tile_positions = True
                 self.gm[idx].centre_sx_sy = list(map(float, section['center']))
+                self.gm[idx].magc_polyroi_points_source = [
+                    (-10, 0),
+                    ( 10, 0),
+                    ( 10, 20),
+                    (-10, 20)]
 
                 # populate the section_table
                 item1 = QStandardItem(str(idx))
