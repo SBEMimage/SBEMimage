@@ -28,8 +28,8 @@
   <widget class="Line" name="line_2">
    <property name="geometry">
     <rect>
-     <x>10</x>
-     <y>290</y>
+     <x>40</x>
+     <y>450</y>
      <width>331</width>
      <height>16</height>
     </rect>
@@ -54,9 +54,9 @@
   <widget class="QPushButton" name="pushButton_selectFile">
    <property name="geometry">
     <rect>
-     <x>289</x>
+     <x>330</x>
      <y>40</y>
-     <width>51</width>
+     <width>61</width>
      <height>23</height>
     </rect>
    </property>
@@ -69,7 +69,7 @@
     <rect>
      <x>10</x>
      <y>40</y>
-     <width>271</width>
+     <width>301</width>
      <height>23</height>
     </rect>
    </property>
@@ -79,8 +79,8 @@
     <rect>
      <x>10</x>
      <y>72</y>
-     <width>341</width>
-     <height>221</height>
+     <width>391</width>
+     <height>381</height>
     </rect>
    </property>
    <property name="layoutDirection">
@@ -105,7 +105,7 @@
    <widget class="QComboBox" name="comboBox_frameSize">
     <property name="geometry">
      <rect>
-      <x>130</x>
+      <x>180</x>
       <y>80</y>
       <width>201</width>
       <height>22</height>
@@ -131,7 +131,7 @@
    <widget class="QSpinBox" name="spinBox_cols">
     <property name="geometry">
      <rect>
-      <x>270</x>
+      <x>320</x>
       <y>30</y>
       <width>61</width>
       <height>41</height>
@@ -147,7 +147,7 @@
    <widget class="QSpinBox" name="spinBox_rows">
     <property name="geometry">
      <rect>
-      <x>190</x>
+      <x>240</x>
       <y>31</y>
       <width>61</width>
       <height>41</height>
@@ -163,7 +163,7 @@
    <widget class="QDoubleSpinBox" name="doubleSpinBox_pixelSize">
     <property name="geometry">
      <rect>
-      <x>250</x>
+      <x>300</x>
       <y>111</y>
       <width>81</width>
       <height>41</height>
@@ -211,7 +211,7 @@
    <widget class="QDoubleSpinBox" name="doubleSpinBox_tileOverlap">
     <property name="geometry">
      <rect>
-      <x>250</x>
+      <x>300</x>
       <y>170</y>
       <width>81</width>
       <height>41</height>
@@ -233,12 +233,41 @@
      <double>500.000000000000000</double>
     </property>
    </widget>
+   <widget class="QCheckBox" name="checkBox">
+    <property name="geometry">
+     <rect>
+      <x>320</x>
+      <y>280</y>
+      <width>51</width>
+      <height>51</height>
+     </rect>
+    </property>
+    <property name="layoutDirection">
+     <enum>Qt::RightToLeft</enum>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_10">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>250</y>
+      <width>305</width>
+      <height>92</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Use section locations that have been&lt;br/&gt;previously updated in SBEMimage&lt;br/&gt;instead of the locations&lt;br/&gt;in the original .magc file?&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    </property>
+   </widget>
   </widget>
   <widget class="QDialogButtonBox" name="pushButton_import">
    <property name="geometry">
     <rect>
-     <x>10</x>
-     <y>300</y>
+     <x>40</x>
+     <y>460</y>
      <width>331</width>
      <height>61</height>
     </rect>
