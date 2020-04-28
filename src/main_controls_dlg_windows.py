@@ -27,6 +27,7 @@ from random import random
 from time import sleep, time
 from validate_email import validate_email
 from math import atan, sqrt
+from statistics import mean
 from PIL import Image
 from skimage.io import imread
 from skimage.feature import register_translation
@@ -1833,6 +1834,10 @@ class DebrisSettingsDlg(QDialog):
         self.radioButton_methodHistogram.toggled.connect(
             self.update_option_selection)
         self.update_option_selection()
+        self.show_moving_averages()
+        # Button to reset moving averages
+        self.pushButton_resetAvg.clicked.connect(
+            self.reset_moving_averages)
 
     def update_option_selection(self):
         """Let user only change the parameters for the currently selected
@@ -1853,6 +1858,26 @@ class DebrisSettingsDlg(QDialog):
              self.doubleSpinBox_diffSD.setEnabled(False)
              self.spinBox_diffPixels.setEnabled(False)
              self.spinBox_diffHistogram.setEnabled(True)
+
+    def show_moving_averages(self):
+        """Show current moving averages for mean and SD differences
+        if more than two values (each) available.
+        """
+        if len(self.img_inspector.mean_diffs) > 2:
+            self.lineEdit_diffMeanAvg.setText(
+                f'{mean(self.img_inspector.mean_diffs):.2f}')
+        else:
+            self.lineEdit_diffMeanAvg.setText('-')
+        if len(self.img_inspector.stddev_diffs) > 2:
+            self.lineEdit_diffSDAvg.setText(
+                f'{mean(self.img_inspector.stddev_diffs):.2f}')
+        else:
+            self.lineEdit_diffSDAvg.setText('-')
+
+    def reset_moving_averages(self):
+        self.img_inspector.mean_diffs.clear()
+        self.img_inspector.stddev_diffs.clear()
+        self.show_moving_averages()
 
     def accept(self):
         self.ovm.auto_debris_area_margin = self.spinBox_debrisMargin.value()

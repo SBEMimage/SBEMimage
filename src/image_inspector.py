@@ -19,6 +19,7 @@ import numpy as np
 from time import sleep
 from imageio import imwrite
 from scipy.signal import medfilt2d
+from collections import deque
 from PIL import Image
 from PIL.ImageQt import ImageQt
 from PyQt5.QtGui import QPixmap
@@ -42,6 +43,10 @@ class ImageInspector:
         self.ov_images = {}
         self.ov_reslice_line = {}
         self.prev_img_mean_stddev = [0, 0]
+        # Moving average of mean and stddev differences in debris detection
+        # region(s)
+        self.mean_diffs = deque(maxlen=10)
+        self.stddev_diffs = deque(maxlen=10)
 
         # Load parameters for OV/tile monitoring from config
         self.mean_lower_limit = int(self.cfg['monitoring']['mean_lower_limit'])
@@ -463,6 +468,14 @@ class ImageInspector:
 
             debris_detected = ((max_diff_mean > self.mean_diff_threshold) or
                                (max_diff_stddev > self.stddev_diff_threshold))
+
+            # If no debris detected, add max_diff_mean and max_diff_stddev to
+            # deques to calculate moving average for display in debris settings
+            # dialog. This makes it easier for the user to set appropriate
+            # thresholds.
+            if not debris_detected:
+                self.mean_diffs.append(max_diff_mean)
+                self.stddev_diffs.append(max_diff_stddev)
 
         elif self.debris_detection_method == 1:
             # Compare the histogram count from the difference image to user-
