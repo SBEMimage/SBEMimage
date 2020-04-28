@@ -1634,7 +1634,8 @@ class Viewport(QWidget):
                                or self.fov_drag_active
                                or self.grid_drag_active))
 
-        if (tile_width_v * cols > 2 or tile_height_v * rows > 2):
+        if ((tile_width_v * cols > 2 or tile_height_v * rows > 2)
+            and not 'multisem' in self.sem.device_name.lower()):
             # Draw grid if at least 3 pixels wide or high.
             for tile_index in range(rows * cols):
                 self.vp_qp.setPen(grid_pen)
@@ -1763,43 +1764,45 @@ class Viewport(QWidget):
         self.vp_qp.resetTransform()
 
         # ---- Autofocus points in MagC mode ---- #
-        focus_point_brush = QBrush(QColor(Qt.red), Qt.SolidPattern)
-        self.vp_qp.setBrush(focus_point_brush)
-        for autofocus_point in self.gm[grid_index].magc_autofocus_points:
-            autofocus_point_v = self.cs.convert_to_v(autofocus_point)
-            diameter = 2 * self.cs.vp_scale
-            self.vp_qp.drawEllipse(
-                autofocus_point_v[0]-diameter/2,
-                autofocus_point_v[1]-diameter/2,
-                diameter,
-                diameter)
+        if self.gm.magc_mode:
+            focus_point_brush = QBrush(QColor(Qt.red), Qt.SolidPattern)
+            self.vp_qp.setBrush(focus_point_brush)
+            for autofocus_point in self.gm[grid_index].magc_autofocus_points:
+                autofocus_point_v = self.cs.convert_to_v(autofocus_point)
+                diameter = 2 * self.cs.vp_scale
+                self.vp_qp.drawEllipse(
+                    autofocus_point_v[0]-diameter/2,
+                    autofocus_point_v[1]-diameter/2,
+                    diameter,
+                    diameter)
         #-----------------------------------------#
 
-        # ---- Polygon ROI in MultiSEM mode ---- #
-        roi_point_brush = QBrush(QColor(Qt.green), Qt.SolidPattern)
-        self.vp_qp.setBrush(roi_point_brush)
-        self.vp_qp.setPen(grid_pen)
+        # ---- Polygon ROI if MultiSEM ---- #
+        if 'multisem' in self.sem.device_name.lower():
+            roi_point_brush = QBrush(QColor(Qt.green), Qt.SolidPattern)
+            self.vp_qp.setBrush(roi_point_brush)
+            self.vp_qp.setPen(grid_pen)
 
-        polyroi_number = len(self.gm[grid_index].magc_polyroi_points)
-        for id,polyroi_point in enumerate(
-            self.gm[grid_index].magc_polyroi_points):
-            polyroi_point_v = self.cs.convert_to_v(polyroi_point)
-            diameter = 2 * self.cs.vp_scale
-            self.vp_qp.drawEllipse(
-                polyroi_point_v[0]-diameter/2,
-                polyroi_point_v[1]-diameter/2,
-                diameter,
-                diameter)
+            polyroi_number = len(self.gm[grid_index].magc_polyroi_points)
+            for id,polyroi_point in enumerate(
+                self.gm[grid_index].magc_polyroi_points):
+                polyroi_point_v = self.cs.convert_to_v(polyroi_point)
+                diameter = 2 * self.cs.vp_scale
+                self.vp_qp.drawEllipse(
+                    polyroi_point_v[0]-diameter/2,
+                    polyroi_point_v[1]-diameter/2,
+                    diameter,
+                    diameter)
 
-            next_polyroi_point_v = self.cs.convert_to_v(
-                self.gm[grid_index]
-                    .magc_polyroi_points[(id+1)%polyroi_number])
-            self.vp_qp.drawLine(
-                polyroi_point_v[0],
-                polyroi_point_v[1],
-                next_polyroi_point_v[0],
-                next_polyroi_point_v[1])
-        #-----------------------------------------#
+                next_polyroi_point_v = self.cs.convert_to_v(
+                    self.gm[grid_index]
+                        .magc_polyroi_points[(id+1)%polyroi_number])
+                self.vp_qp.drawLine(
+                    polyroi_point_v[0],
+                    polyroi_point_v[1],
+                    next_polyroi_point_v[0],
+                    next_polyroi_point_v[1])
+        #-------------------------------------#
 
     def _vp_draw_stage_boundaries(self):
         """Calculate and show bounding box around the area accessible to the
