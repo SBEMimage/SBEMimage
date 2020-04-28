@@ -962,6 +962,8 @@ class Viewport(QWidget):
                 # get closest grid
                 self._closest_grid_number = self._vp_get_closest_grid_id(
                     self.selected_stage_pos)
+                if self.gm.magc_selected_sections != []:
+                    magc_selected_section = self.gm.magc_selected_sections[0]
 
             if (self.sem.magc_mode
                 and self.selected_grid is not None):
@@ -998,55 +1000,60 @@ class Viewport(QWidget):
 
             #---autofocus points---#
             if (self.sem.magc_mode
-                and (self.gm[self._closest_grid_number]
-                    .magc_autofocus_points) != []):
-                action_removeAutofocusPoint = menu.addAction(
-                    'MagC | Remove last autofocus point of grid '
-                    + str(self._closest_grid_number)
-                    + ' | Shortcut &E')
+                and len(self.gm.magc_selected_sections) == 1):
 
-                action_removeAutofocusPoint.triggered.connect(
-                    self.vp_remove_autofocus_point)
+                if (self.gm[magc_selected_section]
+                    .magc_autofocus_points != []):
 
-                action_removeAllAutofocusPoint = menu.addAction(
-                    'MagC | Remove all autofocus points of grid '
-                    + str(self._closest_grid_number)
-                    + ' | Shortcut &W')
-                action_removeAllAutofocusPoint.triggered.connect(
-                    self.vp_remove_all_autofocus_point)
+                    action_removeAutofocusPoint = menu.addAction(
+                        'MagC | Remove last autofocus point of grid '
+                        + str(magc_selected_section)
+                        + ' | Shortcut &E')
+                    action_removeAutofocusPoint.triggered.connect(
+                        self.vp_remove_autofocus_point)
 
-            action_addAutofocusPoint = menu.addAction(
-                'MagC | Add autofocus point to grid '
-                + str(self._closest_grid_number)
-                + ' | Shortcut &R')
+                    action_removeAllAutofocusPoint = menu.addAction(
+                        'MagC | Remove all autofocus points of grid '
+                        + str(magc_selected_section)
+                        + ' | Shortcut &W')
+                    action_removeAllAutofocusPoint.triggered.connect(
+                        self.vp_remove_all_autofocus_point)
 
-            action_addAutofocusPoint.triggered.connect(
-                self.vp_add_autofocus_point)
+                action_addAutofocusPoint = menu.addAction(
+                    'MagC | Add autofocus point to grid '
+                    + str(magc_selected_section)
+                    + ' | Shortcut &R')
+                action_addAutofocusPoint.triggered.connect(
+                    self.vp_add_autofocus_point)
             #----------------------#
 
             #---ROI---#
-            if (self.gm[self._closest_grid_number]
-                .magc_polyroi_points) != []:
-                action_removePolyroiPoint = menu.addAction(
-                    'MagC | Remove last ROI point of grid '
-                    + str(self._closest_grid_number)
-                    + ' | Shortcut &D')
-                action_removePolyroiPoint.triggered.connect(
-                    self.vp_remove_polyroi_point)
+            if (self.sem.magc_mode
+                and len(self.gm.magc_selected_sections) == 1):
 
-                action_removePolyroi = menu.addAction(
-                    'MagC | Remove ROI of grid '
-                    + str(self._closest_grid_number)
-                    + ' | Shortcut &S')
-                action_removePolyroi.triggered.connect(
-                    self.vp_remove_polyroi)
+                if (self.gm[magc_selected_section]
+                    .magc_polyroi_points != []):
 
-            action_addPolyroiPoint = menu.addAction(
-                'MagC | Add ROI point to grid '
-                + str(self._closest_grid_number)
-                + ' | Shortcut &F')
-            action_addPolyroiPoint.triggered.connect(
-                self.vp_add_polyroi_point)
+                    action_removePolyroiPoint = menu.addAction(
+                        'MagC | Remove last ROI point of grid '
+                        + str(magc_selected_section)
+                        + ' | Shortcut &D')
+                    action_removePolyroiPoint.triggered.connect(
+                        self.vp_remove_polyroi_point)
+
+                    action_removePolyroi = menu.addAction(
+                        'MagC | Remove ROI of grid '
+                        + str(magc_selected_section)
+                        + ' | Shortcut &S')
+                    action_removePolyroi.triggered.connect(
+                        self.vp_remove_polyroi)
+
+                action_addPolyroiPoint = menu.addAction(
+                    'MagC | Add ROI point to grid '
+                    + str(magc_selected_section)
+                    + ' | Shortcut &F')
+                action_addPolyroiPoint.triggered.connect(
+                    self.vp_add_polyroi_point)
             #---------#
 
             # ----- End of MagC items -----
@@ -1090,34 +1097,34 @@ class Viewport(QWidget):
         return closest_id
 
     def vp_add_autofocus_point(self):
-        (self.gm[self._closest_grid_number]
+        (self.gm[self.gm.magc_selected_sections[0]]
             .magc_add_autofocus_point(
                 self.selected_stage_pos))
         self.vp_draw()
 
     def vp_remove_autofocus_point(self):
-        (self.gm[self._closest_grid_number]
+        (self.gm[self.gm.magc_selected_sections[0]]
             .magc_delete_last_autofocus_point())
         self.vp_draw()
 
     def vp_remove_all_autofocus_point(self):
-        (self.gm[self._closest_grid_number]
+        (self.gm[self.gm.magc_selected_sections[0]]
             .magc_delete_autofocus_points())
         self.vp_draw()
 
     def vp_add_polyroi_point(self):
-        (self.gm[self._closest_grid_number]
+        (self.gm[self.gm.magc_selected_sections[0]]
             .magc_add_polyroi_point(
                 self.selected_stage_pos))
         self.vp_draw()
 
     def vp_remove_polyroi_point(self):
-        (self.gm[self._closest_grid_number]
+        (self.gm[self.gm.magc_selected_sections[0]]
             .magc_delete_last_polyroi_point())
         self.vp_draw()
 
     def vp_remove_polyroi(self):
-        (self.gm[self._closest_grid_number]
+        (self.gm[self.gm.magc_selected_sections[0]]
             .magc_delete_polyroi())
         self.vp_draw()
 
