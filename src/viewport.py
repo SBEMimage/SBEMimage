@@ -1316,21 +1316,22 @@ class Viewport(QWidget):
                 w4 = utils.fit_in_range(self.cs.vp_scale, 5, 9)
 
                 area = self.ovm[ov_index].debris_detection_area
-                (top_left_dx, top_left_dy,
-                 bottom_right_dx, bottom_right_dy) = area
-                width = bottom_right_dx - top_left_dx
-                height = bottom_right_dy - top_left_dy
-                if width == self.ovm[ov_index].width_p():
-                    w3, w4 = 3, 6
+                if area:
+                    (top_left_dx, top_left_dy,
+                     bottom_right_dx, bottom_right_dy) = area
+                    width = bottom_right_dx - top_left_dx
+                    height = bottom_right_dy - top_left_dy
+                    if width == self.ovm[ov_index].width_p():
+                        w3, w4 = 3, 6
 
-                pen = QPen(
-                    QColor(*utils.COLOUR_SELECTOR[10]), 2, Qt.DashDotLine)
-                self.vp_qp.setPen(pen)
-                self.vp_qp.setBrush(QColor(0, 0, 0, 0))
-                self.vp_qp.drawRect(vx + top_left_dx * resize_ratio - w3,
-                                    vy + top_left_dy * resize_ratio - w3,
-                                    width * resize_ratio + w4,
-                                    height * resize_ratio + w4)
+                    pen = QPen(
+                        QColor(*utils.COLOUR_SELECTOR[10]), 2, Qt.DashDotLine)
+                    self.vp_qp.setPen(pen)
+                    self.vp_qp.setBrush(QColor(0, 0, 0, 0))
+                    self.vp_qp.drawRect(vx + top_left_dx * resize_ratio - w3,
+                                        vy + top_left_dy * resize_ratio - w3,
+                                        width * resize_ratio + w4,
+                                        height * resize_ratio + w4)
 
             if not suppress_labels:
                 # Suppress the display of labels for performance reasons.
@@ -1363,16 +1364,17 @@ class Viewport(QWidget):
                        show_grid=True, show_previews=False, with_gaps=False,
                        suppress_labels=False):
         """Place grid specified by grid_index onto the viewport canvas
-        (including tile previews if option selected)."""
+        (including tile previews if option selected).
+        """
         viewport_pixel_size = 1000 / self.cs.vp_scale
         grid_pixel_size = self.gm[grid_index].pixel_size
         resize_ratio = grid_pixel_size / viewport_pixel_size
 
-        # Calculate coordinates of grid origin with respect to Viewport canvas.
+        # Calculate coordinates of grid origin with respect to Viewport canvas
         dx, dy = self.gm[grid_index].origin_dx_dy
         origin_vx, origin_vy = self.cs.convert_to_v((dx, dy))
 
-        # Calculate top-left corner of the (unrotated) grid.
+        # Calculate top-left corner of the (unrotated) grid
         dx -= self.gm[grid_index].tile_width_d() / 2
         dy -= self.gm[grid_index].tile_height_d() / 2
         topleft_vx, topleft_vy = self.cs.convert_to_v((dx, dy))
@@ -1387,45 +1389,30 @@ class Viewport(QWidget):
         grid_colour = QColor(*grid_colour_rgb, 255)
         indicator_colour = QColor(*utils.COLOUR_SELECTOR[12])
 
-        # Show only grid label in upper left corner if grid inactive
-        if not self.gm[grid_index].active:
-            if self.show_labels and not suppress_labels:
-                fontsize = int(self.cs.vp_scale * 8)
-                if fontsize < 12:
-                    fontsize = 12
-                font.setPixelSize(fontsize)
-                self.vp_qp.setFont(font)
-                self.vp_qp.setPen(grid_colour)
-                self.vp_qp.setBrush(grid_colour)
-                grid_label_rect = QRect(topleft_vx,
-                                        topleft_vy - int(4/3 * fontsize),
-                                        int(10.5 * fontsize),
-                                        int(4/3 * fontsize))
-                self.vp_qp.drawRect(grid_label_rect)
-                if self.gm[grid_index].display_colour in [1, 2, 3]:
-                # Use black for light and white for dark background colour.
-                    self.vp_qp.setPen(QColor(0, 0, 0))
-                else:
-                    self.vp_qp.setPen(QColor(255, 255, 255))
-                self.vp_qp.drawText(grid_label_rect,
-                                    Qt.AlignVCenter | Qt.AlignHCenter,
-                                    'GRID %d (inactive)' % grid_index)
-            return
+        # Suppress labels when zoomed out or when user is moving a grid or
+        # panning the view, under the condition that there are >10 grids.
+        # TODO: Revisit this restriction after refactoring and test with
+        # MagC example grids.
+        if not suppress_labels:
+            suppress_labels = ((self.gm.number_grids + self.ovm.number_ov) > 10
+                               and (self.cs.vp_scale < 1.0
+                               or self.fov_drag_active
+                               or self.grid_drag_active))
 
         visible = self._vp_element_visible(
             topleft_vx, topleft_vy, width_px, height_px, resize_ratio,
             origin_vx, origin_vy, theta)
 
-        # Proceed only if at least a part of the grid is visible.
+        # Proceed only if at least a part of the grid is visible
         if not visible:
             return
 
-        # Rotate the painter if grid has a rotation angle > 0.
+        # Rotate the painter if grid has a rotation angle > 0
         if use_rotation:
-            # Translate painter to coordinates of grid origin, then rotate.
+            # Translate painter to coordinates of grid origin, then rotate
             self.vp_qp.translate(origin_vx, origin_vy)
             self.vp_qp.rotate(theta)
-            # Translate to top-left corner.
+            # Translate to top-left corner
             self.vp_qp.translate(
                 -self.gm[grid_index].tile_width_d() / 2 * self.cs.vp_scale,
                 -self.gm[grid_index].tile_height_d() / 2 * self.cs.vp_scale)
@@ -1434,8 +1421,47 @@ class Viewport(QWidget):
             # TODO: Try Antialiasing again - advantageous or not? What about
             # Windows 7 vs Windows 10?
         else:
-            # Translate painter to coordinates of top-left corner.
+            # Translate painter to coordinates of top-left corner
             self.vp_qp.translate(topleft_vx, topleft_vy)
+
+        # Show grid label in upper left corner
+        if self.show_labels and not suppress_labels:
+            fontsize = int(self.cs.vp_scale * 8)
+            if fontsize < 12:
+                fontsize = 12
+            font.setPixelSize(fontsize)
+            self.vp_qp.setFont(font)
+            self.vp_qp.setPen(grid_colour)
+            self.vp_qp.setBrush(grid_colour)
+            if self.gm[grid_index].active:
+                width_factor = 5.3
+            else:
+                width_factor = 10.5
+            grid_label_rect = QRect(0,
+                                    -int(4/3 * fontsize),
+                                    int(width_factor * fontsize),
+                                    int(4/3 * fontsize))
+            self.vp_qp.drawRect(grid_label_rect)
+            if self.gm[grid_index].display_colour in [1, 2, 3]:
+            # Use black for light and white for dark background colour
+                self.vp_qp.setPen(QColor(0, 0, 0))
+            else:
+                self.vp_qp.setPen(QColor(255, 255, 255))
+            # Show the grid label in different versions, depending on
+            # whether grid is active
+            if self.gm[grid_index].active:
+                grid_label_text = 'GRID %d' % grid_index
+            else:
+                grid_label_text = 'GRID %d (inactive)' % grid_index
+            self.vp_qp.drawText(grid_label_rect,
+                                Qt.AlignVCenter | Qt.AlignHCenter,
+                                grid_label_text)
+
+        # If grid is inactive, only the label will be drawn, nothing else.
+        # Reset the QPainter and return in this case
+        if not self.gm[grid_index].active:
+            self.vp_qp.resetTransform()
+            return
 
         if with_gaps:
             # Use gapped tile grid in pixels (coordinates not rotated)
@@ -1483,16 +1509,6 @@ class Viewport(QWidget):
                                         Qt.SolidPattern)
         grid_brush_transparent = QBrush(QColor(255, 255, 255, 0),
                                         Qt.SolidPattern)
-
-        # Suppress labels when zoomed out or when user is moving a grid or
-        # panning the view, under the condition that there are >10 grids.
-        # TODO: Revisit this restriction after refactoring and test with
-        # MagC example grids.
-        if not suppress_labels:
-            suppress_labels = ((self.gm.number_grids + self.ovm.number_ov) > 10
-                               and (self.cs.vp_scale < 1.0
-                               or self.fov_drag_active
-                               or self.grid_drag_active))
 
         if (tile_width_v * cols > 2 or tile_height_v * rows > 2):
             # Draw grid if at least 3 pixels wide or high.
@@ -1598,27 +1614,6 @@ class Viewport(QWidget):
             self.vp_qp.drawPoint(tile_map[0][0] * resize_ratio,
                                  tile_map[0][1] * resize_ratio)
 
-        # Show the grid label ("GRID" + grid index).
-        if self.show_labels and not suppress_labels:
-            fontsize = int(self.cs.vp_scale * 8)
-            if fontsize < 12:
-                fontsize = 12
-            font.setPixelSize(fontsize)
-            self.vp_qp.setFont(font)
-            self.vp_qp.setPen(grid_colour)
-            self.vp_qp.setBrush(grid_colour)
-            grid_label_rect = QRect(0, -int(4/3 * fontsize),
-                                    int(5.3 * fontsize), int(4/3 * fontsize))
-            self.vp_qp.drawRect(grid_label_rect)
-            if self.gm[grid_index].display_colour in [1, 2, 3]:
-            # Use black for light and white for dark background colour.
-                self.vp_qp.setPen(QColor(0, 0, 0))
-            else:
-                self.vp_qp.setPen(QColor(255, 255, 255))
-
-            self.vp_qp.drawText(grid_label_rect,
-                                Qt.AlignVCenter | Qt.AlignHCenter,
-                                'GRID %d' % grid_index)
         # Reset painter (undo translation and rotation).
         self.vp_qp.resetTransform()
 
@@ -1832,7 +1827,8 @@ class Viewport(QWidget):
 
     def _vp_grid_tile_mouse_selection(self, px, py):
         """Get the grid index and tile index at the position in the viewport
-        where user has clicked."""
+        where user has clicked.
+        """
         if self.vp_current_grid == -2:  # grids are hidden
             grid_range = []
             selected_grid, selected_tile = None, None
@@ -1881,8 +1877,9 @@ class Viewport(QWidget):
                 # Correction for top-left corner.
                 x += tile_width_p / 2 * pixel_size / 1000 * self.cs.vp_scale
                 y += tile_height_p / 2 * pixel_size / 1000 * self.cs.vp_scale
-            # Check if mouse click position is within current grid.
-            if x >= 0 and y >= 0:
+            # Check if mouse click position is within current grid's tile area
+            # if the current grid is active
+            if self.gm[grid_index].active and x >= 0 and y >= 0:
                 j = y // tile_height_v
                 if j % 2 == 0:
                     i = x // tile_width_v
@@ -1895,12 +1892,18 @@ class Viewport(QWidget):
                     selected_tile = int(i + j * cols)
                     selected_grid = grid_index
                     break
+
             # Also check whether grid label clicked. This selects only the grid
             # and not a specific tile.
             f = int(self.cs.vp_scale * 8)
             if f < 12:
                 f = 12
-            label_width = int(5.3 * f)
+            # Active and inactive grids have different label widths
+            if self.gm[grid_index].active:
+                width_factor = 5.3
+            else:
+                width_factor = 10.5
+            label_width = int(width_factor * f)
             label_height = int(4/3 * f)
             l_y = y + label_height
             if x >= 0 and l_y >= 0 and selected_grid is None:

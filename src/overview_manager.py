@@ -118,6 +118,8 @@ class Overview(Grid):
             bottom_right_dx_max, bottom_right_dy_max = None, None
             # Check all grids for active tile overlap with OV
             for grid_index in range(grid_manager.number_grids):
+                if not grid_manager[grid_index].active:
+                    continue
                 for tile_index in grid_manager[grid_index].active_tiles:
                     (min_dx, max_dx, min_dy, max_dy) = (
                         grid_manager[grid_index].tile_bounding_box(tile_index))
