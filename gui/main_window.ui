@@ -30,7 +30,7 @@
      <string/>
     </property>
     <property name="currentIndex">
-     <number>0</number>
+     <number>4</number>
     </property>
     <widget class="QWidget" name="mainControls">
      <attribute name="title">
@@ -2402,7 +2402,7 @@ Wafer Image</string>
       <property name="geometry">
        <rect>
         <x>10</x>
-        <y>30</y>
+        <y>90</y>
         <width>169</width>
         <height>58</height>
        </rect>
@@ -2416,7 +2416,7 @@ to ZEN experiment</string>
       <property name="geometry">
        <rect>
         <x>10</x>
-        <y>100</y>
+        <y>200</y>
         <width>283</width>
         <height>81</height>
        </rect>
@@ -2425,6 +2425,33 @@ to ZEN experiment</string>
        <string>Prepare start of ZEN experiment
  by performing AF/AS/BoD 
 after wafer insertion</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_msem_loadZen">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>20</y>
+        <width>169</width>
+        <height>58</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Load ZEN
+experiment</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_input_experiment_flag">
+      <property name="geometry">
+       <rect>
+        <x>220</x>
+        <y>30</y>
+        <width>185</width>
+        <height>23</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>No experiment loaded</string>
       </property>
      </widget>
     </widget>

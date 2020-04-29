@@ -75,8 +75,6 @@ class ImportMagCDlg(QDialog):
         self.pushButton_selectFile.clicked.connect(self.select_file)
         self.pushButton_selectFile.setIcon(
             QIcon(os.path.join('..','img','selectdir.png')))
-        self.pushButton_selectFile.setIcon(
-            QIcon(os.path.join('..', 'img', 'selectdir.png')))
         self.pushButton_selectFile.setIconSize(QSize(16, 16))
         self.setFixedSize(self.size())
         self.pushButton_import.accepted.connect(self.import_metadata)
@@ -700,3 +698,68 @@ class WaferCalibrationDlg(QDialog):
         """Add entry to the log in the main window"""
         msg = utils.format_log_entry(msg)
         self.main_controls_trigger.transmit(msg)
+
+class ImportZENExperimentDlg(QDialog):
+    """Import a ZEN experiment setup."""
+
+    def __init__(self, main_controls_trigger):
+        super().__init__()
+        self.main_controls_trigger = main_controls_trigger
+        loadUi(os.path.join(
+            '..', 'gui', 'import_zen_dlg.ui'),
+            self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon(os.path.join(
+            '..', 'img', 'icon_16px.ico')))
+        self.pushButton_selectFile.clicked.connect(self.select_file)
+        self.pushButton_selectFile.setIcon(
+            QIcon(os.path.join('..','img','selectdir.png')))
+        self.pushButton_selectFile.setIconSize(QSize(16, 16))
+        self.setFixedSize(self.size())
+        self.buttonBox.accepted.connect(self.import_zen)
+        self.buttonBox.rejected.connect(self.accept)
+        self.show()
+
+    def _add_to_main_log(self, msg):
+        """Add entry to the log in the main window"""
+        msg = utils.format_log_entry(msg)
+        self.main_controls_trigger.transmit(msg)
+
+    def import_zen(self):
+        #-----------------------------
+        # read sections from zen .json experiment file
+        self.zen_input_path = self.lineEdit_fileName.text()
+
+        if not os.path.isfile(self.zen_input_path):
+            self._add_to_main_log('ZEN input file not found')
+            self.accept()
+            return
+        elif os.path.splitext(self.zen_input_path)[1] != '.json':
+            self._add_to_main_log(
+                'The file chosen should be in .json format')
+            self.accept()
+            return
+
+        # update zen experiemnt flag
+        self.main_controls_trigger.transmit(
+            'MSEM INPUT FLAG-'
+            + os.path.join(
+                os.path.basename(
+                    os.path.dirname(self.zen_input_path)),
+                os.path.basename(self.zen_input_path))
+            + '-green')
+
+    def select_file(self):
+        start_path = 'C:\\'
+        selected_file = str(QFileDialog.getOpenFileName(
+                self, 'Select ZEN experiment file',
+                start_path,
+                'ZEN experiment setup (*.json)'
+                )[0])
+        if len(selected_file) > 0:
+            selected_file = os.path.normpath(selected_file)
+            if os.path.splitext(selected_file)[1] == '.json':
+                self.lineEdit_fileName.setText(selected_file)
+
+    def accept(self):
+        super(ImportZENExperimentDlg, self).accept()

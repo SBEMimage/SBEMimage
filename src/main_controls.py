@@ -67,7 +67,7 @@ from main_controls_dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                                       KatanaSettingsDlg, AboutBox
 
 from magc_dlg_windows import ImportMagCDlg, ImportWaferImageDlg, \
-                          WaferCalibrationDlg
+                          WaferCalibrationDlg, ImportZENExperimentDlg
 
 
 class MainControls(QMainWindow):
@@ -819,6 +819,23 @@ class MainControls(QMainWindow):
         self.actionDebrisDetectionSettings.setEnabled(False)
         self.actionAskUserModeSettings.setEnabled(False)
 
+        # multisem
+        self.pushButton_msem_loadZen.clicked.connect(
+            self.msem_import_zen_experiment)
+
+    def msem_import_zen_experiment(self):
+        import_zen_dialog = ImportZENExperimentDlg(
+            self.trigger)
+        if import_zen_dialog.exec_():
+            pass
+
+    def msem_update_input_zen_flag(self, msg):
+        text, color = msg.split('-')[1:]
+        self.label_input_experiment_flag.setText(text)
+        (self.label_input_experiment_flag
+            .setStyleSheet(
+                'background-color: ' + color))
+
     def magc_select_all(self):
         model = self.tableView_magc_sections.model()
         self.magc_select_rows(range(model.rowCount()))
@@ -1433,6 +1450,8 @@ class MainControls(QMainWindow):
             self.pushButton_magc_importWaferImage.setEnabled(True)
         elif 'MAGC SET SECTION STATE' in msg:
             self.magc_set_section_state_in_table(msg)
+        elif 'MSEM INPUT FLAG' in msg:
+            self.msem_update_input_zen_flag(msg)
         elif msg == 'REFRESH OV':
             self.acquire_ov()
         elif msg == 'SHOW CURRENT SETTINGS':
