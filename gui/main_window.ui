@@ -1908,7 +1908,20 @@
         </rect>
        </property>
        <property name="text">
-        <string>Set/reset mill position</string>
+        <string>Set mill position</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="pushButton_testMovePriorMillPos">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>240</y>
+         <width>121</width>
+         <height>23</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Set prior-mill pos.</string>
        </property>
       </widget>
      </widget>
@@ -2733,6 +2746,7 @@ Wafer Image</string>
   <tabstop>pushButton_testClearKnife</tabstop>
   <tabstop>pushButton_testGetMillPos</tabstop>
   <tabstop>pushButton_testMoveMillPos</tabstop>
+  <tabstop>pushButton_testMovePriorMillPos</tabstop>
   <tabstop>pushButton_testMotors</tabstop>
   <tabstop>pushButton_testStopDMScript</tabstop>
   <tabstop>pushButton_testSendEMail</tabstop>

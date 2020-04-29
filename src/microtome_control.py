@@ -1026,7 +1026,7 @@ class GCIB(BFRemover):
 
         self.simulation_mode = (
             self.cfg['sys']['simulation_mode'].lower() == 'true')
-
+        self._pos_prior_mill_mov = None
         # Catch errors that occur while reading configuration and converting
         # the string values into floats or integers
         try:
@@ -1083,24 +1083,29 @@ class GCIB(BFRemover):
     def do_full_cut(self):
         return self.do_full_removal()
 
-    def do_full_removal(self, mill_duration=None):
-        """Perform a full milling cycle. This is the only removal function
-           used during stack acquisitions.
+    def move_stage_to_millpos(self):
         """
-        if mill_duration is None:
-            mill_duration = self._mill_cycle
+        Sets '_pos_prior_mill_mov' to current stage position. Moves the stage to R=120.
+
+
+        """
         # move_to_xyzt will set rotation to self.stage.rotation, no need to store r explicitly
+        if np.all(self.xyzt_milling == 0):
+            self.error_info = 'NotInitializedError: Location parameters for milling have not been set.'
+            self.error_state = 44
+            return
         x, y, z, t, r = self.stage.get_stage_xyztr()
-        print(f'GCIB: start/end position for milling cycle X={x}, Y={y}, Z={z}, T={t}, R={r}.')
+        print(f'GCIB: Start position for milling cycle X={x}, Y={y}, Z={z}, T={t}, R={r}.')
+        if not np.isclose(t, 0, atol=1e-4):
+            self.error_state = 45
+            self.error_info = (f'UnsafeMovementError: Current t position is supposed to be close to 0,'
+                               f'instead got: {t} != 0.')
+            return
         # This is pure safety measure - this would be possible
         if not np.isclose(t, 0):
             self.error_info = 'UnsafeMovementError: Current tilt angle is not close to 0. As a safety measure, ' \
                               'this is currently not supported.'
             self.error_state = 45
-            return
-        if np.all(self.xyzt_milling == 0):
-            self.error_info = 'NotInitializedError: Location parameters for milling have not been set.'
-            self.error_state = 44
             return
         x_mill, y_mill, z_mill, t_mill = self.xyzt_milling
         if z < z_mill:
@@ -1108,13 +1113,69 @@ class GCIB(BFRemover):
             self.error_info = (f'UnsafeMovementError: Current z position is smaller than the '
                                f'one given as milling location: {z} < {z_mill}.')
             return
+        self._pos_prior_mill_mov = [x, y, z, t, r]
+        print(f'Stored position prior to mill movement: {self._pos_prior_mill_mov}')
 
         if self.simulation_mode:
             time.sleep(self.full_cut_duration)
             return
-        # move stage to target z first! all motors run at the same time!
+        # move stage to target z first and rotate in parallel to save time;
+        # TODO: will still wait for the rotation to finish within move_stage_to_z, as rotating is the slowest part
         self.stage.move_stage_to_z(z_mill)
-        self.stage.move_stage_to_xyztr(x_mill, y_mill, z_mill, t_mill, 120)
+        self.stage.move_stage_to_xyzt(x_mill, y_mill, z_mill, t_mill)
+        self.stage.move_stage_delta_r(120, no_wait=True)
+        print(f'GCIB: Reached mill position: X={x_mill}, Y={y_mill}, Z={z_mill}, T={t_mill}, R=120.')
+
+    def move_stage_to_pos_prior_mill_mov(self):
+        """
+        Sets '_pos_prior_mill_mov' to None.
+
+        """
+        if self._pos_prior_mill_mov is None:
+            self.error_info = 'UnsafeMovementError: Position prior to mill movement is None.'
+            self.error_state = 44
+            return
+        x, y, z, t, r = self._pos_prior_mill_mov
+        if not np.isclose(t, 0, atol=1e-4):
+            self.error_state = 45
+            self.error_info = (f'UnsafeMovementError: Tilt position before milling is supposed to be close to 0,'
+                               f'instead got: {t} != 0.')
+            return
+        x_mill, y_mill, z_mill, t_mill = self.xyzt_milling
+        # move stage to initial position, first tilt to 0 degree
+        self.stage.move_stage_to_r(r, no_wait=True)
+        # TODO: will still wait for the rotation to finish within move_stage_to_xyztr, as rotating is the slowest part
+        self.stage.move_stage_to_xyztr(x_mill, y_mill, z_mill, t, r)
+        _, _, _, t_curr, _ = self.stage.get_stage_xyztr()
+        # double check tilt position
+        if not np.isclose(t_curr, 0, atol=1e-4):
+            self.error_state = 45
+            self.error_info = (f'IncosistentMoveError: Target t position is supposed to be close to 0,'
+                               f'instead got: {t} != 0.')
+            return
+        # move XYR
+        self.stage.move_stage_to_xyztr(x, y, z_mill, t, r)
+        # move Z at the very end
+        self.stage.move_stage_to_xyztr(x, y, z, t, r)
+        self._pos_prior_mill_mov = None
+        # TODO: any check required?
+        # _, _, _, _, r_dest = self.stage.get_stage_xyztr()
+        # if not np.isclose(r_dest, self.stage.stage_rotation, atol=1e-4):
+        #     self.error_state = 45
+        #     self.error_info = (f'IncosistentMoveError: Current r position is supposed to be close to '
+        #                        f'self.stage.stage_rotation={self.stage.stage_rotation},'
+        #                        f'instead got: {r_dest} != 0.')
+        #     return
+        print(f'GCIB: Reached original position after milling cycle: X={x}, Y={y}, Z={z}, T={t}, R={r}.')
+
+    def do_full_removal(self, mill_duration=None):
+        """Perform a full milling cycle. This is the only removal function
+           used during stack acquisitions.
+        """
+        if mill_duration is None:
+            mill_duration = self._mill_cycle
+        # moves the stage to R=120!
+        self.move_stage_to_millpos()
         if mill_duration > 0:
             self._unblank_beam()
         # Hayworth et al, 2019, Nat. Methods: Three evenly spaced azimuthal
@@ -1122,31 +1183,11 @@ class GCIB(BFRemover):
         # TODO: decide whether a continuous rotation scheme would be beneficial; then also remove rotation above
         for ii in range(2):
             sleep(mill_duration / 3)  # this will wait 120s at 120° (was rotated above, at the same time with the other axes)
-            self.stage.move_stage_delta_r(120)
+            self.stage.move_stage_delta_r(120, no_wait=True)
         sleep(mill_duration / 3)  # mill at 0°
         if mill_duration > 0:
             self._blank_beam()
-        # monitor current rotation angle for now
-        _, _, _, _, r = self.stage.get_stage_xyztr()
-        if not np.isclose(r, self.stage.stage_rotation, atol=1e-4):
-            self.error_state = 45
-            self.error_info = (f'IncosistentMoveError: Current r position is supposed to be close to 0,'
-                               f'instead got: {r} != 0.')
-            return
-        # move stage to initial position, first tilt to 0 degree
-        self.stage.move_stage_to_xyzt(x_mill, y_mill, z_mill, t)
-        _, _, _, t, _ = self.stage.get_stage_xyztr()
-        if not np.isclose(t, 0, atol=1e-4):
-            self.error_state = 45
-            self.error_info = (f'IncosistentMoveError: Current t position is supposed to be close to 0,'
-                               f'instead got: {t} != 0.')
-            return
-        self.stage.move_stage_to_xyzt(x, y, z, t)
-        print(f'GCIB: start/end position for milling cycle X={x}, Y={y}, Z={z}, T={t}, R={r}.')
-
-    def test_set_reset_mill_position(self):
-        # no milling
-        return self.do_full_removal(mill_duration=0)
+        self.move_stage_to_pos_prior_mill_mov()
 
     def move_stage_to_z(self, z):
         return self.stage.move_stage_to_z(z)

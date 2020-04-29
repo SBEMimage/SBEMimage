@@ -17,7 +17,6 @@ some other custom stage will be used when carrying out the commands.
 
 
 class Stage:
-    # TODO: error handling for missing stage attributes required?
     def __init__(self, sem, microtome, use_microtome=True):
         self.microtome = microtome
         self.use_microtome = use_microtome
@@ -63,9 +62,6 @@ class Stage:
             return x, y, z
         else:
             return self._stage.get_stage_xyz()
-
-    def get_xyztr(self):
-        return self._stage.get_stage_xyztr()
 
     def move_to_x(self, x):
         return self._stage.move_stage_to_x(x)
@@ -158,14 +154,3 @@ class Stage:
         within_y = limits[2] <= s_coordinates[1] <= limits[3]
         return within_x and within_y
 
-    def move_to_r(self, new_r):
-        """Move stage to rotation angle r (in degrees)"""
-        return self._stage.move_stage_to_r(new_r)
-
-    def move_delta_r(self, delta_r):
-        """Rotate stage by angle r (in degrees)"""
-        return self._stage.move_stage_delta_r(delta_r)
-
-    def move_to_xyzt(self, x, y, z, t):
-        """Move stage to coordinates x and y, z (in microns) and tilt angle t (in degrees)."""
-        return self._stage.move_stage_to_xyzt(x, y, z, t)

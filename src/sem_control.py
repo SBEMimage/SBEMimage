@@ -50,8 +50,8 @@ class SEM:
             self.cfg['sys']['simulation_mode'].lower() == 'true')
         self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
         # self.use_sem_stage: True if microtome not used
-        self.use_sem_stage = (
-            self.cfg['sys']['use_microtome'].lower() == 'false')
+        self.use_sem_stage = (self.cfg['sys']['use_microtome'].lower() == 'false' or
+                              self.syscfg['device']['microtome'] == '6')
         # The target EHT (= high voltage, in kV) and beam current (in pA)
         # are (as implemented at the moment in SBEMimage) global settings for
         # any given acquisition, whereas dwell time, pixel size and frame size
@@ -802,21 +802,24 @@ class SEM_SmartSEM(SEM):
         new_x, new_y = self.sem_api.GetStagePosition()[1:3]
         self.last_known_x, self.last_known_y = new_x * 10**6, new_y * 10**6
 
-    def move_stage_to_r(self, new_r):
+    def move_stage_to_r(self, new_r, no_wait=False):
         """Move stage to rotation angle r (in degrees)"""
-        x, y, z, t, r = self.sem_api.GetStagePosition()
+        x, y, z, t, r = self.sem_api.GetStagePosition()[1:6]
         self.sem_api.MoveStage(x, y, z, t, new_r, 0)
+        if no_wait:
+            sleep(self.stage_move_wait_interval)
+            return
         while self.sem_api.Get('DP_STAGE_IS')[1] == 'Busy':
             sleep(self.stage_move_check_interval)
         sleep(self.stage_move_wait_interval)
 
-    def move_stage_delta_r(self, delta_r):
+    def move_stage_delta_r(self, delta_r, no_wait=False):
         """Rotate stage by angle r (in degrees)"""
-        x, y, z, t, r = self.get_stage_xyztr()
-        x /= 10**6   # convert to metres
-        y /= 10**6
-        z /= 10**6
+        x, y, z, t, r = self.sem_api.GetStagePosition()[1:6]
         self.sem_api.MoveStage(x, y, z, t, r + delta_r, 0)
+        if no_wait:
+            sleep(self.stage_move_wait_interval)
+            return
         while self.sem_api.Get('DP_STAGE_IS')[1] == 'Busy':
             sleep(self.stage_move_check_interval)
         sleep(self.stage_move_wait_interval)
