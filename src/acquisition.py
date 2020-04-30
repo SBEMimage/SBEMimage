@@ -829,8 +829,8 @@ class Acquisition:
                     # Reset interruption status
                     self.acq_interrupted = False
                     self.acq_interrupted_at = []
-                    self.acquired_tiles = []
-                    self.acquired_grids = []
+                    self.tiles_acquired = []
+                    self.grids_acquired = []
                     # Confirm slice completion
                     self.confirm_slice_complete()
 
@@ -1422,7 +1422,10 @@ class Acquisition:
     def acquire_grid(self, grid_index):
         """Acquire all active tiles of grid specified by grid_index"""
 
-        # Get size and active tiles  (using list() to get a copy)
+        # Get current active tiles (using list() to get a copy).
+        # If the user changes the active tiles in this grid while the grid
+        # is being acquired, the changes will take effect the next time
+        # the grid is acquired.
         active_tiles = list(self.gm[grid_index].active_tiles)
 
         # Focus parameters must be adjusted for each tile individually if focus
@@ -1462,7 +1465,7 @@ class Acquisition:
 
             if self.acq_interrupted:
                 # Remove tiles that are no longer active from
-                # acquired_tiles list
+                # tiles_acquired list
                 acq_tmp = list(self.tiles_acquired)
                 for tile in acq_tmp:
                     if not (tile in active_tiles):
