@@ -21,7 +21,7 @@ from PIL import Image
 
 import utils
 
-def acquire_ov(base_dir, selection, sem, stage, ovm,
+def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
                main_controls_trigger, viewport_trigger):
     # Update current XY stage position
     stage.get_xy()
@@ -42,8 +42,16 @@ def acquire_ov(base_dir, selection, sem, stage, ovm,
         stage.move_to_xy(ovm[ov_index].centre_sx_sy)
         # Check to see if error ocurred
         if stage.error_state > 0:
-            success = False
             stage.reset_error_state()
+            sleep(1)
+            # Try again
+            stage.move_to_xy(ovm[ov_index].centre_sx_sy)
+            if stage.error_state > 0:
+                stage.reset_error_state()
+                main_controls_trigger.transmit(utils.format_log_entry(
+                    'STAGE: Second attempt to move to OV %d position failed.'
+                    % ov_index))
+                success = False
         if success:
             # Update stage position in Main Controls GUI
             main_controls_trigger.transmit('UPDATE XY')
@@ -61,6 +69,30 @@ def acquire_ov(base_dir, selection, sem, stage, ovm,
             success = sem.acquire_frame(save_path)
             # Remove indicator colour
             viewport_trigger.transmit('ACQ IND OV' + str(ov_index))
+            _, _, _, load_error, _, grab_incomplete = (
+                img_inspector.load_and_inspect(save_path))
+            if load_error or grab_incomplete:
+                # Try again
+                sleep(0.5)
+                main_controls_trigger.transmit(utils.format_log_entry(
+                    'SEM: Second attempt: Acquiring OV %d.' % ov_index))
+                viewport_trigger.transmit('ACQ IND OV' + str(ov_index))
+                success = sem.acquire_frame(save_path)
+                viewport_trigger.transmit('ACQ IND OV' + str(ov_index))
+                sleep(1)
+                _, _, _, load_error, _, grab_incomplete = (
+                    img_inspector.load_and_inspect(save_path))
+                if load_error or grab_incomplete:
+                    success = False
+                    if load_error:
+                        cause = 'load error'
+                    elif grab_incomplete:
+                        cause = 'grab incomplete'
+                    else:
+                        cause = 'acquisition error'
+                    main_controls_trigger.transmit(utils.format_log_entry(
+                        f'SEM: Second attempt to acquire OV {ov_index} '
+                        f'failed ({cause}).'))
             if success:
                 ovm[ov_index].vp_file_path = save_path
             # Show updated OV
@@ -72,7 +104,7 @@ def acquire_ov(base_dir, selection, sem, stage, ovm,
     else:
         viewport_trigger.transmit('REFRESH OV FAILURE')
 
-def acquire_stub_ov(sem, stage, ovm, acq,
+def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
                     stub_dlg_trigger, abort_queue):
     """Acquire a large tiled overview image of user-defined size that covers a
     part of or the entire stub (SEM sample holder).
@@ -95,6 +127,7 @@ def acquire_stub_ov(sem, stage, ovm, acq,
 
     if success:
         width, height = ovm['stub'].width_p(), ovm['stub'].height_p()
+        # TODO: Consider using skimage / imageio instead of Pillow
         full_stub_image = Image.new('L', (width, height))
         # Set acquisition parameters
         sem.apply_frame_settings(ovm['stub'].frame_size_selector,
@@ -130,6 +163,11 @@ def acquire_stub_ov(sem, stage, ovm, acq,
                     if stage.error_state > 0:
                         success = False
                         stage.reset_error_state()
+                        stub_dlg_trigger.transmit(
+                            f'The stage could not reach the target position of '
+                            f'tile {tile_index} after two attempts. Please '
+                            f'make sure that the XY stage limits and the XY '
+                            f'motor speeds are set correctly.')
                 else:
                     # Show new stage coordinates in main control window
                     stub_dlg_trigger.transmit('UPDATE XY')
@@ -138,16 +176,35 @@ def acquire_stub_ov(sem, stage, ovm, acq,
                         'stub' + str(tile_index).zfill(2) + '.bmp')
                     success = sem.acquire_frame(save_path)
                     sleep(0.5)
+                    img, _, _, load_error, _, grab_incomplete = (
+                        img_inspector.load_and_inspect(save_path))
+                    if load_error or grab_incomplete:
+                        # Try again
+                        sem.reset_error_state()
+                        success = sem.acquire_frame(save_path)
+                        sleep(1.5)
+                        img, _, _, load_error, _, grab_incomplete = (
+                            img_inspector.load_and_inspect(save_path))
+                        if load_error or grab_incomplete:
+                            success = False
+                            if load_error:
+                                cause = 'load error'
+                            elif grab_incomplete:
+                                cause = 'grab incomplete'
+                            else:
+                                cause = 'acquisition error'
+                            sem.reset_error_state()
+                            stub_dlg_trigger.transmit(
+                                f'Tile {tile_index} could not be successfully '
+                                f'acquired after two attempts ({cause}).')
                     if success:
                         # Paste tile into full_stub_image
                         x = tile_index % number_cols
                         y = tile_index // number_cols
-                        current_tile = Image.open(save_path)
+                        current_tile = Image.fromarray(img, 'L')
                         position = (x * (tile_width - overlap),
                                     y * (tile_height - overlap))
                         full_stub_image.paste(current_tile, position)
-                    else:
-                        sem.reset_error_state()
 
             if not success:
                 break
@@ -204,6 +261,11 @@ def manual_stage_move(stage, target_position, viewport_trigger):
     stage.move_to_xy(target_position)
     if stage.error_state > 0:
         stage.reset_error_state()
-        viewport_trigger.transmit('MANUAL MOVE FAILURE')
-    else:
-        viewport_trigger.transmit('MANUAL MOVE SUCCESS')
+        sleep(1)
+        # Try again
+        stage.move_to_xy(target_position)
+        if stage.error_state > 0:
+            stage.reset_error_state()
+            viewport_trigger.transmit('MANUAL MOVE FAILURE')
+            return
+    viewport_trigger.transmit('MANUAL MOVE SUCCESS')

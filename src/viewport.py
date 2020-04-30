@@ -43,7 +43,8 @@ class Viewport(QWidget):
 
     def __init__(self, config, sem, stage, coordinate_system,
                  ov_manager, grid_manager, imported_images,
-                 autofocus, acquisition, main_controls_trigger):
+                 autofocus, acquisition, img_inspector,
+                 main_controls_trigger):
         super().__init__()
         self.cfg = config
         self.sem = sem
@@ -54,6 +55,7 @@ class Viewport(QWidget):
         self.imported = imported_images
         self.autofocus = autofocus
         self.acq = acquisition
+        self.img_inspector = img_inspector
         self.main_controls_trigger = main_controls_trigger
 
         # Set Viewport zoom parameters depending on which stage is used for XY
@@ -2082,7 +2084,7 @@ class Viewport(QWidget):
             + 'Y: {0:.3f}'.format(self.selected_stage_pos[1]),
             QMessageBox.Ok | QMessageBox.Cancel)
         if user_reply == QMessageBox.Ok:
-            self._add_to_main_log('CTRL: Performing user-requested stage move')
+            self._add_to_main_log('CTRL: Performing user-requested stage move.')
             self.main_controls_trigger.transmit('RESTRICT GUI')
             self.restrict_gui(True)
             QApplication.processEvents()
@@ -2099,11 +2101,13 @@ class Viewport(QWidget):
         if success:
             self._add_to_main_log('CTRL: User-requested stage move completed.')
         else:
-            self._add_to_main_log('CTRL: ERROR ocurred during stage move.')
+            self._add_to_main_log(
+                'CTRL: ERROR ocurred during manual stage move.')
             QMessageBox.warning(
                 self, 'Error during stage move',
-                'An error occurred during the requested stage move. ' +
-                'Please check the microtome status in DM.',
+                'An error occurred during the requested stage move: '
+                'The target position could not be reached after two attempts. '
+                'Please check the status of your microtome or SEM stage.',
                 QMessageBox.Ok)
         self.vp_draw()
         self.restrict_gui(False)
@@ -2123,7 +2127,7 @@ class Viewport(QWidget):
             if (user_reply == QMessageBox.Ok or self.vp_current_ov >= 0
                 or (self.ovm.number_ov == 1 and self.vp_current_ov == -1)):
                 self._add_to_main_log(
-                    'CTRL: User-requested acquisition of OV image(s) started')
+                    'CTRL: User-requested acquisition of OV image(s) started.')
                 self.restrict_gui(True)
                 self.main_controls_trigger.transmit('RESTRICT GUI')
                 self.main_controls_trigger.transmit('STATUS BUSY OV')
@@ -2131,7 +2135,7 @@ class Viewport(QWidget):
                 ov_acq_thread = threading.Thread(
                     target=acq_func.acquire_ov,
                     args=(self.acq.base_dir, self.vp_current_ov,
-                          self.sem, self.stage, self.ovm,
+                          self.sem, self.stage, self.ovm, self.img_inspector,
                           self.main_controls_trigger, self.viewport_trigger,))
                 ov_acq_thread.start()
         else:
@@ -2147,14 +2151,14 @@ class Viewport(QWidget):
                 'CTRL: User-requested acquisition of overview(s) completed.')
         else:
             self._add_to_main_log(
-                'CTRL: ERROR ocurred during overview acquisition.')
+                'CTRL: ERROR ocurred during acquisition of overview(s).')
             QMessageBox.warning(
                 self, 'Error during overview acquisition',
                 'An error occurred during the acquisition of the overview(s) '
-                'at the current location(s). The most likely causes are '
-                'incorrect settings of the stage X/Y motor ranges or speeds. '
-                'Home the stage and check whether the range limits specified '
-                'in SBEMimage are correct.', QMessageBox.Ok)
+                'at the current location(s). Please check the log for more '
+                'information. If the stage failed to move to the target OV '
+                'position, the most likely causes are incorrect XY stage '
+                'limits or incorrect motors speeds.', QMessageBox.Ok)
         self.main_controls_trigger.transmit('UNRESTRICT GUI')
         self.restrict_gui(False)
         self.main_controls_trigger.transmit('STATUS IDLE')
@@ -2167,6 +2171,7 @@ class Viewport(QWidget):
         grid_size_selector = self.ovm['stub'].grid_size_selector
         dialog = StubOVDlg(centre_sx_sy, grid_size_selector,
                            self.sem, self.stage, self.ovm, self.acq,
+                           self.img_inspector,
                            self.viewport_trigger)
         dialog.exec_()
 

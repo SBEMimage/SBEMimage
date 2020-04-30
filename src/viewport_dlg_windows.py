@@ -37,7 +37,7 @@ class StubOVDlg(QDialog):
     """
 
     def __init__(self, centre_sx_sy, grid_size_selector,
-                 sem, stage, ovm, acq, viewport_trigger):
+                 sem, stage, ovm, acq, img_inspector, viewport_trigger):
         super().__init__()
         loadUi('..\\gui\\stub_ov_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
@@ -48,8 +48,10 @@ class StubOVDlg(QDialog):
         self.stage = stage
         self.ovm = ovm
         self.acq = acq
+        self.img_inspector = img_inspector
         self.viewport_trigger = viewport_trigger
         self.acq_in_progress = False
+        self.error_msg_from_acq_thread = ''
 
         # Set up trigger and queue to update dialog GUI during acquisition
         self.stub_dlg_trigger = utils.Trigger()
@@ -126,11 +128,9 @@ class StubOVDlg(QDialog):
             QMessageBox.warning(
                 self, 'Error during stub overview acquisition',
                 'An error occurred during the acquisition of the stub '
-                'overview mosaic. The most likely cause are incorrect '
-                'settings of the stage X/Y motor ranges or speeds. Home '
-                'the stage and check whether the range limits specified '
-                'in SBEMimage are correct.',
+                'overview mosaic: ' + self.error_msg_from_acq_thread,
                 QMessageBox.Ok)
+            self.error_msg_from_acq_thread = ''
             self.acq_in_progress = False
             self.close()
         elif msg == 'STUB OV ABORT':
@@ -145,6 +145,9 @@ class StubOVDlg(QDialog):
                 QMessageBox.Ok)
             self.acq_in_progress = False
             self.close()
+        else:
+            # Use as error message
+            self.error_msg_from_acq_thread = msg
 
     def update_duration(self):
         self.label_duration.setText(self.durations[
@@ -176,6 +179,7 @@ class StubOVDlg(QDialog):
                                   target=acq_func.acquire_stub_ov,
                                   args=(self.sem, self.stage,
                                         self.ovm, self.acq,
+                                        self.img_inspector,
                                         self.stub_dlg_trigger,
                                         self.abort_queue,))
             stub_acq_thread.start()

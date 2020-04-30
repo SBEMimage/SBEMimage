@@ -283,7 +283,7 @@ class MainControls(QMainWindow):
         # Initialize viewport window
         self.viewport = Viewport(self.cfg, self.sem, self.stage, self.cs,
                                  self.ovm, self.gm, self.imported,
-                                 self.autofocus, self.acq,
+                                 self.autofocus, self.acq, self.img_inspector,
                                  self.trigger)
         self.viewport.show()
 
