@@ -522,4 +522,14 @@ def is_point_inside_polygon(point, polygon):
     point = Point(point)
     return p.contains(point)
 
+def barycenter(points):
+    xSum = 0
+    ySum = 0
+    for i,point in enumerate(points):
+        xSum = xSum + point[0]
+        ySum = ySum + point[1]
+    x = round(xSum/float(i+1))
+    y = round(ySum/float(i+1))
+    return x,y
+
 # -------------- End of MagC utils --------------

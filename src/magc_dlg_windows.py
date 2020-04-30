@@ -24,7 +24,7 @@ import shutil
 import yaml
 
 from random import random
-from time import sleep, time
+from time import sleep, time, strftime, localtime
 from PIL import Image
 from skimage.io import imread
 from skimage.feature import register_translation
@@ -702,8 +702,9 @@ class WaferCalibrationDlg(QDialog):
 class ImportZENExperimentDlg(QDialog):
     """Import a ZEN experiment setup."""
 
-    def __init__(self, main_controls_trigger):
+    def __init__(self, msem_variables, main_controls_trigger):
         super().__init__()
+        self.msem_variables = msem_variables
         self.main_controls_trigger = main_controls_trigger
         loadUi(os.path.join(
             '..', 'gui', 'import_zen_dlg.ui'),
@@ -728,26 +729,40 @@ class ImportZENExperimentDlg(QDialog):
     def import_zen(self):
         #-----------------------------
         # read sections from zen .json experiment file
-        self.zen_input_path = self.lineEdit_fileName.text()
+        selected_file = os.path.normpath(
+            self.lineEdit_fileName.text())
 
-        if not os.path.isfile(self.zen_input_path):
+        if not os.path.isfile(selected_file):
             self._add_to_main_log('ZEN input file not found')
             self.accept()
             return
-        elif os.path.splitext(self.zen_input_path)[1] != '.json':
+        elif os.path.splitext(selected_file)[1] != '.json':
             self._add_to_main_log(
                 'The file chosen should be in .json format')
             self.accept()
             return
 
-        # update zen experiemnt flag
+        # update zen experiment flag
         self.main_controls_trigger.transmit(
-            'MSEM INPUT FLAG-'
+            'MSEM GUI-'
             + os.path.join(
                 os.path.basename(
-                    os.path.dirname(self.zen_input_path)),
-                os.path.basename(self.zen_input_path))
-            + '-green')
+                    os.path.dirname(selected_file)),
+                os.path.basename(selected_file))
+            + '-green-'
+            + os.path.splitext(
+                self.output_name(selected_file))[0])
+
+        self.msem_variables['zen_input_path'] = selected_file
+
+    def output_name(self, path):
+        name = os.path.splitext(os.path.basename(path))[0]
+        output = (
+            name
+            + '_from_SBEMimage_'
+            + strftime("%Y_%m_%d_%H_%M_%S", localtime())
+            + '.json')
+        return output
 
     def select_file(self):
         start_path = 'C:\\'
