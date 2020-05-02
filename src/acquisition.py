@@ -519,6 +519,11 @@ class Acquisition:
 
         self.reset_error_state()
         self.pause_state = None
+
+        if self.use_mirror_drive:
+            self.mirror_drive_dir = os.path.join(
+                self.mirror_drive, self.base_dir[2:])
+
         self.set_up_acq_subdirectories()
         self.set_up_acq_logs()
 
