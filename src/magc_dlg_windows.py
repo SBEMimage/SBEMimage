@@ -114,17 +114,22 @@ class ImportMagCDlg(QDialog):
             .sectionsYAML_to_sections_landmarks(sectionsYAML))
 
         # load ROIs updated by user manually
-        if ('sourceROIsUpdatedFromSBEMimage' in sectionsYAML
-            and self.checkBox.isChecked()):
-            for sectionId, sectionXYA in \
-                sectionsYAML['sourceROIsUpdatedFromSBEMimage'].items():
-                sections[int(sectionId)] = {
-                    'center': [float(a) for a in sectionXYA[:2]],
-                    'angle': float( (-sectionXYA[2] + 90) % 360)}
-            # deactivate roi_mode: the grid locations are now custom
-            # they are not calculated any more
-            # based on the ROI defined inside a section
-            self.gm.magc_roi_mode = False
+
+        if self.checkBox.isChecked():
+            if 'sourceROIsUpdatedFromSBEMimage' in sectionsYAML:
+                for sectionId, sectionXYA in \
+                    sectionsYAML['sourceROIsUpdatedFromSBEMimage'].items():
+                    sections[int(sectionId)] = {
+                        'center': [float(a) for a in sectionXYA[:2]],
+                        'angle': float( (-sectionXYA[2] + 90) % 360)}
+                # deactivate roi_mode: the grid locations are now custom
+                # they are not calculated any more
+                # based on the ROI defined inside a section
+                self.gm.magc_roi_mode = False
+            else:
+                self._add_to_main_log(
+                    'There are no custom section locations in the file'
+                    ' you selected. Loading original section locations instead.')
 
         n_sections = len(
             [k for k in sections.keys()
