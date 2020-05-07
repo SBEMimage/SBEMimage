@@ -36,6 +36,8 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
         end = selection + 1
     # Acquisition loop
     for ov_index in range(start, end):
+        if not ovm[ov_index].active:
+            continue
         main_controls_trigger.transmit(utils.format_log_entry(
             'STAGE: Moving to OV %d position.' % ov_index))
         # Move to OV stage coordinates

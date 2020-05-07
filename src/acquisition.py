@@ -1161,9 +1161,9 @@ class Acquisition:
                         self.add_to_main_log(
                             'CTRL: Error saving OV reslice to disk.')
                         self.add_to_main_log('CTRL: ' + error_msg)
-                # Mirror the acquired overview
-                if self.use_mirror_drive:
-                    self.mirror_files([ov_filename])
+                    # Mirror the acquired overview
+                    if self.use_mirror_drive:
+                        self.mirror_files([ov_filename])
                 if sweep_counter > 0:
                     log_str = (str(self.slice_counter)
                                + ': Debris, ' + str(sweep_counter)

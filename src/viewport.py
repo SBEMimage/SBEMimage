@@ -2121,7 +2121,7 @@ class Viewport(QWidget):
             if (self.vp_current_ov == -1) and (self.ovm.number_ov > 1):
                 user_reply = QMessageBox.question(
                     self, 'Acquisition of all overview images',
-                    'This will acquire all overview images.\n\n' +
+                    'This will acquire all active overview images.\n\n' +
                     'Do you wish to proceed?',
                     QMessageBox.Ok | QMessageBox.Cancel)
             if (user_reply == QMessageBox.Ok or self.vp_current_ov >= 0
