@@ -1094,9 +1094,13 @@ class MainControls(QMainWindow):
                 ' because no microtome is configured in the current session')
 
     def open_calibration_dlg(self):
+        prev_calibration = self.cs.stage_calibration
         dialog = StageCalibrationDlg(self.cs, self.stage, self.sem,
                                      self.acq.base_dir)
-        if dialog.exec_():
+        if dialog.exec_() and self.cs.stage_calibration != prev_calibration:
+            # Recalculate all grids and debris detection areas
+            for grid_index in range(self.gm.number_grids):
+                self.gm[grid_index].update_tile_positions()
             if self.ovm.use_auto_debris_area:
                 self.ovm.update_all_debris_detections_areas(self.gm)
             self.viewport.vp_draw()
