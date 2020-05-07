@@ -791,7 +791,7 @@ class OVSettingsDlg(QDialog):
         self.comboBox_frameSize.currentIndexChanged.connect(
             self.update_pixel_size)
         self.comboBox_dwellTime.addItems(map(str, self.sem.DWELL_TIME))
-        # Update pixel size when mag changed:
+        # Update pixel size when mag changed
         self.spinBox_magnification.valueChanged.connect(self.update_pixel_size)
         # Add and delete button:
         self.pushButton_save.clicked.connect(self.save_current_settings)
@@ -806,7 +806,6 @@ class OVSettingsDlg(QDialog):
         b = self.radioButton_active.isChecked()
         self.comboBox_frameSize.setEnabled(b)
         self.spinBox_magnification.setEnabled(b)
-        self.doubleSpinBox_pixelSize.setEnabled(b)
         self.comboBox_dwellTime.setEnabled(b)
         self.spinBox_acqInterval.setEnabled(b)
         self.spinBox_acqIntervalOffset.setEnabled(b)
@@ -870,7 +869,11 @@ class OVSettingsDlg(QDialog):
 
     def save_current_settings(self):
         self.ovm[self.current_ov].active = self.radioButton_active.isChecked()
+        # Save previous values of frame size and magnification. If the new
+        # values are different from the previous ones, reset current OV image
+        # shown in Viewport.
         self.prev_frame_size = self.ovm[self.current_ov].frame_size_selector
+        self.prev_mag = self.ovm[self.current_ov].magnification
         self.ovm[self.current_ov].frame_size_selector = (
             self.comboBox_frameSize.currentIndex())
         self.ovm[self.current_ov].magnification = (
@@ -881,8 +884,9 @@ class OVSettingsDlg(QDialog):
             self.spinBox_acqInterval.value())
         self.ovm[self.current_ov].acq_interval_offset = (
             self.spinBox_acqIntervalOffset.value())
-        if self.comboBox_frameSize.currentIndex() != self.prev_frame_size:
-            # Delete current preview image:
+        if ((self.comboBox_frameSize.currentIndex() != self.prev_frame_size)
+            or (self.spinBox_magnification.value() != self.prev_mag)):
+            # Reset path to current overview image in Viewport
             self.ovm[self.current_ov].vp_file_path = ''
         self.main_controls_trigger.transmit('OV SETTINGS CHANGED')
 

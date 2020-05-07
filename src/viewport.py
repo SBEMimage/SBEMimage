@@ -731,6 +731,7 @@ class Viewport(QWidget):
         self.comboBox_OVSelectorVP.blockSignals(False)
 
     def vp_change_tile_preview_mode(self):
+        prev_vp_tile_preview_mode = self.vp_tile_preview_mode
         self.vp_tile_preview_mode = (
             self.comboBox_tilePreviewSelectorVP.currentIndex())
         if self.vp_tile_preview_mode == 3:  # show tiles with gaps
@@ -742,6 +743,12 @@ class Viewport(QWidget):
             # Also hide stub OV
             self.show_stub_ov = False
             self.checkBox_showStubOV.setChecked(False)
+        elif prev_vp_tile_preview_mode == 3:
+            # When switching back from view with gaps, show OVs again
+            self.comboBox_OVSelectorVP.blockSignals(True)
+            self.comboBox_OVSelectorVP.setCurrentIndex(1)
+            self.vp_current_ov = -1
+            self.comboBox_OVSelectorVP.blockSignals(False)
         self.vp_draw()
 
     def vp_change_grid_selection(self):
@@ -1267,100 +1274,96 @@ class Viewport(QWidget):
         # Convert to viewport window coordinates.
         vx, vy = self.cs.convert_to_v((dx, dy))
 
-        # Show only OV label in upper left corner if OV inactive
-        if not self.ovm[ov_index].active:
-            if self.show_labels and not suppress_labels:
-                font_size = int(self.cs.vp_scale * 8)
-                if font_size < 12:
-                    font_size = 12
-                self.vp_qp.setPen(QColor(*utils.COLOUR_SELECTOR[10]))
-                self.vp_qp.setBrush(QColor(*utils.COLOUR_SELECTOR[10]))
-                ov_label_rect = QRect(
-                    vx, vy - int(4/3 * font_size),
-                    int(font_size * 9), int(4/3 * font_size))
-                self.vp_qp.drawRect(ov_label_rect)
-                self.vp_qp.setPen(QColor(255, 255, 255))
-                font = QFont()
-                font.setPixelSize(font_size)
-                self.vp_qp.setFont(font)
-                self.vp_qp.drawText(ov_label_rect,
-                                    Qt.AlignVCenter | Qt.AlignHCenter,
-                                    'OV %d (inactive)' % ov_index)
-            return
+        if not suppress_labels:
+            # Suppress the display of labels for performance reasons.
+            # TODO: Reconsider this after refactoring complete.
+            suppress_labels = (
+                (self.gm.number_grids + self.ovm.number_ov) > 10
+                and (self.cs.vp_scale < 1.0
+                     or self.fov_drag_active
+                     or self.grid_drag_active))
 
         # Crop and resize OV before placing it.
         visible, crop_area, vx_cropped, vy_cropped = self._vp_visible_area(
             vx, vy, width_px, height_px, resize_ratio)
-        if visible:
-            cropped_img = self.ovm[ov_index].image.copy(crop_area)
-            v_width = cropped_img.size().width()
-            cropped_resized_img = cropped_img.scaledToWidth(
-                v_width * resize_ratio)
-            if not (self.ov_drag_active and ov_index == self.selected_ov):
-                # Draw OV
-                self.vp_qp.drawPixmap(vx_cropped, vy_cropped,
-                                      cropped_resized_img)
-            # Draw blue rectangle around OV.
-            self.vp_qp.setPen(
-                QPen(QColor(*utils.COLOUR_SELECTOR[10]), 2, Qt.SolidLine))
-            if ((self.ov_acq_indicator is not None)
-                and self.ov_acq_indicator == ov_index):
-                self.vp_qp.setBrush(QColor(*utils.COLOUR_SELECTOR[12]))
+
+        if not visible:
+            return
+
+        # Show OV label in upper left corner
+        if self.show_labels and not suppress_labels:
+            font_size = int(self.cs.vp_scale * 8)
+            if font_size < 12:
+                font_size = 12
+            self.vp_qp.setPen(QColor(*utils.COLOUR_SELECTOR[10]))
+            self.vp_qp.setBrush(QColor(*utils.COLOUR_SELECTOR[10]))
+            if self.ovm[ov_index].active:
+                width_factor = 3.6
             else:
+                width_factor = 9
+            ov_label_rect = QRect(
+                vx, vy - int(4/3 * font_size),
+                int(width_factor * font_size), int(4/3 * font_size))
+            self.vp_qp.drawRect(ov_label_rect)
+            self.vp_qp.setPen(QColor(255, 255, 255))
+            font = QFont()
+            font.setPixelSize(font_size)
+            self.vp_qp.setFont(font)
+            if self.ovm[ov_index].active:
+                ov_label_text = 'OV %d' % ov_index
+            else:
+                ov_label_text = 'OV %d (inactive)' % ov_index
+            self.vp_qp.drawText(ov_label_rect,
+                                Qt.AlignVCenter | Qt.AlignHCenter,
+                                ov_label_text)
+
+        # If OV inactive return after drawing label
+        if not self.ovm[ov_index].active:
+            return
+
+        cropped_img = self.ovm[ov_index].image.copy(crop_area)
+        v_width = cropped_img.size().width()
+        cropped_resized_img = cropped_img.scaledToWidth(
+            v_width * resize_ratio)
+        if not (self.ov_drag_active and ov_index == self.selected_ov):
+            # Draw OV
+            self.vp_qp.drawPixmap(vx_cropped, vy_cropped,
+                                  cropped_resized_img)
+        # Draw blue rectangle around OV.
+        self.vp_qp.setPen(
+            QPen(QColor(*utils.COLOUR_SELECTOR[10]), 2, Qt.SolidLine))
+        if ((self.ov_acq_indicator is not None)
+            and self.ov_acq_indicator == ov_index):
+            self.vp_qp.setBrush(QColor(*utils.COLOUR_SELECTOR[12]))
+        else:
+            self.vp_qp.setBrush(QColor(0, 0, 0, 0))
+        self.vp_qp.drawRect(vx, vy,
+                            width_px * resize_ratio,
+                            height_px * resize_ratio)
+
+        if show_debris_area:
+            # w3, w4 are fudge factors for clearer display
+            w3 = utils.fit_in_range(self.cs.vp_scale/2, 1, 3)
+            w4 = utils.fit_in_range(self.cs.vp_scale, 5, 9)
+
+            area = self.ovm[ov_index].debris_detection_area
+            if area:
+                (top_left_dx, top_left_dy,
+                 bottom_right_dx, bottom_right_dy) = area
+                width = bottom_right_dx - top_left_dx
+                height = bottom_right_dy - top_left_dy
+                if width == self.ovm[ov_index].width_p():
+                    w3, w4 = 3, 6
+
+                pen = QPen(
+                    QColor(*utils.COLOUR_SELECTOR[10]), 2, Qt.DashDotLine)
+                self.vp_qp.setPen(pen)
                 self.vp_qp.setBrush(QColor(0, 0, 0, 0))
-            self.vp_qp.drawRect(vx, vy,
-                                width_px * resize_ratio,
-                                height_px * resize_ratio)
+                self.vp_qp.drawRect(vx + top_left_dx * resize_ratio - w3,
+                                    vy + top_left_dy * resize_ratio - w3,
+                                    width * resize_ratio + w4,
+                                    height * resize_ratio + w4)
 
-            if show_debris_area:
-                # w3, w4 are fudge factors for clearer display
-                w3 = utils.fit_in_range(self.cs.vp_scale/2, 1, 3)
-                w4 = utils.fit_in_range(self.cs.vp_scale, 5, 9)
-
-                area = self.ovm[ov_index].debris_detection_area
-                if area:
-                    (top_left_dx, top_left_dy,
-                     bottom_right_dx, bottom_right_dy) = area
-                    width = bottom_right_dx - top_left_dx
-                    height = bottom_right_dy - top_left_dy
-                    if width == self.ovm[ov_index].width_p():
-                        w3, w4 = 3, 6
-
-                    pen = QPen(
-                        QColor(*utils.COLOUR_SELECTOR[10]), 2, Qt.DashDotLine)
-                    self.vp_qp.setPen(pen)
-                    self.vp_qp.setBrush(QColor(0, 0, 0, 0))
-                    self.vp_qp.drawRect(vx + top_left_dx * resize_ratio - w3,
-                                        vy + top_left_dy * resize_ratio - w3,
-                                        width * resize_ratio + w4,
-                                        height * resize_ratio + w4)
-
-            if not suppress_labels:
-                # Suppress the display of labels for performance reasons.
-                # TODO: Reconsider this after refactoring complete.
-                suppress_labels = (
-                    (self.gm.number_grids + self.ovm.number_ov) > 10
-                    and (self.cs.vp_scale < 1.0
-                         or self.fov_drag_active
-                         or self.grid_drag_active))
-
-            if self.show_labels and not suppress_labels:
-                font_size = int(self.cs.vp_scale * 8)
-                if font_size < 12:
-                    font_size = 12
-                self.vp_qp.setPen(QColor(*utils.COLOUR_SELECTOR[10]))
-                self.vp_qp.setBrush(QColor(*utils.COLOUR_SELECTOR[10]))
-                ov_label_rect = QRect(
-                    vx, vy - int(4/3 * font_size),
-                    int(font_size * 3.6), int(4/3 * font_size))
-                self.vp_qp.drawRect(ov_label_rect)
-                self.vp_qp.setPen(QColor(255, 255, 255))
-                font = QFont()
-                font.setPixelSize(font_size)
-                self.vp_qp.setFont(font)
-                self.vp_qp.drawText(ov_label_rect,
-                                    Qt.AlignVCenter | Qt.AlignHCenter,
-                                    'OV %d' % ov_index)
 
     def _vp_place_grid(self, grid_index,
                        show_grid=True, show_previews=False, with_gaps=False,
@@ -1932,7 +1935,9 @@ class Viewport(QWidget):
                 p_width = self.ovm[ov_index].width_d() * self.cs.vp_scale
                 p_height = self.ovm[ov_index].height_d() * self.cs.vp_scale
                 x, y = px - pixel_offset_x, py - pixel_offset_y
-                if x >= 0 and y >= 0:
+                # Check if the current OV is active and if mouse click position
+                # is within its area
+                if self.ovm[ov_index].active and x >= 0 and y >= 0:
                     if x < p_width and y < p_height:
                         selected_ov = ov_index
                         break
@@ -1942,7 +1947,11 @@ class Viewport(QWidget):
                 f = int(self.cs.vp_scale * 8)
                 if f < 12:
                     f = 12
-                label_width = int(f * 3.6)
+                if self.ovm[ov_index].active:
+                    width_factor = 3.6
+                else:
+                    width_factor = 9
+                label_width = int(f * width_factor)
                 label_height = int(4/3 * f)
                 l_y = y + label_height
                 if x >= 0 and l_y >= 0 and selected_ov is None:
