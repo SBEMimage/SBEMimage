@@ -103,6 +103,8 @@ class StubOVDlg(QDialog):
         msg = self.stub_dlg_trigger.queue.get()
         if msg == 'UPDATE XY':
             self.viewport_trigger.transmit('UPDATE XY')
+        elif msg == 'DRAW VP':
+            self.viewport_trigger.transmit('DRAW VP')
         elif msg[:15] == 'UPDATE PROGRESS':
             percentage = int(msg[15:])
             self.progressBar.setValue(percentage)
@@ -119,12 +121,9 @@ class StubOVDlg(QDialog):
                 'The stub overview was completed successfully.',
                 QMessageBox.Ok)
             self.acq_in_progress = False
+            self.close()
         elif msg == 'STUB OV FAILURE':
             self.viewport_trigger.transmit('STUB OV FAILURE')
-            # Restore previous origin and grid size
-            self.ovm['stub'].centre_sx_sy = self.previous_centre_sx_sy
-            self.ovm['stub'].grid_size_selector = (
-                self.previous_grid_size_selector)
             QMessageBox.warning(
                 self, 'Error during stub overview acquisition',
                 'An error occurred during the acquisition of the stub '
@@ -135,10 +134,10 @@ class StubOVDlg(QDialog):
             self.close()
         elif msg == 'STUB OV ABORT':
             self.viewport_trigger.transmit('STATUS IDLE')
-            # Restore previous origin and grid size
-            self.ovm['stub'].centre_sx_sy = self.previous_centre_sx_sy
+            # Restore previous grid size and grid position
             self.ovm['stub'].grid_size_selector = (
                 self.previous_grid_size_selector)
+            self.ovm['stub'].centre_sx_sy = self.previous_centre_sx_sy
             QMessageBox.information(
                 self, 'Stub Overview acquisition aborted',
                 'The stub overview acquisition was aborted.',
