@@ -91,19 +91,6 @@ void wait_for_command()
         idle_counter = 0
         idle_threshold = 1
         Result(DateStamp() + ": Triggered! Reading command file...\n" )
-        // Delete err/ack/wng files:
-		if (DoesFileExist(error_file)) {
-			DeleteFile(error_file)
-		}
-		if (DoesFileExist(acknowledge_file)) {
-			DeleteFile(acknowledge_file)
-		}
-		if (DoesFileExist(acknowledge_file_cut)) {
-			DeleteFile(acknowledge_file_cut)
-		}
-		if (DoesFileExist(warning_file)) {
-			DeleteFile(warning_file)
-		}
 		readok = 0
 		try {
 			if (DoesFileExist(command_file)) {
@@ -134,6 +121,22 @@ void wait_for_command()
 			err_file = CreateFileForWriting(error_file)
 			closefile(err_file)
 		}
+        // Delete err/ack/wng files:
+		if (DoesFileExist(error_file)) {
+			DeleteFile(error_file)
+		}
+		if (DoesFileExist(acknowledge_file)) {
+			DeleteFile(acknowledge_file)
+		}
+		if (DoesFileExist(acknowledge_file_cut)) {
+			DeleteFile(acknowledge_file_cut)
+		}
+		if (DoesFileExist(warning_file)) {
+			DeleteFile(warning_file)
+		}
+		// Delete the trigger file
+		DeleteFile(trigger_file)
+		
         // ================================================================
 		if (command == "Handshake") {
 			createok = 0
@@ -585,7 +588,6 @@ void wait_for_command()
 				result(DateStamp() + ": ERROR occured when trying to write to return file.\n")
 			}
 		}
-		DeleteFile(trigger_file)
 		t_status = 0
     }
     else
