@@ -793,7 +793,10 @@ class OVSettingsDlg(QDialog):
         self.comboBox_dwellTime.addItems(map(str, self.sem.DWELL_TIME))
         # Update pixel size when mag changed
         self.spinBox_magnification.valueChanged.connect(self.update_pixel_size)
-        # Add and delete button:
+        # Button to clear OV image in Viewport
+        self.pushButton_clearViewportImage.clicked.connect(
+            self.clear_viewport_image)
+        # Save, add and delete buttons
         self.pushButton_save.clicked.connect(self.save_current_settings)
         self.pushButton_addOV.clicked.connect(self.add_ov)
         self.pushButton_deleteOV.clicked.connect(self.delete_ov)
@@ -866,6 +869,10 @@ class OVSettingsDlg(QDialog):
         self.pushButton_save.setText(
             'Save settings for OV %d' % self.current_ov)
         self.pushButton_deleteOV.setText('Delete OV %d' % self.current_ov)
+
+    def clear_viewport_image(self):
+        self.ovm[self.current_ov].vp_file_path = ''
+        self.main_controls_trigger.transmit('OV SETTINGS CHANGED')
 
     def save_current_settings(self):
         self.ovm[self.current_ov].active = self.radioButton_active.isChecked()
@@ -962,10 +969,12 @@ class GridSettingsDlg(QDialog):
         # Adaptive focus tool button:
         self.toolButton_focusGradient.clicked.connect(
             self.open_focus_gradient_dlg)
-        # Reset wd/stig parameters:
+        # Buttons to reset tile previews and wd/stig parameters
+        self.pushButton_resetTilePreviews.clicked.connect(
+            self.reset_tile_previews)
         self.pushButton_resetFocusParams.clicked.connect(
             self.reset_wd_stig_params)
-        # Save, add and delete button:
+        # Save, add, and delete buttons
         self.pushButton_save.clicked.connect(self.save_current_settings)
         self.pushButton_addGrid.clicked.connect(self.add_grid)
         self.pushButton_deleteGrid.clicked.connect(self.delete_grid)
@@ -1090,6 +1099,16 @@ class GridSettingsDlg(QDialog):
             self.comboBox_gridSelector.setCurrentIndex(self.current_grid)
             self.comboBox_gridSelector.blockSignals(False)
             self.change_grid()
+            self.main_controls_trigger.transmit('GRID SETTINGS CHANGED')
+
+    def reset_tile_previews(self):
+        user_reply = QMessageBox.question(
+            self, 'Reset tile previews',
+            f'This will clear all tile preview images in the Viewport for '
+            f'grid {self.current_grid}.\n',
+            QMessageBox.Ok | QMessageBox.Cancel)
+        if user_reply == QMessageBox.Ok:
+            self.gm[self.current_grid].clear_all_tile_previews()
             self.main_controls_trigger.transmit('GRID SETTINGS CHANGED')
 
     def reset_wd_stig_params(self):

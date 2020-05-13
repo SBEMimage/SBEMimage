@@ -1873,6 +1873,17 @@ class MainControls(QMainWindow):
                     QMessageBox.Yes| QMessageBox.No)
         if result == QMessageBox.Yes:
             self.add_to_log('CTRL: RESET command received.')
+            result = QMessageBox.question(
+                         self, 'Clear tile previews and overview images?',
+                         'Would you like all current tile previews and '
+                         'overview images in the Viewport to be cleared?',
+                         QMessageBox.Yes| QMessageBox.No)
+            if result == QMessageBox.Yes:
+                for grid_index in range(self.gm.number_grids):
+                    self.gm[grid_index].clear_all_tile_previews()
+                for ov_index in range(self.ovm.number_ov):
+                    self.ovm[ov_index].vp_file_path = ''
+                self.viewport.vp_draw()
             self.acq.reset_acquisition()
             self.pushButton_resetAcq.setEnabled(False)
             self.pushButton_pauseAcq.setEnabled(False)
