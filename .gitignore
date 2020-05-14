@@ -20,3 +20,6 @@ venv/
 
 # Ignore _build folder in docs:
 docs/_build/
+
+# Ignore PyCharm settings:
+.idea/
