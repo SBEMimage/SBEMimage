@@ -75,10 +75,12 @@ def main():
         title_str = 'SBEMimage - Console'
         version_info = 'Version ' + VERSION
     os.system('title ' + title_str)
-    print(f'***********************************\n'
+
+    line_of_stars = '*' * (len(version_info) + 10)
+    print(f'{line_of_stars}\n'
           f'     SBEMimage\n'
           f'     {version_info}\n'
-          f'***********************************\n')
+          f'{line_of_stars}\n')
 
     configuration_loaded = False
     default_configuration = False
