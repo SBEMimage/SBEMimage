@@ -907,6 +907,38 @@
         <string>00000.0 µm</string>
        </property>
       </widget>
+      <widget class="QToolButton" name="toolButton_chargeCompensator">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="geometry">
+        <rect>
+         <x>300</x>
+         <y>195</y>
+         <width>25</width>
+         <height>19</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>...</string>
+       </property>
+      </widget>
+      <widget class="QCheckBox" name="checkBox_chargeCompensator">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="geometry">
+        <rect>
+         <x>190</x>
+         <y>195</y>
+         <width>91</width>
+         <height>17</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>FCC</string>
+       </property>
+      </widget>
      </widget>
      <widget class="QGroupBox" name="groupBox_3">
       <property name="geometry">
@@ -2048,10 +2080,10 @@ Green: acquired</string>
       <attribute name="verticalHeaderVisible">
        <bool>false</bool>
       </attribute>
-      <attribute name="verticalHeaderDefaultSectionSize">
+      <attribute name="verticalHeaderMinimumSectionSize">
        <number>10</number>
       </attribute>
-      <attribute name="verticalHeaderMinimumSectionSize">
+      <attribute name="verticalHeaderDefaultSectionSize">
        <number>10</number>
       </attribute>
      </widget>
@@ -2426,7 +2458,7 @@ Wafer Image</string>
      <x>0</x>
      <y>0</y>
      <width>711</width>
-     <height>36</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -2454,6 +2486,7 @@ Wafer Image</string>
     <addaction name="actionAutofocusSettings"/>
     <addaction name="separator"/>
     <addaction name="actionPlasmaCleanerSettings"/>
+	<addaction name="actionChargeCompensatorSettings"/>	
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -2641,6 +2674,11 @@ Wafer Image</string>
   <action name="actionUpdate">
    <property name="text">
     <string>Update SBEMimage</string>
+   </property>
+  </action>
+  <action name="actionChargeCompensatorSettings">
+   <property name="text">
+    <string>Charge compensator</string>
    </property>
   </action>
  </widget>

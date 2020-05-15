@@ -86,6 +86,7 @@ ERROR_LIST = {
     311: 'WD error',
     312: 'STIG XY error',
     313: 'Beam blanking error',
+    314: 'FCC error',
 
     # First digit 4: I/O error
     401: 'Primary drive error',

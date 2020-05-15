@@ -59,12 +59,13 @@ from main_controls_dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                                       AutofocusSettingsDlg, DebrisSettingsDlg, \
                                       EmailMonitoringSettingsDlg, \
                                       ImageMonitoringSettingsDlg, ExportDlg, \
-                                      SaveConfigDlg, PlasmaCleanerDlg, \
+                                      SaveConfigDlg, PlasmaCleanerDlg, ChargeCompensatorDlg, \
                                       ApproachDlg, MirrorDriveDlg, EHTDlg, \
                                       StageCalibrationDlg, MagCalibrationDlg, \
                                       GrabFrameDlg, FTSetParamsDlg, FTMoveDlg, \
                                       AskUserDlg, UpdateDlg, CutDurationDlg, \
-                                      KatanaSettingsDlg, AboutBox
+                                      KatanaSettingsDlg, AboutBox, \
+                                      MotorTestDlg
 
 from magc_dlg_windows import ImportMagCDlg, ImportWaferImageDlg, \
                           WaferCalibrationDlg
@@ -402,6 +403,8 @@ class MainControls(QMainWindow):
         self.toolButton_autofocus.clicked.connect(self.open_autofocus_dlg)
         self.toolButton_plasmaCleaner.clicked.connect(
             self.initialize_plasma_cleaner)
+        self.toolButton_chargeCompensator.clicked.connect(
+            self.open_charge_compensator_dlg)
         self.toolButton_askUserMode.clicked.connect(self.open_ask_user_dlg)
         # Menu bar
         self.actionSEMSettings.triggered.connect(self.open_sem_dlg)
@@ -424,6 +427,8 @@ class MainControls(QMainWindow):
         self.actionAutofocusSettings.triggered.connect(self.open_autofocus_dlg)
         self.actionPlasmaCleanerSettings.triggered.connect(
             self.initialize_plasma_cleaner)
+        self.actionChargeCompensatorSettings.triggered.connect(
+            self.open_charge_compensator_dlg)
         self.actionSaveConfig.triggered.connect(self.save_settings)
         self.actionSaveNewConfig.triggered.connect(
             self.open_save_settings_new_file_dlg)
@@ -1206,6 +1211,10 @@ class MainControls(QMainWindow):
 
     def open_plasma_cleaner_dlg(self):
         dialog = PlasmaCleanerDlg(self.plasma_cleaner)
+        dialog.exec_()
+
+    def open_charge_compensator_dlg(self):
+        dialog = ChargeCompensatorDlg(self.sem)
         dialog.exec_()
 
     def open_approach_dlg(self):

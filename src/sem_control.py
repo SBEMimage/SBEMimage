@@ -18,6 +18,8 @@ import pythoncom
 import win32com.client  # required to use CZEMApi.ocx (Carl Zeiss EM API)
 from win32com.client import VARIANT  # required for API function calls
 
+from utils import ERROR_LIST
+
 
 class SEM:
     """Base class for remote SEM control. Implements minimum parameter handling.
@@ -164,6 +166,31 @@ class SEM:
         """Save the target EHT (in kV) and set the EHT to this target value."""
         self.target_eht = target_eht
         # Setting SEM to target EHT must be implemented in child class!
+
+    def turn_fcc_on(self):
+        """Turn FCC (= Focal Charge Compensator) on."""
+        raise NotImplementedError
+
+    def turn_fcc_off(self):
+        """Turn FCC (= Focal Charge Compensator) off."""
+        raise NotImplementedError
+
+    def is_fcc_on(self):
+        """Return True if FCC is on."""
+        raise NotImplementedError
+
+    def is_fcc_off(self):
+        """Return True if FCC is off."""
+        raise NotImplementedError
+
+    def get_fcc_level(self):
+        """Read current FCC (0-100) from SmartSEM."""
+        raise NotImplementedError
+
+    def set_fcc_level(self, target_fcc_level):
+        """Save the target FCC (0-100) and set the FCC to this target value."""
+        self.target_fcc_level = target_fcc_level
+        # Setting SEM to target FCC level must be implemented in child class!
 
     def get_beam_current(self):
         """Read beam current (in pA) from SmartSEM."""
@@ -413,6 +440,58 @@ class SEM_SmartSEM(SEM):
             self.error_info = (
                 f'sem.set_eht: command failed (ret_val: {ret_val})')
             return False
+
+# *** TODO: Set correct SmartSEM commands!
+
+    def turn_fcc_on(self):
+        """Turn FCC (= Focal Charge Compensator) on."""
+        ret_val = self.sem_api.Execute('CMD_FCC_ON')
+        if ret_val == 0:
+            return True
+        else:
+            self.error_state = ERROR_LIST['FCC error']
+            self.error_info = (
+                f'sem.turn_fcc_on: command failed (ret_val: {ret_val})')
+            return False
+
+    def turn_fcc_off(self):
+        """Turn FCC (= Focal Charge Compensator) off."""
+        ret_val = self.sem_api.Execute('CMD_FCC_OFF')
+        if ret_val == 0:
+            return True
+        else:
+            self.error_state = ERROR_LIST['FCC error']
+            self.error_info = (
+                f'sem.turn_fcc_off: command failed (ret_val: {ret_val})')
+            return False
+
+    def is_fcc_on(self):
+        """Return True if FCC is on."""
+        return self.sem_api.Get('DP_FCC_STATE', 0)[1] == 'FCC On'
+
+    def is_fcc_off(self):
+        """Return True if FCC is off."""
+        return self.sem_api.Get('DP_FCC_STATE', 0)[1] == 'FCC Off'
+
+    def get_fcc_level(self):
+        """Read current FCC (0-100) from SmartSEM."""
+        return self.sem_api.Get('AP_GET_FCC_LEVEL', 0)[1]
+
+    def set_fcc_level(self, target_fcc_level):
+        """Save the target FCC (0-100) and set the FCC to this target value."""
+        # Call method in parent class
+        super().set_eht(target_fcc_level)
+        #variant = VARIANT(pythoncom.VT_R4, target_fcc_level)
+        #ret_val = self.sem_api.Set('AP_GET_FCC_LEVEL', variant)[0]
+        ret_val=0
+        if ret_val == 0:
+            return True
+        else:
+            self.error_state = ERROR_LIST['FCC error']
+            self.error_info = (
+                f'sem.set_eht: command failed (ret_val: {ret_val})')
+            return False
+
 
     def get_beam_current(self):
         """Read beam current (in pA) from SmartSEM."""
