@@ -2915,6 +2915,69 @@ class MotorTestDlg(QDialog):
 
 # ------------------------------------------------------------------------------
 
+class SendCommandDlg(QDialog):
+    """Send a command to DM (for testing purposes)."""
+
+    def __init__(self, microtome):
+        super().__init__()
+        self.microtome = microtome
+        loadUi('..\\gui\\send_dm_command_dlg.ui', self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setFixedSize(self.size())
+        self.show()
+        self.pushButton_sendCommand.clicked.connect(self.send_command)
+        self.pushButton_checkResponse.clicked.connect(self.check_response)
+
+    def send_command(self):
+        """Read the command string and the two parameters from the GUI elements
+        and send them to DigitalMicrograph.
+        """
+        cmd = self.lineEdit_command.text()
+        param1 = self.doubleSpinBox_param1.value()
+        param2 = self.doubleSpinBox_param2.value()
+        # Clear output text field
+        self.plainTextEdit_scriptResponse.setPlainText('')
+        if (cmd.startswith('MicrotomeStage_SetPosition') or
+                cmd.startswith('SetMotorSpeed')):
+            self.microtome._send_dm_command(cmd, [param1, param2])
+        else:
+            self.microtome._send_dm_command(cmd)
+        sleep(0.5)
+
+    def check_response(self):
+        """Read the output file DMcom.out and display its contents. Check for
+        the existence of the other signal files.
+        """
+        if os.path.isfile(self.microtome.OUTPUT_FILE):
+            return_values = self.microtome._read_dm_return_values()
+        else:
+            return_values = 'No output file generated'
+        script_response = 'DMcom.out: ' + str(return_values) + '\n'
+        # Check files
+        if os.path.isfile(self.microtome.ACK_FILE):
+            script_response += (
+                'Command execution confirmed: '
+                + self.microtome.ACK_FILE + '\n')
+        if os.path.isfile(self.microtome.ACK_CUT_FILE):
+            script_response += (
+                'Cut execution confirmed: '
+                + self.microtome.ACK_CUT_FILE + '\n')
+        if os.path.isfile(self.microtome.WARNING_FILE):
+            script_response += (
+                'Warning: ' + self.microtome.WARNING_FILE + '\n')
+        if os.path.isfile(self.microtome.ERROR_FILE):
+            script_response += (
+                'Error: ' + self.microtome.ERROR_FILE + '\n')
+        # Error state
+        script_response += (f'Error state: {self.microtome.error_state} '
+                            f'{self.microtome.error_info}')
+        self.microtome.reset_error_state()
+        # Display in GUI
+        self.plainTextEdit_scriptResponse.setPlainText(script_response)
+
+# ------------------------------------------------------------------------------
+
 class AboutBox(QDialog):
     """Show the About dialog box with info about SBEMimage and the current
     version and release date.
