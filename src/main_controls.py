@@ -64,8 +64,8 @@ from main_controls_dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                                       StageCalibrationDlg, MagCalibrationDlg, \
                                       GrabFrameDlg, FTSetParamsDlg, FTMoveDlg, \
                                       AskUserDlg, UpdateDlg, CutDurationDlg, \
-                                      KatanaSettingsDlg, AboutBox, \
-                                      MotorTestDlg
+                                      KatanaSettingsDlg, SendCommandDlg, \
+                                      AboutBox
 
 from magc_dlg_windows import ImportMagCDlg, ImportWaferImageDlg, \
                           WaferCalibrationDlg
@@ -458,6 +458,8 @@ class MainControls(QMainWindow):
         self.pushButton_testSetStage.clicked.connect(self.test_set_stage)
         self.pushButton_testNearKnife.clicked.connect(self.test_near_knife)
         self.pushButton_testClearKnife.clicked.connect(self.test_clear_knife)
+        self.pushButton_testSendCommand.clicked.connect(
+            self.open_send_command_dlg)
         self.pushButton_testStopDMScript.clicked.connect(
             self.test_stop_dm_script)
         self.pushButton_testSendEMail.clicked.connect(self.test_send_email)
@@ -1230,7 +1232,13 @@ class MainControls(QMainWindow):
         dialog.exec_()
 
     def open_motor_test_dlg(self):
-        dialog = MotorTestDlg(self.microtome, self.acq, self.trigger)
+        # Disabled for now
+        pass
+        # dialog = MotorTestDlg(self.microtome, self.acq, self.trigger)
+        # dialog.exec_()
+
+    def open_send_command_dlg(self):
+        dialog = SendCommandDlg(self.microtome)
         dialog.exec_()
 
     def open_about_box(self):
@@ -1538,6 +1546,7 @@ class MainControls(QMainWindow):
         self.pushButton_testStopDMScript.setEnabled(b)
         self.pushButton_testPlasmaCleaner.setEnabled(b)
         self.pushButton_testMotors.setEnabled(b)
+        self.pushButton_testSendCommand.setEnabled(b)
 
     def restrict_gui_for_simulation_mode(self):
         self.pushButton_SEMSettings.setEnabled(False)
