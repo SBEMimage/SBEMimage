@@ -152,8 +152,13 @@ class Notifications:
             self.main_controls_trigger.transmit(
                 'GET CURRENT LOG' + recent_main_log)
             sleep(0.5)  # wait for file to be written
-            attachment_list.append(recent_main_log)
-            temp_file_list.append(recent_main_log)
+            if not os.path.isfile(recent_main_log):
+                sleep(1)
+            if os.path.isfile(recent_main_log):
+                attachment_list.append(recent_main_log)
+                temp_file_list.append(recent_main_log)
+            else:
+                missing_list.append(recent_main_log)
         if self.send_additional_logs:
             attachment_list.append(debris_log)
             attachment_list.append(error_log)
@@ -234,8 +239,8 @@ class Notifications:
                     missing_list.append(save_path)
 
         # Send report email
-        msg_subject = ('Status report for stack ' + stack_name
-                       + ': slice ' + str(slice_counter))
+        msg_subject = (f'Status report (slice {slice_counter}) '
+                       f'for acquisition {stack_name}')
         msg_text = 'See attachments.'
         if missing_list:
             msg_text += ('\n\nThe following file(s) could not be attached. '
@@ -265,19 +270,30 @@ class Notifications:
                           recent_main_log, vp_screenshot):
         """Send a notification by email that an error has occurred."""
 
+        attachment_list = []  # files to be attached
         # Status messages returned by this function to be added to main log
         status_msg1, status_msg2 = '', ''
-        # Generate log file from current content of log
-        self.main_controls_trigger.transmit('GET CURRENT LOG' + recent_main_log)
+         # Generate log file from current content of log in Main Controls
+        self.main_controls_trigger.transmit(
+            'GET CURRENT LOG' + recent_main_log)
         sleep(0.5)  # wait for file to be written
-        if vp_screenshot is not None:
-            attachment_list = [recent_main_log, vp_screenshot]
-        else:
-            attachment_list = [recent_main_log]
-        msg_subject = ('Stack ' + stack_name + ': slice '
-                       + str(slice_counter) + ', ERROR')
+        if not os.path.isfile(recent_main_log):
+            sleep(1)
+
+        msg_subject = (f'Error (slice {slice_counter}) '
+                       f'during acquisition {stack_name}')
         error_description = (f'Error {error_state} has occurred: '
                              + utils.ERROR_LIST[error_state])
+
+        if os.path.isfile(recent_main_log):
+            attachment_list.append(recent_main_log)
+        else:
+            error_description += '\n\nLog file could not be attached.'
+        if vp_screenshot is not None:
+            attachment_list.append(vp_screenshot)
+        else:
+            error_description += '\n\nViewport screenshot could not be attached.'
+
         success, error_msg = self.send_email(
             msg_subject, error_description, attachment_list)
         if success:
@@ -287,7 +303,8 @@ class Notifications:
                            + error_msg)
         # Remove temporary log file of most recent entries
         try:
-            os.remove(recent_main_log)
+            if os.path.isfile(recent_main_log):
+                os.remove(recent_main_log)
         except Exception as e:
             status_msg2 = ('CTRL: ERROR while trying to remove '
                            'temporary file: ' + str(e))

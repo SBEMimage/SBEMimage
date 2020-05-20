@@ -1367,7 +1367,11 @@ class MainControls(QMainWindow):
         elif msg[:6] == 'VP LOG':
             self.viewport.add_to_log(msg[6:])
         elif msg[:15] == 'GET CURRENT LOG':
-            self.write_current_log_to_file(msg[15:])
+            try:
+                self.write_current_log_to_file(msg[15:])
+            except Exception as e:
+                self.add_to_log('CTRL: Could not write current log to disk: '
+                                + str(e))
         elif msg == 'MAGC WAFER CALIBRATED':
             self.pushButton_magc_waferCalibration.setStyleSheet('background-color: green')
         elif msg == 'MAGC WAFER NOT CALIBRATED':
