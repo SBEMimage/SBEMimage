@@ -1100,6 +1100,7 @@ class Acquisition:
                         else:
                             self.error_state = 0
                     elif self.error_state > 0:
+                        self.pause_acquisition(1)
                         break
                     elif (not ov_accepted
                           and not self.pause_state == 1
