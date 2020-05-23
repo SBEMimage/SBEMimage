@@ -9,7 +9,8 @@
 # ==============================================================================
 
 """This module handles all email notifications (status reports and error
-messages and remote commands."""
+messages and remote commands.
+"""
 
 import os
 import json
@@ -108,7 +109,8 @@ class Notifications:
         """Send email to user email addresses specified in configuration, with
         subject and main_text (body) and attached_files as attachments.
         Return (True, None) if email is sent successfully, otherwise return
-        (False, error message)."""
+        (False, error message).
+        """
         try:
             msg = MIMEMultipart()
             msg['From'] = self.email_account
@@ -137,8 +139,7 @@ class Notifications:
             return False, str(e)
 
     def send_status_report(self, base_dir, stack_name, slice_counter,
-                           recent_main_log, debris_log, error_log,
-                           vp_screenshot):
+                           recent_main_log, incident_log, vp_screenshot):
         """Compile a status report and send it via e-mail."""
 
         attachment_list = []  # files to be attached
@@ -160,21 +161,25 @@ class Notifications:
             else:
                 missing_list.append(recent_main_log)
         if self.send_additional_logs:
-            attachment_list.append(debris_log)
-            attachment_list.append(error_log)
+            if os.path.isfile(incident_log):
+                attachment_list.append(incident_log)
+            else:
+                missing_list.append(incident_log)
         if self.send_viewport_screenshot:
             if os.path.isfile(vp_screenshot):
                 attachment_list.append(vp_screenshot)
             else:
                 missing_list.append(vp_screenshot)
         if self.send_ov:
+            # Attach OV(s) saved in workspace
             for ov_index in self.status_report_ov_list:
-                save_path = utils.ov_save_path(
-                    base_dir, stack_name, ov_index, slice_counter)
-                if os.path.isfile(save_path):
-                    attachment_list.append(save_path)
+                ov_path = os.path.join(
+                    base_dir, 'workspace',
+                    'OV' + str(ov_index).zfill(utils.OV_DIGITS) + '.bmp')
+                if os.path.isfile(ov_path):
+                    attachment_list.append(ov_path)
                 else:
-                    missing_list.append(save_path)
+                    missing_list.append(ov_path)
         if self.send_tiles:
             for tile_key in self.status_report_tile_list:
                 grid_index, tile_index = tile_key.split('.')
@@ -189,7 +194,7 @@ class Notifications:
                         base_dir, 'workspace', 'tile_g'
                         + str(grid_index).zfill(utils.GRID_DIGITS)
                         + 't' + str(tile_index).zfill(utils.TILE_DIGITS)
-                        + '_cropped.tif')
+                        + '_cropped.png')
                     tile_image.crop((int(r_width/3), int(r_height/3),
                          int(2*r_width/3), int(2*r_height/3))).save(
                          cropped_tile_filename)

@@ -1364,8 +1364,8 @@ class MainControls(QMainWindow):
             self.viewport.vp_draw()
         elif msg == 'DRAW VP NO LABELS':
             self.viewport.vp_draw(suppress_labels=True, suppress_previews=True)
-        elif msg[:6] == 'VP LOG':
-            self.viewport.add_to_log(msg[6:])
+        elif msg[:12] == 'INCIDENT LOG':
+            self.viewport.show_in_incident_log(msg[12:])
         elif msg[:15] == 'GET CURRENT LOG':
             try:
                 self.write_current_log_to_file(msg[15:])
@@ -1684,6 +1684,13 @@ class MainControls(QMainWindow):
 
     def test_near_knife(self):
         if self.use_microtome:
+            user_reply = QMessageBox.question(
+                self, 'Move knife to "Near" position',
+                    'Please confirm that you want to move the knife to the '
+                    '"Near" position.',
+                    QMessageBox.Ok | QMessageBox.Cancel)
+            if user_reply == QMessageBox.Cancel:
+                return
             self.microtome.near_knife()
             self.add_to_log('KNIFE: Position should be NEAR.')
         else:
@@ -1935,7 +1942,9 @@ class MainControls(QMainWindow):
         self.pushButton_startAcq.setText('CONTINUE')
         QMessageBox.information(
             self, 'ERROR: Acquisition paused',
-            'Acquisition was paused because an error has occured (see log).',
+            f'Error {self.acq.error_state} '
+            f'({utils.ERROR_LIST[self.acq.error_state]}) has occurred '
+            f'(see log). Acquisition has been paused.',
             QMessageBox.Ok)
 
     def acq_not_in_progress_update_gui(self):
