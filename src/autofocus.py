@@ -12,8 +12,7 @@
 This module provides automatic focusing and stigmation. Two methods are
 implemented: (1) SmartSEM autofocus, which is called in user-specified
 intervals on selected tiles. (2) Heuristic algorithm as used in Briggman
-et al., 2011, described in Binding et al., 2012.
-
+et al. (2011), described in Appendix A of Binding et al. (2012).
 """
 
 import json
@@ -35,12 +34,11 @@ class Autofocus():
         self.interval = int(self.cfg['autofocus']['interval'])
         self.autostig_delay = int(self.cfg['autofocus']['autostig_delay'])
         self.pixel_size = float(self.cfg['autofocus']['pixel_size'])
-        # Maximum allowed change in focus/stigmation:
+        # Maximum allowed change in focus/stigmation
         self.max_wd_diff, self.max_stig_x_diff, self.max_stig_y_diff = (
             json.loads(self.cfg['autofocus']['max_wd_stig_diff']))
-        # For heuristic autofocus:
-        # Dictionary of cropped central tile areas, kept in memory
-        # for processing during cut cycle:
+        # For the heuristic autofocus method, a dictionary of cropped central
+        # tile areas is kept in memory for processing during the cut cycles.
         self.img = {}
         self.wd_delta, self.stig_x_delta, self.stig_y_delta = json.loads(
             self.cfg['autofocus']['heuristic_deltas'])
@@ -56,11 +54,11 @@ class Autofocus():
         self.apy_mask = np.empty((self.ACORR_WIDTH, self.ACORR_WIDTH))
         self.amy_mask = np.empty((self.ACORR_WIDTH, self.ACORR_WIDTH))
         self.make_heuristic_weight_function_masks()
-        # Estimators (dicts with tile keys):
+        # Estimators (dicts with tile keys)
         self.foc_est = {}
         self.astgx_est = {}
         self.astgy_est = {}
-        # Computed corrections:
+        # Computed corrections for heuristic autofocus
         self.wd_stig_corr = {}
         # If MagC mode active, enforce method and tracking mode
         self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
@@ -69,8 +67,9 @@ class Autofocus():
             self.tracking_mode = 0  # Track selected, approx. others
 
     def save_to_cfg(self):
-        """Save current status of autofocus to ConfigParser object. Note that
-        autofocus reference tiles are managed by the grid_manager."""
+        """Save current autofocus settings to ConfigParser object. Note that
+        autofocus reference tiles are managed in grid_manager.
+        """
         self.cfg['autofocus']['method'] = str(self.method)
         self.cfg['autofocus']['tracking_mode'] = str(self.tracking_mode)
         self.cfg['autofocus']['max_wd_stig_diff'] = str(
@@ -88,7 +87,9 @@ class Autofocus():
     def approximate_wd_stig_in_grid(self, grid_index):
         """Approximate the working distance and stigmation parameters for all
         non-selected active tiles in the specified grid. Simple approach for
-        now: use the settings of the nearest (selected) neighbour."""
+        now: use the settings of the nearest (selected) neighbour.
+        TODO: Best fit of parameters using available reference tiles
+        """
         active_tiles = self.gm[grid_index].active_tiles
         autofocus_ref_tiles = self.gm[grid_index].autofocus_ref_tiles()
         if active_tiles and autofocus_ref_tiles:
@@ -133,15 +134,14 @@ class Autofocus():
 
         msg = 'CTRL: SmartSEM AF did not run.'
         if autofocus or autostig:
-            # Switch to autofocus settings:
+            # Switch to autofocus settings
+            # TODO: allow different dwell times
             self.sem.apply_frame_settings(0, self.pixel_size, 0.8)
-            # unfreeze does not seem to help to change scanrate during autofocus
-            # self.sem.sem_api.Execute('CMD_UNFREEZE_ALL')
             sleep(0.5)
 
             if autofocus and autostig:
                 if self.magc_mode:
-                    # Run SmartSEM autofocus-autostig-autofocus sequence:
+                    # Run SmartSEM autofocus-autostig-autofocus sequence
                     msg = 'SmartSEM autofocus-autostig-autofocus (MagC)'
                     success = self.sem.run_autofocus()
                     sleep(0.5)
@@ -152,15 +152,15 @@ class Autofocus():
                             success = self.sem.run_autofocus()
                 else:
                     msg = 'SmartSEM autofocus + autostig procedure'
-                    # Perform combined autofocus + autostig:
+                    # Perform combined autofocus + autostig
                     success = self.sem.run_autofocus_stig()
             elif autofocus:
                 msg = 'SmartSEM autofocus procedure'
-                # Call only SmartSEM autofocus routine:
+                # Call only SmartSEM autofocus routine
                 success = self.sem.run_autofocus()
             else:
                 msg = 'SmartSEM autostig procedure'
-                # Call only SmartSEM autostig routine:
+                # Call only SmartSEM autostig routine
                 success = self.sem.run_autostig()
 
         if success:
@@ -170,49 +170,51 @@ class Autofocus():
 
         return msg
 
-    # ===== Below: Heuristic autofocus =======
+    # ================ Below: methods for heuristic autofocus ==================
 
     def crop_tile_for_heuristic_af(self, tile_img, tile_key):
         """Crop tile_img provided as numpy array. Save in dictionary with
-           tile_key."""
-        # Crop image to 512x512:
+        tile_key.
+        """
         height, width = tile_img.shape[0], tile_img.shape[1]
+        # Crop image to 512 x 512 central area
         self.img[tile_key] = tile_img[int(height/2 - 256):int(height/2 + 256),
                                       int(width/2 - 256):int(width/2 + 256)]
 
     def process_image_for_heuristic_af(self, tile_key):
-        """Compute single-image estimators as described in
-           Binding et al., 2013"""
+        """Compute single-image estimators as described in Appendix A of
+        Binding et al. (2013).
+        """
 
-        # image provided as numpy array from dictionary,
-        # already cropped to 512x512
+        # The image from the dictionary self.img is provided as a numpy array
+        # and already cropped to 512 x 512 pixels
         img = self.img[tile_key]
         mean = int(np.mean(img))
-        # recast as int16 before mean subtraction
+        # Recast as int16 and subtract mean
         img = img.astype(np.int16)
         img -= mean
-        # Autocorrelation:
+        # Autocorrelation
         norm = np.sum(img ** 2)
-        autocorr = fftconvolve(img, img[::-1, ::-1])/norm
+        autocorr = fftconvolve(img, img[::-1, ::-1]) / norm
         height, width = autocorr.shape[0], autocorr.shape[1]
-        # Crop to 64-pixel central region:
+        # Crop to 64 x 64 px central region
         autocorr = autocorr[int(height/2 - 32):int(height/2 + 32),
                             int(width/2 - 32):int(width/2 + 32)]
-        # Calculate coefficients:
+        # Calculate coefficients
         fi = self.muliply_with_mask(autocorr, self.fi_mask)
         fo = self.muliply_with_mask(autocorr, self.fo_mask)
         apx = self.muliply_with_mask(autocorr, self.apx_mask)
         amx = self.muliply_with_mask(autocorr, self.amx_mask)
         apy = self.muliply_with_mask(autocorr, self.apy_mask)
         amy = self.muliply_with_mask(autocorr, self.amy_mask)
-        # Check if tile_key already in dictionary:
+        # Check if tile_key not in dictionary yet
         if not (tile_key in self.foc_est):
             self.foc_est[tile_key] = []
         if not (tile_key in self.astgx_est):
             self.astgx_est[tile_key] = []
         if not (tile_key in self.astgy_est):
             self.astgy_est[tile_key] = []
-        # Calculate single-image estimators for current tile key:
+        # Calculate single-image estimators for current tile key
         if len(self.foc_est[tile_key]) > 1:
             self.foc_est[tile_key].pop(0)
         self.foc_est[tile_key].append(
@@ -244,12 +246,12 @@ class Autofocus():
             ay_corr = a1 * sin(self.rot_angle) + a2 * cos(self.rot_angle)
             ax_corr *= self.scale_factor
             ay_corr *= self.scale_factor
-            # Are results within permissible range?
+            # Check if results are within permissible range
             within_range = (abs(wd_corr/1000) <= self.max_wd_diff
                             and abs(ax_corr) <= self.max_stig_x_diff
                             and abs(ay_corr) <= self.max_stig_y_diff)
             if within_range:
-                # Store corrections for this tile:
+                # Store corrections for this tile in dictionary
                 self.wd_stig_corr[tile_key] = [wd_corr/1000, ax_corr, ay_corr]
             else:
                 self.wd_stig_corr[tile_key] = [0, 0, 0]
@@ -259,6 +261,10 @@ class Autofocus():
             return None, None, None, False
 
     def get_heuristic_average_grid_correction(self, grid_index):
+        """Use the available corrections for the reference tiles in the grid
+        specified by grid_index to calculate the average corrections for the
+        entire grid.
+        """
         wd_corr = []
         stig_x_corr = []
         stig_y_corr = []
@@ -274,16 +280,16 @@ class Autofocus():
             return (None, None, None)
 
     def apply_heuristic_tile_corrections(self):
-        """Apply individual tile corrections for the specified grid."""
+        """Apply individual tile corrections."""
         for tile_key in self.wd_stig_corr:
             g, t = tile_key.split('.')
             g, t = int(g), int(t)
-            self.gm.adjust_tile_wd(g, t, self.wd_stig_corr[tile_key][0])
-            self.gm.adjust_tile_stig_xy(
-                g, t, *self.wd_stig_corr[tile_key][1:3])
+            self.gm[g][t].wd += self.wd_stig_corr[tile_key][0]
+            self.gm[g][t].stig_xy[0] += self.wd_stig_corr[tile_key][1]
+            self.gm[g][t].stig_xy[1] += self.wd_stig_corr[tile_key][2]
 
     def make_heuristic_weight_function_masks(self):
-        # Parameters as given in Binding et al. 2013:
+        # Parameters as given in Appendix A of Binding et al. 2013
         α = 6
         β = 0.5
         γ = 3
@@ -295,13 +301,12 @@ class Autofocus():
                 x, y = i - self.ACORR_WIDTH/2, j - self.ACORR_WIDTH/2
                 r = sqrt(x**2 + y**2)
                 if r == 0:
-                # Prevent division by zero:
-                    r = 1
+                    r = 1  # Prevent division by zero
                 sinφ = x/r
                 cosφ = y/r
                 exp_astig = exp(-r**2/α) - exp(-r**2/β)
 
-                # Six masks for the calculation of coefficients
+                # Six masks for the calculation of coefficients:
                 # fi, fo, apx, amx, apy, amy
                 self.fi_mask[i, j] = exp(-r**2/γ) - exp(-r**2/δ)
                 self.fo_mask[i, j] = exp(-r**2/ε) - exp(-r**2/γ)
@@ -318,3 +323,9 @@ class Autofocus():
                 numerator_sum += autocorr[i, j] * mask[i, j]
                 norm += mask[i, j]
         return numerator_sum / norm
+
+    def reset_heuristic_corrections(self):
+        self.foc_est = {}
+        self.astgx_est = {}
+        self.astgy_est = {}
+        self.wd_stig_corr = {}

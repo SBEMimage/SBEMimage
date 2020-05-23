@@ -536,6 +536,8 @@ class Acquisition:
             self.wd_delta, self.stig_x_delta, self.stig_y_delta = 0, 0, 0
             # List of tiles to be processed for heuristic autofocus
             self.heuristic_af_queue = []
+            # Reset current estimators and corrections
+            self.autofocus.reset_heuristic_corrections()
 
             # Variables used for user response from Main Controls
             self.user_reply = None
