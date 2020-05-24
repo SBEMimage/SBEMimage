@@ -280,14 +280,14 @@ class Microtome_3View(Microtome):
     to the 3View hardware (XY stage and knife arm).
     Communication with DM is achieved by read/write file operations.
     The following files are used:
-      DMcom.trg:  Trigger file
-                  Its existence signals that a command is waiting to be read.
-      DMcom.in:   Command/parameter file
-                  Contains a command and (optional) up to two parameters
-      DMcom.out:  Contains output/return value(s)
+      DMcom.in:   Command/parameter file. Contains a command and up to
+                  two optional parameters.
+      DMcom.cmd:  The file 'DMcom.in' is renamed to 'DMcom.cmd' to trigger
+                  its contents to be processed by DM.
+      DMcom.out:  Contains return value(s) from DM
       DMcom.ack:  Confirms that a command has been received and processed.
       DMcom.ac2:  Confirms that a full cut cycle has been completed.
-      DMcom.wng:  Signals a warning (= error that could be resolved).
+      DMcom.wng:  Signals a warning (a problem occurred, but could be resolved).
       DMcom.err:  Signals that a critical error occured.
 
     The 3View knife parameters (knife speeds, osciallation on/off) cannot be
@@ -299,8 +299,8 @@ class Microtome_3View(Microtome):
     def __init__(self, config, sysconfig):
         super().__init__(config, sysconfig)
         # Paths to DM communication files
-        self.TRIGGER_FILE = os.path.join('..', 'dm', 'DMcom.trg')
         self.INPUT_FILE = os.path.join('..', 'dm', 'DMcom.in')
+        self.COMMAND_FILE = os.path.join('..', 'dm', 'DMcom.cmd')
         self.OUTPUT_FILE = os.path.join('..', 'dm', 'DMcom.out')
         self.ACK_FILE = os.path.join('..', 'dm', 'DMcom.ack')
         self.ACK_CUT_FILE = os.path.join('..', 'dm', 'DMcom.ac2')
@@ -339,39 +339,44 @@ class Microtome_3View(Microtome):
                 # is already in an error state after reading the coordinates.
                 if not success and self.error_state == 0:
                     self.error_state = 101
-                    self.error_info = ('microtome.__init__: could not send '
-                                       'current motor speeds to DM')
+                    self.error_info = ('microtome.__init__: could not update '
+                                       'DM script with current motor speeds')
             else:
                 self.error_state = 101
                 self.error_info = 'microtome.__init__: handshake failed'
 
     def _send_dm_command(self, cmd, set_values=[]):
         """Send a command to the DigitalMicrograph script."""
-        # First, if output file exists, delete it to ensure old values are gone
+        # If output file exists, delete it to ensure old return values are gone
         if os.path.isfile(self.OUTPUT_FILE):
             os.remove(self.OUTPUT_FILE)
-        # Try to open command file
-        success, cmd_file = utils.try_to_open(self.INPUT_FILE, 'w+')
+        # Delete .ack and .ac2 files
+        if os.path.isfile(self.ACK_FILE):
+            os.remove(self.ACK_FILE)
+        if os.path.isfile(self.ACK_CUT_FILE):
+            os.remove(self.ACK_CUT_FILE)
+        # Try to open input file
+        success, input_file = utils.try_to_open(self.INPUT_FILE, 'w+')
         if success:
-            cmd_file.write(cmd)
+            input_file.write(cmd)
             for item in set_values:
-                cmd_file.write('\n' + str(item))
-            cmd_file.close()
-            # Create new trigger file
-            success, trg_file = utils.try_to_open(self.TRIGGER_FILE, 'w+')
-            if success:
-                trg_file.close()
-            elif self.error_state == 0:
-                self.error_state = 102
-                self.error_info = ('microtome._send_dm_command: could not '
-                                   'create trigger file')
+                input_file.write('\n' + str(item))
+            input_file.close()
+            # Trigger DM script by renaming input file to command file
+            try:
+                os.rename(self.INPUT_FILE, self.COMMAND_FILE)
+            except Exception as e:
+                if self.error_state == 0:
+                    self.error_state = 102
+                    self.error_info = ('microtome._send_dm_command: could not '
+                                       'rename input file (' + str(e) + ')')
         elif self.error_state == 0:
             self.error_state = 102
             self.error_info = ('microtome._send_dm_command: could not write '
-                               'to command file')
+                               'to input file')
 
     def _read_dm_return_values(self):
-        """Try to read return file and, if successful, return values."""
+        """Try to read output file and, if successful, return values."""
         return_values = []
         success, return_file = utils.try_to_open(self.OUTPUT_FILE, 'r')
         if success:
@@ -472,7 +477,7 @@ class Microtome_3View(Microtome):
         sleep(1.2/self.knife_retract_speed)
 
     def write_motor_speeds_to_script(self):
-        self._send_dm_command('SetMotorSpeedCalibrationXY',
+        self._send_dm_command('SetMotorSpeedXY',
                               [self.motor_speed_x, self.motor_speed_y])
         sleep(1)
         # Check if command was processed by DM
@@ -519,26 +524,47 @@ class Microtome_3View(Microtome):
         self._send_dm_command('MicrotomeStage_SetPositionXY_Confirm', [x, y])
         sleep(0.2)
         # Wait for the time it takes the motors to move
+        # plus stage_move_wait_interval
         move_duration = self.rel_stage_move_duration(x, y)
         sleep(move_duration + 0.1)
         # Check if the command was processed successfully
         if os.path.isfile(self.ACK_FILE):
             self.last_known_x, self.last_known_y = x, y
-            # Check if there was a warning
-            if os.path.isfile(self.WARNING_FILE):
-                # There was a warning from the script - motors may have
-                # moved too slowly
-                self.motor_warning = True
-        elif os.path.isfile(self.ERROR_FILE) and self.error_state == 0:
-            # Error: Motors did not reach the target position
-            self.error_state = 201
-            self.error_info = ('microtome.move_stage_to_xy: did not reach '
-                               'target xy position')
-        elif self.error_state == 0:
-            # If neither .ack nor .err exist, the command was not processed
-            self.error_state = 103
-            self.error_info = ('microtome.move_stage_to_xy: command not '
-                               'processed by DM script')
+        else:
+            # Wait for up to 2.5 additional seconds (DM script will try
+            # to read coordinates again to confirm move)
+            if self.stage_move_wait_interval < 2.5:
+                sleep(2.5 - self.stage_move_wait_interval)
+            # Check again for ACK_FILE
+            if os.path.isfile(self.ACK_FILE):
+                # Move was carried out, but with a delay.
+                self.last_known_x, self.last_known_y = x, y
+                # Check if there was a warning
+                if os.path.isfile(self.WARNING_FILE):
+                    # There was a warning from the script - motors may have
+                    # moved too slowly, but they reached the target position
+                    # after an extra 2s delay.
+                    self.motor_warning = True
+            elif os.path.isfile(self.ERROR_FILE) and self.error_state == 0:
+                # Move was not confirmed and error file exists:
+                # The motors did not reach the target position.
+                self.error_state = 201
+                self.error_info = ('microtome.move_stage_to_xy: did not reach '
+                                   'target xy position')
+                # Read last known position (written into output file by DM
+                # if a move fails.)
+                current_xy = self._read_dm_return_values()
+                if len(current_xy) == 2:
+                    try:
+                        self.last_known_x = float(current_xy[0])
+                        self.last_known_y = float(current_xy[1])
+                    except:
+                        pass  # keep current coordinates
+            elif self.error_state == 0:
+                # If neither .ack nor .err exist, the command was not processed
+                self.error_state = 103
+                self.error_info = ('microtome.move_stage_to_xy: command not '
+                                   'processed by DM script')
 
     def get_stage_z(self, wait_interval=0.5):
         """Get current Z coordinate from DM."""
@@ -589,7 +615,7 @@ class Microtome_3View(Microtome):
                                    'by DM script')
 
     def stop_script(self):
-        self._send_dm_command('Stop')
+        self._send_dm_command('StopScript')
         sleep(0.2)
 
     def near_knife(self):
