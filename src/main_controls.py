@@ -175,7 +175,7 @@ class MainControls(QMainWindow):
         if self.use_microtome and (self.syscfg['device']['microtome'] == '0'):
             # Create object for 3View microtome (control via DigitalMicrograph)
             self.microtome = Microtome_3View(self.cfg, self.syscfg)
-            if self.microtome.error_state > 0:
+            if self.microtome.error_state in [101, 102, 103, 104]:
                 startup_log_messages.append(
                     'CTRL: Error initializing DigitalMicrograph API.')
                 startup_log_messages.append(
@@ -193,7 +193,7 @@ class MainControls(QMainWindow):
                     QMessageBox.Retry)
                 # Try again
                 self.microtome = Microtome_3View(self.cfg, self.syscfg)
-                if self.microtome.error_state > 0:
+                if self.microtome.error_state in [101, 102, 103, 104]:
                     startup_log_messages.append(
                         'CTRL: Error initializing DigitalMicrograph API '
                         '(second attempt).')
