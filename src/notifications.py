@@ -9,7 +9,8 @@
 # ==============================================================================
 
 """This module handles all email notifications (status reports and error
-messages and remote commands."""
+messages and remote commands.
+"""
 
 import os
 import json
@@ -108,7 +109,8 @@ class Notifications:
         """Send email to user email addresses specified in configuration, with
         subject and main_text (body) and attached_files as attachments.
         Return (True, None) if email is sent successfully, otherwise return
-        (False, error message)."""
+        (False, error message).
+        """
         try:
             msg = MIMEMultipart()
             msg['From'] = self.email_account
@@ -137,8 +139,7 @@ class Notifications:
             return False, str(e)
 
     def send_status_report(self, base_dir, stack_name, slice_counter,
-                           recent_main_log, debris_log, error_log,
-                           vp_screenshot):
+                           recent_main_log, incident_log, vp_screenshot):
         """Compile a status report and send it via e-mail."""
 
         attachment_list = []  # files to be attached
@@ -152,24 +153,33 @@ class Notifications:
             self.main_controls_trigger.transmit(
                 'GET CURRENT LOG' + recent_main_log)
             sleep(0.5)  # wait for file to be written
-            attachment_list.append(recent_main_log)
-            temp_file_list.append(recent_main_log)
+            if not os.path.isfile(recent_main_log):
+                sleep(1)
+            if os.path.isfile(recent_main_log):
+                attachment_list.append(recent_main_log)
+                temp_file_list.append(recent_main_log)
+            else:
+                missing_list.append(recent_main_log)
         if self.send_additional_logs:
-            attachment_list.append(debris_log)
-            attachment_list.append(error_log)
+            if os.path.isfile(incident_log):
+                attachment_list.append(incident_log)
+            else:
+                missing_list.append(incident_log)
         if self.send_viewport_screenshot:
             if os.path.isfile(vp_screenshot):
                 attachment_list.append(vp_screenshot)
             else:
                 missing_list.append(vp_screenshot)
         if self.send_ov:
+            # Attach OV(s) saved in workspace
             for ov_index in self.status_report_ov_list:
-                save_path = utils.ov_save_path(
-                    base_dir, stack_name, ov_index, slice_counter)
-                if os.path.isfile(save_path):
-                    attachment_list.append(save_path)
+                ov_path = os.path.join(
+                    base_dir, 'workspace',
+                    'OV' + str(ov_index).zfill(utils.OV_DIGITS) + '.bmp')
+                if os.path.isfile(ov_path):
+                    attachment_list.append(ov_path)
                 else:
-                    missing_list.append(save_path)
+                    missing_list.append(ov_path)
         if self.send_tiles:
             for tile_key in self.status_report_tile_list:
                 grid_index, tile_index = tile_key.split('.')
@@ -184,7 +194,7 @@ class Notifications:
                         base_dir, 'workspace', 'tile_g'
                         + str(grid_index).zfill(utils.GRID_DIGITS)
                         + 't' + str(tile_index).zfill(utils.TILE_DIGITS)
-                        + '_cropped.tif')
+                        + '_cropped.png')
                     tile_image.crop((int(r_width/3), int(r_height/3),
                          int(2*r_width/3), int(2*r_height/3))).save(
                          cropped_tile_filename)
@@ -234,8 +244,8 @@ class Notifications:
                     missing_list.append(save_path)
 
         # Send report email
-        msg_subject = ('Status report for stack ' + stack_name
-                       + ': slice ' + str(slice_counter))
+        msg_subject = (f'Status report (slice {slice_counter}) '
+                       f'for acquisition {stack_name}')
         msg_text = 'See attachments.'
         if missing_list:
             msg_text += ('\n\nThe following file(s) could not be attached. '
@@ -265,19 +275,30 @@ class Notifications:
                           recent_main_log, vp_screenshot):
         """Send a notification by email that an error has occurred."""
 
+        attachment_list = []  # files to be attached
         # Status messages returned by this function to be added to main log
         status_msg1, status_msg2 = '', ''
-        # Generate log file from current content of log
-        self.main_controls_trigger.transmit('GET CURRENT LOG' + recent_main_log)
+         # Generate log file from current content of log in Main Controls
+        self.main_controls_trigger.transmit(
+            'GET CURRENT LOG' + recent_main_log)
         sleep(0.5)  # wait for file to be written
-        if vp_screenshot is not None:
-            attachment_list = [recent_main_log, vp_screenshot]
-        else:
-            attachment_list = [recent_main_log]
-        msg_subject = ('Stack ' + stack_name + ': slice '
-                       + str(slice_counter) + ', ERROR')
+        if not os.path.isfile(recent_main_log):
+            sleep(1)
+
+        msg_subject = (f'Error (slice {slice_counter}) '
+                       f'during acquisition {stack_name}')
         error_description = (f'Error {error_state} has occurred: '
                              + utils.ERROR_LIST[error_state])
+
+        if os.path.isfile(recent_main_log):
+            attachment_list.append(recent_main_log)
+        else:
+            error_description += '\n\nLog file could not be attached.'
+        if vp_screenshot is not None:
+            attachment_list.append(vp_screenshot)
+        else:
+            error_description += '\n\nViewport screenshot could not be attached.'
+
         success, error_msg = self.send_email(
             msg_subject, error_description, attachment_list)
         if success:
@@ -287,7 +308,8 @@ class Notifications:
                            + error_msg)
         # Remove temporary log file of most recent entries
         try:
-            os.remove(recent_main_log)
+            if os.path.isfile(recent_main_log):
+                os.remove(recent_main_log)
         except Exception as e:
             status_msg2 = ('CTRL: ERROR while trying to remove '
                            'temporary file: ' + str(e))

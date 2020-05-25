@@ -1705,7 +1705,9 @@ class UpdateDlg(QDialog):
 # ------------------------------------------------------------------------------
 
 class EmailMonitoringSettingsDlg(QDialog):
-    """Adjust settings for the e-mail monitoring feature."""
+    """Adjust settings for e-mail monitoring: e-mail addresses, status report
+    options, and remote control through e-mail commands.
+    """
 
     def __init__(self, acquisition, notifications):
         super().__init__()
@@ -1726,16 +1728,24 @@ class EmailMonitoringSettingsDlg(QDialog):
         self.lineEdit_selectedTiles.setText(str(
             self.notifications.status_report_tile_list)[1:-1].replace('\'', ''))
         self.checkBox_sendLogFile.setChecked(self.notifications.send_logfile)
-        self.checkBox_sendDebrisErrorLogFiles.setChecked(
+        self.checkBox_sendIncidentLogFile.setChecked(
             self.notifications.send_additional_logs)
         self.checkBox_sendViewport.setChecked(
             self.notifications.send_viewport_screenshot)
         self.checkBox_sendOverviews.setChecked(self.notifications.send_ov)
+        self.checkBox_sendOverviews.stateChanged.connect(
+            self.update_ov_list_input)
         self.checkBox_sendTiles.setChecked(self.notifications.send_tiles)
+        self.checkBox_sendTiles.stateChanged.connect(
+            self.update_tile_list_input)
         self.checkBox_sendOVReslices.setChecked(
             self.notifications.send_ov_reslices)
+        self.checkBox_sendOVReslices.stateChanged.connect(
+            self.update_ov_list_input)
         self.checkBox_sendTileReslices.setChecked(
             self.notifications.send_tile_reslices)
+        self.checkBox_sendTileReslices.stateChanged.connect(
+            self.update_tile_list_input)
         self.checkBox_allowEmailControl.setChecked(
             self.notifications.remote_commands_enabled)
         self.checkBox_allowEmailControl.stateChanged.connect(
@@ -1744,9 +1754,19 @@ class EmailMonitoringSettingsDlg(QDialog):
         self.spinBox_remoteCheckInterval.setValue(
             self.acq.remote_check_interval)
         self.lineEdit_account.setText(self.notifications.email_account)
-        # Let password be displayed as string of asterisks
+        # Show password as string of asterisks
         self.lineEdit_password.setEchoMode(QLineEdit.Password)
         self.lineEdit_password.setText(self.notifications.remote_cmd_email_pw)
+
+    def update_ov_list_input(self):
+        self.lineEdit_selectedOV.setEnabled(
+            (self.checkBox_sendOverviews.isChecked()
+             or self.checkBox_sendOVReslices.isChecked()))
+
+    def update_tile_list_input(self):
+        self.lineEdit_selectedTiles.setEnabled(
+            (self.checkBox_sendTiles.isChecked()
+             or self.checkBox_sendTileReslices.isChecked()))
 
     def update_remote_option_input(self):
         status = self.checkBox_allowEmailControl.isChecked()
@@ -1760,13 +1780,14 @@ class EmailMonitoringSettingsDlg(QDialog):
         if validate_email(email1):
             self.notifications.user_email_addresses[0] = email1
         else:
-            error_str = 'Primary e-mail address badly formatted or missing.'
+            error_str = (
+                'First user e-mail address incorrectly formatted or missing.')
         # Second user e-mail is optional
         if validate_email(email2) or not email2:
             self.notifications.user_email_addresses[1] = (
                 self.lineEdit_secondaryNotificationEmail.text())
         else:
-            error_str = 'Secondary e-mail address badly formatted.'
+            error_str = 'Second user e-mail address incorrectly formatted.'
         self.acq.status_report_interval = self.spinBox_reportInterval.value()
 
         success, ov_list = utils.validate_ov_list(
@@ -1774,18 +1795,18 @@ class EmailMonitoringSettingsDlg(QDialog):
         if success:
             self.notifications.status_report_ov_list = ov_list
         else:
-            error_str = 'List of selected overviews badly formatted.'
+            error_str = 'List of selected overviews incorrectly formatted.'
 
         success, tile_list = utils.validate_tile_list(
             self.lineEdit_selectedTiles.text())
         if success:
             self.notifications.status_report_tile_list = tile_list
         else:
-            error_str = 'List of selected tiles badly formatted.'
+            error_str = 'List of selected tiles incorrectly formatted.'
 
         self.notifications.send_logfile = self.checkBox_sendLogFile.isChecked()
         self.notifications.send_additional_logs = (
-            self.checkBox_sendDebrisErrorLogFiles.isChecked())
+            self.checkBox_sendIncidentLogFile.isChecked())
         self.notifications.send_viewport_screenshot = (
             self.checkBox_sendViewport.isChecked())
         self.notifications.send_ov = (
@@ -2912,6 +2933,104 @@ class MotorTestDlg(QDialog):
     def accept(self):
         if not self.approach_in_progress:
             super().accept()
+
+# ------------------------------------------------------------------------------
+
+class SendCommandDlg(QDialog):
+    """Send a command to DM (for testing purposes)."""
+
+    def __init__(self, microtome):
+        super().__init__()
+        self.microtome = microtome
+        loadUi('..\\gui\\send_dm_command_dlg.ui', self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setFixedSize(self.size())
+        self.show()
+        self.pushButton_sendCommand.clicked.connect(self.send_command)
+        self.pushButton_checkResponse.clicked.connect(self.check_response)
+        self.comboBox_command.addItems(
+            ['Handshake',
+             'MicrotomeStage_Cut',
+             'MicrotomeStage_Retract',
+             'MicrotomeStage_Clear',
+             'MicrotomeStage_Near',
+             'MicrotomeStage_FullCut',
+             'MicrotomeStage_FullApproachCut',
+             'MicrotomeStage_GetPositionX',
+             'MicrotomeStage_GetPositionY',
+             'MicrotomeStage_GetPositionXY',
+             'MicrotomeStage_GetPositionZ',
+             'MicrotomeStage_SetPositionX',
+             'MicrotomeStage_SetPositionY',
+             'MicrotomeStage_SetPositionXY',
+             'MicrotomeStage_SetPositionXY_Confirm',
+             'MicrotomeStage_SetPositionZ',
+             'MicrotomeStage_SetPositionZ_Confirm',
+             'SetMotorSpeedXY',
+             'StopScript'])
+        self.comboBox_command.setEditable(True)
+
+    def send_command(self):
+        """Read the command string and the two parameters from the GUI elements
+        and send them to DigitalMicrograph.
+        """
+        cmd = self.comboBox_command.currentText()
+        param1 = self.doubleSpinBox_param1.value()
+        param2 = self.doubleSpinBox_param2.value()
+
+        # For some commands, ask for confirmation (for safety reasons)
+        if cmd in ['MicrotomeStage_Cut', 'MicrotomeStage_Near',
+                   'MicrotomeStage_FullCut', 'MicrotomeStage_FullApproachCut',
+                   'MicrotomeStage_SetPositionZ',
+                   'MicrotomeStage_SetPositionZ_Confirm', 'SetMotorSpeedXY']:
+            user_reply = QMessageBox.question(
+                self, 'Send command to DM',
+                    f'Please confirm that you want to send the command {cmd} '
+                    f'to the DigitalMicrograph script.',
+                    QMessageBox.Ok | QMessageBox.Cancel)
+            if user_reply == QMessageBox.Cancel:
+                return
+
+        # Clear output text field
+        self.plainTextEdit_scriptResponse.setPlainText('')
+        if (cmd.startswith('MicrotomeStage_SetPosition') or
+                cmd.startswith('SetMotorSpeed')):
+            self.microtome._send_dm_command(cmd, [param1, param2])
+        else:
+            self.microtome._send_dm_command(cmd)
+        sleep(0.5)
+
+    def check_response(self):
+        """Read the output file DMcom.out and display its contents. Check for
+        the existence of the other signal files.
+        """
+        if os.path.isfile(self.microtome.OUTPUT_FILE):
+            return_values = self.microtome._read_dm_return_values()
+        else:
+            return_values = 'No output file generated'
+        script_response = 'DMcom.out: ' + str(return_values) + '\n'
+        # Check files
+        if os.path.isfile(self.microtome.ACK_FILE):
+            script_response += (
+                'Command execution confirmed: '
+                + self.microtome.ACK_FILE + '\n')
+        if os.path.isfile(self.microtome.ACK_CUT_FILE):
+            script_response += (
+                'Cut execution confirmed: '
+                + self.microtome.ACK_CUT_FILE + '\n')
+        if os.path.isfile(self.microtome.WARNING_FILE):
+            script_response += (
+                'Warning: ' + self.microtome.WARNING_FILE + '\n')
+        if os.path.isfile(self.microtome.ERROR_FILE):
+            script_response += (
+                'Error: ' + self.microtome.ERROR_FILE + '\n')
+        # Error state
+        script_response += (f'Error state: {self.microtome.error_state} '
+                            f'{self.microtome.error_info}')
+        # Display in GUI
+        self.plainTextEdit_scriptResponse.setPlainText(script_response)
+        self.microtome.reset_error_state()
 
 # ------------------------------------------------------------------------------
 
