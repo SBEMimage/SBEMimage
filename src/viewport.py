@@ -2989,6 +2989,10 @@ class Viewport(QWidget):
 
     def _m_source_update(self):
         self.m_from_stack = self.radioButton_fromStack.isChecked()
+        # Choice of tile or OV is only enabled when using images from stack
+        self.comboBox_gridSelectorM.setEnabled(self.m_from_stack)
+        self.comboBox_tileSelectorM.setEnabled(self.m_from_stack)
+        self.comboBox_OVSelectorM.setEnabled(self.m_from_stack)
         self.m_show_statistics()
 
     def m_update_grid_selector(self):
@@ -3391,7 +3395,7 @@ class Viewport(QWidget):
         else:
             # Use current image in SmartSEM
             selected_file = os.path.join(
-                self.stack.base_dir, 'workspace', 'current_frame.tif')
+                self.acq.base_dir, 'workspace', 'current_frame.tif')
             self.sem.save_frame(selected_file)
             self.m_reset_view()
             self.m_tab_populated = False
