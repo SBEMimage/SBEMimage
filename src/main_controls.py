@@ -2138,6 +2138,8 @@ class MainControls(QMainWindow):
         self.pushButton_focusToolMove.clicked.connect(self.ft_open_move_dlg)
         self.pushButton_focusToolSet.clicked.connect(
             self.ft_open_set_params_dlg)
+        self.pushButton_moveUp.clicked.connect(self.ft_move_up)
+        self.pushButton_moveDown.clicked.connect(self.ft_move_down)
         # Default pixel size is 6 nm.
         self.spinBox_ftPixelSize.setValue(6)
         # Default dwell time is dwell time selector 4
@@ -2422,6 +2424,9 @@ class MainControls(QMainWindow):
         self.pushButton_focusToolStart.setEnabled(True)
         self.pushButton_focusToolMove.setEnabled(True)
         self.pushButton_focusToolSet.setEnabled(True)
+        # Arrow keys are disabled
+        self.pushButton_moveUp.setEnabled(False)
+        self.pushButton_moveDown.setEnabled(False)
         self.spinBox_ftPixelSize.setEnabled(True)
         self.checkBox_zoom.setEnabled(True)
         self.comboBox_dwellTime.setEnabled(True)
@@ -2445,6 +2450,9 @@ class MainControls(QMainWindow):
     def ft_series_complete(self):
         self.pushButton_focusToolStart.setText('Done')
         self.pushButton_focusToolStart.setEnabled(True)
+        # Enable arrow keys
+        self.pushButton_moveUp.setEnabled(True)
+        self.pushButton_moveDown.setEnabled(True)
         # Increase counter to move to fresh area for next cycle:
         self.ft_cycle_counter += 1
         # Go back to the centre after a full clockwise cycle
