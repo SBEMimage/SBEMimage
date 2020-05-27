@@ -55,8 +55,7 @@ class Acquisition:
         self.main_log_file = None
         self.imagelist_file = None
         self.mirror_imagelist_file = None
-        self.debris_log_file = None
-        self.error_log_file = None
+        self.incident_log_file = None
         self.metadata_file = None
 
         # pause_state:
@@ -442,18 +441,13 @@ class Acquisition:
                 'imagelist_' + timestamp + '.txt')
             self.imagelist_file = open(self.imagelist_filename,
                                        'w', buffer_size)
-            # Log files for debris notifications and error messages.
-            # The error messages are also contained in the main log file.
-            self.debris_log_filename = os.path.join(
+            # Incident log for warnings, errors and debris detection events
+            # (All incidents are also logged in the main log file.)
+            self.incident_log_filename = os.path.join(
                 self.base_dir, 'meta', 'logs',
-                'debris_log_' + timestamp + '.txt')
-            self.debris_log_file = open(self.debris_log_filename,
-                                        'w', buffer_size)
-            self.error_log_filename = os.path.join(
-                self.base_dir, 'meta', 'logs',
-                'error_log_' + timestamp + '.txt')
-            self.error_log_file = open(self.error_log_filename,
-                                       'w', buffer_size)
+                'incident_log_' + timestamp + '.txt')
+            self.incident_log_file = open(self.incident_log_filename,
+                                          'w', buffer_size)
             self.metadata_filename = os.path.join(
                 self.base_dir, 'meta', 'logs', 'metadata_' + timestamp + '.txt')
             self.metadata_file = open(self.metadata_filename, 'w', buffer_size)
@@ -470,8 +464,7 @@ class Acquisition:
                     gridmap_filename,
                     self.main_log_filename,
                     self.imagelist_filename,
-                    self.debris_log_filename,
-                    self.error_log_filename,
+                    self.incident_log_filename,
                     self.metadata_filename])
                 # File handle for imagelist file on mirror drive
                 try:
@@ -492,13 +485,7 @@ class Acquisition:
                 dst_file_name = os.path.join(self.mirror_drive, file_name[2:])
                 shutil.copy(file_name, dst_file_name)
         except Exception as e:
-            # Log in viewport window
-            log_str = (str(self.slice_counter) + ': WARNING ('
-                       + 'Could not mirror file(s))')
-            self.error_log_file.write(log_str + ': ' + str(e) + '\n')
-            # Signal to main window to update log in viewport tab that shows
-            # warnings
-            self.add_to_vp_log(log_str)
+            self.add_to_incident_log('WARNING (Could not mirror file(s))')
             sleep(2)
             # Try again
             try:
@@ -549,6 +536,8 @@ class Acquisition:
             self.wd_delta, self.stig_x_delta, self.stig_y_delta = 0, 0, 0
             # List of tiles to be processed for heuristic autofocus
             self.heuristic_af_queue = []
+            # Reset current estimators and corrections
+            self.autofocus.reset_heuristic_corrections()
 
             # Variables used for user response from Main Controls
             self.user_reply = None
@@ -778,8 +767,8 @@ class Acquisition:
                     and (report_scheduled or self.report_requested)):
                 msg1, msg2 = self.notifications.send_status_report(
                     self.base_dir, self.stack_name, self.slice_counter,
-                    self.recent_log_filename, self.debris_log_filename,
-                    self.error_log_filename, self.vp_screenshot_filename)
+                    self.recent_log_filename, self.incident_log_filename,
+                    self.vp_screenshot_filename)
                 self.add_to_main_log(msg1)
                 if msg2:
                     self.add_to_main_log(msg2)
@@ -896,8 +885,7 @@ class Acquisition:
         # Copy log files to mirror drive. Error handling in self.mirror_files()
         if self.use_mirror_drive:
             self.mirror_files([self.main_log_filename,
-                               self.debris_log_filename,
-                               self.error_log_filename,
+                               self.incident_log_filename,
                                self.metadata_filename])
         # Close all log files
         if self.main_log_file is not None:
@@ -906,10 +894,8 @@ class Acquisition:
             self.imagelist_file.close()
         if self.use_mirror_drive and self.mirror_imagelist_file is not None:
             self.mirror_imagelist_file.close()
-        if self.debris_log_file is not None:
-            self.debris_log_file.close()
-        if self.error_log_file is not None:
-            self.error_log_file.close()
+        if self.incident_log_file is not None:
+            self.incident_log_file.close()
         if self.metadata_file is not None:
             self.metadata_file.close()
 
@@ -943,11 +929,8 @@ class Acquisition:
         """
         error_str = utils.ERROR_LIST[self.error_state]
         self.add_to_main_log('CTRL: ' + error_str)
-        viewport_log_str = (
-            str(self.slice_counter) + ': ERROR (' + error_str + ')')
-        self.error_log_file.write(viewport_log_str + '\n')
-        # Signal to main window to update error log in viewport
-        self.main_controls_trigger.transmit('VP LOG' + viewport_log_str)
+        self.add_to_incident_log('ERROR (' + error_str + ')')
+
         # Send notification e-mail
         if self.use_email_monitoring:
             status_msg1, status_msg2 = self.notifications.send_error_report(
@@ -999,16 +982,26 @@ class Acquisition:
                 # Apply all corrections to tiles
                 self.add_to_main_log('CTRL: Applying corrections to WD/STIG.')
                 self.autofocus.apply_heuristic_tile_corrections()
+                # If there were jumps in WD/STIG above the allowed thresholds
+                # (error 507), add message to the log.
+                if self.error_state == 507:
+                    self.add_to_main_log(
+                        'CTRL: Error: Differences in WD/STIG too large.')
             else:
                 sleep(self.microtome.full_cut_duration)
             duration_exceeded = self.microtome.check_for_cut_cycle_error()
             if duration_exceeded:
                 self.add_to_main_log(
                     'KNIFE: Warning: Cut cycle took longer than specified.')
-            self.error_state = self.microtome.error_state
-            self.microtome.reset_error_state()
-        if self.error_state > 0:
-            self.add_to_main_log('STAGE: Z move failed.')
+            if self.microtome.error_state > 0:
+                # Error state may be 507 at this point (after heuristic
+                # adjustments), but an error during the cutting cycle is more
+                # critical, so the error state will be overwritten with the
+                # microtome's error state.
+                self.error_state = self.microtome.error_state
+                self.microtome.reset_error_state()
+        if self.error_state > 0 and self.error_state != 507:
+            self.add_to_main_log('CTRL: Error during cut cycle.')
             # Try to move back to previous Z position
             self.add_to_main_log('STAGE: Attempt to move back to old Z: '
                                  + '{0:.3f}'.format(old_stage_z_position))
@@ -1100,6 +1093,7 @@ class Acquisition:
                         else:
                             self.error_state = 0
                     elif self.error_state > 0:
+                        self.pause_acquisition(1)
                         break
                     elif (not ov_accepted
                           and not self.pause_state == 1
@@ -1165,11 +1159,8 @@ class Acquisition:
                     if self.use_mirror_drive:
                         self.mirror_files([ov_filename])
                 if sweep_counter > 0:
-                    log_str = (str(self.slice_counter)
-                               + ': Debris, ' + str(sweep_counter)
-                               + ' sweep(s)')
-                    self.debris_log_file.write(log_str + '\n')
-                    self.add_to_vp_log(log_str)
+                    self.add_to_incident_log(
+                        'Debris, ' + str(sweep_counter) + ' sweep(s)')
             else:
                 self.add_to_main_log(
                     'CTRL: Skip OV %d (intervallic acquisition)' % ov_index)
@@ -1188,13 +1179,15 @@ class Acquisition:
                 'STAGE: Moving to OV %d position.' % ov_index)
             self.stage.move_to_xy(ov_stage_position)
             if self.stage.error_state > 0:
-                self.stage.reset_error_state()
-                # Update error log in viewport window with warning message:
-                log_str = (str(self.slice_counter) + ': WARNING ('
-                           + 'Move to OV%d position failed)' % ov_index)
-                self.error_log_file.write(log_str + '\n')
-                self.add_to_vp_log(log_str)
+                self.add_to_main_log(
+                    f'STAGE: Problem with XY move (error '
+                    f'{self.stage.error_state}). Trying again.')
+                # Update incident log in Viewport with warning message
+                self.add_to_incident_log(
+                    f'WARNING (XY move to OV{ov_index}, '
+                    f'error {self.stage.error_state})')
                 # Try again
+                self.stage.reset_error_state()
                 sleep(2)
                 self.stage.move_to_xy(ov_stage_position)
                 self.error_state = self.stage.error_state
@@ -1351,11 +1344,7 @@ class Acquisition:
         if self.microtome.error_state > 0:
             self.microtome.reset_error_state()
             self.add_to_main_log('KNIFE: Problem during sweep. Trying again.')
-            # Add warning to log in Viewport
-            log_str = (str(self.slice_counter)
-                       + ': WARNING (' + 'Problem during sweep)')
-            self.error_log_file.write(log_str + '\n')
-            self.add_to_vp_log(log_str)
+            self.add_to_incident_log('WARNING (Problem during sweep)')
             # Trying again after 3 sec
             sleep(3)
             self.microtome.do_sweep(self.stage_z_position)
@@ -1668,14 +1657,13 @@ class Acquisition:
             # Check if there were microtome problems:
             # If yes, try one more time before pausing acquisition.
             if self.stage.error_state > 0:
-                self.stage.reset_error_state()
                 self.add_to_main_log(
-                    'STAGE: Problem with XY move. Trying again.')
-                # Add warning to log in viewport window
-                error_log_str = (str(self.slice_counter)
-                                 + ': WARNING (Problem with XY stage move)')
-                self.error_log_file.write(error_log_str + '\n')
-                self.add_to_vp_log(error_log_str)
+                    f'STAGE: Problem with XY move (error '
+                    f'{self.stage.error_state}). Trying again.')
+                # Add warning to incident log
+                self.add_to_incident_log(f'WARNING (XY move to {tile_id}, '
+                                         f'error {self.stage.error_state})')
+                self.stage.reset_error_state()
                 sleep(2)
                 # Try to move to tile position again
                 self.add_to_main_log(
@@ -1954,12 +1942,7 @@ class Acquisition:
                 self.stage.reset_error_state()
                 self.add_to_main_log(
                     'STAGE: Problem with XY move. Trying again.')
-                # Update log in Viewport window with a warning
-                error_log_str = (str(self.slice_counter)
-                                 + ': WARNING (Problem with XY stage move)')
-                self.error_log_file.write(error_log_str + '\n')
-                # Signal to Main Controls to update log in Viewport
-                self.add_to_vp_log(error_log_str)
+                self.add_to_incident_log('WARNING (Problem with XY stage move)')
                 sleep(2)
                 # Try to move to tile position again
                 self.add_to_main_log(
@@ -2187,9 +2170,15 @@ class Acquisition:
         # Send entry to Main Controls via queue and trigger
         self.main_controls_trigger.transmit(msg)
 
-    def add_to_vp_log(self, msg):
-        """Add entry to the Viewport log (monitoring tab)."""
-        self.main_controls_trigger.transmit('VP LOG' + msg)
+    def add_to_incident_log(self, msg):
+        """Add msg to the incident log file (after formatting it) and show it
+        in the incident log in the Viewport (monitoring tab).
+        """
+        timestamp = str(datetime.datetime.now())[:-7]
+        msg = f'{timestamp} | Slice {self.slice_counter}: {msg}'
+        self.incident_log_file.write(msg + '\n')
+        # Signal to main window to update incident log in Viewport
+        self.main_controls_trigger.transmit('INCIDENT LOG' + msg)
 
     def pause_acquisition(self, pause_state):
         """Pause the current acquisition."""

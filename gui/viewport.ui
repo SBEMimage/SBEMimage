@@ -590,7 +590,7 @@
    </widget>
    <widget class="QWidget" name="tab_m">
     <attribute name="title">
-     <string>Reslice and stats</string>
+     <string>Acquisition monitoring</string>
     </attribute>
     <widget class="QGroupBox" name="groupBox_3">
      <property name="geometry">
@@ -602,7 +602,7 @@
       </rect>
      </property>
      <property name="title">
-      <string>Select image source</string>
+      <string>Select image source for histogram, reslice and plots</string>
      </property>
      <widget class="QPushButton" name="pushButton_reloadM">
       <property name="geometry">
@@ -687,7 +687,7 @@
       </rect>
      </property>
      <property name="title">
-      <string>Reslice</string>
+      <string>Reslice (from 500 most recent images, unaligned)</string>
      </property>
      <widget class="QLabel" name="QLabel_resliceCanvas">
       <property name="geometry">
@@ -752,7 +752,7 @@
       </rect>
      </property>
      <property name="title">
-      <string>Warnings, errors, and debris events during the current SBEMimage session</string>
+      <string>Incident log: Warnings, errors, and debris during the current SBEMimage session</string>
      </property>
      <widget class="QPlainTextEdit" name="textarea_incidentLog">
       <property name="geometry">
