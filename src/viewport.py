@@ -17,7 +17,6 @@
 
 import os
 import shutil
-import datetime
 import json
 import yaml
 import numpy as np
@@ -230,12 +229,11 @@ class Viewport(QWidget):
         viewport_screenshot = self.grab()
         viewport_screenshot.save(save_path_filename)
 
-    def add_to_log(self, text):
-        """Add a formatted message to the Viewport's log (in the monitoring
-        tab)."""
-        timestamp = str(datetime.datetime.now())
-        self.textarea_incidentLog.appendPlainText(
-            timestamp[:22] + ' | Slice ' + text)
+    def show_in_incident_log(self, message):
+        """Show the message in the Viewport's incident log
+        (in the monitoring tab).
+        """
+        self.textarea_incidentLog.appendPlainText(message)
 
     def _process_signal(self):
         """Process signals from the acquisition thread or from dialog windows.
@@ -2299,7 +2297,7 @@ class Viewport(QWidget):
         self.gm.update_source_ROIs_from_grids()
         self.vp_draw()
         self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS') # update statistics in GUI
-        self.add_to_log('Properties of grid '
+        self._add_to_main_log('Properties of grid '
             + str(clicked_section_number)
             + ' have been propagated to the selected sections')
 
@@ -2323,7 +2321,7 @@ class Viewport(QWidget):
 
         self.vp_draw()
         self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS') # update statistics in GUI
-        self.add_to_log('Properties of grid '
+        self._add_to_main_log('Properties of grid '
             + str(clicked_section_number)
             + ' have been propagated to all sections')
 
@@ -2991,6 +2989,10 @@ class Viewport(QWidget):
 
     def _m_source_update(self):
         self.m_from_stack = self.radioButton_fromStack.isChecked()
+        # Choice of tile or OV is only enabled when using images from stack
+        self.comboBox_gridSelectorM.setEnabled(self.m_from_stack)
+        self.comboBox_tileSelectorM.setEnabled(self.m_from_stack)
+        self.comboBox_OVSelectorM.setEnabled(self.m_from_stack)
         self.m_show_statistics()
 
     def m_update_grid_selector(self):
@@ -3393,7 +3395,7 @@ class Viewport(QWidget):
         else:
             # Use current image in SmartSEM
             selected_file = os.path.join(
-                self.stack.base_dir, 'workspace', 'current_frame.tif')
+                self.acq.base_dir, 'workspace', 'current_frame.tif')
             self.sem.save_frame(selected_file)
             self.m_reset_view()
             self.m_tab_populated = False
