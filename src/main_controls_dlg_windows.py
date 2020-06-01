@@ -2271,7 +2271,6 @@ class PlasmaCleanerDlg(QDialog):
 
 # * TODO: set checkbox at init; update sem when checkbox changed
 # or update from config (i.e. self.acq.use_charge_compensator; acq => acquisition.py)
-#self.checkBox_chargeCompensator.setChecked(self.sem.get_fcc_on())
 #self.acq.use_charge_compensator = self.checkBox_chargeCompensator.isChecked()
 
 

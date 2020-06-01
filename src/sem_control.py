@@ -167,6 +167,10 @@ class SEM:
         self.target_eht = target_eht
         # Setting SEM to target EHT must be implemented in child class!
 
+    def has_fcc(self):
+        """Return True if FCC is fitted."""
+        raise NotImplementedError
+
     def turn_fcc_on(self):
         """Turn FCC (= Focal Charge Compensator) on."""
         raise NotImplementedError
@@ -364,6 +368,9 @@ class SEM_SmartSEM(SEM):
     SmartSEM remote control API. Currently supported: Merlin, GeminiSEM,
     Ultra Plus. TODO: Adapt implementation for Sigma."""
 
+    # Variant conversions for passing values between Python and COM:
+    # https://www.oreilly.com/library/view/python-programming-on/1565926218/ch12s03s06.html
+
     def __init__(self, config, sysconfig):
         """Load all settings and initialize remote connection to SmartSEM."""
         # Call __init__ from base class (which loads all settings from
@@ -441,11 +448,18 @@ class SEM_SmartSEM(SEM):
                 f'sem.set_eht: command failed (ret_val: {ret_val})')
             return False
 
-# *** TODO: Set correct SmartSEM commands!
+# *** TODO: test SmartSEM commands!
+
+    def has_fcc(self):
+        """Return True if FCC is fitted."""
+        if not self.simulation_mode:
+            response = self.sem_api.Get('DP_CAPCC_FITTED', 0)
+            return response[1] == 'S_YES'
+        return False
 
     def turn_fcc_on(self):
         """Turn FCC (= Focal Charge Compensator) on."""
-        ret_val = self.sem_api.Execute('CMD_FCC_ON')
+        ret_val = self.sem_api.Execute('CMD_CC_IN')
         if ret_val == 0:
             return True
         else:
@@ -456,7 +470,7 @@ class SEM_SmartSEM(SEM):
 
     def turn_fcc_off(self):
         """Turn FCC (= Focal Charge Compensator) off."""
-        ret_val = self.sem_api.Execute('CMD_FCC_OFF')
+        ret_val = self.sem_api.Execute('CMD_CC_OUT')
         if ret_val == 0:
             return True
         else:
@@ -467,29 +481,29 @@ class SEM_SmartSEM(SEM):
 
     def is_fcc_on(self):
         """Return True if FCC is on."""
-        return self.sem_api.Get('DP_FCC_STATE', 0)[1] == 'FCC On'
+        if self.has_fcc():
+            return self.sem_api.Get('DP_CAPCC_INUSE', 0)[1] == 'S_YES'
+        return False
 
     def is_fcc_off(self):
         """Return True if FCC is off."""
-        return self.sem_api.Get('DP_FCC_STATE', 0)[1] == 'FCC Off'
+        return self.sem_api.Get('DP_CAPCC_INUSE', 0)[1] == 'S_NO'
 
     def get_fcc_level(self):
         """Read current FCC (0-100) from SmartSEM."""
-        return self.sem_api.Get('AP_GET_FCC_LEVEL', 0)[1]
+        response = self.sem_api.Get('AP_CC_PRESSURE', 0)
+        return response[1]
 
     def set_fcc_level(self, target_fcc_level):
         """Save the target FCC (0-100) and set the FCC to this target value."""
-        # Call method in parent class
-        super().set_eht(target_fcc_level)
-        #variant = VARIANT(pythoncom.VT_R4, target_fcc_level)
-        #ret_val = self.sem_api.Set('AP_GET_FCC_LEVEL', variant)[0]
-        ret_val=0
+        variant = VARIANT(pythoncom.VT_R4, target_fcc_level)
+        ret_val = self.sem_api.Set('AP_CC_PRESSURE', variant)[0]
         if ret_val == 0:
             return True
         else:
             self.error_state = ERROR_LIST['FCC error']
             self.error_info = (
-                f'sem.set_eht: command failed (ret_val: {ret_val})')
+                f'sem.set_fcc_level: command failed (ret_val: {ret_val})')
             return False
 
 

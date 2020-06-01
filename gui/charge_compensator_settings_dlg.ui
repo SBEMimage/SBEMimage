@@ -66,6 +66,12 @@
      <height>21</height>
     </rect>
    </property>
+   <property name="inputMethodHints">
+    <set>Qt::ImhNone</set>
+   </property>
+   <property name="verticalScrollBarPolicy">
+    <enum>Qt::ScrollBarAlwaysOff</enum>
+   </property>
   </widget>
  </widget>
  <resources/>

@@ -252,6 +252,8 @@ class MainControls(QMainWindow):
             self.cfg['sys']['plc_installed'].lower() == 'true')
         self.plc_initialized = False
 
+        self.fcc_installed = self.sem.has_fcc()
+
         self.initialize_main_controls_gui()
 
         # Set up grid/tile selectors.
@@ -485,6 +487,7 @@ class MainControls(QMainWindow):
         self.checkBox_mirrorDrive.setChecked(self.acq.use_mirror_drive)
         self.checkBox_monitorTiles.setChecked(self.acq.monitor_images)
         self.checkBox_useAutofocus.setChecked(self.acq.use_autofocus)
+        self.checkBox_chargeCompensator.setChecked(self.sem.is_fcc_on())
         # Change label of option 'Autofocus' to 'Focus tracking'
         # if method 2 (focus tracking) is selected
         if self.autofocus.method == 2:
@@ -501,6 +504,8 @@ class MainControls(QMainWindow):
             self.update_acq_options)
         self.checkBox_useAutofocus.stateChanged.connect(
             self.update_acq_options)
+        self.checkBox_chargeCompensator.stateChanged.connect(
+            self.update_fcc)
         # Focus tool zoom 2x
         self.checkBox_zoom.stateChanged.connect(self.ft_toggle_zoom)
         # Progress bar for stack acquisitions:
@@ -513,6 +518,11 @@ class MainControls(QMainWindow):
         self.toolButton_plasmaCleaner.setEnabled(self.plc_installed)
         self.checkBox_plasmaCleaner.setEnabled(self.plc_installed)
         self.actionPlasmaCleanerSettings.setEnabled(self.plc_installed)
+
+        # Enable Focal Charge Compensator GUI elements if installed.
+        self.toolButton_chargeCompensator.setEnabled(self.fcc_installed)
+        self.checkBox_chargeCompensator.setEnabled(self.fcc_installed)
+        self.actionChargeCompensatorSettings.setEnabled(self.fcc_installed)
 
         #-------MagC-------#
 
@@ -736,6 +746,12 @@ class MainControls(QMainWindow):
         self.show_current_settings()
         # Redraw Viewport canvas (some labels may have changed)
         self.viewport.vp_draw()
+
+    def update_fcc(self):
+        if self.checkBox_chargeCompensator.isChecked():
+            self.sem.turn_fcc_on()
+        else:
+            self.sem.turn_fcc_off()
 
 # ----------------------------- MagC tab ---------------------------------------
 
@@ -1517,6 +1533,9 @@ class MainControls(QMainWindow):
         if self.plc_installed:
             self.checkBox_plasmaCleaner.setEnabled(b)
             self.toolButton_plasmaCleaner.setEnabled(b)
+        if self.fcc_installed:
+            self.checkBox_chargeCompensator.setEnabled(b)
+            self.toolButton_chargeCompensator.setEnabled(b)
         # Start, reset buttons
         self.pushButton_startAcq.setEnabled(b)
         self.pushButton_resetAcq.setEnabled(b)
