@@ -2301,7 +2301,9 @@ class ChargeCompensatorDlg(QDialog):
     def __init__(self, sem):
         super().__init__()
         self.sem = sem
-        self.init_done = False
+        self.ignore_events = True
+        self.state = False
+        self.value = 0
         loadUi('..\\gui\\charge_compensator_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -2312,7 +2314,9 @@ class ChargeCompensatorDlg(QDialog):
         self.doubleSpinBox_level.valueChanged.connect(self.value_changed)
         try:
             self.state = self.sem.is_fcc_on()
-            self.doubleSpinBox_level.setValue(self.sem.get_fcc_level())
+            if self.state:
+                self.value = self.sem.get_fcc_level()
+            self.doubleSpinBox_level.setValue(self.value)
             self.update_buttons()
         except Exception as e:
             QMessageBox.warning(
@@ -2320,31 +2324,46 @@ class ChargeCompensatorDlg(QDialog):
                 'Could not read current settings from charge compensator: '
                 + str(e),
                 QMessageBox.Ok)
-        self.init_done = True
+        self.ignore_events = False
         QApplication.processEvents()
 
     def turn_on(self):
         self.state = True
         self.sem.turn_fcc_on()
         self.update_buttons()
+        
+        sleep(0.1)
+        if self.value == 0:
+            self.value = 50
+            self.ignore_events = True
+            self.doubleSpinBox_level.setValue(self.value)
+            self.ignore_events = False
+        self.set_fcc_level(self.value)
 
     def turn_off(self):
         self.state = False
         self.sem.turn_fcc_off()
-        self.update_buttons()
+        self.update_buttons()        
+
+        self.doubleSpinBox_level.setValue(0)
 
     def update_buttons(self):
         self.pushButton_on.setEnabled(not self.state)
         self.pushButton_off.setEnabled(self.state)
 
     def value_changed(self, value):
-        if self.init_done:
+        if not self.ignore_events:
             if not 0 <= value <= 100:
                 QMessageBox.warning(
                     self, 'Error',
                         'Please enter a value between 0 and 100', QMessageBox.Ok)
             else:
-                self.sem.set_fcc_level(value)
+                self.set_fcc_level(value)
+                    
+    def set_fcc_level(self, value):
+        self.value = value
+        if self.state:
+            self.sem.set_fcc_level(value)
 
 
 # ------------------------------------------------------------------------------
