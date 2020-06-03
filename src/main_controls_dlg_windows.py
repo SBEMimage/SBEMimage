@@ -2307,7 +2307,7 @@ class ChargeCompensatorDlg(QDialog):
         self.setFixedSize(self.size())
         self.show()
         try:
-            self.textEdit_level.setText(str(self.sem.get_fcc_level()))
+            self.textEdit_level.setText("{:.1f}".format(self.sem.get_fcc_level()))
         except Exception as e:
             QMessageBox.warning(
                 self, 'Error',
@@ -2317,14 +2317,20 @@ class ChargeCompensatorDlg(QDialog):
         QApplication.processEvents()
 
     def accept(self):
-        text = self.textEdit_level.currentText()
-        if not text or not 0 <= int(text) <= 100:
-            QMessageBox.warning(
-                self, 'Error',
-                'Please enter a value between 0 and 100', QMessageBox.Ok)
-        else:
-            self.sem.set_fcc_level(int(text))
-            super().accept()
+        text = self.textEdit_level.toPlainText()
+        try:
+            value = float(text)          
+            if not text or not 0 <= value <= 100:
+                QMessageBox.warning(
+                    self, 'Error',
+                        'Please enter a value between 0 and 100', QMessageBox.Ok)
+            else:
+                self.sem.set_fcc_level(value)
+                super().accept()
+        except ValueError:
+            # TODO: log error
+            pass
+       
 
 # ------------------------------------------------------------------------------
 

@@ -454,7 +454,7 @@ class SEM_SmartSEM(SEM):
         """Return True if FCC is fitted."""
         if not self.simulation_mode:
             response = self.sem_api.Get('DP_CAPCC_FITTED', 0)
-            return response[1] == 'S_YES'
+            return "yes" in response[1].lower()
         return False
 
     def turn_fcc_on(self):
@@ -482,16 +482,18 @@ class SEM_SmartSEM(SEM):
     def is_fcc_on(self):
         """Return True if FCC is on."""
         if self.has_fcc():
-            return self.sem_api.Get('DP_CAPCC_INUSE', 0)[1] == 'S_YES'
+            return "yes" in self.sem_api.Get('DP_CAPCC_INUSE', 0)[1].lower()
         return False
 
     def is_fcc_off(self):
         """Return True if FCC is off."""
-        return self.sem_api.Get('DP_CAPCC_INUSE', 0)[1] == 'S_NO'
+        return "no" in self.sem_api.Get('DP_CAPCC_INUSE', 0)[1].lower()
 
     def get_fcc_level(self):
         """Read current FCC (0-100) from SmartSEM."""
         response = self.sem_api.Get('AP_CC_PRESSURE', 0)
+        #from pprint import pprint
+        #pprint(response)
         return response[1]
 
     def set_fcc_level(self, target_fcc_level):
