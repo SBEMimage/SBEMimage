@@ -520,7 +520,7 @@ class MainControls(QMainWindow):
         self.actionPlasmaCleanerSettings.setEnabled(self.plc_installed)
 
         # Enable Focal Charge Compensator GUI elements if installed.
-        #self.toolButton_chargeCompensator.setEnabled(self.fcc_installed)
+        self.toolButton_chargeCompensator.setEnabled(self.fcc_installed)
         self.actionChargeCompensatorSettings.setEnabled(self.fcc_installed)
 
         #-------MagC-------#
@@ -1531,7 +1531,6 @@ class MainControls(QMainWindow):
             self.checkBox_plasmaCleaner.setEnabled(b)
             self.toolButton_plasmaCleaner.setEnabled(b)
         if self.fcc_installed:
-            self.checkBox_chargeCompensator.setEnabled(b)
             self.toolButton_chargeCompensator.setEnabled(b)
         # Start, reset buttons
         self.pushButton_startAcq.setEnabled(b)
