@@ -2301,36 +2301,51 @@ class ChargeCompensatorDlg(QDialog):
     def __init__(self, sem):
         super().__init__()
         self.sem = sem
+        self.init_done = False
         loadUi('..\\gui\\charge_compensator_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
+        self.pushButton_on.clicked.connect(self.turn_on)
+        self.pushButton_off.clicked.connect(self.turn_off)
+        self.doubleSpinBox_level.valueChanged.connect(self.value_changed)
         try:
-            self.textEdit_level.setText("{:.1f}".format(self.sem.get_fcc_level()))
+            self.state = self.sem.is_fcc_on()
+            self.doubleSpinBox_level.setValue(self.sem.get_fcc_level())
+            self.update_buttons()
         except Exception as e:
             QMessageBox.warning(
                 self, 'Error',
                 'Could not read current settings from charge compensator: '
                 + str(e),
                 QMessageBox.Ok)
+        self.init_done = True
         QApplication.processEvents()
 
-    def accept(self):
-        text = self.textEdit_level.toPlainText()
-        try:
-            value = float(text)          
-            if not text or not 0 <= value <= 100:
+    def turn_on(self):
+        self.state = True
+        self.sem.turn_fcc_on()
+        self.update_buttons()
+
+    def turn_off(self):
+        self.state = False
+        self.sem.turn_fcc_off()
+        self.update_buttons()
+
+    def update_buttons(self):
+        self.pushButton_on.setEnabled(not self.state)
+        self.pushButton_off.setEnabled(self.state)
+
+    def value_changed(self, value):
+        if self.init_done:
+            if not 0 <= value <= 100:
                 QMessageBox.warning(
                     self, 'Error',
                         'Please enter a value between 0 and 100', QMessageBox.Ok)
             else:
                 self.sem.set_fcc_level(value)
-                super().accept()
-        except ValueError:
-            # TODO: log error
-            pass
-       
+
 
 # ------------------------------------------------------------------------------
 

@@ -923,16 +923,13 @@
         <string>...</string>
        </property>
       </widget>
-      <widget class="QCheckBox" name="checkBox_chargeCompensator">
-       <property name="enabled">
-        <bool>true</bool>
-       </property>
+      <widget class="QLabel" name="label_fs_3">
        <property name="geometry">
         <rect>
-         <x>190</x>
+         <x>208</x>
          <y>195</y>
-         <width>91</width>
-         <height>17</height>
+         <width>31</width>
+         <height>16</height>
         </rect>
        </property>
        <property name="text">
@@ -2537,7 +2534,7 @@ Wafer Image</string>
     <addaction name="actionAutofocusSettings"/>
     <addaction name="separator"/>
     <addaction name="actionPlasmaCleanerSettings"/>
-	<addaction name="actionChargeCompensatorSettings"/>	
+    <addaction name="actionChargeCompensatorSettings"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
