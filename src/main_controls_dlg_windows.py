@@ -2787,7 +2787,15 @@ class MotorTestDlg(QDialog):
         self.spinBox_duration.setValue(10)
         self.pushButton_startTest.clicked.connect(self.start_random_walk)
         self.pushButton_abortTest.clicked.connect(self.abort_random_walk)
-        self.pushButton_startTest.setEnabled(True)
+        if self.microtome is None:
+            QMessageBox.information(
+                self, 'Only for microtome stage testing',
+                'This test dialog can currently only be used '
+                'for testing a microtome stage.',
+                QMessageBox.Ok)
+            self.pushButton_startTest.setEnabled(False)
+        else:
+            self.pushButton_startTest.setEnabled(True)
         self.pushButton_abortTest.setEnabled(False)
         self.test_in_progress = False
         self.start_time = None
@@ -2807,20 +2815,40 @@ class MotorTestDlg(QDialog):
 
     def start_random_walk(self):
         self.aborted = False
-        self.start_z = self.microtome.get_stage_z()
-        if self.start_z is not None:
-            self.pushButton_startTest.setEnabled(False)
-            self.pushButton_abortTest.setEnabled(True)
-            self.buttonBox.setEnabled(False)
-            self.spinBox_duration.setEnabled(False)
-            self.progressBar.setValue(0)
-            thread = threading.Thread(target=self.random_walk_thread)
-            thread.start()
-        else:
+        self.pushButton_startTest.setText('Wait')
+        self.pushButton_startTest.setEnabled(False)
+        # First make sure the knife is in "Clear" position
+        self.add_to_log('KNIFE: Moving to "Clear" position.')
+        QApplication.processEvents()
+        self.microtome.clear_knife()
+        if self.microtome.error_state > 0:
+            self.add_to_log('KNIFE: Error moving to "Clear" position.')
             self.microtome.reset_error_state()
+            self.pushButton_startTest.setText('Start')
+            self.pushButton_startTest.setEnabled(True)
             QMessageBox.warning(self, 'Error',
-                'Could not read current z stage position',
-                QMessageBox.Ok)
+                                'Warning: Move to "Clear" position failed. '
+                                'Try to move to "Clear" position manually.',
+                                QMessageBox.Ok)
+        else:
+            self.start_z = self.microtome.get_stage_z()
+            if self.start_z is not None:
+                self.add_to_log('CTRL: Motor test started.')
+                self.pushButton_startTest.setText('Busy')
+                self.pushButton_abortTest.setEnabled(True)
+                self.buttonBox.setEnabled(False)
+                self.checkBox_XYonly.setEnabled(False)
+                self.spinBox_duration.setEnabled(False)
+                self.progressBar.setValue(0)
+                thread = threading.Thread(target=self.random_walk_thread)
+                thread.start()
+            else:
+                self.microtome.reset_error_state()
+                self.pushButton_startTest.setText('Start')
+                self.pushButton_startTest.setEnabled(True)
+                QMessageBox.warning(self, 'Error',
+                    'Could not read current z stage position',
+                    QMessageBox.Ok)
 
     def abort_random_walk(self):
         self.aborted = True
@@ -2842,20 +2870,24 @@ class MotorTestDlg(QDialog):
             QMessageBox.information(
                 self, 'Aborted',
                 'Motor test was aborted by user.'
-                + '\nPlease make sure that z coordinate is back at starting '
-                'position of ' + str(self.start_z) + '.',
+                + '\nPlease make sure that the z coordinate is back at '
+                'starting position ' + str(self.start_z) + '.',
                 QMessageBox.Ok)
         else:
             QMessageBox.information(
                 self, 'Test complete',
                 'Motor test complete.\nA total of '
-                + str(self.number_tests) + ' xyz moves were performed.\n'
-                'Number of errors: ' + str(self.number_errors)
-                + '\nPlease make sure that z coordinate is back at starting '
-                'position of ' + str(self.start_z) + '.',
+                + str(self.number_moves) + ' moves were performed.\n'
+                'Number of X motor errors: ' + str(self.number_errors_x)
+                + '; Number of Y motor errors: ' + str(self.number_errors_y)
+                + '; Number of Z motor errors: ' + str(self.number_errors_z)
+                + '\nPlease make sure that the Z coordinate is back at '
+                'starting position ' + str(self.start_z) + '.',
                 QMessageBox.Ok)
+        self.pushButton_startTest.setText('Start')
         self.pushButton_startTest.setEnabled(True)
         self.pushButton_abortTest.setEnabled(False)
+        self.checkBox_XYonly.setEnabled(True)
         self.buttonBox.setEnabled(True)
         self.spinBox_duration.setEnabled(True)
         self.test_in_progress = False
@@ -2863,59 +2895,90 @@ class MotorTestDlg(QDialog):
     def random_walk_thread(self):
         self.test_in_progress = True
         self.duration = self.spinBox_duration.value()
+        self.use_z_moves = not self.checkBox_XYonly.isChecked()
         self.start_time = time()
         self.progress_trigger.signal.emit()
-        self.number_tests = 0
-        self.number_errors = 0
+        self.number_moves = 0
+        self.number_errors_x = 0
+        self.number_errors_y = 0
+        self.number_errors_z = 0
         current_x, current_y = 0, 0
         current_z = self.start_z
+        timestamp = str(datetime.datetime.now())
+        timestamp = timestamp[:19].translate({ord(c): None for c in ' :-.'})
         # Open log file
-        logfile = open(os.path.join(self.acq.base_dir, 'motor_test_log.txt'),
+        logfile = open(os.path.join(self.acq.base_dir,
+                       'motor_test_log_' + timestamp + '.txt'),
                        'w', buffering=1)
+        if not self.use_z_moves:
+            logfile.write('Z motor will not be used during this test.\n\n')
         while self.test_in_progress:
             # Start 'random' walk
-            if self.number_tests % 10 == 0:
-                dist = 300  # longer move every 10th cycle
+            if self.number_moves % 36 == 0:
+                dist = 400  # longer move every 36th move
             else:
-                dist = 50
+                dist = 80
             current_x += (random() - 0.5) * dist
             current_y += (random() - 0.5) * dist
-            if self.number_tests % 2 == 0:
-                current_z += (random() - 0.5) * 0.2
-            else:
-                current_z += 0.025
-            if current_z < 0:
-                current_z = 0
+            if self.use_z_moves:
+                if self.number_moves % 6 == 0:
+                    current_z += (random() - 0.5) * 0.2
+                else:
+                    current_z += 0.025
+                if current_z < 1:
+                    # At Z below 1 micron, Z motor appears imprecise in general
+                    current_z = 1
             # If end of permissable range is reached, go back to starting point
-            if (abs(current_x) > 600 or
-                abs(current_y) > 600 or
-                current_z > 600):
+            if (current_x < self.microtome.stage_limits[0]
+                or current_x > self.microtome.stage_limits[1]
+                or current_y < self.microtome.stage_limits[2]
+                or current_y > self.microtome.stage_limits[3]
+                or current_z > 600):
                 current_x, current_y = 0, 0
                 current_z = self.start_z
-            logfile.write('{0:.3f}, '.format(current_x)
+            logfile.write('Move to: {0:.3f}, '.format(current_x)
                           + '{0:.3f}, '.format(current_y)
                           + '{0:.3f}'.format(current_z) + '\n')
             self.microtome.move_stage_to_xy((current_x, current_y))
+            self.number_moves += 2
             if self.microtome.error_state > 0:
-                self.number_errors += 1
+                mismatch_x = self.microtome.last_known_x - current_x
+                mismatch_y = self.microtome.last_known_y - current_y
                 logfile.write('ERROR DURING XY MOVE: '
                               + self.microtome.error_info
+                              + '; mismatch X: '
+                              + '{0:.3f}'.format(mismatch_x)
+                              + ', mismatch Y:'
+                              + '{0:.3f}'.format(mismatch_y)
                               + '\n')
                 self.microtome.reset_error_state()
+                if abs(mismatch_x) > 0.010:
+                    self.number_errors_x += 1
+                if abs(mismatch_y) > 0.010:
+                    self.number_errors_y += 1
             else:
+                logfile.write('OK (XY)\n')
+
+            if self.use_z_moves:
                 self.microtome.move_stage_to_z(current_z, safe_mode=False)
+                self.number_moves += 1
                 if self.microtome.error_state > 0:
-                    self.number_errors += 1
+                    self.number_errors_z += 1
                     logfile.write('ERROR DURING Z MOVE: '
                                   + self.microtome.error_info
+                                  + '; last known Z: '
+                                  + str(self.microtome.last_known_z)
                                   + '\n')
                     self.microtome.reset_error_state()
                 else:
-                    logfile.write('OK\n')
-
-            self.number_tests += 1
+                    logfile.write('OK (Z)\n')
+            sleep(1)
             self.progress_trigger.signal.emit()
-        logfile.write('NUMBER OF ERRORS: ' + str(self.number_errors))
+        logfile.write('\nNUMBER OF MOVES: ' + str(self.number_moves))
+        logfile.write('\nNUMBER OF X ERRORS: ' + str(self.number_errors_x))
+        logfile.write('\nNUMBER OF Y ERRORS: ' + str(self.number_errors_y))
+        if self.use_z_moves:
+            logfile.write('\nNUMBER OF Z ERRORS: ' + str(self.number_errors_z))
         logfile.close()
         # Signal that thread is done
         self.finish_trigger.signal.emit()

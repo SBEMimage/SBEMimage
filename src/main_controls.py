@@ -65,7 +65,7 @@ from main_controls_dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                                       GrabFrameDlg, FTSetParamsDlg, FTMoveDlg, \
                                       AskUserDlg, UpdateDlg, CutDurationDlg, \
                                       KatanaSettingsDlg, SendCommandDlg, \
-                                      AboutBox
+                                      MotorTestDlg, AboutBox
 
 from magc_dlg_windows import ImportMagCDlg, ImportWaferImageDlg, \
                           WaferCalibrationDlg
@@ -1227,10 +1227,8 @@ class MainControls(QMainWindow):
         dialog.exec_()
 
     def open_motor_test_dlg(self):
-        # Disabled for now
-        pass
-        # dialog = MotorTestDlg(self.microtome, self.acq, self.trigger)
-        # dialog.exec_()
+        dialog = MotorTestDlg(self.microtome, self.acq, self.trigger)
+        dialog.exec_()
 
     def open_send_command_dlg(self):
         dialog = SendCommandDlg(self.microtome)
