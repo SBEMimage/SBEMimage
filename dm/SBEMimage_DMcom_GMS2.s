@@ -77,6 +77,8 @@ number move_duration_x
 number move_duration_y
 number motor_speed_x
 number motor_speed_y
+number xy_tolerance
+number z_tolerance
 
 
 void wait_for_command()
@@ -503,23 +505,23 @@ void wait_for_command()
 			x_position = MicrotomeStage_GetPositionX()
 			y_position = MicrotomeStage_GetPositionY()
 			// Check if the current position does NOT match the target
-			// position within 50 nm
-			if ((abs(x_position - parameter1) > 0.05) || (abs(y_position - parameter2) > 0.05)) {
-				// Create warning file and try again after 2 seconds
+			// position within the specified tolerance
+			if ((abs(x_position - parameter1) > xy_tolerance) || (abs(y_position - parameter2) > xy_tolerance)) {
+				// Create warning file and try again after 1.5 seconds
 				file = CreateFileForWriting(warning_file)
 				closefile(file)
 				result(DateStamp() + ": WARNING - XY target coordinates not reached within the expected time.\n")
-				sleep(2)
+				sleep(1.5)
 				// Read current stage coordinates and check again
 				x_position = MicrotomeStage_GetPositionX()
 				y_position = MicrotomeStage_GetPositionY()
-				if ((abs(x_position - parameter1) > 0.05) || (abs(y_position - parameter2) > 0.05)) {
+				if ((abs(x_position - parameter1) > xy_tolerance) || (abs(y_position - parameter2) > xy_tolerance)) {
 					// Move has failed. Write current position into return file.
 					move_ok = 0
 					file = CreateFileForWriting(return_file)
 					WriteFile(file, format(x_position, "%.3f") + "\n" + format(y_position, "%.3f"))
 					closefile(file)
-					result(DateStamp() + ": ERROR - XY target coordinates not reached after extra 2s delay.\n")
+					result(DateStamp() + ": ERROR - XY target coordinates not reached after extra 1.5s delay.\n")
 				}
 			}
 			if (move_ok) {
@@ -553,8 +555,8 @@ void wait_for_command()
 			// Read the new Z position
 			z_position = MicrotomeStage_GetPositionZ()
 			// Check if the current position does NOT match the target
-			// position within 5 nm
-			if (abs(z_position - parameter1) > 0.005) {
+			// position within the specified tolerance
+			if (abs(z_position - parameter1) > z_tolerance) {
 				// Create error file. Write current position into
 				// return file.
 				err_file = CreateFileForWriting(error_file)
@@ -651,6 +653,10 @@ remote_control = 1
 // Default motor speeds (slow), can be updated from SBEMimage
 motor_speed_x = 35
 motor_speed_y = 35
+
+// Tolerances in micrometres for XY and Z motors
+xy_tolerance = 0.030
+z_tolerance = 0.003
 
 // Create empty input file
 file = CreateFileForWriting(input_file)
