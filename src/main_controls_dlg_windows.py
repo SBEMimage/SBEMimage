@@ -1157,6 +1157,8 @@ class GridSettingsDlg(QDialog):
         # Adaptive focus tool button:
         self.toolButton_focusGradient.clicked.connect(
             self.open_focus_gradient_dlg)
+        # Button to load current SEM imaging parameters
+        self.pushButton_getFromSEM.clicked.connect(self.get_settings_from_sem)
         # Buttons to reset tile previews and wd/stig parameters
         self.pushButton_resetTilePreviews.clicked.connect(
             self.reset_tile_previews)
@@ -1190,6 +1192,17 @@ class GridSettingsDlg(QDialog):
         self.pushButton_resetFocusParams.setEnabled(b)
         self.spinBox_acqInterval.setEnabled(b)
         self.spinBox_acqIntervalOffset.setEnabled(b)
+
+    def get_settings_from_sem(self):
+        """Load current SEM settings for frame size, pixel size, and
+        dwell time, and set the spin box and the combo boxes to these values.
+        """
+        current_frame_size_selector = self.sem.get_frame_size_selector()
+        current_pixel_size = self.sem.get_pixel_size()
+        current_scan_rate = self.sem.get_scan_rate()
+        self.comboBox_tileSize.setCurrentIndex(current_frame_size_selector)
+        self.comboBox_dwellTime.setCurrentIndex(current_scan_rate)
+        self.doubleSpinBox_pixelSize.setValue(current_pixel_size)
 
     def show_current_settings(self):
         self.comboBox_colourSelector.setCurrentIndex(
@@ -2699,8 +2712,20 @@ class GrabFrameDlg(QDialog):
         self.comboBox_dwellTime.addItems(map(str, self.sem.DWELL_TIME))
         self.comboBox_dwellTime.setCurrentIndex(
             self.sem.DWELL_TIME.index(self.sem.grab_dwell_time))
+        self.pushButton_getFromSEM.clicked.connect(self.get_settings_from_sem)
         self.pushButton_scan.clicked.connect(self.scan_frame)
         self.pushButton_save.clicked.connect(self.save_frame)
+
+    def get_settings_from_sem(self):
+        """Load current SEM settings for frame size, pixel size, and
+        dwell time, and set the spin box and the combo boxes to these values.
+        """
+        current_frame_size_selector = self.sem.get_frame_size_selector()
+        current_pixel_size = self.sem.get_pixel_size()
+        current_scan_rate = self.sem.get_scan_rate()
+        self.comboBox_frameSize.setCurrentIndex(current_frame_size_selector)
+        self.comboBox_dwellTime.setCurrentIndex(current_scan_rate)
+        self.doubleSpinBox_pixelSize.setValue(current_pixel_size)
 
     def scan_frame(self):
         """Scan and save a single frame using the current grab settings."""
