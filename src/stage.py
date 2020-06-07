@@ -145,3 +145,42 @@ class Stage():
         within_x = limits[0] <= s_coordinates[0] <= limits[1]
         within_y = limits[2] <= s_coordinates[1] <= limits[3]
         return within_x and within_y
+
+    @property
+    def xy_tolerance(self):
+        return self._stage.xy_tolerance
+
+    @property
+    def z_tolerance(self):
+        return self._stage.z_tolerance
+
+    @property
+    def total_xyz_move_counter(self):
+        return self._stage.total_xyz_move_counter
+
+    @property
+    def failed_xyz_move_counter(self):
+        return self._stage.failed_xyz_move_counter
+
+    @property
+    def slow_xy_move_counter(self):
+        return self._stage.slow_xy_move_counter
+
+    @property
+    def slow_xy_move_warnings(self):
+        return self._stage.slow_xy_move_warnings
+
+    @property
+    def failed_x_move_warnings(self):
+        return self._stage.failed_x_move_warnings
+
+    @property
+    def failed_y_move_warnings(self):
+        return self._stage.failed_y_move_warnings
+
+    @property
+    def failed_z_move_warnings(self):
+        return self._stage.failed_z_move_warnings
+
+    def reset_stage_move_counters(self):
+        return self._stage.reset_stage_move_counters()

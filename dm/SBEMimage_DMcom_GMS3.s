@@ -523,7 +523,7 @@ void wait_for_command()
 			EMSetStageY(parameter2)
 			// Wait until target position reached
 			result(DateStamp() + ": XY stage move in progress (expected duration: " + format(move_duration, "%.2f") + " s)\n")
-			sleep(move_duration + 0.2)
+			sleep(move_duration + 0.1)
 			// Read new coordinates
 			x_position = EMGetStageX()
 			y_position = EMGetStageY()
