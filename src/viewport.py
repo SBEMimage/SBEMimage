@@ -37,6 +37,8 @@ import acq_func
 from viewport_dlg_windows import StubOVDlg, FocusGradientTileSelectionDlg, \
                                  GridRotationDlg, ImportImageDlg, \
                                  AdjustImageDlg, DeleteImageDlg
+from main_controls_dlg_windows import MotorStatusDlg
+
 
 class Viewport(QWidget):
 
@@ -2906,6 +2908,8 @@ class Viewport(QWidget):
 
         self.radioButton_fromStack.toggled.connect(self._m_source_update)
         self.pushButton_reloadM.clicked.connect(self.m_show_statistics)
+        self.pushButton_showMotorStatusDlg.clicked.connect(
+            self._m_open_motor_status_dlg)
         self.comboBox_gridSelectorM.currentIndexChanged.connect(
             self.m_change_grid_selection)
         self.m_update_grid_selector()
@@ -3456,3 +3460,7 @@ class Viewport(QWidget):
             self.m_qp.drawText(50, 90, 'No image found for selected source   ')
             self.m_qp.end()
             self.QLabel_histogramCanvas.setPixmap(canvas)
+
+    def _m_open_motor_status_dlg(self):
+        dialog = MotorStatusDlg(self.stage)
+        dialog.exec_()

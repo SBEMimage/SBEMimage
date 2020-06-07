@@ -961,6 +961,9 @@ class Acquisition:
         if self.error_state in [103, 202]:
             self.add_to_main_log(
                 'STAGE: Problem during Z move. Trying again.')
+            # Update incident log in Viewport with warning message
+            self.add_to_incident_log(
+                f'WARNING (Z move, error {self.error_state})')
             self.error_state = 0
             self.microtome.reset_error_state()
             # Try again after three-second delay

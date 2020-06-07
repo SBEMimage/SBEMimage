@@ -65,7 +65,7 @@ from main_controls_dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                                       GrabFrameDlg, FTSetParamsDlg, FTMoveDlg, \
                                       AskUserDlg, UpdateDlg, CutDurationDlg, \
                                       KatanaSettingsDlg, SendCommandDlg, \
-                                      MotorTestDlg, AboutBox
+                                      MotorTestDlg, MotorStatusDlg, AboutBox
 
 from magc_dlg_windows import ImportMagCDlg, ImportWaferImageDlg, \
                           WaferCalibrationDlg
@@ -467,6 +467,8 @@ class MainControls(QMainWindow):
         self.pushButton_testServerRequest.clicked.connect(
             self.test_server_request)
         self.pushButton_testMotors.clicked.connect(self.open_motor_test_dlg)
+        self.pushButton_testMotorStatusDlg.clicked.connect(
+            self.open_motor_status_dlg)
         self.pushButton_testDebrisDetection.clicked.connect(
             self.debris_detection_test)
         self.pushButton_testCustom.clicked.connect(self.custom_test)
@@ -1228,6 +1230,10 @@ class MainControls(QMainWindow):
 
     def open_motor_test_dlg(self):
         dialog = MotorTestDlg(self.microtome, self.acq, self.trigger)
+        dialog.exec_()
+
+    def open_motor_status_dlg(self):
+        dialog = MotorStatusDlg(self.stage)
         dialog.exec_()
 
     def open_send_command_dlg(self):

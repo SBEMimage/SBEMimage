@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>331</width>
-    <height>520</height>
+    <height>578</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -23,7 +23,7 @@
    <property name="geometry">
     <rect>
      <x>130</x>
-     <y>480</y>
+     <y>540</y>
      <width>191</width>
      <height>32</height>
     </rect>
@@ -41,7 +41,7 @@
      <x>10</x>
      <y>10</y>
      <width>311</width>
-     <height>281</height>
+     <height>341</height>
     </rect>
    </property>
    <property name="title">
@@ -175,12 +175,12 @@
      <rect>
       <x>10</x>
       <y>230</y>
-      <width>261</width>
+      <width>291</width>
       <height>16</height>
      </rect>
     </property>
     <property name="text">
-     <string>To calibrate stage motors, select</string>
+     <string>To calibrate stage motors (scaling, rotation, speeds), select</string>
     </property>
    </widget>
    <widget class="QLabel" name="label_11">
@@ -349,12 +349,80 @@
      <string>___ stage active. </string>
     </property>
    </widget>
+   <widget class="QPushButton" name="pushButton_showMotorStatus">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>190</x>
+      <y>15</y>
+      <width>112</width>
+      <height>19</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Show motor status</string>
+    </property>
+   </widget>
+   <widget class="QSpinBox" name="spinBox_xyTolerance">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>150</x>
+      <y>280</y>
+      <width>71</width>
+      <height>22</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_15">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>282</y>
+      <width>111</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>XY tolerance (nm):</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_16">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>312</y>
+      <width>121</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Z tolerance (nm):</string>
+    </property>
+   </widget>
+   <widget class="QSpinBox" name="spinBox_zTolerance">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>150</x>
+      <y>310</y>
+      <width>71</width>
+      <height>22</height>
+     </rect>
+    </property>
+   </widget>
   </widget>
   <widget class="QGroupBox" name="groupBox_2">
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>300</y>
+     <y>360</y>
      <width>311</width>
      <height>171</height>
     </rect>
@@ -480,6 +548,25 @@
    </widget>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>pushButton_showMotorStatus</tabstop>
+  <tabstop>doubleSpinBox_waitInterval</tabstop>
+  <tabstop>spinBox_stageMinX</tabstop>
+  <tabstop>spinBox_stageMaxX</tabstop>
+  <tabstop>spinBox_stageMinY</tabstop>
+  <tabstop>spinBox_stageMaxY</tabstop>
+  <tabstop>lineEdit_scaleFactorX</tabstop>
+  <tabstop>lineEdit_scaleFactorY</tabstop>
+  <tabstop>lineEdit_rotationX</tabstop>
+  <tabstop>lineEdit_rotationY</tabstop>
+  <tabstop>lineEdit_speedX</tabstop>
+  <tabstop>lineEdit_speedY</tabstop>
+  <tabstop>spinBox_xyTolerance</tabstop>
+  <tabstop>spinBox_zTolerance</tabstop>
+  <tabstop>lineEdit_knifeCutSpeed</tabstop>
+  <tabstop>lineEdit_knifeRetractSpeed</tabstop>
+  <tabstop>checkBox_useOscillation</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>

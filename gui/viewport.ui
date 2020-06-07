@@ -305,7 +305,7 @@
    </widget>
    <widget class="QWidget" name="tab_sv">
     <attribute name="title">
-     <string>Slice by slice</string>
+     <string>Slice-by-Slice Viewer</string>
     </attribute>
     <widget class="QLabel" name="QLabel_SliceViewerCanvas">
      <property name="geometry">
@@ -590,7 +590,7 @@
    </widget>
    <widget class="QWidget" name="tab_m">
     <attribute name="title">
-     <string>Acquisition monitoring</string>
+     <string>Acquisition Monitor</string>
     </attribute>
     <widget class="QGroupBox" name="groupBox_3">
      <property name="geometry">
@@ -746,9 +746,9 @@
      <property name="geometry">
       <rect>
        <x>440</x>
-       <y>610</y>
+       <y>680</y>
        <width>571</width>
-       <height>286</height>
+       <height>216</height>
       </rect>
      </property>
      <property name="title">
@@ -760,7 +760,7 @@
         <x>10</x>
         <y>20</y>
         <width>551</width>
-        <height>256</height>
+        <height>187</height>
        </rect>
       </property>
       <property name="font">
@@ -785,6 +785,110 @@
      <property name="text">
       <string/>
      </property>
+    </widget>
+    <widget class="QGroupBox" name="groupBox_4">
+     <property name="geometry">
+      <rect>
+       <x>440</x>
+       <y>610</y>
+       <width>571</width>
+       <height>61</height>
+      </rect>
+     </property>
+     <property name="title">
+      <string>Stage motor status</string>
+     </property>
+     <widget class="QLabel" name="label">
+      <property name="geometry">
+       <rect>
+        <x>160</x>
+        <y>14</y>
+        <width>51</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>X motor:</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_2">
+      <property name="geometry">
+       <rect>
+        <x>160</x>
+        <y>34</y>
+        <width>51</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Y motor:</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_showMotorStatusDlg">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>23</y>
+        <width>121</width>
+        <height>23</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Motor diagnostics</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_3">
+      <property name="geometry">
+       <rect>
+        <x>210</x>
+        <y>14</y>
+        <width>121</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>No recent warnings</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_8">
+      <property name="geometry">
+       <rect>
+        <x>210</x>
+        <y>34</y>
+        <width>121</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>No recent warnings</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_9">
+      <property name="geometry">
+       <rect>
+        <x>350</x>
+        <y>14</y>
+        <width>51</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Z motor:</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_10">
+      <property name="geometry">
+       <rect>
+        <x>400</x>
+        <y>14</y>
+        <width>151</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>No recent warnings</string>
+      </property>
+     </widget>
     </widget>
    </widget>
   </widget>

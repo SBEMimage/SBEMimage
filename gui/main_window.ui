@@ -1227,7 +1227,7 @@
         <rect>
          <x>10</x>
          <y>95</y>
-         <width>161</width>
+         <width>71</width>
          <height>16</height>
         </rect>
        </property>
@@ -1722,7 +1722,7 @@
         <x>20</x>
         <y>50</y>
         <width>161</width>
-        <height>311</height>
+        <height>351</height>
        </rect>
       </property>
       <property name="title">
@@ -1758,7 +1758,7 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>270</y>
+         <y>310</y>
          <width>121</width>
          <height>23</height>
         </rect>
@@ -1839,7 +1839,7 @@
         <x>200</x>
         <y>50</y>
         <width>161</width>
-        <height>311</height>
+        <height>351</height>
        </rect>
       </property>
       <property name="title">
@@ -1888,7 +1888,7 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>270</y>
+         <y>310</y>
          <width>121</width>
          <height>23</height>
         </rect>
@@ -1927,13 +1927,26 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>180</y>
+         <y>210</y>
          <width>121</width>
          <height>23</height>
         </rect>
        </property>
        <property name="text">
         <string>Send command to DM</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="pushButton_testMotorStatusDlg">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>180</y>
+         <width>121</width>
+         <height>23</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Motor status</string>
        </property>
       </widget>
      </widget>
@@ -1943,7 +1956,7 @@
         <x>380</x>
         <y>50</y>
         <width>161</width>
-        <height>311</height>
+        <height>351</height>
        </rect>
       </property>
       <property name="title">
@@ -1992,7 +2005,7 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>180</y>
+         <y>310</y>
          <width>121</width>
          <height>23</height>
         </rect>
