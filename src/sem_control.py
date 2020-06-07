@@ -190,6 +190,13 @@ class SEM:
         dwell time)."""
         raise NotImplementedError
 
+    def get_frame_size_selector(self):
+        """Read the current frame size selector from the SEM."""
+        raise NotImplementedError
+
+    def get_frame_size(self):
+        raise NotImplementedError
+
     def set_frame_size(self, frame_size_selector):
         """Set SEM to frame size specified by frame_size_selector."""
         raise NotImplementedError
@@ -200,6 +207,20 @@ class SEM:
 
     def set_mag(self, target_mag):
         """Set SEM magnification to target_mag."""
+        raise NotImplementedError
+
+    def get_pixel_size(self):
+        """Read current magnification from the SEM and convert it into
+        pixel size in nm.
+        """
+        raise NotImplementedError
+
+    def set_pixel_size(self, pixel_size):
+        """Set SEM to the magnification corresponding to pixel_size."""
+        raise NotImplementedError
+
+    def get_scan_rate(self):
+        """Read the current scan rate from the SEM"""
         raise NotImplementedError
 
     def set_scan_rate(self, scan_rate_selector):
@@ -464,6 +485,18 @@ class SEM_SmartSEM(SEM):
             self.current_cycle_time = 0.8
         return (ret_val1 and ret_val2 and ret_val3)
 
+    def get_frame_size_selector(self):
+        """Read the current store resolution from the SEM and return the
+        corresponding frame size selector.
+        """
+        ret_val = self.sem_api.Get('DP_IMAGE_STORE', 0)[1]
+        try:
+            frame_size = [int(x) for x in ret_val.split('*')]
+            frame_size_selector = self.STORE_RES.index(frame_size)
+        except:
+            frame_size_selector = 0  # default fallback
+        return frame_size_selector
+
     def set_frame_size(self, frame_size_selector):
         """Set SEM to frame size specified by frame_size_selector."""
         freeze_variant = VARIANT(pythoncom.VT_R4, 2)  # 2 = freeze on command
@@ -498,6 +531,25 @@ class SEM_SmartSEM(SEM):
             self.error_info = (
                 f'sem.set_mag: command failed (ret_val: {ret_val})')
             return False
+
+    def get_pixel_size(self):
+        """Read current magnification from the SEM and convert it into
+        pixel size in nm.
+        """
+        current_mag = self.get_mag()
+        current_frame_size_selector = self.get_frame_size_selector()
+        return self.MAG_PX_SIZE_FACTOR / (current_mag
+                   * self.STORE_RES[current_frame_size_selector][0])
+
+    def set_pixel_size(self, pixel_size):
+        """Set SEM to the magnification corresponding to pixel_size."""
+        mag = int(self.MAG_PX_SIZE_FACTOR /
+                  (self.STORE_RES[frame_size_selector][0] * pixel_size))
+        return self.set_mag(mag)
+
+    def get_scan_rate(self):
+        """Read the current scan rate from the SEM"""
+        return int(self.sem_api.Get('DP_SCANRATE', 0)[1])
 
     def set_scan_rate(self, scan_rate_selector):
         """Set SEM to pixel scan rate specified by scan_rate_selector."""
