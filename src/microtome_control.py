@@ -224,9 +224,9 @@ class Microtome:
     def set_motor_speeds(self, motor_speed_x, motor_speed_y):
         self.motor_speed_x = motor_speed_x
         self.motor_speed_y = motor_speed_y
-        return self.write_motor_speeds_to_script()
+        return self.update_motor_speeds_in_dm_script()
 
-    def write_motor_speeds_to_script(self):
+    def update_motor_speeds_in_dm_script(self):
         raise NotImplementedError
 
     def move_stage_to_x(self, x):
@@ -374,7 +374,7 @@ class Microtome_3View(Microtome):
                     self.error_info = ('microtome.__init__: stage z position '
                                        'mismatch')
                 # Update motor speeds in DM script
-                success = self.write_motor_speeds_to_script()
+                success = self.update_motor_speeds_in_dm_script()
                 # If update unsuccesful, set new error state unless microtome
                 # is already in an error state after reading the coordinates.
                 if not success and self.error_state == 0:
@@ -518,7 +518,7 @@ class Microtome_3View(Microtome):
         self._send_dm_command('MicrotomeStage_Retract')
         sleep(1.2/self.knife_retract_speed)
 
-    def write_motor_speeds_to_script(self):
+    def update_motor_speeds_in_dm_script(self):
         self._send_dm_command('SetMotorSpeedXY',
                               [self.motor_speed_x, self.motor_speed_y])
         sleep(1)
@@ -528,6 +528,12 @@ class Microtome_3View(Microtome):
         else:
             sleep(2)
             success = os.path.isfile(self.ACK_FILE)
+        if not success:
+            # Command was not processed
+            if self.error_state == 0:
+                self.error_state = 103
+                self.error_info = ('microtome.update_motor_speeds_in_dm_script: '
+                                   'command not processed by DM script')
         return success
 
     def move_stage_to_x(self, x):

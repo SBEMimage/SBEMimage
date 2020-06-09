@@ -126,7 +126,7 @@ class Stage():
 
     def update_motor_speed(self):
         if self.use_microtome:
-            return self._stage.write_motor_speeds_to_script()
+            return self._stage.update_motor_speeds_in_dm_script()
         else:
             # Speeds can currently not be updated for SEM stage
             return False
