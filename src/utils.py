@@ -207,6 +207,13 @@ def format_log_entry(msg):
         i = 0
     return (timestamp[:22] + ' | ' + msg[:i] + (6-i) * ' ' + msg[i:])
 
+def format_wd_stig(wd, stig_x, stig_y):
+    """Return a formatted string of focus parameters."""
+    return ('WD/STIG_XY: '
+            + '{0:.6f}'.format(wd * 1000)  # wd in metres, show in mm
+            + ', {0:.6f}'.format(stig_x)
+            + ', {0:.6f}'.format(stig_y))
+
 def show_progress_in_console(progress):
     """Show character-based progress bar in console window"""
     print('\r[{0}] {1}%'.format(
