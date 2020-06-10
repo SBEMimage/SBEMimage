@@ -65,7 +65,7 @@ from main_controls_dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                                       GrabFrameDlg, FTSetParamsDlg, FTMoveDlg, \
                                       AskUserDlg, UpdateDlg, CutDurationDlg, \
                                       KatanaSettingsDlg, SendCommandDlg, \
-                                      AboutBox
+                                      MotorTestDlg, MotorStatusDlg, AboutBox
 
 from magc_dlg_windows import ImportMagCDlg, ImportWaferImageDlg, \
                           WaferCalibrationDlg
@@ -473,6 +473,8 @@ class MainControls(QMainWindow):
         self.pushButton_testServerRequest.clicked.connect(
             self.test_server_request)
         self.pushButton_testMotors.clicked.connect(self.open_motor_test_dlg)
+        self.pushButton_testMotorStatusDlg.clicked.connect(
+            self.open_motor_status_dlg)
         self.pushButton_testDebrisDetection.clicked.connect(
             self.debris_detection_test)
         self.pushButton_testCustom.clicked.connect(self.custom_test)
@@ -1241,10 +1243,12 @@ class MainControls(QMainWindow):
         dialog.exec_()
 
     def open_motor_test_dlg(self):
-        # Disabled for now
-        pass
-        # dialog = MotorTestDlg(self.microtome, self.acq, self.trigger)
-        # dialog.exec_()
+        dialog = MotorTestDlg(self.microtome, self.acq, self.trigger)
+        dialog.exec_()
+
+    def open_motor_status_dlg(self):
+        dialog = MotorStatusDlg(self.stage)
+        dialog.exec_()
 
     def open_send_command_dlg(self):
         dialog = SendCommandDlg(self.microtome)
@@ -1460,7 +1464,7 @@ class MainControls(QMainWindow):
                 QMessageBox.Yes)
             # Redraw with previous settings
             self.viewport.vp_draw()
-            self.acq.set_user_reply(reply)
+            self.acq.user_reply = reply
         elif msg.startswith('ASK DEBRIS CONFIRMATION'):
             ov_index = int(msg[len('ASK DEBRIS CONFIRMATION'):])
             self.viewport.vp_show_overview_for_user_inspection(ov_index)
@@ -1475,7 +1479,7 @@ class MainControls(QMainWindow):
                 QMessageBox.Yes)
             # Redraw with previous settings
             self.viewport.vp_draw()
-            self.acq.set_user_reply(reply)
+            self.acq.user_reply = reply
         elif msg == 'ASK IMAGE ERROR OVERRIDE':
             reply = QMessageBox.question(
                 self, 'Image inspector',
@@ -1483,7 +1487,7 @@ class MainControls(QMainWindow):
                 'Would you like to proceed anyway?',
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.Yes)
-            self.acq.set_user_reply(reply)
+            self.acq.user_reply = reply
         else:
             # If msg is not a command, show it in log:
             self.textarea_log.appendPlainText(msg)
@@ -1839,7 +1843,7 @@ class MainControls(QMainWindow):
         """
         if (self.acq.slice_counter > self.acq.number_slices
                 and self.acq.number_slices != 0):
-            QMessageBox.warning(
+            QMessageBox.information(
                 self, 'Check Slice Counter',
                 'Slice counter is larger than maximum slice number. Please '
                 'adjust the slice counter.',
@@ -1857,8 +1861,16 @@ class MainControls(QMainWindow):
                 'Please save the current configuration file "default.ini" '
                 'under a new name before starting the stack.',
                 QMessageBox.Ok)
+        elif (self.acq.use_email_monitoring
+                and self.notifications.remote_commands_enabled
+                and not self.notifications.remote_cmd_email_pw):
+            QMessageBox.information(
+                self, 'Password missing',
+                'You have enabled remote commands via e-mail (see e-mail '
+                'monitoring settings), but have not provided a password!',
+                QMessageBox.Ok)
         elif self.sem.is_eht_off():
-            QMessageBox.warning(
+            QMessageBox.information(
                 self, 'EHT off',
                 'EHT / high voltage is off. Please turn '
                 'it on before starting the acquisition.',

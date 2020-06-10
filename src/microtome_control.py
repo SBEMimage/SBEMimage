@@ -22,6 +22,7 @@ import json
 import serial
 
 from time import sleep
+from collections import deque
 
 import utils
 
@@ -36,7 +37,6 @@ class Microtome:
         self.syscfg = sysconfig
         self.error_state = 0
         self.error_info = ''
-        self.motor_warning = False  # True when motors slower than expected
         # Load device name and other settings from sysconfig. These
         # settings overwrite the settings in config.
         recognized_devices = json.loads(self.syscfg['device']['recognized'])
@@ -127,6 +127,23 @@ class Microtome:
             # that SBEMimage waits after a stage move before taking an image.
             self.stage_move_wait_interval = float(
                 self.cfg['microtome']['stage_move_wait_interval'])
+            # Motor tolerance
+            self.xy_tolerance = float(
+                self.syscfg['stage']['xy_tolerance'])
+            self.z_tolerance = float(
+                self.syscfg['stage']['z_tolerance'])
+            # Motor diagnostics
+            self.total_xyz_move_counter = json.loads(
+                self.syscfg['stage']['xyz_move_counter'])
+            self.slow_xy_move_counter = int(
+                self.syscfg['stage']['slow_xy_move_counter'])
+            self.failed_xyz_move_counter = json.loads(
+                self.syscfg['stage']['failed_xyz_move_counter'])
+            # Deques for last 200 moves (0 = ok; 1 = warning)
+            self.slow_xy_move_warnings = deque(maxlen=200)
+            self.failed_x_move_warnings = deque(maxlen=200)
+            self.failed_y_move_warnings = deque(maxlen=200)
+            self.failed_z_move_warnings = deque(maxlen=200)
 
         except Exception as e:
             self.error_state = 701
@@ -165,6 +182,16 @@ class Microtome:
         # Save full cut duration in both cfg and syscfg
         self.cfg['microtome']['full_cut_duration'] = str(self.full_cut_duration)
         self.syscfg['knife']['full_cut_duration'] = str(self.full_cut_duration)
+        # Motor tolerance
+        self.syscfg['stage']['xy_tolerance'] = str(self.xy_tolerance)
+        self.syscfg['stage']['z_tolerance'] = str(self.z_tolerance)
+        # Motor diagnostics
+        self.syscfg['stage']['xyz_move_counter'] = json.dumps(
+            self.total_xyz_move_counter)
+        self.syscfg['stage']['slow_xy_move_counter'] = str(
+            self.slow_xy_move_counter)
+        self.syscfg['stage']['failed_xyz_move_counter'] = json.dumps(
+            self.failed_xyz_move_counter)
 
     def do_full_cut(self):
         """Perform a full cut cycle. This is the only knife control function
@@ -197,9 +224,9 @@ class Microtome:
     def set_motor_speeds(self, motor_speed_x, motor_speed_y):
         self.motor_speed_x = motor_speed_x
         self.motor_speed_y = motor_speed_y
-        return self.write_motor_speeds_to_script()
+        return self.update_motor_speeds_in_dm_script()
 
-    def write_motor_speeds_to_script(self):
+    def update_motor_speeds_in_dm_script(self):
         raise NotImplementedError
 
     def move_stage_to_x(self, x):
@@ -212,14 +239,17 @@ class Microtome:
 
     def rel_stage_move_duration(self, target_x, target_y):
         """Use the last known position and the given target position
-           to calculate how much time it will take for the motors to move
-           to target position. Add self.stage_move_wait_interval.
+        to calculate how much time it will take for the motors to move
+        to target position.
         """
         duration_x = abs(target_x - self.last_known_x) / self.motor_speed_x
         duration_y = abs(target_y - self.last_known_y) / self.motor_speed_y
-        return max(duration_x, duration_y) + self.stage_move_wait_interval
+        return duration_x, duration_y
 
     def stage_move_duration(self, from_x, from_y, to_x, to_y):
+        """Return the total duration for a move including the
+        stage_move_wait_interval.
+        """
         duration_x = abs(to_x - from_x) / self.motor_speed_x
         duration_y = abs(to_y - from_y) / self.motor_speed_y
         return max(duration_x, duration_y) + self.stage_move_wait_interval
@@ -266,6 +296,16 @@ class Microtome:
 
     def check_for_cut_cycle_error(self):
         raise NotImplementedError
+
+    def reset_stage_move_counters(self):
+        """Reset all the counters that keep track of motor moves."""
+        self.total_xyz_move_counter = [[0, 0, 0], [0, 0, 0], [0, 0]]
+        self.failed_xyz_move_counter = [0, 0, 0]
+        self.slow_xy_move_counter = 0
+        self.slow_xy_move_warnings.clear()
+        self.failed_x_move_warnings.clear()
+        self.failed_y_move_warnings.clear()
+        self.failed_z_move_warnings.clear()
 
     def reset_error_state(self):
         raise NotImplementedError
@@ -334,7 +374,7 @@ class Microtome_3View(Microtome):
                     self.error_info = ('microtome.__init__: stage z position '
                                        'mismatch')
                 # Update motor speeds in DM script
-                success = self.write_motor_speeds_to_script()
+                success = self.update_motor_speeds_in_dm_script()
                 # If update unsuccesful, set new error state unless microtome
                 # is already in an error state after reading the coordinates.
                 if not success and self.error_state == 0:
@@ -347,9 +387,11 @@ class Microtome_3View(Microtome):
 
     def _send_dm_command(self, cmd, set_values=[]):
         """Send a command to the DigitalMicrograph script."""
-        # If output file exists, delete it to ensure old return values are gone
+        # If output file exists, delete it to ensure old return values are gone.
+        # Use try_to_remove() because there may be delays in DM when
+        # DM is writing to that file.
         if os.path.isfile(self.OUTPUT_FILE):
-            os.remove(self.OUTPUT_FILE)
+            utils.try_to_remove(self.OUTPUT_FILE)
         # Delete .ack and .ac2 files
         if os.path.isfile(self.ACK_FILE):
             os.remove(self.ACK_FILE)
@@ -476,7 +518,7 @@ class Microtome_3View(Microtome):
         self._send_dm_command('MicrotomeStage_Retract')
         sleep(1.2/self.knife_retract_speed)
 
-    def write_motor_speeds_to_script(self):
+    def update_motor_speeds_in_dm_script(self):
         self._send_dm_command('SetMotorSpeedXY',
                               [self.motor_speed_x, self.motor_speed_y])
         sleep(1)
@@ -486,6 +528,12 @@ class Microtome_3View(Microtome):
         else:
             sleep(2)
             success = os.path.isfile(self.ACK_FILE)
+        if not success:
+            # Command was not processed
+            if self.error_state == 0:
+                self.error_state = 103
+                self.error_info = ('microtome.update_motor_speeds_in_dm_script: '
+                                   'command not processed by DM script')
         return success
 
     def move_stage_to_x(self, x):
@@ -517,24 +565,37 @@ class Microtome_3View(Microtome):
 
     def move_stage_to_xy(self, coordinates):
         """Move stage to coordinates (X, Y). This function is called during
-        acquisitions. It includes waiting times. The other move functions
-        below do not.
+        acquisitions. It includes waiting times.
         """
         x, y = coordinates
         self._send_dm_command('MicrotomeStage_SetPositionXY_Confirm', [x, y])
         sleep(0.2)
         # Wait for the time it takes the motors to move
         # plus stage_move_wait_interval
-        move_duration = self.rel_stage_move_duration(x, y)
-        sleep(move_duration + 0.1)
+        x_move_duration, y_move_duration = self.rel_stage_move_duration(x, y)
+        sleep(max(x_move_duration, y_move_duration)
+              + self.stage_move_wait_interval
+              + 0.2)
+        # Update counters (number of moves, distance, duration)
+        self.total_xyz_move_counter[0][0] += 1
+        self.total_xyz_move_counter[1][0] += 1
+        # Update total distance moves
+        self.total_xyz_move_counter[0][1] += abs(x - self.last_known_x)
+        self.total_xyz_move_counter[1][1] += abs(y - self.last_known_y)
+        # Update total move duration
+        self.total_xyz_move_counter[0][2] += x_move_duration
+        self.total_xyz_move_counter[1][2] += y_move_duration
         # Check if the command was processed successfully
         if os.path.isfile(self.ACK_FILE):
             self.last_known_x, self.last_known_y = x, y
+            self.slow_xy_move_warnings.append(0)
+            self.failed_x_move_warnings.append(0)
+            self.failed_y_move_warnings.append(0)
         else:
-            # Wait for up to 2.5 additional seconds (DM script will try
+            # Wait for up to 3 additional seconds (DM script will try
             # to read coordinates again to confirm move)
-            if self.stage_move_wait_interval < 2.5:
-                sleep(2.5 - self.stage_move_wait_interval)
+            if self.stage_move_wait_interval < 3:
+                sleep(3 - self.stage_move_wait_interval)
             # Check again for ACK_FILE
             if os.path.isfile(self.ACK_FILE):
                 # Move was carried out, but with a delay.
@@ -543,8 +604,14 @@ class Microtome_3View(Microtome):
                 if os.path.isfile(self.WARNING_FILE):
                     # There was a warning from the script - motors may have
                     # moved too slowly, but they reached the target position
-                    # after an extra 2s delay.
-                    self.motor_warning = True
+                    # after an extra 1.5s delay.
+                    self.slow_xy_move_warnings.append(1)
+                    self.slow_xy_move_counter += 1
+                else:
+                    self.slow_xy_move_warnings.append(0)
+                # Move did not fail: Update deques
+                self.failed_x_move_warnings.append(0)
+                self.failed_y_move_warnings.append(0)
             elif os.path.isfile(self.ERROR_FILE) and self.error_state == 0:
                 # Move was not confirmed and error file exists:
                 # The motors did not reach the target position.
@@ -555,11 +622,28 @@ class Microtome_3View(Microtome):
                 # if a move fails.)
                 current_xy = self._read_dm_return_values()
                 if len(current_xy) == 2:
+                    prev_x = self.last_known_x
+                    prev_y = self.last_known_y
                     try:
                         self.last_known_x = float(current_xy[0])
                         self.last_known_y = float(current_xy[1])
                     except:
-                        pass  # keep current coordinates
+                        # keep previous coordinates
+                        self.last_known_x = prev_x
+                        self.last_known_y = prev_y
+                    # Check which of the motors failed to reach target, and
+                    # update counters accordingly
+                    if abs(x - self.last_known_x) > 0.002:
+                        self.failed_xyz_move_counter[0] += 1
+                        self.failed_x_move_warnings.append(1)
+                    else:
+                        self.failed_x_move_warnings.append(0)
+                    if abs(y - self.last_known_y) > self.xy_tolerance:
+                        self.failed_xyz_move_counter[1] += 1
+                        self.failed_y_move_warnings.append(1)
+                    else:
+                        self.failed_y_move_warnings.append(0)
+
             elif self.error_state == 0:
                 # If neither .ack nor .err exist, the command was not processed
                 self.error_state = 103
@@ -598,16 +682,30 @@ class Microtome_3View(Microtome):
         else:
             self._send_dm_command('MicrotomeStage_SetPositionZ_Confirm', [z])
             sleep(1)  # wait for command to be read and executed
+            self.total_xyz_move_counter[2][0] += 1
+            # Update total distance moved in z
+            self.total_xyz_move_counter[2][1] += abs(z - self.last_known_z)
             # Check if command was processed
             if os.path.isfile(self.ACK_FILE):
                 # Accept new position as last known position
                 self.prev_known_z = self.last_known_z
                 self.last_known_z = z
+                self.failed_z_move_warnings.append(0)
             elif os.path.isfile(self.ERROR_FILE) and self.error_state == 0:
                 # There was an error during the move
                 self.error_state = 202
                 self.error_info = ('microtome.move_stage_to_z: did not reach '
                                    'target z position')
+                self.failed_xyz_move_counter[2] += 1
+                self.failed_z_move_warnings.append(1)
+                # Read last known position (written into output file by DM
+                # if a move fails.)
+                current_z = self._read_dm_return_values()
+                if len(current_z) == 1:
+                    try:
+                        self.last_known_z = float(current_z[0])
+                    except:
+                        pass  # keep current coordinates
             elif self.error_state == 0:
                 # If neither .ack nor .err exist, the command was not processed
                 self.error_state = 103
@@ -653,7 +751,6 @@ class Microtome_3View(Microtome):
     def reset_error_state(self):
         self.error_state = 0
         self.error_info = ''
-        self.motor_warning = False
         if os.path.isfile(self.ERROR_FILE):
             os.remove(self.ERROR_FILE)
         if os.path.isfile(self.WARNING_FILE):
@@ -952,7 +1049,6 @@ class Microtome_katana(Microtome):
     def reset_error_state(self):
         self.error_state = 0
         self.error_info = ''
-        self.motor_warning = False
 
     def disconnect(self):
         if self.connected:
