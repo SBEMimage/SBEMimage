@@ -885,8 +885,15 @@ class Acquisition:
         """
         command = self.notifications.get_remote_command()
         if command in ['stop', 'pause']:
-            self.notifications.send_email('Command received', '')
-            self.pause_acquisition(2)
+            # Send a confirmation e-mail to the account that receives the remote
+            # commands. This moves the e-mail containing the command down in the
+            # inbox, so that it won't be read again.
+            self.notifications.send_email('Command received', '', [],
+                                          [self.notifications.email_account])
+            # Pause acquisition after current slice is complete (pause_state 2)
+            # unless pause command pause_state 1 is already active
+            if self.pause_state != 1:
+                self.pause_acquisition(2)
             success, error_msg = self.notifications.send_email(
                 'Remote stop', 'The acquisition was paused remotely.')
             if not success:
@@ -899,7 +906,8 @@ class Acquisition:
             # TODO: let user continue paused acq with remote command
         elif command == 'report':
             self.add_to_main_log('CTRL: REPORT remote command received.')
-            self.notifications.send_email('Command received', '')
+            self.notifications.send_email('Command received', '', [],
+                                          [self.notifications.email_account])
             self.report_requested = True
         elif command == 'ERROR':
             self.add_to_main_log('CTRL: ERROR checking for remote commands.')

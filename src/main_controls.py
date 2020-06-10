@@ -1827,7 +1827,7 @@ class MainControls(QMainWindow):
         """
         if (self.acq.slice_counter > self.acq.number_slices
                 and self.acq.number_slices != 0):
-            QMessageBox.warning(
+            QMessageBox.information(
                 self, 'Check Slice Counter',
                 'Slice counter is larger than maximum slice number. Please '
                 'adjust the slice counter.',
@@ -1845,8 +1845,16 @@ class MainControls(QMainWindow):
                 'Please save the current configuration file "default.ini" '
                 'under a new name before starting the stack.',
                 QMessageBox.Ok)
+        elif (self.acq.use_email_monitoring
+                and self.notifications.remote_commands_enabled
+                and not self.notifications.remote_cmd_email_pw):
+            QMessageBox.information(
+                self, 'Password missing',
+                'You have enabled remote commands via e-mail (see e-mail '
+                'monitoring settings), but have not provided a password!',
+                QMessageBox.Ok)
         elif self.sem.is_eht_off():
-            QMessageBox.warning(
+            QMessageBox.information(
                 self, 'EHT off',
                 'EHT / high voltage is off. Please turn '
                 'it on before starting the acquisition.',
