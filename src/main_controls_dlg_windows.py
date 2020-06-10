@@ -450,7 +450,6 @@ class MotorStatusDlg(QDialog):
         self.spinBox_zTolerance.setValue(
             int(self.stage.z_tolerance * 1000))
 
-
 # ------------------------------------------------------------------------------
 
 class KatanaSettingsDlg(QDialog):
@@ -1644,31 +1643,35 @@ class PreStackDlg(QDialog):
 
     def __init__(self, acq, sem, microtome, autofocus, ovm, gm):
         super().__init__()
+        self.acq = acq
         self.sem = sem
         self.microtome = microtome
+        self.gm = gm
         loadUi('..\\gui\\pre_stack_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
         # Different labels if stack is paused ('Continue' instead of 'Start')
-        if acq.acq_paused:
+        if self.acq.acq_paused:
             self.pushButton_startAcq.setText('Continue acquisition')
             self.setWindowTitle('Continue acquisition')
         self.pushButton_startAcq.clicked.connect(self.accept)
+        self.pushButton_editInterruption.clicked.connect(
+            self.edit_interruption_point)
         boldFont = QFont()
         boldFont.setBold(True)
         # Show the most relevant current settings for the acquisition
-        self.label_stackName.setText(acq.stack_name)
-        self.label_sliceCounter.setText(str(acq.slice_counter))
+        self.label_stackName.setText(self.acq.stack_name)
+        self.label_sliceCounter.setText(str(self.acq.slice_counter))
         self.label_beamSettings.setText(
             f'{self.sem.target_eht:.2f} keV, '
             f'{self.sem.target_beam_current} pA')
         self.label_gridSetup.setText(
-            f'{ovm.number_ov} overview(s), {gm.number_grids} grid(s);')
+            f'{ovm.number_ov} overview(s), {self.gm.number_grids} grid(s);')
         self.label_totalActiveTiles.setText(
-            f'{gm.total_number_active_tiles()} active tile(s)')
-        if acq.use_autofocus:
+            f'{self.gm.total_number_active_tiles()} active tile(s)')
+        if self.acq.use_autofocus:
             if autofocus.method == 0:
                 self.label_autofocusActive.setFont(boldFont)
                 self.label_autofocusActive.setText('Active (SmartSEM)')
@@ -1677,23 +1680,17 @@ class PreStackDlg(QDialog):
                 self.label_autofocusActive.setText('Active (heuristic)')
         else:
             self.label_autofocusActive.setText('Inactive')
-        if gm.wd_gradient_active():
+        if self.gm.wd_gradient_active():
             self.label_gradientActive.setFont(boldFont)
             self.label_gradientActive.setText('Active')
         else:
             self.label_gradientActive.setText('Inactive')
-        if gm.intervallic_acq_active() or ovm.intervallic_acq_active():
+        if self.gm.intervallic_acq_active() or ovm.intervallic_acq_active():
             self.label_intervallicActive.setFont(boldFont)
             self.label_intervallicActive.setText('Active')
         else:
             self.label_intervallicActive.setText('Inactive')
-        if acq.acq_interrupted:
-            self.label_interruption.setFont(boldFont)
-            self.label_interruption.setText(
-                f'Yes, in grid {acq.acq_interrupted_at[0]} '
-                f'at tile {acq.acq_interrupted_at[1]}')
-        else:
-            self.label_interruption.setText('None')
+        self.show_interruption_point()
         self.doubleSpinBox_cutSpeed.setValue(
             self.microtome.knife_cut_speed / 1000)
         self.doubleSpinBox_retractSpeed.setValue(
@@ -1702,6 +1699,23 @@ class PreStackDlg(QDialog):
         self.doubleSpinBox_contrast.setValue(self.sem.bsd_contrast)
         self.spinBox_bias.setValue(self.sem.bsd_bias)
         self.checkBox_oscillation.setChecked(self.microtome.use_oscillation)
+
+    def edit_interruption_point(self):
+        dialog = SetStartTileDlg(self.acq, self.gm)
+        dialog.exec_()
+        # Update interruption point label
+        self.show_interruption_point()
+
+    def show_interruption_point(self):
+        if self.acq.acq_interrupted:
+            boldFont = QFont()
+            boldFont.setBold(True)
+            self.label_interruption.setFont(boldFont)
+            self.label_interruption.setText(
+                f'Yes, in grid {self.acq.acq_interrupted_at[0]} '
+                f'at tile {self.acq.acq_interrupted_at[1]}')
+        else:
+            self.label_interruption.setText('None')
 
     def accept(self):
         # Save updated settings
@@ -1714,6 +1728,86 @@ class PreStackDlg(QDialog):
         self.sem.bsd_bias = self.spinBox_bias.value()
         self.microtome.use_oscillation = self.checkBox_oscillation.isChecked()
         super().accept()
+
+# ------------------------------------------------------------------------------
+
+class SetStartTileDlg(QDialog):
+    """Adjust the grid/tile at which to (re)start the acquisition."""
+
+    def __init__(self, acquisition, grid_manager):
+        super().__init__()
+        self.acq = acquisition
+        self.gm = grid_manager
+        loadUi('..\\gui\\set_start_tile_dlg.ui', self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setFixedSize(self.size())
+        self.show()
+        if self.acq.acq_interrupted:
+            self.label_acqstatus1.setText(
+                'The acquisition was interrupted/paused')
+            grid_index, tile_index = self.acq.acq_interrupted_at
+        else:
+            self.label_acqstatus1.setText(
+                'The acquisition was not interrupted')
+            grid_index = None
+            # Find first tile to be acquired
+            for g in range(self.gm.number_grids):
+                if (self.gm[g].active
+                        and self.gm[g].active_tiles):
+                    # First active grid
+                    grid_index = g
+                    break
+            if grid_index is not None:
+                # First active tile in first active grid
+                tile_index = self.gm[grid_index].active_tiles[0]
+            else:
+                grid_index, tile_index = 0, 0
+
+        self.label_acqstatus2.setText(
+            f'and will (re)start at tile {tile_index} in grid {grid_index}.')
+
+        # Populate grid selector
+        self.comboBox_gridSelector.clear()
+        self.comboBox_gridSelector.addItems(self.gm.grid_selector_list())
+        self.comboBox_gridSelector.setCurrentIndex(grid_index)
+        self.comboBox_gridSelector.currentIndexChanged.connect(
+            self.update_tile_selector)
+        # Populate tile selector
+        self.update_tile_selector()
+        # Select current tile (+1 to account for entry 'Select tile')
+        self.comboBox_tileSelector.setCurrentIndex(tile_index + 1)
+
+    def update_tile_selector(self):
+        """Populate the tile selector with the active tiles of the currently
+        selected grid.
+        """
+        selected_grid = self.comboBox_gridSelector.currentIndex()
+        self.comboBox_tileSelector.clear()
+        self.comboBox_tileSelector.addItems(
+            ['Select tile']
+            + self.gm[selected_grid].tile_selector_list())
+        self.comboBox_tileSelector.setCurrentIndex(0)
+
+    def accept(self):
+        grid_index = self.comboBox_gridSelector.currentIndex()
+        tile_index = self.comboBox_tileSelector.currentIndex() - 1
+        if tile_index == -1:
+            QMessageBox.warning(
+                self, 'No tile selected',
+                'Please select a tile or click "Cancel"',
+                QMessageBox.Ok)
+        elif not self.gm[grid_index][tile_index].tile_active:
+            QMessageBox.warning(
+                self, 'Select active tile',
+                'The tile you selected is currently inactive. Please select '
+                'an active tile.',
+                QMessageBox.Ok)
+        else:
+            # Set selected tile as new interruption point
+            self.acq.set_interruption_point(grid_index, tile_index,
+                                            during_acq=False)
+            super().accept()
 
 # ------------------------------------------------------------------------------
 
