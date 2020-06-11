@@ -505,7 +505,7 @@ class SEM_SmartSEM(SEM):
 
 
     def has_vp(self):
-        """Return True if VP is fitted."""
+        """Return True if VP (= Variable Pressure) is fitted."""
         if not self.simulation_mode:
             response = self.sem_api.Get('DP_VP_SYSTEM', 0)
             print(response)
@@ -513,7 +513,7 @@ class SEM_SmartSEM(SEM):
         return False
 
     def is_hv_on(self):
-        """Return True if HV is on."""
+        """Return True if HV (= High Vacuum) is on."""
         if self.has_vp():
             print(self.sem_api.Get('DP_VAC_MODE', 0))
             return "vacuum" in self.sem_api.Get('DP_VAC_MODE', 0)[1].lower()
@@ -539,7 +539,7 @@ class SEM_SmartSEM(SEM):
         return response[1]
 
     def set_hv(self):
-        """Set HV (= High Vacuum)."""
+        """Set HV."""
         ret_val = self.sem_api.Execute('CMD_GOTO_HV')
         print(ret_val)
         if ret_val == 0:
@@ -551,7 +551,7 @@ class SEM_SmartSEM(SEM):
             return False
 
     def set_vp(self):
-        """Set VP (= Variable Pressure)."""
+        """Set VP."""
         ret_val = self.sem_api.Execute('CMD_GOTO_VP')
         print(ret_val)
         if ret_val == 0:
@@ -577,7 +577,7 @@ class SEM_SmartSEM(SEM):
 
 
     def has_fcc(self):
-        """Return True if FCC is fitted."""
+        """Return True if FCC (= Focal Charge Compensator) is fitted."""
         if not self.simulation_mode:
             response = self.sem_api.Get('DP_CAPCC_FITTED', 0)
             return "yes" in response[1].lower()
@@ -601,7 +601,7 @@ class SEM_SmartSEM(SEM):
         return response[1]
 
     def turn_fcc_on(self):
-        """Turn FCC (= Focal Charge Compensator) on."""
+        """Turn FCC on."""
         ret_val = self.sem_api.Execute('CMD_CC_IN')
         if ret_val == 0:
             return True
@@ -612,7 +612,7 @@ class SEM_SmartSEM(SEM):
             return False
 
     def turn_fcc_off(self):
-        """Turn FCC (= Focal Charge Compensator) off."""
+        """Turn FCC off."""
         ret_val = self.sem_api.Execute('CMD_CC_OUT')
         if ret_val == 0:
             return True
