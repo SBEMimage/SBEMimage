@@ -507,41 +507,30 @@ class SEM_SmartSEM(SEM):
     def has_vp(self):
         """Return True if VP (= Variable Pressure) is fitted."""
         if not self.simulation_mode:
-            response = self.sem_api.Get('DP_VP_SYSTEM', 0)
-            print(response)
-            return "yes" in response[1].lower()
-        return False
+            return "yes" in self.sem_api.Get('DP_VP_SYSTEM', 0)[1].lower()
+        return True
 
     def is_hv_on(self):
         """Return True if HV (= High Vacuum) is on."""
-        if self.has_vp():
-            print(self.sem_api.Get('DP_VAC_MODE', 0))
-            return "vacuum" in self.sem_api.Get('DP_VAC_MODE', 0)[1].lower()
-        return True
+        return "vacuum" in self.sem_api.Get('DP_VAC_MODE', 0)[1].lower()
 
     def is_vp_on(self):
         """Return True if VP is on."""
-        if self.has_vp():
-            print(self.sem_api.Get('DP_VAC_MODE', 0))
-            return "variable" in self.sem_api.Get('DP_VAC_MODE', 0)[1].lower()
-        return False
+        return "variable" in self.sem_api.Get('DP_VAC_MODE', 0)[1].lower()
 
     def get_chamber_pressure(self):
         """Read current chamber pressure from SmartSEM."""
         response = self.sem_api.Get('AP_CHAMBER_PRESSURE', 0)
-        print(response)
         return response[1]
 
     def get_vp_target(self):
         """Read current VP target pressure from SmartSEM."""
         response = self.sem_api.Get('AP_HP_TARGET', 0)
-        print(response)
         return response[1]
 
     def set_hv(self):
         """Set HV."""
         ret_val = self.sem_api.Execute('CMD_GOTO_HV')
-        print(ret_val)
         if ret_val == 0:
             return True
         else:
@@ -553,7 +542,6 @@ class SEM_SmartSEM(SEM):
     def set_vp(self):
         """Set VP."""
         ret_val = self.sem_api.Execute('CMD_GOTO_VP')
-        print(ret_val)
         if ret_val == 0:
             return True
         else:
@@ -565,9 +553,8 @@ class SEM_SmartSEM(SEM):
     def set_vp_target(self, target_pressure):
         """Set the VP target pressure."""
         variant = VARIANT(pythoncom.VT_R4, target_pressure)
-        ret_val = self.sem_api.Set('AP_HP_TARGET', variant)
-        print(ret_val)
-        if ret_val[0] == 0:
+        ret_val = self.sem_api.Set('AP_HP_TARGET', variant)[0]
+        if ret_val == 0:
             return True
         else:
             self.error_state = ERROR_LIST['VP error']
@@ -579,21 +566,16 @@ class SEM_SmartSEM(SEM):
     def has_fcc(self):
         """Return True if FCC (= Focal Charge Compensator) is fitted."""
         if not self.simulation_mode:
-            response = self.sem_api.Get('DP_CAPCC_FITTED', 0)
-            return "yes" in response[1].lower()
-        return False
+            return "yes" in self.sem_api.Get('DP_CAPCC_FITTED', 0)[1].lower()
+        return True
 
     def is_fcc_on(self):
         """Return True if FCC is on."""
-        if self.has_fcc():
-            return "yes" in self.sem_api.Get('DP_CAPCC_INUSE', 0)[1].lower()
-        return False
+        return "yes" in self.sem_api.Get('DP_CAPCC_INUSE', 0)[1].lower()
 
     def is_fcc_off(self):
         """Return True if FCC is off."""
-        if self.has_fcc():
-            return "no" in self.sem_api.Get('DP_CAPCC_INUSE', 0)[1].lower()
-        return True
+        return "no" in self.sem_api.Get('DP_CAPCC_INUSE', 0)[1].lower()
 
     def get_fcc_level(self):
         """Read current FCC pressure (0-100) from SmartSEM."""

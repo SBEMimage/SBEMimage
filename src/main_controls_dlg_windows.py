@@ -25,6 +25,8 @@ import shutil
 
 from random import random
 from time import sleep, time
+
+from qtconsole.qt import QtCore
 from validate_email import validate_email
 from math import atan, sqrt
 from statistics import mean
@@ -36,7 +38,7 @@ from imreg_dft import translation
 from zipfile import ZipFile
 
 from PyQt5.uic import loadUi
-from PyQt5.QtCore import Qt, QObject, QSize, pyqtSignal
+from PyQt5.QtCore import Qt, QObject, QSize, pyqtSignal, QThread
 from PyQt5.QtGui import QPixmap, QIcon, QPalette, QColor, QFont
 from PyQt5.QtWidgets import QApplication, QDialog, QMessageBox, \
                             QFileDialog, QLineEdit, QDialogButtonBox
@@ -2583,15 +2585,36 @@ class PlasmaCleanerDlg(QDialog):
 
 # ------------------------------------------------------------------------------
 
+class PressureUpdateQThread(QThread):
+
+    update = QtCore.pyqtSignal()
+
+    def __init__(self, secs):
+        self.active = True
+        self.secs = secs
+        QThread.__init__(self)
+
+    def run(self):
+        while self.active:
+            self.update.emit()
+            sleep(self.secs)
+
+    def stop(self):
+        self.active = False
+
+
 class VariablePressureDlg(QDialog):
     """Set Variable Pressure / High Vacuum."""
 
     def __init__(self, sem):
         super().__init__()
         self.sem = sem
-        self.state = False
-        self.target = 0
-        self.current = 0
+        self.convert_from_sem = {"mbar": 1000, "Pa": 100000, "Torr": 750.061682704}
+        self.convert_to_sem = {"mbar": 0.001, "Pa": 0.00001, "Torr": 0.00133322368421}
+        self.hv = True
+        self.vp = False
+        self.target = 0.00014818903582636267
+        self.current = 4.092104433084387e-09
         loadUi('..\\gui\\variable_pressure_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -2599,22 +2622,15 @@ class VariablePressureDlg(QDialog):
         self.show()
         self.pushButton_hv.clicked.connect(self.set_hv)
         self.pushButton_vp.clicked.connect(self.set_vp)
-        #sci_validator = QDoubleValidator()
-        #sci_validator.setNotation(QDoubleValidator.ScientificNotation)
-        self.plainTextEdit_target.textChanged.connect(self.target_changed)
+        self.lineEdit_target.editingFinished.connect(self.target_changed)
+        self.comboBox_units.currentTextChanged.connect(self.units_changed)
+        self.units = self.comboBox_units.currentText()
         try:
-            self.current = self.sem.get_chamber_pressure()
-            
             self.target = self.sem.get_vp_target()
-            
-            self.state = self.sem.is_vp_on()
-            if self.state:
-                self.target = self.sem.get_vp_target()
-            self.plainTextEdit_current.setPlainText("{:.2e}".format(self.current))
-            self.plainTextEdit_target.blockSignals(True)
-            self.plainTextEdit_target.setPlainText("{:.2e}".format(self.target))
-            self.plainTextEdit_target.blockSignals(False)
-            self.update_buttons()
+            self.update_target_pressure()
+            self.thread = PressureUpdateQThread(1)
+            self.thread.update.connect(self.update)
+            self.thread.start()
         except Exception as e:
             QMessageBox.warning(
                 self, 'Error',
@@ -2624,28 +2640,56 @@ class VariablePressureDlg(QDialog):
         QApplication.processEvents()
 
     def set_hv(self):
-        self.state = False
+        #self.hv = True
+        #self.vp = False
         self.sem.set_hv()
-        self.update_buttons()
 
     def set_vp(self):
-        self.state = True
+        #self.hv = False
+        #self.vp = True
         self.sem.set_vp()
-        self.update_buttons()
 
-    def update_buttons(self):
-        self.pushButton_hv.setEnabled(self.state)
-        self.pushButton_vp.setEnabled(not self.state)
+    def units_changed(self, text):
+        self.units = text
+        self.update_target_pressure()
+
+    def update(self):
+        self.hv = self.sem.is_hv_on()
+        self.vp = self.sem.is_vp_on()
+        self.current = self.sem.get_chamber_pressure()
+        self.pushButton_hv.setEnabled(self.vp)
+        self.pushButton_vp.setEnabled(self.hv)
+        self.update_pressure(self.lineEdit_current, self.current)
+
+    def update_target_pressure(self):
+        self.lineEdit_target.blockSignals(True)
+        self.update_pressure(self.lineEdit_target, self.target)
+        self.lineEdit_target.blockSignals(False)
+
+    def update_pressure(self, textEdit, value):
+        unit_value = value * self.convert_from_sem[self.units]
+        textEdit.setText("{:.2e}".format(unit_value))
 
     def target_changed(self):
-        value = float(self.plainTextEdit_target.toPlainText())
-        print(value)
-        if not 0 <= value <= 100:
+        try:
+            unit_value = float(self.lineEdit_target.text())
+            self.target = unit_value * self.convert_to_sem[self.units]
+            print(self.target)
+            self.sem.set_vp_target(self.target)
+        except Exception as e:
             QMessageBox.warning(
                 self, 'Error',
-                'Please enter a value between 0 and 100', QMessageBox.Ok)
-        else:
-            self.sem.set_vp_target(value)
+                'Invalid value: '
+                + str(e),
+                QMessageBox.Ok)
+
+    def reject(self):
+        self.thread.stop()
+        super().reject()
+
+    def closeEvent(self, event):
+        self.thread.stop()
+        event.accept()
 
 # ------------------------------------------------------------------------------
 
