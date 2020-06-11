@@ -2583,20 +2583,71 @@ class PlasmaCleanerDlg(QDialog):
 
 # ------------------------------------------------------------------------------
 
-
-
-# * TODO: set checkbox at init; update sem when checkbox changed
-# or update from config (i.e. self.acq.use_charge_compensator; acq => acquisition.py)
-#self.acq.use_charge_compensator = self.checkBox_chargeCompensator.isChecked()
-
-
-class ChargeCompensatorDlg(QDialog):
-    """Set Charge Compensator level."""
+class VariablePressureDlg(QDialog):
+    """Set Variable Pressure / High Vacuum."""
 
     def __init__(self, sem):
         super().__init__()
         self.sem = sem
         self.ignore_events = True
+        self.state = False
+        self.target = 0.0001
+        self.current = 0
+        loadUi('..\\gui\\variable_pressure_settings_dlg.ui', self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setFixedSize(self.size())
+        self.show()
+        self.pushButton_hv.clicked.connect(self.set_hv)
+        self.pushButton_vp.clicked.connect(self.set_vp)
+        #sci_validator = QDoubleValidator()
+        #sci_validator.setNotation(QDoubleValidator.ScientificNotation)
+        self.plainTextEdit_target.textChanged.connect(self.target_changed)
+        try:
+            self.state = self.sem.is_vp_on()
+            if self.state:
+                self.target = self.sem.get_vp_target()
+            self.plainTextEdit_current.setPlainText("{:.2e}".format(self.current))
+            self.plainTextEdit_target.setPlainText("{:.2e}".format(self.target))
+            self.update_buttons()
+        except Exception as e:
+            QMessageBox.warning(
+                self, 'Error',
+                'Could not read variable pressure settings: '
+                + str(e),
+                QMessageBox.Ok)
+        self.ignore_events = False
+        QApplication.processEvents()
+
+    def set_hv(self):
+        self.state = False
+        self.update_buttons()
+
+    def set_vp(self):
+        self.state = True
+        self.update_buttons()
+
+    def update_buttons(self):
+        self.pushButton_hv.setEnabled(self.state)
+        self.pushButton_vp.setEnabled(not self.state)
+
+    def target_changed(self):
+        if not self.ignore_events:
+            value = float(self.plainTextEdit_target.toPlainText())
+            print(value)
+            if not 0 <= value <= 100:
+                QMessageBox.warning(
+                    self, 'Error',
+                    'Please enter a value between 0 and 100', QMessageBox.Ok)
+
+# ------------------------------------------------------------------------------
+
+class ChargeCompensatorDlg(QDialog):
+    """Set Charge Compensator & level."""
+
+    def __init__(self, sem):
+        super().__init__()
+        self.sem = sem
         self.state = False
         self.value = 0
         loadUi('..\\gui\\charge_compensator_settings_dlg.ui', self)
@@ -2609,17 +2660,14 @@ class ChargeCompensatorDlg(QDialog):
         self.doubleSpinBox_level.valueChanged.connect(self.value_changed)
         try:
             self.state = self.sem.is_fcc_on()
-            if self.state:
-                self.value = self.sem.get_fcc_level()
-            self.doubleSpinBox_level.setValue(self.value)
             self.update_buttons()
+            self.update_value()
         except Exception as e:
             QMessageBox.warning(
                 self, 'Error',
-                'Could not read current settings from charge compensator: '
+                'Could not read charge compensator settings: '
                 + str(e),
                 QMessageBox.Ok)
-        self.ignore_events = False
         QApplication.processEvents()
 
     def turn_on(self):
@@ -2630,9 +2678,7 @@ class ChargeCompensatorDlg(QDialog):
         sleep(0.1)
         if self.value == 0:
             self.value = 50
-            self.ignore_events = True
-            self.doubleSpinBox_level.setValue(self.value)
-            self.ignore_events = False
+            self.update_value()
         self.set_fcc_level(self.value)
 
     def turn_off(self):
@@ -2640,7 +2686,8 @@ class ChargeCompensatorDlg(QDialog):
         self.sem.turn_fcc_off()
         self.update_buttons()        
 
-        self.doubleSpinBox_level.setValue(0)
+        self.value == 0
+        self.update_value()
 
     def update_buttons(self):
         self.pushButton_on.setEnabled(not self.state)
@@ -2654,7 +2701,12 @@ class ChargeCompensatorDlg(QDialog):
                         'Please enter a value between 0 and 100', QMessageBox.Ok)
             else:
                 self.set_fcc_level(value)
-                    
+
+    def update_value(self):
+        self.doubleSpinBox_level.blockSignals(True)
+        self.doubleSpinBox_level.setValue(self.value)
+        self.doubleSpinBox_level.blockSignals(False)
+
     def set_fcc_level(self, value):
         self.value = value
         if self.state:

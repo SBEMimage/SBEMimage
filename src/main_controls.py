@@ -59,7 +59,8 @@ from main_controls_dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                                       AutofocusSettingsDlg, DebrisSettingsDlg, \
                                       EmailMonitoringSettingsDlg, \
                                       ImageMonitoringSettingsDlg, ExportDlg, \
-                                      SaveConfigDlg, PlasmaCleanerDlg, ChargeCompensatorDlg, \
+                                      SaveConfigDlg, PlasmaCleanerDlg, \
+                                      VariablePressureDlg, ChargeCompensatorDlg, \
                                       ApproachDlg, MirrorDriveDlg, EHTDlg, \
                                       StageCalibrationDlg, MagCalibrationDlg, \
                                       GrabFrameDlg, FTSetParamsDlg, FTMoveDlg, \
@@ -255,6 +256,7 @@ class MainControls(QMainWindow):
             self.cfg['sys']['plc_installed'].lower() == 'true')
         self.plc_initialized = False
 
+        self.vp_installed = self.sem.has_vp()
         self.fcc_installed = self.sem.has_fcc()
 
         self.initialize_main_controls_gui()
@@ -391,6 +393,10 @@ class MainControls(QMainWindow):
         self.pushButton_grabFrame.clicked.connect(self.open_grab_frame_dlg)
         self.pushButton_saveViewport.clicked.connect(
             self.save_viewport_screenshot)
+        self.pushButton_VP.clicked.connect(
+            self.open_variable_pressure_dlg)
+        self.pushButton_FCC.clicked.connect(
+            self.open_charge_compensator_dlg)
         self.pushButton_EHTToggle.clicked.connect(self.open_eht_dlg)
         # Acquisition control buttons
         self.pushButton_startAcq.clicked.connect(self.open_pre_stack_dlg)
@@ -408,8 +414,6 @@ class MainControls(QMainWindow):
         self.toolButton_autofocus.clicked.connect(self.open_autofocus_dlg)
         self.toolButton_plasmaCleaner.clicked.connect(
             self.initialize_plasma_cleaner)
-        self.toolButton_chargeCompensator.clicked.connect(
-            self.open_charge_compensator_dlg)
         self.toolButton_askUserMode.clicked.connect(self.open_ask_user_dlg)
         # Menu bar
         self.actionSEMSettings.triggered.connect(self.open_sem_dlg)
@@ -432,6 +436,8 @@ class MainControls(QMainWindow):
         self.actionAutofocusSettings.triggered.connect(self.open_autofocus_dlg)
         self.actionPlasmaCleanerSettings.triggered.connect(
             self.initialize_plasma_cleaner)
+        self.actionVariablePressureSettings.triggered.connect(
+            self.open_variable_pressure_dlg)
         self.actionChargeCompensatorSettings.triggered.connect(
             self.open_charge_compensator_dlg)
         self.actionSaveConfig.triggered.connect(self.save_settings)
@@ -521,8 +527,12 @@ class MainControls(QMainWindow):
         self.checkBox_plasmaCleaner.setEnabled(self.plc_installed)
         self.actionPlasmaCleanerSettings.setEnabled(self.plc_installed)
 
+        # Enable Variable Pressure GUI elements if installed.
+        self.pushButton_VP.setEnabled(self.vp_installed)
+        self.actionVariablePressureSettings.setEnabled(self.vp_installed)
+
         # Enable Focal Charge Compensator GUI elements if installed.
-        self.toolButton_chargeCompensator.setEnabled(self.fcc_installed)
+        self.pushButton_FCC.setEnabled(self.fcc_installed)
         self.actionChargeCompensatorSettings.setEnabled(self.fcc_installed)
 
         #-------MagC-------#
@@ -1226,16 +1236,20 @@ class MainControls(QMainWindow):
         dialog = PlasmaCleanerDlg(self.plasma_cleaner)
         dialog.exec_()
 
-    def open_charge_compensator_dlg(self):
-        dialog = ChargeCompensatorDlg(self.sem)
-        dialog.exec_()
-
     def open_approach_dlg(self):
         dialog = ApproachDlg(self.microtome, self.trigger)
         dialog.exec_()
 
     def open_grab_frame_dlg(self):
         dialog = GrabFrameDlg(self.sem, self.acq, self.trigger)
+        dialog.exec_()
+
+    def open_variable_pressure_dlg(self):
+        dialog = VariablePressureDlg(self.sem)
+        dialog.exec_()
+
+    def open_charge_compensator_dlg(self):
+        dialog = ChargeCompensatorDlg(self.sem)
         dialog.exec_()
 
     def open_eht_dlg(self):

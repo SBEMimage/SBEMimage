@@ -907,35 +907,6 @@
         <string>00000.0 µm</string>
        </property>
       </widget>
-      <widget class="QToolButton" name="toolButton_chargeCompensator">
-       <property name="enabled">
-        <bool>true</bool>
-       </property>
-       <property name="geometry">
-        <rect>
-         <x>300</x>
-         <y>195</y>
-         <width>25</width>
-         <height>19</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>...</string>
-       </property>
-      </widget>
-      <widget class="QLabel" name="label_fs_3">
-       <property name="geometry">
-        <rect>
-         <x>208</x>
-         <y>195</y>
-         <width>31</width>
-         <height>16</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>FCC</string>
-       </property>
-      </widget>
      </widget>
      <widget class="QGroupBox" name="groupBox_3">
       <property name="geometry">
@@ -1210,6 +1181,32 @@
        </property>
        <property name="text">
         <string>EHT ON/OFF</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="pushButton_VP">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>150</y>
+         <width>51</width>
+         <height>23</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>VP</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="pushButton_FCC">
+       <property name="geometry">
+        <rect>
+         <x>60</x>
+         <y>150</y>
+         <width>51</width>
+         <height>23</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>FCC</string>
        </property>
       </widget>
      </widget>
@@ -2547,6 +2544,7 @@ Wafer Image</string>
     <addaction name="actionAutofocusSettings"/>
     <addaction name="separator"/>
     <addaction name="actionPlasmaCleanerSettings"/>
+    <addaction name="actionVariablePressureSettings"/>
     <addaction name="actionChargeCompensatorSettings"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
@@ -2740,6 +2738,11 @@ Wafer Image</string>
   <action name="actionChargeCompensatorSettings">
    <property name="text">
     <string>Charge compensator</string>
+   </property>
+  </action>
+  <action name="actionVariablePressureSettings">
+   <property name="text">
+    <string>Variable pressure</string>
    </property>
   </action>
  </widget>

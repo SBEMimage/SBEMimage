@@ -167,16 +167,42 @@ class SEM:
         self.target_eht = target_eht
         # Setting SEM to target EHT must be implemented in child class!
 
+
+    def has_vp(self):
+        """Return True if VP is fitted."""
+        raise NotImplementedError
+
+    def is_hv_on(self):
+        """Return True if HV is on."""
+        raise NotImplementedError
+
+    def is_vp_on(self):
+        """Return True if VP is on."""
+        raise NotImplementedError
+
+    def get_chamber_pressure(self):
+        """Read current chamber pressure from SmartSEM."""
+        raise NotImplementedError
+
+    def get_vp_target(self):
+        """Read current VP target pressure from SmartSEM."""
+        raise NotImplementedError
+
+    def set_hv(self):
+        """Set HV (= High Vacuum)."""
+        raise NotImplementedError
+
+    def set_vp(self):
+        """Set VP (= Variable Pressure)."""
+        raise NotImplementedError
+
+    def set_vp_target(self, target_pressure):
+        """Set the VP target pressure."""
+        raise NotImplementedError
+
+
     def has_fcc(self):
         """Return True if FCC is fitted."""
-        raise NotImplementedError
-
-    def turn_fcc_on(self):
-        """Turn FCC (= Focal Charge Compensator) on."""
-        raise NotImplementedError
-
-    def turn_fcc_off(self):
-        """Turn FCC (= Focal Charge Compensator) off."""
         raise NotImplementedError
 
     def is_fcc_on(self):
@@ -191,10 +217,18 @@ class SEM:
         """Read current FCC (0-100) from SmartSEM."""
         raise NotImplementedError
 
+    def turn_fcc_on(self):
+        """Turn FCC (= Focal Charge Compensator) on."""
+        raise NotImplementedError
+
+    def turn_fcc_off(self):
+        """Turn FCC (= Focal Charge Compensator) off."""
+        raise NotImplementedError
+
     def set_fcc_level(self, target_fcc_level):
-        """Save the target FCC (0-100) and set the FCC to this target value."""
-        self.target_fcc_level = target_fcc_level
-        # Setting SEM to target FCC level must be implemented in child class!
+        """Set the FCC to this target value."""
+        raise NotImplementedError
+
 
     def get_beam_current(self):
         """Read beam current (in pA) from SmartSEM."""
@@ -469,7 +503,78 @@ class SEM_SmartSEM(SEM):
                 f'sem.set_eht: command failed (ret_val: {ret_val})')
             return False
 
-# *** TODO: test SmartSEM commands!
+
+    def has_vp(self):
+        """Return True if VP is fitted."""
+        if not self.simulation_mode:
+            response = self.sem_api.Get('DP_VP_SYSTEM', 0)
+            print(response)
+            return "yes" in response[1].lower()
+        return False
+
+    def is_hv_on(self):
+        """Return True if HV is on."""
+        if self.has_vp():
+            print(self.sem_api.Get('DP_VAC_MODE', 0))
+            return "vacuum" in self.sem_api.Get('DP_VAC_MODE', 0)[1].lower()
+        return True
+
+    def is_vp_on(self):
+        """Return True if VP is on."""
+        if self.has_vp():
+            print(self.sem_api.Get('DP_VAC_MODE', 0))
+            return "variable" in self.sem_api.Get('DP_VAC_MODE', 0)[1].lower()
+        return False
+
+    def get_chamber_pressure(self):
+        """Read current chamber pressure from SmartSEM."""
+        response = self.sem_api.Get('AP_CHAMBER_PRESSURE', 0)
+        print(response)
+        return response[1]
+
+    def get_vp_target(self):
+        """Read current VP target pressure from SmartSEM."""
+        response = self.sem_api.Get('AP_HP_TARGET', 0)
+        print(response)
+        return response[1]
+
+    def set_hv(self):
+        """Set HV (= High Vacuum)."""
+        ret_val = self.sem_api.Execute('CMD_GOTO_HV')
+        print(ret_val)
+        if ret_val == 0:
+            return True
+        else:
+            self.error_state = ERROR_LIST['HV/VP error']
+            self.error_info = (
+                f'sem.set_hv: command failed (ret_val: {ret_val})')
+            return False
+
+    def set_vp(self):
+        """Set VP (= Variable Pressure)."""
+        ret_val = self.sem_api.Execute('CMD_GOTO_VP')
+        print(ret_val)
+        if ret_val == 0:
+            return True
+        else:
+            self.error_state = ERROR_LIST['HV/VP error']
+            self.error_info = (
+                f'sem.set_vp: command failed (ret_val: {ret_val})')
+            return False
+
+    def set_vp_target(self, target_pressure):
+        """Set the VP target pressure."""
+        variant = VARIANT(pythoncom.VT_R4, target_pressure)
+        ret_val = self.sem_api.Set('AP_HP_TARGET', variant)
+        print(ret_val)
+        if ret_val[0] == 0:
+            return True
+        else:
+            self.error_state = ERROR_LIST['VP error']
+            self.error_info = (
+                f'sem.set_vp_target: command failed (ret_val: {ret_val})')
+            return False
+
 
     def has_fcc(self):
         """Return True if FCC is fitted."""
@@ -477,6 +582,23 @@ class SEM_SmartSEM(SEM):
             response = self.sem_api.Get('DP_CAPCC_FITTED', 0)
             return "yes" in response[1].lower()
         return False
+
+    def is_fcc_on(self):
+        """Return True if FCC is on."""
+        if self.has_fcc():
+            return "yes" in self.sem_api.Get('DP_CAPCC_INUSE', 0)[1].lower()
+        return False
+
+    def is_fcc_off(self):
+        """Return True if FCC is off."""
+        if self.has_fcc():
+            return "no" in self.sem_api.Get('DP_CAPCC_INUSE', 0)[1].lower()
+        return True
+
+    def get_fcc_level(self):
+        """Read current FCC pressure (0-100) from SmartSEM."""
+        response = self.sem_api.Get('AP_CC_PRESSURE', 0)
+        return response[1]
 
     def turn_fcc_on(self):
         """Turn FCC (= Focal Charge Compensator) on."""
@@ -499,23 +621,6 @@ class SEM_SmartSEM(SEM):
             self.error_info = (
                 f'sem.turn_fcc_off: command failed (ret_val: {ret_val})')
             return False
-
-    def is_fcc_on(self):
-        """Return True if FCC is on."""
-        if self.has_fcc():
-            return "yes" in self.sem_api.Get('DP_CAPCC_INUSE', 0)[1].lower()
-        return False
-
-    def is_fcc_off(self):
-        """Return True if FCC is off."""
-        return "no" in self.sem_api.Get('DP_CAPCC_INUSE', 0)[1].lower()
-
-    def get_fcc_level(self):
-        """Read current FCC (0-100) from SmartSEM."""
-        response = self.sem_api.Get('AP_CC_PRESSURE', 0)
-        #from pprint import pprint
-        #pprint(response)
-        return response[1]
 
     def set_fcc_level(self, target_fcc_level):
         """Save the target FCC (0-100) and set the FCC to this target value."""
