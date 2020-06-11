@@ -2589,9 +2589,8 @@ class VariablePressureDlg(QDialog):
     def __init__(self, sem):
         super().__init__()
         self.sem = sem
-        self.ignore_events = True
         self.state = False
-        self.target = 0.0001
+        self.target = 0
         self.current = 0
         loadUi('..\\gui\\variable_pressure_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
@@ -2604,11 +2603,17 @@ class VariablePressureDlg(QDialog):
         #sci_validator.setNotation(QDoubleValidator.ScientificNotation)
         self.plainTextEdit_target.textChanged.connect(self.target_changed)
         try:
+            self.current = self.sem.get_chamber_pressure()
+            
+            self.target = self.sem.get_vp_target()
+            
             self.state = self.sem.is_vp_on()
             if self.state:
                 self.target = self.sem.get_vp_target()
             self.plainTextEdit_current.setPlainText("{:.2e}".format(self.current))
+            self.plainTextEdit_target.blockSignals(True)
             self.plainTextEdit_target.setPlainText("{:.2e}".format(self.target))
+            self.plainTextEdit_target.blockSignals(False)
             self.update_buttons()
         except Exception as e:
             QMessageBox.warning(
@@ -2616,15 +2621,16 @@ class VariablePressureDlg(QDialog):
                 'Could not read variable pressure settings: '
                 + str(e),
                 QMessageBox.Ok)
-        self.ignore_events = False
         QApplication.processEvents()
 
     def set_hv(self):
         self.state = False
+        self.sem.set_hv()
         self.update_buttons()
 
     def set_vp(self):
         self.state = True
+        self.sem.set_vp()
         self.update_buttons()
 
     def update_buttons(self):
@@ -2632,13 +2638,14 @@ class VariablePressureDlg(QDialog):
         self.pushButton_vp.setEnabled(not self.state)
 
     def target_changed(self):
-        if not self.ignore_events:
-            value = float(self.plainTextEdit_target.toPlainText())
-            print(value)
-            if not 0 <= value <= 100:
-                QMessageBox.warning(
-                    self, 'Error',
-                    'Please enter a value between 0 and 100', QMessageBox.Ok)
+        value = float(self.plainTextEdit_target.toPlainText())
+        print(value)
+        if not 0 <= value <= 100:
+            QMessageBox.warning(
+                self, 'Error',
+                'Please enter a value between 0 and 100', QMessageBox.Ok)
+        else:
+            self.sem.set_vp_target(value)
 
 # ------------------------------------------------------------------------------
 
@@ -2694,13 +2701,12 @@ class ChargeCompensatorDlg(QDialog):
         self.pushButton_off.setEnabled(self.state)
 
     def value_changed(self, value):
-        if not self.ignore_events:
-            if not 0 <= value <= 100:
-                QMessageBox.warning(
-                    self, 'Error',
-                        'Please enter a value between 0 and 100', QMessageBox.Ok)
-            else:
-                self.set_fcc_level(value)
+        if not 0 <= value <= 100:
+            QMessageBox.warning(
+                self, 'Error',
+                    'Please enter a value between 0 and 100', QMessageBox.Ok)
+        else:
+            self.set_fcc_level(value)
 
     def update_value(self):
         self.doubleSpinBox_level.blockSignals(True)
