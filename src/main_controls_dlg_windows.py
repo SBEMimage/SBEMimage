@@ -2613,8 +2613,8 @@ class VariablePressureDlg(QDialog):
         self.convert_to_sem = {"mbar": 0.001, "Pa": 0.00001, "Torr": 0.00133322368421}
         self.hv = True
         self.vp = False
-        self.target = 0.00014818903582636267
-        self.current = 4.092104433084387e-09
+        self.target = 0
+        self.current = 0
         loadUi('..\\gui\\variable_pressure_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -2711,6 +2711,7 @@ class ChargeCompensatorDlg(QDialog):
         self.doubleSpinBox_level.valueChanged.connect(self.value_changed)
         try:
             self.state = self.sem.is_fcc_on()
+            self.value = self.sem.get_fcc_level()
             self.update_buttons()
             self.update_value()
         except Exception as e:
