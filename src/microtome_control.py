@@ -294,7 +294,7 @@ class Microtome:
     def clear_knife(self):
         raise NotImplementedError
 
-    def check_for_cut_cycle_error(self):
+    def check_cut_cycle_status(self):
         raise NotImplementedError
 
     def reset_stage_move_counters(self):
@@ -726,9 +726,10 @@ class Microtome_3View(Microtome):
         self._send_dm_command('MicrotomeStage_Clear')
         sleep(4)
 
-    def check_for_cut_cycle_error(self):
-        duration_exceeded = False
-        # Check if error ocurred during self.do_full_cut()
+    def check_cut_cycle_status(self):
+        # Excess duration of cutting cycle in seconds
+        delay = 0
+        # Check if error occurred during self.do_full_cut()
         if self.error_state == 0 and os.path.isfile(self.ERROR_FILE):
             self.error_state = 204
             self.error_info = ('microtome.do_full_cut: error during '
@@ -738,15 +739,23 @@ class Microtome_3View(Microtome):
             self.error_state = 103
             self.error_info = ('microtome.do_full_cut: command not '
                                'processed by DM script')
-            duration_exceeded = True
-            # Wait for another 10 sec maximum
-            for i in range(10):
+            # Wait for another 15 sec maximum until cut is confirmed (.ac2
+            # file found or error file found.
+            for i in range(15):
                 sleep(1)
+                delay += 1
                 if os.path.isfile(self.ACK_CUT_FILE):
+                    # Cut is confirmed after delay, reset error state
                     self.error_state = 0
                     self.error_info = ''
                     break
-        return duration_exceeded
+                elif os.path.isfile(self.ERROR_FILE):
+                    # An error occurred during the excess duration
+                    self.error_state = 204
+                    self.error_info = ('microtome.do_full_cut: error during '
+                                       'cutting cycle')
+                    break
+        return delay
 
     def reset_error_state(self):
         self.error_state = 0
@@ -1043,7 +1052,7 @@ class Microtome_katana(Microtome):
     def set_retract_clearance(self, retract_clearance):
         self.retract_clearance = int(retract_clearance)
 
-    def check_for_cut_cycle_error(self):
+    def check_cut_cycle_status(self):
         pass
 
     def reset_error_state(self):

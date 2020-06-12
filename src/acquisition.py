@@ -984,10 +984,13 @@ class Acquisition:
                         'CTRL: Error: Differences in WD/STIG too large.')
             else:
                 sleep(self.microtome.full_cut_duration)
-            duration_exceeded = self.microtome.check_for_cut_cycle_error()
-            if duration_exceeded:
+            cut_cycle_delay = self.microtome.check_cut_cycle_status()
+            if cut_cycle_delay > 0:
                 self.add_to_main_log(
-                    'KNIFE: Warning: Cut cycle took longer than specified.')
+                    f'KNIFE: Warning: Cut cycle took {cut_cycle_delay} s '
+                    f'longer than specified.')
+                self.add_to_incident_log(
+                    f'WARNING (Cut cycle took {cut_cycle_delay} s too long.)')
             if self.microtome.error_state > 0:
                 # Error state may be 507 at this point (after heuristic
                 # adjustments), but an error during the cutting cycle is more
@@ -998,7 +1001,7 @@ class Acquisition:
         if self.error_state > 0 and self.error_state != 507:
             self.add_to_main_log('CTRL: Error during cut cycle.')
             # Try to move back to previous Z position
-            self.add_to_main_log('STAGE: Attempt to move back to old Z: '
+            self.add_to_main_log('STAGE: Attempt to move back to previous Z: '
                                  + '{0:.3f}'.format(old_stage_z_position))
             self.microtome.move_stage_to_z(old_stage_z_position)
             self.main_controls_trigger.transmit('UPDATE Z')
