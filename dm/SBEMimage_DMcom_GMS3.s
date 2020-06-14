@@ -61,9 +61,9 @@ number t_status
 number wait_interval
 number idle_counter
 number idle_threshold
-number start_time
+number start_time, start_time2
 number cycle_start_time
-number time_elapsed
+number time_elapsed, time_elapsed2
 number success
 number remote_control
 number stroke_down
@@ -80,6 +80,7 @@ number move_duration_x
 number move_duration_y
 number motor_speed_x
 number motor_speed_y
+number counter
 number xy_tolerance
 number z_tolerance
 
@@ -108,6 +109,7 @@ void wait_for_command()
 	//   - MicrotomeStage_SetPositionZ; parameter: target Z coordinate (float)
 	//   - MicrotomeStage_SetPositionZ_Confirm; parameter: target Z coordinate (float)
 	//   - SetMotorSpeedXY; parameters: X and Y speeds (float)
+	//   - MeasureMotorSpeedXY; no parameters
 	//   - StopScript; no parameters
 
 	if (DoesFileExist(command_file))
@@ -619,6 +621,76 @@ void wait_for_command()
 			motor_speed_y = parameter2
 			result(DateStamp() + ": Updated motor_speed_x: " + format(motor_speed_x, "%.1f") + "\n")
 			result(DateStamp() + ": Updated motor_speed_y: " + format(motor_speed_y, "%.1f") + "\n")
+			// Create acknowledge file
+			file = CreateFileForWriting(acknowledge_file)
+			closefile(file)
+			result(DateStamp() + ": Done.\n")
+		}
+		// ================================================================
+		if (command == "MeasureMotorSpeedXY") {
+			// Move both motors to the origin position (0, 0)
+			start_time = GetCurrentTime()
+			EMSetStageX(0)
+			EMSetStageY(0)
+			while ((abs(EMGetStageX()) > 0.010) or (abs(EMGetStageY()) > 0.010)) {
+				sleep(1)
+				timeElapsed = (GetCurrentTime() - start_time) / 10000000
+				if (timeElapsed > 30) {
+					Throw ("XY motors did not reach origin.")
+				}
+			}
+			// Measure duration of 20 x 50-micron moves of X motor
+			result("\n" + DateStamp() + ": Measurement started (Motor X).\n")
+			start_time = GetCurrentTime()
+			for (counter=1; counter<=10; counter++) {
+				EMSetStageX(50)
+				start_time2 = GetCurrentTime()
+				while (abs(EMGetStageX()-50) > 0.010) {
+					timeElapsed2 = (GetCurrentTime() - start_time2) / 10000000
+					if (timeElapsed2 > 5) {
+						Throw ("Motor X did not reach target position of 50.")
+					}
+				}
+				EMSetStageX(0)
+				start_time2 = GetCurrentTime()
+				while (abs(EMGetStageX()) > 0.010) {
+					timeElapsed2 = (GetCurrentTime() - start_time2) / 10000000
+					if (timeElapsed2 > 5) {
+						Throw ("Motor X did not reach target position of 0.")
+					}
+				}
+			}
+			time_elapsed = (GetCurrentTime() - start_time) / 10000000
+			result(DateStamp() + ": Measurement finished (Motor X).\n")
+			parameter1 = 1000 / time_elapsed
+			// Measure duration of 20 x 50-micron moves of Y motor
+			result(DateStamp() + ": Measurement started (Motor Y).\n")
+			start_time = GetCurrentTime()
+			for (counter=1; counter<=10; counter++) {
+				EMSetStageY(50)
+				start_time2 = GetCurrentTime()
+				while (abs(EMGetStageY() - 50) > 0.010) {
+					timeElapsed2 = (GetCurrentTime() - start_time2) / 10000000
+					if (timeElapsed2 > 5) {
+						Throw ("Motor Y did not reach target position of 50.")
+					}
+				}
+				EMSetStageY(0)
+				start_time2 = GetCurrentTime()
+				while (abs(EMGetStageY()) > 0.010) {
+					timeElapsed2 = (GetCurrentTime() - start_time2) / 10000000
+					if (timeElapsed2 > 5) {
+						Throw ("Motor Y did not reach target position of 0.")
+					}
+				}
+			}
+			time_elapsed = (GetCurrentTime() - start_time) / 10000000
+			result(DateStamp() + ": Measurement finished (Motor Y).\n")
+			parameter2 = 1000 / time_elapsed
+			// Write to output file
+			file = CreateFileForWriting(return_file)
+			WriteFile(file, format(parameter1, "%.1f") + "\n" + format(parameter2, "%.1f"))
+			closefile(file)
 			// Create acknowledge file
 			file = CreateFileForWriting(acknowledge_file)
 			closefile(file)
