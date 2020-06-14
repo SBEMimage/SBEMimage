@@ -226,6 +226,9 @@ class Microtome:
         self.motor_speed_y = motor_speed_y
         return self.update_motor_speeds_in_dm_script()
 
+    def measure_motor_speeds(self):
+        raise NotImplementedError
+
     def update_motor_speeds_in_dm_script(self):
         raise NotImplementedError
 
@@ -535,6 +538,36 @@ class Microtome_3View(Microtome):
                 self.error_info = ('microtome.update_motor_speeds_in_dm_script: '
                                    'command not processed by DM script')
         return success
+
+    def measure_motor_speeds(self):
+        """Send command to DM script to measure motor speeds. The script
+        will run the measurement routine and write the measured speeds into the
+        output file. Read the output file and return the speeds.
+        """
+        self._send_dm_command('MeasureMotorSpeedXY')
+        sleep(0.2)
+        duration = 0
+        # Measurement routine should be running in DM now.
+        # Wait for up to 90 sec or until ack file found.
+        for i in range(90):
+            sleep(1)
+            duration += 1
+            if os.path.isfile(self.ACK_FILE):
+                # Measurement is done, read the measured speeds
+                speed_x, speed_y = self._read_dm_return_values()
+                try:
+                    speed_x = float(speed_x)
+                    speed_y = float(speed_y)
+                except:
+                    speed_x, speed_y = None, None
+                return speed_x, speed_y
+
+        # Measurement command was not processed/finished within 90 s
+        if self.error_state == 0:
+            self.error_state = 103
+            self.error_info = ('microtome.measure_motor_speeds: '
+                               'DM script timeout')
+        return None, None
 
     def move_stage_to_x(self, x):
         # only used for testing

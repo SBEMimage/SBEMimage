@@ -80,6 +80,7 @@ number move_duration_x
 number move_duration_y
 number motor_speed_x
 number motor_speed_y
+number counter
 number xy_tolerance
 number z_tolerance
 
@@ -108,6 +109,7 @@ void wait_for_command()
 	//   - MicrotomeStage_SetPositionZ; parameter: target Z coordinate (float)
 	//   - MicrotomeStage_SetPositionZ_Confirm; parameter: target Z coordinate (float)
 	//   - SetMotorSpeedXY; parameters: X and Y speeds (float)
+	//   - MeasureMotorSpeedXY; no parameters
 	//   - StopScript; no parameters
 
 	if (DoesFileExist(command_file))
@@ -573,6 +575,40 @@ void wait_for_command()
 			motor_speed_y = parameter2
 			result(DateStamp() + ": Updated motor_speed_x: " + format(motor_speed_x, "%.1f") + "\n")
 			result(DateStamp() + ": Updated motor_speed_y: " + format(motor_speed_y, "%.1f") + "\n")
+			// Create acknowledge file
+			file = CreateFileForWriting(acknowledge_file)
+			closefile(file)
+			result(DateStamp() + ": Done.\n")
+		}
+		// ================================================================
+		if (command == "MeasureMotorSpeedXY") {
+			// Move both motors to the origin position (0, 0)
+			MicrotomeStage_SetPositionX(0, 1)
+			MicrotomeStage_SetPositionY(0, 1)
+			// Measure duration of 20 x 50-micron moves of X motor
+			result("\n" + DateStamp() + ": Measurement started (Motor X).\n")
+			start_time = GetCurrentTime()
+			for (counter=1; counter<=10; counter++) {
+				MicrotomeStage_SetPositionX(50, 1)
+				MicrotomeStage_SetPositionX(0, 1)
+			}
+			time_elapsed = (GetCurrentTime() - start_time) / 10000000
+			result(DateStamp() + ": Measurement finished (Motor X).\n")
+			parameter1 = 1000 / time_elapsed
+			// Measure duration of 20 x 50-micron moves of Y motor
+			result(DateStamp() + ": Measurement started (Motor Y).\n")
+			start_time = GetCurrentTime()
+			for (counter=1; counter<=10; counter++) {
+				MicrotomeStage_SetPositionY(50, 1)
+				MicrotomeStage_SetPositionY(0, 1)
+			}
+			time_elapsed = (GetCurrentTime() - start_time) / 10000000
+			result(DateStamp() + ": Measurement finished (Motor Y).\n")
+			parameter2 = 1000 / time_elapsed
+			// Write to output file
+			file = CreateFileForWriting(return_file)
+			WriteFile(file, format(parameter1, "%.1f") + "\n" + format(parameter2, "%.1f"))
+			closefile(file)
 			// Create acknowledge file
 			file = CreateFileForWriting(acknowledge_file)
 			closefile(file)
