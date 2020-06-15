@@ -12,6 +12,7 @@
 Controls, and the startup dialog (ConfigDlg).
 """
 
+import math
 import os
 import re
 import string
@@ -2622,12 +2623,14 @@ class VariablePressureDlg(QDialog):
         self.show()
         self.pushButton_hv.clicked.connect(self.set_hv)
         self.pushButton_vp.clicked.connect(self.set_vp)
-        self.lineEdit_target.editingFinished.connect(self.target_changed)
+        self.lineEdit_target.editingFinished.connect(self.target_text_changed)
+        self.horizontalSlider_target.valueChanged.connect(self.target_slider_changed)
         self.comboBox_units.currentTextChanged.connect(self.units_changed)
         self.units = self.comboBox_units.currentText()
         try:
             self.target = self.sem.get_vp_target()
-            self.update_target_pressure()
+            self.update_target_pressure_text()
+            self.update_target_pressure_slider()
             self.thread = PressureUpdateQThread(1)
             self.thread.update.connect(self.update)
             self.thread.start()
@@ -2640,18 +2643,28 @@ class VariablePressureDlg(QDialog):
         QApplication.processEvents()
 
     def set_hv(self):
-        #self.hv = True
-        #self.vp = False
-        self.sem.set_hv()
+        try:
+            self.sem.set_hv()
+        except Exception as e:
+            QMessageBox.warning(
+                self, 'Error',
+                'Unable to set hv: '
+                + str(e),
+                QMessageBox.Ok)
 
     def set_vp(self):
-        #self.hv = False
-        #self.vp = True
-        self.sem.set_vp()
+        try:
+            self.sem.set_vp()
+        except Exception as e:
+            QMessageBox.warning(
+                self, 'Error',
+                'Unable to set vp: '
+                + str(e),
+                QMessageBox.Ok)
 
     def units_changed(self, text):
         self.units = text
-        self.update_target_pressure()
+        self.update_target_pressure_text()
 
     def update(self):
         self.hv = self.sem.is_hv_on()
@@ -2661,20 +2674,37 @@ class VariablePressureDlg(QDialog):
         self.pushButton_vp.setEnabled(self.hv)
         self.update_pressure(self.lineEdit_current, self.current)
 
-    def update_target_pressure(self):
+    def update_target_pressure_text(self):
         self.lineEdit_target.blockSignals(True)
         self.update_pressure(self.lineEdit_target, self.target)
         self.lineEdit_target.blockSignals(False)
+
+    def update_target_pressure_slider(self):
+        self.horizontalSlider_target.blockSignals(True)
+        self.horizontalSlider_target.setValue(math.log10(self.target) * 100)
+        self.horizontalSlider_target.blockSignals(False)
 
     def update_pressure(self, textEdit, value):
         unit_value = value * self.convert_from_sem[self.units]
         textEdit.setText("{:.2e}".format(unit_value))
 
-    def target_changed(self):
+    def target_text_changed(self):
         try:
             unit_value = float(self.lineEdit_target.text())
             self.target = unit_value * self.convert_to_sem[self.units]
-            print(self.target)
+            self.update_target_pressure_slider()
+            self.sem.set_vp_target(self.target)
+        except Exception as e:
+            QMessageBox.warning(
+                self, 'Error',
+                'Invalid value: '
+                + str(e),
+                QMessageBox.Ok)
+
+    def target_slider_changed(self):
+        try:
+            self.target = 10 ** (self.horizontalSlider_target.value() * 0.01)
+            self.update_target_pressure_text()
             self.sem.set_vp_target(self.target)
         except Exception as e:
             QMessageBox.warning(
@@ -2684,11 +2714,17 @@ class VariablePressureDlg(QDialog):
                 QMessageBox.Ok)
 
     def reject(self):
-        self.thread.stop()
+        try:
+            self.thread.stop()
+        except Exception:
+            pass
         super().reject()
 
     def closeEvent(self, event):
-        self.thread.stop()
+        try:
+            self.thread.stop()
+        except Exception:
+            pass
         event.accept()
 
 # ------------------------------------------------------------------------------
@@ -2709,6 +2745,7 @@ class ChargeCompensatorDlg(QDialog):
         self.pushButton_on.clicked.connect(self.turn_on)
         self.pushButton_off.clicked.connect(self.turn_off)
         self.doubleSpinBox_level.valueChanged.connect(self.value_changed)
+        self.horizontalSlider_level.valueChanged.connect(self.slider_changed)
         try:
             self.state = self.sem.is_fcc_on()
             self.value = self.sem.get_fcc_level()
@@ -2723,23 +2760,35 @@ class ChargeCompensatorDlg(QDialog):
         QApplication.processEvents()
 
     def turn_on(self):
-        self.state = True
-        self.sem.turn_fcc_on()
-        self.update_buttons()
-        
-        sleep(0.1)
-        if self.value == 0:
-            self.value = 50
-            self.update_value()
-        self.set_fcc_level(self.value)
+        try:
+            self.sem.turn_fcc_on()
+            self.state = True
+            self.update_buttons()
+            sleep(0.1)
+            if self.value == 0:
+                self.value = 50
+                self.update_value()
+            self.set_fcc_level(self.value)
+        except Exception as e:
+            QMessageBox.warning(
+                self, 'Error',
+                'Unable to enable fcc: '
+                + str(e),
+                QMessageBox.Ok)
 
     def turn_off(self):
-        self.state = False
-        self.sem.turn_fcc_off()
-        self.update_buttons()        
-
-        self.value == 0
-        self.update_value()
+        try:
+            self.sem.turn_fcc_off()
+            self.state = False
+            self.update_buttons()
+            self.value == 0
+            self.update_value()
+        except Exception as e:
+            QMessageBox.warning(
+                self, 'Error',
+                'Unable to disable fcc: '
+                + str(e),
+                QMessageBox.Ok)
 
     def update_buttons(self):
         self.pushButton_on.setEnabled(not self.state)
@@ -2752,11 +2801,21 @@ class ChargeCompensatorDlg(QDialog):
                     'Please enter a value between 0 and 100', QMessageBox.Ok)
         else:
             self.set_fcc_level(value)
+            self.update_slider()
+
+    def slider_changed(self):
+        self.value = self.horizontalSlider_level.value() * 0.1
+        self.update_value()
 
     def update_value(self):
         self.doubleSpinBox_level.blockSignals(True)
         self.doubleSpinBox_level.setValue(self.value)
         self.doubleSpinBox_level.blockSignals(False)
+
+    def update_slider(self):
+        self.horizontalSlider_level.blockSignals(True)
+        self.horizontalSlider_level.setValue(self.value * 10)
+        self.horizontalSlider_level.blockSignals(False)
 
     def set_fcc_level(self, value):
         self.value = value
