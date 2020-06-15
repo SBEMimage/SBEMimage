@@ -2774,6 +2774,7 @@ class ChargeCompensatorDlg(QDialog):
             self.value = self.sem.get_fcc_level()
             self.update_buttons()
             self.update_value()
+            self.update_slider()
         except Exception as e:
             QMessageBox.warning(
                 self, 'Error',
@@ -2818,16 +2819,11 @@ class ChargeCompensatorDlg(QDialog):
         self.pushButton_off.setEnabled(self.state)
 
     def value_changed(self, value):
-        if not 0 <= value <= 100:
-            QMessageBox.warning(
-                self, 'Error',
-                    'Please enter a value between 0 and 100', QMessageBox.Ok)
-        else:
-            self.set_fcc_level(value)
-            self.update_slider()
+        self.set_fcc_level(value)
+        self.update_slider()
 
     def slider_changed(self):
-        self.value = self.horizontalSlider_level.value() * 0.1
+        self.set_fcc_level(self.horizontalSlider_level.value() * 0.1)
         self.update_value()
 
     def update_value(self):
@@ -2841,9 +2837,14 @@ class ChargeCompensatorDlg(QDialog):
         self.horizontalSlider_level.blockSignals(False)
 
     def set_fcc_level(self, value):
-        self.value = value
-        if self.state:
-            self.sem.set_fcc_level(value)
+        if not 0 <= value <= 100:
+            QMessageBox.warning(
+                self, 'Error',
+                    'Please enter a value between 0 and 100', QMessageBox.Ok)
+        else:
+            self.value = value
+            if self.state:
+                self.sem.set_fcc_level(value)
 
 
 # ------------------------------------------------------------------------------
