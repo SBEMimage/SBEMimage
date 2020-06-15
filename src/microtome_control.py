@@ -226,6 +226,9 @@ class Microtome:
         self.motor_speed_y = motor_speed_y
         return self.update_motor_speeds_in_dm_script()
 
+    def measure_motor_speeds(self):
+        raise NotImplementedError
+
     def update_motor_speeds_in_dm_script(self):
         raise NotImplementedError
 
@@ -294,7 +297,7 @@ class Microtome:
     def clear_knife(self):
         raise NotImplementedError
 
-    def check_for_cut_cycle_error(self):
+    def check_cut_cycle_status(self):
         raise NotImplementedError
 
     def reset_stage_move_counters(self):
@@ -536,6 +539,36 @@ class Microtome_3View(Microtome):
                                    'command not processed by DM script')
         return success
 
+    def measure_motor_speeds(self):
+        """Send command to DM script to measure motor speeds. The script
+        will run the measurement routine and write the measured speeds into the
+        output file. Read the output file and return the speeds.
+        """
+        self._send_dm_command('MeasureMotorSpeedXY')
+        sleep(0.2)
+        duration = 0
+        # Measurement routine should be running in DM now.
+        # Wait for up to 90 sec or until ack file found.
+        for i in range(90):
+            sleep(1)
+            duration += 1
+            if os.path.isfile(self.ACK_FILE):
+                # Measurement is done, read the measured speeds
+                speed_x, speed_y = self._read_dm_return_values()
+                try:
+                    speed_x = float(speed_x)
+                    speed_y = float(speed_y)
+                except:
+                    speed_x, speed_y = None, None
+                return speed_x, speed_y
+
+        # Measurement command was not processed/finished within 90 s
+        if self.error_state == 0:
+            self.error_state = 103
+            self.error_info = ('microtome.measure_motor_speeds: '
+                               'DM script timeout')
+        return None, None
+
     def move_stage_to_x(self, x):
         # only used for testing
         self._send_dm_command('MicrotomeStage_SetPositionX', [x])
@@ -726,9 +759,10 @@ class Microtome_3View(Microtome):
         self._send_dm_command('MicrotomeStage_Clear')
         sleep(4)
 
-    def check_for_cut_cycle_error(self):
-        duration_exceeded = False
-        # Check if error ocurred during self.do_full_cut()
+    def check_cut_cycle_status(self):
+        # Excess duration of cutting cycle in seconds
+        delay = 0
+        # Check if error occurred during self.do_full_cut()
         if self.error_state == 0 and os.path.isfile(self.ERROR_FILE):
             self.error_state = 204
             self.error_info = ('microtome.do_full_cut: error during '
@@ -738,15 +772,23 @@ class Microtome_3View(Microtome):
             self.error_state = 103
             self.error_info = ('microtome.do_full_cut: command not '
                                'processed by DM script')
-            duration_exceeded = True
-            # Wait for another 10 sec maximum
-            for i in range(10):
+            # Wait for another 15 sec maximum until cut is confirmed (.ac2
+            # file found or error file found.
+            for i in range(15):
                 sleep(1)
+                delay += 1
                 if os.path.isfile(self.ACK_CUT_FILE):
+                    # Cut is confirmed after delay, reset error state
                     self.error_state = 0
                     self.error_info = ''
                     break
-        return duration_exceeded
+                elif os.path.isfile(self.ERROR_FILE):
+                    # An error occurred during the excess duration
+                    self.error_state = 204
+                    self.error_info = ('microtome.do_full_cut: error during '
+                                       'cutting cycle')
+                    break
+        return delay
 
     def reset_error_state(self):
         self.error_state = 0
@@ -1043,7 +1085,7 @@ class Microtome_katana(Microtome):
     def set_retract_clearance(self, retract_clearance):
         self.retract_clearance = int(retract_clearance)
 
-    def check_for_cut_cycle_error(self):
+    def check_cut_cycle_status(self):
         pass
 
     def reset_error_state(self):

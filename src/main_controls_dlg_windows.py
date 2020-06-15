@@ -571,8 +571,12 @@ class StageCalibrationDlg(QDialog):
 
         self.x_shift_vector = [0, 0]
         self.y_shift_vector = [0, 0]
+        self.motor_speed_x, self.motor_speed_y = None, None
         self.finish_trigger = utils.Trigger()
         self.finish_trigger.signal.connect(self.process_pixel_shifts)
+        self.finish_trigger_motor_speeds = utils.Trigger()
+        self.finish_trigger_motor_speeds.signal.connect(
+            self.show_measured_motor_speeds)
         self.update_calc_trigger = utils.Trigger()
         self.update_calc_trigger.signal.connect(self.update_log)
         self.calc_exception = None
@@ -603,26 +607,43 @@ class StageCalibrationDlg(QDialog):
         self.pushButton_helpCalibration.clicked.connect(self.show_help)
         self.pushButton_calcStage.clicked.connect(
             self.calculate_calibration_parameters_from_user_input)
-        self.pushButton_calcMotor.clicked.connect(
-            self.calculate_motor_speeds)
+        self.pushButton_measureMotorSpeeds.clicked.connect(
+            self.measure_motor_speeds)
 
-    def calculate_motor_speeds(self):
-        """Calculate the motor speeds from the duration measurements provided
-        by the user and let user confirm the new speeds.
-        """
-        duration_x = self.doubleSpinBox_durationX.value()
-        duration_y = self.doubleSpinBox_durationY.value()
-        motor_speed_x = 1000 / duration_x
-        motor_speed_y = 1000 / duration_y
+    def measure_motor_speeds(self):
+        """Run the measurement routine in a thread."""
+        self.busy = True  # This prevents user from closing the dialog window
+        self.pushButton_measureMotorSpeeds.setEnabled(False)
+        self.pushButton_startImageAcq.setEnabled(False)
+        self.pushButton_measureMotorSpeeds.setText('Please wait... (~1 min)')
+        thread = threading.Thread(target=self.run_motor_speed_measurement)
+        thread.start()
+
+    def run_motor_speed_measurement(self):
+        self.motor_speed_x, self.motor_speed_y = (
+            self.stage.measure_motor_speeds())
+        self.finish_trigger_motor_speeds.signal.emit()
+
+    def show_measured_motor_speeds(self):
+        self.busy = False
+        self.pushButton_measureMotorSpeeds.setEnabled(True)
+        self.pushButton_startImageAcq.setEnabled(True)
+        self.pushButton_measureMotorSpeeds.setText('Measure XY motor speeds')
+        if self.motor_speed_x is None or self.stage.error_state > 0:
+            self.microtome.reset_error_state()
+            QMessageBox.error(self, 'Error',
+                              'XY motor speed measurement failed.',
+                              QMessageBox.Ok)
+            return
         user_choice = QMessageBox.information(
-            self, 'Calculated motor speeds',
-            'Results:\nMotor speed X: ' + '{0:.2f}'.format(motor_speed_x)
-            + ';\nMotor speed Y: ' + '{0:.2f}'.format(motor_speed_y)
+            self, 'Measured XY motor speeds',
+            'Results:\nMotor speed X: ' + '{0:.1f}'.format(self.motor_speed_x)
+            + ';\nMotor speed Y: ' + '{0:.1f}'.format(self.motor_speed_y)
             + '\n\nDo you want to use these values?',
             QMessageBox.Ok | QMessageBox.Cancel)
         if user_choice == QMessageBox.Ok:
-            self.doubleSpinBox_motorSpeedX.setValue(motor_speed_x)
-            self.doubleSpinBox_motorSpeedY.setValue(motor_speed_y)
+            self.doubleSpinBox_motorSpeedX.setValue(self.motor_speed_x)
+            self.doubleSpinBox_motorSpeedY.setValue(self.motor_speed_y)
 
     def show_help(self):
         QMessageBox.information(
@@ -672,6 +693,7 @@ class StageCalibrationDlg(QDialog):
             self.plainTextEdit_calibLog.setPlainText('Acquiring images...')
             self.pushButton_startImageAcq.setText('Busy')
             self.pushButton_startImageAcq.setEnabled(False)
+            self.pushButton_measureMotorSpeeds.setEnabled(False)
             self.pushButton_calcStage.setEnabled(False)
             # Acquire images in thread
             thread = threading.Thread(target=self.calibration_images_acq_thread)
@@ -744,6 +766,7 @@ class StageCalibrationDlg(QDialog):
         """
         self.pushButton_startImageAcq.setText('Start')
         self.pushButton_startImageAcq.setEnabled(True)
+        self.pushButton_measureMotorSpeeds.setEnabled(True)
         self.pushButton_calcStage.setEnabled(True)
         if self.calc_exception is None:
             # Show the vectors in the textbox and the spinboxes
@@ -3580,6 +3603,7 @@ class SendCommandDlg(QDialog):
              'MicrotomeStage_SetPositionZ',
              'MicrotomeStage_SetPositionZ_Confirm',
              'SetMotorSpeedXY',
+             'MeasureMotorSpeedXY',
              'StopScript'])
         self.comboBox_command.setEditable(True)
 

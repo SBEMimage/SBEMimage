@@ -131,6 +131,13 @@ class Stage():
             # Speeds can currently not be updated for SEM stage
             return False
 
+    def measure_motor_speeds(self):
+        if self.use_microtome:
+            return self._stage.measure_motor_speeds()
+        else:
+            # Speeds can currently not be measured for SEM stage
+            return None, None
+
     def stage_move_duration(self, from_x, from_y, to_x, to_y):
         return self._stage.stage_move_duration(
             from_x, from_y, to_x, to_y)
