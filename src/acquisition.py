@@ -1531,6 +1531,11 @@ class Acquisition:
             or (self.use_autofocus and self.autofocus.tracking_mode < 2))
         self.tile_wd, self.tile_stig_x, self.tile_stig_y = 0, 0, 0
 
+        # The grid's acquisition settings will be applied before the first
+        # active tile in the grid is acquired. They remain unchanged for
+        # all other tiles in the grid (adjust_acq_settings set to False).
+        adjust_acq_settings = True
+
         if self.pause_state != 1:
             self.add_to_main_log(
                 'CTRL: Starting acquisition of active tiles in grid %d'
@@ -1544,18 +1549,6 @@ class Acquisition:
                 self.main_controls_trigger.transmit('SET SECTION STATE GUI-'
                     + str(grid_index)
                     + '-acquiring')
-
-            # Switch to specified acquisition settings of the current grid
-            self.sem.apply_frame_settings(
-                self.gm[grid_index].frame_size_selector,
-                self.gm[grid_index].pixel_size,
-                self.gm[grid_index].dwell_time)
-
-            # Delay necessary for Gemini? (change of mag)
-            sleep(0.2)
-            # Lock magnification: If user accidentally changes the mag during
-            # the grid acquisition, SBEMimage will detect and undo the change.
-            self.lock_mag()
 
             if self.acq_interrupted:
                 # Remove tiles that are no longer active from
@@ -1591,11 +1584,13 @@ class Acquisition:
 
                 # Acquire the current tile
                 while not (tile_accepted or tile_skipped) and fail_counter < 2:
+
                     (tile_img, relative_save_path, save_path,
                      tile_accepted, tile_skipped, tile_selected,
                      rejected_by_user) = (
                         self.acquire_tile(grid_index, tile_index,
-                                          adjust_wd_stig))
+                                          adjust_wd_stig, adjust_acq_settings))
+                    adjust_acq_settings = False
 
                     if (self.error_state in [302, 303, 304, 404]
                             and not rejected_by_user) :
@@ -1724,8 +1719,14 @@ class Acquisition:
                         + str(grid_index)
                         + '-acquired')
 
-    def acquire_tile(self, grid_index, tile_index, adjust_wd_stig):
-        """Acquire the specified tile with error handling and inspection."""
+    def acquire_tile(self, grid_index, tile_index,
+                     adjust_wd_stig=False, adjust_acq_settings=False):
+        """Acquire the specified tile with error handling and inspection.
+        If adjust_wd_stig is True, the working distance and stigmation
+        parameters will be adjusted for this tile. If adjust_acq_settings
+        is True, the pixel size, dwell time and frame size will be adjusted
+        according to the settings of the grid at grid_index.
+        """
 
         tile_img = None  # NumPy array of acquired image (from img_inspector)
         tile_accepted = False  # if True: tile passed img_inspector checks
@@ -1832,10 +1833,27 @@ class Acquisition:
                 do_move = False  # already at tile stage position
                 self.do_zeiss_autofocus(*self.autofocus_stig_current_slice,
                                         do_move, grid_index, tile_index)
+                # The autofocus routine changes the acquisition settings.
+                # They must be restored to the settings for the current grid.
+                adjust_acq_settings = True
                 # For tracking mode 0: Adjust wd/stig of other tiles
                 if self.error_state == 0 and self.autofocus.tracking_mode == 0:
                     self.autofocus.approximate_wd_stig_in_grid(grid_index)
                     self.main_controls_trigger.transmit('DRAW VP')
+
+            if adjust_acq_settings:
+                # Switch to specified acquisition settings of the current grid
+                self.sem.apply_frame_settings(
+                    self.gm[grid_index].frame_size_selector,
+                    self.gm[grid_index].pixel_size,
+                    self.gm[grid_index].dwell_time)
+
+                # Delay necessary for Gemini? (change of mag)
+                sleep(0.2)
+                # Lock magnification: If user accidentally changes the mag
+                # during the grid acquisition, SBEMimage will detect and
+                # undo the change.
+                self.lock_mag()
 
             # Check mag if locked
             if self.mag_locked and not self.error_state in [505, 506, 507]:
@@ -2106,14 +2124,6 @@ class Acquisition:
                     self.sem.get_stig_xy())
                 # Show updated WD label(s) in Viewport
                 self.main_controls_trigger.transmit('DRAW VP')
-
-            # Restore grid settings for tile acquisition
-            self.sem.apply_frame_settings(
-                self.gm[grid_index].frame_size_selector,
-                self.gm[grid_index].pixel_size,
-                self.gm[grid_index].dwell_time)
-            # Delay necessary for Gemini (change of mag)
-            sleep(0.2)
 
     def do_autofocus_before_grid_acq(self, grid_index):
         """If non-active tiles are selected for the SmartSEM autofocus, call the
