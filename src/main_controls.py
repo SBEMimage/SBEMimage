@@ -1548,8 +1548,6 @@ class MainControls(QMainWindow):
         if self.plc_installed:
             self.checkBox_plasmaCleaner.setEnabled(b)
             self.toolButton_plasmaCleaner.setEnabled(b)
-        if self.fcc_installed:
-            self.toolButton_chargeCompensator.setEnabled(b)
         # Start, reset buttons
         self.pushButton_startAcq.setEnabled(b)
         self.pushButton_resetAcq.setEnabled(b)
