@@ -619,6 +619,9 @@ class SEM_SmartSEM(SEM):
 
     def get_beam_current(self):
         """Read beam current (in pA) from SmartSEM."""
+        print(self.sem_api.Get('AP_IPROBE', 0))
+        print(self.sem_api.Get('AP_APERTURESIZE', 0))
+        
         return int(round(self.sem_api.Get('AP_IPROBE', 0)[1] * 10**12))
 
     def set_beam_current(self, target_current):
