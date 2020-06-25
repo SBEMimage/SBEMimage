@@ -246,7 +246,9 @@ class MainControls(QMainWindow):
                                self.sem, self.microtome, self.stage,
                                self.ovm, self.gm, self.cs, self.img_inspector,
                                self.autofocus, self.notifications, self.trigger)
-
+        # enable pause while milling
+        if self.use_microtome and (self.syscfg['device']['microtome'] == '6'):
+            self.microtome.acq = self.acq
         # Check if plasma cleaner is installed and load its COM port.
         self.cfg['sys']['plc_installed'] = self.syscfg['plc']['installed']
         self.cfg['sys']['plc_com_port'] = self.syscfg['plc']['com_port']
@@ -1513,6 +1515,12 @@ class MainControls(QMainWindow):
         self.pushButton_resetAcq.setEnabled(b)
         # Disable/enable menu
         self.menubar.setEnabled(b)
+        # Restrict GUI (microtome-specific functionality) if no microtome used
+        if not self.use_microtome or self.syscfg['device']['microtome'] == '6':
+            self.restrict_gui_for_sem_stage()
+
+        if self.syscfg['device']['microtome'] != '6':
+            self.restrict_gui_wo_gcib()
 
     def restrict_focus_tool_gui(self, b):
         b ^= True

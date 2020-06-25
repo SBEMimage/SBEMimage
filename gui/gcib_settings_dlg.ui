@@ -82,7 +82,7 @@
     <rect>
      <x>10</x>
      <y>70</y>
-     <width>291</width>
+     <width>351</width>
      <height>16</height>
     </rect>
    </property>
@@ -101,8 +101,8 @@
     <rect>
      <x>10</x>
      <y>50</y>
-     <width>291</width>
-     <height>16</height>
+     <width>351</width>
+     <height>32</height>
     </rect>
    </property>
    <property name="font">
@@ -112,7 +112,7 @@
     </font>
    </property>
    <property name="text">
-    <string>The GCIB controls the tissue removal of the block face.</string>
+    <string>The GCIB controls the tissue removal of the sample block face. If continuous rotation is disabled, perform 120 degree rotations with 10s sleep in-between.</string>
    </property>
   </widget>
   <widget class="QGroupBox" name="groupBox_1">
@@ -131,7 +131,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>23</y>
+      <y>20</y>
       <width>181</width>
       <height>16</height>
      </rect>
@@ -140,9 +140,69 @@
      <string>Voltage used: 10kV</string>
     </property>
    </widget>
+   <widget class="QLabel" name="label">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>50</y>
+      <width>211</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Mill cycle (s): </string>
+    </property>
+   </widget>
+   <widget class="QDoubleSpinBox" name="doubleSpinBox_millCycle">
+    <property name="geometry">
+     <rect>
+      <x>210</x>
+      <y>50</y>
+      <width>71</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="minimum">
+     <number>10</number>
+    </property>
+    <property name="maximum">
+     <number>5000</number>
+    </property>
+    <property name="singleStep">
+     <number>10</number>
+    </property>
+    <property name="value">
+     <number>1500</number>
+    </property>
+   </widget>
+
+   <widget class="QCheckBox" name="checkBox_useContinuousRotation">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>120</y>
+     <width>251</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="layoutDirection">
+    <enum>Qt::LeftToRight</enum>
+   </property>
+   <property name="text">
+    <string>Continuous rotation</string>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="tristate">
+    <bool>false</bool>
+   </property>
+   </widget>
+
   </widget>
  </widget>
  <tabstops>
+    <tabstop>doubleSpinBox_millCycle</tabstop>
  </tabstops>
  <resources/>
  <connections>

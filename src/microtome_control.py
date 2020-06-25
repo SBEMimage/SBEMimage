@@ -31,6 +31,7 @@ import json
 import serial
 from abc import ABC, abstractmethod
 import numpy as np
+from typing import Optional
 
 import utils
 
@@ -1014,6 +1015,7 @@ class GCIB(BFRemover):
         self.stage = stage
         self.error_state = 0
         self.error_info = ''
+        self.acq = None
         # Load device name and other settings from sysconfig. These
         # settings overwrite the settings in config.
         recognized_devices = json.loads(self.syscfg['device']['recognized'])
@@ -1031,10 +1033,11 @@ class GCIB(BFRemover):
         # the string values into floats or integers
         try:
             # Duration of a full cut cycle in seconds
-            self._mill_cycle = float(self.cfg['gcib']['mill_cycle'])
+            self.mill_cycle = float(self.cfg['gcib']['mill_cycle'])
             self._ftdi_serial = str(self.cfg['gcib']['ftdi_serial'])
+            self.continuous_rot = int(self.cfg['gcib']['continuous_rot'])
             self.xyzt_milling = np.array(json.loads(self.cfg['gcib']['xyzt_milling']))
-            self.full_cut_duration = self._mill_cycle
+            self.full_cut_duration = self.mill_cycle
         except Exception as e:
             self.error_state = 701
             self.error_info = str(e)
@@ -1077,7 +1080,8 @@ class GCIB(BFRemover):
         self.cfg['microtome']['full_cut_duration'] = str(self.full_cut_duration)
         self.cfg['gcib']['ftdi_serial'] = str(self._ftdi_serial)
         self.cfg['gcib']['xyzt_milling'] = str(self.xyzt_milling.tolist())
-        self.cfg['gcib']['mill_cycle'] = str(self._mill_cycle)
+        self.cfg['gcib']['mill_cycle'] = str(self.mill_cycle)
+        self.cfg['gcib']['continuous_rot'] = str(self.continuous_rot)
         self.stage.save_to_cfg()
 
     def do_full_cut(self):
@@ -1119,11 +1123,11 @@ class GCIB(BFRemover):
         if self.simulation_mode:
             time.sleep(self.full_cut_duration)
             return
-        # move stage to target z first and rotate in parallel to save time;
-        # TODO: will still wait for the rotation to finish within move_stage_to_z, as rotating is the slowest part
         self.stage.move_stage_to_z(z_mill)
+        # TODO: maybe tilt at the very end for safety reasons if z_mill is high..
         self.stage.move_stage_to_xyzt(x_mill, y_mill, z_mill, t_mill)
-        self.stage.move_stage_delta_r(120, no_wait=True)
+        # # Only needed if non-continuous rotation.
+        # self.stage.move_stage_delta_r(120, no_wait=True)
         print(f'GCIB: Reached mill position: X={x_mill}, Y={y_mill}, Z={z_mill}, T={t_mill}, R=120.')
 
     def move_stage_to_pos_prior_mill_mov(self):
@@ -1173,21 +1177,41 @@ class GCIB(BFRemover):
            used during stack acquisitions.
         """
         if mill_duration is None:
-            mill_duration = self._mill_cycle
-        # moves the stage to R=120!
+            mill_duration = self.mill_cycle
         self.move_stage_to_millpos()
+        # Only required to test stage transitions
         if mill_duration > 0:
             self._unblank_beam()
-        # Hayworth et al, 2019, Nat. Methods: Three evenly spaced azimuthal
-        # directions for 360 deg and 360 s per mill cycle
-        # TODO: decide whether a continuous rotation scheme would be beneficial; then also remove rotation above
-        for ii in range(2):
-            sleep(mill_duration / 3)  # this will wait 120s at 120° (was rotated above, at the same time with the other axes)
-            self.stage.move_stage_delta_r(120, no_wait=True)
-        sleep(mill_duration / 3)  # mill at 0°
+
+        self.rotate360(mill_duration)
+
         if mill_duration > 0:
             self._blank_beam()
         self.move_stage_to_pos_prior_mill_mov()
+
+    def rotate360(self, mill_duration):
+        # Hayworth et al, 2019, Nat. Methods: Three evenly spaced azimuthal
+        # directions for 360 deg and 360 s per mill cycle
+        if not self.continuous_rot:
+            start = time.time()
+            while time.time() - start < mill_duration:
+                if self.acq is not None and self.acq.acq_paused:
+                    break
+                self.stage.move_stage_delta_r(120, no_wait=False)
+                time.sleep(10)
+        else:
+            dt_per_2deg = mill_duration / 180
+            for deg in range(360):
+                if self.acq is not None and self.acq.acq_paused:
+                    break
+                start = time.time()
+                self.stage.move_stage_delta_r(2)
+                dt = time.time() - start
+                if dt > dt_per_2deg:
+                    print(f'WARNING: Rotation speed was slower ({dt:.3f} s) than requested by the target mill '
+                          f'cycle ({dt_per_2deg:.2f s}).')
+                else:
+                    sleep(dt_per_2deg - dt)
 
     def move_stage_to_z(self, z):
         return self.stage.move_stage_to_z(z)

@@ -368,7 +368,9 @@ class GCIBSettingsDlg(QDialog):
     def __init__(self, microtome):
         super().__init__()
         self.microtome = microtome
+
         loadUi('..\\gui\\gcib_settings_dlg.ui', self)
+
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
@@ -383,6 +385,8 @@ class GCIBSettingsDlg(QDialog):
 
         self.display_connection_status()
         self.display_current_settings()
+        self.doubleSpinBox_millCycle.setValue(self.microtome.mill_cycle)
+        self.checkBox_useContinuousRotation.setChecked(bool(self.microtome.continuous_rot))
 
     def reconnect(self):
         pass
@@ -406,6 +410,8 @@ class GCIBSettingsDlg(QDialog):
         pass
 
     def accept(self):
+        self.microtome.mill_cycle = self.doubleSpinBox_millCycle.value()
+        self.microtome.continuous_rot = int(self.checkBox_useContinuousRotation.isChecked())
         super().accept()
 
 # ------------------------------------------------------------------------------
@@ -1446,8 +1452,10 @@ class AcqSettingsDlg(QDialog):
                     'The selected base directory is invalid or '
                     'inaccessible: ' + str(e),
                     QMessageBox.Ok)
-
-        if 5 <= self.spinBox_sliceThickness.value() <= 200:
+        min_slice_thickness = 5
+        if self.acq.syscfg['device']['microtome'] == '6':
+            min_slice_thickness = 0
+        if min_slice_thickness <= self.spinBox_sliceThickness.value() <= 200:
             self.acq.slice_thickness = self.spinBox_sliceThickness.value()
         number_slices = self.spinBox_numberSlices.value()
         self.acq.number_slices = number_slices
