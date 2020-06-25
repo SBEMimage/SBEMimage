@@ -27,6 +27,7 @@ from random import random
 from time import sleep, time
 from validate_email import validate_email
 from math import atan, sqrt
+from statistics import mean
 from PIL import Image
 from skimage.io import imread
 from skimage.feature import register_translation
@@ -865,9 +866,12 @@ class OVSettingsDlg(QDialog):
         self.comboBox_frameSize.currentIndexChanged.connect(
             self.update_pixel_size)
         self.comboBox_dwellTime.addItems(map(str, self.sem.DWELL_TIME))
-        # Update pixel size when mag changed:
+        # Update pixel size when mag changed
         self.spinBox_magnification.valueChanged.connect(self.update_pixel_size)
-        # Add and delete button:
+        # Button to clear OV image in Viewport
+        self.pushButton_clearViewportImage.clicked.connect(
+            self.clear_viewport_image)
+        # Save, add and delete buttons
         self.pushButton_save.clicked.connect(self.save_current_settings)
         self.pushButton_addOV.clicked.connect(self.add_ov)
         self.pushButton_deleteOV.clicked.connect(self.delete_ov)
@@ -880,7 +884,6 @@ class OVSettingsDlg(QDialog):
         b = self.radioButton_active.isChecked()
         self.comboBox_frameSize.setEnabled(b)
         self.spinBox_magnification.setEnabled(b)
-        self.doubleSpinBox_pixelSize.setEnabled(b)
         self.comboBox_dwellTime.setEnabled(b)
         self.spinBox_acqInterval.setEnabled(b)
         self.spinBox_acqIntervalOffset.setEnabled(b)
@@ -942,9 +945,17 @@ class OVSettingsDlg(QDialog):
             'Save settings for OV %d' % self.current_ov)
         self.pushButton_deleteOV.setText('Delete OV %d' % self.current_ov)
 
+    def clear_viewport_image(self):
+        self.ovm[self.current_ov].vp_file_path = ''
+        self.main_controls_trigger.transmit('OV SETTINGS CHANGED')
+
     def save_current_settings(self):
         self.ovm[self.current_ov].active = self.radioButton_active.isChecked()
+        # Save previous values of frame size and magnification. If the new
+        # values are different from the previous ones, reset current OV image
+        # shown in Viewport.
         self.prev_frame_size = self.ovm[self.current_ov].frame_size_selector
+        self.prev_mag = self.ovm[self.current_ov].magnification
         self.ovm[self.current_ov].frame_size_selector = (
             self.comboBox_frameSize.currentIndex())
         self.ovm[self.current_ov].magnification = (
@@ -955,8 +966,9 @@ class OVSettingsDlg(QDialog):
             self.spinBox_acqInterval.value())
         self.ovm[self.current_ov].acq_interval_offset = (
             self.spinBox_acqIntervalOffset.value())
-        if self.comboBox_frameSize.currentIndex() != self.prev_frame_size:
-            # Delete current preview image:
+        if ((self.comboBox_frameSize.currentIndex() != self.prev_frame_size)
+            or (self.spinBox_magnification.value() != self.prev_mag)):
+            # Reset path to current overview image in Viewport
             self.ovm[self.current_ov].vp_file_path = ''
         self.main_controls_trigger.transmit('OV SETTINGS CHANGED')
 
@@ -1032,10 +1044,12 @@ class GridSettingsDlg(QDialog):
         # Adaptive focus tool button:
         self.toolButton_focusGradient.clicked.connect(
             self.open_focus_gradient_dlg)
-        # Reset wd/stig parameters:
+        # Buttons to reset tile previews and wd/stig parameters
+        self.pushButton_resetTilePreviews.clicked.connect(
+            self.reset_tile_previews)
         self.pushButton_resetFocusParams.clicked.connect(
             self.reset_wd_stig_params)
-        # Save, add and delete button:
+        # Save, add, and delete buttons
         self.pushButton_save.clicked.connect(self.save_current_settings)
         self.pushButton_addGrid.clicked.connect(self.add_grid)
         self.pushButton_deleteGrid.clicked.connect(self.delete_grid)
@@ -1160,6 +1174,16 @@ class GridSettingsDlg(QDialog):
             self.comboBox_gridSelector.setCurrentIndex(self.current_grid)
             self.comboBox_gridSelector.blockSignals(False)
             self.change_grid()
+            self.main_controls_trigger.transmit('GRID SETTINGS CHANGED')
+
+    def reset_tile_previews(self):
+        user_reply = QMessageBox.question(
+            self, 'Reset tile previews',
+            f'This will clear all tile preview images in the Viewport for '
+            f'grid {self.current_grid}.\n',
+            QMessageBox.Ok | QMessageBox.Cancel)
+        if user_reply == QMessageBox.Ok:
+            self.gm[self.current_grid].clear_all_tile_previews()
             self.main_controls_trigger.transmit('GRID SETTINGS CHANGED')
 
     def reset_wd_stig_params(self):
@@ -1762,7 +1786,9 @@ class UpdateDlg(QDialog):
 # ------------------------------------------------------------------------------
 
 class EmailMonitoringSettingsDlg(QDialog):
-    """Adjust settings for the e-mail monitoring feature."""
+    """Adjust settings for e-mail monitoring: e-mail addresses, status report
+    options, and remote control through e-mail commands.
+    """
 
     def __init__(self, acquisition, notifications):
         super().__init__()
@@ -1783,16 +1809,24 @@ class EmailMonitoringSettingsDlg(QDialog):
         self.lineEdit_selectedTiles.setText(str(
             self.notifications.status_report_tile_list)[1:-1].replace('\'', ''))
         self.checkBox_sendLogFile.setChecked(self.notifications.send_logfile)
-        self.checkBox_sendDebrisErrorLogFiles.setChecked(
+        self.checkBox_sendIncidentLogFile.setChecked(
             self.notifications.send_additional_logs)
         self.checkBox_sendViewport.setChecked(
             self.notifications.send_viewport_screenshot)
         self.checkBox_sendOverviews.setChecked(self.notifications.send_ov)
+        self.checkBox_sendOverviews.stateChanged.connect(
+            self.update_ov_list_input)
         self.checkBox_sendTiles.setChecked(self.notifications.send_tiles)
+        self.checkBox_sendTiles.stateChanged.connect(
+            self.update_tile_list_input)
         self.checkBox_sendOVReslices.setChecked(
             self.notifications.send_ov_reslices)
+        self.checkBox_sendOVReslices.stateChanged.connect(
+            self.update_ov_list_input)
         self.checkBox_sendTileReslices.setChecked(
             self.notifications.send_tile_reslices)
+        self.checkBox_sendTileReslices.stateChanged.connect(
+            self.update_tile_list_input)
         self.checkBox_allowEmailControl.setChecked(
             self.notifications.remote_commands_enabled)
         self.checkBox_allowEmailControl.stateChanged.connect(
@@ -1801,9 +1835,19 @@ class EmailMonitoringSettingsDlg(QDialog):
         self.spinBox_remoteCheckInterval.setValue(
             self.acq.remote_check_interval)
         self.lineEdit_account.setText(self.notifications.email_account)
-        # Let password be displayed as string of asterisks
+        # Show password as string of asterisks
         self.lineEdit_password.setEchoMode(QLineEdit.Password)
         self.lineEdit_password.setText(self.notifications.remote_cmd_email_pw)
+
+    def update_ov_list_input(self):
+        self.lineEdit_selectedOV.setEnabled(
+            (self.checkBox_sendOverviews.isChecked()
+             or self.checkBox_sendOVReslices.isChecked()))
+
+    def update_tile_list_input(self):
+        self.lineEdit_selectedTiles.setEnabled(
+            (self.checkBox_sendTiles.isChecked()
+             or self.checkBox_sendTileReslices.isChecked()))
 
     def update_remote_option_input(self):
         status = self.checkBox_allowEmailControl.isChecked()
@@ -1817,13 +1861,14 @@ class EmailMonitoringSettingsDlg(QDialog):
         if validate_email(email1):
             self.notifications.user_email_addresses[0] = email1
         else:
-            error_str = 'Primary e-mail address badly formatted or missing.'
+            error_str = (
+                'First user e-mail address incorrectly formatted or missing.')
         # Second user e-mail is optional
         if validate_email(email2) or not email2:
             self.notifications.user_email_addresses[1] = (
                 self.lineEdit_secondaryNotificationEmail.text())
         else:
-            error_str = 'Secondary e-mail address badly formatted.'
+            error_str = 'Second user e-mail address incorrectly formatted.'
         self.acq.status_report_interval = self.spinBox_reportInterval.value()
 
         success, ov_list = utils.validate_ov_list(
@@ -1831,18 +1876,18 @@ class EmailMonitoringSettingsDlg(QDialog):
         if success:
             self.notifications.status_report_ov_list = ov_list
         else:
-            error_str = 'List of selected overviews badly formatted.'
+            error_str = 'List of selected overviews incorrectly formatted.'
 
         success, tile_list = utils.validate_tile_list(
             self.lineEdit_selectedTiles.text())
         if success:
             self.notifications.status_report_tile_list = tile_list
         else:
-            error_str = 'List of selected tiles badly formatted.'
+            error_str = 'List of selected tiles incorrectly formatted.'
 
         self.notifications.send_logfile = self.checkBox_sendLogFile.isChecked()
         self.notifications.send_additional_logs = (
-            self.checkBox_sendDebrisErrorLogFiles.isChecked())
+            self.checkBox_sendIncidentLogFile.isChecked())
         self.notifications.send_viewport_screenshot = (
             self.checkBox_sendViewport.isChecked())
         self.notifications.send_ov = (
@@ -1914,6 +1959,10 @@ class DebrisSettingsDlg(QDialog):
         self.radioButton_methodHistogram.toggled.connect(
             self.update_option_selection)
         self.update_option_selection()
+        self.show_moving_averages()
+        # Button to reset moving averages
+        self.pushButton_resetAvg.clicked.connect(
+            self.reset_moving_averages)
 
     def update_option_selection(self):
         """Let user only change the parameters for the currently selected
@@ -1934,6 +1983,26 @@ class DebrisSettingsDlg(QDialog):
              self.doubleSpinBox_diffSD.setEnabled(False)
              self.spinBox_diffPixels.setEnabled(False)
              self.spinBox_diffHistogram.setEnabled(True)
+
+    def show_moving_averages(self):
+        """Show current moving averages for mean and SD differences
+        if more than two values (each) available.
+        """
+        if len(self.img_inspector.mean_diffs) > 2:
+            self.lineEdit_diffMeanAvg.setText(
+                f'{mean(self.img_inspector.mean_diffs):.2f}')
+        else:
+            self.lineEdit_diffMeanAvg.setText('-')
+        if len(self.img_inspector.stddev_diffs) > 2:
+            self.lineEdit_diffSDAvg.setText(
+                f'{mean(self.img_inspector.stddev_diffs):.2f}')
+        else:
+            self.lineEdit_diffSDAvg.setText('-')
+
+    def reset_moving_averages(self):
+        self.img_inspector.mean_diffs.clear()
+        self.img_inspector.stddev_diffs.clear()
+        self.show_moving_averages()
 
     def accept(self):
         self.ovm.auto_debris_area_margin = self.spinBox_debrisMargin.value()
@@ -2945,6 +3014,104 @@ class MotorTestDlg(QDialog):
     def accept(self):
         if not self.approach_in_progress:
             super().accept()
+
+# ------------------------------------------------------------------------------
+
+class SendCommandDlg(QDialog):
+    """Send a command to DM (for testing purposes)."""
+
+    def __init__(self, microtome):
+        super().__init__()
+        self.microtome = microtome
+        loadUi('..\\gui\\send_dm_command_dlg.ui', self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setFixedSize(self.size())
+        self.show()
+        self.pushButton_sendCommand.clicked.connect(self.send_command)
+        self.pushButton_checkResponse.clicked.connect(self.check_response)
+        self.comboBox_command.addItems(
+            ['Handshake',
+             'MicrotomeStage_Cut',
+             'MicrotomeStage_Retract',
+             'MicrotomeStage_Clear',
+             'MicrotomeStage_Near',
+             'MicrotomeStage_FullCut',
+             'MicrotomeStage_FullApproachCut',
+             'MicrotomeStage_GetPositionX',
+             'MicrotomeStage_GetPositionY',
+             'MicrotomeStage_GetPositionXY',
+             'MicrotomeStage_GetPositionZ',
+             'MicrotomeStage_SetPositionX',
+             'MicrotomeStage_SetPositionY',
+             'MicrotomeStage_SetPositionXY',
+             'MicrotomeStage_SetPositionXY_Confirm',
+             'MicrotomeStage_SetPositionZ',
+             'MicrotomeStage_SetPositionZ_Confirm',
+             'SetMotorSpeedXY',
+             'StopScript'])
+        self.comboBox_command.setEditable(True)
+
+    def send_command(self):
+        """Read the command string and the two parameters from the GUI elements
+        and send them to DigitalMicrograph.
+        """
+        cmd = self.comboBox_command.currentText()
+        param1 = self.doubleSpinBox_param1.value()
+        param2 = self.doubleSpinBox_param2.value()
+
+        # For some commands, ask for confirmation (for safety reasons)
+        if cmd in ['MicrotomeStage_Cut', 'MicrotomeStage_Near',
+                   'MicrotomeStage_FullCut', 'MicrotomeStage_FullApproachCut',
+                   'MicrotomeStage_SetPositionZ',
+                   'MicrotomeStage_SetPositionZ_Confirm', 'SetMotorSpeedXY']:
+            user_reply = QMessageBox.question(
+                self, 'Send command to DM',
+                    f'Please confirm that you want to send the command {cmd} '
+                    f'to the DigitalMicrograph script.',
+                    QMessageBox.Ok | QMessageBox.Cancel)
+            if user_reply == QMessageBox.Cancel:
+                return
+
+        # Clear output text field
+        self.plainTextEdit_scriptResponse.setPlainText('')
+        if (cmd.startswith('MicrotomeStage_SetPosition') or
+                cmd.startswith('SetMotorSpeed')):
+            self.microtome._send_dm_command(cmd, [param1, param2])
+        else:
+            self.microtome._send_dm_command(cmd)
+        sleep(0.5)
+
+    def check_response(self):
+        """Read the output file DMcom.out and display its contents. Check for
+        the existence of the other signal files.
+        """
+        if os.path.isfile(self.microtome.OUTPUT_FILE):
+            return_values = self.microtome._read_dm_return_values()
+        else:
+            return_values = 'No output file generated'
+        script_response = 'DMcom.out: ' + str(return_values) + '\n'
+        # Check files
+        if os.path.isfile(self.microtome.ACK_FILE):
+            script_response += (
+                'Command execution confirmed: '
+                + self.microtome.ACK_FILE + '\n')
+        if os.path.isfile(self.microtome.ACK_CUT_FILE):
+            script_response += (
+                'Cut execution confirmed: '
+                + self.microtome.ACK_CUT_FILE + '\n')
+        if os.path.isfile(self.microtome.WARNING_FILE):
+            script_response += (
+                'Warning: ' + self.microtome.WARNING_FILE + '\n')
+        if os.path.isfile(self.microtome.ERROR_FILE):
+            script_response += (
+                'Error: ' + self.microtome.ERROR_FILE + '\n')
+        # Error state
+        script_response += (f'Error state: {self.microtome.error_state} '
+                            f'{self.microtome.error_info}')
+        # Display in GUI
+        self.plainTextEdit_scriptResponse.setPlainText(script_response)
+        self.microtome.reset_error_state()
 
 # ------------------------------------------------------------------------------
 

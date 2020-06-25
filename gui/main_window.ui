@@ -1270,7 +1270,7 @@
      <widget class="QLabel" name="img_focusToolViewer">
       <property name="geometry">
        <rect>
-        <x>40</x>
+        <x>45</x>
         <y>20</y>
         <width>512</width>
         <height>384</height>
@@ -1654,6 +1654,44 @@
        <string>Use current stage position</string>
       </property>
      </widget>
+     <widget class="QPushButton" name="pushButton_moveUp">
+      <property name="enabled">
+       <bool>false</bool>
+      </property>
+      <property name="geometry">
+       <rect>
+        <x>20</x>
+        <y>188</y>
+        <width>18</width>
+        <height>25</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <weight>50</weight>
+        <bold>false</bold>
+       </font>
+      </property>
+      <property name="text">
+       <string>↑</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_moveDown">
+      <property name="enabled">
+       <bool>false</bool>
+      </property>
+      <property name="geometry">
+       <rect>
+        <x>20</x>
+        <y>211</y>
+        <width>18</width>
+        <height>25</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>↓</string>
+      </property>
+     </widget>
     </widget>
     <widget class="QWidget" name="comTests">
      <attribute name="title">
@@ -1885,11 +1923,26 @@
         <string>XYZ motor test</string>
        </property>
       </widget>
-      <widget class="QPushButton" name="pushButton_testGetMillPos">
+
+       <widget class="QPushButton" name="pushButton_testSendCommand">
        <property name="geometry">
         <rect>
          <x>20</x>
          <y>180</y>
+         <width>121</width>
+         <height>23</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Send command to DM</string>
+       </property>
+      </widget>
+
+      <widget class="QPushButton" name="pushButton_testGetMillPos">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>210</y>
          <width>121</width>
          <height>23</height>
         </rect>
@@ -1902,7 +1955,7 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>210</y>
+         <y>240</y>
          <width>121</width>
          <height>23</height>
         </rect>
@@ -1915,7 +1968,7 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>240</y>
+         <y>270</y>
          <width>121</width>
          <height>23</height>
         </rect>
@@ -1924,6 +1977,7 @@
         <string>Set prior-mill pos.</string>
        </property>
       </widget>
+
      </widget>
      <widget class="QGroupBox" name="groupBox_7">
       <property name="geometry">
@@ -2465,7 +2519,7 @@ Wafer Image</string>
      <x>0</x>
      <y>0</y>
      <width>711</width>
-     <height>36</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">

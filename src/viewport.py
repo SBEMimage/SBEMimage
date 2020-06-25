@@ -17,7 +17,6 @@
 
 import os
 import shutil
-import datetime
 import json
 import yaml
 import numpy as np
@@ -43,7 +42,8 @@ class Viewport(QWidget):
 
     def __init__(self, config, sem, stage, coordinate_system,
                  ov_manager, grid_manager, imported_images,
-                 autofocus, acquisition, main_controls_trigger):
+                 autofocus, acquisition, img_inspector,
+                 main_controls_trigger):
         super().__init__()
         self.cfg = config
         self.sem = sem
@@ -54,6 +54,7 @@ class Viewport(QWidget):
         self.imported = imported_images
         self.autofocus = autofocus
         self.acq = acquisition
+        self.img_inspector = img_inspector
         self.main_controls_trigger = main_controls_trigger
 
         # Set Viewport zoom parameters depending on which stage is used for XY
@@ -228,12 +229,11 @@ class Viewport(QWidget):
         viewport_screenshot = self.grab()
         viewport_screenshot.save(save_path_filename)
 
-    def add_to_log(self, text):
-        """Add a formatted message to the Viewport's log (in the monitoring
-        tab)."""
-        timestamp = str(datetime.datetime.now())
-        self.textarea_incidentLog.appendPlainText(
-            timestamp[:22] + ' | Slice ' + text)
+    def show_in_incident_log(self, message):
+        """Show the message in the Viewport's incident log
+        (in the monitoring tab).
+        """
+        self.textarea_incidentLog.appendPlainText(message)
 
     def _process_signal(self):
         """Process signals from the acquisition thread or from dialog windows.
@@ -729,6 +729,7 @@ class Viewport(QWidget):
         self.comboBox_OVSelectorVP.blockSignals(False)
 
     def vp_change_tile_preview_mode(self):
+        prev_vp_tile_preview_mode = self.vp_tile_preview_mode
         self.vp_tile_preview_mode = (
             self.comboBox_tilePreviewSelectorVP.currentIndex())
         if self.vp_tile_preview_mode == 3:  # show tiles with gaps
@@ -740,6 +741,12 @@ class Viewport(QWidget):
             # Also hide stub OV
             self.show_stub_ov = False
             self.checkBox_showStubOV.setChecked(False)
+        elif prev_vp_tile_preview_mode == 3:
+            # When switching back from view with gaps, show OVs again
+            self.comboBox_OVSelectorVP.blockSignals(True)
+            self.comboBox_OVSelectorVP.setCurrentIndex(1)
+            self.vp_current_ov = -1
+            self.comboBox_OVSelectorVP.blockSignals(False)
         self.vp_draw()
 
     def vp_change_grid_selection(self):
@@ -1265,57 +1272,80 @@ class Viewport(QWidget):
         # Convert to viewport window coordinates.
         vx, vy = self.cs.convert_to_v((dx, dy))
 
-        # Show only OV label in upper left corner if OV inactive
-        if not self.ovm[ov_index].active:
-            if self.show_labels and not suppress_labels:
-                font_size = int(self.cs.vp_scale * 8)
-                if font_size < 12:
-                    font_size = 12
-                self.vp_qp.setPen(QColor(*utils.COLOUR_SELECTOR[10]))
-                self.vp_qp.setBrush(QColor(*utils.COLOUR_SELECTOR[10]))
-                ov_label_rect = QRect(
-                    vx, vy - int(4/3 * font_size),
-                    int(font_size * 9), int(4/3 * font_size))
-                self.vp_qp.drawRect(ov_label_rect)
-                self.vp_qp.setPen(QColor(255, 255, 255))
-                font = QFont()
-                font.setPixelSize(font_size)
-                self.vp_qp.setFont(font)
-                self.vp_qp.drawText(ov_label_rect,
-                                    Qt.AlignVCenter | Qt.AlignHCenter,
-                                    'OV %d (inactive)' % ov_index)
-            return
+        if not suppress_labels:
+            # Suppress the display of labels for performance reasons.
+            # TODO: Reconsider this after refactoring complete.
+            suppress_labels = (
+                (self.gm.number_grids + self.ovm.number_ov) > 10
+                and (self.cs.vp_scale < 1.0
+                     or self.fov_drag_active
+                     or self.grid_drag_active))
 
         # Crop and resize OV before placing it.
         visible, crop_area, vx_cropped, vy_cropped = self._vp_visible_area(
             vx, vy, width_px, height_px, resize_ratio)
-        if visible:
-            cropped_img = self.ovm[ov_index].image.copy(crop_area)
-            v_width = cropped_img.size().width()
-            cropped_resized_img = cropped_img.scaledToWidth(
-                v_width * resize_ratio)
-            if not (self.ov_drag_active and ov_index == self.selected_ov):
-                # Draw OV
-                self.vp_qp.drawPixmap(vx_cropped, vy_cropped,
-                                      cropped_resized_img)
-            # Draw blue rectangle around OV.
-            self.vp_qp.setPen(
-                QPen(QColor(*utils.COLOUR_SELECTOR[10]), 2, Qt.SolidLine))
-            if ((self.ov_acq_indicator is not None)
-                and self.ov_acq_indicator == ov_index):
-                self.vp_qp.setBrush(QColor(*utils.COLOUR_SELECTOR[12]))
+
+        if not visible:
+            return
+
+        # Show OV label in upper left corner
+        if self.show_labels and not suppress_labels:
+            font_size = int(self.cs.vp_scale * 8)
+            if font_size < 12:
+                font_size = 12
+            self.vp_qp.setPen(QColor(*utils.COLOUR_SELECTOR[10]))
+            self.vp_qp.setBrush(QColor(*utils.COLOUR_SELECTOR[10]))
+            if self.ovm[ov_index].active:
+                width_factor = 3.6
             else:
-                self.vp_qp.setBrush(QColor(0, 0, 0, 0))
-            self.vp_qp.drawRect(vx, vy,
-                                width_px * resize_ratio,
-                                height_px * resize_ratio)
+                width_factor = 9
+            ov_label_rect = QRect(
+                vx, vy - int(4/3 * font_size),
+                int(width_factor * font_size), int(4/3 * font_size))
+            self.vp_qp.drawRect(ov_label_rect)
+            self.vp_qp.setPen(QColor(255, 255, 255))
+            font = QFont()
+            font.setPixelSize(font_size)
+            self.vp_qp.setFont(font)
+            if self.ovm[ov_index].active:
+                ov_label_text = 'OV %d' % ov_index
+            else:
+                ov_label_text = 'OV %d (inactive)' % ov_index
+            self.vp_qp.drawText(ov_label_rect,
+                                Qt.AlignVCenter | Qt.AlignHCenter,
+                                ov_label_text)
 
-            if show_debris_area:
-                # w3, w4 are fudge factors for clearer display
-                w3 = utils.fit_in_range(self.cs.vp_scale/2, 1, 3)
-                w4 = utils.fit_in_range(self.cs.vp_scale, 5, 9)
+        # If OV inactive return after drawing label
+        if not self.ovm[ov_index].active:
+            return
 
-                area = self.ovm[ov_index].debris_detection_area
+        cropped_img = self.ovm[ov_index].image.copy(crop_area)
+        v_width = cropped_img.size().width()
+        cropped_resized_img = cropped_img.scaledToWidth(
+            v_width * resize_ratio)
+        if not (self.ov_drag_active and ov_index == self.selected_ov):
+            # Draw OV
+            self.vp_qp.drawPixmap(vx_cropped, vy_cropped,
+                                  cropped_resized_img)
+        # Draw blue rectangle around OV.
+        self.vp_qp.setPen(
+            QPen(QColor(*utils.COLOUR_SELECTOR[10]), 2, Qt.SolidLine))
+        if ((self.ov_acq_indicator is not None)
+            and self.ov_acq_indicator == ov_index):
+            self.vp_qp.setBrush(QColor(*utils.COLOUR_SELECTOR[12]))
+        else:
+            self.vp_qp.setBrush(QColor(0, 0, 0, 0))
+        self.vp_qp.drawRect(vx, vy,
+                            width_px * resize_ratio,
+                            height_px * resize_ratio)
+
+        if show_debris_area:
+            # w3, w4 are fudge factors for clearer display
+            w3 = utils.fit_in_range(self.cs.vp_scale/2, 1, 3)
+            w4 = utils.fit_in_range(self.cs.vp_scale, 5, 9)
+
+            area = self.ovm[ov_index].debris_detection_area
+            if area:
                 (top_left_dx, top_left_dy,
                  bottom_right_dx, bottom_right_dy) = area
                 width = bottom_right_dx - top_left_dx
@@ -1332,47 +1362,22 @@ class Viewport(QWidget):
                                     width * resize_ratio + w4,
                                     height * resize_ratio + w4)
 
-            if not suppress_labels:
-                # Suppress the display of labels for performance reasons.
-                # TODO: Reconsider this after refactoring complete.
-                suppress_labels = (
-                    (self.gm.number_grids + self.ovm.number_ov) > 10
-                    and (self.cs.vp_scale < 1.0
-                         or self.fov_drag_active
-                         or self.grid_drag_active))
-
-            if self.show_labels and not suppress_labels:
-                font_size = int(self.cs.vp_scale * 8)
-                if font_size < 12:
-                    font_size = 12
-                self.vp_qp.setPen(QColor(*utils.COLOUR_SELECTOR[10]))
-                self.vp_qp.setBrush(QColor(*utils.COLOUR_SELECTOR[10]))
-                ov_label_rect = QRect(
-                    vx, vy - int(4/3 * font_size),
-                    int(font_size * 3.6), int(4/3 * font_size))
-                self.vp_qp.drawRect(ov_label_rect)
-                self.vp_qp.setPen(QColor(255, 255, 255))
-                font = QFont()
-                font.setPixelSize(font_size)
-                self.vp_qp.setFont(font)
-                self.vp_qp.drawText(ov_label_rect,
-                                    Qt.AlignVCenter | Qt.AlignHCenter,
-                                    'OV %d' % ov_index)
 
     def _vp_place_grid(self, grid_index,
                        show_grid=True, show_previews=False, with_gaps=False,
                        suppress_labels=False):
         """Place grid specified by grid_index onto the viewport canvas
-        (including tile previews if option selected)."""
+        (including tile previews if option selected).
+        """
         viewport_pixel_size = 1000 / self.cs.vp_scale
         grid_pixel_size = self.gm[grid_index].pixel_size
         resize_ratio = grid_pixel_size / viewport_pixel_size
 
-        # Calculate coordinates of grid origin with respect to Viewport canvas.
+        # Calculate coordinates of grid origin with respect to Viewport canvas
         dx, dy = self.gm[grid_index].origin_dx_dy
         origin_vx, origin_vy = self.cs.convert_to_v((dx, dy))
 
-        # Calculate top-left corner of the (unrotated) grid.
+        # Calculate top-left corner of the (unrotated) grid
         dx -= self.gm[grid_index].tile_width_d() / 2
         dy -= self.gm[grid_index].tile_height_d() / 2
         topleft_vx, topleft_vy = self.cs.convert_to_v((dx, dy))
@@ -1387,45 +1392,30 @@ class Viewport(QWidget):
         grid_colour = QColor(*grid_colour_rgb, 255)
         indicator_colour = QColor(*utils.COLOUR_SELECTOR[12])
 
-        # Show only grid label in upper left corner if grid inactive
-        if not self.gm[grid_index].active:
-            if self.show_labels and not suppress_labels:
-                fontsize = int(self.cs.vp_scale * 8)
-                if fontsize < 12:
-                    fontsize = 12
-                font.setPixelSize(fontsize)
-                self.vp_qp.setFont(font)
-                self.vp_qp.setPen(grid_colour)
-                self.vp_qp.setBrush(grid_colour)
-                grid_label_rect = QRect(topleft_vx,
-                                        topleft_vy - int(4/3 * fontsize),
-                                        int(10.5 * fontsize),
-                                        int(4/3 * fontsize))
-                self.vp_qp.drawRect(grid_label_rect)
-                if self.gm[grid_index].display_colour in [1, 2, 3]:
-                # Use black for light and white for dark background colour.
-                    self.vp_qp.setPen(QColor(0, 0, 0))
-                else:
-                    self.vp_qp.setPen(QColor(255, 255, 255))
-                self.vp_qp.drawText(grid_label_rect,
-                                    Qt.AlignVCenter | Qt.AlignHCenter,
-                                    'GRID %d (inactive)' % grid_index)
-            return
+        # Suppress labels when zoomed out or when user is moving a grid or
+        # panning the view, under the condition that there are >10 grids.
+        # TODO: Revisit this restriction after refactoring and test with
+        # MagC example grids.
+        if not suppress_labels:
+            suppress_labels = ((self.gm.number_grids + self.ovm.number_ov) > 10
+                               and (self.cs.vp_scale < 1.0
+                               or self.fov_drag_active
+                               or self.grid_drag_active))
 
         visible = self._vp_element_visible(
             topleft_vx, topleft_vy, width_px, height_px, resize_ratio,
             origin_vx, origin_vy, theta)
 
-        # Proceed only if at least a part of the grid is visible.
+        # Proceed only if at least a part of the grid is visible
         if not visible:
             return
 
-        # Rotate the painter if grid has a rotation angle > 0.
+        # Rotate the painter if grid has a rotation angle > 0
         if use_rotation:
-            # Translate painter to coordinates of grid origin, then rotate.
+            # Translate painter to coordinates of grid origin, then rotate
             self.vp_qp.translate(origin_vx, origin_vy)
             self.vp_qp.rotate(theta)
-            # Translate to top-left corner.
+            # Translate to top-left corner
             self.vp_qp.translate(
                 -self.gm[grid_index].tile_width_d() / 2 * self.cs.vp_scale,
                 -self.gm[grid_index].tile_height_d() / 2 * self.cs.vp_scale)
@@ -1434,8 +1424,47 @@ class Viewport(QWidget):
             # TODO: Try Antialiasing again - advantageous or not? What about
             # Windows 7 vs Windows 10?
         else:
-            # Translate painter to coordinates of top-left corner.
+            # Translate painter to coordinates of top-left corner
             self.vp_qp.translate(topleft_vx, topleft_vy)
+
+        # Show grid label in upper left corner
+        if self.show_labels and not suppress_labels:
+            fontsize = int(self.cs.vp_scale * 8)
+            if fontsize < 12:
+                fontsize = 12
+            font.setPixelSize(fontsize)
+            self.vp_qp.setFont(font)
+            self.vp_qp.setPen(grid_colour)
+            self.vp_qp.setBrush(grid_colour)
+            if self.gm[grid_index].active:
+                width_factor = 5.3
+            else:
+                width_factor = 10.5
+            grid_label_rect = QRect(0,
+                                    -int(4/3 * fontsize),
+                                    int(width_factor * fontsize),
+                                    int(4/3 * fontsize))
+            self.vp_qp.drawRect(grid_label_rect)
+            if self.gm[grid_index].display_colour in [1, 2, 3]:
+            # Use black for light and white for dark background colour
+                self.vp_qp.setPen(QColor(0, 0, 0))
+            else:
+                self.vp_qp.setPen(QColor(255, 255, 255))
+            # Show the grid label in different versions, depending on
+            # whether grid is active
+            if self.gm[grid_index].active:
+                grid_label_text = 'GRID %d' % grid_index
+            else:
+                grid_label_text = 'GRID %d (inactive)' % grid_index
+            self.vp_qp.drawText(grid_label_rect,
+                                Qt.AlignVCenter | Qt.AlignHCenter,
+                                grid_label_text)
+
+        # If grid is inactive, only the label will be drawn, nothing else.
+        # Reset the QPainter and return in this case
+        if not self.gm[grid_index].active:
+            self.vp_qp.resetTransform()
+            return
 
         if with_gaps:
             # Use gapped tile grid in pixels (coordinates not rotated)
@@ -1483,16 +1512,6 @@ class Viewport(QWidget):
                                         Qt.SolidPattern)
         grid_brush_transparent = QBrush(QColor(255, 255, 255, 0),
                                         Qt.SolidPattern)
-
-        # Suppress labels when zoomed out or when user is moving a grid or
-        # panning the view, under the condition that there are >10 grids.
-        # TODO: Revisit this restriction after refactoring and test with
-        # MagC example grids.
-        if not suppress_labels:
-            suppress_labels = ((self.gm.number_grids + self.ovm.number_ov) > 10
-                               and (self.cs.vp_scale < 1.0
-                               or self.fov_drag_active
-                               or self.grid_drag_active))
 
         if (tile_width_v * cols > 2 or tile_height_v * rows > 2):
             # Draw grid if at least 3 pixels wide or high.
@@ -1598,27 +1617,6 @@ class Viewport(QWidget):
             self.vp_qp.drawPoint(tile_map[0][0] * resize_ratio,
                                  tile_map[0][1] * resize_ratio)
 
-        # Show the grid label ("GRID" + grid index).
-        if self.show_labels and not suppress_labels:
-            fontsize = int(self.cs.vp_scale * 8)
-            if fontsize < 12:
-                fontsize = 12
-            font.setPixelSize(fontsize)
-            self.vp_qp.setFont(font)
-            self.vp_qp.setPen(grid_colour)
-            self.vp_qp.setBrush(grid_colour)
-            grid_label_rect = QRect(0, -int(4/3 * fontsize),
-                                    int(5.3 * fontsize), int(4/3 * fontsize))
-            self.vp_qp.drawRect(grid_label_rect)
-            if self.gm[grid_index].display_colour in [1, 2, 3]:
-            # Use black for light and white for dark background colour.
-                self.vp_qp.setPen(QColor(0, 0, 0))
-            else:
-                self.vp_qp.setPen(QColor(255, 255, 255))
-
-            self.vp_qp.drawText(grid_label_rect,
-                                Qt.AlignVCenter | Qt.AlignHCenter,
-                                'GRID %d' % grid_index)
         # Reset painter (undo translation and rotation).
         self.vp_qp.resetTransform()
 
@@ -1832,7 +1830,8 @@ class Viewport(QWidget):
 
     def _vp_grid_tile_mouse_selection(self, px, py):
         """Get the grid index and tile index at the position in the viewport
-        where user has clicked."""
+        where user has clicked.
+        """
         if self.vp_current_grid == -2:  # grids are hidden
             grid_range = []
             selected_grid, selected_tile = None, None
@@ -1881,8 +1880,9 @@ class Viewport(QWidget):
                 # Correction for top-left corner.
                 x += tile_width_p / 2 * pixel_size / 1000 * self.cs.vp_scale
                 y += tile_height_p / 2 * pixel_size / 1000 * self.cs.vp_scale
-            # Check if mouse click position is within current grid.
-            if x >= 0 and y >= 0:
+            # Check if mouse click position is within current grid's tile area
+            # if the current grid is active
+            if self.gm[grid_index].active and x >= 0 and y >= 0:
                 j = y // tile_height_v
                 if j % 2 == 0:
                     i = x // tile_width_v
@@ -1895,12 +1895,18 @@ class Viewport(QWidget):
                     selected_tile = int(i + j * cols)
                     selected_grid = grid_index
                     break
+
             # Also check whether grid label clicked. This selects only the grid
             # and not a specific tile.
             f = int(self.cs.vp_scale * 8)
             if f < 12:
                 f = 12
-            label_width = int(5.3 * f)
+            # Active and inactive grids have different label widths
+            if self.gm[grid_index].active:
+                width_factor = 5.3
+            else:
+                width_factor = 10.5
+            label_width = int(width_factor * f)
             label_height = int(4/3 * f)
             l_y = y + label_height
             if x >= 0 and l_y >= 0 and selected_grid is None:
@@ -1927,7 +1933,9 @@ class Viewport(QWidget):
                 p_width = self.ovm[ov_index].width_d() * self.cs.vp_scale
                 p_height = self.ovm[ov_index].height_d() * self.cs.vp_scale
                 x, y = px - pixel_offset_x, py - pixel_offset_y
-                if x >= 0 and y >= 0:
+                # Check if the current OV is active and if mouse click position
+                # is within its area
+                if self.ovm[ov_index].active and x >= 0 and y >= 0:
                     if x < p_width and y < p_height:
                         selected_ov = ov_index
                         break
@@ -1937,7 +1945,11 @@ class Viewport(QWidget):
                 f = int(self.cs.vp_scale * 8)
                 if f < 12:
                     f = 12
-                label_width = int(f * 3.6)
+                if self.ovm[ov_index].active:
+                    width_factor = 3.6
+                else:
+                    width_factor = 9
+                label_width = int(f * width_factor)
                 label_height = int(4/3 * f)
                 l_y = y + label_height
                 if x >= 0 and l_y >= 0 and selected_ov is None:
@@ -2079,7 +2091,7 @@ class Viewport(QWidget):
             + 'Y: {0:.3f}'.format(self.selected_stage_pos[1]),
             QMessageBox.Ok | QMessageBox.Cancel)
         if user_reply == QMessageBox.Ok:
-            self._add_to_main_log('CTRL: Performing user-requested stage move')
+            self._add_to_main_log('CTRL: Performing user-requested stage move.')
             self.main_controls_trigger.transmit('RESTRICT GUI')
             self.restrict_gui(True)
             QApplication.processEvents()
@@ -2096,11 +2108,13 @@ class Viewport(QWidget):
         if success:
             self._add_to_main_log('CTRL: User-requested stage move completed.')
         else:
-            self._add_to_main_log('CTRL: ERROR ocurred during stage move.')
+            self._add_to_main_log(
+                'CTRL: ERROR ocurred during manual stage move.')
             QMessageBox.warning(
                 self, 'Error during stage move',
-                'An error occurred during the requested stage move. ' +
-                'Please check the microtome status in DM.',
+                'An error occurred during the requested stage move: '
+                'The target position could not be reached after two attempts. '
+                'Please check the status of your microtome or SEM stage.',
                 QMessageBox.Ok)
         self.vp_draw()
         self.restrict_gui(False)
@@ -2114,13 +2128,13 @@ class Viewport(QWidget):
             if (self.vp_current_ov == -1) and (self.ovm.number_ov > 1):
                 user_reply = QMessageBox.question(
                     self, 'Acquisition of all overview images',
-                    'This will acquire all overview images.\n\n' +
+                    'This will acquire all active overview images.\n\n' +
                     'Do you wish to proceed?',
                     QMessageBox.Ok | QMessageBox.Cancel)
             if (user_reply == QMessageBox.Ok or self.vp_current_ov >= 0
                 or (self.ovm.number_ov == 1 and self.vp_current_ov == -1)):
                 self._add_to_main_log(
-                    'CTRL: User-requested acquisition of OV image(s) started')
+                    'CTRL: User-requested acquisition of OV image(s) started.')
                 self.restrict_gui(True)
                 self.main_controls_trigger.transmit('RESTRICT GUI')
                 self.main_controls_trigger.transmit('STATUS BUSY OV')
@@ -2128,7 +2142,7 @@ class Viewport(QWidget):
                 ov_acq_thread = threading.Thread(
                     target=acq_func.acquire_ov,
                     args=(self.acq.base_dir, self.vp_current_ov,
-                          self.sem, self.stage, self.ovm,
+                          self.sem, self.stage, self.ovm, self.img_inspector,
                           self.main_controls_trigger, self.viewport_trigger,))
                 ov_acq_thread.start()
         else:
@@ -2144,14 +2158,14 @@ class Viewport(QWidget):
                 'CTRL: User-requested acquisition of overview(s) completed.')
         else:
             self._add_to_main_log(
-                'CTRL: ERROR ocurred during overview acquisition.')
+                'CTRL: ERROR ocurred during acquisition of overview(s).')
             QMessageBox.warning(
                 self, 'Error during overview acquisition',
                 'An error occurred during the acquisition of the overview(s) '
-                'at the current location(s). The most likely causes are '
-                'incorrect settings of the stage X/Y motor ranges or speeds. '
-                'Home the stage and check whether the range limits specified '
-                'in SBEMimage are correct.', QMessageBox.Ok)
+                'at the current location(s). Please check the log for more '
+                'information. If the stage failed to move to the target OV '
+                'position, the most likely causes are incorrect XY stage '
+                'limits or incorrect motors speeds.', QMessageBox.Ok)
         self.main_controls_trigger.transmit('UNRESTRICT GUI')
         self.restrict_gui(False)
         self.main_controls_trigger.transmit('STATUS IDLE')
@@ -2164,6 +2178,7 @@ class Viewport(QWidget):
         grid_size_selector = self.ovm['stub'].grid_size_selector
         dialog = StubOVDlg(centre_sx_sy, grid_size_selector,
                            self.sem, self.stage, self.ovm, self.acq,
+                           self.img_inspector,
                            self.viewport_trigger)
         dialog.exec_()
 
@@ -2282,7 +2297,7 @@ class Viewport(QWidget):
         self.gm.update_source_ROIs_from_grids()
         self.vp_draw()
         self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS') # update statistics in GUI
-        self.add_to_log('Properties of grid '
+        self._add_to_main_log('Properties of grid '
             + str(clicked_section_number)
             + ' have been propagated to the selected sections')
 
@@ -2306,7 +2321,7 @@ class Viewport(QWidget):
 
         self.vp_draw()
         self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS') # update statistics in GUI
-        self.add_to_log('Properties of grid '
+        self._add_to_main_log('Properties of grid '
             + str(clicked_section_number)
             + ' have been propagated to all sections')
 
@@ -2974,6 +2989,10 @@ class Viewport(QWidget):
 
     def _m_source_update(self):
         self.m_from_stack = self.radioButton_fromStack.isChecked()
+        # Choice of tile or OV is only enabled when using images from stack
+        self.comboBox_gridSelectorM.setEnabled(self.m_from_stack)
+        self.comboBox_tileSelectorM.setEnabled(self.m_from_stack)
+        self.comboBox_OVSelectorM.setEnabled(self.m_from_stack)
         self.m_show_statistics()
 
     def m_update_grid_selector(self):
@@ -3376,7 +3395,7 @@ class Viewport(QWidget):
         else:
             # Use current image in SmartSEM
             selected_file = os.path.join(
-                self.stack.base_dir, 'workspace', 'current_frame.tif')
+                self.acq.base_dir, 'workspace', 'current_frame.tif')
             self.sem.save_frame(selected_file)
             self.m_reset_view()
             self.m_tab_populated = False

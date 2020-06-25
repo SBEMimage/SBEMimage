@@ -19,6 +19,7 @@ import numpy as np
 from time import sleep
 from imageio import imwrite
 from scipy.signal import medfilt2d
+from collections import deque
 from PIL import Image
 from PIL.ImageQt import ImageQt
 from PyQt5.QtGui import QPixmap
@@ -42,6 +43,10 @@ class ImageInspector:
         self.ov_images = {}
         self.ov_reslice_line = {}
         self.prev_img_mean_stddev = [0, 0]
+        # Moving average of mean and stddev differences in debris detection
+        # region(s)
+        self.mean_diffs = deque(maxlen=10)
+        self.stddev_diffs = deque(maxlen=10)
 
         # Load parameters for OV/tile monitoring from config
         self.mean_lower_limit = int(self.cfg['monitoring']['mean_lower_limit'])
@@ -108,14 +113,43 @@ class ImageInspector:
         self.cfg['debris']['histogram_diff_threshold'] = str(
             self.histogram_diff_threshold)
 
-    def process_tile(self, filename, grid_index, tile_index, slice_counter):
+    def load_and_inspect(self, filename):
+        """Load filename with error handling, convert to numpy array, calculate
+        mean and stddev, and check if image appears incomplete.
+        """
         img = None
         mean, stddev = 0, 0
-        range_test_passed, slice_by_slice_test_passed = False, False
-        frozen_frame_error = False
-        grab_incomplete = False
         load_error = False
         load_exception = ''
+        grab_incomplete = False
+
+        try:
+            # TODO: Switch to skimage / imageio?
+            img = Image.open(filename)
+        except Exception as e:
+            load_exception = str(e)
+            load_error = True
+        if not load_error:
+            img = np.array(img)
+
+            # Calculate mean and stddev
+            mean = np.mean(img)
+            stddev = np.std(img)
+
+            # Was complete image grabbed? Test if first or final line of image
+            # is black/white/uniform greyscale
+            height = img.shape[0]
+            first_line = img[0:1,:]
+            final_line = img[height-1:height,:]
+            grab_incomplete = (np.min(first_line) == np.max(first_line) or
+                               np.min(final_line) == np.max(final_line))
+
+        return img, mean, stddev, load_error, load_exception, grab_incomplete
+
+
+    def process_tile(self, filename, grid_index, tile_index, slice_counter):
+        range_test_passed, slice_by_slice_test_passed = False, False
+        frozen_frame_error = False
         tile_selected = False
 
         # Skip tests in MagC mode if memory usage too high
@@ -135,31 +169,26 @@ class ImageInspector:
                     load_error, grab_incomplete, frozen_frame_error)
         # End of MagC-specific code
 
-        try:
-            img = Image.open(filename)
-        except Exception as e:
-            load_exception = str(e)
-            load_error = True
+        img, mean, stddev, load_error, load_exception, grab_incomplete = (
+            self.load_and_inspect(filename))
+
         if not load_error:
-            img = np.array(img)
-            height, width = img.shape[0], img.shape[1]
 
             tile_key = ('g' + str(grid_index).zfill(utils.GRID_DIGITS)
                         + '_' + 't' + str(tile_index).zfill(utils.TILE_DIGITS))
             tile_key_short = str(grid_index) + '.' + str(tile_index)
 
             # Save preview image
+            height, width = img.shape[0], img.shape[1]
             img_tostring = img.tostring()
             preview_img = Image.frombytes(
                 'L', (width, height),
                 img_tostring).resize((512, 384), resample=2)
+
             # Convert to QPixmap and save in grid_manager
             self.gm[grid_index][tile_index].preview_img = QPixmap.fromImage(
                 ImageQt(preview_img))
 
-            # Calculate mean and stddev
-            mean = np.mean(img)
-            stddev = np.std(img)
             # Compare with previous mean and std to check for frozen frame
             # error in SmartSEM
             if self.prev_img_mean_stddev == [mean, stddev]:
@@ -167,13 +196,6 @@ class ImageInspector:
             else:
                 frozen_frame_error = False
                 self.prev_img_mean_stddev = [mean, stddev]
-
-            # Was complete image grabbed? Test if first or final line of image
-            # is black/white/uniform greyscale (bug in SmartSEM)
-            first_line = img[0:1,:]
-            final_line = img[height-1:height,:]
-            grab_incomplete = (np.min(first_line) == np.max(first_line) or
-                               np.min(final_line) == np.max(final_line))
 
             # Save reslice line in memory. Take a 400-px line from the centre
             # of the image. This works for all frame resolutions.
@@ -228,8 +250,6 @@ class ImageInspector:
 
             del img_tostring
             del preview_img
-            del first_line
-            del final_line
 
         return (img, mean, stddev,
                 range_test_passed, slice_by_slice_test_passed, tile_selected,
@@ -290,27 +310,12 @@ class ImageInspector:
 
     def process_ov(self, filename, ov_index, slice_counter):
         """Load overview image from disk and perform standard tests."""
-        ov_img = None
-        mean, stddev = 0, 0
-        load_error = False
-        load_exception = ''
-        grab_incomplete = False
         range_test_passed = False
 
-        # Try to load OV from disk
-        try:
-            ov_img = Image.open(filename)
-        except Exception as e:
-            load_error = True
-            load_exception = str(e)
+        ov_img, mean, stddev, load_error, load_exception, grab_incomplete = (
+            self.load_and_inspect(filename))
 
         if not load_error:
-            ov_img = np.array(ov_img)
-            height, width = ov_img.shape[0], ov_img.shape[1]
-
-            # Was complete image grabbed? Test if final line of image is black
-            final_line = ov_img[height-1:height,:]
-            grab_incomplete = (np.min(final_line) == np.max(final_line))
 
             if not (ov_index in self.ov_images):
                 self.ov_images[ov_index] = []
@@ -318,10 +323,6 @@ class ImageInspector:
                 # Only keep the current and the previous OV
                 self.ov_images[ov_index].pop(0)
             self.ov_images[ov_index].append((slice_counter, ov_img))
-
-            # Calculate mean and standard deviation:
-            mean = np.mean(ov_img)
-            stddev = np.std(ov_img)
 
             # Save mean and stddev in lists:
             if not (ov_index in self.ov_means):
@@ -339,6 +340,7 @@ class ImageInspector:
             # Save reslice line in memory. Take a 400-px line from the centre
             # of the image. This works for all frame resolutions.
             # Only saved to disk later if OV accepted.
+            height, width = ov_img.shape[0], ov_img.shape[1]
             self.ov_reslice_line[ov_index] = (
                 ov_img[int(height/2):int(height/2)+1,
                        int(width/2)-200:int(width/2)+200])
@@ -463,6 +465,14 @@ class ImageInspector:
 
             debris_detected = ((max_diff_mean > self.mean_diff_threshold) or
                                (max_diff_stddev > self.stddev_diff_threshold))
+
+            # If no debris detected, add max_diff_mean and max_diff_stddev to
+            # deques to calculate moving average for display in debris settings
+            # dialog. This makes it easier for the user to set appropriate
+            # thresholds.
+            if not debris_detected:
+                self.mean_diffs.append(max_diff_mean)
+                self.stddev_diffs.append(max_diff_stddev)
 
         elif self.debris_detection_method == 1:
             # Compare the histogram count from the difference image to user-

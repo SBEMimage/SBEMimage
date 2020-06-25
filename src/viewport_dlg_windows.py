@@ -37,7 +37,7 @@ class StubOVDlg(QDialog):
     """
 
     def __init__(self, centre_sx_sy, grid_size_selector,
-                 sem, stage, ovm, acq, viewport_trigger):
+                 sem, stage, ovm, acq, img_inspector, viewport_trigger):
         super().__init__()
         loadUi('..\\gui\\stub_ov_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
@@ -48,8 +48,10 @@ class StubOVDlg(QDialog):
         self.stage = stage
         self.ovm = ovm
         self.acq = acq
+        self.img_inspector = img_inspector
         self.viewport_trigger = viewport_trigger
         self.acq_in_progress = False
+        self.error_msg_from_acq_thread = ''
 
         # Set up trigger and queue to update dialog GUI during acquisition
         self.stub_dlg_trigger = utils.Trigger()
@@ -101,6 +103,8 @@ class StubOVDlg(QDialog):
         msg = self.stub_dlg_trigger.queue.get()
         if msg == 'UPDATE XY':
             self.viewport_trigger.transmit('UPDATE XY')
+        elif msg == 'DRAW VP':
+            self.viewport_trigger.transmit('DRAW VP')
         elif msg[:15] == 'UPDATE PROGRESS':
             percentage = int(msg[15:])
             self.progressBar.setValue(percentage)
@@ -117,34 +121,32 @@ class StubOVDlg(QDialog):
                 'The stub overview was completed successfully.',
                 QMessageBox.Ok)
             self.acq_in_progress = False
+            self.close()
         elif msg == 'STUB OV FAILURE':
             self.viewport_trigger.transmit('STUB OV FAILURE')
-            # Restore previous origin and grid size
-            self.ovm['stub'].centre_sx_sy = self.previous_centre_sx_sy
-            self.ovm['stub'].grid_size_selector = (
-                self.previous_grid_size_selector)
             QMessageBox.warning(
                 self, 'Error during stub overview acquisition',
                 'An error occurred during the acquisition of the stub '
-                'overview mosaic. The most likely cause are incorrect '
-                'settings of the stage X/Y motor ranges or speeds. Home '
-                'the stage and check whether the range limits specified '
-                'in SBEMimage are correct.',
+                'overview mosaic: ' + self.error_msg_from_acq_thread,
                 QMessageBox.Ok)
+            self.error_msg_from_acq_thread = ''
             self.acq_in_progress = False
             self.close()
         elif msg == 'STUB OV ABORT':
             self.viewport_trigger.transmit('STATUS IDLE')
-            # Restore previous origin and grid size
-            self.ovm['stub'].centre_sx_sy = self.previous_centre_sx_sy
+            # Restore previous grid size and grid position
             self.ovm['stub'].grid_size_selector = (
                 self.previous_grid_size_selector)
+            self.ovm['stub'].centre_sx_sy = self.previous_centre_sx_sy
             QMessageBox.information(
                 self, 'Stub Overview acquisition aborted',
                 'The stub overview acquisition was aborted.',
                 QMessageBox.Ok)
             self.acq_in_progress = False
             self.close()
+        else:
+            # Use as error message
+            self.error_msg_from_acq_thread = msg
 
     def update_duration(self):
         self.label_duration.setText(self.durations[
@@ -176,6 +178,7 @@ class StubOVDlg(QDialog):
                                   target=acq_func.acquire_stub_ov,
                                   args=(self.sem, self.stage,
                                         self.ovm, self.acq,
+                                        self.img_inspector,
                                         self.stub_dlg_trigger,
                                         self.abort_queue,))
             stub_acq_thread.start()

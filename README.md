@@ -4,20 +4,22 @@ Open-source acquisition software for serial block-face electron microscopy, made
 
 ## Getting started
 
-Please read SBEMimage_Manual.pdf (in the project root folder). It currently contains installation instructions and a short introduction to the software. The document will be expanded into a full manual for the release of version 2.1 (see below). Questions? Contact benjamin.titze ÄT fmi.ch
+Please read SBEMimage_Manual.pdf (in the project root folder). It currently contains installation instructions and a short introduction to the software. The document is being expanded into a full manual. Questions? Contact benjamin.titze ÄT fmi.ch
 See also: https://groups.google.com/d/forum/sbemimage (a forum to be used for future announcements and discussions)
 
 ## Releases
 
-*The release of version 2.1, with an installer and an expanded manual, is planned for the second half of 2019.*
+*The current version is 2020.05 beta. We are planning to release future versions with an installer and an expanded manual.*
 
 ## Authors / Contributing
 
-Benjamin Titze ([btitze](https://github.com/btitze)), Friedrich Miescher Institute for Biomedical Research, Basel, Switzerland (lead developer); Thomas Templier, EPFL (MagC); see also: https://github.com/SBEMimage/SBEMimage/graphs/contributors
+Benjamin Titze ([btitze](https://github.com/btitze)), Friedrich Miescher Institute for Biomedical Research, Basel, Switzerland (lead developer); Thomas Templier, Janelia Research Campus (MagC wafer acquisition functionality); other contributors: https://github.com/SBEMimage/SBEMimage/graphs/contributors
 
-Development partner(s): EPFL, Lausanne, Switzerland (CIME/BioEM)
+The development of SBEMimage at the Friedrich Miescher Institute has been supported by the Novartis Research Foundation and by the European Research Council (ERC) under the European Union’s Horizon 2020 Research and Innovation Programme (Grant Agreement No. 742576).
 
-Please contact benjamin.titze ÄT fmi.ch for feedback, bug reports, or if you are interested in contributing to the development of SBEMimage. Pull requests are welcome.
+Other institute(s) that have substantially contributed to SBEMimage development/testing: EPFL, Lausanne, Switzerland (CIME/BioEM)
+
+Please contact benjamin.titze ÄT fmi.ch for feedback, bug reports, or if you are interested in contributing to the development of SBEMimage. All ongoing development takes place in the 'dev' branch. Pull requests to that branch are welcome.
 
 ## Publication ##
 

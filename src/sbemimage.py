@@ -37,7 +37,7 @@ from main_controls import MainControls
 # VERSION contains the current version/release date information for the
 # master branch (for example, '2.0 (R2020-03-31)'). For the current version
 # in the dev (development) branch, it is set to 'dev'.
-VERSION = 'dev'
+VERSION = '2020.05 beta R2020-05-14'
 
 
 def main():
@@ -75,10 +75,12 @@ def main():
         title_str = 'SBEMimage - Console'
         version_info = 'Version ' + VERSION
     os.system('title ' + title_str)
-    print(f'***********************************\n'
+
+    line_of_stars = '*' * (len(version_info) + 10)
+    print(f'{line_of_stars}\n'
           f'     SBEMimage\n'
           f'     {version_info}\n'
-          f'***********************************\n')
+          f'{line_of_stars}\n')
 
     configuration_loaded = False
     default_configuration = False

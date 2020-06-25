@@ -37,7 +37,8 @@ class Tile:
     parameters, and whether the tile is active and used as a reference tile.
     Note that the tile size and all acquisition parameters are set in
     class Grid because all tiles in a grid have the same size and
-    acquisition parameters."""
+    acquisition parameters.
+    """
 
     # TBD: Keep this class or include as dict in class Grid?
     # Or make this a dataclass (new in Python 3.7)?
@@ -724,6 +725,11 @@ class Grid:
                 autofocus_ref_tiles.append(tile_index)
         return autofocus_ref_tiles
 
+    def clear_all_tile_previews(self):
+        """Clear all preview images in this grid."""
+        for tile in self.__tiles:
+            tile.preview_src = ''  # Setter will set preview_img to None
+
 
 class GridManager:
 
@@ -797,12 +803,23 @@ class GridManager:
             if (g < self.number_grids) and (t < self.__grids[g].number_tiles):
                 self.__grids[g][t].autofocus_active = True
 
-        # Load tile previews for active tiles if available
+        # Load tile previews for active tiles if available and if source tiles
+        # are present at the current slice number in the base directory
         base_dir = self.cfg['acq']['base_dir']
+        stack_name = base_dir[base_dir.rfind('\\') + 1:]
+        slice_counter = int(self.cfg['acq']['slice_counter'])
         for g in range(self.number_grids):
             for t in self.__grids[g].active_tiles:
                 preview_path = utils.tile_preview_save_path(base_dir, g, t)
-                if os.path.isfile(preview_path):
+                tile_path_current = os.path.join(base_dir,
+                    utils.tile_relative_save_path(
+                        stack_name, g, t, slice_counter))
+                tile_path_previous = os.path.join(base_dir,
+                    utils.tile_relative_save_path(
+                        stack_name, g, t, slice_counter - 1))
+                if (os.path.isfile(preview_path)
+                    and (os.path.isfile(tile_path_current)
+                         or os.path.isfile(tile_path_previous))):
                     self.__grids[g][t].preview_img = QPixmap(preview_path)
                 else:
                     self.__grids[g][t].preview_img = None

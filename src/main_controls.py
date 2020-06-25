@@ -64,8 +64,8 @@ from main_controls_dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                                       StageCalibrationDlg, MagCalibrationDlg, \
                                       GrabFrameDlg, FTSetParamsDlg, FTMoveDlg, \
                                       AskUserDlg, UpdateDlg, CutDurationDlg, \
-                                      KatanaSettingsDlg, AboutBox, MotorTestDlg, \
-                                      GCIBSettingsDlg
+                                      KatanaSettingsDlg, SendCommandDlg, \
+                                      AboutBox, GCIBSettingsDlg
 
 from magc_dlg_windows import ImportMagCDlg, ImportWaferImageDlg, \
                           WaferCalibrationDlg
@@ -175,9 +175,12 @@ class MainControls(QMainWindow):
         if self.use_microtome and (self.syscfg['device']['microtome'] == '0'):
             # Create object for 3View microtome (control via DigitalMicrograph)
             self.microtome = Microtome_3View(self.cfg, self.syscfg)
-            if self.microtome.error_state == 101:
+            if self.microtome.error_state in [101, 102, 103, 104]:
                 startup_log_messages.append(
                     'CTRL: Error initializing DigitalMicrograph API.')
+                startup_log_messages.append(
+                    f'CTRL: Error {self.microtome.error_state}: '
+                    f'{utils.ERROR_LIST[self.microtome.error_state]}')
                 startup_log_messages.append(
                     'CTRL: ' + self.microtome.error_info)
                 QMessageBox.warning(
@@ -190,7 +193,7 @@ class MainControls(QMainWindow):
                     QMessageBox.Retry)
                 # Try again
                 self.microtome = Microtome_3View(self.cfg, self.syscfg)
-                if self.microtome.error_state > 0:
+                if self.microtome.error_state in [101, 102, 103, 104]:
                     startup_log_messages.append(
                         'CTRL: Error initializing DigitalMicrograph API '
                         '(second attempt).')
@@ -291,7 +294,7 @@ class MainControls(QMainWindow):
         # Initialize viewport window
         self.viewport = Viewport(self.cfg, self.sem, self.stage, self.cs,
                                  self.ovm, self.gm, self.imported,
-                                 self.autofocus, self.acq,
+                                 self.autofocus, self.acq, self.img_inspector,
                                  self.trigger)
         self.viewport.show()
 
@@ -464,6 +467,8 @@ class MainControls(QMainWindow):
         self.pushButton_testGetMillPos.clicked.connect(self.test_get_mill_pos)
         self.pushButton_testMoveMillPos.clicked.connect(self.test_set_mill_pos)
         self.pushButton_testMovePriorMillPos.clicked.connect(self.test_set_pos_prior_mill_mov)
+        self.pushButton_testSendCommand.clicked.connect(
+            self.open_send_command_dlg)
         self.pushButton_testStopDMScript.clicked.connect(
             self.test_stop_dm_script)
         self.pushButton_testSendEMail.clicked.connect(self.test_send_email)
@@ -1108,9 +1113,13 @@ class MainControls(QMainWindow):
                 ' because no microtome is configured in the current session')
 
     def open_calibration_dlg(self):
+        prev_calibration = self.cs.stage_calibration
         dialog = StageCalibrationDlg(self.cs, self.stage, self.sem,
                                      self.acq.base_dir)
-        if dialog.exec_():
+        if dialog.exec_() and self.cs.stage_calibration != prev_calibration:
+            # Recalculate all grids and debris detection areas
+            for grid_index in range(self.gm.number_grids):
+                self.gm[grid_index].update_tile_positions()
             if self.ovm.use_auto_debris_area:
                 self.ovm.update_all_debris_detections_areas(self.gm)
             self.viewport.vp_draw()
@@ -1231,7 +1240,13 @@ class MainControls(QMainWindow):
         dialog.exec_()
 
     def open_motor_test_dlg(self):
-        dialog = MotorTestDlg(self.microtome, self.acq, self.trigger)
+        # Disabled for now
+        pass
+        # dialog = MotorTestDlg(self.microtome, self.acq, self.trigger)
+        # dialog.exec_()
+
+    def open_send_command_dlg(self):
+        dialog = SendCommandDlg(self.microtome)
         dialog.exec_()
 
     def open_about_box(self):
@@ -1365,10 +1380,14 @@ class MainControls(QMainWindow):
             self.viewport.vp_draw()
         elif msg == 'DRAW VP NO LABELS':
             self.viewport.vp_draw(suppress_labels=True, suppress_previews=True)
-        elif msg[:6] == 'VP LOG':
-            self.viewport.add_to_log(msg[6:])
+        elif msg[:12] == 'INCIDENT LOG':
+            self.viewport.show_in_incident_log(msg[12:])
         elif msg[:15] == 'GET CURRENT LOG':
-            self.write_current_log_to_file(msg[15:])
+            try:
+                self.write_current_log_to_file(msg[15:])
+            except Exception as e:
+                self.add_to_log('CTRL: Could not write current log to disk: '
+                                + str(e))
         elif msg == 'MAGC WAFER CALIBRATED':
             self.pushButton_magc_waferCalibration.setStyleSheet('background-color: green')
         elif msg == 'MAGC WAFER NOT CALIBRATED':
@@ -1548,6 +1567,7 @@ class MainControls(QMainWindow):
         self.pushButton_testStopDMScript.setEnabled(b)
         self.pushButton_testPlasmaCleaner.setEnabled(b)
         self.pushButton_testMotors.setEnabled(b)
+        self.pushButton_testSendCommand.setEnabled(b)
 
     def restrict_gui_for_simulation_mode(self):
         self.pushButton_SEMSettings.setEnabled(False)
@@ -1701,6 +1721,13 @@ class MainControls(QMainWindow):
 
     def test_near_knife(self):
         if self.use_microtome:
+            user_reply = QMessageBox.question(
+                self, 'Move knife to "Near" position',
+                    'Please confirm that you want to move the knife to the '
+                    '"Near" position.',
+                    QMessageBox.Ok | QMessageBox.Cancel)
+            if user_reply == QMessageBox.Cancel:
+                return
             self.microtome.near_knife()
             self.add_to_log('KNIFE: Position should be NEAR.')
         else:
@@ -1929,6 +1956,17 @@ class MainControls(QMainWindow):
                     QMessageBox.Yes| QMessageBox.No)
         if result == QMessageBox.Yes:
             self.add_to_log('CTRL: RESET command received.')
+            result = QMessageBox.question(
+                         self, 'Clear tile previews and overview images?',
+                         'Would you like all current tile previews and '
+                         'overview images in the Viewport to be cleared?',
+                         QMessageBox.Yes| QMessageBox.No)
+            if result == QMessageBox.Yes:
+                for grid_index in range(self.gm.number_grids):
+                    self.gm[grid_index].clear_all_tile_previews()
+                for ov_index in range(self.ovm.number_ov):
+                    self.ovm[ov_index].vp_file_path = ''
+                self.viewport.vp_draw()
             self.acq.reset_acquisition()
             self.pushButton_resetAcq.setEnabled(False)
             self.pushButton_pauseAcq.setEnabled(False)
@@ -1966,7 +2004,9 @@ class MainControls(QMainWindow):
         self.pushButton_startAcq.setText('CONTINUE')
         QMessageBox.information(
             self, 'ERROR: Acquisition paused',
-            'Acquisition was paused because an error has occured (see log).',
+            f'Error {self.acq.error_state} '
+            f'({utils.ERROR_LIST[self.acq.error_state]}) has occurred '
+            f'(see log). Acquisition has been paused.',
             QMessageBox.Ok)
 
     def acq_not_in_progress_update_gui(self):
@@ -2157,6 +2197,8 @@ class MainControls(QMainWindow):
         self.pushButton_focusToolMove.clicked.connect(self.ft_open_move_dlg)
         self.pushButton_focusToolSet.clicked.connect(
             self.ft_open_set_params_dlg)
+        self.pushButton_moveUp.clicked.connect(self.ft_move_up)
+        self.pushButton_moveDown.clicked.connect(self.ft_move_down)
         # Default pixel size is 6 nm.
         self.spinBox_ftPixelSize.setValue(6)
         # Default dwell time is dwell time selector 4
@@ -2441,6 +2483,9 @@ class MainControls(QMainWindow):
         self.pushButton_focusToolStart.setEnabled(True)
         self.pushButton_focusToolMove.setEnabled(True)
         self.pushButton_focusToolSet.setEnabled(True)
+        # Arrow keys are disabled
+        self.pushButton_moveUp.setEnabled(False)
+        self.pushButton_moveDown.setEnabled(False)
         self.spinBox_ftPixelSize.setEnabled(True)
         self.checkBox_zoom.setEnabled(True)
         self.comboBox_dwellTime.setEnabled(True)
@@ -2464,6 +2509,9 @@ class MainControls(QMainWindow):
     def ft_series_complete(self):
         self.pushButton_focusToolStart.setText('Done')
         self.pushButton_focusToolStart.setEnabled(True)
+        # Enable arrow keys
+        self.pushButton_moveUp.setEnabled(True)
+        self.pushButton_moveDown.setEnabled(True)
         # Increase counter to move to fresh area for next cycle:
         self.ft_cycle_counter += 1
         # Go back to the centre after a full clockwise cycle
