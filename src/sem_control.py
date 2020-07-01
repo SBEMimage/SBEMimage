@@ -622,6 +622,7 @@ class SEM_SmartSEM(SEM):
         print(self.sem_api.Get('AP_IPROBE', 0))
         print(self.sem_api.Get('DP_HIGH_CURRENT', 0))
         print(self.sem_api.Get('AP_APERTURESIZE', 0))
+        print(self.sem_api.Get('DP_APERTURE', 0))
 
         return int(round(self.sem_api.Get('AP_IPROBE', 0)[1] * 10**12))
 
