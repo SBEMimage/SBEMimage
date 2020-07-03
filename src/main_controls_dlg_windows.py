@@ -12,6 +12,7 @@
 Controls, and the startup dialog (ConfigDlg).
 """
 
+import math
 import os
 import re
 import string
@@ -25,6 +26,8 @@ import shutil
 
 from random import random
 from time import sleep, time
+
+from qtconsole.qt import QtCore
 from validate_email import validate_email
 from math import atan, sqrt
 from statistics import mean
@@ -36,7 +39,7 @@ from imreg_dft import translation
 from zipfile import ZipFile
 
 from PyQt5.uic import loadUi
-from PyQt5.QtCore import Qt, QObject, QSize, pyqtSignal
+from PyQt5.QtCore import Qt, QObject, QSize, pyqtSignal, QThread
 from PyQt5.QtGui import QPixmap, QIcon, QPalette, QColor, QFont
 from PyQt5.QtWidgets import QApplication, QDialog, QMessageBox, \
                             QFileDialog, QLineEdit, QDialogButtonBox
@@ -2603,6 +2606,246 @@ class PlasmaCleanerDlg(QDialog):
         self.pushButton_startCleaning.setText(
             'Start in-chamber cleaning process')
         self.pushButton_abortCleaning.setEnabled(False)
+
+# ------------------------------------------------------------------------------
+
+class PressureUpdateQThread(QThread):
+
+    update = QtCore.pyqtSignal()
+
+    def __init__(self, secs):
+        self.active = True
+        self.secs = secs
+        QThread.__init__(self)
+
+    def run(self):
+        while self.active:
+            self.update.emit()
+            sleep(self.secs)
+
+    def stop(self):
+        self.active = False
+
+
+class VariablePressureDlg(QDialog):
+    """Set Variable Pressure / High Vacuum."""
+
+    def __init__(self, sem):
+        super().__init__()
+        self.sem = sem
+        self.convert_from_sem = {"mbar": 1000, "Pa": 100000, "Torr": 750.061682704}
+        self.convert_to_sem = {"mbar": 0.001, "Pa": 0.00001, "Torr": 0.00133322368421}
+        self.hv = True
+        self.vp = False
+        self.target = 0
+        self.current = 0
+        loadUi('..\\gui\\variable_pressure_settings_dlg.ui', self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setFixedSize(self.size())
+        self.show()
+        self.pushButton_hv.clicked.connect(self.set_hv)
+        self.pushButton_vp.clicked.connect(self.set_vp)
+        self.lineEdit_target.editingFinished.connect(self.target_text_changed)
+        self.horizontalSlider_target.valueChanged.connect(self.target_slider_changed)
+        self.comboBox_units.currentTextChanged.connect(self.units_changed)
+        self.units = self.comboBox_units.currentText()
+        try:
+            self.target = self.sem.get_vp_target()
+            self.update_target_pressure_text()
+            self.update_target_pressure_slider()
+            self.thread = PressureUpdateQThread(1)
+            self.thread.update.connect(self.update)
+            self.thread.start()
+        except Exception as e:
+            QMessageBox.warning(
+                self, 'Error',
+                'Could not read variable pressure settings: '
+                + str(e),
+                QMessageBox.Ok)
+        QApplication.processEvents()
+
+    def set_hv(self):
+        try:
+            self.sem.set_hv()
+        except Exception as e:
+            QMessageBox.warning(
+                self, 'Error',
+                'Unable to set hv: '
+                + str(e),
+                QMessageBox.Ok)
+
+    def set_vp(self):
+        try:
+            self.sem.set_vp()
+        except Exception as e:
+            QMessageBox.warning(
+                self, 'Error',
+                'Unable to set vp: '
+                + str(e),
+                QMessageBox.Ok)
+
+    def units_changed(self, text):
+        self.units = text
+        self.update_target_pressure_text()
+
+    def update(self):
+        self.hv = self.sem.is_hv_on()
+        self.vp = self.sem.is_vp_on()
+        self.current = self.sem.get_chamber_pressure()
+        self.pushButton_hv.setEnabled(self.vp)
+        self.pushButton_vp.setEnabled(self.hv)
+        self.update_pressure(self.lineEdit_current, self.current)
+
+    def update_target_pressure_text(self):
+        self.lineEdit_target.blockSignals(True)
+        self.update_pressure(self.lineEdit_target, self.target)
+        self.lineEdit_target.blockSignals(False)
+
+    def update_target_pressure_slider(self):
+        self.horizontalSlider_target.blockSignals(True)
+        self.horizontalSlider_target.setValue(math.log10(self.target) * 100)
+        self.horizontalSlider_target.blockSignals(False)
+
+    def update_pressure(self, textEdit, value):
+        unit_value = value * self.convert_from_sem[self.units]
+        textEdit.setText("{:.2e}".format(unit_value))
+
+    def target_text_changed(self):
+        try:
+            unit_value = float(self.lineEdit_target.text())
+            self.target = unit_value * self.convert_to_sem[self.units]
+            self.update_target_pressure_slider()
+            self.sem.set_vp_target(self.target)
+        except Exception as e:
+            QMessageBox.warning(
+                self, 'Error',
+                'Invalid value: '
+                + str(e),
+                QMessageBox.Ok)
+
+    def target_slider_changed(self):
+        try:
+            self.target = 10 ** (self.horizontalSlider_target.value() * 0.01)
+            self.update_target_pressure_text()
+            self.sem.set_vp_target(self.target)
+        except Exception as e:
+            QMessageBox.warning(
+                self, 'Error',
+                'Invalid value: '
+                + str(e),
+                QMessageBox.Ok)
+
+    def reject(self):
+        try:
+            self.thread.stop()
+        except Exception:
+            pass
+        super().reject()
+
+    def closeEvent(self, event):
+        try:
+            self.thread.stop()
+        except Exception:
+            pass
+        event.accept()
+
+# ------------------------------------------------------------------------------
+
+class ChargeCompensatorDlg(QDialog):
+    """Set Charge Compensator & level."""
+
+    def __init__(self, sem):
+        super().__init__()
+        self.sem = sem
+        self.state = False
+        self.value = 0
+        loadUi('..\\gui\\charge_compensator_settings_dlg.ui', self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setFixedSize(self.size())
+        self.show()
+        self.pushButton_on.clicked.connect(self.turn_on)
+        self.pushButton_off.clicked.connect(self.turn_off)
+        self.doubleSpinBox_level.valueChanged.connect(self.value_changed)
+        self.horizontalSlider_level.valueChanged.connect(self.slider_changed)
+        try:
+            self.state = self.sem.is_fcc_on()
+            self.value = self.sem.get_fcc_level()
+            self.update_buttons()
+            self.update_value()
+            self.update_slider()
+        except Exception as e:
+            QMessageBox.warning(
+                self, 'Error',
+                'Could not read charge compensator settings: '
+                + str(e),
+                QMessageBox.Ok)
+        QApplication.processEvents()
+
+    def turn_on(self):
+        try:
+            self.sem.turn_fcc_on()
+            self.state = True
+            self.update_buttons()
+            sleep(0.1)
+            if self.value == 0:
+                self.value = 50
+                self.update_value()
+            self.set_fcc_level(self.value)
+        except Exception as e:
+            QMessageBox.warning(
+                self, 'Error',
+                'Unable to enable fcc: '
+                + str(e),
+                QMessageBox.Ok)
+
+    def turn_off(self):
+        try:
+            self.sem.turn_fcc_off()
+            self.state = False
+            self.update_buttons()
+            self.value == 0
+            self.update_value()
+        except Exception as e:
+            QMessageBox.warning(
+                self, 'Error',
+                'Unable to disable fcc: '
+                + str(e),
+                QMessageBox.Ok)
+
+    def update_buttons(self):
+        self.pushButton_on.setEnabled(not self.state)
+        self.pushButton_off.setEnabled(self.state)
+
+    def value_changed(self, value):
+        self.set_fcc_level(value)
+        self.update_slider()
+
+    def slider_changed(self):
+        self.set_fcc_level(self.horizontalSlider_level.value() * 0.1)
+        self.update_value()
+
+    def update_value(self):
+        self.doubleSpinBox_level.blockSignals(True)
+        self.doubleSpinBox_level.setValue(self.value)
+        self.doubleSpinBox_level.blockSignals(False)
+
+    def update_slider(self):
+        self.horizontalSlider_level.blockSignals(True)
+        self.horizontalSlider_level.setValue(self.value * 10)
+        self.horizontalSlider_level.blockSignals(False)
+
+    def set_fcc_level(self, value):
+        if not 0 <= value <= 100:
+            QMessageBox.warning(
+                self, 'Error',
+                    'Please enter a value between 0 and 100', QMessageBox.Ok)
+        else:
+            self.value = value
+            if self.state:
+                self.sem.set_fcc_level(value)
+
 
 # ------------------------------------------------------------------------------
 

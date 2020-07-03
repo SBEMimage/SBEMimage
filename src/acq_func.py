@@ -88,7 +88,7 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
                 sleep(1)
                 _, _, _, load_error, _, grab_incomplete = (
                     img_inspector.load_and_inspect(save_path))
-                if load_error or grab_incomplete:
+                if load_error:
                     success = False
                     if load_error:
                         cause = 'load error'
@@ -207,7 +207,7 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
                         sleep(1.5)
                         tile_img, _, _, load_error, _, grab_incomplete = (
                             img_inspector.load_and_inspect(save_path))
-                        if load_error or grab_incomplete:
+                        if load_error:
                             success = False
                             if load_error:
                                 cause = 'load error'

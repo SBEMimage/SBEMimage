@@ -18,6 +18,8 @@ import pythoncom
 import win32com.client  # required to use CZEMApi.ocx (Carl Zeiss EM API)
 from win32com.client import VARIANT  # required for API function calls
 
+from utils import ERROR_LIST
+
 
 class SEM:
     """Base class for remote SEM control. Implements minimum parameter handling.
@@ -164,6 +166,69 @@ class SEM:
         """Save the target EHT (in kV) and set the EHT to this target value."""
         self.target_eht = target_eht
         # Setting SEM to target EHT must be implemented in child class!
+
+
+    def has_vp(self):
+        """Return True if VP is fitted."""
+        raise NotImplementedError
+
+    def is_hv_on(self):
+        """Return True if HV is on."""
+        raise NotImplementedError
+
+    def is_vp_on(self):
+        """Return True if VP is on."""
+        raise NotImplementedError
+
+    def get_chamber_pressure(self):
+        """Read current chamber pressure from SmartSEM."""
+        raise NotImplementedError
+
+    def get_vp_target(self):
+        """Read current VP target pressure from SmartSEM."""
+        raise NotImplementedError
+
+    def set_hv(self):
+        """Set HV (= High Vacuum)."""
+        raise NotImplementedError
+
+    def set_vp(self):
+        """Set VP (= Variable Pressure)."""
+        raise NotImplementedError
+
+    def set_vp_target(self, target_pressure):
+        """Set the VP target pressure."""
+        raise NotImplementedError
+
+
+    def has_fcc(self):
+        """Return True if FCC is fitted."""
+        raise NotImplementedError
+
+    def is_fcc_on(self):
+        """Return True if FCC is on."""
+        raise NotImplementedError
+
+    def is_fcc_off(self):
+        """Return True if FCC is off."""
+        raise NotImplementedError
+
+    def get_fcc_level(self):
+        """Read current FCC (0-100) from SmartSEM."""
+        raise NotImplementedError
+
+    def turn_fcc_on(self):
+        """Turn FCC (= Focal Charge Compensator) on."""
+        raise NotImplementedError
+
+    def turn_fcc_off(self):
+        """Turn FCC (= Focal Charge Compensator) off."""
+        raise NotImplementedError
+
+    def set_fcc_level(self, target_fcc_level):
+        """Set the FCC to this target value."""
+        raise NotImplementedError
+
 
     def get_beam_current(self):
         """Read beam current (in pA) from SmartSEM."""
@@ -358,6 +423,9 @@ class SEM_SmartSEM(SEM):
     SmartSEM remote control API. Currently supported: Merlin, GeminiSEM,
     Ultra Plus. TODO: Adapt implementation for Sigma."""
 
+    # Variant conversions for passing values between Python and COM:
+    # https://www.oreilly.com/library/view/python-programming-on/1565926218/ch12s03s06.html
+
     def __init__(self, config, sysconfig):
         """Load all settings and initialize remote connection to SmartSEM."""
         # Call __init__ from base class (which loads all settings from
@@ -435,8 +503,127 @@ class SEM_SmartSEM(SEM):
                 f'sem.set_eht: command failed (ret_val: {ret_val})')
             return False
 
+
+    def has_vp(self):
+        """Return True if VP (= Variable Pressure) is fitted."""
+        if not self.simulation_mode:
+            return "yes" in self.sem_api.Get('DP_VP_SYSTEM', 0)[1].lower()
+        return True
+
+    def is_hv_on(self):
+        """Return True if HV (= High Vacuum) is on."""
+        return "vacuum" in self.sem_api.Get('DP_VAC_MODE', 0)[1].lower()
+
+    def is_vp_on(self):
+        """Return True if VP is on."""
+        return "variable" in self.sem_api.Get('DP_VAC_MODE', 0)[1].lower()
+
+    def get_chamber_pressure(self):
+        """Read current chamber pressure from SmartSEM."""
+        response = self.sem_api.Get('AP_CHAMBER_PRESSURE', 0)
+        return response[1]
+
+    def get_vp_target(self):
+        """Read current VP target pressure from SmartSEM."""
+        response = self.sem_api.Get('AP_HP_TARGET', 0)
+        return response[1]
+
+    def set_hv(self):
+        """Set HV."""
+        ret_val = self.sem_api.Execute('CMD_GOTO_HV')
+        if ret_val == 0:
+            return True
+        else:
+            self.error_state = ERROR_LIST['HV/VP error']
+            self.error_info = (
+                f'sem.set_hv: command failed (ret_val: {ret_val})')
+            return False
+
+    def set_vp(self):
+        """Set VP."""
+        ret_val = self.sem_api.Execute('CMD_GOTO_VP')
+        if ret_val == 0:
+            return True
+        else:
+            self.error_state = ERROR_LIST['HV/VP error']
+            self.error_info = (
+                f'sem.set_vp: command failed (ret_val: {ret_val})')
+            return False
+
+    def set_vp_target(self, target_pressure):
+        """Set the VP target pressure."""
+        variant = VARIANT(pythoncom.VT_R4, target_pressure)
+        ret_val = self.sem_api.Set('AP_HP_TARGET', variant)[0]
+        if ret_val == 0:
+            return True
+        else:
+            self.error_state = ERROR_LIST['VP error']
+            self.error_info = (
+                f'sem.set_vp_target: command failed (ret_val: {ret_val})')
+            return False
+
+
+    def has_fcc(self):
+        """Return True if FCC (= Focal Charge Compensator) is fitted."""
+        if not self.simulation_mode:
+            return "yes" in self.sem_api.Get('DP_CAPCC_FITTED', 0)[1].lower()
+        return True
+
+    def is_fcc_on(self):
+        """Return True if FCC is on."""
+        return "yes" in self.sem_api.Get('DP_CAPCC_INUSE', 0)[1].lower()
+
+    def is_fcc_off(self):
+        """Return True if FCC is off."""
+        return "no" in self.sem_api.Get('DP_CAPCC_INUSE', 0)[1].lower()
+
+    def get_fcc_level(self):
+        """Read current FCC pressure (0-100) from SmartSEM."""
+        response = self.sem_api.Get('AP_CC_PRESSURE', 0)
+        return response[1]
+
+    def turn_fcc_on(self):
+        """Turn FCC on."""
+        ret_val = self.sem_api.Execute('CMD_CC_IN')
+        if ret_val == 0:
+            return True
+        else:
+            self.error_state = ERROR_LIST['FCC error']
+            self.error_info = (
+                f'sem.turn_fcc_on: command failed (ret_val: {ret_val})')
+            return False
+
+    def turn_fcc_off(self):
+        """Turn FCC off."""
+        ret_val = self.sem_api.Execute('CMD_CC_OUT')
+        if ret_val == 0:
+            return True
+        else:
+            self.error_state = ERROR_LIST['FCC error']
+            self.error_info = (
+                f'sem.turn_fcc_off: command failed (ret_val: {ret_val})')
+            return False
+
+    def set_fcc_level(self, target_fcc_level):
+        """Save the target FCC (0-100) and set the FCC to this target value."""
+        variant = VARIANT(pythoncom.VT_R4, target_fcc_level)
+        ret_val = self.sem_api.Set('AP_CC_PRESSURE', variant)[0]
+        if ret_val == 0:
+            return True
+        else:
+            self.error_state = ERROR_LIST['FCC error']
+            self.error_info = (
+                f'sem.set_fcc_level: command failed (ret_val: {ret_val})')
+            return False
+
+
     def get_beam_current(self):
         """Read beam current (in pA) from SmartSEM."""
+        print(self.sem_api.Get('AP_IPROBE', 0))
+        print(self.sem_api.Get('DP_HIGH_CURRENT', 0))
+        print(self.sem_api.Get('AP_APERTURESIZE', 0))
+        print(self.sem_api.Get('DP_APERTURE', 0))
+
         return int(round(self.sem_api.Get('AP_IPROBE', 0)[1] * 10**12))
 
     def set_beam_current(self, target_current):
@@ -470,12 +657,14 @@ class SEM_SmartSEM(SEM):
 
     def apply_frame_settings(self, frame_size_selector, pixel_size, dwell_time):
         """Apply the frame settings (frame size, pixel size and dwell time)."""
-        ret_val1 = self.set_frame_size(frame_size_selector)
+        #ret_val1 = self.set_frame_size(frame_size_selector) # Sets SEM store res/size
         # The pixel size determines the magnification
         mag = int(self.MAG_PX_SIZE_FACTOR /
                   (self.STORE_RES[frame_size_selector][0] * pixel_size))
-        ret_val2 = self.set_mag(mag)
-        ret_val3 = self.set_dwell_time(dwell_time)
+        ret_val2 = self.set_mag(mag)                        # Sets SEM mag
+        ret_val3 = self.set_dwell_time(dwell_time)          # Sets SEM scan rate
+        ret_val1 = self.set_frame_size2(frame_size_selector) # Sets SEM store res/size
+        
         # Load SmartSEM cycle time for current settings
         scan_speed = self.DWELL_TIME.index(dwell_time)
         # 0.3 s and 0.8 s are safety margins
@@ -509,6 +698,26 @@ class SEM_SmartSEM(SEM):
         # Change back to 'freeze on end of frame' (0)
         freeze_variant = VARIANT(pythoncom.VT_R4, 0)
         self.sem_api.Set('DP_FREEZE_ON', freeze_variant)
+        if ret_val == 0:
+            return True
+        else:
+            self.error_state = 308
+            self.error_info = (
+                f'sem.set_frame_size: command failed (ret_val: {ret_val})')
+            return False
+
+    def set_frame_size2(self, frame_size_selector):
+        """Set SEM to frame size specified by frame_size_selector."""
+        #freeze_variant = VARIANT(pythoncom.VT_R4, 2)  # 2 = freeze on command
+        #self.sem_api.Set('DP_FREEZE_ON', freeze_variant)
+        selector_variant = VARIANT(pythoncom.VT_R4, frame_size_selector)
+        ret_val = self.sem_api.Set('DP_IMAGE_STORE', selector_variant)[0]
+        # Changing this parameter causes an 'unfreeze' command.
+        # Freeze again, immediately:
+        #self.sem_api.Execute('CMD_FREEZE_ALL')
+        # Change back to 'freeze on end of frame' (0)
+        #freeze_variant = VARIANT(pythoncom.VT_R4, 0)
+        #self.sem_api.Set('DP_FREEZE_ON', freeze_variant)
         if ret_val == 0:
             return True
         else:
