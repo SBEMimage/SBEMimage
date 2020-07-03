@@ -60,7 +60,7 @@ class SEM:
         # can automatically change between overviews, grids and single frames.
         self.target_eht = float(self.cfg['sem']['eht'])
         self.target_beam_current = int(float(self.cfg['sem']['beam_current']))
-        self.target_aperture_size = int(float(self.cfg['sem']['aperture_size']))
+        self.target_aperture_size = float(self.cfg['sem']['aperture_size'])
         # self.stage_rotation: rotation angle of SEM stage (0° by default)
         self.stage_rotation = 0
         # 'Grab frame' settings: these are the settings for acquiring single
@@ -133,7 +133,7 @@ class SEM:
             self.stage_move_wait_interval)
         self.cfg['sem']['eht'] = '{0:.2f}'.format(self.target_eht)
         self.cfg['sem']['beam_current'] = str(int(self.target_beam_current))
-        self.cfg['sem']['aperture_size'] = str(int(self.target_aperture_size))
+        self.cfg['sem']['aperture_size'] = str(self.target_aperture_size)
         self.cfg['sem']['grab_frame_dwell_time'] = str(self.grab_dwell_time)
         self.cfg['sem']['grab_frame_pixel_size'] = '{0:.1f}'.format(
             self.grab_pixel_size)
@@ -251,7 +251,7 @@ class SEM:
     def set_aperture_size(self, aperture_size_index):
         """Save the aperture size (in μm) and set the SEM's beam to this
         aperture size."""
-        self.target_aperture_size = self.APERTURE_SIZE.index(aperture_size_index)
+        self.target_aperture_size = self.APERTURE_SIZE[aperture_size_index]
         # Setting SEM to target aperture size must be implemented in child class!
 
     def apply_beam_settings(self):
@@ -658,7 +658,7 @@ class SEM_SmartSEM(SEM):
 
     def get_aperture_size(self):
         """Read aperture size (in μm) from SmartSEM."""
-        return int(round(self.sem_api.Get('AP_APERTURESIZE', 0)[1] * 10**6))
+        return round(self.sem_api.Get('AP_APERTURESIZE', 0)[1] * 10**6, 1)
 
     def set_aperture_size(self, aperture_size_index):
         """Save the aperture size (in μm) and set the SEM's beam to this
@@ -666,7 +666,8 @@ class SEM_SmartSEM(SEM):
         # Call method in parent class
         super().set_aperture_size(aperture_size_index)
         # aperture_size given in μm
-        ret_val = self.sem_api.Set('DP_APERTURE', aperture_size_index + 1)[0]
+        selector_variant = VARIANT(pythoncom.VT_R4, aperture_size_index)
+        ret_val = self.sem_api.Set('DP_APERTURE', selector_variant)[0]
         if ret_val == 0:
             return True
         else:
