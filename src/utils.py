@@ -88,6 +88,7 @@ ERROR_LIST = {
     313: 'Beam blanking error',
     314: 'HV/VP error',
     315: 'FCC error',
+    316: 'Aperture size error',
 
     # First digit 4: I/O error
     401: 'Primary drive error',

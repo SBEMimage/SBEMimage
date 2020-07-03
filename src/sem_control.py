@@ -60,6 +60,7 @@ class SEM:
         # can automatically change between overviews, grids and single frames.
         self.target_eht = float(self.cfg['sem']['eht'])
         self.target_beam_current = int(float(self.cfg['sem']['beam_current']))
+        self.target_aperture_size = int(float(self.cfg['sem']['aperture_size']))
         # self.stage_rotation: rotation angle of SEM stage (0° by default)
         self.stage_rotation = 0
         # 'Grab frame' settings: these are the settings for acquiring single
@@ -100,6 +101,8 @@ class SEM:
         self.STORE_RES = json.loads(self.syscfg['sem']['store_res'])
         # self.DWELL_TIME: available dwell times in microseconds
         self.DWELL_TIME = json.loads(self.syscfg['sem']['dwell_time'])
+        # self.APERTURE_SIZE: available aperture sizes in microns
+        self.APERTURE_SIZE = json.loads(self.syscfg['sem']['aperture_size'])
         # Cycle times: Duration of scanning one full frame, depends on
         # scan rate and frame size:
         # cycle_time[frame_size_selector][scan_rate] -> duration in sec
@@ -130,6 +133,7 @@ class SEM:
             self.stage_move_wait_interval)
         self.cfg['sem']['eht'] = '{0:.2f}'.format(self.target_eht)
         self.cfg['sem']['beam_current'] = str(int(self.target_beam_current))
+        self.cfg['sem']['aperture_size'] = str(int(self.target_aperture_size))
         self.cfg['sem']['grab_frame_dwell_time'] = str(self.grab_dwell_time)
         self.cfg['sem']['grab_frame_pixel_size'] = '{0:.1f}'.format(
             self.grab_pixel_size)
@@ -239,6 +243,16 @@ class SEM:
         target current."""
         self.target_beam_current = target_current
         # Setting SEM to target beam current must be implemented in child class!
+
+    def get_aperture_size(self):
+        """Read aperture size (in μm) from SmartSEM."""
+        raise NotImplementedError
+
+    def set_aperture_size(self, aperture_size_index):
+        """Save the aperture size (in μm) and set the SEM's beam to this
+        aperture size."""
+        self.target_aperture_size = self.APERTURE_SIZE.index(aperture_size_index)
+        # Setting SEM to target aperture size must be implemented in child class!
 
     def apply_beam_settings(self):
         """Set the SEM to the current target EHT voltage and beam current."""
@@ -640,6 +654,25 @@ class SEM_SmartSEM(SEM):
             self.error_state = 307
             self.error_info = (
                 f'sem.set_beam_current: command failed (ret_val: {ret_val})')
+            return False
+
+    def get_aperture_size(self):
+        """Read aperture size (in μm) from SmartSEM."""
+        return int(round(self.sem_api.Get('AP_APERTURESIZE', 0)[1] * 10**6))
+
+    def set_aperture_size(self, aperture_size_index):
+        """Save the aperture size (in μm) and set the SEM's beam to this
+        aperture size."""
+        # Call method in parent class
+        super().set_aperture_size(aperture_size_index)
+        # aperture_size given in μm
+        ret_val = self.sem_api.Set('DP_APERTURE', aperture_size_index + 1)[0]
+        if ret_val == 0:
+            return True
+        else:
+            self.error_state = ERROR_LIST['Aperture size error']
+            self.error_info = (
+                f'sem.set_aperture_size: command failed (ret_val: {ret_val})')
             return False
 
     def apply_beam_settings(self):
