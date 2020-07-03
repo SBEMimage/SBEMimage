@@ -335,7 +335,7 @@
     </rect>
    </property>
   </widget>
-  <widget class="QSpinBox" name="spinBox_actualBeamSize">
+  <widget class="QDoubleSpinBox" name="spinBox_actualBeamSize">
    <property name="enabled">
     <bool>false</bool>
    </property>
@@ -347,17 +347,17 @@
      <height>22</height>
     </rect>
    </property>
-   <property name="minimum">
-    <number>10</number>
+   <property name="decimals">
+    <number>1</number>
    </property>
    <property name="maximum">
-    <number>99000</number>
+    <double>1000.000000000000000</double>
    </property>
    <property name="singleStep">
-    <number>100</number>
+    <double>10.000000000000000</double>
    </property>
    <property name="value">
-    <number>30</number>
+    <double>30.000000000000000</double>
    </property>
   </widget>
  </widget>
