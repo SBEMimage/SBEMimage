@@ -680,7 +680,8 @@ class SEM_SmartSEM(SEM):
         """Set the SEM to the target EHT voltage and beam current."""
         ret_val1 = self.set_eht(self.target_eht)
         ret_val2 = self.set_beam_current(self.target_beam_current)
-        return (ret_val1 and ret_val2)
+        ret_val3 = self.set_aperture_size(self.APERTURE_SIZE.index(self.target_aperture_size))
+        return (ret_val1 and ret_val2 and ret_val3)
 
     def apply_grab_settings(self):
         """Set the SEM to the current grab settings."""
