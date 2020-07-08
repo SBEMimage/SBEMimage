@@ -40,7 +40,8 @@ from PyQt5.uic import loadUi
 
 import acq_func
 import utils
-from sem_control import SEM_SmartSEM
+from sem_control_zeiss import SEM_SmartSEM
+from sem_control_fei import SEM_Quanta
 from microtome_control import Microtome_3View, Microtome_katana
 from stage import Stage
 from plasma_cleaner import PlasmaCleaner
