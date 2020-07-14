@@ -42,7 +42,8 @@ import acq_func
 import utils
 from sem_control_zeiss import SEM_SmartSEM
 from sem_control_fei import SEM_Quanta
-from microtome_control import Microtome_3View, Microtome_katana
+from microtome_control_gatan import Microtome_3View
+from microtome_control_katana import Microtome_katana
 from stage import Stage
 from plasma_cleaner import PlasmaCleaner
 from acquisition import Acquisition
