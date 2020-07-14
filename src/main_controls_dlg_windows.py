@@ -172,9 +172,12 @@ class SEMSettingsDlg(QDialog):
         # Display actual settings from SmartSEM
         self.doubleSpinBox_actualEHT.setValue(self.sem.get_eht())
         self.spinBox_actualBeamCurrent.setValue(self.sem.get_beam_current())
+        self.spinBox_actualBeamSize.setValue(self.sem.get_aperture_size())
         # Display current target settings
         self.doubleSpinBox_EHT.setValue(self.sem.target_eht)
         self.spinBox_beamCurrent.setValue(self.sem.target_beam_current)
+        self.comboBox_beamSize.addItems(map(str, self.sem.APERTURE_SIZE))
+        self.comboBox_beamSize.setCurrentText(str(self.sem.target_aperture_size))
         # Display current working distance and stigmation parameters
         self.lineEdit_currentFocus.setText(
             '{0:.6f}'.format(sem.get_wd() * 1000))
@@ -184,6 +187,7 @@ class SEMSettingsDlg(QDialog):
     def accept(self):
         self.sem.set_eht(self.doubleSpinBox_EHT.value())
         self.sem.set_beam_current(self.spinBox_beamCurrent.value())
+        self.sem.set_aperture_size(self.comboBox_beamSize.currentIndex())
         super().accept()
 
 # ------------------------------------------------------------------------------
@@ -1692,7 +1696,8 @@ class PreStackDlg(QDialog):
         self.label_sliceCounter.setText(str(self.acq.slice_counter))
         self.label_beamSettings.setText(
             f'{self.sem.target_eht:.2f} keV, '
-            f'{self.sem.target_beam_current} pA')
+            f'{self.sem.target_beam_current} pA, '
+            f'{self.sem.target_aperture_size} μm')
         self.label_gridSetup.setText(
             f'{ovm.number_ov} overview(s), {self.gm.number_grids} grid(s);')
         self.label_totalActiveTiles.setText(

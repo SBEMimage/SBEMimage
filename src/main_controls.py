@@ -40,7 +40,8 @@ from PyQt5.uic import loadUi
 
 import acq_func
 import utils
-from sem_control import SEM_SmartSEM
+from sem_control_zeiss import SEM_SmartSEM
+from sem_control_fei import SEM_Quanta
 from microtome_control import Microtome_3View, Microtome_katana
 from stage import Stage
 from plasma_cleaner import PlasmaCleaner
@@ -654,7 +655,8 @@ class MainControls(QMainWindow):
         # SEM beam settings:
         self.label_beamSettings.setText(
             '{0:.2f}'.format(self.sem.target_eht) + ' kV / '
-            + str(self.sem.target_beam_current) + ' pA')
+            + str(self.sem.target_beam_current) + ' pA / '
+            + str(self.sem.target_aperture_size) + ' μm')
         # Show dwell time, pixel size, and frame size for current grid:
         self.label_tileDwellTime.setText(
             str(self.gm[self.grid_index_dropdown].dwell_time) + ' µs')

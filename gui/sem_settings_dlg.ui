@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>231</width>
-    <height>319</height>
+    <width>311</width>
+    <height>298</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -28,8 +28,8 @@
   <widget class="QDialogButtonBox" name="buttonBox">
    <property name="geometry">
     <rect>
-     <x>60</x>
-     <y>282</y>
+     <x>140</x>
+     <y>260</y>
      <width>161</width>
      <height>32</height>
     </rect>
@@ -47,8 +47,8 @@
   <widget class="QDoubleSpinBox" name="doubleSpinBox_EHT">
    <property name="geometry">
     <rect>
-     <x>150</x>
-     <y>102</y>
+     <x>230</x>
+     <y>50</y>
      <width>71</width>
      <height>22</height>
     </rect>
@@ -69,21 +69,21 @@
   <widget class="QLabel" name="label_14">
    <property name="geometry">
     <rect>
-     <x>10</x>
-     <y>132</y>
-     <width>131</width>
+     <x>230</x>
+     <y>30</y>
+     <width>41</width>
      <height>20</height>
     </rect>
    </property>
    <property name="text">
-    <string>Target beam current (pA):</string>
+    <string>Target</string>
    </property>
   </widget>
   <widget class="QSpinBox" name="spinBox_beamCurrent">
    <property name="geometry">
     <rect>
-     <x>150</x>
-     <y>132</y>
+     <x>230</x>
+     <y>80</y>
      <width>71</width>
      <height>22</height>
     </rect>
@@ -104,21 +104,21 @@
   <widget class="QLabel" name="label">
    <property name="geometry">
     <rect>
-     <x>10</x>
-     <y>102</y>
-     <width>111</width>
+     <x>150</x>
+     <y>30</y>
+     <width>41</width>
      <height>20</height>
     </rect>
    </property>
    <property name="text">
-    <string>Target EHT (kV):</string>
+    <string>Current</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_csy">
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>242</y>
+     <y>222</y>
      <width>131</width>
      <height>20</height>
     </rect>
@@ -134,7 +134,7 @@
    <property name="geometry">
     <rect>
      <x>150</x>
-     <y>182</y>
+     <y>162</y>
      <width>71</width>
      <height>20</height>
     </rect>
@@ -147,7 +147,7 @@
    <property name="geometry">
     <rect>
      <x>150</x>
-     <y>212</y>
+     <y>192</y>
      <width>71</width>
      <height>20</height>
     </rect>
@@ -157,7 +157,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>212</y>
+     <y>192</y>
      <width>131</width>
      <height>20</height>
     </rect>
@@ -170,7 +170,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>182</y>
+     <y>162</y>
      <width>151</width>
      <height>20</height>
     </rect>
@@ -186,7 +186,7 @@
    <property name="geometry">
     <rect>
      <x>150</x>
-     <y>242</y>
+     <y>222</y>
      <width>71</width>
      <height>20</height>
     </rect>
@@ -196,8 +196,8 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>160</y>
-     <width>211</width>
+     <y>140</y>
+     <width>291</width>
      <height>16</height>
     </rect>
    </property>
@@ -222,7 +222,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>40</y>
+     <y>50</y>
      <width>81</width>
      <height>20</height>
     </rect>
@@ -241,7 +241,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>70</y>
+     <y>80</y>
      <width>131</width>
      <height>20</height>
     </rect>
@@ -263,7 +263,7 @@
    <property name="geometry">
     <rect>
      <x>150</x>
-     <y>40</y>
+     <y>50</y>
      <width>71</width>
      <height>22</height>
     </rect>
@@ -288,7 +288,7 @@
    <property name="geometry">
     <rect>
      <x>150</x>
-     <y>70</y>
+     <y>80</y>
      <width>71</width>
      <height>22</height>
     </rect>
@@ -306,6 +306,60 @@
     <number>500</number>
    </property>
   </widget>
+  <widget class="QLabel" name="label_5">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>110</y>
+     <width>131</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <weight>50</weight>
+     <bold>false</bold>
+    </font>
+   </property>
+   <property name="text">
+    <string>Aperture size (μm):</string>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="comboBox_beamSize">
+   <property name="geometry">
+    <rect>
+     <x>230</x>
+     <y>110</y>
+     <width>69</width>
+     <height>22</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QDoubleSpinBox" name="spinBox_actualBeamSize">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>150</x>
+     <y>110</y>
+     <width>71</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="decimals">
+    <number>1</number>
+   </property>
+   <property name="maximum">
+    <double>1000.000000000000000</double>
+   </property>
+   <property name="singleStep">
+    <double>10.000000000000000</double>
+   </property>
+   <property name="value">
+    <double>30.000000000000000</double>
+   </property>
+  </widget>
  </widget>
  <resources/>
  <connections>
@@ -317,7 +371,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>248</x>
-     <y>254</y>
+     <y>260</y>
     </hint>
     <hint type="destinationlabel">
      <x>157</x>
@@ -332,7 +386,7 @@
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>316</x>
+     <x>300</x>
      <y>260</y>
     </hint>
     <hint type="destinationlabel">
