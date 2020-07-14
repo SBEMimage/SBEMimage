@@ -13,6 +13,8 @@ that are actually required in SBEMimage have been implemented."""
 
 import json
 
+from utils import ERROR_LIST
+
 
 class SEM:
     """Base class for remote SEM control. Implements minimum parameter handling.
