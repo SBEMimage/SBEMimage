@@ -27,7 +27,7 @@ CFG_NUMBER_KEYS = 197
 
 SYSCFG_TEMPLATE_FILE = '..\\cfg\\system.cfg'  # Template of system configuration
 SYSCFG_NUMBER_SECTIONS = 7
-SYSCFG_NUMBER_KEYS = 34
+SYSCFG_NUMBER_KEYS = 36
 
 
 def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):

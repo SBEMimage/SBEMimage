@@ -133,6 +133,11 @@ class Microtome:
                 self.syscfg['stage']['slow_xy_move_counter'])
             self.failed_xyz_move_counter = json.loads(
                 self.syscfg['stage']['failed_xyz_move_counter'])
+            # Maintenance moves
+            self.use_maintenance_moves = (
+                self.syscfg['stage']['use_maintenance_moves'].lower() == 'true')
+            self.maintenance_move_interval = int(
+                self.syscfg['stage']['maintenance_move_interval'])
             # Deques for last 200 moves (0 = ok; 1 = warning)
             self.slow_xy_move_warnings = deque(maxlen=200)
             self.failed_x_move_warnings = deque(maxlen=200)
@@ -186,6 +191,12 @@ class Microtome:
             self.slow_xy_move_counter)
         self.syscfg['stage']['failed_xyz_move_counter'] = json.dumps(
             self.failed_xyz_move_counter)
+        # Maintenance moves
+        self.syscfg['stage']['use_maintenance_moves'] = str(
+            self.use_maintenance_moves)
+        self.syscfg['stage']['maintenance_move_interval'] = str(int(
+            self.maintenance_move_interval))
+
 
     def do_full_cut(self):
         """Perform a full cut cycle. This is the only knife control function

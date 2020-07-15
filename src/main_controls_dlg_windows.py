@@ -204,7 +204,7 @@ class MicrotomeSettingsDlg(QDialog):
         self.microtome = microtome
         self.sem = sem
         self.cs = coordinate_system
-        self.microtom_active = microtome_active
+        self.microtome_active = microtome_active
         loadUi('..\\gui\\microtome_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -212,7 +212,7 @@ class MicrotomeSettingsDlg(QDialog):
         self.show()
         # Labels and selection options depend on whether microtome stage or
         # SEM stage is used.
-        if microtome_active:
+        if self.microtome_active:
             self.label_selectedStage.setText('Microtome stage active.')
             # Enabled motor status button (disabled by default)
             self.pushButton_showMotorStatus.setEnabled(True)
@@ -232,6 +232,14 @@ class MicrotomeSettingsDlg(QDialog):
             current_calibration = self.cs.stage_calibration
             speed_x, speed_y = (
                 self.microtome.motor_speed_x, self.microtome.motor_speed_y)
+            # Maintenance moves
+            self.checkBox_enableMaintenanceMoves.setChecked(
+                self.microtome.use_maintenance_moves)
+            self.update_maintenance_move_interval_spinbox()
+            self.checkBox_enableMaintenanceMoves.stateChanged.connect(
+                self.update_maintenance_move_interval_spinbox)
+            self.spinBox_maintenanceMoveInterval.setValue(
+                self.microtome.maintenance_move_interval)
         else:
             self.label_selectedStage.setText('SEM stage active.')
             # Display stage limits. Not editable for SEM at the moment.
@@ -273,13 +281,21 @@ class MicrotomeSettingsDlg(QDialog):
         dialog = MotorStatusDlg(self.microtome)
         dialog.exec_()
 
+    def update_maintenance_move_interval_spinbox(self):
+        self.spinBox_maintenanceMoveInterval.setEnabled(
+            self.checkBox_enableMaintenanceMoves.isChecked())
+
     def accept(self):
-        if self.microtom_active:
+        if self.microtome_active:
             self.microtome.stage_move_wait_interval = (
                 self.doubleSpinBox_waitInterval.value())
             self.microtome.stage_limits = [
                 self.spinBox_stageMinX.value(), self.spinBox_stageMaxX.value(),
                 self.spinBox_stageMinY.value(), self.spinBox_stageMaxY.value()]
+            self.microtome.use_maintenance_moves = (
+                self.checkBox_enableMaintenanceMoves.isChecked())
+            self.microtome.maintenance_move_interval = (
+                self.spinBox_maintenanceMoveInterval.value())
         else:
             self.sem.set_stage_move_wait_interval(
                 self.doubleSpinBox_waitInterval.value())
