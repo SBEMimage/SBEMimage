@@ -256,6 +256,15 @@ class MicrotomeSettingsDlg(QDialog):
             speed_x, speed_y = self.sem.motor_speed_x, self.sem.motor_speed_y
             self.doubleSpinBox_waitInterval.setValue(
                 self.sem.stage_move_wait_interval)
+            # Maintenance moves
+            self.checkBox_enableMaintenanceMoves.setChecked(
+                self.sem.use_maintenance_moves)
+            self.update_maintenance_move_interval_spinbox()
+            self.checkBox_enableMaintenanceMoves.stateChanged.connect(
+                self.update_maintenance_move_interval_spinbox)
+            self.spinBox_maintenanceMoveInterval.setValue(
+                self.sem.maintenance_move_interval)
+
         self.spinBox_stageMinX.setValue(current_motor_limits[0])
         self.spinBox_stageMaxX.setValue(current_motor_limits[1])
         self.spinBox_stageMinY.setValue(current_motor_limits[2])
@@ -299,6 +308,11 @@ class MicrotomeSettingsDlg(QDialog):
         else:
             self.sem.set_stage_move_wait_interval(
                 self.doubleSpinBox_waitInterval.value())
+            self.sem.use_maintenance_moves = (
+                self.checkBox_enableMaintenanceMoves.isChecked())
+            self.sem.maintenance_move_interval = (
+                self.spinBox_maintenanceMoveInterval.value())
+
         super().accept()
 
 # ------------------------------------------------------------------------------

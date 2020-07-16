@@ -731,9 +731,9 @@ class Acquisition:
 
             # Counter for maintenance moves
             interval_counter_before = ((
-                self.microtome.total_xyz_move_counter[0][0]
-                + self.microtome.total_xyz_move_counter[1][0])
-                // self.microtome.maintenance_move_interval)
+                self.stage.total_xyz_move_counter[0][0]      # total X moves
+                + self.stage.total_xyz_move_counter[1][0])   # total Y moves
+                // self.stage.maintenance_move_interval)
 
             # First, acquire all overviews. On the first slice when (re)starting
             # an acquisition, the user will be asked to confirm that the
@@ -820,12 +820,11 @@ class Acquisition:
             sleep(0.1)
 
             # If enabled do maintenance moves at specified intervals
-            if (self.microtome is not None
-                    and self.microtome.use_maintenance_moves):
+            if self.stage.use_maintenance_moves:
                 interval_counter_after = ((
-                    self.microtome.total_xyz_move_counter[0][0]
-                    + self.microtome.total_xyz_move_counter[1][0])
-                    // self.microtome.maintenance_move_interval)
+                    self.stage.total_xyz_move_counter[0][0]
+                    + self.stage.total_xyz_move_counter[1][0])
+                    // self.stage.maintenance_move_interval)
                 if interval_counter_after > interval_counter_before:
                     self.do_maintenance_moves()
 

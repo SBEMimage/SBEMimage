@@ -12,8 +12,7 @@
 that are actually required in SBEMimage have been implemented."""
 
 import json
-
-from utils import ERROR_LIST
+from collections import deque
 
 
 class SEM:
@@ -89,6 +88,28 @@ class SEM:
         # self.auto_beam_blank: currently unused
         self.auto_beam_blank = (
             self.cfg['sem']['auto_beam_blank'].lower() == 'true')
+        # SEM stage motor tolerances
+        self.xy_tolerance = float(
+            self.syscfg['stage']['sem_xy_tolerance'])
+        self.z_tolerance = float(
+            self.syscfg['stage']['sem_z_tolerance'])
+        # Motor diagnostics
+        self.total_xyz_move_counter = json.loads(
+            self.syscfg['stage']['sem_xyz_move_counter'])
+        self.slow_xy_move_counter = int(
+            self.syscfg['stage']['sem_slow_xy_move_counter'])
+        self.failed_xyz_move_counter = json.loads(
+            self.syscfg['stage']['sem_failed_xyz_move_counter'])
+        # Maintenance moves
+        self.use_maintenance_moves = (
+            self.syscfg['stage']['sem_use_maintenance_moves'].lower() == 'true')
+        self.maintenance_move_interval = int(
+            self.syscfg['stage']['sem_maintenance_move_interval'])
+        # Deques for last 200 moves (0 = ok; 1 = warning)
+        self.slow_xy_move_warnings = deque(maxlen=200)
+        self.failed_x_move_warnings = deque(maxlen=200)
+        self.failed_y_move_warnings = deque(maxlen=200)
+        self.failed_z_move_warnings = deque(maxlen=200)
 
     def load_system_constants(self):
         """Load all SEM-related constants from system configuration."""
@@ -140,6 +161,20 @@ class SEM:
         self.cfg['sem']['bsd_brightness'] = str(self.bsd_brightness)
         self.cfg['sem']['bsd_bias'] = str(self.bsd_bias)
         self.cfg['sem']['auto_beam_blank'] = str(self.auto_beam_blank)
+        self.syscfg['stage']['sem_xy_tolerance'] = str(self.xy_tolerance)
+        self.syscfg['stage']['sem_z_tolerance'] = str(self.z_tolerance)
+        # Motor diagnostics
+        self.syscfg['stage']['sem_xyz_move_counter'] = json.dumps(
+            self.total_xyz_move_counter)
+        self.syscfg['stage']['sem_slow_xy_move_counter'] = str(
+            self.slow_xy_move_counter)
+        self.syscfg['stage']['sem_failed_xyz_move_counter'] = json.dumps(
+            self.failed_xyz_move_counter)
+        # Maintenance moves
+        self.syscfg['stage']['sem_use_maintenance_moves'] = str(
+            self.use_maintenance_moves)
+        self.syscfg['stage']['sem_maintenance_move_interval'] = str(int(
+            self.maintenance_move_interval))
 
     def turn_eht_on(self):
         """Turn EHT (= high voltage) on."""
@@ -416,6 +451,16 @@ class SEM:
         duration_x = abs(to_x - from_x) / self.motor_speed_x
         duration_y = abs(to_y - from_y) / self.motor_speed_y
         return max(duration_x, duration_y) + self.stage_move_wait_interval
+
+    def reset_stage_move_counters(self):
+        """Reset all the counters that keep track of motor moves."""
+        self.total_xyz_move_counter = [[0, 0, 0], [0, 0, 0], [0, 0]]
+        self.failed_xyz_move_counter = [0, 0, 0]
+        self.slow_xy_move_counter = 0
+        self.slow_xy_move_warnings.clear()
+        self.failed_x_move_warnings.clear()
+        self.failed_y_move_warnings.clear()
+        self.failed_z_move_warnings.clear()
 
     def reset_error_state(self):
         """Reset the error state (to 'no error') and clear self.error_info."""

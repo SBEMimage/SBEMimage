@@ -123,21 +123,22 @@ class Microtome:
                 self.cfg['microtome']['stage_move_wait_interval'])
             # Motor tolerance
             self.xy_tolerance = float(
-                self.syscfg['stage']['xy_tolerance'])
+                self.syscfg['stage']['microtome_xy_tolerance'])
             self.z_tolerance = float(
-                self.syscfg['stage']['z_tolerance'])
+                self.syscfg['stage']['microtome_z_tolerance'])
             # Motor diagnostics
             self.total_xyz_move_counter = json.loads(
-                self.syscfg['stage']['xyz_move_counter'])
+                self.syscfg['stage']['microtome_xyz_move_counter'])
             self.slow_xy_move_counter = int(
-                self.syscfg['stage']['slow_xy_move_counter'])
+                self.syscfg['stage']['microtome_slow_xy_move_counter'])
             self.failed_xyz_move_counter = json.loads(
-                self.syscfg['stage']['failed_xyz_move_counter'])
+                self.syscfg['stage']['microtome_failed_xyz_move_counter'])
             # Maintenance moves
             self.use_maintenance_moves = (
-                self.syscfg['stage']['use_maintenance_moves'].lower() == 'true')
+                self.syscfg['stage']['microtome_use_maintenance_moves'].lower()
+                == 'true')
             self.maintenance_move_interval = int(
-                self.syscfg['stage']['maintenance_move_interval'])
+                self.syscfg['stage']['microtome_maintenance_move_interval'])
             # Deques for last 200 moves (0 = ok; 1 = warning)
             self.slow_xy_move_warnings = deque(maxlen=200)
             self.failed_x_move_warnings = deque(maxlen=200)
@@ -182,19 +183,19 @@ class Microtome:
         self.cfg['microtome']['full_cut_duration'] = str(self.full_cut_duration)
         self.syscfg['knife']['full_cut_duration'] = str(self.full_cut_duration)
         # Motor tolerance
-        self.syscfg['stage']['xy_tolerance'] = str(self.xy_tolerance)
-        self.syscfg['stage']['z_tolerance'] = str(self.z_tolerance)
+        self.syscfg['stage']['microtome_xy_tolerance'] = str(self.xy_tolerance)
+        self.syscfg['stage']['microtome_z_tolerance'] = str(self.z_tolerance)
         # Motor diagnostics
-        self.syscfg['stage']['xyz_move_counter'] = json.dumps(
+        self.syscfg['stage']['microtome_xyz_move_counter'] = json.dumps(
             self.total_xyz_move_counter)
-        self.syscfg['stage']['slow_xy_move_counter'] = str(
+        self.syscfg['stage']['microtome_slow_xy_move_counter'] = str(
             self.slow_xy_move_counter)
-        self.syscfg['stage']['failed_xyz_move_counter'] = json.dumps(
+        self.syscfg['stage']['microtome_failed_xyz_move_counter'] = json.dumps(
             self.failed_xyz_move_counter)
         # Maintenance moves
-        self.syscfg['stage']['use_maintenance_moves'] = str(
+        self.syscfg['stage']['microtome_use_maintenance_moves'] = str(
             self.use_maintenance_moves)
-        self.syscfg['stage']['maintenance_move_interval'] = str(int(
+        self.syscfg['stage']['microtome_maintenance_move_interval'] = str(int(
             self.maintenance_move_interval))
 
 
