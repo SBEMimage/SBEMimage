@@ -25,7 +25,7 @@ from utils import ERROR_LIST
 class SEM_SmartSEM(SEM):
     """Implements all methods for remote control of ZEISS SEMs via the
     SmartSEM remote control API. Currently supported: Merlin, GeminiSEM,
-    Ultra Plus. TODO: Adapt implementation for Sigma."""
+    Ultra Plus, and Sigma."""
 
     # Variant conversions for passing values between Python and COM:
     # https://www.oreilly.com/library/view/python-programming-on/1565926218/ch12s03s06.html
@@ -107,11 +107,10 @@ class SEM_SmartSEM(SEM):
                 f'sem.set_eht: command failed (ret_val: {ret_val})')
             return False
 
-
     def has_vp(self):
         """Return True if VP (= Variable Pressure) is fitted."""
         if not self.simulation_mode:
-            return "yes" in self.sem_api.Get('DP_VP_SYSTEM', 0)[1].lower()
+            return 'yes' in str(self.sem_api.Get('DP_VP_SYSTEM', 0)[1]).lower()
         return True
 
     def is_hv_on(self):
@@ -284,7 +283,7 @@ class SEM_SmartSEM(SEM):
         ret_val2 = self.set_mag(mag)                        # Sets SEM mag
         ret_val3 = self.set_dwell_time(dwell_time)          # Sets SEM scan rate
         ret_val1 = self.set_frame_size2(frame_size_selector) # Sets SEM store res/size
-        
+
         # Load SmartSEM cycle time for current settings
         scan_speed = self.DWELL_TIME.index(dwell_time)
         # 0.3 s and 0.8 s are safety margins

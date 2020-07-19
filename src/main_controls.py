@@ -258,7 +258,12 @@ class MainControls(QMainWindow):
             self.cfg['sys']['plc_installed'].lower() == 'true')
         self.plc_initialized = False
 
-        self.vp_installed = self.sem.has_vp()
+        # Check if VP and FCC installed
+        self.cfg['sys']['vp_installed'] = self.syscfg['vp']['installed']
+        if self.syscfg['vp']['installed'].lower() == 'true':
+            self.vp_installed = self.sem.has_vp()
+        else:
+            self.vp_installed = False
         self.fcc_installed = self.sem.has_fcc()
 
         self.initialize_main_controls_gui()
