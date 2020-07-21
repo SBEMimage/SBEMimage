@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
 
-"""Tests for the microtome module.
-"""
+"""Tests for microtome_control.py."""
 
 import pytest
 
 import os
 from configparser import ConfigParser
 
-from microtome_control import Microtome, Microtome_3View, Microtome_katana
+from microtome_control import Microtome
 
 @pytest.fixture
 def microtome():
@@ -22,7 +21,7 @@ def microtome():
     # Create and return microtome instance
     return Microtome(config, sysconfig)
 
-def test_something(microtome):
+def test_initial_config(microtome):
 	assert microtome.device_name == 'Gatan 3View'
 
 
