@@ -441,13 +441,13 @@ class MotorStatusDlg(QDialog):
         elif x_total[1] > 10000:     # 10 mm
             x_total_dist_str = f'{(x_total[1] / 1000):.1f} mm'
         else:
-            x_total_dist_str = f'{int(x_total[1]):.1f} µm'
+            x_total_dist_str = f'{int(x_total[1])} µm'
         if y_total[1] > 10000000:    # 10 m
             y_total_dist_str = f'{(y_total[1] / 1000000):.1f} m'
         elif y_total[1] > 10000:     # 10 mm
             y_total_dist_str = f'{(y_total[1] / 1000):.1f} mm'
         else:
-            y_total_dist_str = f'{int(y_total[1]):.1f} µm'
+            y_total_dist_str = f'{int(y_total[1])} µm'
         # For Z distance, use mm if >10mm
         if z_total[1] > 10000:
             z_total_dist_str = f'{(z_total[1] / 1000):.3f} mm'

@@ -20,6 +20,8 @@
 import json
 from collections import deque
 
+import utils
+
 
 class Microtome:
     """Base class for microtome control. It implements minimum config/parameter
@@ -186,6 +188,9 @@ class Microtome:
         self.syscfg['stage']['microtome_xy_tolerance'] = str(self.xy_tolerance)
         self.syscfg['stage']['microtome_z_tolerance'] = str(self.z_tolerance)
         # Motor diagnostics
+        # Round floats
+        self.total_xyz_move_counter = utils.round_floats(
+            self.total_xyz_move_counter)
         self.syscfg['stage']['microtome_xyz_move_counter'] = json.dumps(
             self.total_xyz_move_counter)
         self.syscfg['stage']['microtome_slow_xy_move_counter'] = str(

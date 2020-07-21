@@ -365,6 +365,14 @@ def round_xy(coordinates):
     x, y = coordinates
     return [round(x, 3), round(y, 3)]
 
+def round_floats(input_var, precision=3):
+    """Round floats, or (nested) lists of floats."""
+    if isinstance(input_var, float):
+        return round(input_var, precision)
+    if isinstance(input_var, list):
+        return [round_floats(entry) for entry in input_var]
+    return input_var
+
 # ----------------- Functions for geometric transforms (MagC) ------------------
 def affineT(x_in, y_in, x_out, y_out):
     X = np.array([[x, y, 1] for (x,y) in zip(x_in, y_in)])
