@@ -2065,7 +2065,7 @@ class MainControls(QMainWindow):
 
     def closeEvent(self, event):
         if self.microtome is not None and self.microtome.error_state == 701:
-            if self.sem is not None:
+            if self.sem.sem_api is not None:
                 self.sem.disconnect()
             print('\n\nError in configuration file. Aborted.\n')
             event.accept()
@@ -2084,8 +2084,9 @@ class MainControls(QMainWindow):
                     elif (self.use_microtome
                         and self.microtome.device_name == 'ConnectomX katana'):
                         self.microtome.disconnect()
-                    sem_log_msg = self.sem.disconnect()
-                    self.add_to_log('SEM: ' + sem_log_msg)
+                    if self.sem.sem_api is not None:
+                        sem_log_msg = self.sem.disconnect()
+                        self.add_to_log('SEM: ' + sem_log_msg)
                 if self.plc_initialized:
                     plasma_log_msg = self.plasma_cleaner.close_port()
                     self.add_to_log(plasma_log_msg)

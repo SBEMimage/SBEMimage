@@ -54,6 +54,8 @@ class SEM_SmartSEM(SEM):
                 # Read current SEM stage coordinates
                 self.last_known_x, self.last_known_y, self.last_known_z = (
                     self.get_stage_xyz())
+        else:
+            self.sem_api = None
 
     def turn_eht_on(self):
         """Turn EHT (= high voltage) on. Return True if successful,
