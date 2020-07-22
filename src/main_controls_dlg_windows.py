@@ -27,7 +27,6 @@ import shutil
 from random import random
 from time import sleep, time
 
-from qtconsole.qt import QtCore
 from validate_email import validate_email
 from math import atan, sqrt
 from statistics import mean
@@ -173,6 +172,9 @@ class SEMSettingsDlg(QDialog):
         self.doubleSpinBox_actualEHT.setValue(self.sem.get_eht())
         self.spinBox_actualBeamCurrent.setValue(self.sem.get_beam_current())
         self.spinBox_actualBeamSize.setValue(self.sem.get_aperture_size())
+        # Update/disable appropriate GUI elements
+        self.spinBox_beamCurrent.setEnabled(self.sem.BEAM_CURRENT_MODE == 'current')
+        self.comboBox_beamSize.setEnabled(self.sem.BEAM_CURRENT_MODE != 'current')
         # Display current target settings
         self.doubleSpinBox_EHT.setValue(self.sem.target_eht)
         self.spinBox_beamCurrent.setValue(self.sem.target_beam_current)
@@ -2646,7 +2648,7 @@ class PlasmaCleanerDlg(QDialog):
 
 class PressureUpdateQThread(QThread):
 
-    update = QtCore.pyqtSignal()
+    update = pyqtSignal()
 
     def __init__(self, secs):
         self.active = True
@@ -2824,9 +2826,6 @@ class ChargeCompensatorDlg(QDialog):
             self.state = True
             self.update_buttons()
             sleep(0.1)
-            if self.value == 0:
-                self.value = 50
-                self.update_value()
             self.set_fcc_level(self.value)
         except Exception as e:
             QMessageBox.warning(
@@ -2839,9 +2838,10 @@ class ChargeCompensatorDlg(QDialog):
         try:
             self.sem.turn_fcc_off()
             self.state = False
+            self.value = 0
             self.update_buttons()
-            self.value == 0
             self.update_value()
+            self.update_slider()
         except Exception as e:
             QMessageBox.warning(
                 self, 'Error',
