@@ -114,6 +114,9 @@ class SEM:
 
     def load_system_constants(self):
         """Load all SEM-related constants from system configuration."""
+        # self.BEAM_CURRENT_MODES: available beam current modes
+        self.BEAM_CURRENT_MODES = json.loads(self.syscfg['sem']['beam_current_modes'])
+        self.BEAM_CURRENT_MODE = json.loads(self.syscfg['sem']['beam_current_mode'])
         # self.STORE_RES: available store resolutions (= frame size in pixels)
         self.STORE_RES = json.loads(self.syscfg['sem']['store_res'])
         # self.DWELL_TIME: available dwell times in microseconds

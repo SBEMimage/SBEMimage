@@ -170,6 +170,8 @@ class SEMSettingsDlg(QDialog):
         self.show()
         # Display actual settings from SmartSEM
         self.doubleSpinBox_actualEHT.setValue(self.sem.get_eht())
+        self.spinBox_actualBeamCurrent.setEnabled(self.sem.BEAM_CURRENT_MODE == 'current')
+        self.spinBox_actualBeamSize.setEnabled(self.sem.BEAM_CURRENT_MODE != 'current')
         self.spinBox_actualBeamCurrent.setValue(self.sem.get_beam_current())
         self.spinBox_actualBeamSize.setValue(self.sem.get_aperture_size())
         # Display current target settings
