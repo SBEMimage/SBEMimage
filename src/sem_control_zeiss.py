@@ -110,9 +110,7 @@ class SEM_SmartSEM(SEM):
 
     def has_vp(self):
         """Return True if VP (= Variable Pressure) is fitted."""
-        if not self.simulation_mode:
-            return "yes" in self.sem_api.Get('DP_VP_SYSTEM', 0)[1].lower()
-        return True
+        return "yes" in self.sem_api.Get('DP_VP_SYSTEM', 0)[1].lower()
 
     def is_hv_on(self):
         """Return True if HV (= High Vacuum) is on."""
@@ -169,9 +167,7 @@ class SEM_SmartSEM(SEM):
 
     def has_fcc(self):
         """Return True if FCC (= Focal Charge Compensator) is fitted."""
-        if not self.simulation_mode:
-            return "yes" in self.sem_api.Get('DP_CAPCC_FITTED', 0)[1].lower()
-        return True
+        return "yes" in self.sem_api.Get('DP_CAPCC_FITTED', 0)[1].lower()
 
     def is_fcc_on(self):
         """Return True if FCC is on."""

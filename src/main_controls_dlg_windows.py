@@ -27,7 +27,6 @@ import shutil
 from random import random
 from time import sleep, time
 
-from qtconsole.qt import QtCore
 from validate_email import validate_email
 from math import atan, sqrt
 from statistics import mean
@@ -2616,7 +2615,7 @@ class PlasmaCleanerDlg(QDialog):
 
 class PressureUpdateQThread(QThread):
 
-    update = QtCore.pyqtSignal()
+    update = pyqtSignal()
 
     def __init__(self, secs):
         self.active = True
