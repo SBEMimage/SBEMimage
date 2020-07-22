@@ -2826,6 +2826,7 @@ class ChargeCompensatorDlg(QDialog):
             self.state = True
             self.update_buttons()
             sleep(0.1)
+            self.set_fcc_level(self.value)
         except Exception as e:
             QMessageBox.warning(
                 self, 'Error',
