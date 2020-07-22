@@ -191,3 +191,11 @@ class Stage():
 
     def reset_stage_move_counters(self):
         return self._stage.reset_stage_move_counters()
+
+    @property
+    def use_maintenance_moves(self):
+        return self._stage.use_maintenance_moves
+
+    @property
+    def maintenance_move_interval(self):
+        return self._stage.maintenance_move_interval

@@ -25,7 +25,7 @@ from utils import ERROR_LIST
 class SEM_SmartSEM(SEM):
     """Implements all methods for remote control of ZEISS SEMs via the
     SmartSEM remote control API. Currently supported: Merlin, GeminiSEM,
-    Ultra Plus. TODO: Adapt implementation for Sigma."""
+    Ultra Plus, and Sigma."""
 
     # Variant conversions for passing values between Python and COM:
     # https://www.oreilly.com/library/view/python-programming-on/1565926218/ch12s03s06.html
@@ -54,6 +54,8 @@ class SEM_SmartSEM(SEM):
                 # Read current SEM stage coordinates
                 self.last_known_x, self.last_known_y, self.last_known_z = (
                     self.get_stage_xyz())
+        else:
+            self.sem_api = None
 
     def turn_eht_on(self):
         """Turn EHT (= high voltage) on. Return True if successful,
@@ -110,7 +112,9 @@ class SEM_SmartSEM(SEM):
 
     def has_vp(self):
         """Return True if VP (= Variable Pressure) is fitted."""
-        return "yes" in self.sem_api.Get('DP_VP_SYSTEM', 0)[1].lower()
+        if not self.simulation_mode:
+            return "yes" in self.sem_api.Get('DP_VP_SYSTEM', 0)[1].lower()
+        return False
 
     def is_hv_on(self):
         """Return True if HV (= High Vacuum) is on."""
@@ -167,7 +171,9 @@ class SEM_SmartSEM(SEM):
 
     def has_fcc(self):
         """Return True if FCC (= Focal Charge Compensator) is fitted."""
-        return "yes" in self.sem_api.Get('DP_CAPCC_FITTED', 0)[1].lower()
+        if not self.simulation_mode:
+            return "yes" in self.sem_api.Get('DP_CAPCC_FITTED', 0)[1].lower()
+        return False
 
     def is_fcc_on(self):
         """Return True if FCC is on."""
@@ -280,7 +286,7 @@ class SEM_SmartSEM(SEM):
         ret_val2 = self.set_mag(mag)                        # Sets SEM mag
         ret_val3 = self.set_dwell_time(dwell_time)          # Sets SEM scan rate
         ret_val1 = self.set_frame_size2(frame_size_selector) # Sets SEM store res/size
-        
+
         # Load SmartSEM cycle time for current settings
         scan_speed = self.DWELL_TIME.index(dwell_time)
         # 0.3 s and 0.8 s are safety margins

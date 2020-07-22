@@ -42,7 +42,8 @@ import acq_func
 import utils
 from sem_control_zeiss import SEM_SmartSEM
 from sem_control_fei import SEM_Quanta
-from microtome_control import Microtome_3View, Microtome_katana
+from microtome_control_gatan import Microtome_3View
+from microtome_control_katana import Microtome_katana
 from stage import Stage
 from plasma_cleaner import PlasmaCleaner
 from acquisition import Acquisition
@@ -257,7 +258,12 @@ class MainControls(QMainWindow):
             self.cfg['sys']['plc_installed'].lower() == 'true')
         self.plc_initialized = False
 
-        self.vp_installed = self.sem.has_vp()
+        # Check if VP and FCC installed
+        self.cfg['sys']['vp_installed'] = self.syscfg['vp']['installed']
+        if self.syscfg['vp']['installed'].lower() == 'true':
+            self.vp_installed = self.sem.has_vp()
+        else:
+            self.vp_installed = False
         self.fcc_installed = self.sem.has_fcc()
 
         self.initialize_main_controls_gui()
@@ -2059,7 +2065,7 @@ class MainControls(QMainWindow):
 
     def closeEvent(self, event):
         if self.microtome is not None and self.microtome.error_state == 701:
-            if self.sem is not None:
+            if self.sem.sem_api is not None:
                 self.sem.disconnect()
             print('\n\nError in configuration file. Aborted.\n')
             event.accept()
@@ -2078,8 +2084,9 @@ class MainControls(QMainWindow):
                     elif (self.use_microtome
                         and self.microtome.device_name == 'ConnectomX katana'):
                         self.microtome.disconnect()
-                    sem_log_msg = self.sem.disconnect()
-                    self.add_to_log('SEM: ' + sem_log_msg)
+                    if self.sem.sem_api is not None:
+                        sem_log_msg = self.sem.disconnect()
+                        self.add_to_log('SEM: ' + sem_log_msg)
                 if self.plc_initialized:
                     plasma_log_msg = self.plasma_cleaner.close_port()
                     self.add_to_log(plasma_log_msg)

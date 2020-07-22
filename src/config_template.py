@@ -23,11 +23,11 @@ from configparser import ConfigParser
 # deleted from the default configuration files
 CFG_TEMPLATE_FILE = '..\\cfg\\default.ini'  # Template of user configuration
 CFG_NUMBER_SECTIONS = 11
-CFG_NUMBER_KEYS = 197
+CFG_NUMBER_KEYS = 198
 
 SYSCFG_TEMPLATE_FILE = '..\\cfg\\system.cfg'  # Template of system configuration
-SYSCFG_NUMBER_SECTIONS = 7
-SYSCFG_NUMBER_KEYS = 34
+SYSCFG_NUMBER_SECTIONS = 8
+SYSCFG_NUMBER_KEYS = 44
 
 
 def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):

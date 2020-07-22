@@ -729,6 +729,12 @@ class Acquisition:
             self.add_to_main_log('CTRL: slice ' + str(self.slice_counter)
                 + ', Z:' + '{0:6.3f}'.format(self.stage_z_position))
 
+            # Counter for maintenance moves
+            interval_counter_before = ((
+                self.stage.total_xyz_move_counter[0][0]      # total X moves
+                + self.stage.total_xyz_move_counter[1][0])   # total Y moves
+                // self.stage.maintenance_move_interval)
+
             # First, acquire all overviews. On the first slice when (re)starting
             # an acquisition, the user will be asked to confirm that the
             # overviews are free from debris. All overviews are inspected and
@@ -799,7 +805,6 @@ class Acquisition:
                     self.grids_acquired = []
                     # Confirm slice completion
                     self.confirm_slice_complete()
-
             # Imaging and cutting for the current slice have finished.
             # Save current configuration to disk, update progress in GUI,
             # and check if stack has been completed.
@@ -813,6 +818,15 @@ class Acquisition:
             if self.use_mirror_drive:
                 self.mirror_files([self.main_log_filename])
             sleep(0.1)
+
+            # If enabled do maintenance moves at specified intervals
+            if self.stage.use_maintenance_moves:
+                interval_counter_after = ((
+                    self.stage.total_xyz_move_counter[0][0]
+                    + self.stage.total_xyz_move_counter[1][0])
+                    // self.stage.maintenance_move_interval)
+                if interval_counter_after > interval_counter_before:
+                    self.do_maintenance_moves()
 
         # ===================== END OF ACQUISITION LOOP ========================
 
@@ -1012,6 +1026,27 @@ class Acquisition:
             self.slice_counter += 1
             self.total_z_diff += self.slice_thickness/1000
         sleep(1)
+
+    def do_maintenance_moves(self):
+        """Move XY motors over the entire XY range."""
+        self.add_to_main_log('STAGE: Carrying out XY stage maintenance moves.')
+        # First move to origin
+        self.stage.move_to_xy((0, 0))
+        # Show new stage coordinates in GUI
+        self.main_controls_trigger.transmit('UPDATE XY')
+        # Move to minimum X and Y coordinates
+        self.stage.move_to_xy((self.stage.limits[0], self.stage.limits[2]))
+        self.main_controls_trigger.transmit('UPDATE XY')
+        # Move to maximum X and Y coordinates
+        self.stage.move_to_xy((self.stage.limits[1], self.stage.limits[3]))
+        self.main_controls_trigger.transmit('UPDATE XY')
+        # Move back to the origin
+        self.stage.move_to_xy((0, 0))
+        self.main_controls_trigger.transmit('UPDATE XY')
+        self.add_to_main_log('STAGE: XY stage maintenance moves completed.')
+        self.add_to_main_log(
+            f'STAGE: Next maintenance cycle after '
+            f'{self.microtome.maintenance_move_interval} XY moves.')
 
     def confirm_slice_complete(self):
         """Confirm that the current slice is completely acquired without error

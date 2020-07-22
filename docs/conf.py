@@ -20,13 +20,13 @@
 # -- Project information -----------------------------------------------------
 
 project = 'SBEMimage'
-copyright = '2019, Benjamin Titze'
+copyright = '2018-2020, Friedrich Miescher Institute, Basel, Switzerland'
 author = 'Benjamin Titze'
 
 # The short X.Y version
-version = '2.0'
+version = '2020.05'
 # The full version, including alpha/beta/rc tags
-release = '2.0'
+release = '2020.05 Rxxx'
 
 
 # -- General configuration ---------------------------------------------------
@@ -75,7 +75,15 @@ pygments_style = 'sphinx'
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'classic'
+html_theme = 'alabaster'
+
+html_theme_options = {
+    'logo': 'logo.png',
+    'fixed_sidebar': True,
+    'description': 'Versatile acquisition software for serial (block-face) scanning electron microscopy',
+    'github_user': 'SBEMimage',
+    'github_repo': 'SBEMimage',
+}
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the

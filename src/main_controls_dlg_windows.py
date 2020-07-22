@@ -203,7 +203,7 @@ class MicrotomeSettingsDlg(QDialog):
         self.microtome = microtome
         self.sem = sem
         self.cs = coordinate_system
-        self.microtom_active = microtome_active
+        self.microtome_active = microtome_active
         loadUi('..\\gui\\microtome_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -211,7 +211,7 @@ class MicrotomeSettingsDlg(QDialog):
         self.show()
         # Labels and selection options depend on whether microtome stage or
         # SEM stage is used.
-        if microtome_active:
+        if self.microtome_active:
             self.label_selectedStage.setText('Microtome stage active.')
             # Enabled motor status button (disabled by default)
             self.pushButton_showMotorStatus.setEnabled(True)
@@ -231,6 +231,14 @@ class MicrotomeSettingsDlg(QDialog):
             current_calibration = self.cs.stage_calibration
             speed_x, speed_y = (
                 self.microtome.motor_speed_x, self.microtome.motor_speed_y)
+            # Maintenance moves
+            self.checkBox_enableMaintenanceMoves.setChecked(
+                self.microtome.use_maintenance_moves)
+            self.update_maintenance_move_interval_spinbox()
+            self.checkBox_enableMaintenanceMoves.stateChanged.connect(
+                self.update_maintenance_move_interval_spinbox)
+            self.spinBox_maintenanceMoveInterval.setValue(
+                self.microtome.maintenance_move_interval)
         else:
             self.label_selectedStage.setText('SEM stage active.')
             # Display stage limits. Not editable for SEM at the moment.
@@ -247,6 +255,15 @@ class MicrotomeSettingsDlg(QDialog):
             speed_x, speed_y = self.sem.motor_speed_x, self.sem.motor_speed_y
             self.doubleSpinBox_waitInterval.setValue(
                 self.sem.stage_move_wait_interval)
+            # Maintenance moves
+            self.checkBox_enableMaintenanceMoves.setChecked(
+                self.sem.use_maintenance_moves)
+            self.update_maintenance_move_interval_spinbox()
+            self.checkBox_enableMaintenanceMoves.stateChanged.connect(
+                self.update_maintenance_move_interval_spinbox)
+            self.spinBox_maintenanceMoveInterval.setValue(
+                self.sem.maintenance_move_interval)
+
         self.spinBox_stageMinX.setValue(current_motor_limits[0])
         self.spinBox_stageMaxX.setValue(current_motor_limits[1])
         self.spinBox_stageMinY.setValue(current_motor_limits[2])
@@ -272,16 +289,29 @@ class MicrotomeSettingsDlg(QDialog):
         dialog = MotorStatusDlg(self.microtome)
         dialog.exec_()
 
+    def update_maintenance_move_interval_spinbox(self):
+        self.spinBox_maintenanceMoveInterval.setEnabled(
+            self.checkBox_enableMaintenanceMoves.isChecked())
+
     def accept(self):
-        if self.microtom_active:
+        if self.microtome_active:
             self.microtome.stage_move_wait_interval = (
                 self.doubleSpinBox_waitInterval.value())
             self.microtome.stage_limits = [
                 self.spinBox_stageMinX.value(), self.spinBox_stageMaxX.value(),
                 self.spinBox_stageMinY.value(), self.spinBox_stageMaxY.value()]
+            self.microtome.use_maintenance_moves = (
+                self.checkBox_enableMaintenanceMoves.isChecked())
+            self.microtome.maintenance_move_interval = (
+                self.spinBox_maintenanceMoveInterval.value())
         else:
             self.sem.set_stage_move_wait_interval(
                 self.doubleSpinBox_waitInterval.value())
+            self.sem.use_maintenance_moves = (
+                self.checkBox_enableMaintenanceMoves.isChecked())
+            self.sem.maintenance_move_interval = (
+                self.spinBox_maintenanceMoveInterval.value())
+
         super().accept()
 
 # ------------------------------------------------------------------------------
@@ -410,13 +440,13 @@ class MotorStatusDlg(QDialog):
         elif x_total[1] > 10000:     # 10 mm
             x_total_dist_str = f'{(x_total[1] / 1000):.1f} mm'
         else:
-            x_total_dist_str = f'{int(x_total[1]):.1f} µm'
+            x_total_dist_str = f'{int(x_total[1])} µm'
         if y_total[1] > 10000000:    # 10 m
             y_total_dist_str = f'{(y_total[1] / 1000000):.1f} m'
         elif y_total[1] > 10000:     # 10 mm
             y_total_dist_str = f'{(y_total[1] / 1000):.1f} mm'
         else:
-            y_total_dist_str = f'{int(y_total[1]):.1f} µm'
+            y_total_dist_str = f'{int(y_total[1])} µm'
         # For Z distance, use mm if >10mm
         if z_total[1] > 10000:
             z_total_dist_str = f'{(z_total[1] / 1000):.3f} mm'
