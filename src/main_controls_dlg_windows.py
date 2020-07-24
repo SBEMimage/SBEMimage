@@ -2916,6 +2916,9 @@ class ApproachDlg(QDialog):
         self.aborted = False
         self.z_mismatch = False
         self.max_slices = self.spinBox_numberSlices.value()
+        # Approach cut duration for 3View. TODO: more general solution for
+        # other microtomes
+        self.approach_cut_duration = self.microtome.full_cut_duration - 3
         self.update_progress()
 
     def add_to_log(self, msg):
@@ -2925,7 +2928,8 @@ class ApproachDlg(QDialog):
         self.max_slices = self.spinBox_numberSlices.value()
         if self.slice_counter > 0:
             remaining_time_str = (
-                '    ' + str(int((self.max_slices - self.slice_counter) * 12))
+                '    ' + str(int((self.max_slices - self.slice_counter)
+                * self.approach_cut_duration))
                 + ' seconds left')
         else:
             remaining_time_str = ''
@@ -3038,7 +3042,8 @@ class ApproachDlg(QDialog):
             # Check if there were microtome problems
             if self.microtome.error_state > 0:
                 self.add_to_log(
-                    'STAGE: Problem during Z move. Approach aborted.')
+                    f'STAGE: Error during Z move '
+                    f'({self.microtome.error_state}). Approach aborted.')
                 self.aborted = True
                 self.microtome.reset_error_state()
                 break
@@ -3046,7 +3051,7 @@ class ApproachDlg(QDialog):
                             + str(self.thickness) + ' nm cutting thickness).')
             # Do the approach cut (cut, retract, in near position)
             self.microtome.do_full_approach_cut()
-            sleep(self.microtome.full_cut_duration - 5)
+            sleep(self.approach_cut_duration)
             if self.microtome.error_state > 0:
                 self.add_to_log(
                     'KNIFE: Cutting problem detected. Approach aborted.')
