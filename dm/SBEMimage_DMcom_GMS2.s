@@ -679,12 +679,12 @@ wait_interval = 0.1
 remote_control = 1
 
 // Default motor speeds (slow), can be updated from SBEMimage
-motor_speed_x = 35
-motor_speed_y = 35
+motor_speed_x = 40.0
+motor_speed_y = 40.0
 
 // Tolerances in micrometres for XY and Z motors
-xy_tolerance = 0.030
-z_tolerance = 0.003
+xy_tolerance = 0.040
+z_tolerance = 0.004
 
 // Create empty input file
 file = CreateFileForWriting(input_file)
