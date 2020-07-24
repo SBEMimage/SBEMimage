@@ -426,26 +426,33 @@ class Microtome_3View(Microtome):
                 self.prev_known_z = self.last_known_z
                 self.last_known_z = z
                 self.failed_z_move_warnings.append(0)
-            elif os.path.isfile(self.ERROR_FILE) and self.error_state == 0:
-                # There was an error during the move
-                self.error_state = 202
-                self.error_info = ('microtome.move_stage_to_z: did not reach '
-                                   'target z position')
-                self.failed_xyz_move_counter[2] += 1
-                self.failed_z_move_warnings.append(1)
-                # Read last known position (written into output file by DM
-                # if a move fails.)
-                current_z = self._read_dm_return_values()
-                if len(current_z) == 1:
-                    try:
-                        self.last_known_z = float(current_z[0])
-                    except:
-                        pass  # keep current coordinates
-            elif self.error_state == 0:
-                # If neither .ack nor .err exist, the command was not processed
-                self.error_state = 103
-                self.error_info = ('move_stage_to_z: command not processed '
-                                   'by DM script')
+            else:
+                # Wait an additional two seconds and check again for ACK_FILE
+                sleep(2)
+                if os.path.isfile(self.ACK_FILE):
+                    self.prev_known_z = self.last_known_z
+                    self.last_known_z = z
+                    self.failed_z_move_warnings.append(0)
+                elif os.path.isfile(self.ERROR_FILE) and self.error_state == 0:
+                    # There was an error during the move
+                    self.error_state = 202
+                    self.error_info = ('microtome.move_stage_to_z: '
+                                       'did not reach target z position')
+                    self.failed_xyz_move_counter[2] += 1
+                    self.failed_z_move_warnings.append(1)
+                    # Read last known position (written into output file by DM
+                    # if a move fails.)
+                    current_z = self._read_dm_return_values()
+                    if len(current_z) == 1:
+                        try:
+                            self.last_known_z = float(current_z[0])
+                        except:
+                            pass  # keep current coordinates
+                elif self.error_state == 0:
+                    # If neither .ack nor .err exist, command was not processed
+                    self.error_state = 103
+                    self.error_info = ('move_stage_to_z: command not processed '
+                                       'by DM script')
 
     def stop_script(self):
         self._send_dm_command('StopScript')
