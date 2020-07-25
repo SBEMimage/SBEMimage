@@ -4,8 +4,8 @@
 
 import pytest
 
-import os
-from configparser import ConfigParser
+# Use the default configuration for all tests
+from test_load_config import config, sysconfig
 
 from grid_manager import GridManager
 from sem_control import SEM
@@ -13,13 +13,6 @@ from coordinate_system import CoordinateSystem
 
 @pytest.fixture
 def grid_manager():
-    # Load default user and system configurations
-    config = ConfigParser()
-    with open(os.path.join('..', 'cfg', 'default.ini'), 'r') as file:
-        config.read_file(file)
-    sysconfig = ConfigParser()
-    with open(os.path.join('..', 'cfg', 'system.cfg'), 'r') as file:
-        sysconfig.read_file(file)
     # Create CoordinateSystem instance
     cs = CoordinateSystem(config, sysconfig)
     # Create SEM (base class) instance

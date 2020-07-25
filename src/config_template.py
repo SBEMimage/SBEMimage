@@ -61,7 +61,7 @@ def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):
                     cfg_template.read_file(file)
             except Exception as e:
                 cfg_load_success = False
-                exceptions += str(e) + ';'
+                exceptions += str(e) + '; '
         if os.path.isfile(SYSCFG_TEMPLATE_FILE):
             syscfg_template = ConfigParser()
             try:
@@ -69,7 +69,7 @@ def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):
                     syscfg_template.read_file(file)
             except Exception as e:
                 syscfg_load_success = False
-                exceptions += str(e) + ';'
+                exceptions += str(e) + '; '
         if cfg_load_success:
             cfg_valid = check_number_of_entries(cfg_template, False)
         if syscfg_load_success:
@@ -102,11 +102,10 @@ def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):
     success = (cfg_load_success and syscfg_load_success
                and cfg_valid and syscfg_valid)
 
-    if not exceptions:
-        if not cfg_valid:
-            exceptions = 'Invalid number of sections in config'
-        if not syscfg_valid:
-            exceptions = 'Invalid number of sections in system config'
+    if not cfg_valid:
+        exceptions += 'Invalid number of sections in config; '
+    if not syscfg_valid:
+        exceptions += 'Invalid number of sections in system config; '
 
     # cfg_template and syscfg_template are now the updated versions of the
     # current configuration
