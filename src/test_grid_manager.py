@@ -35,8 +35,5 @@ def test_manipulate_grids(grid_manager):
     assert grid_manager[0].size == [10, 10]
     grid_manager[0].deactivate_all_tiles()
     assert grid_manager[0].number_active_tiles() == 0
-
-
-
-
-
+    grid_manager[0].activate_all_tiles()
+    assert grid_manager[0].number_active_tiles() == 100

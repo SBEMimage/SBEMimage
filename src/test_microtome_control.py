@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
-"""Tests for microtome_control.py."""
+"""Tests for microtome_control.py. Currently only for base class.
+TODO: Tests for different microtomes with mock hardware."""
 
 import pytest
 
@@ -11,11 +12,25 @@ from microtome_control import Microtome
 
 @pytest.fixture
 def microtome():
-    """Create and return microtome (base class) instance"""
+    """Create and return microtome (base class) instance initialized with
+    default configuration.
+    """
     return Microtome(config, sysconfig)
 
 def test_initial_config(microtome):
-	assert microtome.device_name == 'Gatan 3View'
+    assert microtome.device_name == 'Gatan 3View'  # 3View loaded by default
+    assert len(microtome.stage_limits) == 4
 
+def test_cut(microtome):
+    # Calling cut() should raise an exception because the method is not
+    # implemented in the base class.
+    with pytest.raises(NotImplementedError):
+        assert microtome.cut()
 
-
+def test_stage_move_duration(microtome):
+    speed_x, speed_y = microtome.motor_speed_x, microtome.motor_speed_y
+    dx, dy = speed_x * 5, speed_y * 5   # XY distance travelled in 5 s
+    # Moving from the origin to (dx, dy) should take exactly 5 s plus
+    # the stage_move_wait_interval
+    expected_duration = 5 + microtome.stage_move_wait_interval
+    assert microtome.stage_move_duration(0, 0, dx, dy) == expected_duration
