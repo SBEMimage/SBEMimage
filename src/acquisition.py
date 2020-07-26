@@ -1625,7 +1625,8 @@ class Acquisition:
                      rejected_by_user) = (
                         self.acquire_tile(grid_index, tile_index,
                                           adjust_wd_stig, adjust_acq_settings))
-                    adjust_acq_settings = False
+                    if not tile_skipped:
+                        adjust_acq_settings = False
 
                     if (self.error_state in [302, 303, 304, 404]
                             and not rejected_by_user) :
