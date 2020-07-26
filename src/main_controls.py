@@ -1365,6 +1365,7 @@ class MainControls(QMainWindow):
         elif msg == 'UPDATE PROGRESS':
             self.show_stack_progress()
             self.show_stack_acq_estimates()
+            self.viewport.m_show_motor_status()
         elif msg == 'MANUAL SWEEP SUCCESS':
             self.manual_sweep_success(True)
         elif msg == 'MANUAL SWEEP FAILURE':

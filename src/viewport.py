@@ -130,6 +130,13 @@ class Viewport(QWidget):
             self.pushButton_refreshOVs.setEnabled(False)
             self.pushButton_acquireStubOV.setEnabled(False)
             self.checkBox_showStagePos.setEnabled(False)
+        # Detect if tab is changed
+        self.tabWidget.currentChanged.connect(self.tab_changed)
+
+    def tab_changed(self):
+        if self.tabWidget.currentIndex() == 2:  # Acquisition monitor
+            # Update motor status
+            self.m_show_motor_status()
 
     def restrict_gui(self, b):
         """Disable several GUI elements while SBEMimage is busy, for example
@@ -3464,3 +3471,27 @@ class Viewport(QWidget):
     def _m_open_motor_status_dlg(self):
         dialog = MotorStatusDlg(self.stage)
         dialog.exec_()
+
+    def m_show_motor_status(self):
+        """Show recent motor warnings or errors if there are any."""
+        self.label_xMotorStatus.setStyleSheet("color: black")
+        self.label_xMotorStatus.setText('No recent warnings')
+        self.label_yMotorStatus.setStyleSheet("color: black")
+        self.label_yMotorStatus.setText('No recent warnings')
+        self.label_zMotorStatus.setStyleSheet("color: black")
+        self.label_zMotorStatus.setText('No recent warnings')
+
+        if sum(self.stage.slow_xy_move_warnings) > 0:
+            self.label_xMotorStatus.setStyleSheet("color: orange")
+            self.label_xMotorStatus.setText('Recent warnings')
+            self.label_yMotorStatus.setStyleSheet("color: orange")
+            self.label_yMotorStatus.setText('Recent warnings')
+        if sum(self.stage.failed_x_move_warnings) > 0:
+            self.label_xMotorStatus.setStyleSheet("color: red")
+            self.label_xMotorStatus.setText('Recent errors')
+        if sum(self.stage.failed_y_move_warnings) > 0:
+            self.label_yMotorStatus.setStyleSheet("color: red")
+            self.label_yMotorStatus.setText('Recent errors')
+        if sum(self.stage.failed_z_move_warnings) > 0:
+            self.label_zMotorStatus.setStyleSheet("color: red")
+            self.label_zMotorStatus.setText('Recent errors')

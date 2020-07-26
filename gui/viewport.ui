@@ -801,7 +801,7 @@
      <widget class="QLabel" name="label">
       <property name="geometry">
        <rect>
-        <x>160</x>
+        <x>180</x>
         <y>14</y>
         <width>51</width>
         <height>16</height>
@@ -814,7 +814,7 @@
      <widget class="QLabel" name="label_2">
       <property name="geometry">
        <rect>
-        <x>160</x>
+        <x>180</x>
         <y>34</y>
         <width>51</width>
         <height>16</height>
@@ -837,12 +837,12 @@
        <string>Motor diagnostics</string>
       </property>
      </widget>
-     <widget class="QLabel" name="label_3">
+     <widget class="QLabel" name="label_xMotorStatus">
       <property name="geometry">
        <rect>
-        <x>210</x>
+        <x>230</x>
         <y>14</y>
-        <width>121</width>
+        <width>131</width>
         <height>16</height>
        </rect>
       </property>
@@ -850,12 +850,12 @@
        <string>No recent warnings</string>
       </property>
      </widget>
-     <widget class="QLabel" name="label_8">
+     <widget class="QLabel" name="label_yMotorStatus">
       <property name="geometry">
        <rect>
-        <x>210</x>
+        <x>230</x>
         <y>34</y>
-        <width>121</width>
+        <width>131</width>
         <height>16</height>
        </rect>
       </property>
@@ -866,7 +866,7 @@
      <widget class="QLabel" name="label_9">
       <property name="geometry">
        <rect>
-        <x>350</x>
+        <x>370</x>
         <y>14</y>
         <width>51</width>
         <height>16</height>
@@ -876,17 +876,30 @@
        <string>Z motor:</string>
       </property>
      </widget>
-     <widget class="QLabel" name="label_10">
+     <widget class="QLabel" name="label_zMotorStatus">
       <property name="geometry">
        <rect>
-        <x>400</x>
+        <x>420</x>
         <y>14</y>
-        <width>151</width>
+        <width>141</width>
         <height>16</height>
        </rect>
       </property>
       <property name="text">
        <string>No recent warnings</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_10">
+      <property name="geometry">
+       <rect>
+        <x>370</x>
+        <y>34</y>
+        <width>181</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>(during this SBEMimage session)</string>
       </property>
      </widget>
     </widget>
