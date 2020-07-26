@@ -219,7 +219,6 @@ class SEM_SmartSEM(SEM):
                 f'sem.set_fcc_level: command failed (ret_val: {ret_val})')
             return False
 
-
     def get_beam_current(self):
         """Read beam current (in pA) from SmartSEM."""
         return int(round(self.sem_api.Get('AP_IPROBE', 0)[1] * 10**12))
@@ -276,13 +275,12 @@ class SEM_SmartSEM(SEM):
 
     def apply_frame_settings(self, frame_size_selector, pixel_size, dwell_time):
         """Apply the frame settings (frame size, pixel size and dwell time)."""
-        #ret_val1 = self.set_frame_size(frame_size_selector) # Sets SEM store res/size
         # The pixel size determines the magnification
         mag = int(self.MAG_PX_SIZE_FACTOR /
                   (self.STORE_RES[frame_size_selector][0] * pixel_size))
-        ret_val2 = self.set_mag(mag)                        # Sets SEM mag
-        ret_val3 = self.set_dwell_time(dwell_time)          # Sets SEM scan rate
-        ret_val1 = self.set_frame_size2(frame_size_selector) # Sets SEM store res/size
+        ret_val1 = self.set_mag(mag)                        # Sets SEM mag
+        ret_val2 = self.set_dwell_time(dwell_time)          # Sets SEM scan rate
+        ret_val3 = self.set_frame_size(frame_size_selector) # Sets SEM store res
 
         # Load SmartSEM cycle time for current settings
         scan_speed = self.DWELL_TIME.index(dwell_time)
@@ -305,8 +303,10 @@ class SEM_SmartSEM(SEM):
             frame_size_selector = 0  # default fallback
         return frame_size_selector
 
-    def set_frame_size(self, frame_size_selector):
-        """Set SEM to frame size specified by frame_size_selector."""
+    def set_frame_size_and_freeze(self, frame_size_selector):
+        """Set SEM to frame size specified by frame_size_selector and freeze
+        the frame. Only works well on Merlin/Gemini. OBSOLETE.
+        """
         freeze_variant = VARIANT(pythoncom.VT_R4, 2)  # 2 = freeze on command
         self.sem_api.Set('DP_FREEZE_ON', freeze_variant)
         selector_variant = VARIANT(pythoncom.VT_R4, frame_size_selector)
@@ -325,18 +325,11 @@ class SEM_SmartSEM(SEM):
                 f'sem.set_frame_size: command failed (ret_val: {ret_val})')
             return False
 
-    def set_frame_size2(self, frame_size_selector):
+    def set_frame_size(self, frame_size_selector):
         """Set SEM to frame size specified by frame_size_selector."""
-        #freeze_variant = VARIANT(pythoncom.VT_R4, 2)  # 2 = freeze on command
-        #self.sem_api.Set('DP_FREEZE_ON', freeze_variant)
         selector_variant = VARIANT(pythoncom.VT_R4, frame_size_selector)
         ret_val = self.sem_api.Set('DP_IMAGE_STORE', selector_variant)[0]
-        # Changing this parameter causes an 'unfreeze' command.
-        # Freeze again, immediately:
-        #self.sem_api.Execute('CMD_FREEZE_ALL')
-        # Change back to 'freeze on end of frame' (0)
-        #freeze_variant = VARIANT(pythoncom.VT_R4, 0)
-        #self.sem_api.Set('DP_FREEZE_ON', freeze_variant)
+        # Note: Changing this parameter causes an 'unfreeze' command.
         if ret_val == 0:
             return True
         else:
