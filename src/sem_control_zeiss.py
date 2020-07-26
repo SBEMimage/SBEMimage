@@ -19,7 +19,6 @@ import win32com.client  # required to use CZEMApi.ocx (Carl Zeiss EM API)
 from win32com.client import VARIANT  # required for API function calls
 
 from sem_control import SEM
-from utils import ERROR_LIST
 
 
 class SEM_SmartSEM(SEM):
@@ -109,7 +108,6 @@ class SEM_SmartSEM(SEM):
                 f'sem.set_eht: command failed (ret_val: {ret_val})')
             return False
 
-
     def has_vp(self):
         """Return True if VP (= Variable Pressure) is fitted."""
         if not self.simulation_mode:
@@ -140,7 +138,7 @@ class SEM_SmartSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = ERROR_LIST['HV/VP error']
+            self.error_state = 314
             self.error_info = (
                 f'sem.set_hv: command failed (ret_val: {ret_val})')
             return False
@@ -151,7 +149,7 @@ class SEM_SmartSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = ERROR_LIST['HV/VP error']
+            self.error_state = 314
             self.error_info = (
                 f'sem.set_vp: command failed (ret_val: {ret_val})')
             return False
@@ -163,11 +161,10 @@ class SEM_SmartSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = ERROR_LIST['VP error']
+            self.error_state = 314
             self.error_info = (
                 f'sem.set_vp_target: command failed (ret_val: {ret_val})')
             return False
-
 
     def has_fcc(self):
         """Return True if FCC (= Focal Charge Compensator) is fitted."""
@@ -194,7 +191,7 @@ class SEM_SmartSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = ERROR_LIST['FCC error']
+            self.error_state = 315
             self.error_info = (
                 f'sem.turn_fcc_on: command failed (ret_val: {ret_val})')
             return False
@@ -205,7 +202,7 @@ class SEM_SmartSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = ERROR_LIST['FCC error']
+            self.error_state = 315
             self.error_info = (
                 f'sem.turn_fcc_off: command failed (ret_val: {ret_val})')
             return False
@@ -217,7 +214,7 @@ class SEM_SmartSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = ERROR_LIST['FCC error']
+            self.error_state = 315
             self.error_info = (
                 f'sem.set_fcc_level: command failed (ret_val: {ret_val})')
             return False
@@ -258,7 +255,7 @@ class SEM_SmartSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = ERROR_LIST['Aperture size error']
+            self.error_state = 316
             self.error_info = (
                 f'sem.set_aperture_size: command failed (ret_val: {ret_val})')
             return False
