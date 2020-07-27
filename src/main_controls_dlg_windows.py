@@ -1692,6 +1692,8 @@ class AcqSettingsDlg(QDialog):
             success = False
         if success:
             self.acq.base_dir = modified_dir
+            if self.acq.number_slices > self.acq.slice_counter:
+                self.acq.stack_completed = False
             super().accept()
 
 # ------------------------------------------------------------------------------
