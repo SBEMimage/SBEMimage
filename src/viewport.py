@@ -29,7 +29,7 @@ from statistics import mean
 from PyQt5.uic import loadUi
 from PyQt5.QtWidgets import QWidget, QApplication, QMessageBox, QMenu
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QFont, QIcon, QPen, \
-                        QBrush, QTransform
+                        QBrush, QTransform, QKeyEvent
 from PyQt5.QtCore import Qt, QObject, QRect, QPoint, QSize, pyqtSignal
 
 import utils
@@ -613,6 +613,13 @@ class Viewport(QWidget):
                 if event.angleDelta().y() < 0:
                     self._vp_mouse_zoom(px, py, 0.8)
 
+    def keyPressEvent(self, event):
+        # Move through slices in slice-by-slice viewer with PgUp/PgDn
+        if (type(event) == QKeyEvent) and (self.tabWidget.currentIndex() == 1):
+            if event.key() == Qt.Key_PageUp:
+                self.sv_slice_fwd()
+            elif event.key() == Qt.Key_PageDown:
+                self.sv_slice_bwd()
 
 # ====================== Below: Viewport (vp) methods ==========================
 
