@@ -4,7 +4,7 @@
 // required for this script to work properly.
 //
 // ========================================================================
-//   This Gatan DigitalMicrograph script is part of SBEMimage, v2020.05,
+//   This Gatan DigitalMicrograph script is part of SBEMimage, v2020.07,
 //   (c) 2018-2020 Benjamin Titze,
 //   Friedrich Miescher Institute for Biomedical Research, Basel, CH.
 //   SBEMimage is licensed under the terms of the MIT License.
