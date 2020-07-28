@@ -1,16 +1,21 @@
 User guide
 ==========
 
-Last updated: 11 July 2020, for *SBEMimage* v2020.XX; author: Benjamin Titze (benjamin.titze ÄT fmi.ch)
+Last updated: 28 July 2020, for *SBEMimage* v2020.07;  
+author: Benjamin Titze (benjamin.titze ÄT fmi.ch)
 
 This is the user guide for the acquisition software *SBEMimage*.
 
-The source code of *SBEMimage* including this user guide is hosted on `github.com/SBEMimage <https://github.com/SBEMimage>`_.
+The source code of *SBEMimage* is hosted on `github.com/SBEMimage <https://github.com/SBEMimage>`_. The source files for this user guide are located in the folder '/docs'.
 
 .. image:: /images/stub_ov.jpg
    :width: 550
    :align: center
    :alt: SBEMimage screenshot
+
+--------
+Contents
+--------
 
 .. toctree::
     :maxdepth: 1
