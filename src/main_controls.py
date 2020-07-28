@@ -40,8 +40,10 @@ from PyQt5.uic import loadUi
 
 import acq_func
 import utils
-from sem_control import SEM_SmartSEM
-from microtome_control import Microtome_3View, Microtome_katana
+from sem_control_zeiss import SEM_SmartSEM
+from sem_control_fei import SEM_Quanta
+from microtome_control_gatan import Microtome_3View
+from microtome_control_katana import Microtome_katana
 from stage import Stage
 from plasma_cleaner import PlasmaCleaner
 from acquisition import Acquisition
@@ -60,12 +62,13 @@ from main_controls_dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                                       EmailMonitoringSettingsDlg, \
                                       ImageMonitoringSettingsDlg, ExportDlg, \
                                       SaveConfigDlg, PlasmaCleanerDlg, \
+                                      VariablePressureDlg, ChargeCompensatorDlg, \
                                       ApproachDlg, MirrorDriveDlg, EHTDlg, \
                                       StageCalibrationDlg, MagCalibrationDlg, \
                                       GrabFrameDlg, FTSetParamsDlg, FTMoveDlg, \
                                       AskUserDlg, UpdateDlg, CutDurationDlg, \
                                       KatanaSettingsDlg, SendCommandDlg, \
-                                      AboutBox
+                                      MotorTestDlg, MotorStatusDlg, AboutBox
 
 from magc_dlg_windows import ImportMagCDlg, ImportWaferImageDlg, \
                           WaferCalibrationDlg
@@ -255,6 +258,14 @@ class MainControls(QMainWindow):
             self.cfg['sys']['plc_installed'].lower() == 'true')
         self.plc_initialized = False
 
+        # Check if VP and FCC installed
+        self.cfg['sys']['vp_installed'] = self.syscfg['vp']['installed']
+        if self.syscfg['vp']['installed'].lower() == 'true':
+            self.vp_installed = self.sem.has_vp()
+        else:
+            self.vp_installed = False
+        self.fcc_installed = self.sem.has_fcc()
+
         self.initialize_main_controls_gui()
 
         # Set up grid/tile selectors.
@@ -389,6 +400,10 @@ class MainControls(QMainWindow):
         self.pushButton_grabFrame.clicked.connect(self.open_grab_frame_dlg)
         self.pushButton_saveViewport.clicked.connect(
             self.save_viewport_screenshot)
+        self.pushButton_VP.clicked.connect(
+            self.open_variable_pressure_dlg)
+        self.pushButton_FCC.clicked.connect(
+            self.open_charge_compensator_dlg)
         self.pushButton_EHTToggle.clicked.connect(self.open_eht_dlg)
         # Acquisition control buttons
         self.pushButton_startAcq.clicked.connect(self.open_pre_stack_dlg)
@@ -428,6 +443,10 @@ class MainControls(QMainWindow):
         self.actionAutofocusSettings.triggered.connect(self.open_autofocus_dlg)
         self.actionPlasmaCleanerSettings.triggered.connect(
             self.initialize_plasma_cleaner)
+        self.actionVariablePressureSettings.triggered.connect(
+            self.open_variable_pressure_dlg)
+        self.actionChargeCompensatorSettings.triggered.connect(
+            self.open_charge_compensator_dlg)
         self.actionSaveConfig.triggered.connect(self.save_settings)
         self.actionSaveNewConfig.triggered.connect(
             self.open_save_settings_new_file_dlg)
@@ -467,6 +486,8 @@ class MainControls(QMainWindow):
         self.pushButton_testServerRequest.clicked.connect(
             self.test_server_request)
         self.pushButton_testMotors.clicked.connect(self.open_motor_test_dlg)
+        self.pushButton_testMotorStatusDlg.clicked.connect(
+            self.open_motor_status_dlg)
         self.pushButton_testDebrisDetection.clicked.connect(
             self.debris_detection_test)
         self.pushButton_testCustom.clicked.connect(self.custom_test)
@@ -512,6 +533,14 @@ class MainControls(QMainWindow):
         self.toolButton_plasmaCleaner.setEnabled(self.plc_installed)
         self.checkBox_plasmaCleaner.setEnabled(self.plc_installed)
         self.actionPlasmaCleanerSettings.setEnabled(self.plc_installed)
+
+        # Enable Variable Pressure GUI elements if installed.
+        self.pushButton_VP.setEnabled(self.vp_installed)
+        self.actionVariablePressureSettings.setEnabled(self.vp_installed)
+
+        # Enable Focal Charge Compensator GUI elements if installed.
+        self.pushButton_FCC.setEnabled(self.fcc_installed)
+        self.actionChargeCompensatorSettings.setEnabled(self.fcc_installed)
 
         #-------MagC-------#
 
@@ -632,7 +661,8 @@ class MainControls(QMainWindow):
         # SEM beam settings:
         self.label_beamSettings.setText(
             '{0:.2f}'.format(self.sem.target_eht) + ' kV / '
-            + str(self.sem.target_beam_current) + ' pA')
+            + str(self.sem.target_beam_current) + ' pA / '
+            + str(self.sem.target_aperture_size) + ' μm')
         # Show dwell time, pixel size, and frame size for current grid:
         self.label_tileDwellTime.setText(
             str(self.gm[self.grid_index_dropdown].dwell_time) + ' µs')
@@ -1222,15 +1252,25 @@ class MainControls(QMainWindow):
         dialog = GrabFrameDlg(self.sem, self.acq, self.trigger)
         dialog.exec_()
 
+    def open_variable_pressure_dlg(self):
+        dialog = VariablePressureDlg(self.sem)
+        dialog.exec_()
+
+    def open_charge_compensator_dlg(self):
+        dialog = ChargeCompensatorDlg(self.sem)
+        dialog.exec_()
+
     def open_eht_dlg(self):
         dialog = EHTDlg(self.sem)
         dialog.exec_()
 
     def open_motor_test_dlg(self):
-        # Disabled for now
-        pass
-        # dialog = MotorTestDlg(self.microtome, self.acq, self.trigger)
-        # dialog.exec_()
+        dialog = MotorTestDlg(self.microtome, self.acq, self.trigger)
+        dialog.exec_()
+
+    def open_motor_status_dlg(self):
+        dialog = MotorStatusDlg(self.stage)
+        dialog.exec_()
 
     def open_send_command_dlg(self):
         dialog = SendCommandDlg(self.microtome)
@@ -1325,6 +1365,7 @@ class MainControls(QMainWindow):
         elif msg == 'UPDATE PROGRESS':
             self.show_stack_progress()
             self.show_stack_acq_estimates()
+            self.viewport.m_show_motor_status()
         elif msg == 'MANUAL SWEEP SUCCESS':
             self.manual_sweep_success(True)
         elif msg == 'MANUAL SWEEP FAILURE':
@@ -1446,7 +1487,7 @@ class MainControls(QMainWindow):
                 QMessageBox.Yes)
             # Redraw with previous settings
             self.viewport.vp_draw()
-            self.acq.set_user_reply(reply)
+            self.acq.user_reply = reply
         elif msg.startswith('ASK DEBRIS CONFIRMATION'):
             ov_index = int(msg[len('ASK DEBRIS CONFIRMATION'):])
             self.viewport.vp_show_overview_for_user_inspection(ov_index)
@@ -1461,7 +1502,7 @@ class MainControls(QMainWindow):
                 QMessageBox.Yes)
             # Redraw with previous settings
             self.viewport.vp_draw()
-            self.acq.set_user_reply(reply)
+            self.acq.user_reply = reply
         elif msg == 'ASK IMAGE ERROR OVERRIDE':
             reply = QMessageBox.question(
                 self, 'Image inspector',
@@ -1469,7 +1510,7 @@ class MainControls(QMainWindow):
                 'Would you like to proceed anyway?',
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.Yes)
-            self.acq.set_user_reply(reply)
+            self.acq.user_reply = reply
         else:
             # If msg is not a command, show it in log:
             self.textarea_log.appendPlainText(msg)
@@ -1823,7 +1864,7 @@ class MainControls(QMainWindow):
         """
         if (self.acq.slice_counter > self.acq.number_slices
                 and self.acq.number_slices != 0):
-            QMessageBox.warning(
+            QMessageBox.information(
                 self, 'Check Slice Counter',
                 'Slice counter is larger than maximum slice number. Please '
                 'adjust the slice counter.',
@@ -1841,8 +1882,16 @@ class MainControls(QMainWindow):
                 'Please save the current configuration file "default.ini" '
                 'under a new name before starting the stack.',
                 QMessageBox.Ok)
+        elif (self.acq.use_email_monitoring
+                and self.notifications.remote_commands_enabled
+                and not self.notifications.remote_cmd_email_pw):
+            QMessageBox.information(
+                self, 'Password missing',
+                'You have enabled remote commands via e-mail (see e-mail '
+                'monitoring settings), but have not provided a password!',
+                QMessageBox.Ok)
         elif self.sem.is_eht_off():
-            QMessageBox.warning(
+            QMessageBox.information(
                 self, 'EHT off',
                 'EHT / high voltage is off. Please turn '
                 'it on before starting the acquisition.',
@@ -2017,7 +2066,7 @@ class MainControls(QMainWindow):
 
     def closeEvent(self, event):
         if self.microtome is not None and self.microtome.error_state == 701:
-            if self.sem is not None:
+            if self.sem.sem_api is not None:
                 self.sem.disconnect()
             print('\n\nError in configuration file. Aborted.\n')
             event.accept()
@@ -2036,8 +2085,9 @@ class MainControls(QMainWindow):
                     elif (self.use_microtome
                         and self.microtome.device_name == 'ConnectomX katana'):
                         self.microtome.disconnect()
-                    sem_log_msg = self.sem.disconnect()
-                    self.add_to_log('SEM: ' + sem_log_msg)
+                    if self.sem.sem_api is not None:
+                        sem_log_msg = self.sem.disconnect()
+                        self.add_to_log('SEM: ' + sem_log_msg)
                 if self.plc_initialized:
                     plasma_log_msg = self.plasma_cleaner.close_port()
                     self.add_to_log(plasma_log_msg)

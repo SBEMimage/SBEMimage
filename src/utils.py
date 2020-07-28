@@ -86,6 +86,9 @@ ERROR_LIST = {
     311: 'WD error',
     312: 'STIG XY error',
     313: 'Beam blanking error',
+    314: 'HV/VP error',
+    315: 'FCC error',
+    316: 'Aperture size error',
 
     # First digit 4: I/O error
     401: 'Primary drive error',
@@ -144,7 +147,7 @@ class Trigger(QObject):
 
 
 def try_to_open(file_name, mode):
-    """Try to open file and retry twice if unsucessful."""
+    """Try to open file and retry twice if unsuccessful."""
     file_handle = None
     success = True
     try:
@@ -160,6 +163,23 @@ def try_to_open(file_name, mode):
             except:
                 success = False
     return success, file_handle
+
+def try_to_remove(file_name):
+    """Try to remove file and retry twice if unsuccessful."""
+    try:
+        os.remove(file_name)
+    except:
+        sleep(2)
+        try:
+            os.remove(file_name)
+        except:
+            sleep(10)
+            try:
+                os.remove(file_name)
+            except:
+                return False
+    return True
+
 
 def create_subdirectories(base_dir, dir_list):
     """Create subdirectories given in dir_list in the base folder base_dir."""
@@ -189,6 +209,13 @@ def format_log_entry(msg):
     if i == -1:   # colon not found
         i = 0
     return (timestamp[:22] + ' | ' + msg[:i] + (6-i) * ' ' + msg[i:])
+
+def format_wd_stig(wd, stig_x, stig_y):
+    """Return a formatted string of focus parameters."""
+    return ('WD/STIG_XY: '
+            + '{0:.6f}'.format(wd * 1000)  # wd in metres, show in mm
+            + ', {0:.6f}'.format(stig_x)
+            + ', {0:.6f}'.format(stig_y))
 
 def show_progress_in_console(progress):
     """Show character-based progress bar in console window"""
@@ -326,12 +353,25 @@ def get_days_hours_minutes(duration_in_seconds):
     days, hours = divmod(hours, 24)
     return days, hours, minutes
 
+def get_hours_minutes(duration_in_seconds):
+    minutes, seconds = divmod(int(duration_in_seconds), 60)
+    hours, minutes = divmod(minutes, 60)
+    return hours, minutes
+
 def get_serial_ports():
     return [port.device for port in list_ports.comports()]
 
 def round_xy(coordinates):
     x, y = coordinates
     return [round(x, 3), round(y, 3)]
+
+def round_floats(input_var, precision=3):
+    """Round floats, or (nested) lists of floats."""
+    if isinstance(input_var, float):
+        return round(input_var, precision)
+    if isinstance(input_var, list):
+        return [round_floats(entry) for entry in input_var]
+    return input_var
 
 # ----------------- Functions for geometric transforms (MagC) ------------------
 def affineT(x_in, y_in, x_out, y_out):

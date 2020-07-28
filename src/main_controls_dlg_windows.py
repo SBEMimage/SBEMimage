@@ -12,6 +12,7 @@
 Controls, and the startup dialog (ConfigDlg).
 """
 
+import math
 import os
 import re
 import string
@@ -25,6 +26,7 @@ import shutil
 
 from random import random
 from time import sleep, time
+
 from validate_email import validate_email
 from math import atan, sqrt
 from statistics import mean
@@ -36,7 +38,7 @@ from imreg_dft import translation
 from zipfile import ZipFile
 
 from PyQt5.uic import loadUi
-from PyQt5.QtCore import Qt, QObject, QSize, pyqtSignal
+from PyQt5.QtCore import Qt, QObject, QSize, pyqtSignal, QThread
 from PyQt5.QtGui import QPixmap, QIcon, QPalette, QColor, QFont
 from PyQt5.QtWidgets import QApplication, QDialog, QMessageBox, \
                             QFileDialog, QLineEdit, QDialogButtonBox
@@ -169,9 +171,15 @@ class SEMSettingsDlg(QDialog):
         # Display actual settings from SmartSEM
         self.doubleSpinBox_actualEHT.setValue(self.sem.get_eht())
         self.spinBox_actualBeamCurrent.setValue(self.sem.get_beam_current())
+        self.spinBox_actualBeamSize.setValue(self.sem.get_aperture_size())
+        # Update/disable appropriate GUI elements
+        self.spinBox_beamCurrent.setEnabled(self.sem.BEAM_CURRENT_MODE == 'current')
+        self.comboBox_beamSize.setEnabled(self.sem.BEAM_CURRENT_MODE != 'current')
         # Display current target settings
         self.doubleSpinBox_EHT.setValue(self.sem.target_eht)
         self.spinBox_beamCurrent.setValue(self.sem.target_beam_current)
+        self.comboBox_beamSize.addItems(map(str, self.sem.APERTURE_SIZE))
+        self.comboBox_beamSize.setCurrentText(str(self.sem.target_aperture_size))
         # Display current working distance and stigmation parameters
         self.lineEdit_currentFocus.setText(
             '{0:.6f}'.format(sem.get_wd() * 1000))
@@ -181,6 +189,7 @@ class SEMSettingsDlg(QDialog):
     def accept(self):
         self.sem.set_eht(self.doubleSpinBox_EHT.value())
         self.sem.set_beam_current(self.spinBox_beamCurrent.value())
+        self.sem.set_aperture_size(self.comboBox_beamSize.currentIndex())
         super().accept()
 
 # ------------------------------------------------------------------------------
@@ -197,7 +206,7 @@ class MicrotomeSettingsDlg(QDialog):
         self.microtome = microtome
         self.sem = sem
         self.cs = coordinate_system
-        self.microtom_active = microtome_active
+        self.microtome_active = microtome_active
         loadUi('..\\gui\\microtome_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -205,13 +214,17 @@ class MicrotomeSettingsDlg(QDialog):
         self.show()
         # Labels and selection options depend on whether microtome stage or
         # SEM stage is used.
-        if microtome_active:
+        if self.microtome_active:
             self.label_selectedStage.setText('Microtome stage active.')
+            # Enabled motor status button (disabled by default)
+            self.pushButton_showMotorStatus.setEnabled(True)
+            self.pushButton_showMotorStatus.clicked.connect(
+                self.open_motor_status_dlg)
             # Display those settings that can only be changed in DM
             self.lineEdit_knifeCutSpeed.setText(
-                str(self.microtome.knife_cut_speed))
+                str(self.microtome.knife_cut_speed / 1000))
             self.lineEdit_knifeRetractSpeed.setText(
-                str(self.microtome.knife_retract_speed))
+                str(self.microtome.knife_retract_speed / 1000))
             self.checkBox_useOscillation.setChecked(
                 self.microtome.use_oscillation)
             # Settings changeable in SBEMimage
@@ -221,6 +234,14 @@ class MicrotomeSettingsDlg(QDialog):
             current_calibration = self.cs.stage_calibration
             speed_x, speed_y = (
                 self.microtome.motor_speed_x, self.microtome.motor_speed_y)
+            # Maintenance moves
+            self.checkBox_enableMaintenanceMoves.setChecked(
+                self.microtome.use_maintenance_moves)
+            self.update_maintenance_move_interval_spinbox()
+            self.checkBox_enableMaintenanceMoves.stateChanged.connect(
+                self.update_maintenance_move_interval_spinbox)
+            self.spinBox_maintenanceMoveInterval.setValue(
+                self.microtome.maintenance_move_interval)
         else:
             self.label_selectedStage.setText('SEM stage active.')
             # Display stage limits. Not editable for SEM at the moment.
@@ -237,31 +258,236 @@ class MicrotomeSettingsDlg(QDialog):
             speed_x, speed_y = self.sem.motor_speed_x, self.sem.motor_speed_y
             self.doubleSpinBox_waitInterval.setValue(
                 self.sem.stage_move_wait_interval)
+            # Maintenance moves
+            self.checkBox_enableMaintenanceMoves.setChecked(
+                self.sem.use_maintenance_moves)
+            self.update_maintenance_move_interval_spinbox()
+            self.checkBox_enableMaintenanceMoves.stateChanged.connect(
+                self.update_maintenance_move_interval_spinbox)
+            self.spinBox_maintenanceMoveInterval.setValue(
+                self.sem.maintenance_move_interval)
+
         self.spinBox_stageMinX.setValue(current_motor_limits[0])
         self.spinBox_stageMaxX.setValue(current_motor_limits[1])
         self.spinBox_stageMinY.setValue(current_motor_limits[2])
         self.spinBox_stageMaxY.setValue(current_motor_limits[3])
         # Show other relevant settings that can be changed in SBEMimage,
-        # but in a different dialog (CalibrationDlg):
+        # but in a different dialog (CalibrationDlg)
         self.lineEdit_scaleFactorX.setText(str(current_calibration[0]))
         self.lineEdit_scaleFactorY.setText(str(current_calibration[1]))
         self.lineEdit_rotationX.setText(str(current_calibration[2]))
         self.lineEdit_rotationY.setText(str(current_calibration[3]))
-        # Motor speeds:
+        # Motor speeds and tolerances
+        # TODO: Make tolerances editable and update tolerances in DM script
+        # from SBEMimage
         self.lineEdit_speedX.setText(str(speed_x))
         self.lineEdit_speedY.setText(str(speed_y))
+        # Tolerances are stored in microns, but displayed in nm.
+        self.spinBox_xyTolerance.setValue(
+            int(self.microtome.xy_tolerance * 1000))
+        self.spinBox_zTolerance.setValue(
+            int(self.microtome.z_tolerance * 1000))
+
+    def open_motor_status_dlg(self):
+        dialog = MotorStatusDlg(self.microtome)
+        dialog.exec_()
+
+    def update_maintenance_move_interval_spinbox(self):
+        self.spinBox_maintenanceMoveInterval.setEnabled(
+            self.checkBox_enableMaintenanceMoves.isChecked())
 
     def accept(self):
-        if self.microtom_active:
+        if self.microtome_active:
             self.microtome.stage_move_wait_interval = (
                 self.doubleSpinBox_waitInterval.value())
             self.microtome.stage_limits = [
                 self.spinBox_stageMinX.value(), self.spinBox_stageMaxX.value(),
                 self.spinBox_stageMinY.value(), self.spinBox_stageMaxY.value()]
+            self.microtome.use_maintenance_moves = (
+                self.checkBox_enableMaintenanceMoves.isChecked())
+            self.microtome.maintenance_move_interval = (
+                self.spinBox_maintenanceMoveInterval.value())
         else:
             self.sem.set_stage_move_wait_interval(
                 self.doubleSpinBox_waitInterval.value())
+            self.sem.use_maintenance_moves = (
+                self.checkBox_enableMaintenanceMoves.isChecked())
+            self.sem.maintenance_move_interval = (
+                self.spinBox_maintenanceMoveInterval.value())
+
         super().accept()
+
+# ------------------------------------------------------------------------------
+
+class MotorStatusDlg(QDialog):
+    """Show numbers of total motor moves, failed moves, and slow moves."""
+
+    def __init__(self, stage):
+        super().__init__()
+        self.stage = stage
+        loadUi('..\\gui\\motor_status_dlg.ui', self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setFixedSize(self.size())
+        self.show()
+        self.pushButton_update.clicked.connect(self.show_current_stats)
+        self.pushButton_reset.clicked.connect(self.reset_counters)
+        self.show_current_stats()
+
+    def reset_counters(self):
+        reply = QMessageBox.warning(
+            self, 'Reset all motor move counters',
+            'This will reset all counters that keep track of the XYZ motor '
+            'moves (total numbers, distances, durations). A reset should '
+            'usually only be performed after the motors have been replaced. '
+            'Are you sure you want to reset the counters?',
+            QMessageBox.Ok | QMessageBox.Cancel)
+        if reply == QMessageBox.Cancel:
+            return
+        self.stage.reset_stage_move_counters()
+        self.show_current_stats()
+
+    def show_current_stats(self):
+        x_total, y_total, z_total = self.stage.total_xyz_move_counter
+        self.spinBox_xMotorTotal.setValue(x_total[0])
+        self.spinBox_yMotorTotal.setValue(y_total[0])
+        self.spinBox_zMotorTotal.setValue(z_total[0])
+        x_failed, y_failed, z_failed = self.stage.failed_xyz_move_counter
+        self.spinBox_xMotorFailed.setValue(x_failed)
+        self.spinBox_yMotorFailed.setValue(y_failed)
+        self.spinBox_zMotorFailed.setValue(z_failed)
+        self.spinBox_xySlowMoveWarnings.setValue(
+            self.stage.slow_xy_move_counter)
+        recent_count_x = len(self.stage.failed_x_move_warnings)
+        if recent_count_x == 0:
+            recent_percentage_failed_x = 0
+        else:
+            recent_percentage_failed_x = (
+                self.stage.failed_x_move_warnings.count(1) / recent_count_x)
+        recent_count_y = len(self.stage.failed_y_move_warnings)
+        if recent_count_y == 0:
+            recent_percentage_failed_y = 0
+        else:
+            recent_percentage_failed_y = (
+                self.stage.failed_y_move_warnings.count(1) / recent_count_y)
+        recent_count_z = len(self.stage.failed_z_move_warnings)
+        if recent_count_z == 0:
+            recent_percentage_failed_z = 0
+        else:
+            recent_percentage_failed_z = (
+                self.stage.failed_z_move_warnings.count(1) / recent_count_z)
+        recent_count_slow = len(self.stage.slow_xy_move_warnings)
+        if recent_count_slow == 0:
+            recent_percentage_slow = 0
+        else:
+            recent_percentage_slow = (
+                self.stage.slow_xy_move_warnings.count(1)
+                / recent_count_slow)
+
+        if x_total[0] == 0:
+            total_percentage_failed_x = 0
+        else:
+            total_percentage_failed_x = x_failed/x_total[0]
+        if y_total[0] == 0:
+            total_percentage_failed_y = 0
+        else:
+            total_percentage_failed_y = y_failed/y_total[0]
+        if z_total[0] == 0:
+            total_percentage_failed_z = 0
+        else:
+            total_percentage_failed_z = z_failed/z_total[0]
+        if min(x_total[0], y_total[0]) == 0:
+            total_percentage_slow = 0
+        else:
+            total_percentage_slow = (
+                self.stage.slow_xy_move_counter/min(x_total[0], y_total[0]))
+
+        self.lineEdit_xRecentFailed.setText(
+            f'{100 * total_percentage_failed_x:.5f} % failed / '
+            f'{100 * recent_percentage_failed_x:.1f} % '
+            f'in recent {recent_count_x}')
+        self.lineEdit_yRecentFailed.setText(
+            f'{100 * total_percentage_failed_y:.5f} % failed / '
+            f'{100 * recent_percentage_failed_y:.1f} % '
+            f'in recent {recent_count_y}')
+        self.lineEdit_zRecentFailed.setText(
+            f'{100 * total_percentage_failed_z:.5f} % failed / '
+            f'{100 * recent_percentage_failed_z:.1f} % '
+            f'in recent {recent_count_z}')
+        self.lineEdit_xyRecentSlowMoveWarnings.setText(
+            f'{100 * total_percentage_slow:.5f} % slow / '
+            f'{100 * recent_percentage_slow:.1f} % '
+            f'in recent {recent_count_slow}')
+
+        if x_total[0] == 0:
+            avg_dist_x = 0
+            avg_duration_x = 0
+        else:
+            avg_dist_x = x_total[1]/x_total[0]
+            avg_duration_x = x_total[2]/x_total[0]
+        if y_total[0] == 0:
+            avg_dist_y = 0
+            avg_duration_y = 0
+        else:
+            avg_dist_y = y_total[1]/y_total[0]
+            avg_duration_y = y_total[2]/y_total[0]
+        if z_total[0] == 0:
+            avg_dist_z = 0
+        else:
+            avg_dist_z = int(z_total[1]/z_total[0] * 1000)
+
+        # Choose appropriate units for X and Y distance: in metres if >10m,
+        # in mm if >10mm, otherwise in microns.
+        if x_total[1] > 10000000:    # 10 m
+            x_total_dist_str = f'{(x_total[1] / 1000000):.1f} m'
+        elif x_total[1] > 10000:     # 10 mm
+            x_total_dist_str = f'{(x_total[1] / 1000):.1f} mm'
+        else:
+            x_total_dist_str = f'{int(x_total[1])} µm'
+        if y_total[1] > 10000000:    # 10 m
+            y_total_dist_str = f'{(y_total[1] / 1000000):.1f} m'
+        elif y_total[1] > 10000:     # 10 mm
+            y_total_dist_str = f'{(y_total[1] / 1000):.1f} mm'
+        else:
+            y_total_dist_str = f'{int(y_total[1])} µm'
+        # For Z distance, use mm if >10mm
+        if z_total[1] > 10000:
+            z_total_dist_str = f'{(z_total[1] / 1000):.3f} mm'
+        else:
+            z_total_dist_str = f'{z_total[1]:.3f} µm'
+
+        self.lineEdit_xDistance.setText(
+            f'{x_total_dist_str}; avg./move: {avg_dist_x:.1f} µm')
+        self.lineEdit_yDistance.setText(
+            f'{y_total_dist_str}; avg./move: {avg_dist_y:.1f} µm')
+        self.lineEdit_zDistance.setText(
+            f'{z_total_dist_str}; avg./move: {avg_dist_z} nm')
+
+        # Choose appropriate units for X and Y total move durations:
+        # In hours and minutes if >600 s (10 min), otherwise in seconds
+        if x_total[2] > 600:
+            hours, minutes = utils.get_hours_minutes(x_total[2])
+            x_total_dur_str = f'{hours} h {minutes} min'
+        else:
+            x_total_dur_str = f'{x_total[2]:.1f} s'
+        if y_total[2] > 600:
+            hours, minutes = utils.get_hours_minutes(y_total[2])
+            y_total_dur_str = f'{hours} h {minutes} min'
+        else:
+            y_total_dur_str = f'{y_total[2]:.1f} s'
+
+        self.lineEdit_xDuration.setText(
+            f'{x_total_dur_str}; avg./move: {avg_duration_x:.2f} s')
+        self.lineEdit_yDuration.setText(
+            f'{y_total_dur_str}; avg./move: {avg_duration_y:.2f} s')
+
+        self.doubleSpinBox_motorSpeedX.setValue(self.stage.motor_speed_x)
+        self.doubleSpinBox_motorSpeedY.setValue(self.stage.motor_speed_y)
+
+        self.spinBox_xyTolerance.setValue(
+            int(self.stage.xy_tolerance * 1000))  # show in microns (* 1000)
+        self.spinBox_zTolerance.setValue(
+            int(self.stage.z_tolerance * 1000))
 
 # ------------------------------------------------------------------------------
 
@@ -381,8 +607,12 @@ class StageCalibrationDlg(QDialog):
 
         self.x_shift_vector = [0, 0]
         self.y_shift_vector = [0, 0]
+        self.motor_speed_x, self.motor_speed_y = None, None
         self.finish_trigger = utils.Trigger()
         self.finish_trigger.signal.connect(self.process_pixel_shifts)
+        self.finish_trigger_motor_speeds = utils.Trigger()
+        self.finish_trigger_motor_speeds.signal.connect(
+            self.show_measured_motor_speeds)
         self.update_calc_trigger = utils.Trigger()
         self.update_calc_trigger.signal.connect(self.update_log)
         self.calc_exception = None
@@ -413,26 +643,43 @@ class StageCalibrationDlg(QDialog):
         self.pushButton_helpCalibration.clicked.connect(self.show_help)
         self.pushButton_calcStage.clicked.connect(
             self.calculate_calibration_parameters_from_user_input)
-        self.pushButton_calcMotor.clicked.connect(
-            self.calculate_motor_speeds)
+        self.pushButton_measureMotorSpeeds.clicked.connect(
+            self.measure_motor_speeds)
 
-    def calculate_motor_speeds(self):
-        """Calculate the motor speeds from the duration measurements provided
-        by the user and let user confirm the new speeds.
-        """
-        duration_x = self.doubleSpinBox_durationX.value()
-        duration_y = self.doubleSpinBox_durationY.value()
-        motor_speed_x = 1000 / duration_x
-        motor_speed_y = 1000 / duration_y
+    def measure_motor_speeds(self):
+        """Run the measurement routine in a thread."""
+        self.busy = True  # This prevents user from closing the dialog window
+        self.pushButton_measureMotorSpeeds.setEnabled(False)
+        self.pushButton_startImageAcq.setEnabled(False)
+        self.pushButton_measureMotorSpeeds.setText('Please wait... (~1 min)')
+        thread = threading.Thread(target=self.run_motor_speed_measurement)
+        thread.start()
+
+    def run_motor_speed_measurement(self):
+        self.motor_speed_x, self.motor_speed_y = (
+            self.stage.measure_motor_speeds())
+        self.finish_trigger_motor_speeds.signal.emit()
+
+    def show_measured_motor_speeds(self):
+        self.busy = False
+        self.pushButton_measureMotorSpeeds.setEnabled(True)
+        self.pushButton_startImageAcq.setEnabled(True)
+        self.pushButton_measureMotorSpeeds.setText('Measure XY motor speeds')
+        if self.motor_speed_x is None or self.stage.error_state > 0:
+            self.microtome.reset_error_state()
+            QMessageBox.error(self, 'Error',
+                              'XY motor speed measurement failed.',
+                              QMessageBox.Ok)
+            return
         user_choice = QMessageBox.information(
-            self, 'Calculated motor speeds',
-            'Results:\nMotor speed X: ' + '{0:.2f}'.format(motor_speed_x)
-            + ';\nMotor speed Y: ' + '{0:.2f}'.format(motor_speed_y)
+            self, 'Measured XY motor speeds',
+            'Results:\nMotor speed X: ' + '{0:.1f}'.format(self.motor_speed_x)
+            + ';\nMotor speed Y: ' + '{0:.1f}'.format(self.motor_speed_y)
             + '\n\nDo you want to use these values?',
             QMessageBox.Ok | QMessageBox.Cancel)
         if user_choice == QMessageBox.Ok:
-            self.doubleSpinBox_motorSpeedX.setValue(motor_speed_x)
-            self.doubleSpinBox_motorSpeedY.setValue(motor_speed_y)
+            self.doubleSpinBox_motorSpeedX.setValue(self.motor_speed_x)
+            self.doubleSpinBox_motorSpeedY.setValue(self.motor_speed_y)
 
     def show_help(self):
         QMessageBox.information(
@@ -482,6 +729,7 @@ class StageCalibrationDlg(QDialog):
             self.plainTextEdit_calibLog.setPlainText('Acquiring images...')
             self.pushButton_startImageAcq.setText('Busy')
             self.pushButton_startImageAcq.setEnabled(False)
+            self.pushButton_measureMotorSpeeds.setEnabled(False)
             self.pushButton_calcStage.setEnabled(False)
             # Acquire images in thread
             thread = threading.Thread(target=self.calibration_images_acq_thread)
@@ -554,6 +802,7 @@ class StageCalibrationDlg(QDialog):
         """
         self.pushButton_startImageAcq.setText('Start')
         self.pushButton_startImageAcq.setEnabled(True)
+        self.pushButton_measureMotorSpeeds.setEnabled(True)
         self.pushButton_calcStage.setEnabled(True)
         if self.calc_exception is None:
             # Show the vectors in the textbox and the spinboxes
@@ -969,6 +1218,8 @@ class GridSettingsDlg(QDialog):
         # Adaptive focus tool button:
         self.toolButton_focusGradient.clicked.connect(
             self.open_focus_gradient_dlg)
+        # Button to load current SEM imaging parameters
+        self.pushButton_getFromSEM.clicked.connect(self.get_settings_from_sem)
         # Buttons to reset tile previews and wd/stig parameters
         self.pushButton_resetTilePreviews.clicked.connect(
             self.reset_tile_previews)
@@ -1002,6 +1253,17 @@ class GridSettingsDlg(QDialog):
         self.pushButton_resetFocusParams.setEnabled(b)
         self.spinBox_acqInterval.setEnabled(b)
         self.spinBox_acqIntervalOffset.setEnabled(b)
+
+    def get_settings_from_sem(self):
+        """Load current SEM settings for frame size, pixel size, and
+        dwell time, and set the spin box and the combo boxes to these values.
+        """
+        current_frame_size_selector = self.sem.get_frame_size_selector()
+        current_pixel_size = self.sem.get_pixel_size()
+        current_scan_rate = self.sem.get_scan_rate()
+        self.comboBox_tileSize.setCurrentIndex(current_frame_size_selector)
+        self.comboBox_dwellTime.setCurrentIndex(current_scan_rate)
+        self.doubleSpinBox_pixelSize.setValue(current_pixel_size)
 
     def show_current_settings(self):
         self.comboBox_colourSelector.setCurrentIndex(
@@ -1430,6 +1692,8 @@ class AcqSettingsDlg(QDialog):
             success = False
         if success:
             self.acq.base_dir = modified_dir
+            if self.acq.number_slices > self.acq.slice_counter:
+                self.acq.stack_completed = False
             super().accept()
 
 # ------------------------------------------------------------------------------
@@ -1443,31 +1707,36 @@ class PreStackDlg(QDialog):
 
     def __init__(self, acq, sem, microtome, autofocus, ovm, gm):
         super().__init__()
+        self.acq = acq
         self.sem = sem
         self.microtome = microtome
+        self.gm = gm
         loadUi('..\\gui\\pre_stack_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
         # Different labels if stack is paused ('Continue' instead of 'Start')
-        if acq.acq_paused:
+        if self.acq.acq_paused:
             self.pushButton_startAcq.setText('Continue acquisition')
             self.setWindowTitle('Continue acquisition')
         self.pushButton_startAcq.clicked.connect(self.accept)
+        self.pushButton_editInterruption.clicked.connect(
+            self.edit_interruption_point)
         boldFont = QFont()
         boldFont.setBold(True)
         # Show the most relevant current settings for the acquisition
-        self.label_stackName.setText(acq.stack_name)
-        self.label_sliceCounter.setText(str(acq.slice_counter))
+        self.label_stackName.setText(self.acq.stack_name)
+        self.label_sliceCounter.setText(str(self.acq.slice_counter))
         self.label_beamSettings.setText(
             f'{self.sem.target_eht:.2f} keV, '
-            f'{self.sem.target_beam_current} pA')
+            f'{self.sem.target_beam_current} pA, '
+            f'{self.sem.target_aperture_size} μm')
         self.label_gridSetup.setText(
-            f'{ovm.number_ov} overview(s), {gm.number_grids} grid(s);')
+            f'{ovm.number_ov} overview(s), {self.gm.number_grids} grid(s);')
         self.label_totalActiveTiles.setText(
-            f'{gm.total_number_active_tiles()} active tile(s)')
-        if acq.use_autofocus:
+            f'{self.gm.total_number_active_tiles()} active tile(s)')
+        if self.acq.use_autofocus:
             if autofocus.method == 0:
                 self.label_autofocusActive.setFont(boldFont)
                 self.label_autofocusActive.setText('Active (SmartSEM)')
@@ -1476,23 +1745,17 @@ class PreStackDlg(QDialog):
                 self.label_autofocusActive.setText('Active (heuristic)')
         else:
             self.label_autofocusActive.setText('Inactive')
-        if gm.wd_gradient_active():
+        if self.gm.wd_gradient_active():
             self.label_gradientActive.setFont(boldFont)
             self.label_gradientActive.setText('Active')
         else:
             self.label_gradientActive.setText('Inactive')
-        if gm.intervallic_acq_active() or ovm.intervallic_acq_active():
+        if self.gm.intervallic_acq_active() or ovm.intervallic_acq_active():
             self.label_intervallicActive.setFont(boldFont)
             self.label_intervallicActive.setText('Active')
         else:
             self.label_intervallicActive.setText('Inactive')
-        if acq.acq_interrupted:
-            self.label_interruption.setFont(boldFont)
-            self.label_interruption.setText(
-                f'Yes, in grid {acq.acq_interrupted_at[0]} '
-                f'at tile {acq.acq_interrupted_at[1]}')
-        else:
-            self.label_interruption.setText('None')
+        self.show_interruption_point()
         self.doubleSpinBox_cutSpeed.setValue(
             self.microtome.knife_cut_speed / 1000)
         self.doubleSpinBox_retractSpeed.setValue(
@@ -1501,6 +1764,23 @@ class PreStackDlg(QDialog):
         self.doubleSpinBox_contrast.setValue(self.sem.bsd_contrast)
         self.spinBox_bias.setValue(self.sem.bsd_bias)
         self.checkBox_oscillation.setChecked(self.microtome.use_oscillation)
+
+    def edit_interruption_point(self):
+        dialog = SetStartTileDlg(self.acq, self.gm)
+        dialog.exec_()
+        # Update interruption point label
+        self.show_interruption_point()
+
+    def show_interruption_point(self):
+        if self.acq.acq_interrupted:
+            boldFont = QFont()
+            boldFont.setBold(True)
+            self.label_interruption.setFont(boldFont)
+            self.label_interruption.setText(
+                f'Yes, in grid {self.acq.acq_interrupted_at[0]} '
+                f'at tile {self.acq.acq_interrupted_at[1]}')
+        else:
+            self.label_interruption.setText('None')
 
     def accept(self):
         # Save updated settings
@@ -1513,6 +1793,86 @@ class PreStackDlg(QDialog):
         self.sem.bsd_bias = self.spinBox_bias.value()
         self.microtome.use_oscillation = self.checkBox_oscillation.isChecked()
         super().accept()
+
+# ------------------------------------------------------------------------------
+
+class SetStartTileDlg(QDialog):
+    """Adjust the grid/tile at which to (re)start the acquisition."""
+
+    def __init__(self, acquisition, grid_manager):
+        super().__init__()
+        self.acq = acquisition
+        self.gm = grid_manager
+        loadUi('..\\gui\\set_start_tile_dlg.ui', self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setFixedSize(self.size())
+        self.show()
+        if self.acq.acq_interrupted:
+            self.label_acqstatus1.setText(
+                'The acquisition was interrupted/paused')
+            grid_index, tile_index = self.acq.acq_interrupted_at
+        else:
+            self.label_acqstatus1.setText(
+                'The acquisition was not interrupted')
+            grid_index = None
+            # Find first tile to be acquired
+            for g in range(self.gm.number_grids):
+                if (self.gm[g].active
+                        and self.gm[g].active_tiles):
+                    # First active grid
+                    grid_index = g
+                    break
+            if grid_index is not None:
+                # First active tile in first active grid
+                tile_index = self.gm[grid_index].active_tiles[0]
+            else:
+                grid_index, tile_index = 0, 0
+
+        self.label_acqstatus2.setText(
+            f'and will (re)start at tile {tile_index} in grid {grid_index}.')
+
+        # Populate grid selector
+        self.comboBox_gridSelector.clear()
+        self.comboBox_gridSelector.addItems(self.gm.grid_selector_list())
+        self.comboBox_gridSelector.setCurrentIndex(grid_index)
+        self.comboBox_gridSelector.currentIndexChanged.connect(
+            self.update_tile_selector)
+        # Populate tile selector
+        self.update_tile_selector()
+        # Select current tile (+1 to account for entry 'Select tile')
+        self.comboBox_tileSelector.setCurrentIndex(tile_index + 1)
+
+    def update_tile_selector(self):
+        """Populate the tile selector with the active tiles of the currently
+        selected grid.
+        """
+        selected_grid = self.comboBox_gridSelector.currentIndex()
+        self.comboBox_tileSelector.clear()
+        self.comboBox_tileSelector.addItems(
+            ['Select tile']
+            + self.gm[selected_grid].tile_selector_list())
+        self.comboBox_tileSelector.setCurrentIndex(0)
+
+    def accept(self):
+        grid_index = self.comboBox_gridSelector.currentIndex()
+        tile_index = self.comboBox_tileSelector.currentIndex() - 1
+        if tile_index == -1:
+            QMessageBox.warning(
+                self, 'No tile selected',
+                'Please select a tile or click "Cancel"',
+                QMessageBox.Ok)
+        elif not self.gm[grid_index][tile_index].tile_active:
+            QMessageBox.warning(
+                self, 'Select active tile',
+                'The tile you selected is currently inactive. Please select '
+                'an active tile.',
+                QMessageBox.Ok)
+        else:
+            # Set selected tile as new interruption point
+            self.acq.set_interruption_point(grid_index, tile_index,
+                                            during_acq=False)
+            super().accept()
 
 # ------------------------------------------------------------------------------
 
@@ -2288,6 +2648,244 @@ class PlasmaCleanerDlg(QDialog):
 
 # ------------------------------------------------------------------------------
 
+class PressureUpdateQThread(QThread):
+
+    update = pyqtSignal()
+
+    def __init__(self, secs):
+        self.active = True
+        self.secs = secs
+        QThread.__init__(self)
+
+    def run(self):
+        while self.active:
+            self.update.emit()
+            sleep(self.secs)
+
+    def stop(self):
+        self.active = False
+
+
+class VariablePressureDlg(QDialog):
+    """Set Variable Pressure / High Vacuum."""
+
+    def __init__(self, sem):
+        super().__init__()
+        self.sem = sem
+        self.convert_from_sem = {"mbar": 1000, "Pa": 100000, "Torr": 750.061682704}
+        self.convert_to_sem = {"mbar": 0.001, "Pa": 0.00001, "Torr": 0.00133322368421}
+        self.hv = True
+        self.vp = False
+        self.target = 0
+        self.current = 0
+        loadUi('..\\gui\\variable_pressure_settings_dlg.ui', self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setFixedSize(self.size())
+        self.show()
+        self.pushButton_hv.clicked.connect(self.set_hv)
+        self.pushButton_vp.clicked.connect(self.set_vp)
+        self.lineEdit_target.editingFinished.connect(self.target_text_changed)
+        self.horizontalSlider_target.valueChanged.connect(self.target_slider_changed)
+        self.comboBox_units.currentTextChanged.connect(self.units_changed)
+        self.units = self.comboBox_units.currentText()
+        try:
+            self.target = self.sem.get_vp_target()
+            self.update_target_pressure_text()
+            self.update_target_pressure_slider()
+            self.thread = PressureUpdateQThread(1)
+            self.thread.update.connect(self.update)
+            self.thread.start()
+        except Exception as e:
+            QMessageBox.warning(
+                self, 'Error',
+                'Could not read variable pressure settings: '
+                + str(e),
+                QMessageBox.Ok)
+        QApplication.processEvents()
+
+    def set_hv(self):
+        try:
+            self.sem.set_hv()
+        except Exception as e:
+            QMessageBox.warning(
+                self, 'Error',
+                'Unable to set hv: '
+                + str(e),
+                QMessageBox.Ok)
+
+    def set_vp(self):
+        try:
+            self.sem.set_vp()
+        except Exception as e:
+            QMessageBox.warning(
+                self, 'Error',
+                'Unable to set vp: '
+                + str(e),
+                QMessageBox.Ok)
+
+    def units_changed(self, text):
+        self.units = text
+        self.update_target_pressure_text()
+
+    def update(self):
+        self.hv = self.sem.is_hv_on()
+        self.vp = self.sem.is_vp_on()
+        self.current = self.sem.get_chamber_pressure()
+        self.pushButton_hv.setEnabled(self.vp)
+        self.pushButton_vp.setEnabled(self.hv)
+        self.update_pressure(self.lineEdit_current, self.current)
+
+    def update_target_pressure_text(self):
+        self.lineEdit_target.blockSignals(True)
+        self.update_pressure(self.lineEdit_target, self.target)
+        self.lineEdit_target.blockSignals(False)
+
+    def update_target_pressure_slider(self):
+        self.horizontalSlider_target.blockSignals(True)
+        self.horizontalSlider_target.setValue(math.log10(self.target) * 100)
+        self.horizontalSlider_target.blockSignals(False)
+
+    def update_pressure(self, textEdit, value):
+        unit_value = value * self.convert_from_sem[self.units]
+        textEdit.setText("{:.2e}".format(unit_value))
+
+    def target_text_changed(self):
+        try:
+            unit_value = float(self.lineEdit_target.text())
+            self.target = unit_value * self.convert_to_sem[self.units]
+            self.update_target_pressure_slider()
+            self.sem.set_vp_target(self.target)
+        except Exception as e:
+            QMessageBox.warning(
+                self, 'Error',
+                'Invalid value: '
+                + str(e),
+                QMessageBox.Ok)
+
+    def target_slider_changed(self):
+        try:
+            self.target = 10 ** (self.horizontalSlider_target.value() * 0.01)
+            self.update_target_pressure_text()
+            self.sem.set_vp_target(self.target)
+        except Exception as e:
+            QMessageBox.warning(
+                self, 'Error',
+                'Invalid value: '
+                + str(e),
+                QMessageBox.Ok)
+
+    def reject(self):
+        try:
+            self.thread.stop()
+        except Exception:
+            pass
+        super().reject()
+
+    def closeEvent(self, event):
+        try:
+            self.thread.stop()
+        except Exception:
+            pass
+        event.accept()
+
+# ------------------------------------------------------------------------------
+
+class ChargeCompensatorDlg(QDialog):
+    """Set Charge Compensator & level."""
+
+    def __init__(self, sem):
+        super().__init__()
+        self.sem = sem
+        self.state = False
+        self.value = 0
+        loadUi('..\\gui\\charge_compensator_settings_dlg.ui', self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setFixedSize(self.size())
+        self.show()
+        self.pushButton_on.clicked.connect(self.turn_on)
+        self.pushButton_off.clicked.connect(self.turn_off)
+        self.doubleSpinBox_level.valueChanged.connect(self.value_changed)
+        self.horizontalSlider_level.valueChanged.connect(self.slider_changed)
+        try:
+            self.state = self.sem.is_fcc_on()
+            self.value = self.sem.get_fcc_level()
+            self.update_buttons()
+            self.update_value()
+            self.update_slider()
+        except Exception as e:
+            QMessageBox.warning(
+                self, 'Error',
+                'Could not read charge compensator settings: '
+                + str(e),
+                QMessageBox.Ok)
+        QApplication.processEvents()
+
+    def turn_on(self):
+        try:
+            self.sem.turn_fcc_on()
+            self.state = True
+            self.update_buttons()
+            sleep(0.1)
+            self.set_fcc_level(self.value)
+        except Exception as e:
+            QMessageBox.warning(
+                self, 'Error',
+                'Unable to enable fcc: '
+                + str(e),
+                QMessageBox.Ok)
+
+    def turn_off(self):
+        try:
+            self.sem.turn_fcc_off()
+            self.state = False
+            self.value = 0
+            self.update_buttons()
+            self.update_value()
+            self.update_slider()
+        except Exception as e:
+            QMessageBox.warning(
+                self, 'Error',
+                'Unable to disable fcc: '
+                + str(e),
+                QMessageBox.Ok)
+
+    def update_buttons(self):
+        self.pushButton_on.setEnabled(not self.state)
+        self.pushButton_off.setEnabled(self.state)
+
+    def value_changed(self, value):
+        self.set_fcc_level(value)
+        self.update_slider()
+
+    def slider_changed(self):
+        self.set_fcc_level(self.horizontalSlider_level.value() * 0.1)
+        self.update_value()
+
+    def update_value(self):
+        self.doubleSpinBox_level.blockSignals(True)
+        self.doubleSpinBox_level.setValue(self.value)
+        self.doubleSpinBox_level.blockSignals(False)
+
+    def update_slider(self):
+        self.horizontalSlider_level.blockSignals(True)
+        self.horizontalSlider_level.setValue(self.value * 10)
+        self.horizontalSlider_level.blockSignals(False)
+
+    def set_fcc_level(self, value):
+        if not 0 <= value <= 100:
+            QMessageBox.warning(
+                self, 'Error',
+                    'Please enter a value between 0 and 100', QMessageBox.Ok)
+        else:
+            self.value = value
+            if self.state:
+                self.sem.set_fcc_level(value)
+
+
+# ------------------------------------------------------------------------------
+
 class ApproachDlg(QDialog):
     """Remove slices without imaging. User can specify how many slices and
     the cutting thickness.
@@ -2320,6 +2918,9 @@ class ApproachDlg(QDialog):
         self.aborted = False
         self.z_mismatch = False
         self.max_slices = self.spinBox_numberSlices.value()
+        # Approach cut duration for 3View. TODO: more general solution for
+        # other microtomes
+        self.approach_cut_duration = self.microtome.full_cut_duration - 3
         self.update_progress()
 
     def add_to_log(self, msg):
@@ -2329,7 +2930,8 @@ class ApproachDlg(QDialog):
         self.max_slices = self.spinBox_numberSlices.value()
         if self.slice_counter > 0:
             remaining_time_str = (
-                '    ' + str(int((self.max_slices - self.slice_counter) * 12))
+                '    ' + str(int((self.max_slices - self.slice_counter)
+                * self.approach_cut_duration))
                 + ' seconds left')
         else:
             remaining_time_str = ''
@@ -2442,7 +3044,8 @@ class ApproachDlg(QDialog):
             # Check if there were microtome problems
             if self.microtome.error_state > 0:
                 self.add_to_log(
-                    'STAGE: Problem during Z move. Approach aborted.')
+                    f'STAGE: Error during Z move '
+                    f'({self.microtome.error_state}). Approach aborted.')
                 self.aborted = True
                 self.microtome.reset_error_state()
                 break
@@ -2450,7 +3053,7 @@ class ApproachDlg(QDialog):
                             + str(self.thickness) + ' nm cutting thickness).')
             # Do the approach cut (cut, retract, in near position)
             self.microtome.do_full_approach_cut()
-            sleep(self.microtome.full_cut_duration - 5)
+            sleep(self.approach_cut_duration)
             if self.microtome.error_state > 0:
                 self.add_to_log(
                     'KNIFE: Cutting problem detected. Approach aborted.')
@@ -2511,8 +3114,20 @@ class GrabFrameDlg(QDialog):
         self.comboBox_dwellTime.addItems(map(str, self.sem.DWELL_TIME))
         self.comboBox_dwellTime.setCurrentIndex(
             self.sem.DWELL_TIME.index(self.sem.grab_dwell_time))
+        self.pushButton_getFromSEM.clicked.connect(self.get_settings_from_sem)
         self.pushButton_scan.clicked.connect(self.scan_frame)
         self.pushButton_save.clicked.connect(self.save_frame)
+
+    def get_settings_from_sem(self):
+        """Load current SEM settings for frame size, pixel size, and
+        dwell time, and set the spin box and the combo boxes to these values.
+        """
+        current_frame_size_selector = self.sem.get_frame_size_selector()
+        current_pixel_size = self.sem.get_pixel_size()
+        current_scan_rate = self.sem.get_scan_rate()
+        self.comboBox_frameSize.setCurrentIndex(current_frame_size_selector)
+        self.comboBox_dwellTime.setCurrentIndex(current_scan_rate)
+        self.doubleSpinBox_pixelSize.setValue(current_pixel_size)
 
     def scan_frame(self):
         """Scan and save a single frame using the current grab settings."""
@@ -2787,7 +3402,15 @@ class MotorTestDlg(QDialog):
         self.spinBox_duration.setValue(10)
         self.pushButton_startTest.clicked.connect(self.start_random_walk)
         self.pushButton_abortTest.clicked.connect(self.abort_random_walk)
-        self.pushButton_startTest.setEnabled(True)
+        if self.microtome is None:
+            QMessageBox.information(
+                self, 'Only for microtome stage testing',
+                'This test dialog can currently only be used '
+                'for testing a microtome stage.',
+                QMessageBox.Ok)
+            self.pushButton_startTest.setEnabled(False)
+        else:
+            self.pushButton_startTest.setEnabled(True)
         self.pushButton_abortTest.setEnabled(False)
         self.test_in_progress = False
         self.start_time = None
@@ -2807,20 +3430,40 @@ class MotorTestDlg(QDialog):
 
     def start_random_walk(self):
         self.aborted = False
-        self.start_z = self.microtome.get_stage_z()
-        if self.start_z is not None:
-            self.pushButton_startTest.setEnabled(False)
-            self.pushButton_abortTest.setEnabled(True)
-            self.buttonBox.setEnabled(False)
-            self.spinBox_duration.setEnabled(False)
-            self.progressBar.setValue(0)
-            thread = threading.Thread(target=self.random_walk_thread)
-            thread.start()
-        else:
+        self.pushButton_startTest.setText('Wait')
+        self.pushButton_startTest.setEnabled(False)
+        # First make sure the knife is in "Clear" position
+        self.add_to_log('KNIFE: Moving to "Clear" position.')
+        QApplication.processEvents()
+        self.microtome.clear_knife()
+        if self.microtome.error_state > 0:
+            self.add_to_log('KNIFE: Error moving to "Clear" position.')
             self.microtome.reset_error_state()
+            self.pushButton_startTest.setText('Start')
+            self.pushButton_startTest.setEnabled(True)
             QMessageBox.warning(self, 'Error',
-                'Could not read current z stage position',
-                QMessageBox.Ok)
+                                'Warning: Move to "Clear" position failed. '
+                                'Try to move to "Clear" position manually.',
+                                QMessageBox.Ok)
+        else:
+            self.start_z = self.microtome.get_stage_z()
+            if self.start_z is not None:
+                self.add_to_log('CTRL: Motor test started.')
+                self.pushButton_startTest.setText('Busy')
+                self.pushButton_abortTest.setEnabled(True)
+                self.buttonBox.setEnabled(False)
+                self.checkBox_XYonly.setEnabled(False)
+                self.spinBox_duration.setEnabled(False)
+                self.progressBar.setValue(0)
+                thread = threading.Thread(target=self.random_walk_thread)
+                thread.start()
+            else:
+                self.microtome.reset_error_state()
+                self.pushButton_startTest.setText('Start')
+                self.pushButton_startTest.setEnabled(True)
+                QMessageBox.warning(self, 'Error',
+                    'Could not read current z stage position',
+                    QMessageBox.Ok)
 
     def abort_random_walk(self):
         self.aborted = True
@@ -2842,20 +3485,24 @@ class MotorTestDlg(QDialog):
             QMessageBox.information(
                 self, 'Aborted',
                 'Motor test was aborted by user.'
-                + '\nPlease make sure that z coordinate is back at starting '
-                'position of ' + str(self.start_z) + '.',
+                + '\nPlease make sure that the z coordinate is back at '
+                'starting position ' + str(self.start_z) + '.',
                 QMessageBox.Ok)
         else:
             QMessageBox.information(
                 self, 'Test complete',
                 'Motor test complete.\nA total of '
-                + str(self.number_tests) + ' xyz moves were performed.\n'
-                'Number of errors: ' + str(self.number_errors)
-                + '\nPlease make sure that z coordinate is back at starting '
-                'position of ' + str(self.start_z) + '.',
+                + str(self.number_moves) + ' moves were performed.\n'
+                'Number of X motor errors: ' + str(self.number_errors_x)
+                + '; Number of Y motor errors: ' + str(self.number_errors_y)
+                + '; Number of Z motor errors: ' + str(self.number_errors_z)
+                + '\nPlease make sure that the Z coordinate is back at '
+                'starting position ' + str(self.start_z) + '.',
                 QMessageBox.Ok)
+        self.pushButton_startTest.setText('Start')
         self.pushButton_startTest.setEnabled(True)
         self.pushButton_abortTest.setEnabled(False)
+        self.checkBox_XYonly.setEnabled(True)
         self.buttonBox.setEnabled(True)
         self.spinBox_duration.setEnabled(True)
         self.test_in_progress = False
@@ -2863,59 +3510,90 @@ class MotorTestDlg(QDialog):
     def random_walk_thread(self):
         self.test_in_progress = True
         self.duration = self.spinBox_duration.value()
+        self.use_z_moves = not self.checkBox_XYonly.isChecked()
         self.start_time = time()
         self.progress_trigger.signal.emit()
-        self.number_tests = 0
-        self.number_errors = 0
+        self.number_moves = 0
+        self.number_errors_x = 0
+        self.number_errors_y = 0
+        self.number_errors_z = 0
         current_x, current_y = 0, 0
         current_z = self.start_z
+        timestamp = str(datetime.datetime.now())
+        timestamp = timestamp[:19].translate({ord(c): None for c in ' :-.'})
         # Open log file
-        logfile = open(os.path.join(self.acq.base_dir, 'motor_test_log.txt'),
+        logfile = open(os.path.join(self.acq.base_dir,
+                       'motor_test_log_' + timestamp + '.txt'),
                        'w', buffering=1)
+        if not self.use_z_moves:
+            logfile.write('Z motor will not be used during this test.\n\n')
         while self.test_in_progress:
             # Start 'random' walk
-            if self.number_tests % 10 == 0:
-                dist = 300  # longer move every 10th cycle
+            if self.number_moves % 36 == 0:
+                dist = 400  # longer move every 36th move
             else:
-                dist = 50
+                dist = 80
             current_x += (random() - 0.5) * dist
             current_y += (random() - 0.5) * dist
-            if self.number_tests % 2 == 0:
-                current_z += (random() - 0.5) * 0.2
-            else:
-                current_z += 0.025
-            if current_z < 0:
-                current_z = 0
+            if self.use_z_moves:
+                if self.number_moves % 6 == 0:
+                    current_z += (random() - 0.5) * 0.2
+                else:
+                    current_z += 0.025
+                if current_z < 1:
+                    # At Z below 1 micron, Z motor appears imprecise in general
+                    current_z = 1
             # If end of permissable range is reached, go back to starting point
-            if (abs(current_x) > 600 or
-                abs(current_y) > 600 or
-                current_z > 600):
+            if (current_x < self.microtome.stage_limits[0]
+                or current_x > self.microtome.stage_limits[1]
+                or current_y < self.microtome.stage_limits[2]
+                or current_y > self.microtome.stage_limits[3]
+                or current_z > 600):
                 current_x, current_y = 0, 0
                 current_z = self.start_z
-            logfile.write('{0:.3f}, '.format(current_x)
+            logfile.write('Move to: {0:.3f}, '.format(current_x)
                           + '{0:.3f}, '.format(current_y)
                           + '{0:.3f}'.format(current_z) + '\n')
             self.microtome.move_stage_to_xy((current_x, current_y))
+            self.number_moves += 2
             if self.microtome.error_state > 0:
-                self.number_errors += 1
+                mismatch_x = self.microtome.last_known_x - current_x
+                mismatch_y = self.microtome.last_known_y - current_y
                 logfile.write('ERROR DURING XY MOVE: '
                               + self.microtome.error_info
+                              + '; mismatch X: '
+                              + '{0:.3f}'.format(mismatch_x)
+                              + ', mismatch Y:'
+                              + '{0:.3f}'.format(mismatch_y)
                               + '\n')
                 self.microtome.reset_error_state()
+                if abs(mismatch_x) > self.microtome.xy_tolerance:
+                    self.number_errors_x += 1
+                if abs(mismatch_y) > self.microtome.xy_tolerance:
+                    self.number_errors_y += 1
             else:
+                logfile.write('OK (XY)\n')
+
+            if self.use_z_moves:
                 self.microtome.move_stage_to_z(current_z, safe_mode=False)
+                self.number_moves += 1
                 if self.microtome.error_state > 0:
-                    self.number_errors += 1
+                    self.number_errors_z += 1
                     logfile.write('ERROR DURING Z MOVE: '
                                   + self.microtome.error_info
+                                  + '; last known Z: '
+                                  + str(self.microtome.last_known_z)
                                   + '\n')
                     self.microtome.reset_error_state()
                 else:
-                    logfile.write('OK\n')
-
-            self.number_tests += 1
+                    logfile.write('OK (Z)\n')
+            sleep(1)
             self.progress_trigger.signal.emit()
-        logfile.write('NUMBER OF ERRORS: ' + str(self.number_errors))
+        logfile.write('\nNUMBER OF MOVES: ' + str(self.number_moves))
+        logfile.write('\nNUMBER OF X ERRORS: ' + str(self.number_errors_x))
+        logfile.write('\nNUMBER OF Y ERRORS: ' + str(self.number_errors_y))
+        if self.use_z_moves:
+            logfile.write('\nNUMBER OF Z ERRORS: ' + str(self.number_errors_z))
         logfile.close()
         # Signal that thread is done
         self.finish_trigger.signal.emit()
@@ -2968,6 +3646,7 @@ class SendCommandDlg(QDialog):
              'MicrotomeStage_SetPositionZ',
              'MicrotomeStage_SetPositionZ_Confirm',
              'SetMotorSpeedXY',
+             'MeasureMotorSpeedXY',
              'StopScript'])
         self.comboBox_command.setEditable(True)
 

@@ -1183,6 +1183,32 @@
         <string>EHT ON/OFF</string>
        </property>
       </widget>
+      <widget class="QPushButton" name="pushButton_VP">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>150</y>
+         <width>51</width>
+         <height>23</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>VP</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="pushButton_FCC">
+       <property name="geometry">
+        <rect>
+         <x>60</x>
+         <y>150</y>
+         <width>51</width>
+         <height>23</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>FCC</string>
+       </property>
+      </widget>
      </widget>
      <widget class="QGroupBox" name="groupBox_stage">
       <property name="geometry">
@@ -1227,7 +1253,7 @@
         <rect>
          <x>10</x>
          <y>95</y>
-         <width>161</width>
+         <width>71</width>
          <height>16</height>
         </rect>
        </property>
@@ -1722,7 +1748,7 @@
         <x>20</x>
         <y>50</y>
         <width>161</width>
-        <height>311</height>
+        <height>351</height>
        </rect>
       </property>
       <property name="title">
@@ -1758,7 +1784,7 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>270</y>
+         <y>310</y>
          <width>121</width>
          <height>23</height>
         </rect>
@@ -1839,7 +1865,7 @@
         <x>200</x>
         <y>50</y>
         <width>161</width>
-        <height>311</height>
+        <height>351</height>
        </rect>
       </property>
       <property name="title">
@@ -1888,7 +1914,7 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>270</y>
+         <y>310</y>
          <width>121</width>
          <height>23</height>
         </rect>
@@ -1927,13 +1953,26 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>180</y>
+         <y>210</y>
          <width>121</width>
          <height>23</height>
         </rect>
        </property>
        <property name="text">
         <string>Send command to DM</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="pushButton_testMotorStatusDlg">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>180</y>
+         <width>121</width>
+         <height>23</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Motor status</string>
        </property>
       </widget>
      </widget>
@@ -1943,7 +1982,7 @@
         <x>380</x>
         <y>50</y>
         <width>161</width>
-        <height>311</height>
+        <height>351</height>
        </rect>
       </property>
       <property name="title">
@@ -1992,7 +2031,7 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>180</y>
+         <y>310</y>
          <width>121</width>
          <height>23</height>
         </rect>
@@ -2099,10 +2138,10 @@ Green: acquired</string>
       <attribute name="verticalHeaderVisible">
        <bool>false</bool>
       </attribute>
-      <attribute name="verticalHeaderDefaultSectionSize">
+      <attribute name="verticalHeaderMinimumSectionSize">
        <number>10</number>
       </attribute>
-      <attribute name="verticalHeaderMinimumSectionSize">
+      <attribute name="verticalHeaderDefaultSectionSize">
        <number>10</number>
       </attribute>
      </widget>
@@ -2505,6 +2544,8 @@ Wafer Image</string>
     <addaction name="actionAutofocusSettings"/>
     <addaction name="separator"/>
     <addaction name="actionPlasmaCleanerSettings"/>
+    <addaction name="actionVariablePressureSettings"/>
+    <addaction name="actionChargeCompensatorSettings"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -2692,6 +2733,16 @@ Wafer Image</string>
   <action name="actionUpdate">
    <property name="text">
     <string>Update SBEMimage</string>
+   </property>
+  </action>
+  <action name="actionChargeCompensatorSettings">
+   <property name="text">
+    <string>Charge compensator</string>
+   </property>
+  </action>
+  <action name="actionVariablePressureSettings">
+   <property name="text">
+    <string>Variable pressure</string>
    </property>
   </action>
  </widget>

@@ -172,7 +172,7 @@ class Autofocus():
 
     # ================ Below: methods for heuristic autofocus ==================
 
-    def crop_tile_for_heuristic_af(self, tile_img, tile_key):
+    def prepare_tile_for_heuristic_af(self, tile_img, tile_key):
         """Crop tile_img provided as numpy array. Save in dictionary with
         tile_key.
         """

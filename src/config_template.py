@@ -23,11 +23,11 @@ from configparser import ConfigParser
 # deleted from the default configuration files
 CFG_TEMPLATE_FILE = '..\\cfg\\default.ini'  # Template of user configuration
 CFG_NUMBER_SECTIONS = 11
-CFG_NUMBER_KEYS = 196
+CFG_NUMBER_KEYS = 198
 
 SYSCFG_TEMPLATE_FILE = '..\\cfg\\system.cfg'  # Template of system configuration
-SYSCFG_NUMBER_SECTIONS = 7
-SYSCFG_NUMBER_KEYS = 28
+SYSCFG_NUMBER_SECTIONS = 8
+SYSCFG_NUMBER_KEYS = 46
 
 
 def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):
@@ -49,8 +49,8 @@ def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):
 
     if is_default_cfg:
         # Currently, the only validity check is verifying the number of entries.
-        cfg_valid = check_number_of_entries(current_cfg, 0)
-        syscfg_valid = check_number_of_entries(current_syscfg, 1)
+        cfg_valid = check_number_of_entries(current_cfg, False)
+        syscfg_valid = check_number_of_entries(current_syscfg, True)
     else:
         # Load default configuration. This file must be up-to-date. It is always
         # bundled with each new version of SBEMimage.
@@ -61,7 +61,7 @@ def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):
                     cfg_template.read_file(file)
             except Exception as e:
                 cfg_load_success = False
-                exceptions += str(e) + ';'
+                exceptions += str(e) + '; '
         if os.path.isfile(SYSCFG_TEMPLATE_FILE):
             syscfg_template = ConfigParser()
             try:
@@ -69,11 +69,11 @@ def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):
                     syscfg_template.read_file(file)
             except Exception as e:
                 syscfg_load_success = False
-                exceptions += str(e) + ';'
+                exceptions += str(e) + '; '
         if cfg_load_success:
-            cfg_valid = check_number_of_entries(cfg_template, 0)
+            cfg_valid = check_number_of_entries(cfg_template, False)
         if syscfg_load_success:
-            syscfg_valid = check_number_of_entries(syscfg_template, 1)
+            syscfg_valid = check_number_of_entries(syscfg_template, True)
 
         if (cfg_load_success and syscfg_load_success
                 and cfg_valid and syscfg_valid):
@@ -102,6 +102,11 @@ def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):
     success = (cfg_load_success and syscfg_load_success
                and cfg_valid and syscfg_valid)
 
+    if not cfg_valid:
+        exceptions += 'Invalid number of sections in config; '
+    if not syscfg_valid:
+        exceptions += 'Invalid number of sections in system config; '
+
     # cfg_template and syscfg_template are now the updated versions of the
     # current configuration
     return (success, exceptions,
@@ -109,18 +114,18 @@ def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):
             cfg_template, syscfg_template)
 
 
-def check_number_of_entries(cfg, type=0):
+def check_number_of_entries(cfg, is_sys_cfg=False):
     all_sections = cfg.sections()
     section_count = len(all_sections)
     key_count = 0
     for section in all_sections:
         key_count += len(cfg[section])
-    if type == 0:
-        return (section_count == CFG_NUMBER_SECTIONS
-                and key_count == CFG_NUMBER_KEYS)
-    else:
+    if is_sys_cfg:
         return (section_count == SYSCFG_NUMBER_SECTIONS
                 and key_count == SYSCFG_NUMBER_KEYS)
+    else:
+        return (section_count == CFG_NUMBER_SECTIONS
+                and key_count == CFG_NUMBER_KEYS)
 
 
 def update_key_names(cfg, syscfg):

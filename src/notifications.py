@@ -105,12 +105,16 @@ class Notifications:
         self.cfg['sys']['metadata_server_admin'] = (
             self.metadata_server_admin_email)
 
-    def send_email(self, subject, main_text, attached_files=[]):
-        """Send email to user email addresses specified in configuration, with
-        subject and main_text (body) and attached_files as attachments.
+    def send_email(self, subject, main_text, attached_files=[],
+                   recipients=[]):
+        """Send e-mail with subject and main_text (body) and attached_files as
+        attachments. Send it by default to the user email addresses specified in
+        configuration.
         Return (True, None) if email is sent successfully, otherwise return
         (False, error message).
         """
+        if not recipients:
+            recipients = self.user_email_addresses
         try:
             msg = MIMEMultipart()
             msg['From'] = self.email_account
@@ -131,7 +135,7 @@ class Notifications:
             mail_server = smtplib.SMTP(self.smtp_server)
             #mail_server = smtplib.SMTP_SSL(smtp_server)
             mail_server.sendmail(self.email_account,
-                                 self.user_email_addresses,
+                                 recipients,
                                  msg.as_string())
             mail_server.quit()
             return True, None

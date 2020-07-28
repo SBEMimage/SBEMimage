@@ -1,29 +1,36 @@
 # -*- coding: utf-8 -*-
 
-"""Tests for the microtome module.
-"""
+"""Tests for microtome_control.py. Currently only for base class.
+TODO: Tests for different microtomes with mock hardware."""
 
 import pytest
 
-import os
-from configparser import ConfigParser
+# Use the default configuration for all tests
+from test_load_config import config, sysconfig
 
-from microtome_control import Microtome, Microtome_3View, Microtome_katana
+from microtome_control import Microtome
 
 @pytest.fixture
 def microtome():
-    # Load default user and system configurations
-    config = ConfigParser()
-    with open(os.path.join('..', 'cfg', 'default.ini'), 'r') as file:
-        config.read_file(file)
-    sysconfig = ConfigParser()
-    with open(os.path.join('..', 'cfg', 'system.cfg'), 'r') as file:
-        sysconfig.read_file(file)
-    # Create and return microtome instance
+    """Create and return microtome (base class) instance initialized with
+    default configuration.
+    """
     return Microtome(config, sysconfig)
 
-def test_something(microtome):
-	assert microtome.device_name == 'Gatan 3View'
+def test_initial_config(microtome):
+    assert microtome.device_name == 'Gatan 3View'  # 3View loaded by default
+    assert len(microtome.stage_limits) == 4
 
+def test_cut(microtome):
+    # Calling cut() should raise an exception because the method is not
+    # implemented in the base class.
+    with pytest.raises(NotImplementedError):
+        assert microtome.cut()
 
-
+def test_stage_move_duration(microtome):
+    speed_x, speed_y = microtome.motor_speed_x, microtome.motor_speed_y
+    dx, dy = speed_x * 5, speed_y * 5   # XY distance travelled in 5 s
+    # Moving from the origin to (dx, dy) should take exactly 5 s plus
+    # the stage_move_wait_interval
+    expected_duration = 5 + microtome.stage_move_wait_interval
+    assert microtome.stage_move_duration(0, 0, dx, dy) == expected_duration
