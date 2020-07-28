@@ -37,7 +37,7 @@ from main_controls import MainControls
 # VERSION contains the current version/release date information for the
 # master branch (for example, '2.0 (R2020-03-31)'). For the current version
 # in the dev (development) branch, it is set to 'dev'.
-VERSION = '2020.05 beta R2020-05-14'
+VERSION = '2020.07 R2020-07-28'
 
 
 def main():
