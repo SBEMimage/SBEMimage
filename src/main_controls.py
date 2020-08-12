@@ -354,6 +354,47 @@ class MainControls(QMainWindow):
                 + ' Please make sure that the Z position is correct.',
                 QMessageBox.Ok)
 
+        # If user has selected the default.ini configuration, provide some
+        # guidance
+        if self.cfg_file == 'default.ini':
+            # Check how many .cfg files exist
+            cfgfile_counter = 0
+            for file in os.listdir('..\\cfg'):
+                if file.endswith('.cfg'):
+                    cfgfile_counter += 1
+            if cfgfile_counter > 1:
+                # Explain that default.ini will use the default system
+                # configuration.
+                QMessageBox.warning(
+                    self, 'Default user and system configuration',
+                    'You have selected default.ini to load SBEMimage, but '
+                    'there is at least one custom system configuration file '
+                    'available for this installation.\nPlease note that '
+                    'default.ini will use the unmodified default system '
+                    'configuration (system.cfg), which will probably not work '
+                    'for your setup.'
+                    '\n\nIf you want to create new user configuration files, '
+                    'you should first load a configuration other than '
+                    'default.ini.',
+                    QMessageBox.Ok)
+            elif self.simulation_mode:
+                # Show welcome message if SBEMimage is started with default.ini
+                # in simulation mode and no custom system configuration exists.
+                QMessageBox.information(
+                    self, 'Welcome to SBEMimage',
+                    'You can explore the GUI in simulation mode. If you '
+                    'want to get started with your SEM/microtome setup, leave '
+                    'simulation mode by clicking:\n'
+                    'Menu  →  Configuration  →  Leave simulation mode'
+                    '\n\nThen save the current configuration under a new name, '
+                    'which will create new custom user and system '
+                    'configuration files:\n'
+                    'Menu  →  Configuration  →  Save as new configuration file'
+                    '\n\nFollow the instructions in the user guide '
+                    '(sbemimage.readthedocs.io) to calibrate your setup.',
+                    QMessageBox.Ok)
+
+
     def initialize_main_controls_gui(self):
         """Load and set up the Main Controls GUI"""
         loadUi('..\\gui\\main_window.ui', self)
