@@ -95,21 +95,26 @@ class ConfigDlg(QDialog):
                 self.listWidget_filelist.setCurrentItem(default_item)
         else:
             # If status.dat does not exist, the program must have crashed or a
-            # second instance is running. Display a warning and preselect
-            # default.ini in the list.
+            # second instance is running. Preselect default.ini in the list,
+            # and display a warning. The warning is suppressed if
+            # inifile_list contains only default.ini.
             default_item = self.listWidget_filelist.findItems(
                 'default.ini', Qt.MatchExactly)[0]
             self.listWidget_filelist.setCurrentItem(default_item)
-            QMessageBox.warning(
-                self, 'Problem detected: Crash or other SBEMimage instance '
-                'running',
-                'WARNING: SBEMimage appears to have crashed during the '
-                'previous run, or another instance of SBEMimage is already '
-                'running. Please either close the other instance '
-                'or abort this one.\n\n'
-                'If you are restarting a stack after a crash, double-check '
-                'all settings before restarting!',
-                QMessageBox.Ok)
+            if len(inifile_list) > 1:
+                QMessageBox.warning(
+                    self, 'Warning: Crash occurred or other SBEMimage instance '
+                    'is running',
+                    'SBEMimage appears to have crashed during the '
+                    'previous run, or another instance of SBEMimage is already '
+                    'running. Please close the other instance or abort this '
+                    'one.\n\n'
+                    'If you want to continue an acquisition after a crash, '
+                    'double-check all settings before restarting!\n\n'
+                    'You can report a crash here, ideally with the error '
+                    'message(s) shown in the Console window: '
+                    'https://github.com/SBEMimage/SBEMimage/issues',
+                    QMessageBox.Ok)
 
     def reject(self):
         self.abort = True
