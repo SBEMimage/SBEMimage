@@ -557,6 +557,15 @@ class MainControls(QMainWindow):
     def activate_magc_mode(self, tabIndex):
         if tabIndex != 3:
             return
+
+        if self.cfg_file == 'default.ini':
+            QMessageBox.information(
+                self, 'Activating MagC mode',
+                'Please activate MagC mode from a configuration file other '
+                'than default.ini.',
+                QMessageBox.Ok)
+            return
+
         answer = QMessageBox.question(
             self, 'Activating MagC mode',
             'Do you want to activate the MagC mode?'
@@ -569,7 +578,7 @@ class MainControls(QMainWindow):
         if answer != QMessageBox.Yes:
             return
 
-        dialog = SaveConfigDlg()
+        dialog = SaveConfigDlg(self.syscfg_file)
         dialog.label.setText('Name of new MagC config file')
         dialog.label_line1.setText('Choose a name for the new MagC configuration')
         dialog.label_line2.setText('file. If the configuration file already exists,')
@@ -579,9 +588,6 @@ class MainControls(QMainWindow):
 
         if dialog.exec_():
             self.cfg_file = dialog.file_name
-            # Ensure system.cfg is preserved if MagC mode activated from default.ini
-            if self.cfg['sys']['sys_config_file'] == 'system.cfg':
-                self.cfg['sys']['sys_config_file'] = 'this_system.cfg'
             self.cfg['sys']['magc_mode'] = 'True'
             self.cfg['sys']['use_microtome'] = 'False'
             self.save_config_to_disk()
@@ -1080,11 +1086,21 @@ class MainControls(QMainWindow):
             self.show_current_settings()
 
     def open_save_settings_new_file_dlg(self):
-        dialog = SaveConfigDlg()
+        """Open dialog window to let user save the current configuration under
+        a new name.
+        """
+        # Check if the current configuration is default.ini
+        if self.cfg_file == 'default.ini':
+            new_syscfg = True
+            dialog = SaveConfigDlg('', new_syscfg)
+        else:
+            new_syscfg = False
+            dialog = SaveConfigDlg(self.syscfg_file)
         if dialog.exec_():
-            if self.cfg['sys']['sys_config_file'] == 'system.cfg':
-                self.cfg['sys']['sys_config_file'] = 'this_system.cfg'
             self.cfg_file = dialog.file_name
+            if new_syscfg:
+                self.syscfg_file = dialog.sysfile_name
+                self.cfg['sys']['sys_config_file'] = self.syscfg_file
             self.save_config_to_disk()
             # Show new config file name in status bar
             self.set_statusbar('Ready.')
@@ -2023,9 +2039,6 @@ class MainControls(QMainWindow):
 
     def save_settings(self):
         if self.cfg_file != 'default.ini':
-            if self.cfg['sys']['sys_config_file'] == 'system.cfg':
-                # Preserve system.cfg as template, rename:
-                self.cfg['sys']['sys_config_file'] = 'this_system.cfg'
             self.save_config_to_disk()
         elif self.acq.acq_paused:
             QMessageBox.information(
