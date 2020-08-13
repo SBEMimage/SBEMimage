@@ -4,10 +4,9 @@ Open-source acquisition software for scanning electron microscopy with a focus o
 
 <img src="https://github.com/SBEMimage/SBEMimage/blob/master/img/viewport_screenshot.png" width="600">
 
-## Getting started
+## Getting started / Support
 
-Please read the user guide: https://sbemimage.readthedocs.io/en/latest/. It currently contains installation instructions and a short introduction to the software (to be expanded). Questions about setting up SBEMimage on your setup? Contact benjamin.titze ÄT fmi.ch
-See also: https://groups.google.com/d/forum/sbemimage (a forum to be used for future announcements and discussions)
+Please read the user guide: https://sbemimage.readthedocs.io. It currently contains installation instructions and a short introduction to the software (to be expanded). For support and discussion, please use the [Image.sc forum](https://forum.image.sc/).
 
 ## Releases
 
@@ -21,7 +20,7 @@ The development of SBEMimage at the Friedrich Miescher Institute has been suppor
 
 Other institutes that have substantially contributed to SBEMimage development/testing: EPFL, Lausanne, Switzerland (CIME/BioEM); Francis Crick Institute, London, UK.
 
-Please contact benjamin.titze ÄT fmi.ch or use GitHub Issues (https://github.com/SBEMimage/SBEMimage/issues) for feedback, bug reports, or if you are interested in contributing to the development of SBEMimage. All ongoing development takes place in the 'dev' branch. Pull requests to that branch are welcome.
+Please use GitHub Issues (https://github.com/SBEMimage/SBEMimage/issues) for bug reports. Contact benjamin.titze ÄT fmi.ch if you are interested in contributing to the development of SBEMimage. All ongoing development takes place in the 'dev' branch. Pull requests to that branch are welcome.
 
 ## Publication ##
 
