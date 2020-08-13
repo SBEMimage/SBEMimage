@@ -10,7 +10,7 @@ Main Controls
 The window **Main Controls** (shown below) displays at a glance all relevant settings, the acquisition status, the current electron dose, and real-time estimates for the duration of the acquisition and the total data size. Click on the buttons with a cogwheel icon to open dialog windows for changing settings (available for the panels “SEM”, “Microtome/Stage”, “Overviews”, “Tile grids” and “Stack acquisition”. Click on the tool option buttons (“…”) to change the settings for the different features (for example, debris detection) that can be activated during stack acquisitions. Two additional tabs contain a focus tool and various functions for testing and debugging.
 
 .. image:: /images/main_controls.jpg
-   :width: 550
+   :width: 600
    :align: center
    :alt: Main Controls window
 
@@ -21,7 +21,7 @@ Viewport
 The workspace shown in the Viewport’s main tab covers the entire accessible range of the stage motors. When sufficiently zoomed out, the stage boundaries are shown as solid white lines, and the x and y stage axes as dashed white lines. To obtain an overview of the entire surface of the sample holder (‘stub’) mounted on the 3View stage, click on the button “Image stub”. A large low-resolution (372 nm pixel size) mosaic will be acquired and placed in the workspace as a background image (see screenshot below).
 
 .. image:: /images/stub_ov.jpg
-   :width: 550
+   :width: 600
    :align: center
    :alt: Stub Overview example
 
@@ -30,7 +30,7 @@ To acquire image tiles at the target resolution for analysis (typically 5-20 nm 
 Tiles can be individually selected or deselected for imaging (press SHIFT and click on a tile). For complex acquisition tasks, multiple overviews can be set up to cover the region(s) of interest, and multiple grids can be created with different imaging parameters. You can choose for each overview image and for each grid whether it should be acquired on every slice, or in intervals. This permits, for example, to image an area with alternating pixel sizes, or to acquire an overview stack at low resolution with a high-resolution mosaic on every tenth slice. The screenshot below shows an overview image (“OV 0”) and two tile grids (“GRID 0” and “GRID 1”). The highlighted tiles have been selected for imaging. A low-resolution stub overview mosaic is displayed in the background.
 
 .. image:: /images/viewport.jpg
-   :width: 550
+   :width: 600
    :align: center
    :alt: Viewport window
 
@@ -41,7 +41,7 @@ Select the second and third tab to use the slice-by-slice viewer and to show res
 In the “reslice and stats” tab, you can select a slice by left-clicking on the area where the plots are shown. The selected slice is marked with a vertical line in the plot area and a red line in the reslice. The histogram and the mean/SD values are shown for the selected slice.
 
 .. image:: /images/slice_view_and_stats.jpg
-   :width: 550
+   :width: 600
    :align: center
    :alt: Slice-by-slice Viewer and Acquisition Monitor
 
@@ -56,7 +56,7 @@ Viewport
 ^^^^^^^^
 
 .. table::
-    :widths: 40 60
+    :widths: 35 55
 
     ======================================== =============================================
     Command                                  Action
@@ -79,7 +79,7 @@ Slice-by-Slice Viewer
 ^^^^^^^^^^^^^^^^^^^^^
 
 .. table::
-    :widths: 40 60
+    :widths: 35 55
 
     ======================================== =============================================
     Command                                  Action
@@ -95,7 +95,7 @@ Focus Tool
 ^^^^^^^^^^
 
 .. table::
-    :widths: 40 60
+    :widths: 35 55
 
     ======================================== =============================================
     Command                                  Action
