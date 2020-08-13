@@ -382,18 +382,18 @@ class MainControls(QMainWindow):
                 # in simulation mode and no custom system configuration exists.
                 QMessageBox.information(
                     self, 'Welcome to SBEMimage',
-                    'You can explore the GUI in simulation mode. If you '
-                    'want to get started with your SEM/microtome setup, leave '
-                    'simulation mode by clicking:\n'
-                    'Menu  →  Configuration  →  Leave simulation mode'
-                    '\n\nThen save the current configuration under a new name, '
-                    'which will create new custom user and system '
-                    'configuration files:\n'
+                    'You can explore the user interface in simulation mode. If you '
+                    'want to get started with using SBEMimage on your '
+                    'SEM/microtome setup, save the current configuration '
+                    'under a new name. This will create a new custom user '
+                    'configuration file and a system configuration file:\n'
                     'Menu  →  Configuration  →  Save as new configuration file'
+                    '\n\nThen leave the simulation mode:\n'
+                    'Menu  →  Configuration  →  Leave simulation mode'
+                    '\nRestart SBEMimage and load your new configuration file.'
                     '\n\nFollow the instructions in the user guide '
                     '(sbemimage.readthedocs.io) to calibrate your setup.',
                     QMessageBox.Ok)
-
 
     def initialize_main_controls_gui(self):
         """Load and set up the Main Controls GUI"""
