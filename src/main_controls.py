@@ -20,7 +20,7 @@ The 'Main Controls' window consists of four tabs:
 The 'Main Controls' window is a QMainWindow, and it launches the Viewport
 window (in viewport.py) as a QWidget.
 """
-
+import logging
 import os
 import sys
 import threading
@@ -415,6 +415,8 @@ class MainControls(QMainWindow):
         self.setFixedSize(self.size())
         self.move(1120, 20)
         self.hide() # hide window until fully initialized
+        # Connect text area to logging
+        utils.logging_add_handler(utils.QtTextHandler(self.textarea_log))
         # Pushbuttons
         self.pushButton_SEMSettings.clicked.connect(self.open_sem_dlg)
         self.pushButton_SEMSettings.setIcon(QIcon('..\\img\\settings.png'))
@@ -1670,8 +1672,11 @@ class MainControls(QMainWindow):
         self.actionCutDuration.setEnabled(False)
 
     def add_to_log(self, text):
+        # TODO: remove this function and instead directly call logging.info(), logging.warning() etc
+        # TODO: replace print('Error ...') calls with logging.error()
         """Update the log from the main thread."""
-        self.textarea_log.appendPlainText(utils.format_log_entry(text))
+        logging.info(text)
+        #self.textarea_log.appendPlainText(utils.format_log_entry(text))
 
     def write_current_log_to_file(self, filename):
         with open(filename, 'w') as f:

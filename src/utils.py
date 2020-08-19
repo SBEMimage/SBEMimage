@@ -14,12 +14,13 @@ import os
 import datetime
 import json
 import re
-
+import logging
 import numpy as np
 
 from time import sleep
 from queue import Queue
 from serial.tools import list_ports
+from logging import StreamHandler
 
 from PyQt5.QtCore import QObject, pyqtSignal
 
@@ -54,6 +55,11 @@ SLICE_DIGITS = 5      # up to 99999 slices per stack
 RE_TILE_LIST = re.compile('^((0|[1-9][0-9]*)[.](0|[1-9][0-9]*))'
                           '([ ]*,[ ]*(0|[1-9][0-9]*)[.](0|[1-9][0-9]*))*$')
 RE_OV_LIST = re.compile('^([0-9]+)([ ]*,[ ]*[0-9]+)*$')
+
+LOG_FILENAME = '../log/SBEMimage.log'
+# Custom date/time / format to get '.' instead of ',' as millisecond separator
+LOG_FORMAT = '%(asctime)s.%(msecs)03d %(levelname)s %(message)s'
+LOG_FORMAT_DATETIME = '%Y-%m-%d %H:%M:%S'
 
 ERROR_LIST = {
     0: 'No error',
@@ -144,6 +150,41 @@ class Trigger(QObject):
         """Transmit a single command."""
         self.queue.put(cmd)
         self.signal.emit()
+
+
+class QtTextHandler(StreamHandler):
+
+    def __init__(self, textarea_log):
+        StreamHandler.__init__(self)
+        self.textarea_log = textarea_log
+
+    def emit(self, record):
+        #message = self.format(record)
+        message = format_log_entry(record.getMessage())
+        # Filter stack trace from main view
+        if 'Traceback' in message:
+            i = message.index('Traceback')
+            message = message[0:i] + "Exception : See log for details"
+        self.textarea_log.appendPlainText(message)
+
+
+def logging_init(message=""):
+    dirtree = os.path.dirname(LOG_FILENAME)
+    if not os.path.exists(dirtree):
+        os.makedirs(dirtree)
+
+    logging.basicConfig(format=LOG_FORMAT, datefmt=LOG_FORMAT_DATETIME, level=logging.INFO)     #,handlers=[console_handler, file_handler, text_handler]
+    logging_add_handler(logging.FileHandler(LOG_FILENAME))
+
+    if message:
+        logging.info(message)
+
+
+def logging_add_handler(handler, format=LOG_FORMAT, date_format=LOG_FORMAT_DATETIME):
+    logger = logging.getLogger()
+    handler.setFormatter(logging.Formatter(fmt=format, datefmt=date_format))
+    handler.setLevel(logging.INFO)
+    logger.addHandler(handler)
 
 
 def try_to_open(file_name, mode):

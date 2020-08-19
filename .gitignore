@@ -22,5 +22,8 @@ venv/
 # Ignore _build folder in docs:
 docs/_build/
 
+# Ignore log files:
+log/
+
 ### PyCharm ###
 .idea
