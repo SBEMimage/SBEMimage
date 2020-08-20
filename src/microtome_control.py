@@ -1083,7 +1083,7 @@ class GCIB(BFRemover):
             self._connect_blanking()
         except Exception as e:
             self.error_state = 701
-            self.error_info = str(e)
+            self.error_info = f'Could not initialize ftdidio: {e}'
 
     def _connect_blanking(self):
         try:
@@ -1118,6 +1118,7 @@ class GCIB(BFRemover):
         self.cfg['gcib']['xyzt_milling'] = str(self.xyzt_milling.tolist())
         self.cfg['gcib']['mill_cycle'] = str(self.mill_cycle)
         self.cfg['gcib']['continuous_rot'] = str(self.continuous_rot)
+        self.cfg['gcib']['last_known_z'] = str(self.last_known_z)
         self.stage.save_to_cfg()
 
     def do_full_cut(self):
@@ -1135,7 +1136,11 @@ class GCIB(BFRemover):
             self.error_state = 44
             return
         x, y, z, t, r = self.stage.get_stage_xyztr()
-        print(f'GCIB: Start position for milling cycle X={x}, Y={y}, Z={z}, T={t}, R={r}.')
+        msg = f'GCIB: Start position for milling cycle X={x}, Y={y}, Z={z}, T={t}, R={r}.'
+        if self.acq is not None:
+            self.acq.main_controls_trigger.transmit(msg)
+        else:
+            print(msg)
         if not np.isclose(t, 0, atol=1e-4):
             self.error_state = 45
             self.error_info = (f'UnsafeMovementError: Current t position is supposed to be close to 0,'
@@ -1154,7 +1159,11 @@ class GCIB(BFRemover):
                                f'one given as milling location: {z} < {z_mill}.')
             return
         self._pos_prior_mill_mov = [x, y, z, t, r]
-        print(f'Stored position prior to mill movement: {self._pos_prior_mill_mov}')
+        msg = f'Stored position prior to mill movement: {self._pos_prior_mill_mov}'
+        if self.acq is not None:
+            self.acq.main_controls_trigger.transmit(msg)
+        else:
+            print(msg)
 
         if self.simulation_mode:
             time.sleep(self.full_cut_duration)
@@ -1164,7 +1173,11 @@ class GCIB(BFRemover):
         self.stage.move_stage_to_xyzt(x_mill, y_mill, z_mill, t_mill)
         # # Only needed if non-continuous rotation.
         # self.stage.move_stage_delta_r(120, no_wait=True)
-        print(f'GCIB: Reached mill position: X={x_mill}, Y={y_mill}, Z={z_mill}, T={t_mill}, R=120.')
+        msg = f'GCIB: Reached mill position: X={x_mill}, Y={y_mill}, Z={z_mill}, T={t_mill}, R=120.'
+        if self.acq is not None:
+            self.acq.main_controls_trigger.transmit(msg)
+        else:
+            print(msg)
 
     def move_stage_to_pos_prior_mill_mov(self):
         """
@@ -1206,7 +1219,11 @@ class GCIB(BFRemover):
         #                        f'self.stage.stage_rotation={self.stage.stage_rotation},'
         #                        f'instead got: {r_dest} != 0.')
         #     return
-        print(f'GCIB: Reached original position after milling cycle: X={x}, Y={y}, Z={z}, T={t}, R={r}.')
+        msg = f'GCIB: Reached original position after milling cycle: X={x}, Y={y}, Z={z}, T={t}, R={r}.'
+        if self.acq is not None:
+            self.acq.main_controls_trigger.transmit(msg)
+        else:
+            print(msg)
 
     def do_full_removal(self, mill_duration=None):
         """Perform a full milling cycle. This is the only removal function
@@ -1244,8 +1261,12 @@ class GCIB(BFRemover):
                 self.stage.move_stage_delta_r(2)
                 dt = time.time() - start
                 if dt > dt_per_2deg:
-                    print(f'WARNING: Rotation speed was slower ({dt:.3f} s) than requested by the target mill '
-                          f'cycle ({dt_per_2deg:.2f s}).')
+                    msg = (f'WARNING: Rotation speed was slower ({dt:.3f} s) than requested by the target mill '
+                           f'cycle ({dt_per_2deg:.2f s}).')
+                    if self.acq is not None:
+                        self.acq.main_controls_trigger.transmit(msg)
+                    else:
+                        print(msg)
                 else:
                     sleep(dt_per_2deg - dt)
 

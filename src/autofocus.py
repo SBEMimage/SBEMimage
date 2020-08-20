@@ -21,6 +21,7 @@ from math import sqrt, exp, sin, cos
 from statistics import mean
 from time import sleep, time
 from scipy.signal import correlate2d, fftconvolve
+from mapfost import autofoc_mapfost
 
 
 class Autofocus():
@@ -113,9 +114,9 @@ class Autofocus():
         diff_wd = abs(self.sem.get_wd() - prev_wd)
         diff_sx = abs(self.sem.get_stig_x() - prev_sx)
         diff_sy = abs(self.sem.get_stig_y() - prev_sy)
-        return (diff_wd <= self.max_wd_diff
-                and diff_sx <= self.max_stig_x_diff
-                and diff_sy <= self.max_stig_y_diff)
+        is_below = (diff_wd <= self.max_wd_diff and diff_sx <= self.max_stig_x_diff
+                    and diff_sy <= self.max_stig_y_diff)
+        return is_below
 
     def current_slice_active(self, slice_counter):
         autofocus_active, autostig_active = False, False
@@ -167,6 +168,25 @@ class Autofocus():
             msg = 'CTRL: Completed ' + msg + '.'
         else:
             msg = 'CTRL: ERROR during ' + msg + '.'
+
+        return msg
+
+    def run_mapfost_af(self) -> str:
+        """
+        Run mapfost (cf. Binding et al. 2013) implementation by Rangolie Saxena, 2020.
+
+        Returns:
+
+        """
+        # TODO: allow different dwell times and other mapfost parameters!
+        # use 2k image size (frame size selector: 2 for Merlin, PS)
+        self.sem.apply_frame_settings(2, self.pixel_size, 0.1)
+        try:
+            corrections = autofoc_mapfost(defocus_arr=[10, 6, 4, 2], ps=self.pixel_size / 1e3, set_final_values=True,
+                                          sem_api=self.sem.sem_api)
+            msg = f'CTRL: Completed MAPFoSt AF (corrections: {corrections})'
+        except ValueError as e:
+            msg = f'CTRL: ValueError ({str(e)}) during MAPFoSt AF.'
 
         return msg
 

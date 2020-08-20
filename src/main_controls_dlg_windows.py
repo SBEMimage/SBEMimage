@@ -2170,9 +2170,12 @@ class AutofocusSettingsDlg(QDialog):
             self.radioButton_useHeuristic.setChecked(True)
         elif self.autofocus.method == 2:
             self.radioButton_useTrackingOnly.setChecked(True)
+        elif self.autofocus.method == 3:
+            self.radioButton_useMAPFoSt.setChecked(True)
         self.radioButton_useSmartSEM.toggled.connect(self.group_box_update)
         self.radioButton_useHeuristic.toggled.connect(self.group_box_update)
         self.radioButton_useTrackingOnly.toggled.connect(self.group_box_update)
+        self.radioButton_useMAPFoSt.toggled.connect(self.group_box_update)
         self.group_box_update()
         # General settings
         self.lineEdit_refTiles.setText(
@@ -2221,6 +2224,7 @@ class AutofocusSettingsDlg(QDialog):
             self.label_fdp_4.setText('Autostig interval (grids) ')
 
     def group_box_update(self):
+        mapfost_enabled = False
         if self.radioButton_useSmartSEM.isChecked():
             zeiss_enabled = True
             heuristic_enabled = False
@@ -2233,6 +2237,11 @@ class AutofocusSettingsDlg(QDialog):
             zeiss_enabled = False
             heuristic_enabled = False
             diffs_enabled = False
+        elif self.radioButton_useMAPFoSt.isChecked():
+            zeiss_enabled = False
+            heuristic_enabled = False
+            diffs_enabled = True
+            mapfost_enabled = True  # TODO: add mapfost parameter group
         self.groupBox_ZEISS_af.setEnabled(zeiss_enabled)
         self.groupBox_heuristic_af.setEnabled(heuristic_enabled)
         self.doubleSpinBox_maxWDDiff.setEnabled(diffs_enabled)
@@ -2268,6 +2277,8 @@ class AutofocusSettingsDlg(QDialog):
             self.autofocus.method = 1
         elif self.radioButton_useTrackingOnly.isChecked():
             self.autofocus.method = 2
+        elif self.radioButton_useTrackingOnly.isChecked():
+            self.autofocus.method = 3
 
         success, tile_list = utils.validate_tile_list(
             self.lineEdit_refTiles.text())
