@@ -1984,6 +1984,10 @@ class Acquisition:
             self.add_to_main_log('SEM: Running MAPFoSt AF procedure for tile '
                                  + str(grid_index) + '.' + str(tile_index))
             return_msg = self.autofocus.run_mapfost_af()
+            if not self.autofocus.wd_stig_diff_below_max(wd, sx, sy):
+                self.add_to_main_log('SEM: Re-running MAPFoSt AF procedure for tile '
+                                     + str(grid_index) + '.' + str(tile_index))
+                return_msg = self.autofocus.run_mapfost_af(defocus_arr=[10, 8, 8, 6, 4, 2])
         else:
             self.error_state = 505  # TODO: check if that code makes sense here
             return
@@ -1991,7 +1995,7 @@ class Acquisition:
         if 'ERROR' in return_msg:
             self.error_state = 505
         elif not self.autofocus.wd_stig_diff_below_max(wd, sx, sy):
-            self.add_to_incident_log(f'ZEISS autofocus out of range with new values: {self.sem.get_wd()} (WD), '
+            self.add_to_incident_log(f'Autofocus out of range with new values: {self.sem.get_wd()} (WD), '
                                      f'{self.sem.get_stig_xy()} (stig_xy).')
             self.error_state = 507
         else:
@@ -2187,7 +2191,6 @@ class Acquisition:
         """Add entry to the Main Controls log."""
         msg = utils.format_log_entry(msg)
         # Store entry in main log file
-        print(self.main_log_filename, os.path.exists(self.main_log_filename))
         self.main_log_file.write(msg + '\n')
         # Send entry to Main Controls via queue and trigger
         self.main_controls_trigger.transmit(msg)

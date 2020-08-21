@@ -2238,7 +2238,7 @@ class AutofocusSettingsDlg(QDialog):
             heuristic_enabled = False
             diffs_enabled = False
         elif self.radioButton_useMAPFoSt.isChecked():
-            zeiss_enabled = False
+            zeiss_enabled = True  # mapfost uses intervall and pixel size value.
             heuristic_enabled = False
             diffs_enabled = True
             mapfost_enabled = True  # TODO: add mapfost parameter group

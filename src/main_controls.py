@@ -456,8 +456,8 @@ class MainControls(QMainWindow):
         self.pushButton_testSetFocus.clicked.connect(self.test_set_wd)
         self.pushButton_testRunAutofocus.clicked.connect(self.test_autofocus)
         self.pushButton_testRunAutostig.clicked.connect(self.test_autostig)
-        self.pushButton_testRunAutofocusStig.clicked.connect(
-            self.test_autofocus_stig)
+        self.pushButton_testRunAutofocusStig.clicked.connect(self.test_autofocus_stig)
+        self.pushButton_testRunAutofocusMapfost.clicked.connect(self.test_autofocus_mapfost)
         self.pushButton_testZeissAPIVersion.clicked.connect(
             self.test_zeiss_api_version)
         self.pushButton_testGetStage.clicked.connect(self.test_get_stage)
@@ -1556,6 +1556,7 @@ class MainControls(QMainWindow):
         self.pushButton_testRunAutofocus.setEnabled(b)
         self.pushButton_testRunAutostig.setEnabled(b)
         self.pushButton_testRunAutofocusStig.setEnabled(b)
+        self.pushButton_testRunAutofocusMapfost.setEnabled(b)
         self.pushButton_testZeissAPIVersion.setEnabled(b)
         self.pushButton_testGetStage.setEnabled(b)
         self.pushButton_testSetStage.setEnabled(b)
@@ -1691,6 +1692,10 @@ class MainControls(QMainWindow):
     def test_autofocus_stig(self):
         self.sem.run_autofocus_stig()
         self.add_to_log('SEM: SmartSEM autofocus and autostig routine called.')
+
+    def test_autofocus_mapfost(self):
+        self.autofocus.run_mapfost_af()
+        self.add_to_log('SEM: MAPFoSt autofocus called.')
 
     def test_zeiss_api_version(self):
         self.sem.show_about_box()

@@ -139,7 +139,6 @@ class Autofocus():
             # TODO: allow different dwell times
             self.sem.apply_frame_settings(0, self.pixel_size, 0.8)
             sleep(0.5)
-
             if autofocus and autostig:
                 if self.magc_mode:
                     # Run SmartSEM autofocus-autostig-autofocus sequence
@@ -163,31 +162,31 @@ class Autofocus():
                 msg = 'SmartSEM autostig procedure'
                 # Call only SmartSEM autostig routine
                 success = self.sem.run_autostig()
-
         if success:
             msg = 'CTRL: Completed ' + msg + '.'
         else:
             msg = 'CTRL: ERROR during ' + msg + '.'
-
         return msg
 
-    def run_mapfost_af(self) -> str:
+    def run_mapfost_af(self, **kwargs) -> str:
         """
         Run mapfost (cf. Binding et al. 2013) implementation by Rangolie Saxena, 2020.
 
         Returns:
 
         """
+        default_kwargs = dict(defocus_arr=[8, 6, 4, 2])
+        default_kwargs.update(kwargs)
         # TODO: allow different dwell times and other mapfost parameters!
         # use 2k image size (frame size selector: 2 for Merlin, PS)
-        self.sem.apply_frame_settings(2, self.pixel_size, 0.1)
+        self.sem.apply_frame_settings(2, self.pixel_size, 0.2)
+        sleep(0.5)
         try:
-            corrections = autofoc_mapfost(defocus_arr=[10, 6, 4, 2], ps=self.pixel_size / 1e3, set_final_values=True,
-                                          sem_api=self.sem.sem_api)
+            corrections = autofoc_mapfost(ps=self.pixel_size / 1e3, set_final_values=True,
+                                          sem_api=self.sem.sem_api, **default_kwargs)
             msg = f'CTRL: Completed MAPFoSt AF (corrections: {corrections})'
         except ValueError as e:
             msg = f'CTRL: ValueError ({str(e)}) during MAPFoSt AF.'
-
         return msg
 
     # ================ Below: methods for heuristic autofocus ==================

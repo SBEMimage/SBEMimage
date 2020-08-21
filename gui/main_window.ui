@@ -1832,6 +1832,19 @@
         <string>Run autofocus + stig</string>
        </property>
       </widget>
+      <widget class="QPushButton" name="pushButton_testRunAutofocusMapfost">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>240</y>
+         <width>121</width>
+         <height>23</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Run MAPFoSt</string>
+       </property>
+      </widget>
      </widget>
      <widget class="QGroupBox" name="groupBox_6">
       <property name="geometry">
@@ -2793,6 +2806,7 @@ Wafer Image</string>
   <tabstop>pushButton_testRunAutofocus</tabstop>
   <tabstop>pushButton_testRunAutostig</tabstop>
   <tabstop>pushButton_testRunAutofocusStig</tabstop>
+  <tabstop>pushButton_testRunAutofocusMapfost</tabstop>
   <tabstop>pushButton_testZeissAPIVersion</tabstop>
   <tabstop>pushButton_testGetStage</tabstop>
   <tabstop>pushButton_testSetStage</tabstop>
