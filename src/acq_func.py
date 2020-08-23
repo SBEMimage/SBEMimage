@@ -63,6 +63,15 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
             main_controls_trigger.transmit('UPDATE XY')
             sleep(0.1)
             main_controls_trigger.transmit('DRAW VP')
+            # Use custom focus settings for this OV if available
+            ov_wd = ovm[ov_index].wd_stig_xy[0]
+            if ov_wd > 0:
+                sem.set_wd(ov_wd)
+                stig_x, stig_y = ovm[ov_index].wd_stig_xy[1:3]
+                sem.set_stig_xy(stig_x, stig_y)
+                main_controls_trigger.transmit(utils.format_log_entry(
+                    'SEM: Using specified '
+                    + utils.format_wd_stig(ov_wd, stig_x, stig_y)))
             # Set specified OV frame settings
             sem.apply_frame_settings(ovm[ov_index].frame_size_selector,
                                      ovm[ov_index].pixel_size,

@@ -655,14 +655,6 @@ class Acquisition:
                     self.gm[grid_index].set_stig_xy_for_all_tiles(
                         [self.stig_x_default, self.stig_y_default])
 
-            # A setting of [0, 0, 0] (= uninitialized) for overview images
-            # means that the overviews will be acquired with the current default
-            # focus parameters.
-            # If wd != 0, the individual settings in ovm[ov_index].wd_stig_xy
-            # will be used for the overview at ov_index.
-            for ov_index in range(self.ovm.number_ov):
-                self.ovm[ov_index].wd_stig_xy = [0, 0, 0]
-
             # Show current focus/stig settings in the log
             self.add_to_main_log('SEM: Current ' + utils.format_wd_stig(
                 self.wd_default, self.stig_x_default, self.stig_y_default))
@@ -1290,10 +1282,6 @@ class Acquisition:
                     # Show new stage coordinates in GUI
                     self.main_controls_trigger.transmit('UPDATE XY')
         if move_success:
-            self.add_to_main_log(
-                'SEM: Acquiring OV at X:'
-                + '{0:.3f}'.format(ov_stage_position[0])
-                + ', Y:' + '{0:.3f}'.format(ov_stage_position[1]))
             # Set specified OV frame settings
             self.sem.apply_frame_settings(
                 self.ovm[ov_index].frame_size_selector,
@@ -1304,15 +1292,20 @@ class Acquisition:
             ov_wd = self.ovm[ov_index].wd_stig_xy[0]
             if ov_wd > 0:
                 self.sem.set_wd(ov_wd)
-                stig_x, stig_y = self.ovm[ov_index].wd_stig_xy[1]
+                stig_x, stig_y = self.ovm[ov_index].wd_stig_xy[1:3]
                 self.sem.set_stig_xy(stig_x, stig_y)
                 self.add_to_main_log(
-                    'SEM: Using user-specified '
+                    'SEM: Using specified '
                     + utils.format_wd_stig(ov_wd, stig_x, stig_y))
 
             # Path and filename of overview image to be acquired
             ov_save_path = utils.ov_save_path(
                 self.base_dir, self.stack_name, ov_index, self.slice_counter)
+
+            self.add_to_main_log(
+                'SEM: Acquiring OV at X:'
+                + '{0:.3f}'.format(ov_stage_position[0])
+                + ', Y:' + '{0:.3f}'.format(ov_stage_position[1]))
 
             # Indicate the overview being acquired in the viewport
             self.main_controls_trigger.transmit('ACQ IND OV' + str(ov_index))

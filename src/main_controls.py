@@ -2375,7 +2375,7 @@ class MainControls(QMainWindow):
                 self.ft_update_wd_display()
                 self.ft_update_stig_display()
                 if self.ft_selected_ov >= 0:
-                    self.ovm[self.ft_selected_ov] = [
+                    self.ovm[self.ft_selected_ov].wd_stig_xy = [
                         self.ft_selected_wd,
                         self.ft_selected_stig_x,
                         self.ft_selected_stig_y]
