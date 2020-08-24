@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 # ==============================================================================
-#   SBEMimage, ver. 2.0
-#   Acquisition control software for serial block-face electron microscopy
-#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel.
+#   This source file is part of SBEMimage (github.com/SBEMimage)
+#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel,
+#   and the SBEMimage developers.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
@@ -40,8 +40,11 @@ from PyQt5.uic import loadUi
 
 import acq_func
 import utils
-from sem_control import SEM_SmartSEM
-from microtome_control import Microtome_3View, Microtome_katana, GCIB
+from sem_control_zeiss import SEM_SmartSEM
+from sem_control_fei import SEM_Quanta
+from microtome_control_gatan import Microtome_3View
+from microtome_control_katana import Microtome_katana
+from microtome_control_gcib import GCIB
 from stage import Stage
 from plasma_cleaner import PlasmaCleaner
 from acquisition import Acquisition
@@ -60,12 +63,13 @@ from main_controls_dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                                       EmailMonitoringSettingsDlg, \
                                       ImageMonitoringSettingsDlg, ExportDlg, \
                                       SaveConfigDlg, PlasmaCleanerDlg, \
+                                      VariablePressureDlg, ChargeCompensatorDlg, \
                                       ApproachDlg, MirrorDriveDlg, EHTDlg, \
                                       StageCalibrationDlg, MagCalibrationDlg, \
                                       GrabFrameDlg, FTSetParamsDlg, FTMoveDlg, \
                                       AskUserDlg, UpdateDlg, CutDurationDlg, \
                                       KatanaSettingsDlg, SendCommandDlg, \
-                                      AboutBox, GCIBSettingsDlg
+                                      MotorTestDlg, MotorStatusDlg, AboutBox, GCIBSettingsDlg
 
 from magc_dlg_windows import ImportMagCDlg, ImportWaferImageDlg, \
                           WaferCalibrationDlg
@@ -259,6 +263,14 @@ class MainControls(QMainWindow):
             self.cfg['sys']['plc_installed'].lower() == 'true')
         self.plc_initialized = False
 
+        # Check if VP and FCC installed
+        self.cfg['sys']['vp_installed'] = self.syscfg['vp']['installed']
+        if self.syscfg['vp']['installed'].lower() == 'true':
+            self.vp_installed = self.sem.has_vp()
+        else:
+            self.vp_installed = False
+        self.fcc_installed = self.sem.has_fcc()
+
         self.initialize_main_controls_gui()
 
         # Set up grid/tile selectors.
@@ -350,6 +362,47 @@ class MainControls(QMainWindow):
                 + ' Please make sure that the Z position is correct.',
                 QMessageBox.Ok)
 
+        # If user has selected the default.ini configuration, provide some
+        # guidance
+        if self.cfg_file == 'default.ini':
+            # Check how many .cfg files exist
+            cfgfile_counter = 0
+            for file in os.listdir('..\\cfg'):
+                if file.endswith('.cfg'):
+                    cfgfile_counter += 1
+            if cfgfile_counter > 1:
+                # Explain that default.ini will use the default system
+                # configuration.
+                QMessageBox.warning(
+                    self, 'Default user and system configuration',
+                    'You have selected default.ini to load SBEMimage, but '
+                    'there is at least one custom system configuration file '
+                    'available for this installation.\nPlease note that '
+                    'default.ini will use the unmodified default system '
+                    'configuration (system.cfg), which will probably not work '
+                    'for your setup.'
+                    '\n\nIf you want to create new user configuration files, '
+                    'you should first load a configuration other than '
+                    'default.ini.',
+                    QMessageBox.Ok)
+            elif self.simulation_mode:
+                # Show welcome message if SBEMimage is started with default.ini
+                # in simulation mode and no custom system configuration exists.
+                QMessageBox.information(
+                    self, 'Welcome to SBEMimage',
+                    'You can explore the user interface in simulation mode. If you '
+                    'want to get started with using SBEMimage on your '
+                    'SEM/microtome setup, save the current configuration '
+                    'under a new name. This will create a new custom user '
+                    'configuration file and a system configuration file:\n'
+                    'Menu  →  Configuration  →  Save as new configuration file'
+                    '\n\nThen leave the simulation mode:\n'
+                    'Menu  →  Configuration  →  Leave simulation mode'
+                    '\nRestart SBEMimage and load your new configuration file.'
+                    '\n\nFollow the instructions in the user guide '
+                    '(sbemimage.readthedocs.io) to calibrate your setup.',
+                    QMessageBox.Ok)
+
     def initialize_main_controls_gui(self):
         """Load and set up the Main Controls GUI"""
         loadUi('..\\gui\\main_window.ui', self)
@@ -396,6 +449,10 @@ class MainControls(QMainWindow):
         self.pushButton_grabFrame.clicked.connect(self.open_grab_frame_dlg)
         self.pushButton_saveViewport.clicked.connect(
             self.save_viewport_screenshot)
+        self.pushButton_VP.clicked.connect(
+            self.open_variable_pressure_dlg)
+        self.pushButton_FCC.clicked.connect(
+            self.open_charge_compensator_dlg)
         self.pushButton_EHTToggle.clicked.connect(self.open_eht_dlg)
         # Acquisition control buttons
         self.pushButton_startAcq.clicked.connect(self.open_pre_stack_dlg)
@@ -435,6 +492,10 @@ class MainControls(QMainWindow):
         self.actionAutofocusSettings.triggered.connect(self.open_autofocus_dlg)
         self.actionPlasmaCleanerSettings.triggered.connect(
             self.initialize_plasma_cleaner)
+        self.actionVariablePressureSettings.triggered.connect(
+            self.open_variable_pressure_dlg)
+        self.actionChargeCompensatorSettings.triggered.connect(
+            self.open_charge_compensator_dlg)
         self.actionSaveConfig.triggered.connect(self.save_settings)
         self.actionSaveNewConfig.triggered.connect(
             self.open_save_settings_new_file_dlg)
@@ -477,6 +538,8 @@ class MainControls(QMainWindow):
         self.pushButton_testServerRequest.clicked.connect(
             self.test_server_request)
         self.pushButton_testMotors.clicked.connect(self.open_motor_test_dlg)
+        self.pushButton_testMotorStatusDlg.clicked.connect(
+            self.open_motor_status_dlg)
         self.pushButton_testDebrisDetection.clicked.connect(
             self.debris_detection_test)
         self.pushButton_testCustom.clicked.connect(self.custom_test)
@@ -523,6 +586,14 @@ class MainControls(QMainWindow):
         self.checkBox_plasmaCleaner.setEnabled(self.plc_installed)
         self.actionPlasmaCleanerSettings.setEnabled(self.plc_installed)
 
+        # Enable Variable Pressure GUI elements if installed.
+        self.pushButton_VP.setEnabled(self.vp_installed)
+        self.actionVariablePressureSettings.setEnabled(self.vp_installed)
+
+        # Enable Focal Charge Compensator GUI elements if installed.
+        self.pushButton_FCC.setEnabled(self.fcc_installed)
+        self.actionChargeCompensatorSettings.setEnabled(self.fcc_installed)
+
         #-------MagC-------#
 
         if not self.magc_mode:
@@ -538,6 +609,15 @@ class MainControls(QMainWindow):
     def activate_magc_mode(self, tabIndex):
         if tabIndex != 3:
             return
+
+        if self.cfg_file == 'default.ini':
+            QMessageBox.information(
+                self, 'Activating MagC mode',
+                'Please activate MagC mode from a configuration file other '
+                'than default.ini.',
+                QMessageBox.Ok)
+            return
+
         answer = QMessageBox.question(
             self, 'Activating MagC mode',
             'Do you want to activate the MagC mode?'
@@ -550,7 +630,7 @@ class MainControls(QMainWindow):
         if answer != QMessageBox.Yes:
             return
 
-        dialog = SaveConfigDlg()
+        dialog = SaveConfigDlg(self.syscfg_file)
         dialog.label.setText('Name of new MagC config file')
         dialog.label_line1.setText('Choose a name for the new MagC configuration')
         dialog.label_line2.setText('file. If the configuration file already exists,')
@@ -560,9 +640,6 @@ class MainControls(QMainWindow):
 
         if dialog.exec_():
             self.cfg_file = dialog.file_name
-            # Ensure system.cfg is preserved if MagC mode activated from default.ini
-            if self.cfg['sys']['sys_config_file'] == 'system.cfg':
-                self.cfg['sys']['sys_config_file'] = 'this_system.cfg'
             self.cfg['sys']['magc_mode'] = 'True'
             self.cfg['sys']['use_microtome'] = 'False'
             self.save_config_to_disk()
@@ -642,7 +719,8 @@ class MainControls(QMainWindow):
         # SEM beam settings:
         self.label_beamSettings.setText(
             '{0:.2f}'.format(self.sem.target_eht) + ' kV / '
-            + str(self.sem.target_beam_current) + ' pA')
+            + str(self.sem.target_beam_current) + ' pA / '
+            + str(self.sem.target_aperture_size) + ' μm')
         # Show dwell time, pixel size, and frame size for current grid:
         self.label_tileDwellTime.setText(
             str(self.gm[self.grid_index_dropdown].dwell_time) + ' µs')
@@ -1060,11 +1138,21 @@ class MainControls(QMainWindow):
             self.show_current_settings()
 
     def open_save_settings_new_file_dlg(self):
-        dialog = SaveConfigDlg()
+        """Open dialog window to let user save the current configuration under
+        a new name.
+        """
+        # Check if the current configuration is default.ini
+        if self.cfg_file == 'default.ini':
+            new_syscfg = True
+            dialog = SaveConfigDlg('', new_syscfg)
+        else:
+            new_syscfg = False
+            dialog = SaveConfigDlg(self.syscfg_file)
         if dialog.exec_():
-            if self.cfg['sys']['sys_config_file'] == 'system.cfg':
-                self.cfg['sys']['sys_config_file'] = 'this_system.cfg'
             self.cfg_file = dialog.file_name
+            if new_syscfg:
+                self.syscfg_file = dialog.sysfile_name
+                self.cfg['sys']['sys_config_file'] = self.syscfg_file
             self.save_config_to_disk()
             # Show new config file name in status bar
             self.set_statusbar('Ready.')
@@ -1235,15 +1323,25 @@ class MainControls(QMainWindow):
         dialog = GrabFrameDlg(self.sem, self.acq, self.trigger)
         dialog.exec_()
 
+    def open_variable_pressure_dlg(self):
+        dialog = VariablePressureDlg(self.sem)
+        dialog.exec_()
+
+    def open_charge_compensator_dlg(self):
+        dialog = ChargeCompensatorDlg(self.sem)
+        dialog.exec_()
+
     def open_eht_dlg(self):
         dialog = EHTDlg(self.sem)
         dialog.exec_()
 
     def open_motor_test_dlg(self):
-        # Disabled for now
-        pass
-        # dialog = MotorTestDlg(self.microtome, self.acq, self.trigger)
-        # dialog.exec_()
+        dialog = MotorTestDlg(self.microtome, self.acq, self.trigger)
+        dialog.exec_()
+
+    def open_motor_status_dlg(self):
+        dialog = MotorStatusDlg(self.stage)
+        dialog.exec_()
 
     def open_send_command_dlg(self):
         dialog = SendCommandDlg(self.microtome)
@@ -1338,6 +1436,7 @@ class MainControls(QMainWindow):
         elif msg == 'UPDATE PROGRESS':
             self.show_stack_progress()
             self.show_stack_acq_estimates()
+            self.viewport.m_show_motor_status()
         elif msg == 'MANUAL SWEEP SUCCESS':
             self.manual_sweep_success(True)
         elif msg == 'MANUAL SWEEP FAILURE':
@@ -1459,7 +1558,7 @@ class MainControls(QMainWindow):
                 QMessageBox.Yes)
             # Redraw with previous settings
             self.viewport.vp_draw()
-            self.acq.set_user_reply(reply)
+            self.acq.user_reply = reply
         elif msg.startswith('ASK DEBRIS CONFIRMATION'):
             ov_index = int(msg[len('ASK DEBRIS CONFIRMATION'):])
             self.viewport.vp_show_overview_for_user_inspection(ov_index)
@@ -1474,7 +1573,7 @@ class MainControls(QMainWindow):
                 QMessageBox.Yes)
             # Redraw with previous settings
             self.viewport.vp_draw()
-            self.acq.set_user_reply(reply)
+            self.acq.user_reply = reply
         elif msg == 'ASK IMAGE ERROR OVERRIDE':
             reply = QMessageBox.question(
                 self, 'Image inspector',
@@ -1482,7 +1581,7 @@ class MainControls(QMainWindow):
                 'Would you like to proceed anyway?',
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.Yes)
-            self.acq.set_user_reply(reply)
+            self.acq.user_reply = reply
         else:
             # If msg is not a command, show it in log:
             self.textarea_log.appendPlainText(msg)
@@ -1887,7 +1986,7 @@ class MainControls(QMainWindow):
         """
         if (self.acq.slice_counter > self.acq.number_slices
                 and self.acq.number_slices != 0):
-            QMessageBox.warning(
+            QMessageBox.information(
                 self, 'Check Slice Counter',
                 'Slice counter is larger than maximum slice number. Please '
                 'adjust the slice counter.',
@@ -1905,8 +2004,16 @@ class MainControls(QMainWindow):
                 'Please save the current configuration file "default.ini" '
                 'under a new name before starting the stack.',
                 QMessageBox.Ok)
+        elif (self.acq.use_email_monitoring
+                and self.notifications.remote_commands_enabled
+                and not self.notifications.remote_cmd_email_pw):
+            QMessageBox.information(
+                self, 'Password missing',
+                'You have enabled remote commands via e-mail (see e-mail '
+                'monitoring settings), but have not provided a password!',
+                QMessageBox.Ok)
         elif self.sem.is_eht_off():
-            QMessageBox.warning(
+            QMessageBox.information(
                 self, 'EHT off',
                 'EHT / high voltage is off. Please turn '
                 'it on before starting the acquisition.',
@@ -2038,9 +2145,6 @@ class MainControls(QMainWindow):
 
     def save_settings(self):
         if self.cfg_file != 'default.ini':
-            if self.cfg['sys']['sys_config_file'] == 'system.cfg':
-                # Preserve system.cfg as template, rename:
-                self.cfg['sys']['sys_config_file'] = 'this_system.cfg'
             self.save_config_to_disk()
         elif self.acq.acq_paused:
             QMessageBox.information(
@@ -2081,7 +2185,7 @@ class MainControls(QMainWindow):
 
     def closeEvent(self, event):
         if self.microtome is not None and self.microtome.error_state == 701:
-            if self.sem is not None:
+            if self.sem.sem_api is not None:
                 self.sem.disconnect()
             print('\n\nError in configuration file. Aborted.\n')
             event.accept()
@@ -2100,8 +2204,9 @@ class MainControls(QMainWindow):
                     elif (self.use_microtome
                         and self.microtome.device_name == 'ConnectomX katana'):
                         self.microtome.disconnect()
-                    sem_log_msg = self.sem.disconnect()
-                    self.add_to_log('SEM: ' + sem_log_msg)
+                    if self.sem.sem_api is not None:
+                        sem_log_msg = self.sem.disconnect()
+                        self.add_to_log('SEM: ' + sem_log_msg)
                 if self.plc_initialized:
                     plasma_log_msg = self.plasma_cleaner.close_port()
                     self.add_to_log(plasma_log_msg)

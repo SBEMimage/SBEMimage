@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 # ==============================================================================
-#   SBEMimage, ver. 2.0
-#   Acquisition control software for serial block-face electron microscopy
-#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel.
+#   This source file is part of SBEMimage (github.com/SBEMimage)
+#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel,
+#   and the SBEMimage developers.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
@@ -131,12 +131,19 @@ class Stage:
 
     def update_motor_speed(self):
         if self.use_microtome and not self.microtome.device_name == 'GCIB':
-            return self._stage.write_motor_speeds_to_script()
+            return self._stage.update_motor_speeds_in_dm_script()
         elif self.microtome.device_name == 'GCIB':
             return True
         else:
             # Speeds can currently not be updated for SEM stage
             return False
+
+    def measure_motor_speeds(self):
+        if self.use_microtome:
+            return self._stage.measure_motor_speeds()
+        else:
+            # Speeds can currently not be measured for SEM stage
+            return None, None
 
     def stage_move_duration(self, from_x, from_y, to_x, to_y):
         return self._stage.stage_move_duration(
@@ -154,3 +161,49 @@ class Stage:
         within_y = limits[2] <= s_coordinates[1] <= limits[3]
         return within_x and within_y
 
+    @property
+    def xy_tolerance(self):
+        return self._stage.xy_tolerance
+
+    @property
+    def z_tolerance(self):
+        return self._stage.z_tolerance
+
+    @property
+    def total_xyz_move_counter(self):
+        return self._stage.total_xyz_move_counter
+
+    @property
+    def failed_xyz_move_counter(self):
+        return self._stage.failed_xyz_move_counter
+
+    @property
+    def slow_xy_move_counter(self):
+        return self._stage.slow_xy_move_counter
+
+    @property
+    def slow_xy_move_warnings(self):
+        return self._stage.slow_xy_move_warnings
+
+    @property
+    def failed_x_move_warnings(self):
+        return self._stage.failed_x_move_warnings
+
+    @property
+    def failed_y_move_warnings(self):
+        return self._stage.failed_y_move_warnings
+
+    @property
+    def failed_z_move_warnings(self):
+        return self._stage.failed_z_move_warnings
+
+    def reset_stage_move_counters(self):
+        return self._stage.reset_stage_move_counters()
+
+    @property
+    def use_maintenance_moves(self):
+        return self._stage.use_maintenance_moves
+
+    @property
+    def maintenance_move_interval(self):
+        return self._stage.maintenance_move_interval

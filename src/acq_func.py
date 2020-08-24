@@ -1,17 +1,19 @@
 # -*- coding: utf-8 -*-
 
 # ==============================================================================
-#   SBEMimage, ver. 2.0
-#   Acquisition control software for serial block-face electron microscopy
-#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel.
+#   This source file is part of SBEMimage (github.com/SBEMimage)
+#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel,
+#   and the SBEMimage developers.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
 
-"""This module contains four functions that are called manually: (1) Overview
-   acquisition (to refresh the displayed OV in the viewport), (2) Stub overview
-   acquisition, (3) Manual sweep command (when the user wants to remove debris),
-   (4) Manual stage move
+"""This module contains four functions that are called manually (by the user)
+and not during acquisitions:
+(1) Overview acquisition (to refresh the displayed OV in the viewport),
+(2) Stub overview acquisition,
+(3) Manual sweep command (when the user wants to remove debris),
+(4) Manual stage move
 """
 
 import os
@@ -145,12 +147,8 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
                   check_contrast=False)
         ovm['stub'].vp_file_path = temp_save_path
 
-        # Set acquisition parameters
-        sem.apply_frame_settings(ovm['stub'].frame_size_selector,
-                                 ovm['stub'].pixel_size,
-                                 ovm['stub'].dwell_time)
-
         image_counter = 0
+        first_tile = True
         number_cols = ovm['stub'].size[1]
         tile_width = ovm['stub'].tile_width_p()
         tile_height = ovm['stub'].tile_height_p()
@@ -196,6 +194,13 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
                     save_path = os.path.join(
                         acq.base_dir, 'workspace',
                         'stub' + str(tile_index).zfill(2) + '.tif')
+                    if first_tile:
+                        # Set acquisition parameters
+                        sem.apply_frame_settings(
+                            ovm['stub'].frame_size_selector,
+                            ovm['stub'].pixel_size,
+                            ovm['stub'].dwell_time)
+                        first_tile = False
                     success = sem.acquire_frame(save_path)
                     sleep(0.5)
                     tile_img, _, _, load_error, _, grab_incomplete = (
@@ -207,7 +212,7 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
                         sleep(1.5)
                         tile_img, _, _, load_error, _, grab_incomplete = (
                             img_inspector.load_and_inspect(save_path))
-                        if load_error or grab_incomplete:
+                        if load_error:
                             success = False
                             if load_error:
                                 cause = 'load error'

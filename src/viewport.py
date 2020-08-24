@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 # ==============================================================================
-#   SBEMimage, ver. 2.0
-#   Acquisition control software for serial block-face electron microscopy
-#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel.
+#   This source file is part of SBEMimage (github.com/SBEMimage)
+#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel,
+#   and the SBEMimage developers.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
@@ -29,7 +29,7 @@ from statistics import mean
 from PyQt5.uic import loadUi
 from PyQt5.QtWidgets import QWidget, QApplication, QMessageBox, QMenu
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QFont, QIcon, QPen, \
-                        QBrush, QTransform
+                        QBrush, QTransform, QKeyEvent
 from PyQt5.QtCore import Qt, QObject, QRect, QPoint, QSize, pyqtSignal
 
 import utils
@@ -37,6 +37,8 @@ import acq_func
 from viewport_dlg_windows import StubOVDlg, FocusGradientTileSelectionDlg, \
                                  GridRotationDlg, ImportImageDlg, \
                                  AdjustImageDlg, DeleteImageDlg
+from main_controls_dlg_windows import MotorStatusDlg
+
 
 class Viewport(QWidget):
 
@@ -128,6 +130,13 @@ class Viewport(QWidget):
             self.pushButton_refreshOVs.setEnabled(False)
             self.pushButton_acquireStubOV.setEnabled(False)
             self.checkBox_showStagePos.setEnabled(False)
+        # Detect if tab is changed
+        self.tabWidget.currentChanged.connect(self.tab_changed)
+
+    def tab_changed(self):
+        if self.tabWidget.currentIndex() == 2:  # Acquisition monitor
+            # Update motor status
+            self.m_show_motor_status()
 
     def restrict_gui(self, b):
         """Disable several GUI elements while SBEMimage is busy, for example
@@ -604,6 +613,13 @@ class Viewport(QWidget):
                 if event.angleDelta().y() < 0:
                     self._vp_mouse_zoom(px, py, 0.8)
 
+    def keyPressEvent(self, event):
+        # Move through slices in slice-by-slice viewer with PgUp/PgDn
+        if (type(event) == QKeyEvent) and (self.tabWidget.currentIndex() == 1):
+            if event.key() == Qt.Key_PageUp:
+                self.sv_slice_fwd()
+            elif event.key() == Qt.Key_PageDown:
+                self.sv_slice_bwd()
 
 # ====================== Below: Viewport (vp) methods ==========================
 
@@ -2906,6 +2922,8 @@ class Viewport(QWidget):
 
         self.radioButton_fromStack.toggled.connect(self._m_source_update)
         self.pushButton_reloadM.clicked.connect(self.m_show_statistics)
+        self.pushButton_showMotorStatusDlg.clicked.connect(
+            self._m_open_motor_status_dlg)
         self.comboBox_gridSelectorM.currentIndexChanged.connect(
             self.m_change_grid_selection)
         self.m_update_grid_selector()
@@ -3456,3 +3474,31 @@ class Viewport(QWidget):
             self.m_qp.drawText(50, 90, 'No image found for selected source   ')
             self.m_qp.end()
             self.QLabel_histogramCanvas.setPixmap(canvas)
+
+    def _m_open_motor_status_dlg(self):
+        dialog = MotorStatusDlg(self.stage)
+        dialog.exec_()
+
+    def m_show_motor_status(self):
+        """Show recent motor warnings or errors if there are any."""
+        self.label_xMotorStatus.setStyleSheet("color: black")
+        self.label_xMotorStatus.setText('No recent warnings')
+        self.label_yMotorStatus.setStyleSheet("color: black")
+        self.label_yMotorStatus.setText('No recent warnings')
+        self.label_zMotorStatus.setStyleSheet("color: black")
+        self.label_zMotorStatus.setText('No recent warnings')
+
+        if sum(self.stage.slow_xy_move_warnings) > 0:
+            self.label_xMotorStatus.setStyleSheet("color: orange")
+            self.label_xMotorStatus.setText('Recent warnings')
+            self.label_yMotorStatus.setStyleSheet("color: orange")
+            self.label_yMotorStatus.setText('Recent warnings')
+        if sum(self.stage.failed_x_move_warnings) > 0:
+            self.label_xMotorStatus.setStyleSheet("color: red")
+            self.label_xMotorStatus.setText('Recent errors')
+        if sum(self.stage.failed_y_move_warnings) > 0:
+            self.label_yMotorStatus.setStyleSheet("color: red")
+            self.label_yMotorStatus.setText('Recent errors')
+        if sum(self.stage.failed_z_move_warnings) > 0:
+            self.label_zMotorStatus.setStyleSheet("color: red")
+            self.label_zMotorStatus.setText('Recent errors')

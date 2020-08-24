@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>667</width>
-    <height>418</height>
+    <height>396</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -23,7 +23,7 @@
    <property name="geometry">
     <rect>
      <x>465</x>
-     <y>380</y>
+     <y>357</y>
      <width>191</width>
      <height>32</height>
     </rect>
@@ -97,13 +97,13 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>332</y>
+     <y>312</y>
      <width>111</width>
      <height>16</height>
     </rect>
    </property>
    <property name="text">
-    <string>Motor speed X / Y:</string>
+    <string>X motor speed (µm/s):</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_12">
@@ -111,7 +111,7 @@
     <rect>
      <x>10</x>
      <y>280</y>
-     <width>281</width>
+     <width>111</width>
      <height>16</height>
     </rect>
    </property>
@@ -122,26 +122,7 @@
     </font>
    </property>
    <property name="text">
-    <string>Calibration of motor speeds</string>
-   </property>
-  </widget>
-  <widget class="QLabel" name="label_13">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>305</y>
-     <width>281</width>
-     <height>16</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <weight>50</weight>
-     <bold>false</bold>
-    </font>
-   </property>
-   <property name="text">
-    <string>Use script &quot;motor_timing.s&quot;. Speeds in µm/s.</string>
+    <string>XY motor speeds</string>
    </property>
   </widget>
   <widget class="QGroupBox" name="groupBox">
@@ -656,101 +637,11 @@
     </property>
    </widget>
   </widget>
-  <widget class="QGroupBox" name="groupBox_2">
-   <property name="geometry">
-    <rect>
-     <x>265</x>
-     <y>280</y>
-     <width>391</width>
-     <height>80</height>
-    </rect>
-   </property>
-   <property name="title">
-    <string>Calculate motor speeds</string>
-   </property>
-   <widget class="QPushButton" name="pushButton_calcMotor">
-    <property name="geometry">
-     <rect>
-      <x>320</x>
-      <y>50</y>
-      <width>61</width>
-      <height>23</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Calculate</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_10">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>32</y>
-      <width>161</width>
-      <height>16</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>20x50 µm move duration X [s]:</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_20">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>52</y>
-      <width>161</width>
-      <height>16</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>20x50 µm move duration Y [s]:</string>
-    </property>
-   </widget>
-   <widget class="QDoubleSpinBox" name="doubleSpinBox_durationY">
-    <property name="geometry">
-     <rect>
-      <x>180</x>
-      <y>50</y>
-      <width>51</width>
-      <height>22</height>
-     </rect>
-    </property>
-    <property name="decimals">
-     <number>1</number>
-    </property>
-    <property name="minimum">
-     <double>2.000000000000000</double>
-    </property>
-    <property name="value">
-     <double>20.000000000000000</double>
-    </property>
-   </widget>
-   <widget class="QDoubleSpinBox" name="doubleSpinBox_durationX">
-    <property name="geometry">
-     <rect>
-      <x>180</x>
-      <y>30</y>
-      <width>51</width>
-      <height>22</height>
-     </rect>
-    </property>
-    <property name="decimals">
-     <number>1</number>
-    </property>
-    <property name="minimum">
-     <double>2.000000000000000</double>
-    </property>
-    <property name="value">
-     <double>20.000000000000000</double>
-    </property>
-   </widget>
-  </widget>
   <widget class="Line" name="line_3">
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>360</y>
+     <y>337</y>
      <width>645</width>
      <height>20</height>
     </rect>
@@ -812,8 +703,8 @@
   <widget class="QDoubleSpinBox" name="doubleSpinBox_motorSpeedX">
    <property name="geometry">
     <rect>
-     <x>120</x>
-     <y>330</y>
+     <x>130</x>
+     <y>310</y>
      <width>61</width>
      <height>22</height>
     </rect>
@@ -834,8 +725,8 @@
   <widget class="QDoubleSpinBox" name="doubleSpinBox_motorSpeedY">
    <property name="geometry">
     <rect>
-     <x>190</x>
-     <y>330</y>
+     <x>350</x>
+     <y>310</y>
      <width>61</width>
      <height>22</height>
     </rect>
@@ -1007,26 +898,77 @@
     <string>Click on '?' for more detailed instructions.</string>
    </property>
   </widget>
+  <widget class="QLabel" name="label_13">
+   <property name="geometry">
+    <rect>
+     <x>230</x>
+     <y>312</y>
+     <width>111</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Y motor speed (µm/s):</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButton_measureMotorSpeeds">
+   <property name="geometry">
+    <rect>
+     <x>475</x>
+     <y>309</y>
+     <width>181</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Measure XY motor speeds</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_20">
+   <property name="geometry">
+    <rect>
+     <x>110</x>
+     <y>280</y>
+     <width>321</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <weight>50</weight>
+     <bold>false</bold>
+    </font>
+   </property>
+   <property name="text">
+    <string>(used to calculate expected move durations) </string>
+   </property>
+  </widget>
  </widget>
  <tabstops>
+  <tabstop>lineEdit_EHT</tabstop>
+  <tabstop>doubleSpinBox_stageScaleFactorX</tabstop>
+  <tabstop>doubleSpinBox_stageScaleFactorY</tabstop>
   <tabstop>doubleSpinBox_stageRotationX</tabstop>
   <tabstop>doubleSpinBox_stageRotationY</tabstop>
-  <tabstop>pushButton_startImageAcq</tabstop>
+  <tabstop>spinBox_pixelsize</tabstop>
+  <tabstop>spinBox_shift</tabstop>
+  <tabstop>comboBox_dwellTime</tabstop>
+  <tabstop>comboBox_package</tabstop>
   <tabstop>spinBox_x1x</tabstop>
   <tabstop>spinBox_x1y</tabstop>
   <tabstop>spinBox_x2x</tabstop>
   <tabstop>spinBox_x2y</tabstop>
+  <tabstop>spinBox_y1x</tabstop>
+  <tabstop>spinBox_y1y</tabstop>
   <tabstop>spinBox_y2x</tabstop>
   <tabstop>spinBox_y2y</tabstop>
-  <tabstop>spinBox_pixelsize</tabstop>
-  <tabstop>spinBox_shift</tabstop>
   <tabstop>pushButton_calcStage</tabstop>
+  <tabstop>pushButton_helpCalibration</tabstop>
+  <tabstop>pushButton_startImageAcq</tabstop>
+  <tabstop>plainTextEdit_calibLog</tabstop>
   <tabstop>doubleSpinBox_motorSpeedX</tabstop>
   <tabstop>doubleSpinBox_motorSpeedY</tabstop>
-  <tabstop>doubleSpinBox_durationX</tabstop>
-  <tabstop>doubleSpinBox_durationY</tabstop>
-  <tabstop>pushButton_calcMotor</tabstop>
-  <tabstop>lineEdit_EHT</tabstop>
+  <tabstop>pushButton_measureMotorSpeeds</tabstop>
  </tabstops>
  <resources/>
  <connections>

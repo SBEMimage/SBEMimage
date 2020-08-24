@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 # ==============================================================================
-#   SBEMimage, ver. 2.0
-#   Acquisition control software for serial block-face electron microscopy
-#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel.
+#   This source file is part of SBEMimage (github.com/SBEMimage)
+#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel,
+#   and the SBEMimage developers.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
@@ -132,7 +132,7 @@ class Autofocus():
         separately, or the combined routine, or no routine at all. Return a
         message that the routine was completed or an error message if not.
         """
-
+        assert autostig or autofocus
         msg = 'CTRL: SmartSEM AF did not run.'
         if autofocus or autostig:
             # Switch to autofocus settings
@@ -170,16 +170,16 @@ class Autofocus():
 
     def run_mapfost_af(self, **kwargs) -> str:
         """
-        Run mapfost (cf. Binding et al. 2013) implementation by Rangolie Saxena, 2020.
+        Run mapfost (cf. Binding et al. 2013) implementation by Rangoli Saxena, 2020.
 
         Returns:
 
         """
-        default_kwargs = dict(defocus_arr=[8, 6, 4, 2])
+        default_kwargs = dict(defocus_arr=[8, 8, 6, 4, 2, 1])
         default_kwargs.update(kwargs)
         # TODO: allow different dwell times and other mapfost parameters!
         # use 2k image size (frame size selector: 2 for Merlin, PS)
-        self.sem.apply_frame_settings(2, self.pixel_size, 0.2)
+        self.sem.apply_frame_settings(2, self.pixel_size, 0.1)
         sleep(0.5)
         try:
             corrections = autofoc_mapfost(ps=self.pixel_size / 1e3, set_final_values=True,
@@ -191,7 +191,7 @@ class Autofocus():
 
     # ================ Below: methods for heuristic autofocus ==================
 
-    def crop_tile_for_heuristic_af(self, tile_img, tile_key):
+    def prepare_tile_for_heuristic_af(self, tile_img, tile_key):
         """Crop tile_img provided as numpy array. Save in dictionary with
         tile_key.
         """
