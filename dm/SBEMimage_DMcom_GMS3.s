@@ -63,7 +63,7 @@ number idle_counter
 number idle_threshold
 number start_time, start_time2
 number cycle_start_time
-number time_elapsed, time_elapsed2
+number time_elapsed, time_elapsed2, timeElapsed, timeElapsed2
 number success
 number remote_control
 number stroke_down
@@ -632,7 +632,7 @@ void wait_for_command()
 			start_time = GetCurrentTime()
 			EMSetStageX(0)
 			EMSetStageY(0)
-			while ((abs(EMGetStageX()) > 0.010) or (abs(EMGetStageY()) > 0.010)) {
+			while ((abs(EMGetStageX()) > 0.010) || (abs(EMGetStageY()) > 0.010)) {
 				sleep(1)
 				timeElapsed = (GetCurrentTime() - start_time) / 10000000
 				if (timeElapsed > 30) {
