@@ -993,12 +993,14 @@ class Viewport(QWidget):
                 action_deleteImported.setEnabled(False)
             if self.busy:
                 action_focusTool.setEnabled(False)
+                action_openGridSettings.setEnabled(False)
+                action_changeRotation.setEnabled(False)
                 action_selectAll.setEnabled(False)
                 action_deselectAll.setEnabled(False)
-                action_selectAutofocus.setEnabled(False)
                 action_selectGradient.setEnabled(False)
                 action_move.setEnabled(False)
                 action_stub.setEnabled(False)
+                action_import.setEnabled(False)
             if self.sem.simulation_mode:
                 action_move.setEnabled(False)
                 action_stub.setEnabled(False)
