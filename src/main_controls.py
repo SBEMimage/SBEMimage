@@ -90,8 +90,7 @@ class MainControls(QMainWindow):
         utils.show_progress_in_console(0)
 
         # Set up the main control variables
-        self.acq_in_progress = False
-        self.acq_paused = False
+        self.busy = False
         self.simulation_mode = (
             self.cfg['sys']['simulation_mode'].lower() == 'true')
         self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
@@ -1378,12 +1377,15 @@ class MainControls(QMainWindow):
             + f' {self.syscfg_file}')
         self.statusBar().showMessage(self.statusbar_msg)
 
-    def set_status(self, text):
-        """Set status label in GUI (acquisition panel)."""
+    def set_status(self, label_text, statusbar_text, busy_state):
+        """Set status of Main Controls: Label in GUI (acquisition panel),
+        message in status bar, and 'busy' state (True/False)."""
         pal = QPalette(self.label_acqIndicator.palette())
         pal.setColor(QPalette.WindowText, QColor(Qt.red))
         self.label_acqIndicator.setPalette(pal)
-        self.label_acqIndicator.setText(text)
+        self.label_acqIndicator.setText(label_text)
+        self.set_statusbar(statusbar_text)
+        self.busy = busy_state
 
     def event(self, e):
         """Override status tips when hovering with mouse over menu."""
@@ -1399,20 +1401,20 @@ class MainControls(QMainWindow):
         """
         msg = self.trigger.queue.get()
         if msg == 'STATUS IDLE':
-            self.set_status('')
-            self.set_statusbar('Ready.')
+            self.set_status('', 'Ready.', False)
         elif msg == 'STATUS BUSY APPROACH':
-            self.set_status('Busy.')
-            self.set_statusbar('Approach cutting in progress...')
+            self.set_status('Busy.', 'Approach cutting in progress...', True)
         elif msg == 'STATUS BUSY OV':
-            self.set_status('Busy.')
-            self.set_statusbar('Overview acquisition in progress...')
+            self.set_status(
+                'Busy.', 'Overview acquisition in progress...', True)
         elif msg == 'STATUS BUSY STUB':
-            self.set_status('Busy.')
-            self.set_statusbar('Stub overview acquisition in progress...')
+            self.set_status(
+                'Busy.', 'Stub overview acquisition in progress...', True)
         elif msg == 'STATUS BUSY STAGE MOVE':
-            self.set_status('Busy.')
-            self.set_statusbar('Stage move in progress...')
+            self.set_status('Busy.', 'Stage move in progress...', True)
+        elif msg == 'STATUS BUSY GRAB IMAGE':
+            self.set_status(
+                'Busy.', 'Acquisition of single image in progress...', True)
         elif msg == 'UPDATE XY':
             self.show_current_stage_xy()
         elif msg == 'UPDATE XY FT':
@@ -1434,6 +1436,7 @@ class MainControls(QMainWindow):
         elif msg == 'COMPLETION STOP':
             self.completion_stop()
         elif msg == 'ACQ NOT IN PROGRESS':
+            self.set_status('', 'Ready.', False)
             self.acq_not_in_progress_update_gui()
         elif msg == 'SAVE CFG':
             self.save_settings()
@@ -1694,8 +1697,7 @@ class MainControls(QMainWindow):
                                                  args=(self.microtome,
                                                        self.trigger,))
             user_sweep_thread.start()
-            self.set_status('Busy.')
-            self.set_statusbar('Sweep in progress...')
+            self.set_status('Busy.', 'Sweep in progress...', True)
 
     def manual_sweep_success(self, success):
         self.show_current_stage_z()
@@ -1709,8 +1711,7 @@ class MainControls(QMainWindow):
                 'and the current Z position.', QMessageBox.Ok)
         self.restrict_gui(False)
         self.viewport.restrict_gui(False)
-        self.set_status('')
-        self.set_statusbar('Ready.')
+        self.set_status('', 'Ready.', False)
 
     def save_viewport_screenshot(self):
         file_name, ok_button_clicked = QInputDialog.getText(
@@ -1962,8 +1963,8 @@ class MainControls(QMainWindow):
             self.pushButton_resetAcq.setEnabled(False)
             self.show_stack_acq_estimates()
             # Indicate in GUI that stack is running now
-            self.set_status('Acquisition in progress')
-            self.set_statusbar('Acquisition in progress.')
+            self.set_status(
+                'Acquisition in progress', 'Acquisition in progress.', True)
 
             # Start the thread running the stack acquisition
             # All source code in stack_acquisition.py
@@ -2057,8 +2058,6 @@ class MainControls(QMainWindow):
             QMessageBox.Ok)
 
     def acq_not_in_progress_update_gui(self):
-        self.set_status('')
-        self.set_statusbar('Ready.')
         self.restrict_gui(False)
         self.viewport.restrict_gui(False)
         self.pushButton_startAcq.setEnabled(True)
@@ -2125,7 +2124,7 @@ class MainControls(QMainWindow):
             print('\n\nError in configuration file. Aborted.\n')
             event.accept()
             sys.exit()
-        elif not self.acq_in_progress:
+        elif not self.busy:
             result = QMessageBox.question(
                 self, 'Exit',
                 'Are you sure you want to exit the program?',
@@ -2145,7 +2144,7 @@ class MainControls(QMainWindow):
                 if self.plc_initialized:
                     plasma_log_msg = self.plasma_cleaner.close_port()
                     self.add_to_log(plasma_log_msg)
-                if self.acq_paused:
+                if self.acq.acq_paused:
                     if not(self.cfg_file == 'default.ini'):
                         QMessageBox.information(
                             self, 'Resume acquisition later',
@@ -2197,9 +2196,9 @@ class MainControls(QMainWindow):
                 event.ignore()
         else:
             QMessageBox.information(
-                self, 'Acquisition in progress',
-                'If you want to quit, please first stop the current '
-                'acquisition.',
+                self, 'Program busy',
+                'SBEMimage is currently busy. Please wait until the current '
+                'action is completed, or pause/abort the action.',
                 QMessageBox.Ok)
             event.ignore()
 
@@ -2438,6 +2437,8 @@ class MainControls(QMainWindow):
         launch the cycle (stage move followed by through-focus acquisition)
         in a thread.
         """
+        self.set_status(
+            'Busy.', 'Focus tool image acquisition in progress...', True)
         self.pushButton_focusToolStart.setText('Busy')
         self.pushButton_focusToolStart.setEnabled(False)
         self.pushButton_focusToolMove.setEnabled(False)
@@ -2552,6 +2553,8 @@ class MainControls(QMainWindow):
         self.ft_mode = 0
 
     def ft_series_complete(self):
+        self.set_status(
+            '', 'Ready.', False)
         self.pushButton_focusToolStart.setText('Done')
         self.pushButton_focusToolStart.setEnabled(True)
         # Enable arrow keys
