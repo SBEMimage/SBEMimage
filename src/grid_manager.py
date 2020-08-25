@@ -197,7 +197,6 @@ class Grid:
             tile_sx, tile_sy = self.cs.convert_to_s(tile.dx_dy)
             tile.sx_sy = [origin_sx + tile_sx, origin_sy + tile_sy]
 
-
     def calculate_wd_gradient(self):
         """Calculate the working distance gradient for this grid using
         the three reference tiles. At the moment, this method requires
@@ -623,7 +622,7 @@ class Grid:
     def active_tiles(self, new_active_tiles):
         # Remove out-of-range active tiles
         self._active_tiles = [tile_index for tile_index in new_active_tiles
-                             if tile_index < self.number_tiles]
+                              if tile_index < self.number_tiles]
         # Set boolean flags to True for active tiles, otherwise to False
         for tile_index in range(self.number_tiles):
             if tile_index in new_active_tiles:
@@ -777,13 +776,13 @@ class GridManager:
         # the user configuration.
         self.__grids = []
         for i in range(self.number_grids):
-            grid = Grid(self.cs, self.sem, grid_active[i]==1, origin_sx_sy[i],
+            grid = Grid(self.cs, self.sem, grid_active[i] == 1, origin_sx_sy[i],
                         rotation[i], size[i], overlap[i], row_shift[i],
                         active_tiles[i], frame_size[i], frame_size_selector[i],
                         pixel_size[i], dwell_time[i], dwell_time_selector[i],
                         display_colour[i], acq_interval[i],
                         acq_interval_offset[i], wd_stig_xy[i],
-                        use_wd_gradient[i]==1, wd_gradient_ref_tiles[i],
+                        use_wd_gradient[i] == 1, wd_gradient_ref_tiles[i],
                         wd_gradient_params[i])
             self.__grids.append(grid)
 
@@ -811,11 +810,11 @@ class GridManager:
         for g in range(self.number_grids):
             for t in self.__grids[g].active_tiles:
                 preview_path = utils.tile_preview_save_path(base_dir, g, t)
-                tile_path_current = os.path.join(base_dir,
-                    utils.tile_relative_save_path(
+                tile_path_current = os.path.join(
+                    base_dir, utils.tile_relative_save_path(
                         stack_name, g, t, slice_counter))
-                tile_path_previous = os.path.join(base_dir,
-                    utils.tile_relative_save_path(
+                tile_path_previous = os.path.join(
+                    base_dir, utils.tile_relative_save_path(
                         stack_name, g, t, slice_counter - 1))
                 if (os.path.isfile(preview_path)
                     and (os.path.isfile(tile_path_current)
@@ -1044,7 +1043,7 @@ class GridManager:
             return self.__grids[grid_index].use_wd_gradient
 
     def save_tile_positions_to_disk(self, base_dir, timestamp):
-        """Save the current grid setup in a text file in the meta\logs folder.
+        """Save the current grid setup in a text file in the logs folder.
         This assumes that base directory and logs subdirectory have already
         been created.
         """
@@ -1092,16 +1091,14 @@ class GridManager:
                 self._autofocus_ref_tiles.append(str(g) + '.' + str(t))
                 self.__grids[g][t].autofocus_active = True
 
-
 # ----------------------------- MagC functions ---------------------------------
 
-    def propagate_source_grid_properties_to_target_grid(
-        self,
-        source_grid_number,
-        target_grid_number,
-        sections):
+    def propagate_source_grid_properties_to_target_grid(self,
+                                                        source_grid_number,
+                                                        target_grid_number,
+                                                        sections):
 
-        # TODO
+        # TODO (TT): Test and refactor the following
         s = source_grid_number
         t = target_grid_number
         if s == t:
@@ -1120,7 +1117,8 @@ class GridManager:
         if self.magc_wafer_calibrated:
             # transform back the grid coordinates in non-transformed coordinates
             # inefficient but ok for now:
-            waferTransformInverse = utils.invertAffineT(self.magc_wafer_transform)
+            waferTransformInverse = utils.invertAffineT(
+                self.magc_wafer_transform)
             result = utils.applyAffineT(
                 [sourceGridCenter[0]],
                 [sourceGridCenter[1]],
@@ -1133,28 +1131,30 @@ class GridManager:
             np.dot(sourceSectionGrid, [1, 1j]), deg=True)
 
         target_grid_rotation = (((180-targetSectionAngle + sourceGridRotation -
-                             (180-sourceSectionAngle))) % 360)
+                                (180-sourceSectionAngle))) % 360)
         self.__grids[t].rotation = target_grid_rotation
         self.__grids[t].size = self.__grids[s].size
         self.__grids[t].overlap = self.__grids[s].overlap
         self.__grids[t].row_shift = self.__grids[s].row_shift
         self.__grids[t].active_tiles = self.__grids[s].active_tiles
-        self.__grids[t].frame_size_selector = self.__grids[s].frame_size_selector
+        self.__grids[t].frame_size_selector = (
+            self.__grids[s].frame_size_selector)
         self.__grids[t].pixel_size = self.__grids[s].pixel_size
-        self.__grids[t].dwell_time_selector = self.__grids[s].dwell_time_selector
+        self.__grids[t].dwell_time_selector = (
+            self.__grids[s].dwell_time_selector)
         self.__grids[t].acq_interval = self.__grids[s].acq_interval
-        self.__grids[t].acq_interval_offset = self.__grids[s].acq_interval_offset
-        self.__grids[t].autofocus_ref_tiles = self.__grids[s].autofocus_ref_tiles
-        # xxx self.set_adaptive_focus_enabled(t, self.get_adaptive_focus_enabled(s))
-        # xxx self.set_adaptive_focus_tiles(t, self.get_adaptive_focus_tiles(s))
-        # xxx self.set_adaptive_focus_gradient(t, self.get_adaptive_focus_gradient(s))
+        self.__grids[t].acq_interval_offset = (
+            self.__grids[s].acq_interval_offset)
+        self.__grids[t].autofocus_ref_tiles = (
+            self.__grids[s].autofocus_ref_tiles)
 
         targetSectionGridAngle = (
             sourceSectionGridAngle + sourceSectionAngle - targetSectionAngle)
 
-        targetGridCenterComplex = np.dot(targetSectionCenter, [1,1j]) \
-            + sourceSectionGridDistance \
-            * np.exp(1j * np.radians(targetSectionGridAngle))
+        targetGridCenterComplex = (
+            np.dot(targetSectionCenter, [1, 1j])
+            + sourceSectionGridDistance
+            * np.exp(1j * np.radians(targetSectionGridAngle)))
         targetGridCenter = (
             np.real(targetGridCenterComplex),
             np.imag(targetGridCenterComplex))
@@ -1175,8 +1175,8 @@ class GridManager:
             return
         # TODO
         if self.magc_wafer_calibrated:
-            waferTransformInverse = utils.invertAffineT(self.magc_wafer_transform)
-            transform_angle = -utils.getAffineRotation(self.magc_wafer_transform)
+            transform_angle = -utils.getAffineRotation(
+                self.magc_wafer_transform)
 
         with open(self.magc_sections_path, 'r') as f:
             sections_yaml = yaml.full_load(f)
@@ -1206,8 +1206,8 @@ class GridManager:
 
         with open(self.magc_sections_path, 'w') as f:
             yaml.dump(sections_yaml,
-                f,
-                default_flow_style=False,
-                sort_keys=False)
+                      f,
+                      default_flow_style=False,
+                      sort_keys=False)
 
 # ------------------------- End of MagC functions ------------------------------

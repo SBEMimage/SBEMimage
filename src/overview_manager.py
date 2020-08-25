@@ -52,11 +52,11 @@ class Overview(Grid):
         self.vp_file_path = vp_file_path    # this will load the image if found
         self.debris_detection_area = debris_detection_area
 
-
-    # The following property overrides centre_sx_sy from the parent class.
-    # Since overviews are 1x1 grids, the centre is the same as the origin.
     @property
     def centre_sx_sy(self):
+        """Override centre_sx_sy from the parent class. Since overviews are 1x1
+        grids, the centre is the same as the origin.
+        """
         return self._origin_sx_sy
 
     @centre_sx_sy.setter
@@ -136,16 +136,16 @@ class Overview(Grid):
                         max_dy -= ov_top_left_dy
 
                         if (top_left_dx_min is None
-                            or min_dx < top_left_dx_min):
+                                or min_dx < top_left_dx_min):
                             top_left_dx_min = min_dx
                         if (top_left_dy_min is None
-                            or min_dy < top_left_dy_min):
+                                or min_dy < top_left_dy_min):
                             top_left_dy_min = min_dy
                         if (bottom_right_dx_max is None
-                            or max_dx > bottom_right_dx_max):
+                                or max_dx > bottom_right_dx_max):
                             bottom_right_dx_max = max_dx
                         if (bottom_right_dy_max is None
-                            or max_dy > bottom_right_dy_max):
+                                or max_dy > bottom_right_dy_max):
                             bottom_right_dy_max = max_dy
 
             if top_left_dx_min is None:
@@ -175,6 +175,7 @@ class Overview(Grid):
         else:
             # set full detection area:
             self.debris_detection_area = [0, 0, self.width_p(), self.height_p()]
+
 
 class StubOverview(Grid):
 
@@ -227,6 +228,7 @@ class StubOverview(Grid):
         else:
             self.image = None
 
+
 class OverviewManager:
 
     def __init__(self, config, sem, coordinate_system):
@@ -267,7 +269,7 @@ class OverviewManager:
         # Create OV objects
         self.__overviews = []
         for i in range(self.number_ov):
-            overview = Overview(self.cs, self.sem, ov_active[i]==1,
+            overview = Overview(self.cs, self.sem, ov_active[i] == 1,
                                 ov_centre_sx_sy[i], ov_size[i],
                                 ov_size_selector[i], ov_pixel_size[i],
                                 ov_dwell_time[i], ov_dwell_time_selector[i],
@@ -367,7 +369,6 @@ class OverviewManager:
             self.__stub_overview.dwell_time)
         self.cfg['overviews']['stub_ov_viewport_image'] = str(
             self.__stub_overview.vp_file_path)
-
 
     def add_new_overview(self):
         new_ov_index = self.number_ov
