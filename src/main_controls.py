@@ -2444,7 +2444,7 @@ class MainControls(QMainWindow):
         self.pushButton_focusToolMove.setEnabled(False)
         self.pushButton_focusToolSet.setEnabled(False)
         self.spinBox_ftPixelSize.setEnabled(False)
-        self.checkBox_zoom.setEnabled(False)
+        self.checkBox_useCurrentPos.setEnabled(False)
         self.comboBox_dwellTime.setEnabled(False)
         self.verticalSlider_ftDelta.setEnabled(False)
         self.radioButton_focus.setEnabled(False)
@@ -2533,7 +2533,8 @@ class MainControls(QMainWindow):
         self.pushButton_moveUp.setEnabled(False)
         self.pushButton_moveDown.setEnabled(False)
         self.spinBox_ftPixelSize.setEnabled(True)
-        self.checkBox_zoom.setEnabled(True)
+        self.checkBox_useCurrentPos.setEnabled(True)
+        self.checkBox_zoom.setEnabled(False)
         self.comboBox_dwellTime.setEnabled(True)
         self.verticalSlider_ftDelta.setEnabled(True)
         self.radioButton_focus.setEnabled(True)
@@ -2557,9 +2558,10 @@ class MainControls(QMainWindow):
             '', 'Ready.', False)
         self.pushButton_focusToolStart.setText('Done')
         self.pushButton_focusToolStart.setEnabled(True)
-        # Enable arrow keys
+        # Enable arrow keys and zoom checkbox
         self.pushButton_moveUp.setEnabled(True)
         self.pushButton_moveDown.setEnabled(True)
+        self.checkBox_zoom.setEnabled(True)
         # Increase counter to move to fresh area for next cycle:
         self.ft_cycle_counter += 1
         # Go back to the centre after a full clockwise cycle
