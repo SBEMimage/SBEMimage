@@ -1363,14 +1363,17 @@ class Acquisition:
                         self.main_controls_trigger.transmit(
                             'ASK DEBRIS FIRST OV' + str(ov_index))
                         # The command above causes a message box to be displayed
-                        # in Main Controls. The user is asked if debris can be
-                        # seen in the first overview image acquired.
+                        # in Main Controls. The user is asked if the first
+                        # overview image acquired is clean and of good quality.
                         # user_reply (None by default) is updated when a
-                        # response is received.
+                        # response is received:
+                        # "Image is fine" button clicked:    0
+                        # "There is debris" button clicked:  1
+                        # "Abort" button clicked:            2
                         while self.user_reply is None:
                             sleep(0.1)
-                        ov_accepted = (self.user_reply == QMessageBox.Yes)
-                        if self.user_reply == QMessageBox.Abort:
+                        ov_accepted = (self.user_reply == 0)
+                        if self.user_reply == 2:
                             self.pause_acquisition(1)
                         self.user_reply = None
 
@@ -1388,12 +1391,13 @@ class Acquisition:
                                     'ASK DEBRIS CONFIRMATION' + str(ov_index))
                                 while self.user_reply is None:
                                     sleep(0.1)
-                                # The OV is accepted if the user replies 'No'
-                                # to the question ('Is debris present?')
-                                # in the message box.
-                                ov_accepted = (
-                                    self.user_reply == QMessageBox.No)
-                                if self.user_reply == QMessageBox.Abort:
+                                # user_reply (None by default) is updated when a
+                                # response is received:
+                                # "Yes, there is debris" button clicked:  0
+                                # "No debris, continue" button clicked:   1
+                                # "Abort" button clicked:                 2
+                                ov_accepted = (self.user_reply == 1)
+                                if self.user_reply == 2:
                                     self.pause_acquisition(1)
                                 self.user_reply = None
             else:
