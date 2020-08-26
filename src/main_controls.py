@@ -29,7 +29,7 @@ import json
 from time import sleep
 
 from PyQt5.QtWidgets import QApplication, QTableWidgetSelectionRange, \
-                            QAbstractItemView
+                            QAbstractItemView, QPushButton
 from PyQt5.QtCore import Qt, QRect, QSize, QEvent, QItemSelection, \
                          QItemSelectionModel, QModelIndex
 from PyQt5.QtGui import QIcon, QPalette, QColor, QPixmap, QKeyEvent, \
@@ -1537,29 +1537,44 @@ class MainControls(QMainWindow):
         elif msg.startswith('ASK DEBRIS FIRST OV'):
             ov_index = int(msg[len('ASK DEBRIS FIRST OV'):])
             self.viewport.vp_show_overview_for_user_inspection(ov_index)
-            reply = QMessageBox.question(
-                self, 'Please inspect overview image quality',
+            msgBox = QMessageBox(self)
+            msgBox.setIcon(QMessageBox.Question)
+            msgBox.setWindowTitle('Please inspect overview image quality')
+            msgBox.setText(
                 f'Is the overview image OV {ov_index} now shown in the '
-                f'Viewport free from debris or other image defects?\n\n'
+                f'Viewport clean and of good quality (no debris or other image '
+                f'defects)?\n\n'
                 f'(This confirmation is required for the first slice to be '
-                f'imaged after (re)starting the acquisition.)',
-                QMessageBox.Yes | QMessageBox.No | QMessageBox.Abort,
-                QMessageBox.Yes)
+                f'imaged after (re)starting an acquisition.)')
+            msgBox.addButton(QPushButton('  Image is fine!  '),
+                             QMessageBox.YesRole)
+            msgBox.addButton(QPushButton('  There is debris.  '),
+                             QMessageBox.NoRole)
+            msgBox.addButton(QPushButton('Abort'),
+                             QMessageBox.RejectRole)
+            reply = msgBox.exec_()
             # Redraw with previous settings
             self.viewport.vp_draw()
             self.acq.user_reply = reply
         elif msg.startswith('ASK DEBRIS CONFIRMATION'):
             ov_index = int(msg[len('ASK DEBRIS CONFIRMATION'):])
             self.viewport.vp_show_overview_for_user_inspection(ov_index)
-            reply = QMessageBox.question(
-                self, 'Potential debris detected - please confirm',
+            msgBox = QMessageBox(self)
+            msgBox.setIcon(QMessageBox.Question)
+            msgBox.setWindowTitle('Potential debris detected - please confirm')
+            msgBox.setText(
                 f'Is debris visible in the detection area of OV {ov_index} now '
                 f'shown in the Viewport?\n\n'
                 f'(Potential debris has been detected in this overview image. '
                 f'If you get several false positives in a row, you may need to '
-                f'adjust your detection thresholds.)',
-                QMessageBox.Yes | QMessageBox.No | QMessageBox.Abort,
-                QMessageBox.Yes)
+                f'adjust your detection thresholds.)')
+            msgBox.addButton(QPushButton('  Yes, there is debris.  '),
+                             QMessageBox.YesRole)
+            msgBox.addButton(QPushButton('  No debris, continue!  '),
+                             QMessageBox.NoRole)
+            msgBox.addButton(QPushButton('Abort'),
+                             QMessageBox.RejectRole)
+            reply = msgBox.exec_()
             # Redraw with previous settings
             self.viewport.vp_draw()
             self.acq.user_reply = reply
