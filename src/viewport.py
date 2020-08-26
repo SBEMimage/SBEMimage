@@ -174,21 +174,21 @@ class Viewport(QWidget):
     def _update_measure_buttons(self):
         """Display the measuring tool buttons as active or inactive."""
         if self.vp_measure_active:
-            self.pushButton_measureMosaic.setIcon(
+            self.pushButton_measureViewport.setIcon(
                 QIcon('..\\img\\measure-active.png'))
-            self.pushButton_measureMosaic.setIconSize(QSize(16, 16))
+            self.pushButton_measureViewport.setIconSize(QSize(16, 16))
         else:
-            self.pushButton_measureMosaic.setIcon(
+            self.pushButton_measureViewport.setIcon(
                 QIcon('..\\img\\measure.png'))
-            self.pushButton_measureMosaic.setIconSize(QSize(16, 16))
+            self.pushButton_measureViewport.setIconSize(QSize(16, 16))
         if self.sv_measure_active:
-            self.pushButton_measureSlice.setIcon(
+            self.pushButton_measureSliceViewer.setIcon(
                 QIcon('..\\img\\measure-active.png'))
-            self.pushButton_measureSlice.setIconSize(QSize(16, 16))
+            self.pushButton_measureSliceViewer.setIconSize(QSize(16, 16))
         else:
-            self.pushButton_measureSlice.setIcon(
+            self.pushButton_measureSliceViewer.setIcon(
                 QIcon('..\\img\\measure.png'))
-            self.pushButton_measureSlice.setIconSize(QSize(16, 16))
+            self.pushButton_measureSliceViewer.setIconSize(QSize(16, 16))
 
     def _draw_measure_labels(self, qp):
         """Draw measure labels QPainter qp. qp must be active when calling this
@@ -676,10 +676,12 @@ class Viewport(QWidget):
         self.pushButton_refreshOVs.clicked.connect(self.vp_acquire_overview)
         self.pushButton_acquireStubOV.clicked.connect(
             self._vp_open_stub_overview_dlg)
-        self.pushButton_measureMosaic.clicked.connect(self._vp_toggle_measure)
-        self.pushButton_measureMosaic.setIcon(
+        self.pushButton_measureViewport.clicked.connect(self._vp_toggle_measure)
+        self.pushButton_measureViewport.setIcon(
             QIcon(os.path.join('..', 'img', 'measure.png')))
-        self.pushButton_measureMosaic.setIconSize(QSize(16, 16))
+        self.pushButton_measureViewport.setIconSize(QSize(16, 16))
+        self.pushButton_measureViewport.setToolTip(
+            'Measure with right mouse clicks')
         self.pushButton_helpViewport.clicked.connect(self.vp_toggle_help_panel)
         self.pushButton_helpSliceViewer.clicked.connect(
             self.vp_toggle_help_panel)
@@ -2396,9 +2398,13 @@ class Viewport(QWidget):
         self.sv_qp = QPainter()
 
         self.pushButton_reloadSV.clicked.connect(self.sv_load_slices)
-        self.pushButton_measureSlice.clicked.connect(self.sv_toggle_measure)
-        self.pushButton_measureSlice.setIcon(QIcon('..\\img\\measure.png'))
-        self.pushButton_measureSlice.setIconSize(QSize(16, 16))
+        self.pushButton_measureSliceViewer.clicked.connect(
+            self.sv_toggle_measure)
+        self.pushButton_measureSliceViewer.setIcon(
+            QIcon('..\\img\\measure.png'))
+        self.pushButton_measureSliceViewer.setIconSize(QSize(16, 16))
+        self.pushButton_measureSliceViewer.setToolTip(
+            'Measure with right mouse clicks')
         self.pushButton_sliceBWD.clicked.connect(self.sv_slice_bwd)
         self.pushButton_sliceFWD.clicked.connect(self.sv_slice_fwd)
 
