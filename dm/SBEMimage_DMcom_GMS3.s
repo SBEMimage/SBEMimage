@@ -632,10 +632,10 @@ void wait_for_command()
 			start_time = GetCurrentTime()
 			EMSetStageX(0)
 			EMSetStageY(0)
-			while ((abs(EMGetStageX()) > 0.010) or (abs(EMGetStageY()) > 0.010)) {
+			while ((abs(EMGetStageX()) > 0.010) || (abs(EMGetStageY()) > 0.010)) {
 				sleep(1)
-				timeElapsed = (GetCurrentTime() - start_time) / 10000000
-				if (timeElapsed > 30) {
+				time_elapsed = (GetCurrentTime() - start_time) / 10000000
+				if (time_elapsed > 30) {
 					Throw ("XY motors did not reach origin.")
 				}
 			}
@@ -646,16 +646,16 @@ void wait_for_command()
 				EMSetStageX(50)
 				start_time2 = GetCurrentTime()
 				while (abs(EMGetStageX()-50) > 0.010) {
-					timeElapsed2 = (GetCurrentTime() - start_time2) / 10000000
-					if (timeElapsed2 > 5) {
+					time_elapsed2 = (GetCurrentTime() - start_time2) / 10000000
+					if (time_elapsed2 > 5) {
 						Throw ("Motor X did not reach target position of 50.")
 					}
 				}
 				EMSetStageX(0)
 				start_time2 = GetCurrentTime()
 				while (abs(EMGetStageX()) > 0.010) {
-					timeElapsed2 = (GetCurrentTime() - start_time2) / 10000000
-					if (timeElapsed2 > 5) {
+					time_elapsed2 = (GetCurrentTime() - start_time2) / 10000000
+					if (time_elapsed2 > 5) {
 						Throw ("Motor X did not reach target position of 0.")
 					}
 				}
@@ -670,16 +670,16 @@ void wait_for_command()
 				EMSetStageY(50)
 				start_time2 = GetCurrentTime()
 				while (abs(EMGetStageY() - 50) > 0.010) {
-					timeElapsed2 = (GetCurrentTime() - start_time2) / 10000000
-					if (timeElapsed2 > 5) {
+					time_elapsed2 = (GetCurrentTime() - start_time2) / 10000000
+					if (time_elapsed2 > 5) {
 						Throw ("Motor Y did not reach target position of 50.")
 					}
 				}
 				EMSetStageY(0)
 				start_time2 = GetCurrentTime()
 				while (abs(EMGetStageY()) > 0.010) {
-					timeElapsed2 = (GetCurrentTime() - start_time2) / 10000000
-					if (timeElapsed2 > 5) {
+					time_elapsed2 = (GetCurrentTime() - start_time2) / 10000000
+					if (time_elapsed2 > 5) {
 						Throw ("Motor Y did not reach target position of 0.")
 					}
 				}
