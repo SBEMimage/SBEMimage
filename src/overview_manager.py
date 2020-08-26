@@ -381,7 +381,7 @@ class OverviewManager:
                           frame_size_selector=2, pixel_size=155.0,
                           dwell_time=0.8, dwell_time_selector=4,
                           acq_interval=1, acq_interval_offset=0,
-                          wd_stig_xy=0, vp_file_path='',
+                          wd_stig_xy=[0, 0, 0], vp_file_path='',
                           debris_detection_area=[])
         self.__overviews.append(new_ov)
         self.number_ov += 1
