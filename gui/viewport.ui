@@ -164,7 +164,7 @@
        <string>Show stub overview</string>
       </property>
      </widget>
-     <widget class="QPushButton" name="pushButton_measureMosaic">
+     <widget class="QPushButton" name="pushButton_measureViewport">
       <property name="enabled">
        <bool>true</bool>
       </property>
@@ -498,7 +498,7 @@
        <number>10</number>
       </property>
      </widget>
-     <widget class="QPushButton" name="pushButton_measureSlice">
+     <widget class="QPushButton" name="pushButton_measureSliceViewer">
       <property name="enabled">
        <bool>true</bool>
       </property>
@@ -913,7 +913,7 @@
   <tabstop>comboBox_OVSelectorVP</tabstop>
   <tabstop>pushButton_refreshOVs</tabstop>
   <tabstop>pushButton_acquireStubOV</tabstop>
-  <tabstop>pushButton_measureMosaic</tabstop>
+  <tabstop>pushButton_measureViewport</tabstop>
   <tabstop>checkBox_showImported</tabstop>
   <tabstop>checkBox_showStubOV</tabstop>
   <tabstop>checkBox_showAxes</tabstop>
@@ -926,7 +926,7 @@
   <tabstop>spinBox_maxSlices</tabstop>
   <tabstop>pushButton_sliceBWD</tabstop>
   <tabstop>pushButton_sliceFWD</tabstop>
-  <tabstop>pushButton_measureSlice</tabstop>
+  <tabstop>pushButton_measureSliceViewer</tabstop>
   <tabstop>checkBox_setNativeRes</tabstop>
   <tabstop>checkBox_showSaturated</tabstop>
   <tabstop>horizontalSlider_SV</tabstop>
