@@ -175,6 +175,7 @@ class Autofocus():
         Returns:
 
         """
+        # TODO: add rotation parameter (maybe also the measurement)
         default_kwargs = dict(defocus_arr=[8, 8, 6, 4, 2, 1])
         default_kwargs.update(kwargs)
         # TODO: allow different dwell times and other mapfost parameters!

@@ -3295,6 +3295,7 @@ class GrabFrameDlg(QDialog):
         self.pushButton_scan.setEnabled(False)
         self.pushButton_save.setEnabled(False)
         QApplication.processEvents()
+        self.main_controls_trigger.transmit('STATUS BUSY GRAB IMAGE')
         thread = threading.Thread(target=self.perform_scan)
         thread.start()
 
@@ -3310,6 +3311,7 @@ class GrabFrameDlg(QDialog):
         """This function is called when the scan is complete.
         Reset the GUI and show result of grab command.
         """
+        self.main_controls_trigger.transmit('STATUS IDLE')
         self.pushButton_scan.setText('Scan and grab')
         self.pushButton_scan.setEnabled(True)
         self.pushButton_save.setEnabled(True)
