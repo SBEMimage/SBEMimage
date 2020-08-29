@@ -201,10 +201,11 @@ class SEM:
         raise NotImplementedError
 
     def set_eht(self, target_eht):
-        """Save the target EHT (in kV) and set the EHT to this target value."""
-        self.target_eht = target_eht
+        """Save the target EHT (in kV, rounded to 2 decimal places) and set
+        the actual EHT to this target value.
+        """
+        self.target_eht = round(target_eht, 2)
         # Setting SEM to target EHT must be implemented in child class!
-
 
     def has_vp(self):
         """Return True if VP is fitted."""
