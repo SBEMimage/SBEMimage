@@ -722,10 +722,10 @@ class StageCalibrationDlg(QDialog):
         self.pushButton_startImageAcq.setEnabled(True)
         self.pushButton_measureMotorSpeeds.setText('Measure XY motor speeds')
         if self.motor_speed_x is None or self.stage.error_state > 0:
-            self.microtome.reset_error_state()
-            QMessageBox.error(self, 'Error',
-                              'XY motor speed measurement failed.',
-                              QMessageBox.Ok)
+            self.stage.reset_error_state()
+            QMessageBox.warning(self, 'Error',
+                                'XY motor speed measurement failed.',
+                                QMessageBox.Ok)
             return
         user_choice = QMessageBox.information(
             self, 'Measured XY motor speeds',
@@ -984,7 +984,7 @@ class StageCalibrationDlg(QDialog):
             if not success:
                 QMessageBox.warning(
                     self, 'Error updating motor speeds',
-                    'Motor calibration could not be updated in DM.',
+                    'Motor speeds could not be updated.',
                     QMessageBox.Ok)
             super().accept()
 

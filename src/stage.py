@@ -118,21 +118,21 @@ class Stage():
         return self._stage.motor_speed_y
 
     def set_motor_speeds(self, motor_speed_x, motor_speed_y):
-        if self.use_microtome:
+        if self.use_microtome and self.use_microtome_xy:
             return self._stage.set_motor_speeds(motor_speed_x, motor_speed_y)
         else:
             # motor speeds can currently not be set for SEM stage
             return False
 
     def update_motor_speed(self):
-        if self.use_microtome:
+        if self.use_microtome and self.use_microtome_xy:
             return self._stage.update_motor_speeds_in_dm_script()
         else:
             # Speeds can currently not be updated for SEM stage
             return False
 
     def measure_motor_speeds(self):
-        if self.use_microtome:
+        if self.use_microtome and self.use_microtome_xy:
             return self._stage.measure_motor_speeds()
         else:
             # Speeds can currently not be measured for SEM stage
