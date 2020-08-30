@@ -661,7 +661,8 @@ class Acquisition:
 
             # Make sure DM script uses the correct motor speeds
             # (When script crashes, default motor speeds are used.)
-            if self.microtome is not None:
+            if (self.microtome is not None 
+                    and self.microtome.device_name == 'Gatan 3View'):
                 success = self.microtome.update_motor_speeds_in_dm_script()
                 if not success:
                     self.error_state = self.microtome.error_state
@@ -991,7 +992,7 @@ class Acquisition:
             else:
                 sleep(self.microtome.full_cut_duration)
             cut_cycle_delay = self.microtome.check_cut_cycle_status()
-            if cut_cycle_delay > 0:
+            if cut_cycle_delay is not None and cut_cycle_delay > 0:
                 self.add_to_main_log(
                     f'KNIFE: Warning: Cut cycle took {cut_cycle_delay} s '
                     f'longer than specified.')

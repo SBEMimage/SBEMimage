@@ -11,6 +11,7 @@
 
 from time import sleep
 import serial
+import threading
 
 from microtome_control import Microtome
 
@@ -26,13 +27,14 @@ class Microtome_katana(Microtome):
         super().__init__(config, sysconfig)
         self.selected_port = sysconfig['device']['katana_com_port']
         self.clear_position = int(sysconfig['knife']['katana_clear_position'])
-        self.retract_clearance = int(
-            sysconfig['stage']['katana_retract_clearance'])
+        self.retract_clearance = int(float(
+            sysconfig['stage']['katana_retract_clearance']))
         # Realtime parameters
         self.encoder_position = None
         self.knife_position = None
         self.current_osc_freq = None
         self.current_osc_amp = None
+        self.cut_completed = False 
         # Connection status:
         self.connected = False
         # Try to connect with current selected port
@@ -60,11 +62,11 @@ class Microtome_katana(Microtome):
 
     def save_to_cfg(self):
         super().save_to_cfg()
-        # Save kantana-specific keys sysconfig
-        self.sysconfig['device']['katana_com_port'] = self.selected_port
-        self.sysconfig['knife']['katana_clear_position'] = int(
+        # Save kantana-specific keys in self.syscfg
+        self.syscfg['device']['katana_com_port'] = self.selected_port
+        self.syscfg['knife']['katana_clear_position'] = str(
             self.clear_position)
-        self.sysconfig['stage']['katana_retract_clearance'] = int(
+        self.syscfg['stage']['katana_retract_clearance'] = str(
             self.retract_clearance)
 
     def connect(self):
@@ -191,7 +193,12 @@ class Microtome_katana(Microtome):
              return 0
 
     def do_full_cut(self):
-        """Perform a full cut cycle."""
+        """Perform a full cut cycle. Code is run in a thread."""
+        katana_cut_thread = threading.Thread(target=self.run_cut_sequence)
+        self.cut_completed = False
+        katana_cut_thread.start()
+
+    def run_cut_sequence(self):
         # Move to cutting window
         # (good practice to check the knife is not moving before starting)
         self._wait_until_knife_stopped()
@@ -205,7 +212,7 @@ class Microtome_katana(Microtome):
 
         # Turn oscillator on
         self._wait_until_knife_stopped()
-        if self.is_oscillation_enabled():
+        if self.use_oscillation:
             # turn oscillator on
             self._send_command('KO' + str(self.oscillation_frequency))
             self._send_command('KOA' + str(self.oscillation_amplitude))
@@ -217,7 +224,7 @@ class Microtome_katana(Microtome):
 
         # Turn oscillator off
         self._wait_until_knife_stopped()
-        if self.is_oscillation_enabled():
+        if self.use_oscillation:
             self._send_command('KOA0')
 
         # Drop sample
@@ -225,7 +232,7 @@ class Microtome_katana(Microtome):
         # TODO: discuss how Z is handled:
         # drop sample before knife retract
         self.move_stage_to_z(
-            desiredzPos - self.retract_clearance, 100)
+            self.last_known_z - self.retract_clearance / 1000, 100)
 
         # Retract knife
         print('Retracting knife...')
@@ -235,7 +242,19 @@ class Microtome_katana(Microtome):
         # Raise sample to cutting plane
         self._wait_until_knife_stopped()
         print('Returning sample to cutting plane...')
-        self.move_stage_to_z(desiredzPos, 100)
+        self.move_stage_to_z(self.last_known_z, 100)
+        self.cut_completed = True
+        
+    def check_cut_cycle_status(self):
+        # Excess duration of cutting cycle in seconds
+        delay = 0
+        for i in range(15):
+            if self.cut_completed:
+                print('cut completed, returning: ', delay)
+                return delay
+            sleep(1)
+            delay += 1
+        return delay    
 
     def do_full_approach_cut(self):
         """Perform a full cut cycle under the assumption that knife is
@@ -247,11 +266,11 @@ class Microtome_katana(Microtome):
         pass
 
     def cut(self):
-        # only used for testing
+        self._send_command('KKM0')
         pass
 
     def retract_knife(self):
-        # only used for testing
+        self._send_command('KKM4000')
         pass
 
     def get_stage_z(self, wait_interval=0.5):
@@ -262,16 +281,22 @@ class Microtome_katana(Microtome):
         # response will look like 'KE:120000' (for position of 0.12mm)
         response = response.rstrip();
         response = response.replace('KE:', '')
-        z = int(response)
+        try:
+            z = int(response) / 1000
+            self.last_known_z = z
+        except:
+            z = None
         return z
 
     def get_stage_z_prev_session(self):
         return self.stage_z_prev_session
 
-    def move_stage_to_z(self, z, speed, safe_mode=True):
+    def move_stage_to_z(self, z, speed=100, safe_mode=True):
         """Move to specified Z position, and block until it is reached."""
         print('Moving to Z=' + str(z) + 'µm...')
-        self._send_command('KT' + str(z) + ',' + str(speed))
+        # Use nanometres for katana Z position
+        target_z = 1000 * z
+        self._send_command('KT' + str(target_z) + ',' + str(speed))
         response = self._read_response()
         response = response.rstrip()
         while self._reached_target() != 1:
@@ -280,13 +305,17 @@ class Microtome_katana(Microtome):
             print('stage pos: ' + str(self.encoder_position))
             sleep(0.05)
         print('stage finished moving')
+        self.last_known_z = z
 
     def near_knife(self):
-        # only used for testing
+        #self.add_to_log('ssearle - nearing knife (KKM0)') # not working. not sure how to add to log from here
+        print('ssearle - nearing knife (KKM0)')
+        self._send_command('KKM0')
         pass
 
     def clear_knife(self):
-        # only used for testing
+        print('ssearle - clearing knife (KKM4000)')
+        self._send_command('KKM4000')
         pass
 
     def get_clear_position(self):

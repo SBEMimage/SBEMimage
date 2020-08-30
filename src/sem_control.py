@@ -46,9 +46,12 @@ class SEM:
         self.simulation_mode = (
             self.cfg['sys']['simulation_mode'].lower() == 'true')
         self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
-        # self.use_sem_stage: True if microtome not used
+        # self.use_sem_stage: True if microtome is not used or if katana
+        # microtome is used (but only for XY in that case)
         self.use_sem_stage = (
-            self.cfg['sys']['use_microtome'].lower() == 'false')
+            self.cfg['sys']['use_microtome'].lower() == 'false'
+            or (self.cfg['sys']['use_microtome'].lower() == 'true'
+                and self.syscfg['device']['microtome'] == '5'))
         # The target EHT (= high voltage, in kV) and beam current (in pA)
         # are (as implemented at the moment in SBEMimage) global settings for
         # any given acquisition, whereas dwell time, pixel size and frame size
