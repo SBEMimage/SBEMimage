@@ -3142,7 +3142,9 @@ class ApproachDlg(QDialog):
 # ------------------------------------------------------------------------------
 
 class GrabFrameDlg(QDialog):
-    """Acquires or saves a single frame from SmartSEM."""
+    """Dialog to let user acquire a single frame from the SEM at the current
+    stage position.
+    """
 
     def __init__(self, sem, acq, main_controls_trigger):
         super().__init__()
@@ -3185,9 +3187,22 @@ class GrabFrameDlg(QDialog):
         self.comboBox_dwellTime.setCurrentIndex(current_scan_rate)
         self.doubleSpinBox_pixelSize.setValue(current_pixel_size)
 
+    def file_name_already_exists(self):
+        if os.path.isfile(os.path.join(
+                self.acq.base_dir, self.file_name + '.tif')):
+            QMessageBox.information(
+                self, 'File name already exists',
+                'A file with the same name already exists in the base '
+                'directory. Please choose a different name.',
+                QMessageBox.Ok)
+            return True
+        return False
+
     def scan_frame(self):
         """Scan and save a single frame using the current grab settings."""
         self.file_name = self.lineEdit_filename.text()
+        if self.file_name_already_exists():
+            return
         # Save and apply grab settings
         self.sem.grab_frame_size_selector = (
             self.comboBox_frameSize.currentIndex())
@@ -3238,6 +3253,8 @@ class GrabFrameDlg(QDialog):
     def save_frame(self):
         """Save the image currently visible in SmartSEM."""
         self.file_name = self.lineEdit_filename.text()
+        if self.file_name_already_exists():
+            return
         success = self.sem.save_frame(os.path.join(
             self.acq.base_dir, self.file_name + '.tif'))
         if success:
