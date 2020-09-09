@@ -2979,9 +2979,6 @@ class ApproachDlg(QDialog):
         self.approach_cut_duration = self.microtome.full_cut_duration - 3
         self.update_progress()
 
-    def add_to_log(self, msg):
-        self.main_controls_trigger.transmit(utils.format_log_entry(msg))
-
     def update_progress(self):
         self.max_slices = self.spinBox_numberSlices.value()
         if self.slice_counter > 0:
@@ -3009,10 +3006,10 @@ class ApproachDlg(QDialog):
 
     def finish_approach(self):
         # Move knife to "Clear" position
-        self.add_to_log('KNIFE: Moving to "Clear" position.')
+        self.utils.log_error('KNIFE', 'Moving to "Clear" position.')
         self.microtome.clear_knife()
         if self.microtome.error_state > 0:
-            self.add_to_log('KNIFE: Error moving to "Clear" position.')
+            self.utils.log_error('KNIFE', 'Error moving to "Clear" position.')
             self.microtome.reset_error_state()
             QMessageBox.warning(self, 'Error',
                                 'Warning: Move to "Clear" position failed. '
@@ -3068,23 +3065,23 @@ class ApproachDlg(QDialog):
             # Try again
             z_position = self.microtome.get_stage_z(wait_interval=2)
             if z_position is None or z_position < 0:
-                self.add_to_log(
-                    'STAGE: Error reading Z position. Approach aborted.')
+                self.utils.log_error(
+                    'STAGE', 'Error reading Z position. Approach aborted.')
                 self.microtome.reset_error_state()
                 self.aborted = True
         if self.microtome.error_state == 206:
             self.microtome.reset_error_state()
             self.z_mismatch = True
             self.aborted = True
-            self.add_to_log(
-                'STAGE: Z position mismatch. Approach aborted.')
+            self.utils.log_error(
+                'STAGE', 'Z position mismatch. Approach aborted.')
         self.main_controls_trigger.transmit('UPDATE Z')
         if not self.aborted:
             self.microtome.near_knife()
-            self.add_to_log('KNIFE: Moving to "Near" position.')
+            self.utils.log_info('KNIFE', 'Moving to "Near" position.')
             if self.microtome.error_state > 0:
-                self.add_to_log(
-                    'KNIFE: Error moving to "Near" position. '
+                self.utils.log_error(
+                    'KNIFE', 'Error moving to "Near" position. '
                     'Approach aborted.')
                 self.aborted = True
                 self.microtome.reset_error_state()
@@ -3092,32 +3089,32 @@ class ApproachDlg(QDialog):
         while (self.slice_counter < self.max_slices) and not self.aborted:
             # Move to new z position
             z_position = z_position + (self.thickness / 1000)
-            self.add_to_log(
-                'STAGE: Move to new Z: ' + '{0:.3f}'.format(z_position))
+            self.utils.log_info(
+                'STAGE', 'Move to new Z: ' + '{0:.3f}'.format(z_position))
             self.microtome.move_stage_to_z(z_position)
             # Show new Z position in main window
             self.main_controls_trigger.transmit('UPDATE Z')
             # Check if there were microtome problems
             if self.microtome.error_state > 0:
-                self.add_to_log(
-                    f'STAGE: Error during Z move '
+                self.utils.log_error(
+                    'STAGE', 'Error during Z move '
                     f'({self.microtome.error_state}). Approach aborted.')
                 self.aborted = True
                 self.microtome.reset_error_state()
                 break
-            self.add_to_log('KNIFE: Cutting in progress ('
+            self.utils.log_error('KNIFE', 'Cutting in progress ('
                             + str(self.thickness) + ' nm cutting thickness).')
             # Do the approach cut (cut, retract, in near position)
             self.microtome.do_full_approach_cut()
             sleep(self.approach_cut_duration)
             if self.microtome.error_state > 0:
-                self.add_to_log(
-                    'KNIFE: Cutting problem detected. Approach aborted.')
+                self.utils.log_error(
+                    'KNIFE', 'Cutting problem detected. Approach aborted.')
                 self.aborted = True
                 self.microtome.reset_error_state()
                 break
             else:
-                self.add_to_log('KNIFE: Approach cut completed.')
+                self.utils.log_info('KNIFE', 'Approach cut completed.')
                 self.slice_counter += 1
                 # Update progress bar and slice counter
                 self.progress_trigger.signal.emit()
@@ -3235,7 +3232,7 @@ class GrabFrameDlg(QDialog):
         self.pushButton_scan.setEnabled(True)
         self.pushButton_save.setEnabled(True)
         if self.scan_success:
-            self.add_to_log('SEM: Single frame acquired (Grab dialog).')
+            self.utils.log_info('SEM', 'Single frame acquired (Grab dialog).')
             QMessageBox.information(
                 self, 'Frame acquired',
                 'The image was acquired and saved as '
@@ -3258,7 +3255,7 @@ class GrabFrameDlg(QDialog):
         success = self.sem.save_frame(os.path.join(
             self.acq.base_dir, self.file_name + '.tif'))
         if success:
-            self.add_to_log('SEM: Single frame saved (Grab dialog).')
+            self.utils.log_info('SEM', 'Single frame saved (Grab dialog).')
             QMessageBox.information(
                 self, 'Frame saved',
                 'The current image shown in SmartSEM was saved as '
@@ -3272,10 +3269,6 @@ class GrabFrameDlg(QDialog):
                 + self.sem.error_info,
                 QMessageBox.Ok)
             self.sem.reset_error_state()
-
-    def add_to_log(self, msg):
-        """Use trigger and queue to add an entry to the main log."""
-        self.main_controls_trigger.transmit(utils.format_log_entry(msg))
 
 # ------------------------------------------------------------------------------
 
@@ -3490,9 +3483,6 @@ class MotorTestDlg(QDialog):
         self.test_in_progress = False
         self.start_time = None
 
-    def add_to_log(self, msg):
-        self.main_controls_trigger.transmit(utils.format_log_entry(msg))
-
     def update_progress(self):
         if self.start_time is not None:
             elapsed_time = time() - self.start_time
@@ -3508,11 +3498,11 @@ class MotorTestDlg(QDialog):
         self.pushButton_startTest.setText('Wait')
         self.pushButton_startTest.setEnabled(False)
         # First make sure the knife is in "Clear" position
-        self.add_to_log('KNIFE: Moving to "Clear" position.')
+        self.utils.log_info('KNIFE', 'Moving to "Clear" position.')
         QApplication.processEvents()
         self.microtome.clear_knife()
         if self.microtome.error_state > 0:
-            self.add_to_log('KNIFE: Error moving to "Clear" position.')
+            self.utils.log_error('KNIFE', 'Error moving to "Clear" position.')
             self.microtome.reset_error_state()
             self.pushButton_startTest.setText('Start')
             self.pushButton_startTest.setEnabled(True)
@@ -3523,7 +3513,7 @@ class MotorTestDlg(QDialog):
         else:
             self.start_z = self.microtome.get_stage_z()
             if self.start_z is not None:
-                self.add_to_log('CTRL: Motor test started.')
+                self.utils.log_info('CTRL', 'Motor test started.')
                 self.pushButton_startTest.setText('Busy')
                 self.pushButton_abortTest.setEnabled(True)
                 self.buttonBox.setEnabled(False)
@@ -3545,8 +3535,8 @@ class MotorTestDlg(QDialog):
         self.test_in_progress = False
 
     def test_finished(self):
-        self.add_to_log('CTRL: Motor test finished.')
-        self.add_to_log('STAGE: Moving back to starting Z position.')
+        self.utils.log_info('CTRL', 'Motor test finished.')
+        self.utils.log_info('STAGE', 'Moving back to starting Z position.')
         # Safe mode must be set to false because diff likely > 200 nm
         self.microtome.move_stage_to_z(self.start_z, safe_mode=False)
         if self.microtome.error_state > 0:

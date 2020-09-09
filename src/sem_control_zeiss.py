@@ -18,6 +18,8 @@ import pythoncom
 import win32com.client  # required to use CZEMApi.ocx (Carl Zeiss EM API)
 from win32com.client import VARIANT  # required for API function calls
 
+import utils
+from utils import Error
 from sem_control import SEM
 
 
@@ -45,10 +47,10 @@ class SEM_SmartSEM(SEM):
                 ret_val = 1
                 exception_msg = str(e)
             if ret_val != 0:   # In ZEISS API, response of '0' means success
-                self.error_state = 301
+                self.error_state = Error.smartsem_api
                 self.error_info = (
                     f'sem.__init__: remote API control could not be '
-                    f'initalized (ret_val: {ret_val}). {exception_msg}')
+                    f'initialised (ret_val: {ret_val}). {exception_msg}')
             elif self.use_sem_stage:
                 # Read current SEM stage coordinates
                 self.last_known_x, self.last_known_y, self.last_known_z = (
@@ -63,7 +65,7 @@ class SEM_SmartSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = 306
+            self.error_state = Error.eht
             self.error_info = (
                 f'sem.turn_eht_on: command failed (ret_val: {ret_val})')
             return False
@@ -75,7 +77,7 @@ class SEM_SmartSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = 306
+            self.error_state = Error.eht
             self.error_info = (
                 f'sem.turn_eht_off: command failed (ret_val: {ret_val})')
             return False
@@ -103,7 +105,7 @@ class SEM_SmartSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = 306
+            self.error_state = Error.eht
             self.error_info = (
                 f'sem.set_eht: command failed (ret_val: {ret_val})')
             return False
@@ -138,7 +140,7 @@ class SEM_SmartSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = 314
+            self.error_state = Error.hp_hv
             self.error_info = (
                 f'sem.set_hv: command failed (ret_val: {ret_val})')
             return False
@@ -149,7 +151,7 @@ class SEM_SmartSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = 314
+            self.error_state = Error.hp_hv
             self.error_info = (
                 f'sem.set_vp: command failed (ret_val: {ret_val})')
             return False
@@ -161,7 +163,7 @@ class SEM_SmartSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = 314
+            self.error_state = Error.hp_hv
             self.error_info = (
                 f'sem.set_vp_target: command failed (ret_val: {ret_val})')
             return False
@@ -191,7 +193,7 @@ class SEM_SmartSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = 315
+            self.error_state = Error.fcc
             self.error_info = (
                 f'sem.turn_fcc_on: command failed (ret_val: {ret_val})')
             return False
@@ -202,7 +204,7 @@ class SEM_SmartSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = 315
+            self.error_state = Error.fcc
             self.error_info = (
                 f'sem.turn_fcc_off: command failed (ret_val: {ret_val})')
             return False
@@ -214,7 +216,7 @@ class SEM_SmartSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = 315
+            self.error_state = Error.fcc
             self.error_info = (
                 f'sem.set_fcc_level: command failed (ret_val: {ret_val})')
             return False
@@ -234,7 +236,7 @@ class SEM_SmartSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = 307
+            self.error_state = Error.beam_current
             self.error_info = (
                 f'sem.set_beam_current: command failed (ret_val: {ret_val})')
             return False
@@ -254,7 +256,7 @@ class SEM_SmartSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = 316
+            self.error_state = Error.aperture_size
             self.error_info = (
                 f'sem.set_aperture_size: command failed (ret_val: {ret_val})')
             return False
@@ -320,7 +322,7 @@ class SEM_SmartSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = 308
+            self.error_state = Error.frame_size
             self.error_info = (
                 f'sem.set_frame_size: command failed (ret_val: {ret_val})')
             return False
@@ -333,7 +335,7 @@ class SEM_SmartSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = 308
+            self.error_state = Error.frame_size
             self.error_info = (
                 f'sem.set_frame_size: command failed (ret_val: {ret_val})')
             return False
@@ -348,7 +350,7 @@ class SEM_SmartSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = 309
+            self.error_state = Error.magnification
             self.error_info = (
                 f'sem.set_mag: command failed (ret_val: {ret_val})')
             return False
@@ -379,7 +381,7 @@ class SEM_SmartSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = 310
+            self.error_state = Error.scan_rate
             self.error_info = (
                 f'sem.set_scan_rate: command failed (ret_val: {ret_val})')
             return False
@@ -428,7 +430,7 @@ class SEM_SmartSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = 302
+            self.error_state = Error.grab_image
             self.error_info = (
                 f'sem.acquire_frame: command failed (ret_val: {ret_val})')
             return False
@@ -440,7 +442,7 @@ class SEM_SmartSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = 302
+            self.error_state = Error.grab_image
             self.error_info = (
                 f'sem.save_frame: command failed (ret_val: {ret_val})')
             return False
@@ -456,7 +458,7 @@ class SEM_SmartSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = 311
+            self.error_state = Error.working_distance
             self.error_info = (
                 f'sem.set_wd: command failed (ret_val: {ret_val})')
             return False
@@ -476,7 +478,7 @@ class SEM_SmartSEM(SEM):
         if (ret_val1 == 0) and (ret_val2 == 0):
             return True
         else:
-            self.error_state = 312
+            self.error_state = Error.stig_xy
             self.error_info = (
                 f'sem.set_stig_xy: command failed (ret_vals: {ret_val1}, '
                 f'{ret_val1})')
@@ -493,7 +495,7 @@ class SEM_SmartSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = 312
+            self.error_state = Error.stig_xy
             self.error_info = (
                 f'sem.set_stig_x: command failed (ret_val: {ret_val})')
             return False
@@ -509,7 +511,7 @@ class SEM_SmartSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = 312
+            self.error_state = Error.stig_xy
             self.error_info = (
                 f'sem.set_stig_y: command failed (ret_val: {ret_val})')
             return False
@@ -524,7 +526,7 @@ class SEM_SmartSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = 313
+            self.error_state = Error.beam_blanking
             self.error_info = (
                 f'sem.set_beam_blanking: command failed (ret_val: {ret_val})')
             return False
@@ -667,8 +669,8 @@ class SEM_SmartSEM(SEM):
     def disconnect(self):
         ret_val = self.sem_api.ClosingControl()
         if ret_val == 0:
-            log_msg = 'SEM: Disconnected from SmartSEM.'
+            utils.log_info('SEM', 'Disconnected from SmartSEM.')
+            return True
         else:
-            log_msg = (
-                f'SEM: ERROR disconnecting from SmartSEM (ret_val: {ret_val}).')
-        return log_msg
+            utils.log_error('SEM', f'ERROR disconnecting from SmartSEM (ret_val: {ret_val}).')
+            return False

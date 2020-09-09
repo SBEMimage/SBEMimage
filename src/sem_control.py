@@ -12,8 +12,9 @@
 that are actually required in SBEMimage have been implemented."""
 
 import json
-
 from collections import deque
+
+from utils import Error
 
 
 class SEM:
@@ -32,7 +33,7 @@ class SEM:
         self.last_known_z = None
         # self.error_state: see list in utils.py; no error -> error_state = 0
         # self.error_info: further description / exception error message
-        self.error_state = 0
+        self.error_state = Error.none
         self.error_info = ''
         # Try to read selected device from recognized devices
         recognized_devices = json.loads(self.syscfg['device']['recognized'])
@@ -472,7 +473,7 @@ class SEM:
 
     def reset_error_state(self):
         """Reset the error state (to 'no error') and clear self.error_info."""
-        self.error_state = 0
+        self.error_state = Error.none
         self.error_info = ''
 
     def disconnect(self):

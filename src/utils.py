@@ -15,6 +15,8 @@ import datetime
 import json
 import re
 import logging
+from enum import Enum
+
 import numpy as np
 
 from time import sleep
@@ -58,66 +60,128 @@ RE_OV_LIST = re.compile('^([0-9]+)([ ]*,[ ]*[0-9]+)*$')
 
 LOG_FILENAME = '../log/SBEMimage.log'
 # Custom date/time / format to get '.' instead of ',' as millisecond separator
-LOG_FORMAT = '%(asctime)s.%(msecs)03d %(levelname)s %(message)s'
+LOG_FORMAT = '%(asctime)s.%(msecs)03d %(levelname)s %(category)s: %(message)s'
+LOG_FORMAT_SCREEN = '%(asctime)s.%(msecs)03d | %(category)-5s : %(message)s'
 LOG_FORMAT_DATETIME = '%Y-%m-%d %H:%M:%S'
 
-ERROR_LIST = {
-    0: 'No error',
 
-    # First digit 1: DM communication
-    101: 'DM script initialization error',
-    102: 'DM communication error (command could not be sent)',
-    103: 'DM communication error (unresponsive)',
-    104: 'DM communication error (return values could not be read)',
+# TODO: replace values with auto()
+class Error(Enum):
+    none = 0
 
-    # First digit 2: 3View/SBEM hardware
-    201: 'Stage error (XY target position not reached)',
-    202: 'Stage error (Z target position not reached)',
-    203: 'Stage error (Z move too large)',
-    204: 'Cutting error',
-    205: 'Sweeping error',
-    206: 'Z mismatch error',
+    # DM communication
+    dm_init = 101
+    dm_comm_send = 102
+    dm_comm_response = 103
+    dm_comm_retval = 104
 
-    # First digit 3: SmartSEM/SEM
-    301: 'SmartSEM API initialization error',
-    302: 'Grab image error',
-    303: 'Grab incomplete error',
-    304: 'Frozen frame error',
-    305: 'SmartSEM unresponsive error',
-    306: 'EHT error',
-    307: 'Beam current error',
-    308: 'Frame size error',
-    309: 'Magnification error',
-    310: 'Scan rate error',
-    311: 'WD error',
-    312: 'STIG XY error',
-    313: 'Beam blanking error',
-    314: 'HV/VP error',
-    315: 'FCC error',
-    316: 'Aperture size error',
+    # 3View/SBEM hardware
+    stage_xy = 201
+    stage_z = 202
+    stage_z_move = 203
+    cutting = 204
+    sweeping = 205
+    mismatch_z = 206
 
-    # First digit 4: I/O error
-    401: 'Primary drive error',
-    402: 'Mirror drive error',
-    403: 'Overwrite file error',
-    404: 'Load image error',
+    # SmartSEM/SEM
+    smartsem_api = 301
+    grab_image = 302
+    grab_incomplete = 303
+    frame_frozen = 304
+    smartsem_response = 305
+    eht = 306
+    beam_current = 307
+    frame_size = 308
+    magnification = 309
+    scan_rate = 310
+    working_distance = 311
+    stig_xy = 312
+    beam_blanking = 313
+    hp_hv = 314
+    fcc = 315
+    aperture_size = 316
 
-    # First digit 5: Other errors during acq
-    501: 'Maximum sweeps error',
-    502: 'Overview image error (outside of range)',
-    503: 'Tile image error (outside of range)',
-    504: 'Tile image error (slice-by-slice comparison)',
-    505: 'Autofocus error (SmartSEM)' ,
-    506: 'Autofocus error (heuristic)',
-    507: 'WD/STIG difference error',
-    508: 'Metadata server error',
+    # I/O error
+    primary_drive = 401
+    mirror_drive = 402
+    file_overwrite = 403
+    image_load = 404
 
-    # First digit 6: reserved for user-defined errors
-    601: 'Test case error',
+    # Other errors during acq
+    sweeps_max = 501
+    overview_image = 502
+    tile_image_range = 503
+    tile_image_compare = 504
+    autofocus_smartsem = 505
+    autofocus_heuristic = 506
+    wd_stig_difference = 507
+    metadata_server = 508
 
-    # First digit 7: error in configuration
-    701: 'Configuration error'
+    # Reserved for user-defined errors
+    test_case = 601
+
+    # Error in configuration
+    configuration = 701
+
+
+Errors = {
+    Error.none: 'No error',
+
+    # DM communication
+    Error.dm_init: 'DM script initialisation error',
+    Error.dm_comm_send: 'DM communication error (command could not be sent)',
+    Error.dm_comm_response: 'DM communication error (unresponsive)',
+    Error.dm_comm_retval: 'DM communication error (return values could not be read)',
+
+    # 3View/SBEM hardware
+    Error.stage_xy: 'Stage error (XY target position not reached)',
+    Error.stage_z: 'Stage error (Z target position not reached)',
+    Error.stage_z_move: 'Stage error (Z move too large)',
+    Error.cutting: 'Cutting error',
+    Error.sweeping: 'Sweeping error',
+    Error.mismatch_z: 'Z mismatch error',
+
+    # SmartSEM/SEM
+    Error.smartsem_api: 'SmartSEM API initialisation error',
+    Error.grab_image: 'Grab image error',
+    Error.grab_incomplete: 'Grab incomplete error',
+    Error.frame_frozen: 'Frozen frame error',
+    Error.smartsem_response: 'SmartSEM unresponsive error',
+    Error.eht: 'EHT error',
+    Error.beam_current: 'Beam current error',
+    Error.frame_size: 'Frame size error',
+    Error.magnification: 'Magnification error',
+    Error.scan_rate: 'Scan rate error',
+    Error.working_distance: 'WD error',
+    Error.stig_xy: 'STIG XY error',
+    Error.beam_blanking: 'Beam blanking error',
+    Error.hp_hv: 'HV/VP error',
+    Error.fcc: 'FCC error',
+    Error.aperture_size: 'Aperture size error',
+
+    # I/O error
+    Error.primary_drive: 'Primary drive error',
+    Error.mirror_drive: 'Mirror drive error',
+    Error.file_overwrite: 'Overwrite file error',
+    Error.image_load: 'Load image error',
+
+    # Other errors during acq
+    Error.sweeps_max: 'Maximum sweeps error',
+    Error.overview_image: 'Overview image error (outside of range)',
+    Error.tile_image_range: 'Tile image error (outside of range)',
+    Error.tile_image_compare: 'Tile image error (slice-by-slice comparison)',
+    Error.autofocus_smartsem: 'Autofocus error (SmartSEM)',
+    Error.autofocus_heuristic: 'Autofocus error (heuristic)',
+    Error.wd_stig_difference: 'WD/STIG difference error',
+    Error.metadata_server: 'Metadata server error',
+
+    # Reserved for user-defined errors
+    Error.test_case: 'Test case error',
+
+    # Error in configuration
+    Error.configuration: 'Configuration error',
 }
+
 
 # List of selectable colours for grids (0-9), overviews (10)
 # acquisition indicator (11):
@@ -137,6 +201,7 @@ COLOUR_SELECTOR = [
     [128, 0, 128, 80]   #12 transparent violet (to indicate live acq)
 ]
 
+
 class Trigger(QObject):
     """A custom QObject for receiving notifications and commands from threads.
     The trigger signal is emitted by calling signal.emit(). The queue can
@@ -153,38 +218,91 @@ class Trigger(QObject):
 
 
 class QtTextHandler(StreamHandler):
-
-    def __init__(self, textarea_log):
+    def __init__(self):
         StreamHandler.__init__(self)
-        self.textarea_log = textarea_log
+        self.buffer = []
+        self.text_control = None
+
+    def set_output(self, text_control):
+        self.text_control = text_control
+        for message in self.buffer:
+            self.text_control.appendPlainText(message)
+        self.buffer.clear()
 
     def emit(self, record):
-        #message = self.format(record)
-        message = format_log_entry(record.getMessage())
+        message = self.format(record)
         # Filter stack trace from main view
         if 'Traceback' in message:
             i = message.index('Traceback')
             message = message[0:i] + "Exception : See log for details"
-        self.textarea_log.appendPlainText(message)
+        if self.text_control:
+            self.text_control.appendPlainText(message)
+        else:
+            self.buffer.append(message)
+
+
+logger: logging.Logger
+qt_text_handler = QtTextHandler()
 
 
 def logging_init(message=""):
+    global logger
     dirtree = os.path.dirname(LOG_FILENAME)
     if not os.path.exists(dirtree):
         os.makedirs(dirtree)
 
-    logging.basicConfig(format=LOG_FORMAT, datefmt=LOG_FORMAT_DATETIME, level=logging.INFO)     #,handlers=[console_handler, file_handler, text_handler]
+    logging.basicConfig(format=LOG_FORMAT, datefmt=LOG_FORMAT_DATETIME, level=logging.INFO)
+    logger = logging.getLogger("SBEMimage")
     logging_add_handler(logging.FileHandler(LOG_FILENAME))
+    logging_add_handler(qt_text_handler, format=LOG_FORMAT_SCREEN)
 
     if message:
-        logging.info(message)
+        log_info(message)
 
 
 def logging_add_handler(handler, format=LOG_FORMAT, date_format=LOG_FORMAT_DATETIME):
-    logger = logging.getLogger()
     handler.setFormatter(logging.Formatter(fmt=format, datefmt=date_format))
     handler.setLevel(logging.INFO)
     logger.addHandler(handler)
+
+
+def set_log_text_handler(text_control):
+    qt_text_handler.set_output(text_control)
+
+
+def log(level, *pos_params, **key_params):
+    category = ""
+    if key_params:
+        category = key_params['category']
+        message = key_params['message']
+    else:
+        pos_params = pos_params[0]
+        if len(pos_params) > 1:
+            category = pos_params[0]
+            message = " ".join(pos_params[1:])
+        else:
+            message = pos_params[0]
+    logger.log(level=level, msg=message, extra={'category': category})
+
+
+def log_info(*params):
+    log(logging.INFO, params)
+
+
+def log_warning(*params):
+    log(logging.WARNING, params)
+
+
+def log_error(*params):
+    log(logging.ERROR, params)
+
+
+def log_critical(*params):
+    log(logging.CRITICAL, params)
+
+
+def log_exception(message):
+    logger.exception(message, extra={'category': ''})
 
 
 def try_to_open(file_name, mode):
@@ -240,16 +358,6 @@ def fit_in_range(value, min_value, max_value):
     elif value > max_value:
         value = max_value
     return value
-
-def format_log_entry(msg):
-    """Add timestamp and align msg for logging purposes"""
-    timestamp = str(datetime.datetime.now())
-    # Align colon (msg must begin with a tag of up to five capital letters,
-    # such as 'STAGE' followed by a colon)
-    i = msg.find(':')
-    if i == -1:   # colon not found
-        i = 0
-    return (timestamp[:22] + ' | ' + msg[:i] + (6-i) * ' ' + msg[i:])
 
 def format_wd_stig(wd, stig_x, stig_y):
     """Return a formatted string of focus parameters."""

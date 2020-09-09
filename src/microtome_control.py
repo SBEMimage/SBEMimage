@@ -21,6 +21,7 @@ import json
 from collections import deque
 
 import utils
+from utils import Error
 
 
 class Microtome:
@@ -31,7 +32,7 @@ class Microtome:
     def __init__(self, config, sysconfig):
         self.cfg = config
         self.syscfg = sysconfig
-        self.error_state = 0
+        self.error_state = Error.none
         self.error_info = ''
         # Load device name and other settings from sysconfig. These
         # settings overwrite the settings in config.
@@ -71,14 +72,14 @@ class Microtome:
                 self.stage_z_prev_session = float(
                     self.cfg['microtome']['last_known_z'])
             except Exception as e:
-                self.error_state = 701
+                self.error_state = Error.configuration
                 self.error_info = str(e)
                 return
         try:
             self.z_range = json.loads(
                 self.syscfg['stage']['microtome_z_range'])
         except Exception as e:
-            self.error_state = 701
+            self.error_state = Error.configuration
             self.error_info = str(e)
             return
         self.simulation_mode = (
@@ -148,7 +149,7 @@ class Microtome:
             self.failed_z_move_warnings = deque(maxlen=200)
 
         except Exception as e:
-            self.error_state = 701
+            self.error_state = Error.configuration
             self.error_info = str(e)
 
     def save_to_cfg(self):
@@ -218,10 +219,10 @@ class Microtome:
     def do_sweep(self, z_position):
         """Perform a sweep by cutting slightly above the surface."""
         if (((self.sweep_distance < 30) or (self.sweep_distance > 1000))
-                and self.error_state == 0):
-            self.error_state = 205
+                and self.error_state == Error.none):
+            self.error_state = Error.sweeping
             self.error_info = 'microtome.do_sweep: sweep distance out of range'
-        elif self.error_state == 0:
+        elif self.error_state == Error.none:
             raise NotImplementedError
 
     def cut(self):

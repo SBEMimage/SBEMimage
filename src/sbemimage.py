@@ -24,10 +24,9 @@ import os
 import sys
 import platform
 import ctypes
-import logging
 import traceback
 
-from utils import logging_init
+import utils
 from configparser import ConfigParser
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import Qt
@@ -46,7 +45,7 @@ VERSION = 'dev'
 # Hook for uncaught/Qt exceptions
 def excepthook(exc_type, exc_value, exc_tb):
     message = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
-    logging.exception(message)
+    utils.log_exception(message)
 
 sys.excepthook = excepthook
 
@@ -60,13 +59,13 @@ def main():
     be loaded.
     """
 
-    logging_init("SBEMimage started")
+    utils.logging_init("SBEMimage started")
 
     # Check Windows version
     if not (platform.system() == 'Windows'
             and platform.release() in ['7', '10']):
-        logging.error('This version of SBEMimage requires Windows 7 or 10. '
-                      'Program aborted.\n')
+        utils.log_error('This version of SBEMimage requires Windows 7 or 10. '
+                        'Program aborted.\n')
         os.system('cmd /k')  # keep console window open
         sys.exit()
 
@@ -136,7 +135,7 @@ def main():
                 print(' Done.\n')
             except Exception as e:
                 configuration_loaded = False
-                print('\nError while loading configuration! '
+                utils.log_error('\nError while loading configuration! '
                       'Program aborted.\n Exception: ' + str(e))
                 # Keep terminal window open when run from batch file
                 os.system('cmd /k')
@@ -144,7 +143,7 @@ def main():
     else:
         # Quit if default.ini doesn't exist
         configuration_loaded = False
-        logging.error('default.ini and/or system.cfg not found. '
+        utils.log_error('default.ini and/or system.cfg not found. '
                       'Program aborted.\n')
         os.system('cmd /k')
         sys.exit()
@@ -166,7 +165,7 @@ def main():
 
         if success:
             if default_configuration:
-                logging.info('Default configuration loaded (read-only).\n')
+                utils.log_info('Default configuration loaded (read-only).')
             else:
                 if cfg_changed and syscfg_changed:
                     ch_str = 'config and sysconfig updated'
@@ -176,7 +175,7 @@ def main():
                     ch_str = "sysconfig updated"
                 else:
                     ch_str = 'complete, no updates'
-                logging.info('Configuration loaded and checked: ' + ch_str + '\n')
+                utils.log_info('Configuration loaded and checked: ' + ch_str)
 
             # Remove status.dat. This file will be recreated when the program
             # terminates normally. The start-up dialog checks if status.dat
@@ -184,7 +183,7 @@ def main():
             if os.path.isfile('..\\cfg\\status.dat'):
                 os.remove('..\\cfg\\status.dat')
 
-            print('Initializing SBEMimage. Please wait...\n')
+            print('Initialising SBEMimage. Please wait...\n')
 
             # Launch Main Controls window. The Viewport window (see viewport.py)
             # is launched from Main Controls.
@@ -194,14 +193,15 @@ def main():
                                                      config_file,
                                                      VERSION)
                 sys.exit(SBEMimage.exec_())
-            except Exception as e:
-                logging.exception("Exception")
+            except Exception:
+                utils.log_exception("Exception")
         else:
-            logging.error('Error(s) while checking configuration file(s): '
-                          + exceptions + '\n'
-                          + 'Program aborted.\n')
+            utils.log_error('Error(s) while checking configuration file(s): '
+                            + exceptions + '\n'
+                            + 'Program aborted.\n')
             os.system('cmd /k')
             sys.exit()
+
 
 if __name__ == '__main__':
     main()
