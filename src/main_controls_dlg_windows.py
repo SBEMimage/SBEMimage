@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 # ==============================================================================
-#   SBEMimage, ver. 2.0
-#   Acquisition control software for serial block-face electron microscopy
-#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel.
+#   This source file is part of SBEMimage (github.com/SBEMimage)
+#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel,
+#   and the SBEMimage developers.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
@@ -722,10 +722,10 @@ class StageCalibrationDlg(QDialog):
         self.pushButton_startImageAcq.setEnabled(True)
         self.pushButton_measureMotorSpeeds.setText('Measure XY motor speeds')
         if self.motor_speed_x is None or self.stage.error_state > 0:
-            self.microtome.reset_error_state()
-            QMessageBox.error(self, 'Error',
-                              'XY motor speed measurement failed.',
-                              QMessageBox.Ok)
+            self.stage.reset_error_state()
+            QMessageBox.warning(self, 'Error',
+                                'XY motor speed measurement failed.',
+                                QMessageBox.Ok)
             return
         user_choice = QMessageBox.information(
             self, 'Measured XY motor speeds',
@@ -984,7 +984,7 @@ class StageCalibrationDlg(QDialog):
             if not success:
                 QMessageBox.warning(
                     self, 'Error updating motor speeds',
-                    'Motor calibration could not be updated in DM.',
+                    'Motor speeds could not be updated.',
                     QMessageBox.Ok)
             super().accept()
 
@@ -3142,7 +3142,9 @@ class ApproachDlg(QDialog):
 # ------------------------------------------------------------------------------
 
 class GrabFrameDlg(QDialog):
-    """Acquires or saves a single frame from SmartSEM."""
+    """Dialog to let user acquire a single frame from the SEM at the current
+    stage position.
+    """
 
     def __init__(self, sem, acq, main_controls_trigger):
         super().__init__()
@@ -3185,9 +3187,22 @@ class GrabFrameDlg(QDialog):
         self.comboBox_dwellTime.setCurrentIndex(current_scan_rate)
         self.doubleSpinBox_pixelSize.setValue(current_pixel_size)
 
+    def file_name_already_exists(self):
+        if os.path.isfile(os.path.join(
+                self.acq.base_dir, self.file_name + '.tif')):
+            QMessageBox.information(
+                self, 'File name already exists',
+                'A file with the same name already exists in the base '
+                'directory. Please choose a different name.',
+                QMessageBox.Ok)
+            return True
+        return False
+
     def scan_frame(self):
         """Scan and save a single frame using the current grab settings."""
         self.file_name = self.lineEdit_filename.text()
+        if self.file_name_already_exists():
+            return
         # Save and apply grab settings
         self.sem.grab_frame_size_selector = (
             self.comboBox_frameSize.currentIndex())
@@ -3199,6 +3214,7 @@ class GrabFrameDlg(QDialog):
         self.pushButton_scan.setEnabled(False)
         self.pushButton_save.setEnabled(False)
         QApplication.processEvents()
+        self.main_controls_trigger.transmit('STATUS BUSY GRAB IMAGE')
         thread = threading.Thread(target=self.perform_scan)
         thread.start()
 
@@ -3214,6 +3230,7 @@ class GrabFrameDlg(QDialog):
         """This function is called when the scan is complete.
         Reset the GUI and show result of grab command.
         """
+        self.main_controls_trigger.transmit('STATUS IDLE')
         self.pushButton_scan.setText('Scan and grab')
         self.pushButton_scan.setEnabled(True)
         self.pushButton_save.setEnabled(True)
@@ -3236,6 +3253,8 @@ class GrabFrameDlg(QDialog):
     def save_frame(self):
         """Save the image currently visible in SmartSEM."""
         self.file_name = self.lineEdit_filename.text()
+        if self.file_name_already_exists():
+            return
         success = self.sem.save_frame(os.path.join(
             self.acq.base_dir, self.file_name + '.tif'))
         if success:

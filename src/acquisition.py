@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 # ==============================================================================
-#   SBEMimage, ver. 2.0
-#   Acquisition control software for serial block-face electron microscopy
-#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel.
+#   This source file is part of SBEMimage (github.com/SBEMimage)
+#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel,
+#   and the SBEMimage developers.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
@@ -655,21 +655,14 @@ class Acquisition:
                     self.gm[grid_index].set_stig_xy_for_all_tiles(
                         [self.stig_x_default, self.stig_y_default])
 
-            # A setting of [0, 0, 0] (= uninitialized) for overview images
-            # means that the overviews will be acquired with the current default
-            # focus parameters.
-            # If wd != 0, the individual settings in ovm[ov_index].wd_stig_xy
-            # will be used for the overview at ov_index.
-            for ov_index in range(self.ovm.number_ov):
-                self.ovm[ov_index].wd_stig_xy = [0, 0, 0]
-
             # Show current focus/stig settings in the log
             self.add_to_main_log('SEM: Current ' + utils.format_wd_stig(
                 self.wd_default, self.stig_x_default, self.stig_y_default))
 
             # Make sure DM script uses the correct motor speeds
             # (When script crashes, default motor speeds are used.)
-            if self.microtome is not None:
+            if (self.microtome is not None 
+                    and self.microtome.device_name == 'Gatan 3View'):
                 success = self.microtome.update_motor_speeds_in_dm_script()
                 if not success:
                     self.error_state = self.microtome.error_state
@@ -999,7 +992,7 @@ class Acquisition:
             else:
                 sleep(self.microtome.full_cut_duration)
             cut_cycle_delay = self.microtome.check_cut_cycle_status()
-            if cut_cycle_delay > 0:
+            if cut_cycle_delay is not None and cut_cycle_delay > 0:
                 self.add_to_main_log(
                     f'KNIFE: Warning: Cut cycle took {cut_cycle_delay} s '
                     f'longer than specified.')
@@ -1290,10 +1283,6 @@ class Acquisition:
                     # Show new stage coordinates in GUI
                     self.main_controls_trigger.transmit('UPDATE XY')
         if move_success:
-            self.add_to_main_log(
-                'SEM: Acquiring OV at X:'
-                + '{0:.3f}'.format(ov_stage_position[0])
-                + ', Y:' + '{0:.3f}'.format(ov_stage_position[1]))
             # Set specified OV frame settings
             self.sem.apply_frame_settings(
                 self.ovm[ov_index].frame_size_selector,
@@ -1304,15 +1293,20 @@ class Acquisition:
             ov_wd = self.ovm[ov_index].wd_stig_xy[0]
             if ov_wd > 0:
                 self.sem.set_wd(ov_wd)
-                stig_x, stig_y = self.ovm[ov_index].wd_stig_xy[1]
+                stig_x, stig_y = self.ovm[ov_index].wd_stig_xy[1:3]
                 self.sem.set_stig_xy(stig_x, stig_y)
                 self.add_to_main_log(
-                    'SEM: Using user-specified '
+                    'SEM: Using specified '
                     + utils.format_wd_stig(ov_wd, stig_x, stig_y))
 
             # Path and filename of overview image to be acquired
             ov_save_path = utils.ov_save_path(
                 self.base_dir, self.stack_name, ov_index, self.slice_counter)
+
+            self.add_to_main_log(
+                'SEM: Acquiring OV at X:'
+                + '{0:.3f}'.format(ov_stage_position[0])
+                + ', Y:' + '{0:.3f}'.format(ov_stage_position[1]))
 
             # Indicate the overview being acquired in the viewport
             self.main_controls_trigger.transmit('ACQ IND OV' + str(ov_index))
@@ -1370,14 +1364,17 @@ class Acquisition:
                         self.main_controls_trigger.transmit(
                             'ASK DEBRIS FIRST OV' + str(ov_index))
                         # The command above causes a message box to be displayed
-                        # in Main Controls. The user is asked if debris can be
-                        # seen in the first overview image acquired.
+                        # in Main Controls. The user is asked if the first
+                        # overview image acquired is clean and of good quality.
                         # user_reply (None by default) is updated when a
-                        # response is received.
+                        # response is received:
+                        # "Image is fine" button clicked:    0
+                        # "There is debris" button clicked:  1
+                        # "Abort" button clicked:            2
                         while self.user_reply is None:
                             sleep(0.1)
-                        ov_accepted = (self.user_reply == QMessageBox.Yes)
-                        if self.user_reply == QMessageBox.Abort:
+                        ov_accepted = (self.user_reply == 0)
+                        if self.user_reply == 2:
                             self.pause_acquisition(1)
                         self.user_reply = None
 
@@ -1395,12 +1392,13 @@ class Acquisition:
                                     'ASK DEBRIS CONFIRMATION' + str(ov_index))
                                 while self.user_reply is None:
                                     sleep(0.1)
-                                # The OV is accepted if the user replies 'No'
-                                # to the question ('Is debris present?')
-                                # in the message box.
-                                ov_accepted = (
-                                    self.user_reply == QMessageBox.No)
-                                if self.user_reply == QMessageBox.Abort:
+                                # user_reply (None by default) is updated when a
+                                # response is received:
+                                # "Yes, there is debris" button clicked:  0
+                                # "No debris, continue" button clicked:   1
+                                # "Abort" button clicked:                 2
+                                ov_accepted = (self.user_reply == 1)
+                                if self.user_reply == 2:
                                     self.pause_acquisition(1)
                                 self.user_reply = None
             else:

@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 # ==============================================================================
-#   SBEMimage, ver. 2.0
-#   Acquisition control software for serial block-face electron microscopy
-#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel.
+#   This source file is part of SBEMimage (github.com/SBEMimage)
+#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel,
+#   and the SBEMimage developers.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
@@ -29,7 +29,7 @@ import json
 from time import sleep
 
 from PyQt5.QtWidgets import QApplication, QTableWidgetSelectionRange, \
-                            QAbstractItemView
+                            QAbstractItemView, QPushButton
 from PyQt5.QtCore import Qt, QRect, QSize, QEvent, QItemSelection, \
                          QItemSelectionModel, QModelIndex
 from PyQt5.QtGui import QIcon, QPalette, QColor, QPixmap, QKeyEvent, \
@@ -90,8 +90,7 @@ class MainControls(QMainWindow):
         utils.show_progress_in_console(0)
 
         # Set up the main control variables
-        self.acq_in_progress = False
-        self.acq_paused = False
+        self.busy = False
         self.simulation_mode = (
             self.cfg['sys']['simulation_mode'].lower() == 'true')
         self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
@@ -1380,12 +1379,15 @@ class MainControls(QMainWindow):
             + f' {self.syscfg_file}')
         self.statusBar().showMessage(self.statusbar_msg)
 
-    def set_status(self, text):
-        """Set status label in GUI (acquisition panel)."""
+    def set_status(self, label_text, statusbar_text, busy_state):
+        """Set status of Main Controls: Label in GUI (acquisition panel),
+        message in status bar, and 'busy' state (True/False)."""
         pal = QPalette(self.label_acqIndicator.palette())
         pal.setColor(QPalette.WindowText, QColor(Qt.red))
         self.label_acqIndicator.setPalette(pal)
-        self.label_acqIndicator.setText(text)
+        self.label_acqIndicator.setText(label_text)
+        self.set_statusbar(statusbar_text)
+        self.busy = busy_state
 
     def event(self, e):
         """Override status tips when hovering with mouse over menu."""
@@ -1401,20 +1403,20 @@ class MainControls(QMainWindow):
         """
         msg = self.trigger.queue.get()
         if msg == 'STATUS IDLE':
-            self.set_status('')
-            self.set_statusbar('Ready.')
+            self.set_status('', 'Ready.', False)
         elif msg == 'STATUS BUSY APPROACH':
-            self.set_status('Busy.')
-            self.set_statusbar('Approach cutting in progress...')
+            self.set_status('Busy.', 'Approach cutting in progress...', True)
         elif msg == 'STATUS BUSY OV':
-            self.set_status('Busy.')
-            self.set_statusbar('Overview acquisition in progress...')
+            self.set_status(
+                'Busy.', 'Overview acquisition in progress...', True)
         elif msg == 'STATUS BUSY STUB':
-            self.set_status('Busy.')
-            self.set_statusbar('Stub overview acquisition in progress...')
+            self.set_status(
+                'Busy.', 'Stub overview acquisition in progress...', True)
         elif msg == 'STATUS BUSY STAGE MOVE':
-            self.set_status('Busy.')
-            self.set_statusbar('Stage move in progress...')
+            self.set_status('Busy.', 'Stage move in progress...', True)
+        elif msg == 'STATUS BUSY GRAB IMAGE':
+            self.set_status(
+                'Busy.', 'Acquisition of single image in progress...', True)
         elif msg == 'UPDATE XY':
             self.show_current_stage_xy()
         elif msg == 'UPDATE XY FT':
@@ -1436,6 +1438,7 @@ class MainControls(QMainWindow):
         elif msg == 'COMPLETION STOP':
             self.completion_stop()
         elif msg == 'ACQ NOT IN PROGRESS':
+            self.set_status('', 'Ready.', False)
             self.acq_not_in_progress_update_gui()
         elif msg == 'SAVE CFG':
             self.save_settings()
@@ -1493,7 +1496,7 @@ class MainControls(QMainWindow):
             self.show_current_settings()
             self.show_stack_acq_estimates()
         elif msg == 'LOAD IN FOCUS TOOL':
-            self.ft_set_selection_from_mv()
+            self.ft_set_selection_from_viewport()
         elif msg == 'UPDATE FT TILE SELECTOR':
             self.ft_update_tile_selector()
         elif msg == 'MOVE STAGE':
@@ -1536,29 +1539,44 @@ class MainControls(QMainWindow):
         elif msg.startswith('ASK DEBRIS FIRST OV'):
             ov_index = int(msg[len('ASK DEBRIS FIRST OV'):])
             self.viewport.vp_show_overview_for_user_inspection(ov_index)
-            reply = QMessageBox.question(
-                self, 'Please inspect overview image quality',
+            msgBox = QMessageBox(self)
+            msgBox.setIcon(QMessageBox.Question)
+            msgBox.setWindowTitle('Please inspect overview image quality')
+            msgBox.setText(
                 f'Is the overview image OV {ov_index} now shown in the '
-                f'Viewport free from debris or other image defects?\n\n'
+                f'Viewport clean and of good quality (no debris or other image '
+                f'defects)?\n\n'
                 f'(This confirmation is required for the first slice to be '
-                f'imaged after (re)starting the acquisition.)',
-                QMessageBox.Yes | QMessageBox.No | QMessageBox.Abort,
-                QMessageBox.Yes)
+                f'imaged after (re)starting an acquisition.)')
+            msgBox.addButton(QPushButton('  Image is fine!  '),
+                             QMessageBox.YesRole)
+            msgBox.addButton(QPushButton('  There is debris.  '),
+                             QMessageBox.NoRole)
+            msgBox.addButton(QPushButton('Abort'),
+                             QMessageBox.RejectRole)
+            reply = msgBox.exec_()
             # Redraw with previous settings
             self.viewport.vp_draw()
             self.acq.user_reply = reply
         elif msg.startswith('ASK DEBRIS CONFIRMATION'):
             ov_index = int(msg[len('ASK DEBRIS CONFIRMATION'):])
             self.viewport.vp_show_overview_for_user_inspection(ov_index)
-            reply = QMessageBox.question(
-                self, 'Potential debris detected - please confirm',
+            msgBox = QMessageBox(self)
+            msgBox.setIcon(QMessageBox.Question)
+            msgBox.setWindowTitle('Potential debris detected - please confirm')
+            msgBox.setText(
                 f'Is debris visible in the detection area of OV {ov_index} now '
                 f'shown in the Viewport?\n\n'
                 f'(Potential debris has been detected in this overview image. '
                 f'If you get several false positives in a row, you may need to '
-                f'adjust your detection thresholds.)',
-                QMessageBox.Yes | QMessageBox.No | QMessageBox.Abort,
-                QMessageBox.Yes)
+                f'adjust your detection thresholds.)')
+            msgBox.addButton(QPushButton('  Yes, there is debris.  '),
+                             QMessageBox.YesRole)
+            msgBox.addButton(QPushButton('  No debris, continue!  '),
+                             QMessageBox.NoRole)
+            msgBox.addButton(QPushButton('Abort'),
+                             QMessageBox.RejectRole)
+            reply = msgBox.exec_()
             # Redraw with previous settings
             self.viewport.vp_draw()
             self.acq.user_reply = reply
@@ -1699,8 +1717,7 @@ class MainControls(QMainWindow):
                                                  args=(self.microtome,
                                                        self.trigger,))
             user_sweep_thread.start()
-            self.set_status('Busy.')
-            self.set_statusbar('Sweep in progress...')
+            self.set_status('Busy.', 'Sweep in progress...', True)
 
     def manual_sweep_success(self, success):
         self.show_current_stage_z()
@@ -1714,8 +1731,7 @@ class MainControls(QMainWindow):
                 'and the current Z position.', QMessageBox.Ok)
         self.restrict_gui(False)
         self.viewport.restrict_gui(False)
-        self.set_status('')
-        self.set_statusbar('Ready.')
+        self.set_status('', 'Ready.', False)
 
     def save_viewport_screenshot(self):
         file_name, ok_button_clicked = QInputDialog.getText(
@@ -1967,8 +1983,8 @@ class MainControls(QMainWindow):
             self.pushButton_resetAcq.setEnabled(False)
             self.show_stack_acq_estimates()
             # Indicate in GUI that stack is running now
-            self.set_status('Acquisition in progress')
-            self.set_statusbar('Acquisition in progress.')
+            self.set_status(
+                'Acquisition in progress', 'Acquisition in progress.', True)
 
             # Start the thread running the stack acquisition
             # All source code in stack_acquisition.py
@@ -2062,8 +2078,6 @@ class MainControls(QMainWindow):
             QMessageBox.Ok)
 
     def acq_not_in_progress_update_gui(self):
-        self.set_status('')
-        self.set_statusbar('Ready.')
         self.restrict_gui(False)
         self.viewport.restrict_gui(False)
         self.pushButton_startAcq.setEnabled(True)
@@ -2130,7 +2144,7 @@ class MainControls(QMainWindow):
             print('\n\nError in configuration file. Aborted.\n')
             event.accept()
             sys.exit()
-        elif not self.acq_in_progress:
+        elif not self.busy:
             result = QMessageBox.question(
                 self, 'Exit',
                 'Are you sure you want to exit the program?',
@@ -2150,7 +2164,7 @@ class MainControls(QMainWindow):
                 if self.plc_initialized:
                     plasma_log_msg = self.plasma_cleaner.close_port()
                     self.add_to_log(plasma_log_msg)
-                if self.acq_paused:
+                if self.acq.acq_paused:
                     if not(self.cfg_file == 'default.ini'):
                         QMessageBox.information(
                             self, 'Resume acquisition later',
@@ -2202,9 +2216,9 @@ class MainControls(QMainWindow):
                 event.ignore()
         else:
             QMessageBox.information(
-                self, 'Acquisition in progress',
-                'If you want to quit, please first stop the current '
-                'acquisition.',
+                self, 'Program busy',
+                'SBEMimage is currently busy. Please wait until the current '
+                'action is completed, or pause/abort the action.',
                 QMessageBox.Ok)
             event.ignore()
 
@@ -2380,7 +2394,7 @@ class MainControls(QMainWindow):
                 self.ft_update_wd_display()
                 self.ft_update_stig_display()
                 if self.ft_selected_ov >= 0:
-                    self.ovm[self.ft_selected_ov] = [
+                    self.ovm[self.ft_selected_ov].wd_stig_xy = [
                         self.ft_selected_wd,
                         self.ft_selected_stig_x,
                         self.ft_selected_stig_y]
@@ -2443,12 +2457,14 @@ class MainControls(QMainWindow):
         launch the cycle (stage move followed by through-focus acquisition)
         in a thread.
         """
+        self.set_status(
+            'Busy.', 'Focus tool image acquisition in progress...', True)
         self.pushButton_focusToolStart.setText('Busy')
         self.pushButton_focusToolStart.setEnabled(False)
         self.pushButton_focusToolMove.setEnabled(False)
         self.pushButton_focusToolSet.setEnabled(False)
         self.spinBox_ftPixelSize.setEnabled(False)
-        self.checkBox_zoom.setEnabled(False)
+        self.checkBox_useCurrentPos.setEnabled(False)
         self.comboBox_dwellTime.setEnabled(False)
         self.verticalSlider_ftDelta.setEnabled(False)
         self.radioButton_focus.setEnabled(False)
@@ -2537,7 +2553,8 @@ class MainControls(QMainWindow):
         self.pushButton_moveUp.setEnabled(False)
         self.pushButton_moveDown.setEnabled(False)
         self.spinBox_ftPixelSize.setEnabled(True)
-        self.checkBox_zoom.setEnabled(True)
+        self.checkBox_useCurrentPos.setEnabled(True)
+        self.checkBox_zoom.setEnabled(False)
         self.comboBox_dwellTime.setEnabled(True)
         self.verticalSlider_ftDelta.setEnabled(True)
         self.radioButton_focus.setEnabled(True)
@@ -2557,11 +2574,14 @@ class MainControls(QMainWindow):
         self.ft_mode = 0
 
     def ft_series_complete(self):
+        self.set_status(
+            '', 'Ready.', False)
         self.pushButton_focusToolStart.setText('Done')
         self.pushButton_focusToolStart.setEnabled(True)
-        # Enable arrow keys
+        # Enable arrow keys and zoom checkbox
         self.pushButton_moveUp.setEnabled(True)
         self.pushButton_moveDown.setEnabled(True)
+        self.checkBox_zoom.setEnabled(True)
         # Increase counter to move to fresh area for next cycle:
         self.ft_cycle_counter += 1
         # Go back to the centre after a full clockwise cycle
@@ -2781,9 +2801,10 @@ class MainControls(QMainWindow):
         # Clear current image:
         self.ft_clear_display()
 
-    def ft_set_selection_from_mv(self):
-        """Load the tile/OV selected in the viewport with mouse click and
-        context menu."""
+    def ft_set_selection_from_viewport(self):
+        """Load the tile/OV currently selected by right mouse click and context
+        menu in the Viewport.
+        """
         selected_ov = self.viewport.selected_ov
         selected_grid = self.viewport.selected_grid
         selected_tile = self.viewport.selected_tile
@@ -2800,10 +2821,7 @@ class MainControls(QMainWindow):
             self.comboBox_selectGridFT.blockSignals(True)
             self.comboBox_selectGridFT.setCurrentIndex(self.ft_selected_grid)
             self.comboBox_selectGridFT.blockSignals(False)
-            self.comboBox_selectTileFT.blockSignals(True)
-            self.comboBox_selectTileFT.setCurrentIndex(
-                self.ft_selected_tile + 1)
-            self.comboBox_selectTileFT.blockSignals(False)
+            self.ft_update_tile_selector(self.ft_selected_tile)
             self.comboBox_selectOVFT.blockSignals(True)
             self.comboBox_selectOVFT.setCurrentIndex(0)
             self.comboBox_selectOVFT.blockSignals(False)

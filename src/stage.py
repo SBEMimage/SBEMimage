@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 # ==============================================================================
-#   SBEMimage, ver. 2.0
-#   Acquisition control software for serial block-face electron microscopy
-#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel.
+#   This source file is part of SBEMimage (github.com/SBEMimage)
+#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel,
+#   and the SBEMimage developers.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
@@ -118,21 +118,21 @@ class Stage():
         return self._stage.motor_speed_y
 
     def set_motor_speeds(self, motor_speed_x, motor_speed_y):
-        if self.use_microtome:
+        if self.use_microtome and self.use_microtome_xy:
             return self._stage.set_motor_speeds(motor_speed_x, motor_speed_y)
         else:
             # motor speeds can currently not be set for SEM stage
             return False
 
     def update_motor_speed(self):
-        if self.use_microtome:
+        if self.use_microtome and self.use_microtome_xy:
             return self._stage.update_motor_speeds_in_dm_script()
         else:
             # Speeds can currently not be updated for SEM stage
             return False
 
     def measure_motor_speeds(self):
-        if self.use_microtome:
+        if self.use_microtome and self.use_microtome_xy:
             return self._stage.measure_motor_speeds()
         else:
             # Speeds can currently not be measured for SEM stage

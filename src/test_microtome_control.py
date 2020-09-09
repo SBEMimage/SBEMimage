@@ -1,5 +1,13 @@
 # -*- coding: utf-8 -*-
 
+# ==============================================================================
+#   This source file is part of SBEMimage (github.com/SBEMimage)
+#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel,
+#   and the SBEMimage developers.
+#   This software is licensed under the terms of the MIT License.
+#   See LICENSE.txt in the project root folder.
+# ==============================================================================
+
 """Tests for microtome_control.py. Currently only for base class.
 TODO: Tests for different microtomes with mock hardware."""
 

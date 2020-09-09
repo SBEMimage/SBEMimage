@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 
 # ==============================================================================
-#   SBEMimage, ver. 2.0
+#   SBEMimage, ver. 2020.07
+#   https://github.com/SBEMimage
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel.
-#   Author(s): B. Titze (benjamin.titze@fmi.ch),
-#   https://github.com/SBEMimage/SBEMimage/graphs/contributors
+#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel,
+#   and the SBEMimage developers.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
@@ -38,7 +38,7 @@ from config_template import process_cfg
 from main_controls import MainControls
 
 # VERSION contains the current version/release date information for the
-# master branch (for example, '2.0 (R2020-03-31)'). For the current version
+# master branch (for example, '2020.07 R2020-07-28'). For the current version
 # in the dev (development) branch, it is set to 'dev'.
 VERSION = 'dev'
 
