@@ -2104,23 +2104,16 @@ class Viewport(QWidget):
         self.sv_draw()
 
     def _vp_manual_stage_move(self):
-        user_reply = QMessageBox.question(
-            self, 'Move to selected stage position',
-            'This will move the stage to the coordinates '
-            'X: {0:.3f}, '.format(self.selected_stage_pos[0])
-            + 'Y: {0:.3f}'.format(self.selected_stage_pos[1]),
-            QMessageBox.Ok | QMessageBox.Cancel)
-        if user_reply == QMessageBox.Ok:
-            self._add_to_main_log('CTRL: Performing user-requested stage move.')
-            self.main_controls_trigger.transmit('RESTRICT GUI')
-            self.restrict_gui(True)
-            QApplication.processEvents()
-            move_thread = threading.Thread(target=acq_func.manual_stage_move,
-                                           args=(self.stage,
-                                                 self.selected_stage_pos,
-                                                 self.viewport_trigger,))
-            move_thread.start()
-            self.main_controls_trigger.transmit('STATUS BUSY STAGE MOVE')
+        self._add_to_main_log('CTRL: Performing user-requested stage move.')
+        self.main_controls_trigger.transmit('RESTRICT GUI')
+        self.restrict_gui(True)
+        QApplication.processEvents()
+        move_thread = threading.Thread(target=acq_func.manual_stage_move,
+                                       args=(self.stage,
+                                             self.selected_stage_pos,
+                                             self.viewport_trigger,))
+        move_thread.start()
+        self.main_controls_trigger.transmit('STATUS BUSY STAGE MOVE')
 
     def _vp_manual_stage_move_success(self, success):
         # Show new stage position in Main Controls GUI
