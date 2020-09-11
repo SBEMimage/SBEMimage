@@ -238,6 +238,7 @@ class QtTextHandler(StreamHandler):
             message = message[0:i].strip() + " : See log for details"
         if self.text_control:
             self.text_control.appendPlainText(message)
+            self.text_control.ensureCursorVisible()
         else:
             self.buffer.append(message)
 

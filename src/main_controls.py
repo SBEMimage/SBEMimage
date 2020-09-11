@@ -388,7 +388,7 @@ class MainControls(QMainWindow):
         app_icon.addFile('..\\img\\icon_16px.ico', QSize(16, 16))
         app_icon.addFile('..\\img\\icon_48px.ico', QSize(48, 48))
         self.setWindowIcon(app_icon)
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.move(1120, 20)
         self.hide() # hide window until fully initialized
         # Connect text area to logging

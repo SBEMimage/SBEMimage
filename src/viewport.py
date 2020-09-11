@@ -82,6 +82,7 @@ class Viewport(QWidget):
         self.measure_complete = False
         self.help_panel_visible = False
         self.stub_ov_centre = [None, None]
+        self.update_counter = 0
 
         # Set up trigger and queue to update viewport from the
         # acquisition thread or dialog windows.
@@ -91,9 +92,27 @@ class Viewport(QWidget):
         self._load_gui()
         # Initialize viewport tabs:
         self._vp_initialize()  # Viewport
+        self._update_vp_size()
         self._sv_initialize()  # Slice-by-slice viewer
         self._m_initialize()   # Monitoring tab
         self.setMouseTracking(True)
+
+    #def resizeEvent(self, event):
+        # TODO: redraw & fix unable to shrink issue
+        #self._update_vp_size()
+        #self.vp_draw()
+        #self.sv_draw()
+
+    def _update_vp_size(self):
+        if self.update_counter >= 2:
+            self.vp_width = self.QLabel_ViewportCanvas.width()
+            self.vp_height = self.QLabel_ViewportCanvas.height() - 1
+        else:
+            self.vp_width = utils.VP_WIDTH
+            self.vp_height = utils.VP_HEIGHT
+            self.update_counter += 1
+        self.cs.update_vp_size(self.vp_width, self.vp_height)
+        self.vp_canvas = QPixmap(self.vp_width, self.vp_height)
 
     def save_to_cfg(self):
         """Save viewport configuration to ConfigParser object."""
@@ -123,7 +142,7 @@ class Viewport(QWidget):
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setWindowTitle('SBEMimage - Viewport')
         # Display current settings:
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.move(20, 20)
         # Deactivate buttons for imaging if in simulation mode
         if self.sem.simulation_mode:
@@ -225,13 +244,13 @@ class Viewport(QWidget):
                             + (self.measure_p1[1] - self.measure_p2[1])**2)
             qp.setPen(QPen(QColor(0, 0, 0), 1, Qt.SolidLine))
             qp.setBrush(QColor(0, 0, 0, 255))
-            qp.drawRect(utils.VP_WIDTH - 80, utils.VP_HEIGHT - 20, 80, 20)
+            qp.drawRect(self.vp_width - 80, self.vp_height - 20, 80, 20)
             qp.setPen(QPen(QColor(*utils.COLOUR_SELECTOR[6]), 1, Qt.SolidLine))
             if distance < 1:
-                qp.drawText(utils.VP_WIDTH - 75, utils.VP_HEIGHT - 5,
+                qp.drawText(self.vp_width - 75, self.vp_height - 5,
                             str((int(distance * 1000))) + ' nm')
             else:
-                qp.drawText(utils.VP_WIDTH - 75, utils.VP_HEIGHT - 5,
+                qp.drawText(self.vp_width - 75, self.vp_height - 5,
                             '{0:.2f}'.format(distance) + ' µm')
 
     def grab_viewport_screenshot(self, save_path_filename):
@@ -311,7 +330,7 @@ class Viewport(QWidget):
         p = event.pos()
         px, py = p.x() - utils.VP_MARGIN_X, p.y() - utils.VP_MARGIN_Y
         mouse_pos_within_viewer = (
-            px in range(utils.VP_WIDTH) and py in range(utils.VP_HEIGHT))
+            px in range(self.vp_width) and py in range(self.vp_height))
         mouse_pos_within_plot_area = (
             px in range(445, 940) and py in range(22, 850))
 
@@ -445,7 +464,7 @@ class Viewport(QWidget):
         px, py = p.x() - utils.VP_MARGIN_X, p.y() - utils.VP_MARGIN_Y
         # Show current stage and SEM coordinates at mouse position
         mouse_pos_within_viewer = (
-            px in range(utils.VP_WIDTH) and py in range(utils.VP_HEIGHT))
+            px in range(self.vp_width) and py in range(self.vp_height))
         if ((self.tabWidget.currentIndex() == 0)
                 and mouse_pos_within_viewer):
             sx, sy = self._vp_stage_coordinates_from_mouse_position(px, py)
@@ -528,7 +547,7 @@ class Viewport(QWidget):
         if self.doubleclick_registered:
             p = event.pos()
             px, py = p.x() - utils.VP_MARGIN_X, p.y() - utils.VP_MARGIN_Y
-            if px in range(utils.VP_WIDTH) and py in range(utils.VP_HEIGHT):
+            if px in range(self.vp_width) and py in range(self.vp_height):
                 if self.tabWidget.currentIndex() == 0:
                     self._vp_mouse_zoom(px, py, 2)
                 elif self.tabWidget.currentIndex() == 1:
@@ -606,7 +625,7 @@ class Viewport(QWidget):
             p = event.pos()
             px, py = p.x() - utils.VP_MARGIN_X, p.y() - utils.VP_MARGIN_Y
             mouse_pos_within_viewer = (
-                px in range(utils.VP_WIDTH) and py in range(utils.VP_HEIGHT))
+                px in range(self.vp_width) and py in range(self.vp_height))
             if mouse_pos_within_viewer:
                 if event.angleDelta().y() > 0:
                     self._vp_mouse_zoom(px, py, 1.25)
@@ -663,8 +682,6 @@ class Viewport(QWidget):
         self.imported_img_drag_active = False
         self.vp_measure_active = False
 
-        # Canvas
-        self.vp_canvas = QPixmap(utils.VP_WIDTH, utils.VP_HEIGHT)
         # Help panel
         self.vp_help_panel_img = QPixmap(
             os.path.join('..', 'img', 'help-viewport.png'))
@@ -825,7 +842,7 @@ class Viewport(QWidget):
     def vp_show_context_menu(self, p):
         """Show context menu after user has right-clicked at position p."""
         px, py = p.x() - utils.VP_MARGIN_X, p.y() - utils.VP_MARGIN_Y
-        if px in range(utils.VP_WIDTH) and py in range(utils.VP_HEIGHT):
+        if px in range(self.vp_width) and py in range(self.vp_height):
             self.selected_grid, self.selected_tile = \
                 self._vp_grid_tile_mouse_selection(px, py)
             self.selected_ov = self._vp_ov_mouse_selection(px, py)
@@ -1016,7 +1033,7 @@ class Viewport(QWidget):
         self._vp_open_stub_overview_dlg()
 
     def _vp_stage_coordinates_from_mouse_position(self, px, py):
-        dx, dy = px - utils.VP_WIDTH // 2, py - utils.VP_HEIGHT // 2
+        dx, dy = px - self.vp_width // 2, py - self.vp_height // 2
         vp_centre_dx, vp_centre_dy = self.cs.vp_centre_dx_dy
         dx_pos, dy_pos = (vp_centre_dx + dx / self.cs.vp_scale,
                           vp_centre_dy + dy / self.cs.vp_scale)
@@ -1099,8 +1116,8 @@ class Viewport(QWidget):
             self._draw_measure_labels(self.vp_qp)
         # Show help panel
         if self.help_panel_visible:
-            self.vp_qp.drawPixmap(utils.VP_WIDTH - 200,
-                                  utils.VP_HEIGHT - 490,
+            self.vp_qp.drawPixmap(self.vp_width - 200,
+                                  self.vp_height - 490,
                                   self.vp_help_panel_img)
         # Simulation mode indicator
         if self.sem.simulation_mode:
@@ -1114,9 +1131,9 @@ class Viewport(QWidget):
         self.QLabel_ViewportCanvas.setPixmap(self.vp_canvas)
         # Update text labels (bottom of the Viewport window)
         self.label_FOVSize.setText(
-            '{0:.1f}'.format(utils.VP_WIDTH / self.cs.vp_scale)
+            '{0:.1f}'.format(self.vp_width / self.cs.vp_scale)
             + ' µm × '
-            + '{0:.1f}'.format(utils.VP_HEIGHT / self.cs.vp_scale) + ' µm')
+            + '{0:.1f}'.format(self.vp_height / self.cs.vp_scale) + ' µm')
 
     def _show_simulation_mode_indicator(self):
         """Draw simulation mode indicator on viewport canvas.
@@ -1160,22 +1177,22 @@ class Viewport(QWidget):
         if visible:
             if (vx >= 0) and (vy >= 0):
                 crop_area = QRect(0, 0,
-                                  (utils.VP_WIDTH - vx) / resize_ratio + 1,
-                                  utils.VP_HEIGHT / resize_ratio + 1)
+                                  (self.vp_width - vx) / resize_ratio + 1,
+                                  self.vp_height / resize_ratio + 1)
             if (vx >= 0) and (vy < 0):
                 crop_area = QRect(0, -vy / resize_ratio,
-                                  (utils.VP_WIDTH - vx) / resize_ratio + 1,
-                                  (utils.VP_HEIGHT) / resize_ratio + 1)
+                                  (self.vp_width - vx) / resize_ratio + 1,
+                                  (self.vp_height) / resize_ratio + 1)
                 vy_cropped = 0
             if (vx < 0) and (vy < 0):
                 crop_area = QRect(-vx / resize_ratio, -vy / resize_ratio,
-                                  (utils.VP_WIDTH) / resize_ratio + 1,
-                                  (utils.VP_HEIGHT) / resize_ratio + 1)
+                                  (self.vp_width) / resize_ratio + 1,
+                                  (self.vp_height) / resize_ratio + 1)
                 vx_cropped, vy_cropped = 0, 0
             if (vx < 0) and (vy >= 0):
                 crop_area = QRect(-vx / resize_ratio, 0,
-                                  (utils.VP_WIDTH) / resize_ratio + 1,
-                                  (utils.VP_HEIGHT - vy) / resize_ratio + 1)
+                                  (self.vp_width) / resize_ratio + 1,
+                                  (self.vp_height - vy) / resize_ratio + 1)
                 vx_cropped = 0
         return visible, crop_area, vx_cropped, vy_cropped
 
@@ -1204,8 +1221,8 @@ class Viewport(QWidget):
         max_x, min_x = max(points_x), min(points_x)
         max_y, min_y = max(points_y), min(points_y)
         # Check if bounding box is entirely outside viewport
-        if (min_x > utils.VP_WIDTH or max_x < 0
-            or min_y > utils.VP_HEIGHT or max_y < 0):
+        if (min_x > self.vp_width or max_x < 0
+            or min_y > self.vp_height or max_y < 0):
             return False
         return True
 
@@ -1702,8 +1719,8 @@ class Viewport(QWidget):
     def _vp_set_measure_point(self, px, py):
         """Convert pixel coordinates where mouse was clicked to SEM coordinates
         in Viewport for starting or end point of measurement."""
-        px -= utils.VP_WIDTH // 2
-        py -= utils.VP_HEIGHT // 2
+        px -= self.vp_width // 2
+        py -= self.vp_height // 2
         centre_dx, centre_dy = self.cs.vp_centre_dx_dy
         if self.measure_p1[0] is None or self.measure_complete:
             self.measure_p1 = (centre_dx + px / self.cs.vp_scale,
@@ -1776,8 +1793,8 @@ class Viewport(QWidget):
         self.vp_adjust_zoom_slider()
         # Recentre, so that mouse position is preserved.
         current_centre_dx, current_centre_dy = self.cs.vp_centre_dx_dy
-        x_shift = px - utils.VP_WIDTH // 2
-        y_shift = py - utils.VP_HEIGHT // 2
+        x_shift = px - self.vp_width // 2
+        y_shift = py - self.vp_height // 2
         scale_diff = 1 / self.cs.vp_scale - 1 / old_vp_scale
         new_centre_dx = current_centre_dx - x_shift * scale_diff
         new_centre_dy = current_centre_dy - y_shift * scale_diff
@@ -2289,7 +2306,7 @@ class Viewport(QWidget):
         self.vp_current_grid = -2
         # Position the viewing window and adjust the scale to show the full OV
         self.cs.vp_centre_dx_dy = self.ovm[ov_index].centre_dx_dy
-        self.cs.vp_scale = (utils.VP_WIDTH - 100) / self.ovm[ov_index].width_d()
+        self.cs.vp_scale = (self.vp_width - 100) / self.ovm[ov_index].width_d()
         self.vp_draw(suppress_labels=False, suppress_previews=True)
         # Revert to previous settings
         self.vp_current_ov = vp_current_ov_prev
@@ -2392,7 +2409,7 @@ class Viewport(QWidget):
             self.cfg['viewport']['show_saturated_pixels'].lower() == 'true')
 
         self.sv_measure_active = False
-        self.sv_canvas = QPixmap(utils.VP_WIDTH, utils.VP_HEIGHT)
+        self.sv_canvas = QPixmap(self.vp_width, self.vp_height)
         # Help panel:
         self.sv_help_panel_img = QPixmap('..\\img\\help-sliceviewer.png')
         self.sv_qp = QPainter()
@@ -2621,8 +2638,8 @@ class Viewport(QWidget):
     def sv_img_within_boundaries(self, vx, vy, w_px, h_px, resize_ratio):
         visible = not ((-vx >= w_px * resize_ratio - 80)
                        or (-vy >= h_px * resize_ratio - 80)
-                       or (vx >= utils.VP_WIDTH - 80)
-                       or (vy >= utils.VP_HEIGHT - 80))
+                       or (vx >= self.vp_width - 80)
+                       or (vy >= self.vp_height - 80))
         return visible
 
     def sv_load_slices(self):
@@ -2697,18 +2714,18 @@ class Viewport(QWidget):
             self.cs.sv_scale_ov = 1000 / ov_pixel_size
             ratio = self.cs.sv_scale_ov / previous_scaling_ov
             current_vx, current_vy = self.cs.sv_ov_vx_vy
-            dx = utils.VP_WIDTH // 2 - current_vx
-            dy = utils.VP_HEIGHT // 2 - current_vy
+            dx = self.vp_width // 2 - current_vx
+            dy = self.vp_height // 2 - current_vy
             new_vx = int(current_vx - ratio * dx + dx)
             new_vy = int(current_vy - ratio * dy + dy)
         elif self.sv_current_tile >= 0:
             previous_scaling = self.cs.sv_scale_tile
             tile_pixel_size = self.gm[self.sv_current_grid].pixel_size
-            self.cs.sv_scale_tile = utils.VP_WIDTH / tile_pixel_size
+            self.cs.sv_scale_tile = self.vp_width / tile_pixel_size
             ratio = self.cs.sv_scale_tile / previous_scaling
             current_vx, current_vy = self.cs.sv_tile_vx_vy
-            dx = utils.VP_WIDTH // 2 - current_vx
-            dy = utils.VP_HEIGHT // 2 - current_vy
+            dx = self.vp_width // 2 - current_vx
+            dy = self.vp_height // 2 - current_vy
             new_vx = int(current_vx - ratio * dx + dx)
             new_vy = int(current_vy - ratio * dy + dy)
             # Todo:
@@ -2804,8 +2821,8 @@ class Viewport(QWidget):
             self._draw_measure_labels(self.sv_qp)
         # Help panel:
         if self.help_panel_visible:
-            self.sv_qp.drawPixmap(utils.VP_WIDTH - 200,
-                                  utils.VP_HEIGHT - 325,
+            self.sv_qp.drawPixmap(self.vp_width - 200,
+                                  self.vp_height - 325,
                                   self.sv_help_panel_img)
 
         self.sv_qp.end()
@@ -2813,12 +2830,12 @@ class Viewport(QWidget):
         # Update scaling label
         if self.sv_current_ov >= 0:
             self.label_FOVSize_sliceViewer.setText(
-                '{0:.2f} µm × '.format(utils.VP_WIDTH / self.cs.sv_scale_ov)
-                + '{0:.2f} µm'.format(utils.VP_HEIGHT / self.cs.sv_scale_ov))
+                '{0:.2f} µm × '.format(self.vp_width / self.cs.sv_scale_ov)
+                + '{0:.2f} µm'.format(self.vp_height / self.cs.sv_scale_ov))
         else:
             self.label_FOVSize_sliceViewer.setText(
-                '{0:.2f} µm × '.format(utils.VP_WIDTH / self.cs.sv_scale_tile)
-                + '{0:.2f} µm'.format(utils.VP_HEIGHT / self.cs.sv_scale_tile))
+                '{0:.2f} µm × '.format(self.vp_width / self.cs.sv_scale_tile)
+                + '{0:.2f} µm'.format(self.vp_height / self.cs.sv_scale_tile))
 
     def _sv_shift_fov(self, shift_vector):
         dx, dy = shift_vector
@@ -2888,16 +2905,16 @@ class Viewport(QWidget):
             viewport_pixel_size = 1000 / self.cs.sv_scale_ov
             ov_pixel_size = self.ovm[self.sv_current_ov].pixel_size
             resize_ratio = ov_pixel_size / viewport_pixel_size
-            new_vx = int(utils.VP_WIDTH // 2 - (width // 2) * resize_ratio)
-            new_vy = int(utils.VP_HEIGHT // 2 - (height // 2) * resize_ratio)
+            new_vx = int(self.vp_width // 2 - (width // 2) * resize_ratio)
+            new_vy = int(self.vp_height // 2 - (height // 2) * resize_ratio)
         elif self.sv_current_tile >= 0:
             self.cs.sv_scale_tile = utils.SV_ZOOM_TILE[0]
             width, height = self.gm[self.sv_current_grid].frame_size
             viewport_pixel_size = 1000 / self.cs.sv_scale_tile
             tile_pixel_size = self.gm[self.sv_current_grid].pixel_size
             resize_ratio = tile_pixel_size / viewport_pixel_size
-            new_vx = int(utils.VP_WIDTH // 2 - (width // 2) * resize_ratio)
-            new_vy = int(utils.VP_HEIGHT // 2 - (height // 2) * resize_ratio)
+            new_vx = int(self.vp_width // 2 - (width // 2) * resize_ratio)
+            new_vy = int(self.vp_height // 2 - (height // 2) * resize_ratio)
         # Disable native resolution
         self.sv_disable_native_resolution()
         self._sv_adjust_zoom_slider()
@@ -2905,7 +2922,7 @@ class Viewport(QWidget):
 
     def sv_show_context_menu(self, p):
         px, py = p.x() - utils.VP_MARGIN_X, p.y() - utils.VP_MARGIN_Y
-        if px in range(utils.VP_WIDTH) and py in range(utils.VP_HEIGHT):
+        if px in range(self.vp_width) and py in range(self.vp_height):
             menu = QMenu()
             action1 = menu.addAction('Reset view for current image')
             action1.triggered.connect(self.sv_reset_view)

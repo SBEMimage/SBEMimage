@@ -42,7 +42,7 @@ class StubOVDlg(QDialog):
         loadUi('..\\gui\\stub_ov_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         self.sem = sem
         self.stage = stage
@@ -210,7 +210,7 @@ class FocusGradientTileSelectionDlg(QDialog):
         loadUi('..\\gui\\wd_gradient_tile_selection_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         self.grid_illustration.setPixmap(QPixmap('..\\img\\grid.png'))
         if current_ref_tiles[0] >= 0:
@@ -257,7 +257,7 @@ class GridRotationDlg(QDialog):
         loadUi('..\\gui\\change_grid_rotation_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         self.label_description.setText(
             f'Rotation of selected grid {self.selected_grid} in degrees:')
@@ -360,7 +360,7 @@ class ImportImageDlg(QDialog):
         loadUi('..\\gui\\import_image_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         self.pushButton_selectFile.clicked.connect(self.select_file)
         self.pushButton_selectFile.setIcon(QIcon('..\\img\\selectdir.png'))
@@ -455,7 +455,7 @@ class AdjustImageDlg(QDialog):
         loadUi('..\\gui\\adjust_imported_image_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
 
         if self.magc_mode:
             # magc_mode is restrictive about imported images
@@ -512,7 +512,7 @@ class DeleteImageDlg(QDialog):
         loadUi('..\\gui\\delete_image_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         # Populate the list widget with existing imported images:
         img_list = []

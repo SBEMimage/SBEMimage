@@ -77,7 +77,7 @@ class ImportMagCDlg(QDialog):
         self.pushButton_selectFile.setIcon(
             QIcon(os.path.join('..', 'img', 'selectdir.png')))
         self.pushButton_selectFile.setIconSize(QSize(16, 16))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.pushButton_import.accepted.connect(self.import_metadata)
         self.pushButton_import.rejected.connect(self.accept)
         store_res_list = [
@@ -317,7 +317,7 @@ class WaferCalibrationDlg(QDialog):
         loadUi(os.path.join('..', 'gui', 'wafer_calibration_dlg.ui'), self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon(os.path.join('..', 'img', 'icon_16px.ico')))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.lTable = self.tableView_magc_landmarkTable
         self.initLandmarkList()
         self.pushButton_cancel.clicked.connect(self.accept)
