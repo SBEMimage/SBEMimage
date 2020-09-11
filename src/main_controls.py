@@ -83,7 +83,7 @@ class MainControls(QMainWindow):
         self.cfg_file = config_file
         self.syscfg_file = self.cfg['sys']['sys_config_file']
         self.VERSION = VERSION
-
+    
         # Show progress bar in console during start-up. The percentages are
         # just estimates, but helpful for user to see that initialization
         # is in progress.
@@ -1713,14 +1713,14 @@ class MainControls(QMainWindow):
         if ok_button_clicked:
             self.viewport.grab_viewport_screenshot(
                 os.path.join(self.acq.base_dir, file_name + '.png'))
-            utils.log_error(
+            utils.log_info(
                 'CTRL', 'Saved screenshot of current Viewport to base directory.')
 
 # ======================= Test functions in third tab ==========================
 
     def test_get_mag(self):
         mag = self.sem.get_mag()
-        utils.log_error('SEM', 'Current magnification: ' + '{0:.2f}'.format(mag))
+        utils.log_info('SEM', 'Current magnification: ' + '{0:.2f}'.format(mag))
 
     def test_set_mag(self):
         self.sem.set_mag(1000)
@@ -1728,11 +1728,11 @@ class MainControls(QMainWindow):
             utils.log_error('SEM', '' + self.sem.error_info)
             self.sem.reset_error_state()
         else:
-            utils.log_error('SEM', 'Magnification set to 1000.00')
+            utils.log_info('SEM', 'Magnification set to 1000.00')
 
     def test_get_wd(self):
         wd = self.sem.get_wd()
-        utils.log_error(
+        utils.log_info(
             'SEM', 'Current working distance in mm: '
             + '{0:.4f}'.format(wd * 1000))
 
@@ -1742,19 +1742,19 @@ class MainControls(QMainWindow):
             utils.log_error('SEM', '' + self.sem.error_info)
             self.sem.reset_error_state()
         else:
-            utils.log_error('SEM', 'Working distance set to 6 mm.')
+            utils.log_info('SEM', 'Working distance set to 6 mm.')
 
     def test_autofocus(self):
         self.sem.run_autofocus()
-        utils.log_error('SEM', 'SmartSEM autofocus routine called.')
+        utils.log_info('SEM', 'SmartSEM autofocus routine called.')
 
     def test_autostig(self):
         self.sem.run_autostig()
-        utils.log_error('SEM', 'SmartSEM autostig routine called.')
+        utils.log_info('SEM', 'SmartSEM autostig routine called.')
 
     def test_autofocus_stig(self):
         self.sem.run_autofocus_stig()
-        utils.log_error('SEM', 'SmartSEM autofocus and autostig routine called.')
+        utils.log_info('SEM', 'SmartSEM autofocus and autostig routine called.')
 
     def test_zeiss_api_version(self):
         self.sem.show_about_box()
@@ -1762,7 +1762,7 @@ class MainControls(QMainWindow):
     def test_get_stage(self):
         current_x = self.stage.get_x()
         if current_x is not None:
-            utils.log_error(
+            utils.log_info(
                 'STAGE: Current X position: '
                 '{0:.2f}'.format(current_x))
         else:
@@ -1772,7 +1772,7 @@ class MainControls(QMainWindow):
     def test_set_stage(self):
         current_x = self.stage.get_x()
         self.stage.move_to_x(current_x + 10)
-        utils.log_error(
+        utils.log_info(
             'STAGE: New X position should be: '
             + '{0:.2f}'.format(current_x + 10))
 
@@ -1786,31 +1786,31 @@ class MainControls(QMainWindow):
             if user_reply == QMessageBox.Cancel:
                 return
             self.microtome.near_knife()
-            utils.log_error('KNIFE', 'Position should be NEAR.')
+            utils.log_info('KNIFE', 'Position should be NEAR.')
         else:
-            utils.log_error('CTRL', 'No microtome, or microtome not active.')
+            utils.log_warning('CTRL', 'No microtome, or microtome not active.')
 
     def test_clear_knife(self):
         if self.use_microtome:
             self.microtome.clear_knife()
-            utils.log_error('KNIFE', 'Position should be CLEAR.')
+            utils.log_info('KNIFE', 'Position should be CLEAR.')
         else:
-            utils.log_error('CTRL', 'No microtome, or microtome not active.')
+            utils.log_warning('CTRL', 'No microtome, or microtome not active.')
 
     def test_stop_dm_script(self):
         if self.use_microtome:
             self.microtome.stop_script()
-            utils.log_error('CTRL', 'STOP command sent to DM script.')
+            utils.log_info('CTRL', 'STOP command sent to DM script.')
         else:
-            utils.log_error('CTRL', 'No microtome, or microtome not active.')
+            utils.log_warning('CTRL', 'No microtome, or microtome not active.')
 
     def test_send_email(self):
         """Send test e-mail to the specified user email addresses."""
-        utils.log_error('CTRL', 'Trying to send test e-mail.')
+        utils.log_info('CTRL', 'Trying to send test e-mail.')
         success, error_msg = self.notifications.send_email(
             'Test mail', 'This mail was sent for testing purposes.')
         if success:
-            utils.log_error('CTRL', 'E-mail was sent via '
+            utils.log_info('CTRL', 'E-mail was sent via '
                             + self.notifications.smtp_server)
             QMessageBox.information(
                 self, 'E-mail test',
@@ -1830,9 +1830,9 @@ class MainControls(QMainWindow):
 
     def test_plasma_cleaner(self):
         if self.plc_installed:
-            utils.log_error(
+            utils.log_info(
                 'CTRL', 'Testing serial connection to plasma cleaner.')
-            utils.log_error('CTRL', '' + self.plasma_cleaner.version())
+            utils.log_info('CTRL', '' + self.plasma_cleaner.version())
         else:
             utils.log_error('CTRL', 'Plasma cleaner not installed/activated.')
 
@@ -1897,7 +1897,7 @@ class MainControls(QMainWindow):
                 self.plasma_cleaner = PlasmaCleaner(
                     self.cfg['sys']['plc_com_port'])
                 if self.plasma_cleaner.connection_established():
-                    utils.log_error('CTRL', 'Plasma cleaner initialised, ver. '
+                    utils.log_info('CTRL', 'Plasma cleaner initialised, ver. '
                                     + self.plasma_cleaner.version()[0])
                     self.plc_initialized = True
                     self.open_plasma_cleaner_dlg()
@@ -1974,7 +1974,7 @@ class MainControls(QMainWindow):
             dialog.exec_()
             pause_type = dialog.pause_type
             if pause_type == 1 or pause_type == 2:
-                utils.log_error('CTRL', 'PAUSE command received.')
+                utils.log_info('CTRL', 'PAUSE command received.')
                 self.pushButton_pauseAcq.setEnabled(False)
                 self.acq.pause_acquisition(pause_type)
                 self.pushButton_startAcq.setText('CONTINUE')
@@ -1995,7 +1995,7 @@ class MainControls(QMainWindow):
                     'deleted.',
                     QMessageBox.Yes| QMessageBox.No)
         if result == QMessageBox.Yes:
-            utils.log_error('CTRL', 'RESET command received.')
+            utils.log_info('CTRL', 'RESET command received.')
             result = QMessageBox.question(
                          self, 'Clear tile previews and overview images?',
                          'Would you like all current tile previews and '
@@ -2017,7 +2017,7 @@ class MainControls(QMainWindow):
             self.pushButton_startAcq.setText('START')
 
     def completion_stop(self):
-        utils.log_error('CTRL', 'Target slice number reached.')
+        utils.log_info('CTRL', 'Target slice number reached.')
         self.pushButton_resetAcq.setEnabled(True)
         QMessageBox.information(
             self, 'Acquisition complete',
@@ -2025,7 +2025,7 @@ class MainControls(QMainWindow):
             QMessageBox.Ok)
 
     def remote_stop(self):
-        utils.log_error('CTRL', 'STOP/PAUSE command received remotely.')
+        utils.log_info('CTRL', 'STOP/PAUSE command received remotely.')
         self.pushButton_resetAcq.setEnabled(True)
         self.pushButton_pauseAcq.setEnabled(False)
         self.pushButton_startAcq.setEnabled(True)
@@ -2107,7 +2107,7 @@ class MainControls(QMainWindow):
         with open(os.path.join(
             '..', 'cfg', self.cfg['sys']['sys_config_file']), 'w') as f:
             self.syscfg.write(f)
-        utils.log_error('CTRL', 'Settings saved to disk.')
+        utils.log_info('CTRL', 'Settings saved to disk.')
 
     def closeEvent(self, event):
         if self.microtome is not None and self.microtome.error_state == Error.configuration:
@@ -2126,7 +2126,7 @@ class MainControls(QMainWindow):
                     if (self.use_microtome
                             and self.microtome.device_name == 'Gatan 3View'):
                         self.microtome.stop_script()
-                        utils.log_error('CTRL', 'Disconnected from DM/3View.')
+                        utils.log_info('CTRL', 'Disconnected from DM/3View.')
                     elif (self.use_microtome
                         and self.microtome.device_name == 'ConnectomX katana'):
                         self.microtome.disconnect()
@@ -2134,7 +2134,7 @@ class MainControls(QMainWindow):
                         self.sem.disconnect()
                 if self.plc_initialized:
                     plasma_log_msg = self.plasma_cleaner.close_port()
-                    utils.log_error(plasma_log_msg)
+                    utils.log_info(plasma_log_msg)
                 if self.acq.acq_paused:
                     if not(self.cfg_file == 'default.ini'):
                         QMessageBox.information(

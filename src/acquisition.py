@@ -1034,14 +1034,14 @@ class Acquisition:
                     f'longer than specified.')
                 self.add_to_incident_log(
                     f'WARNING (Cut cycle took {cut_cycle_delay} s too long.)')
-            if self.microtome.error_state > 0:
+            if self.microtome.error_state != Error.none:
                 # Error state may be 507 at this point (after heuristic
                 # adjustments), but an error during the cutting cycle is more
                 # critical, so the error state will be overwritten with the
                 # microtome's error state.
                 self.error_state = self.microtome.error_state
                 self.microtome.reset_error_state()
-        if self.error_state > 0 and self.error_state != Error.wd_stig_difference:
+        if self.error_state != Error.none and self.error_state != Error.wd_stig_difference:
             self.add_to_main_log('CTRL: Error during cut cycle.')
             # Try to move back to previous Z position
             self.add_to_main_log('STAGE: Attempt to move back to previous Z: '
@@ -1296,7 +1296,7 @@ class Acquisition:
             self.add_to_main_log(
                 'STAGE: Moving to OV %d position.' % ov_index)
             self.stage.move_to_xy(ov_stage_position)
-            if self.stage.error_state > 0:
+            if self.stage.error_state != Error.none:
                 self.add_to_main_log(
                     f'STAGE: Problem with XY move (error '
                     f'{self.stage.error_state}). Trying again.')
@@ -1465,7 +1465,7 @@ class Acquisition:
         """
         self.add_to_main_log('KNIFE: Sweeping to remove debris.')
         self.microtome.do_sweep(self.stage_z_position)
-        if self.microtome.error_state > 0:
+        if self.microtome.error_state != Error.none:
             self.microtome.reset_error_state()
             self.add_to_main_log('KNIFE: Problem during sweep. Trying again.')
             self.add_to_incident_log('WARNING (Problem during sweep)')
@@ -1860,7 +1860,7 @@ class Acquisition:
                 # specified stage move wait interval.
                 # Check if there were microtome problems:
                 # If yes, try one more time before pausing acquisition.
-                if self.stage.error_state > 0:
+                if self.stage.error_state != Error.none:
                     self.add_to_main_log(
                         f'STAGE: Problem with XY move (error '
                         f'{self.stage.error_state}). Trying again.')
@@ -2152,7 +2152,7 @@ class Acquisition:
                 'STAGE: Moving to position of tile '
                 + str(grid_index) + '.' + str(tile_index) + ' for autofocus')
             self.stage.move_to_xy((stage_x, stage_y))
-            if self.stage.error_state > 0:
+            if self.stage.error_state != Error.none:
                 self.stage.reset_error_state()
                 self.add_to_main_log(
                     'STAGE: Problem with XY move. Trying again.')

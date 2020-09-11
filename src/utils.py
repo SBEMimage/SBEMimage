@@ -359,6 +359,17 @@ def fit_in_range(value, min_value, max_value):
         value = max_value
     return value
 
+# TODO: remove/use format_log_entry, run through standard logging instead
+def format_log_entry(msg):
+    """Add timestamp and align msg for logging purposes"""
+    timestamp = str(datetime.datetime.now())
+    # Align colon (msg must begin with a tag of up to five capital letters,
+    # such as 'STAGE' followed by a colon)
+    i = msg.find(':')
+    if i == -1:   # colon not found
+        i = 0
+    return (timestamp[:23] + ' | ' + msg[:i] + (6-i) * ' ' + msg[i:])
+
 def format_wd_stig(wd, stig_x, stig_y):
     """Return a formatted string of focus parameters."""
     return ('WD/STIG_XY: '
