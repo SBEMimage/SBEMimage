@@ -243,15 +243,15 @@ class SEM_SmartSEM(SEM):
 
     def get_high_current(self):
         """Read high current mode from SmartSEM."""
-        if self.has_high_current:
+        if self.HAS_HIGH_CURRENT:
             return "on" in self.sem_api.Get('DP_HIGH_CURRENT', 0)[1].lower()
 
-    def set_high_current(self, high_current):
+    def set_high_current(self, target_high_current):
         """Save the target high current mode and set the SEM value."""
         # Call method in parent class
-        super().set_high_current(high_current)
-        if self.has_high_current:
-            if high_current:
+        super().set_high_current(target_high_current)
+        if self.HAS_HIGH_CURRENT:
+            if target_high_current:
                 variant = VARIANT(pythoncom.VT_R4, 1)
             else:
                 variant = VARIANT(pythoncom.VT_R4, 0)

@@ -248,6 +248,7 @@ class SEMSettingsDlg(QDialog):
         self.sem.set_eht(self.doubleSpinBox_EHT.value())
         self.sem.set_beam_current(self.spinBox_beamCurrent.value())
         self.sem.set_aperture_size(self.comboBox_beamSize.currentIndex())
+        self.sem.set_high_current(self.checkBox_highCurrent.isChecked())
         super().accept()
 
 # ------------------------------------------------------------------------------

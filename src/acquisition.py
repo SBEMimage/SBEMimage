@@ -516,7 +516,14 @@ class Acquisition:
 
 # ====================== STACK ACQUISITION THREAD run() ========================
 
+
     def run(self):
+        try:
+            self.run_acquisition()
+        except Exception as e:
+            utils.log_exception()
+
+    def run_acquisition(self):
         """Run acquisition in a thread started from main_controls.py."""
 
         self.reset_error_state()
@@ -1865,7 +1872,7 @@ class Acquisition:
             if cycle_time_diff > 0.15:
                 utils.log_warning(
                     'CTRL',
-                    'Warning: Grid {grid_index} tile cycle time was '
+                    f'Warning: Grid {grid_index} tile cycle time was '
                     f'{cycle_time_diff:.2f} s longer than expected.')
                 self.add_to_main_log(
                     f'CTRL: Warning: Grid {grid_index} tile cycle time was '

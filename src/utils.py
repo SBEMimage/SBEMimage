@@ -235,7 +235,7 @@ class QtTextHandler(StreamHandler):
         # Filter stack trace from main view
         if 'Traceback' in message:
             i = message.index('Traceback')
-            message = message[0:i] + "Exception : See log for details"
+            message = message[0:i].strip() + " : See log for details"
         if self.text_control:
             self.text_control.appendPlainText(message)
         else:
@@ -302,7 +302,7 @@ def log_critical(*params):
     log(logging.CRITICAL, params)
 
 
-def log_exception(message):
+def log_exception(message = ""):
     logger.exception(message, extra={'category': ''})
 
 
