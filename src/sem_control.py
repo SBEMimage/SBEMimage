@@ -46,9 +46,12 @@ class SEM:
         self.simulation_mode = (
             self.cfg['sys']['simulation_mode'].lower() == 'true')
         self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
-        # self.use_sem_stage: True if microtome not used
-        self.use_sem_stage = (self.cfg['sys']['use_microtome'].lower() == 'false' or
-                              self.syscfg['device']['microtome'] == '6')
+        # self.use_sem_stage: True if microtome is not used or if katana
+        # microtome is used (but only for XY in that case)
+        self.use_sem_stage = (
+            self.cfg['sys']['use_microtome'].lower() == 'false'
+            or (self.cfg['sys']['use_microtome'].lower() == 'true'
+                and self.syscfg['device']['microtome'] in ['5', '6']))
         # The target EHT (= high voltage, in kV) and beam current (in pA)
         # are (as implemented at the moment in SBEMimage) global settings for
         # any given acquisition, whereas dwell time, pixel size and frame size
@@ -208,10 +211,11 @@ class SEM:
         raise NotImplementedError
 
     def set_eht(self, target_eht):
-        """Save the target EHT (in kV) and set the EHT to this target value."""
-        self.target_eht = target_eht
+        """Save the target EHT (in kV, rounded to 2 decimal places) and set
+        the actual EHT to this target value.
+        """
+        self.target_eht = round(target_eht, 2)
         # Setting SEM to target EHT must be implemented in child class!
-
 
     def has_vp(self):
         """Return True if VP is fitted."""

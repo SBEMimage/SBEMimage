@@ -661,7 +661,8 @@ class Acquisition:
 
             # Make sure DM script uses the correct motor speeds
             # (When script crashes, default motor speeds are used.)
-            if self.microtome is not None and self.microtome.device_name != 'GCIB':
+            if (self.microtome is not None
+                    and self.microtome.device_name == 'Gatan 3View'):
                 success = self.microtome.update_motor_speeds_in_dm_script()
                 if not success:
                     self.error_state = self.microtome.error_state
@@ -979,7 +980,6 @@ class Acquisition:
             # Do the full cut cycle (near, cut, retract, clear)
             self.microtome.do_full_cut()
             # Process tiles for heuristic autofocus during cut
-            # TODO: support threading for heuristic AF
             if self.heuristic_af_queue:
                 self.process_heuristic_af_queue()
                 # Apply all corrections to tiles

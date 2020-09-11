@@ -1508,7 +1508,7 @@ class MainControls(QMainWindow):
             self.show_current_settings()
             self.show_stack_acq_estimates()
         elif msg == 'LOAD IN FOCUS TOOL':
-            self.ft_set_selection_from_mv()
+            self.ft_set_selection_from_viewport()
         elif msg == 'UPDATE FT TILE SELECTOR':
             self.ft_update_tile_selector()
         elif msg == 'MOVE STAGE':
@@ -2861,9 +2861,10 @@ class MainControls(QMainWindow):
         # Clear current image:
         self.ft_clear_display()
 
-    def ft_set_selection_from_mv(self):
-        """Load the tile/OV selected in the viewport with mouse click and
-        context menu."""
+    def ft_set_selection_from_viewport(self):
+        """Load the tile/OV currently selected by right mouse click and context
+        menu in the Viewport.
+        """
         selected_ov = self.viewport.selected_ov
         selected_grid = self.viewport.selected_grid
         selected_tile = self.viewport.selected_tile
@@ -2880,10 +2881,7 @@ class MainControls(QMainWindow):
             self.comboBox_selectGridFT.blockSignals(True)
             self.comboBox_selectGridFT.setCurrentIndex(self.ft_selected_grid)
             self.comboBox_selectGridFT.blockSignals(False)
-            self.comboBox_selectTileFT.blockSignals(True)
-            self.comboBox_selectTileFT.setCurrentIndex(
-                self.ft_selected_tile + 1)
-            self.comboBox_selectTileFT.blockSignals(False)
+            self.ft_update_tile_selector(self.ft_selected_tile)
             self.comboBox_selectOVFT.blockSignals(True)
             self.comboBox_selectOVFT.setCurrentIndex(0)
             self.comboBox_selectOVFT.blockSignals(False)

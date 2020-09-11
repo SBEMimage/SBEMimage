@@ -770,7 +770,7 @@
     <number>5</number>
    </property>
    <property name="minimum">
-    <double>0.100000000000000</double>
+    <double>-9.900000000000000</double>
    </property>
    <property name="maximum">
     <double>9.900000000000000</double>
@@ -808,7 +808,7 @@
     <number>5</number>
    </property>
    <property name="minimum">
-    <double>0.100000000000000</double>
+    <double>-9.900000000000000</double>
    </property>
    <property name="maximum">
     <double>9.900000000000000</double>

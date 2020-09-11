@@ -121,7 +121,7 @@ class Stage:
         return self._stage.motor_speed_y
 
     def set_motor_speeds(self, motor_speed_x, motor_speed_y):
-        if self.use_microtome and not self.microtome.device_name == 'GCIB':
+        if self.use_microtome and self.use_microtome_xy and not self.microtome.device_name == 'GCIB':
             return self._stage.set_motor_speeds(motor_speed_x, motor_speed_y)
         elif self.microtome.device_name == 'GCIB':
             return True
@@ -130,7 +130,7 @@ class Stage:
             return False
 
     def update_motor_speed(self):
-        if self.use_microtome and not self.microtome.device_name == 'GCIB':
+        if self.use_microtome and self.use_microtome_xy and not self.microtome.device_name == 'GCIB':
             return self._stage.update_motor_speeds_in_dm_script()
         elif self.microtome.device_name == 'GCIB':
             return True
@@ -139,7 +139,7 @@ class Stage:
             return False
 
     def measure_motor_speeds(self):
-        if self.use_microtome:
+        if self.use_microtome and self.use_microtome_xy and not self.microtome.device_name == 'GCIB':
             return self._stage.measure_motor_speeds()
         else:
             # Speeds can currently not be measured for SEM stage
