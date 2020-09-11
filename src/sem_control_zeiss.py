@@ -640,7 +640,7 @@ class SEM_SmartSEM(SEM):
         z = self.get_stage_z() / 10**6
         self.sem_api.MoveStage(x, y, z, 0, self.stage_rotation, 0)
         while self.sem_api.Get('DP_STAGE_IS')[1] == 'Busy':
-            sleep(0.1)
+            sleep(self.stage_move_check_interval)
         sleep(self.stage_move_wait_interval)
         self.last_known_y = self.sem_api.GetStagePosition()[2] * 10**6
 

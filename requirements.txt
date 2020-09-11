@@ -14,4 +14,4 @@ imreg_dft
 imageio
 pyyaml
 psutil
-cv2
+opencv-python
