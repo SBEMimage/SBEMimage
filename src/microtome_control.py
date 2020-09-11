@@ -65,14 +65,12 @@ class BFRemover(ABC):
         """Perform a sweep by cutting slightly above the surface."""
         pass
 
-    @abstractmethod
     def move_stage_to_z(self, z):
         """Move stage to new z position. Used during stack acquisition
            before each cut and for sweeps. Required in Acquisition.do_cut.
         """
         pass
 
-    @abstractmethod
     def move_stage_to_xy(self, coordinates):
         """Move stage to coordinates X/Y. This function is called during
            acquisitions. It includes waiting times. The other move functions
