@@ -228,12 +228,13 @@ class GCIB(BFRemover):
             self._blank_beam()
         self.move_stage_to_pos_prior_mill_mov()
         # TODO: requires further investigation (might disappear with proper gold coating and electron irradiation)
-        msg = f'GCIB: Sleeping for 30 s to lose charge on sample.'
+        dt_sleep = 10
+        msg = f'GCIB: Sleeping for {dt_sleep} s to lose charge on sample.'
         if self.acq is not None:
             self.acq.main_controls_trigger.transmit(msg)
         else:
             print(msg)
-        sleep(30)
+        sleep(dt_sleep)
 
     def rotate360(self, mill_duration):
         # Hayworth et al, 2019, Nat. Methods: Three evenly spaced azimuthal
