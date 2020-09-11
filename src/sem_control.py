@@ -60,6 +60,7 @@ class SEM:
         self.target_eht = float(self.cfg['sem']['eht'])
         self.target_beam_current = int(float(self.cfg['sem']['beam_current']))
         self.target_aperture_size = float(self.cfg['sem']['aperture_size'])
+        self.target_high_current = False
         # self.stage_rotation: rotation angle of SEM stage (0° by default)
         self.stage_rotation = 0
         # 'Grab frame' settings: these are the settings for acquiring single
@@ -121,6 +122,8 @@ class SEM:
         # self.BEAM_CURRENT_MODES: available beam current modes
         self.BEAM_CURRENT_MODES = json.loads(self.syscfg['sem']['beam_current_modes'])
         self.BEAM_CURRENT_MODE = json.loads(self.syscfg['sem']['beam_current_mode'])
+        # self.HAS_HIGH_CURRENT: if has high current mode
+        self.HAS_HIGH_CURRENT = bool(self.syscfg['sem']['has_high_current'])
         # self.STORE_RES: available store resolutions (= frame size in pixels)
         self.STORE_RES = json.loads(self.syscfg['sem']['store_res'])
         # self.DWELL_TIME: available dwell times in microseconds
@@ -282,6 +285,15 @@ class SEM:
         target current."""
         self.target_beam_current = target_current
         # Setting SEM to target beam current must be implemented in child class!
+
+    def get_high_current(self):
+        """Read high current mode from SmartSEM."""
+        raise NotImplementedError
+
+    def set_high_current(self, high_current):
+        """Save the target high current mode and set the SEM value."""
+        self.target_high_current = high_current
+        # Setting SEM to target high current must be implemented in child class!
 
     def get_aperture_size(self):
         """Read aperture size (in μm) from SmartSEM."""

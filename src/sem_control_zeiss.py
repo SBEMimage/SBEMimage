@@ -241,6 +241,30 @@ class SEM_SmartSEM(SEM):
                 f'sem.set_beam_current: command failed (ret_val: {ret_val})')
             return False
 
+    def get_high_current(self):
+        """Read high current mode from SmartSEM."""
+        if self.has_high_current:
+            return "on" in self.sem_api.Get('DP_HIGH_CURRENT', 0)[1].lower()
+
+    def set_high_current(self, high_current):
+        """Save the target high current mode and set the SEM value."""
+        # Call method in parent class
+        super().set_high_current(high_current)
+        if self.has_high_current:
+            if high_current:
+                variant = VARIANT(pythoncom.VT_R4, 1)
+            else:
+                variant = VARIANT(pythoncom.VT_R4, 0)
+            ret_val = self.sem_api.Set('DP_HIGH_CURRENT', variant)
+            if ret_val == 0:
+                return True
+            else:
+                self.error_state = Error.high_current
+                self.error_info = (
+                    f'sem.set_high_current: command failed (ret_val: {ret_val})')
+                return False
+        return True
+
     def get_aperture_size(self):
         """Read aperture size (in μm) from SmartSEM."""
         return round(self.sem_api.Get('AP_APERTURESIZE', 0)[1] * 10**6, 1)
@@ -266,7 +290,8 @@ class SEM_SmartSEM(SEM):
         ret_val1 = self.set_eht(self.target_eht)
         ret_val2 = self.set_beam_current(self.target_beam_current)
         ret_val3 = self.set_aperture_size(self.APERTURE_SIZE.index(self.target_aperture_size))
-        return (ret_val1 and ret_val2 and ret_val3)
+        ret_val4 = self.set_high_current(self.target_high_current)
+        return (ret_val1 and ret_val2 and ret_val3 and ret_val4)
 
     def apply_grab_settings(self):
         """Set the SEM to the current grab settings."""

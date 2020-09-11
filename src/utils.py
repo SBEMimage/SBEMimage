@@ -100,6 +100,7 @@ class Error(Enum):
     hp_hv = 314
     fcc = 315
     aperture_size = 316
+    high_current = 317
 
     # I/O error
     primary_drive = 401

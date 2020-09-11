@@ -39,7 +39,8 @@ from main_controls import MainControls
 # VERSION contains the current version/release date information for the
 # master branch (for example, '2020.07 R2020-07-28'). For the current version
 # in the dev (development) branch, it is set to 'dev'.
-VERSION = 'dev'
+# Following https://www.python.org/dev/peps/pep-0440/#public-version-identifiers
+VERSION = '2020.09.11.dev1'
 
 
 # Hook for uncaught/Qt exceptions

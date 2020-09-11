@@ -228,6 +228,8 @@ class SEMSettingsDlg(QDialog):
         self.doubleSpinBox_actualEHT.setValue(self.sem.get_eht())
         self.spinBox_actualBeamCurrent.setValue(self.sem.get_beam_current())
         self.spinBox_actualBeamSize.setValue(self.sem.get_aperture_size())
+        self.checkBox_highCurrent.setEnabled(self.sem.HAS_HIGH_CURRENT)
+        self.checkBox_highCurrent.setChecked(self.sem.get_high_current())
         # Update/disable appropriate GUI elements
         self.spinBox_beamCurrent.setEnabled(self.sem.BEAM_CURRENT_MODE == 'current')
         self.comboBox_beamSize.setEnabled(self.sem.BEAM_CURRENT_MODE != 'current')
