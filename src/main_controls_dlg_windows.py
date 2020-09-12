@@ -1871,8 +1871,12 @@ class PreStackDlg(QDialog):
             f'{self.sem.target_eht:.2f} keV, '
             f'{self.sem.target_beam_current} pA, '
             f'{self.sem.target_aperture_size} μm')
+        if self.acq.take_overviews:
+            number_ov = ovm.total_number_active_overviews()
+        else:
+            number_ov = 0
         self.label_gridSetup.setText(
-            f'{ovm.total_number_active_overviews()} overview(s), '
+            f'{number_ov} overview(s), '
             f'{self.gm.total_number_active_grids()} grid(s);')
         self.label_totalActiveTiles.setText(
             f'{self.gm.total_number_active_tiles()} active tile(s)')
