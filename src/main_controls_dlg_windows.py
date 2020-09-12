@@ -375,6 +375,7 @@ class MicrotomeSettingsDlg(QDialog):
 
 # ------------------------------------------------------------------------------
 
+
 class MotorStatusDlg(QDialog):
     """Show numbers of total motor moves, failed moves, and slow moves."""
 
@@ -643,6 +644,62 @@ class KatanaSettingsDlg(QDialog):
 
 # ------------------------------------------------------------------------------
 
+
+class GCIBSettingsDlg(QDialog):
+    """[WIP] Settings dialog for the GCIB system. Currently not more than a placeholder.
+    """
+    def __init__(self, microtome):
+        super().__init__()
+        self.microtome = microtome
+
+        loadUi('..\\gui\\gcib_settings_dlg.ui', self)
+
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setFixedSize(self.size())
+        self.show()
+
+        # Set up COM port selector
+        # TODO: set up serial selector
+        # self.comboBox_portSelector.addItems(utils.get_serial_ports())
+        # self.comboBox_portSelector.setCurrentIndex(0)
+        # self.comboBox_portSelector.currentIndexChanged.connect(
+        #     self.reconnect)
+
+        self.display_connection_status()
+        self.display_current_settings()
+        self.doubleSpinBox_millCycle.setValue(self.microtome.mill_cycle)
+        self.checkBox_useContinuousRotation.setChecked(bool(self.microtome.continuous_rot))
+
+    def reconnect(self):
+        pass
+
+    def display_connection_status(self):
+        pass
+        # pal = QPalette(self.label_connectionStatus.palette())
+        # if self.microtome.connected:
+        #     # Use red colour if not connected
+        #     pal.setColor(QPalette.WindowText, QColor(Qt.black))
+        #     self.label_connectionStatus.setPalette(pal)
+        #     self.label_connectionStatus.setText('katana microtome connected.')
+        # else:
+        #     pal.setColor(QPalette.WindowText, QColor(Qt.red))
+        #     self.label_connectionStatus.setPalette(pal)
+        #     self.label_connectionStatus.setText(
+        #         'katana microtome is not connected.')
+
+    def display_current_settings(self):
+        # TODO: add parameters from config (non-adjustable for now)
+        pass
+
+    def accept(self):
+        self.microtome.mill_cycle = self.doubleSpinBox_millCycle.value()
+        self.microtome.continuous_rot = int(self.checkBox_useContinuousRotation.isChecked())
+        super().accept()
+
+# ------------------------------------------------------------------------------
+
+
 class StageCalibrationDlg(QDialog):
     """Dialog window to calibrate the stage (rotation angles and scale factors)
     and the motor speeds.
@@ -691,7 +748,7 @@ class StageCalibrationDlg(QDialog):
         self.doubleSpinBox_motorSpeedY.setValue(self.stage.motor_speed_y)
         self.comboBox_dwellTime.addItems(map(str, self.sem.DWELL_TIME))
         self.comboBox_dwellTime.setCurrentIndex(4)
-        self.comboBox_package.addItems(['imreg_dft', 'skimage'])
+        self.comboBox_package.addItems(['cv2', 'imreg_dft', 'skimage'])
         self.pushButton_startImageAcq.clicked.connect(
             self.start_stage_calibration_procedure)
         if self.sem.simulation_mode:
@@ -753,7 +810,7 @@ class StageCalibrationDlg(QDialog):
             'position. The recommended starting position is the centre of the '
             'stage (0, 0).\n'
             'Shift vectors between the acquired images will be computed using '
-            'a function from the selected package (imreg_dft or skimage). '
+            'a function from the selected package (cv2, imreg_dft or skimage). '
             'Angles and scale factors will then be computed from these '
             'shifts.\n\n'
             'Alternatively, you can manually provide the pixel shifts by '
@@ -768,7 +825,11 @@ class StageCalibrationDlg(QDialog):
         """Acquire three images to be used for the stage calibration.
         See text in information message box for explanation.
         """
-        # TODO: error handling!
+        if not self.sem.is_eht_on():
+            QMessageBox.warning(
+                self, 'EHT off', 'EHT / high voltage is off. Please turn '
+                'it on before starting the calibration.', QMessageBox.Ok)
+            return
         reply = QMessageBox.information(
             self, 'Start calibration procedure',
             'This will acquire three images and save them in the current base '
@@ -823,18 +884,20 @@ class StageCalibrationDlg(QDialog):
         self.stage.move_to_xy((start_x, start_y))
         # Show in log that calculation begins now
         self.update_calc_trigger.signal.emit()
-        # Load images
-        start_img = imread(os.path.join(self.base_dir, 'start.tif'),
-                           as_gray=True)
-        shift_x_img = imread(os.path.join(self.base_dir, 'shift_x.tif'),
-                             as_gray=True)
-        shift_y_img = imread(os.path.join(self.base_dir, 'shift_y.tif'),
-                             as_gray=True)
+        # Load images and calculate shifts:
+        start_img = imread(os.path.join(self.base_dir, 'start.tif'), 1)
+        shift_x_img = imread(os.path.join(self.base_dir, 'shift_x.tif'), 1)
+        shift_y_img = imread(os.path.join(self.base_dir, 'shift_y.tif'), 1)
         self.calc_exception = None
-
         try:
-            if self.comboBox_package.currentIndex() == 0:  # imreg_dft selected
-                # [::-1] to use x, y, z order
+            # # [::-1] to use x, y, z order
+            if self.comboBox_package.currentIndex() == 0:  # alternative calculation selected
+                start_img = (start_img*255).astype(np.uint8)
+                shift_x_img = (shift_x_img*255).astype(np.uint8)
+                shift_y_img = (shift_y_img*255).astype(np.uint8)
+                x_shift = utils.align_images_cv2(shift_x_img, start_img)
+                y_shift = utils.align_images_cv2(shift_y_img, start_img)
+            elif self.comboBox_package.currentIndex() == 1:
                 x_shift = translation(
                     start_img, shift_x_img, filter_pcorr=3)['tvec'][::-1]
                 y_shift = translation(
@@ -867,11 +930,18 @@ class StageCalibrationDlg(QDialog):
                 'Shift_Y: [{2:.1f}, {3:.1f}]'.format(
                 *self.x_shift_vector, *self.y_shift_vector))
             # Absolute values for the GUI
-            self.spinBox_x2x.setValue(abs(self.x_shift_vector[0]))
-            self.spinBox_x2y.setValue(abs(self.x_shift_vector[1]))
-            self.spinBox_y2x.setValue(abs(self.y_shift_vector[0]))
-            self.spinBox_y2y.setValue(abs(self.y_shift_vector[1]))
-            # Now calculate parameters
+            if self.comboBox_package.currentIndex() == 2:
+                self.spinBox_x2x.setValue(abs(self.x_shift_vector[0]))
+                self.spinBox_x2y.setValue(abs(self.x_shift_vector[1]))
+                self.spinBox_y2x.setValue(abs(self.y_shift_vector[0]))
+                self.spinBox_y2y.setValue(abs(self.y_shift_vector[1]))
+            else:
+                self.spinBox_x2x.setValue(self.x_shift_vector[0])
+                self.spinBox_x2y.setValue(self.x_shift_vector[1])
+                self.spinBox_y2x.setValue(self.y_shift_vector[0])
+                self.spinBox_y2y.setValue(self.y_shift_vector[1])
+
+            # Now calculate parameters:
             self.calculate_calibration_parameters()
         else:
             QMessageBox.warning(
@@ -887,12 +957,12 @@ class StageCalibrationDlg(QDialog):
         """
         shift = self.spinBox_shift.value()
         pixel_size = self.spinBox_pixelsize.value()
+
         # Use absolute values for now, TODO: revisit for the Sigma stage
         delta_xx, delta_xy = (
             abs(self.x_shift_vector[0]), abs(self.x_shift_vector[1]))
         delta_yx, delta_yy = (
             abs(self.y_shift_vector[0]), abs(self.y_shift_vector[1]))
-
         # Rotation angles (in radians)
         rot_x = atan(delta_xy/delta_xx)
         rot_y = atan(delta_yx/delta_yy)
@@ -901,22 +971,26 @@ class StageCalibrationDlg(QDialog):
         scale_y = shift / (sqrt(delta_yx**2 + delta_yy**2) * pixel_size / 1000)
 
         # alternative calc
-        # x_abs = np.linalg.norm(
-        #     [self.x_shift_vector[0], self.x_shift_vector[1]])
-        # y_abs = np.linalg.norm(
-        #     [self.y_shift_vector[0], self.y_shift_vector[1]])
-        # rot_x_alt = np.arccos(
-        #     shift * self.x_shift_vector[0] / (shift * x_abs))
-        # rot_y_alt = np.arccos(
-        #     shift * self.y_shift_vector[1] / (shift * y_abs))
-        # GUI cannot handle negative values
-        # if rot_x < 0:
-        #    rot_x += 2 * 3.141592
-        # if rot_y < 0:
-        #    rot_y += 2 * 3.141592
+        x_abs = np.linalg.norm(self.x_shift_vector)
+        y_abs = np.linalg.norm(self.y_shift_vector)
+        # Rotation angles:
+        rot_x_alt = np.arccos(self.x_shift_vector[0] / x_abs)
+        rot_y_alt = np.arccos(self.y_shift_vector[1] / y_abs)
+        print(f'Super alternativ calc: {rot_x_alt:.5f}\t{rot_y_alt:.5f}')
+        rot_x_alt = np.arctan2(self.x_shift_vector[1] / x_abs, self.x_shift_vector[0] / x_abs) - np.arctan2(0, 1)
+        rot_y_alt = np.arctan2(self.y_shift_vector[1] / y_abs, self.y_shift_vector[0] / y_abs) - np.arctan2(1, 0)
+
         # Scale factors:
-        # scale_x_alt = shift / (x_abs * pixel_size / 1000)
-        # scale_y_alt = shift / (y_abs * pixel_size / 1000)
+        scale_x_alt = shift / (x_abs * pixel_size / 1000)
+        scale_y_alt = shift / (y_abs * pixel_size / 1000)
+
+        print(f'Alternative calc.: {scale_x_alt:.5f}\t{scale_y_alt:.5f}\t{rot_x_alt:.5f}\t{rot_y_alt:.5f}')
+        print(f'Original calc.: {scale_x:.5f}\t{scale_y:.5f}\t{rot_x:.5f}\t{rot_y:.5f}')
+        if self.comboBox_package.currentIndex() != 2:
+            scale_x = scale_x_alt
+            scale_y = scale_y_alt
+            rot_x = rot_x_alt
+            rot_y = rot_y_alt
 
         self.busy = False
         user_choice = QMessageBox.information(
@@ -952,10 +1026,16 @@ class StageCalibrationDlg(QDialog):
         y2y = self.spinBox_y2y.value()
 
         # Distances in pixels
-        delta_xx = abs(x1x - x2x)
-        delta_xy = abs(x1y - x2y)
-        delta_yx = abs(y1x - y2x)
-        delta_yy = abs(y1y - y2y)
+        if self.comboBox_package.currentIndex() != 2:
+            delta_xx = x2x - x1x
+            delta_xy = x2y - x1y
+            delta_yx = y2x - y1x
+            delta_yy = y2y - y1y
+        else:
+            delta_xx = abs(x1x - x2x)
+            delta_xy = abs(x1y - x2y)
+            delta_yx = abs(y1x - y2x)
+            delta_yy = abs(y1y - y2y)
         if delta_xx == 0 or delta_yy == 0:
             QMessageBox.warning(
                 self, 'Error computing stage calibration',
@@ -981,6 +1061,7 @@ class StageCalibrationDlg(QDialog):
             success = self.stage.set_motor_speeds(
                 self.doubleSpinBox_motorSpeedX.value(),
                 self.doubleSpinBox_motorSpeedY.value())
+
             if not success:
                 QMessageBox.warning(
                     self, 'Error updating motor speeds',
@@ -1719,8 +1800,10 @@ class AcqSettingsDlg(QDialog):
                     'The selected base directory is invalid or '
                     'inaccessible: ' + str(e),
                     QMessageBox.Ok)
-
-        if 5 <= self.spinBox_sliceThickness.value() <= 200:
+        min_slice_thickness = 5
+        if self.acq.syscfg['device']['microtome'] == '6':
+            min_slice_thickness = 0
+        if min_slice_thickness <= self.spinBox_sliceThickness.value() <= 200:
             self.acq.slice_thickness = self.spinBox_sliceThickness.value()
         number_slices = self.spinBox_numberSlices.value()
         self.acq.number_slices = number_slices
@@ -1812,14 +1895,15 @@ class PreStackDlg(QDialog):
         else:
             self.label_intervallicActive.setText('Inactive')
         self.show_interruption_point()
-        self.doubleSpinBox_cutSpeed.setValue(
-            self.microtome.knife_cut_speed / 1000)
-        self.doubleSpinBox_retractSpeed.setValue(
-            self.microtome.knife_retract_speed / 1000)
         self.doubleSpinBox_brightness.setValue(self.sem.bsd_brightness)
         self.doubleSpinBox_contrast.setValue(self.sem.bsd_contrast)
         self.spinBox_bias.setValue(self.sem.bsd_bias)
-        self.checkBox_oscillation.setChecked(self.microtome.use_oscillation)
+        if self.microtome is not None and self.microtome.device_name != 'GCIB':
+            self.checkBox_oscillation.setChecked(self.microtome.use_oscillation)
+            self.doubleSpinBox_cutSpeed.setValue(
+                self.microtome.knife_cut_speed / 1000)
+            self.doubleSpinBox_retractSpeed.setValue(
+                self.microtome.knife_retract_speed / 1000)
 
     def edit_interruption_point(self):
         dialog = SetStartTileDlg(self.acq, self.gm)
@@ -1840,14 +1924,15 @@ class PreStackDlg(QDialog):
 
     def accept(self):
         # Save updated settings
-        self.microtome.knife_cut_speed = int(
-            self.doubleSpinBox_cutSpeed.value() * 1000)
-        self.microtome.knife_retract_speed = int(
-            self.doubleSpinBox_retractSpeed.value() * 1000)
         self.sem.bsd_contrast = self.doubleSpinBox_contrast.value()
         self.sem.bsd_brightness = self.doubleSpinBox_brightness.value()
         self.sem.bsd_bias = self.spinBox_bias.value()
-        self.microtome.use_oscillation = self.checkBox_oscillation.isChecked()
+        if self.microtome is not None and self.microtome.device_name != 'GCIB':
+            self.microtome.use_oscillation = self.checkBox_oscillation.isChecked()
+            self.microtome.knife_cut_speed = int(
+                self.doubleSpinBox_cutSpeed.value() * 1000)
+            self.microtome.knife_retract_speed = int(
+                self.doubleSpinBox_retractSpeed.value() * 1000)
         super().accept()
 
 # ------------------------------------------------------------------------------
@@ -2505,9 +2590,12 @@ class AutofocusSettingsDlg(QDialog):
             self.radioButton_useHeuristic.setChecked(True)
         elif self.autofocus.method == 2:
             self.radioButton_useTrackingOnly.setChecked(True)
+        elif self.autofocus.method == 3:
+            self.radioButton_useMAPFoSt.setChecked(True)
         self.radioButton_useSmartSEM.toggled.connect(self.group_box_update)
         self.radioButton_useHeuristic.toggled.connect(self.group_box_update)
         self.radioButton_useTrackingOnly.toggled.connect(self.group_box_update)
+        self.radioButton_useMAPFoSt.toggled.connect(self.group_box_update)
         self.group_box_update()
         # General settings
         self.lineEdit_refTiles.setText(
@@ -2556,6 +2644,7 @@ class AutofocusSettingsDlg(QDialog):
             self.label_fdp_4.setText('Autostig interval (grids) ')
 
     def group_box_update(self):
+        mapfost_enabled = False
         if self.radioButton_useSmartSEM.isChecked():
             zeiss_enabled = True
             heuristic_enabled = False
@@ -2568,6 +2657,11 @@ class AutofocusSettingsDlg(QDialog):
             zeiss_enabled = False
             heuristic_enabled = False
             diffs_enabled = False
+        elif self.radioButton_useMAPFoSt.isChecked():
+            zeiss_enabled = True  # mapfost uses intervall and pixel size value.
+            heuristic_enabled = False
+            diffs_enabled = True
+            mapfost_enabled = True  # TODO: add mapfost parameter group
         self.groupBox_ZEISS_af.setEnabled(zeiss_enabled)
         self.groupBox_heuristic_af.setEnabled(heuristic_enabled)
         self.doubleSpinBox_maxWDDiff.setEnabled(diffs_enabled)
@@ -2603,6 +2697,8 @@ class AutofocusSettingsDlg(QDialog):
             self.autofocus.method = 1
         elif self.radioButton_useTrackingOnly.isChecked():
             self.autofocus.method = 2
+        elif self.radioButton_useTrackingOnly.isChecked():
+            self.autofocus.method = 3
 
         success, tile_list = utils.validate_tile_list(
             self.lineEdit_refTiles.text())

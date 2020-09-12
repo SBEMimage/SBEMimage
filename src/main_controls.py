@@ -44,6 +44,7 @@ from sem_control_zeiss import SEM_SmartSEM
 from sem_control_fei import SEM_Quanta
 from microtome_control_gatan import Microtome_3View
 from microtome_control_katana import Microtome_katana
+from microtome_control_gcib import GCIB
 from stage import Stage
 from plasma_cleaner import PlasmaCleaner
 from acquisition import Acquisition
@@ -68,7 +69,7 @@ from main_controls_dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                                       GrabFrameDlg, FTSetParamsDlg, FTMoveDlg, \
                                       AskUserDlg, UpdateDlg, CutDurationDlg, \
                                       KatanaSettingsDlg, SendCommandDlg, \
-                                      MotorTestDlg, MotorStatusDlg, AboutBox
+                                      MotorTestDlg, MotorStatusDlg, AboutBox, GCIBSettingsDlg
 
 from magc_dlg_windows import ImportMagCDlg, ImportWaferImageDlg, \
                           WaferCalibrationDlg
@@ -215,6 +216,8 @@ class MainControls(QMainWindow):
         elif self.use_microtome and (self.syscfg['device']['microtome'] == '5'):
             # Initialize katana microtome
             self.microtome = Microtome_katana(self.cfg, self.syscfg)
+        elif self.use_microtome and (self.syscfg['device']['microtome'] == '6'):
+            self.microtome = GCIB(self.cfg, self.syscfg, self.sem)
         else:
             # Otherwise use SEM stage
             self.microtome = None
@@ -228,7 +231,7 @@ class MainControls(QMainWindow):
                 'the following error: \n'
                 + self.microtome.error_info
                 + '\nPlease inspect the configuration file(s). SBEMimage will '
-                'be closed.' ,
+                'be closed.',
                 QMessageBox.Ok)
             self.close()
 
@@ -249,7 +252,9 @@ class MainControls(QMainWindow):
                                self.sem, self.microtome, self.stage,
                                self.ovm, self.gm, self.cs, self.img_inspector,
                                self.autofocus, self.notifications, self.trigger)
-
+        # enable pause while milling
+        if self.use_microtome and (self.syscfg['device']['microtome'] == '6'):
+            self.microtome.acq = self.acq
         # Check if plasma cleaner is installed and load its COM port.
         self.cfg['sys']['plc_installed'] = self.syscfg['plc']['installed']
         self.cfg['sys']['plc_com_port'] = self.syscfg['plc']['com_port']
@@ -280,8 +285,11 @@ class MainControls(QMainWindow):
         self.show_stack_acq_estimates()
 
         # Restrict GUI (microtome-specific functionality) if no microtome used
-        if not self.use_microtome:
+        if not self.use_microtome or self.syscfg['device']['microtome'] == '6':
             self.restrict_gui_for_sem_stage()
+
+        if self.syscfg['device']['microtome'] != '6':
+            self.restrict_gui_wo_gcib()
 
         # Now show main window:
         self.show()
@@ -508,14 +516,17 @@ class MainControls(QMainWindow):
         self.pushButton_testSetFocus.clicked.connect(self.test_set_wd)
         self.pushButton_testRunAutofocus.clicked.connect(self.test_autofocus)
         self.pushButton_testRunAutostig.clicked.connect(self.test_autostig)
-        self.pushButton_testRunAutofocusStig.clicked.connect(
-            self.test_autofocus_stig)
+        self.pushButton_testRunAutofocusStig.clicked.connect(self.test_autofocus_stig)
+        self.pushButton_testRunAutofocusMapfost.clicked.connect(self.test_autofocus_mapfost)
         self.pushButton_testZeissAPIVersion.clicked.connect(
             self.test_zeiss_api_version)
         self.pushButton_testGetStage.clicked.connect(self.test_get_stage)
         self.pushButton_testSetStage.clicked.connect(self.test_set_stage)
         self.pushButton_testNearKnife.clicked.connect(self.test_near_knife)
         self.pushButton_testClearKnife.clicked.connect(self.test_clear_knife)
+        self.pushButton_testGetMillPos.clicked.connect(self.test_get_mill_pos)
+        self.pushButton_testMoveMillPos.clicked.connect(self.test_set_mill_pos)
+        self.pushButton_testMovePriorMillPos.clicked.connect(self.test_set_pos_prior_mill_mov)
         self.pushButton_testSendCommand.clicked.connect(
             self.open_send_command_dlg)
         self.pushButton_testStopDMScript.clicked.connect(
@@ -1181,6 +1192,9 @@ class MainControls(QMainWindow):
             elif self.microtome.device_name == 'ConnectomX katana':
                 dialog = KatanaSettingsDlg(self.microtome)
                 dialog.exec_()
+            elif self.microtome.device_name == 'GCIB':
+                dialog = GCIBSettingsDlg(self.microtome)
+                dialog.exec_()
         else:
             self.add_to_log('No microtome-related functions are available'
                 ' because no microtome is configured in the current session')
@@ -1637,6 +1651,12 @@ class MainControls(QMainWindow):
         self.pushButton_resetAcq.setEnabled(b)
         # Disable/enable menu
         self.menubar.setEnabled(b)
+        # Restrict GUI (microtome-specific functionality) if no microtome used
+        if not self.use_microtome or self.syscfg['device']['microtome'] == '6':
+            self.restrict_gui_for_sem_stage()
+
+        if self.syscfg['device']['microtome'] != '6':
+            self.restrict_gui_wo_gcib()
 
     def restrict_focus_tool_gui(self, b):
         b ^= True
@@ -1653,11 +1673,15 @@ class MainControls(QMainWindow):
         self.pushButton_testRunAutofocus.setEnabled(b)
         self.pushButton_testRunAutostig.setEnabled(b)
         self.pushButton_testRunAutofocusStig.setEnabled(b)
+        self.pushButton_testRunAutofocusMapfost.setEnabled(b)
         self.pushButton_testZeissAPIVersion.setEnabled(b)
         self.pushButton_testGetStage.setEnabled(b)
         self.pushButton_testSetStage.setEnabled(b)
         self.pushButton_testNearKnife.setEnabled(b)
         self.pushButton_testClearKnife.setEnabled(b)
+        self.pushButton_testGetMillPos.setEnabled(b)
+        self.pushButton_testMoveMillPos.setEnabled(b)
+        self.pushButton_testMovePriorMillPos.setEnabled(b)
         self.pushButton_testStopDMScript.setEnabled(b)
         self.pushButton_testPlasmaCleaner.setEnabled(b)
         self.pushButton_testMotors.setEnabled(b)
@@ -1686,6 +1710,11 @@ class MainControls(QMainWindow):
         self.checkBox_useDebrisDetection.setEnabled(False)
         self.toolButton_debrisDetection.setEnabled(False)
         self.actionCutDuration.setEnabled(False)
+
+    def restrict_gui_wo_gcib(self):
+        self.pushButton_testGetMillPos.setEnabled(False)
+        self.pushButton_testMoveMillPos.setEnabled(False)
+        self.pushButton_testMovePriorMillPos.setEnabled(False)
 
     def add_to_log(self, text):
         """Update the log from the main thread."""
@@ -1779,15 +1808,26 @@ class MainControls(QMainWindow):
         self.sem.run_autofocus_stig()
         self.add_to_log('SEM: SmartSEM autofocus and autostig routine called.')
 
+    def test_autofocus_mapfost(self):
+        self.autofocus.run_mapfost_af()
+        self.add_to_log('SEM: MAPFoSt autofocus called.')
+
     def test_zeiss_api_version(self):
         self.sem.show_about_box()
 
     def test_get_stage(self):
-        current_x = self.stage.get_x()
-        if current_x is not None:
-            self.add_to_log(
-                'STAGE: Current X position: '
-                '{0:.2f}'.format(current_x))
+        try:
+            current_pos = self.microtome.stage.get_stage_xyztr()
+        except AttributeError:
+            current_pos = self.stage.get_xy()
+        if current_pos is not None:
+            pos_fmt = [f"{p:.2f}" for p in current_pos]
+            if len(current_pos) > 2:
+                self.add_to_log(
+                    f'{self.stage}: Current XYZTR parameters: {pos_fmt}')
+            else:
+                self.add_to_log(
+                    f'{self.stage}: Current XY parameters: {pos_fmt}')
         else:
             self.add_to_log(
                 'STAGE: Error - could not read current X position.')
@@ -1817,6 +1857,31 @@ class MainControls(QMainWindow):
         if self.use_microtome:
             self.microtome.clear_knife()
             self.add_to_log('KNIFE: Position should be CLEAR.')
+        else:
+            self.add_to_log('CTRL: No microtome, or microtome not active.')
+
+    def test_get_mill_pos(self):
+        if self.use_microtome:
+            pos_fmt = [f"{p:.2f}" for p in self.microtome.xyzt_milling]
+            self.add_to_log(f'GCIB: Mill position (XYZT) {pos_fmt}.')
+        else:
+            self.add_to_log('CTRL: No microtome, or microtome not active.')
+
+    def test_set_mill_pos(self):
+        if self.use_microtome:
+            self.microtome.move_stage_to_millpos()
+            if self.microtome.error_state != 0:
+                self.add_to_log(f'CTRL: Microtome error {self.microtome.error_state}: {self.microtome.error_info}')
+                self.microtome.reset_error_state()
+        else:
+            self.add_to_log('CTRL: No microtome, or microtome not active.')
+
+    def test_set_pos_prior_mill_mov(self):
+        if self.use_microtome:
+            self.microtome.move_stage_to_pos_prior_mill_mov()
+            if self.microtome.error_state != 0:
+                self.add_to_log(f'CTRL: Microtome error {self.microtome.error_state}: {self.microtome.error_info}')
+                self.microtome.reset_error_state()
         else:
             self.add_to_log('CTRL: No microtome, or microtome not active.')
 
