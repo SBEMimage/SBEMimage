@@ -862,6 +862,21 @@ class Acquisition:
         # Update acquisition status in Main Controls GUI
         self.main_controls_trigger.transmit('ACQ NOT IN PROGRESS')
 
+        # Send signal to metadata sever that session has been stopped
+        if self.send_metadata:
+            session_stopped_status = {
+                'timestamp': int(time()),
+                'error_state': self.error_state
+            }
+            status, exc_str = self.notifications.send_session_stopped(
+                self.metadata_project_name, self.stack_name,
+                session_stopped_status)
+            if status == 100:
+                self.error_state = 508
+                self.pause_acquisition(1)
+                self.add_to_main_log('CTRL: Error sending "session stopped" '
+                                     'signal to VIME server. ' + exc_str)
+
         # Add last entry to main log
         self.main_log_file.write('*** END OF LOG ***\n')
 
