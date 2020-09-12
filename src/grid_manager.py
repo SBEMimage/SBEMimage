@@ -988,11 +988,20 @@ class GridManager:
         height_d = self.__grids[grid_index].height_d()
         return int((dx - width_d/2) * 1000), int((dy - height_d/2) * 1000)
 
+    def total_number_active_grids(self):
+        """Return the total number of active grids."""
+        sum_active_grids = 0
+        for grid in self.__grids:
+            if grid.active:
+                sum_active_grids += 1
+        return sum_active_grids
+
     def total_number_active_tiles(self):
-        """Return total number of active tiles across all grids."""
+        """Return total number of active tiles across all active grids."""
         sum_active_tiles = 0
         for grid in self.__grids:
-            sum_active_tiles += grid.number_active_tiles()
+            if grid.active:
+                sum_active_tiles += grid.number_active_tiles()
         return sum_active_tiles
 
     def active_tile_key_list(self):
@@ -1024,9 +1033,9 @@ class GridManager:
 
     def intervallic_acq_active(self):
         """Return True if intervallic acquisition is active for at least
-        one grid, otherwise return False."""
+        one active grid, otherwise return False."""
         for grid in self.__grids:
-            if grid.acq_interval > 1:
+            if grid.acq_interval > 1 and grid.active:
                 return True
         return False
 
@@ -1035,12 +1044,13 @@ class GridManager:
         If grid_index == -1, return True if wd gradient is active for any grid,
         else False."""
         if grid_index == -1:
-            for grid_index in range(self.number_grids):
-                if self.__grids[grid_index].use_wd_gradient:
+            for grid in self.__grids:
+                if grid.use_wd_gradient and grid.active:
                     return True
             return False
         else:
-            return self.__grids[grid_index].use_wd_gradient
+            return (self.__grids[grid_index].use_wd_gradient
+                    and self.__grids[grid_index].active)
 
     def save_tile_positions_to_disk(self, base_dir, timestamp):
         """Save the current grid setup in a text file in the logs folder.

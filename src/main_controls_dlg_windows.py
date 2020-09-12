@@ -1872,7 +1872,8 @@ class PreStackDlg(QDialog):
             f'{self.sem.target_beam_current} pA, '
             f'{self.sem.target_aperture_size} μm')
         self.label_gridSetup.setText(
-            f'{ovm.number_ov} overview(s), {self.gm.number_grids} grid(s);')
+            f'{ovm.total_number_active_overviews()} overview(s), '
+            f'{self.gm.total_number_active_grids()} grid(s);')
         self.label_totalActiveTiles.setText(
             f'{self.gm.total_number_active_tiles()} active tile(s)')
         if self.acq.use_autofocus:
