@@ -244,7 +244,8 @@ class Acquisition:
                 if self.take_overviews:
                     # Run through all overviews
                     for ov_index in range(self.ovm.number_ov):
-                        if self.ovm[ov_index].slice_active(slice_counter):
+                        if (self.ovm[ov_index].slice_active(slice_counter)
+                                and self.ovm[ov_index].active):
                             x1, y1 = self.ovm[ov_index].centre_sx_sy
                             stage_move_time += (
                                 self.stage.stage_move_duration(x0, y0, x1, y1))
@@ -256,7 +257,8 @@ class Acquisition:
                             amount_of_data += frame_size
                 # Run through all grids
                 for grid_index in range(self.gm.number_grids):
-                    if self.gm[grid_index].slice_active(slice_counter):
+                    if (self.gm[grid_index].slice_active(slice_counter)
+                            and self.gm[grid_index].active):
                         for tile_index in self.gm[grid_index].active_tiles:
                             x1, y1 = self.gm[grid_index][tile_index].sx_sy
                             stage_move_time += (
