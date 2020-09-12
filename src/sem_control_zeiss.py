@@ -546,7 +546,7 @@ class SEM_SmartSEM(SEM):
             self.sem_api.Execute('CMD_FREEZE_ALL')
         # Error state is set in acquisition.py when this function is
         # called via autofocus.py
-        return (ret_val == 0)
+        return ret_val == 0
 
     def run_autostig(self):
         """Run ZEISS autostig, break if it takes longer than 1 min."""
@@ -565,7 +565,7 @@ class SEM_SmartSEM(SEM):
             self.sem_api.Execute('CMD_FREEZE_ALL')
         # Error state is set in acquisition.py when this function is
         # called via autofocus.py
-        return (ret_val == 0)
+        return ret_val == 0
 
     def run_autofocus_stig(self):
         """Run combined ZEISS autofocus and autostig, break if it takes
@@ -584,7 +584,7 @@ class SEM_SmartSEM(SEM):
         self.sem_api.Execute('CMD_FREEZE_ALL')
         # Error state is set in acquisition.py when this function is
         # called via autofocus.py
-        return (ret_val == 0)
+        return ret_val == 0
 
     def get_stage_x(self):
         """Read X stage position (in micrometres) from SEM."""
@@ -614,14 +614,22 @@ class SEM_SmartSEM(SEM):
             x * 10**6, y * 10**6, z * 10**6)
         return self.last_known_x, self.last_known_y, self.last_known_z
 
+    def get_stage_xyztr(self):
+        """Read XYZ stage position (in micrometres) and transition and
+        rotation angles (in degree) from SEM."""
+        x, y, z, t, r = self.sem_api.GetStagePosition()[1:6]
+        self.last_known_x, self.last_known_y, self.last_known_z = (
+            x * 10**6, y * 10**6, z * 10**6)
+        return self.last_known_x, self.last_known_y, self.last_known_z, t, r
+
     def move_stage_to_x(self, x):
         """Move stage to coordinate x, provided in microns"""
         x /= 10**6   # convert to metres
         y = self.get_stage_y() / 10**6
         z = self.get_stage_z() / 10**6
         self.sem_api.MoveStage(x, y, z, 0, self.stage_rotation, 0)
-        while self.sem_api.Get('DP_STAGE_IS') == 'Busy':
-            sleep(0.2)
+        while self.sem_api.Get('DP_STAGE_IS')[1] == 'Busy':
+            sleep(self.stage_move_check_interval)
         sleep(self.stage_move_wait_interval)
         self.last_known_x = self.sem_api.GetStagePosition()[1] * 10**6
 
@@ -631,8 +639,8 @@ class SEM_SmartSEM(SEM):
         x = self.get_stage_x() / 10**6
         z = self.get_stage_z() / 10**6
         self.sem_api.MoveStage(x, y, z, 0, self.stage_rotation, 0)
-        while self.sem_api.Get('DP_STAGE_IS') == 'Busy':
-            sleep(0.2)
+        while self.sem_api.Get('DP_STAGE_IS')[1] == 'Busy':
+            sleep(self.stage_move_check_interval)
         sleep(self.stage_move_wait_interval)
         self.last_known_y = self.sem_api.GetStagePosition()[2] * 10**6
 
@@ -642,8 +650,8 @@ class SEM_SmartSEM(SEM):
         x = self.get_stage_x() / 10**6
         y = self.get_stage_y() / 10**6
         self.sem_api.MoveStage(x, y, z, 0, self.stage_rotation, 0)
-        while self.sem_api.Get('DP_STAGE_IS') == 'Busy':
-            sleep(0.2)
+        while self.sem_api.Get('DP_STAGE_IS')[1] == 'Busy':
+            sleep(self.stage_move_check_interval)
         sleep(self.stage_move_wait_interval)
         self.last_known_z = self.sem_api.GetStagePosition()[3] * 10**6
 
@@ -654,11 +662,53 @@ class SEM_SmartSEM(SEM):
         y /= 10**6
         z = self.get_stage_z() / 10**6
         self.sem_api.MoveStage(x, y, z, 0, self.stage_rotation, 0)
-        while self.sem_api.Get('DP_STAGE_IS') == 'Busy':
-            sleep(0.2)
+        while self.sem_api.Get('DP_STAGE_IS')[1] == 'Busy':
+            sleep(self.stage_move_check_interval)
         sleep(self.stage_move_wait_interval)
         new_x, new_y = self.sem_api.GetStagePosition()[1:3]
         self.last_known_x, self.last_known_y = new_x * 10**6, new_y * 10**6
+
+    def move_stage_to_r(self, new_r, no_wait=False):
+        """Move stage to rotation angle r (in degrees)"""
+        x, y, z, t, r = self.sem_api.GetStagePosition()[1:6]
+        self.sem_api.MoveStage(x, y, z, t, new_r, 0)
+        if no_wait:
+            sleep(self.stage_move_wait_interval)
+            return
+        while self.sem_api.Get('DP_STAGE_IS')[1] == 'Busy':
+            sleep(self.stage_move_check_interval)
+        sleep(self.stage_move_wait_interval)
+
+    def move_stage_delta_r(self, delta_r, no_wait=False):
+        """Rotate stage by angle r (in degrees)"""
+        x, y, z, t, r = self.sem_api.GetStagePosition()[1:6]
+        self.sem_api.MoveStage(x, y, z, t, r + delta_r, 0)
+        if no_wait:
+            sleep(self.stage_move_wait_interval)
+            return
+        while self.sem_api.Get('DP_STAGE_IS')[1] == 'Busy':
+            sleep(self.stage_move_check_interval)
+        sleep(self.stage_move_wait_interval)
+
+    def move_stage_to_xyzt(self, x, y, z, t):
+        """Move stage to coordinates x and y, z (in microns) and tilt angle t (in degrees)."""
+        x /= 10**6   # convert to metres
+        y /= 10**6
+        z /= 10**6
+        self.sem_api.MoveStage(x, y, z, t, self.stage_rotation, 0)
+        while self.sem_api.Get('DP_STAGE_IS')[1] == 'Busy':
+            sleep(self.stage_move_check_interval)
+        sleep(self.stage_move_wait_interval)
+
+    def move_stage_to_xyztr(self, x, y, z, t, r):
+        """Move stage to coordinates x and y, z (in microns), tilt and rotation angles t, r (in degrees)."""
+        x /= 10**6   # convert to metres
+        y /= 10**6
+        z /= 10**6
+        self.sem_api.MoveStage(x, y, z, t, r, 0)
+        while self.sem_api.Get('DP_STAGE_IS')[1] == 'Busy':
+            sleep(self.stage_move_check_interval)
+        sleep(self.stage_move_wait_interval)
 
     def show_about_box(self):
         """Display the SmartSEM Remote API About Dialog Box."""

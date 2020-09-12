@@ -661,7 +661,7 @@ class Acquisition:
 
             # Make sure DM script uses the correct motor speeds
             # (When script crashes, default motor speeds are used.)
-            if (self.microtome is not None 
+            if (self.microtome is not None
                     and self.microtome.device_name == 'Gatan 3View'):
                 success = self.microtome.update_motor_speeds_in_dm_script()
                 if not success:
@@ -972,6 +972,7 @@ class Acquisition:
             # Read new error_state
             self.error_state = self.microtome.error_state
 
+        start_cut = time()
         if self.error_state == 0:
             self.add_to_main_log('KNIFE: Cutting in progress ('
                                  + str(self.slice_thickness)
@@ -990,7 +991,12 @@ class Acquisition:
                     self.add_to_main_log(
                         'CTRL: Error: Differences in WD/STIG too large.')
             else:
-                sleep(self.microtome.full_cut_duration)
+                # TODO: why is that? all microtomes already wait for completion during do_full_cut.
+                if not self.microtome.device_name == 'GCIB':
+                    sleep(self.microtome.full_cut_duration)
+                else:
+                    self.add_to_main_log(
+                        'GCIB: Omitting post-cut sleep.')
             cut_cycle_delay = self.microtome.check_cut_cycle_status()
             if cut_cycle_delay is not None and cut_cycle_delay > 0:
                 self.add_to_main_log(
@@ -1015,7 +1021,9 @@ class Acquisition:
             self.microtome.reset_error_state()
             self.pause_acquisition(1)
         else:
-            self.add_to_main_log('KNIFE: Cut completed.')
+
+            self.add_to_main_log(f'KNIFE: Cut completed after '
+                                 f'{(time()-start_cut)/60:.2f} min.')
             self.slice_counter += 1
             self.total_z_diff += self.slice_thickness/1000
         sleep(1)
@@ -1129,7 +1137,8 @@ class Acquisition:
         time_elapsed = end_time - start_time
         self.heuristic_af_queue = []
         remaining_cutting_time = self.microtome.full_cut_duration - time_elapsed
-        if remaining_cutting_time > 0:
+        # only wait if not GCIB removal
+        if (self.syscfg['device']['microtome'] != '6') and remaining_cutting_time > 0:
             sleep(remaining_cutting_time)
 
     def acquire_all_overviews(self):
@@ -1518,7 +1527,7 @@ class Acquisition:
                     else:
                         # Do autofocus on non-active tiles before grid acq
                         if (self.use_autofocus
-                                and self.autofocus.method == 0
+                                and self.autofocus.method in [0, 3]  # zeiss or mapfost
                                 and (self.autofocus_stig_current_slice[0]
                                 or self.autofocus_stig_current_slice[1])):
                             self.do_autofocus_before_grid_acq(grid_index)
@@ -1860,13 +1869,13 @@ class Acquisition:
 
             # Call autofocus routine (method 0, SmartSEM) on current tile
             # if enabled and tile selected on this slice
-            if (self.use_autofocus and self.autofocus.method == 0
+            if (self.use_autofocus and self.autofocus.method in [0, 3]
                     and self.gm[grid_index][tile_index].autofocus_active
                     and (self.autofocus_stig_current_slice[0] or
                          self.autofocus_stig_current_slice[1])):
                 do_move = False  # already at tile stage position
-                self.do_zeiss_autofocus(*self.autofocus_stig_current_slice,
-                                        do_move, grid_index, tile_index)
+                self.do_autofocus(*self.autofocus_stig_current_slice,
+                                  do_move, grid_index, tile_index)
                 # The autofocus routine changes the acquisition settings.
                 # They must be restored to the settings for the current grid.
                 adjust_acq_settings = True
@@ -2103,8 +2112,7 @@ class Acquisition:
         # Back to previous store resolution:
         self.sem.set_frame_size(target_store_res)
 
-    def do_zeiss_autofocus(self, do_focus, do_stig, do_move,
-                           grid_index, tile_index):
+    def do_autofocus(self, do_focus, do_stig, do_move, grid_index, tile_index):
         """Run SmartSEM autofocus at current stage position if do_move == False,
         otherwise move to grid_index.tile_index position beforehand.
         """
@@ -2133,31 +2141,46 @@ class Acquisition:
                 # If yes, pause stack
                 if self.error_state > 0:
                     self.add_to_main_log('STAGE: XY move for autofocus failed.')
-        if self.error_state == 0 and (do_focus or do_stig):
-            if do_focus and do_stig:
-                af_type = '(focus+stig)'
-            elif do_focus:
-                af_type = '(focus only)'
-            elif do_stig:
-                af_type = '(stig only)'
-            wd = self.sem.get_wd()
-            sx, sy = self.sem.get_stig_xy()
+        if self.error_state != 0 or not (do_focus or do_stig):
+            return
+        if do_focus and do_stig:
+            af_type = '(focus+stig)'
+        elif do_focus:
+            af_type = '(focus only)'
+        elif do_stig:
+            af_type = '(stig only)'
+        wd = self.sem.get_wd()
+        sx, sy = self.sem.get_stig_xy()
+        if self.autofocus.method == 0:
             self.add_to_main_log('SEM: Running SmartSEM AF procedure '
                                  + af_type + ' for tile '
                                  + str(grid_index) + '.' + str(tile_index))
             return_msg = self.autofocus.run_zeiss_af(do_focus, do_stig)
-            self.add_to_main_log(return_msg)
-            if 'ERROR' in return_msg:
-                self.error_state = 505
-            elif not self.autofocus.wd_stig_diff_below_max(wd, sx, sy):
-                self.error_state = 507
-            else:
-                # Save settings for specified tile
-                self.gm[grid_index][tile_index].wd = self.sem.get_wd()
-                self.gm[grid_index][tile_index].stig_xy = list(
-                    self.sem.get_stig_xy())
-                # Show updated WD label(s) in Viewport
-                self.main_controls_trigger.transmit('DRAW VP')
+        elif self.autofocus.method == 3:
+            self.add_to_main_log('SEM: Running MAPFoSt AF procedure for tile '
+                                 + str(grid_index) + '.' + str(tile_index))
+            return_msg = self.autofocus.run_mapfost_af()
+            if not self.autofocus.wd_stig_diff_below_max(wd, sx, sy):
+                self.add_to_main_log('SEM: Re-running MAPFoSt AF procedure for tile '
+                                     + str(grid_index) + '.' + str(tile_index))
+                return_msg = self.autofocus.run_mapfost_af(defocus_arr=[10, 8, 8, 6, 4, 2])
+        else:
+            self.error_state = 505  # TODO: check if that code makes sense here
+            return
+        self.add_to_main_log(return_msg)
+        if 'ERROR' in return_msg:
+            self.error_state = 505
+        elif not self.autofocus.wd_stig_diff_below_max(wd, sx, sy):
+            self.add_to_incident_log(f'Autofocus out of range with new values: {self.sem.get_wd()} (WD), '
+                                     f'{self.sem.get_stig_xy()} (stig_xy).')
+            self.error_state = 507
+        else:
+            # Save settings for specified tile
+            self.gm[grid_index][tile_index].wd = self.sem.get_wd()
+            self.gm[grid_index][tile_index].stig_xy = list(
+                self.sem.get_stig_xy())
+            # Show updated WD label(s) in Viewport
+            self.main_controls_trigger.transmit('DRAW VP')
 
     def do_autofocus_before_grid_acq(self, grid_index):
         """If non-active tiles are selected for the SmartSEM autofocus, call the
@@ -2169,7 +2192,7 @@ class Acquisition:
         for tile_index in autofocus_ref_tiles:
             if tile_index not in active_tiles:
                 do_move = True
-                self.do_zeiss_autofocus(
+                self.do_autofocus(
                     *self.autofocus_stig_current_slice,
                     do_move, grid_index, tile_index)
                 if self.error_state != 0 or self.pause_state == 1:

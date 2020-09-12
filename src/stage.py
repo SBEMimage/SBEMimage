@@ -15,8 +15,8 @@ Depending on the initialization, either the microtome stage or the SEM stage or
 some other custom stage will be used when carrying out the commands.
 """
 
-class Stage():
 
+class Stage:
     def __init__(self, sem, microtome, use_microtome=True):
         self.microtome = microtome
         self.use_microtome = use_microtome
@@ -36,6 +36,9 @@ class Stage():
             self._stage = sem
             self.use_microtome_xy = False
             self.use_microtome_z = False
+
+    def __str__(self):
+        return str(self._stage)
 
     def get_x(self):
         return self._stage.get_stage_x()
@@ -118,21 +121,25 @@ class Stage():
         return self._stage.motor_speed_y
 
     def set_motor_speeds(self, motor_speed_x, motor_speed_y):
-        if self.use_microtome and self.use_microtome_xy:
+        if self.use_microtome and self.use_microtome_xy and not self.microtome.device_name == 'GCIB':
             return self._stage.set_motor_speeds(motor_speed_x, motor_speed_y)
+        elif self.microtome.device_name == 'GCIB':
+            return True
         else:
             # motor speeds can currently not be set for SEM stage
             return False
 
     def update_motor_speed(self):
-        if self.use_microtome and self.use_microtome_xy:
+        if self.use_microtome and self.use_microtome_xy and not self.microtome.device_name == 'GCIB':
             return self._stage.update_motor_speeds_in_dm_script()
+        elif self.microtome.device_name == 'GCIB':
+            return True
         else:
             # Speeds can currently not be updated for SEM stage
             return False
 
     def measure_motor_speeds(self):
-        if self.use_microtome and self.use_microtome_xy:
+        if self.use_microtome and self.use_microtome_xy and not self.microtome.device_name == 'GCIB':
             return self._stage.measure_motor_speeds()
         else:
             # Speeds can currently not be measured for SEM stage
@@ -141,6 +148,7 @@ class Stage():
     def stage_move_duration(self, from_x, from_y, to_x, to_y):
         return self._stage.stage_move_duration(
             from_x, from_y, to_x, to_y)
+
     @property
     def limits(self):
         return self._stage.stage_limits
