@@ -52,7 +52,7 @@ class SEM:
         self.use_sem_stage = (
             self.cfg['sys']['use_microtome'].lower() == 'false'
             or (self.cfg['sys']['use_microtome'].lower() == 'true'
-                and self.syscfg['device']['microtome'] == '5'))
+                and self.syscfg['device']['microtome'] in ['5', '6']))
         # The target EHT (= high voltage, in kV) and beam current (in pA)
         # are (as implemented at the moment in SBEMimage) global settings for
         # any given acquisition, whereas dwell time, pixel size and frame size
@@ -80,6 +80,8 @@ class SEM:
         # allows potential vibrations of the stage to subside.
         self.stage_move_wait_interval = float(
             self.cfg['sem']['stage_move_wait_interval'])
+        self.stage_move_check_interval = float(
+            self.cfg['sem']['stage_move_check_interval'])
         # self.stage_limits: range of the SEM XY motors in micrometres
         # [x_min, x_max, y_min, y_max]
         self.stage_limits = json.loads(
@@ -116,6 +118,9 @@ class SEM:
         self.failed_x_move_warnings = deque(maxlen=200)
         self.failed_y_move_warnings = deque(maxlen=200)
         self.failed_z_move_warnings = deque(maxlen=200)
+
+    def __str__(self):
+        return self.device_name
 
     def load_system_constants(self):
         """Load all SEM-related constants from system configuration."""
@@ -158,6 +163,8 @@ class SEM:
         self.cfg['sem']['motor_speed_y'] = str(self.motor_speed_y)
         self.cfg['sem']['stage_move_wait_interval'] = str(
             self.stage_move_wait_interval)
+        self.cfg['sem']['stage_move_check_interval'] = str(
+            self.stage_move_check_interval)
         self.cfg['sem']['eht'] = '{0:.2f}'.format(self.target_eht)
         self.cfg['sem']['beam_current'] = str(int(self.target_beam_current))
         self.cfg['sem']['aperture_size'] = str(self.target_aperture_size)

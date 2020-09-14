@@ -99,7 +99,7 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
                 sleep(1)
                 _, _, _, load_error, _, grab_incomplete = (
                     img_inspector.load_and_inspect(save_path))
-                if load_error:
+                if load_error or grab_incomplete:
                     success = False
                     if load_error:
                         cause = 'load error'

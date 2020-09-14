@@ -391,6 +391,14 @@ class OverviewManager:
         self.number_ov -= 1
         del self.__overviews[-1]
 
+    def total_number_active_overviews(self):
+        """Return the total number of active overviews."""
+        sum_active_overviews = 0
+        for overview in self.__overviews:
+            if overview.active:
+                sum_active_overviews += 1
+        return sum_active_overviews
+
     def ov_selector_list(self):
         return ['OV %d' % r for r in range(0, self.number_ov)]
 
@@ -412,9 +420,9 @@ class OverviewManager:
 
     def intervallic_acq_active(self):
         """Return True if intervallic acquisition is active for at least
-        one overview, otherwise return False."""
+        one active overview, otherwise return False."""
         for overview in self.__overviews:
-            if overview.acq_interval > 1:
+            if overview.acq_interval > 1 and overview.active:
                 return True
         return False
 

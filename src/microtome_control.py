@@ -8,32 +8,119 @@
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
 
-"""This module controls the microtome hardware (knife and motorized stage) via
-   DigitalMicrograph (3View) or a serial port (katana).
+"""
+This module controls the microtome hardware (knife and motorized stage) via
+DigitalMicrograph (3View) or a serial port (katana). In addition, it implements an
+alternative removal approach via the separate GCIB class.
 
-                Microtome (base class)
-                  /                \
-                 /                  \
-         Microtome_3View     Microtome_katana
+
+                                  BFRemover (abc)
+                                /               \
+                               /                 \
+            Microtome (base class)               GCIB
+              /                \
+             /                  \
+     Microtome_3View     Microtome_katana
+
 """
 
 import json
 from collections import deque
-
+from abc import ABC, abstractmethod
 import utils
 from utils import Error
 
 
-class Microtome:
-    """Base class for microtome control. It implements minimum config/parameter
-    handling. Undefined methods have to be implemented in the child class,
-    otherwise NotImplementedError is raised.
+class BFRemover(ABC):
+    """WIP
+    Todo:
+        * rename abstract methods which are too specific (e.g. cut, knife, etc).
+        * add __init__ with generic properties here? e.g. passing cfg and sys_cfg and setting device_name
     """
+
     def __init__(self, config, sysconfig):
         self.cfg = config
         self.syscfg = sysconfig
         self.error_state = Error.none
         self.error_info = ''
+        self.device_name = 'Abstract block-face remover.'
+        self.full_cut_duration = None  # use @property, @abstractmethod
+
+    def __str__(self):
+        return self.device_name
+
+    # necessary methods which must be implemented
+    @abstractmethod
+    def save_to_cfg(self):
+        pass
+
+    @abstractmethod
+    def do_full_cut(self):
+        """Perform a full cut cycle. This is the only knife control function
+           used during stack acquisitions.
+        """
+        pass
+
+    @abstractmethod
+    def do_sweep(self, z_position):
+        """Perform a sweep by cutting slightly above the surface."""
+        pass
+
+    def move_stage_to_z(self, z):
+        """Move stage to new z position. Used during stack acquisition
+           before each cut and for sweeps. Required in Acquisition.do_cut.
+        """
+        pass
+
+    def move_stage_to_xy(self, coordinates):
+        """Move stage to coordinates X/Y. This function is called during
+           acquisitions. It includes waiting times. The other move functions
+           below do not.
+        """
+        raise NotImplementedError
+
+    def reset_error_state(self):
+        self.error_state = 0
+        self.error_info = ''
+
+    # Optional motor movements, e.g. these are available if SEM stage is active and must then
+    # not be used from this class.
+
+    def move_stage_to_x(self, x):
+        # only used for testing
+        raise NotImplementedError
+
+    def move_stage_to_y(self, y):
+        # only used for testing
+        raise NotImplementedError
+
+    def get_stage_xy(self):
+        raise NotImplementedError
+
+    def get_stage_x(self):
+        return self.get_stage_xy()[0]
+
+    def get_stage_y(self):
+        return self.get_stage_xy()[1]
+
+    def get_stage_xyz(self):
+        x, y = self.get_stage_xy()
+        z = self.get_stage_z()
+        return x, y, z
+
+    def get_stage_z(self, wait_interval=0.5):
+        """Get current Z coordinate from DM"""
+        raise NotImplementedError
+
+
+class Microtome(BFRemover):
+    """Base class for microtome control. It implements minimum config/parameter
+    handling. Undefined methods have to be implemented in the child class,
+    otherwise NotImplementedError is raised.
+    """
+    def __init__(self, config, sysconfig):
+        super().__init__(config, sysconfig)
+        self.motor_warning = False  # True when motors slower than expected
         # Load device name and other settings from sysconfig. These
         # settings overwrite the settings in config.
         recognized_devices = json.loads(self.syscfg['device']['recognized'])
@@ -204,6 +291,8 @@ class Microtome:
         self.syscfg['stage']['microtome_maintenance_move_interval'] = str(int(
             self.maintenance_move_interval))
 
+    def __str__(self):
+        return self.device_name
 
     def do_full_cut(self):
         """Perform a full cut cycle. This is the only knife control function
@@ -244,22 +333,14 @@ class Microtome:
     def update_motor_speeds_in_dm_script(self):
         raise NotImplementedError
 
-    def move_stage_to_x(self, x):
-        # only used for testing
-        raise NotImplementedError
-
-    def move_stage_to_y(self, y):
-        # only used for testing
-        raise NotImplementedError
-
     def rel_stage_move_duration(self, target_x, target_y):
         """Use the last known position and the given target position
-        to calculate how much time it will take for the motors to move
-        to target position.
+           to calculate how much time it will take for the motors to move
+           to target position. Add self.stage_move_wait_interval.
         """
         duration_x = abs(target_x - self.last_known_x) / self.motor_speed_x
         duration_y = abs(target_y - self.last_known_y) / self.motor_speed_y
-        return duration_x, duration_y
+        return duration_x + self.stage_move_wait_interval, duration_y + + self.stage_move_wait_interval
 
     def stage_move_duration(self, from_x, from_y, to_x, to_y):
         """Return the total duration for a move including the
@@ -268,37 +349,6 @@ class Microtome:
         duration_x = abs(to_x - from_x) / self.motor_speed_x
         duration_y = abs(to_y - from_y) / self.motor_speed_y
         return max(duration_x, duration_y) + self.stage_move_wait_interval
-
-    def get_stage_xy(self, wait_interval=0.25):
-        """Get current XY coordinates from DM"""
-        raise NotImplementedError
-
-    def get_stage_x(self):
-        return self.get_stage_xy()[0]
-
-    def get_stage_y(self):
-        return self.get_stage_xy()[1]
-
-    def get_stage_xyz(self):
-        x, y = self.get_stage_xy()
-        z = self.get_stage_z()
-        return x, y, z
-
-    def move_stage_to_xy(self, coordinates):
-        """Move stage to coordinates X/Y. This function is called during
-           acquisitions. It includes waiting times. The other move functions
-           below do not.
-        """
-        raise NotImplementedError
-
-    def get_stage_z(self, wait_interval=0.5):
-        """Get current Z coordinate from DM"""
-        raise NotImplementedError
-
-    def move_stage_to_z(self, z, safe_mode=True):
-        """Move stage to new z position. Used during stack acquisition
-           before each cut and for sweeps."""
-        raise NotImplementedError
 
     def stop_script(self):
         raise NotImplementedError

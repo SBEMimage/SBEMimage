@@ -21,6 +21,10 @@ from math import sqrt, exp, sin, cos
 from statistics import mean
 from time import sleep, time
 from scipy.signal import correlate2d, fftconvolve
+try:
+    from mapfost import autofoc_mapfost
+except ImportError:
+    autofoc_mapfost = None
 
 
 class Autofocus():
@@ -113,9 +117,9 @@ class Autofocus():
         diff_wd = abs(self.sem.get_wd() - prev_wd)
         diff_sx = abs(self.sem.get_stig_x() - prev_sx)
         diff_sy = abs(self.sem.get_stig_y() - prev_sy)
-        return (diff_wd <= self.max_wd_diff
-                and diff_sx <= self.max_stig_x_diff
-                and diff_sy <= self.max_stig_y_diff)
+        is_below = (diff_wd <= self.max_wd_diff and diff_sx <= self.max_stig_x_diff
+                    and diff_sy <= self.max_stig_y_diff)
+        return is_below
 
     def current_slice_active(self, slice_counter):
         autofocus_active, autostig_active = False, False
@@ -131,14 +135,13 @@ class Autofocus():
         separately, or the combined routine, or no routine at all. Return a
         message that the routine was completed or an error message if not.
         """
-
+        assert autostig or autofocus
         msg = 'CTRL: SmartSEM AF did not run.'
         if autofocus or autostig:
             # Switch to autofocus settings
             # TODO: allow different dwell times
             self.sem.apply_frame_settings(0, self.pixel_size, 0.8)
             sleep(0.5)
-
             if autofocus and autostig:
                 if self.magc_mode:
                     # Run SmartSEM autofocus-autostig-autofocus sequence
@@ -162,12 +165,34 @@ class Autofocus():
                 msg = 'SmartSEM autostig procedure'
                 # Call only SmartSEM autostig routine
                 success = self.sem.run_autostig()
-
         if success:
             msg = 'CTRL: Completed ' + msg + '.'
         else:
             msg = 'CTRL: ERROR during ' + msg + '.'
+        return msg
 
+    def run_mapfost_af(self, **kwargs) -> str:
+        """
+        Run mapfost (cf. Binding et al. 2013) implementation by Rangoli Saxena, 2020.
+
+        Returns:
+
+        """
+        if autofoc_mapfost is None:
+            return 'CTRL: ERROR during MAPFoSt - Could not import "mapfost" package.'
+        # TODO: add rotation parameter (maybe also the measurement)
+        default_kwargs = dict(defocus_arr=[8, 8, 6, 6, 4, 4, 2, 1])  # TODO: make adaptable (depends on detector type)
+        default_kwargs.update(kwargs)
+        # TODO: allow different dwell times and other mapfost parameters!
+        # use 2k image size (frame size selector: 2 for Merlin, PS)
+        self.sem.apply_frame_settings(2, self.pixel_size, 0.4)
+        sleep(0.2)
+        try:
+            corrections = autofoc_mapfost(ps=self.pixel_size / 1e3, set_final_values=True,
+                                          sem_api=self.sem.sem_api, **default_kwargs)
+            msg = f'CTRL: Completed MAPFoSt AF (corrections: {corrections})'
+        except ValueError as e:
+            msg = f'CTRL: ValueError ({str(e)}) during MAPFoSt AF.'
         return msg
 
     # ================ Below: methods for heuristic autofocus ==================

@@ -393,6 +393,9 @@ class Notifications:
         return status, command, msg, exception_str
 
     def send_session_metadata(self, project_name, stack_name, session_metadata):
+        """Send session metadata to the server. This method is called when an
+        acquisition (= session) is started.
+        """
         return self.metadata_put_request(
             '/project/' + project_name
             + '/stack/' + stack_name
@@ -400,18 +403,33 @@ class Notifications:
 
     def send_slice_completed(self, project_name, stack_name,
                              slice_complete_metadata):
+        """Send a confirmation (timestamp and slice counter) when the
+        acquisition of a slice has been completed.
+        """
         return self.metadata_put_request(
            '/project/' + project_name
             + '/stack/' + stack_name
             + '/slice/completed', slice_complete_metadata)
 
+    def send_session_stopped(self, project_name, stack_name,
+                             session_stopped_metadata):
+        """Send a confirmation (timestamp and error state) when the acquisition
+        has been stopped by the user or because of an error.
+        """
+        return self.metadata_put_request(
+            '/project/' + project_name
+            + '/stack/' + stack_name
+            + '/session/stopped', session_stopped_metadata)
+
     def send_tile_metadata(self, project_name, stack_name, tile_metadata):
+        """Send tile metadata after each tile acquisition."""
         return self.metadata_post_request(
            '/project/' + project_name
             + '/stack/' + stack_name
             + '/tile/metadata/update', tile_metadata)
 
     def read_server_message(self, project_name, stack_name):
+        """Read a message from the metadata server."""
         return self.metadata_get_request(
            '/project/' + project_name
             + '/stack/' + stack_name

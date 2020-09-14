@@ -17,6 +17,9 @@ import re
 import logging
 from enum import Enum
 import numpy as np
+import cv2
+from skimage.transform import ProjectiveTransform
+from skimage.measure import ransac
 
 from time import sleep
 from queue import Queue
@@ -655,3 +658,54 @@ def sectionsYAML_to_sections_landmarks(sectionsYAML):
             # # (-tissueDic['angle'] - 90) % 360]
 
 # -------------- End of MagC utils --------------
+
+
+class TranslationTransform(ProjectiveTransform):
+    def estimate(self, src, dst):
+        try:
+            T = np.mean(dst, axis=0) - np.mean(src, axis=0)
+        except ZeroDivisionError:
+            print('ZeroDivisionError encountered. Results will be invalid!')
+            self.params = np.nan * np.empty((3, 3))
+            return False
+        H = np.eye(3, 3)
+        H[:2, -1] = T
+        H[2, 2] = 1
+        self.params = H
+        return True
+
+
+def align_images_cv2(src: np.ndarray, target: np.ndarray) -> np.ndarray:
+    MAX_FEATURES = 1000
+    GOOD_MATCH_PERCENT = 0.3
+    # Detect ORB features and compute descriptors.
+    orb = cv2.ORB_create(MAX_FEATURES, nlevels=10, patchSize=60)
+
+    kp1, des1 = orb.detectAndCompute(src, None)
+    kp2, des2 = orb.detectAndCompute(target, None)
+
+    # Match features.
+    # matcher = cv2.BFMatcher(cv2.NORM_HAMMING2)
+    matcher = cv2.DescriptorMatcher_create(cv2.DESCRIPTOR_MATCHER_BRUTEFORCE_HAMMING)
+    matches = matcher.match(des1, des2, None)
+    # Sort matches by score
+    matches.sort(key=lambda x: x.distance, reverse=False)
+
+    # Remove not so good matches
+    numGoodMatches = int(len(matches) * GOOD_MATCH_PERCENT)
+    matches = matches[:numGoodMatches]
+    # Extract location of good matches
+    points1 = np.zeros((len(matches), 2), dtype=np.float32)
+    points2 = np.zeros((len(matches), 2), dtype=np.float32)
+
+    for i, match in enumerate(matches):
+        points1[i, :] = kp1[match.queryIdx].pt
+        points2[i, :] = kp2[match.trainIdx].pt
+
+    # robustly estimate affine transform model with RANSAC
+    transf = TranslationTransform  # AffineTransform
+    model_robust, inliers = ransac((points1, points2), transf, min_samples=5,
+                                   residual_threshold=2, max_trials=10000, random_state=0)
+    affine_m = model_robust.params[:2]
+    # displacement from im1 to im2
+    return affine_m[:, -1]  # only return translation vector

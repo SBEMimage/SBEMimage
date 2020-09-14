@@ -232,7 +232,7 @@ class Microtome_katana(Microtome):
         # TODO: discuss how Z is handled:
         # drop sample before knife retract
         self.move_stage_to_z(
-            self.last_known_z - self.retract_clearance / 1000, 100)
+            self.last_known_z - self.retract_clearance / 1000, 300)
 
         # Retract knife
         print('Retracting knife...')
@@ -242,7 +242,7 @@ class Microtome_katana(Microtome):
         # Raise sample to cutting plane
         self._wait_until_knife_stopped()
         print('Returning sample to cutting plane...')
-        self.move_stage_to_z(self.last_known_z, 100)
+        self.move_stage_to_z(self.last_known_z + self.retract_clearance / 1000, 300)
         self.cut_completed = True
         
     def check_cut_cycle_status(self):

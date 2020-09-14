@@ -37,7 +37,7 @@ class CoordinateSystem:
         self.vp_height = utils.VP_HEIGHT
 
         if ((self.cfg['sys']['use_microtome'].lower() == 'true')
-                and (int(self.syscfg['device']['microtome']) != 5)):
+                and (int(self.syscfg['device']['microtome']) not in [5, 6])):  # katana or GCIB
             self._device = 'microtome'
         else:
             self._device = 'sem'

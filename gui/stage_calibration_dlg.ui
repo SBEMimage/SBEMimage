@@ -237,6 +237,9 @@
       <height>22</height>
      </rect>
     </property>
+    <property name="minimum">
+     <number>-99999</number>
+    </property>
     <property name="maximum">
      <number>99999</number>
     </property>
@@ -252,6 +255,9 @@
       <width>51</width>
       <height>22</height>
      </rect>
+    </property>
+    <property name="minimum">
+     <number>-99999</number>
     </property>
     <property name="maximum">
      <number>99999</number>
@@ -269,6 +275,9 @@
       <height>22</height>
      </rect>
     </property>
+    <property name="minimum">
+     <number>-99999</number>
+    </property>
     <property name="maximum">
      <number>99999</number>
     </property>
@@ -284,6 +293,9 @@
       <width>51</width>
       <height>22</height>
      </rect>
+    </property>
+    <property name="minimum">
+     <number>-99999</number>
     </property>
     <property name="maximum">
      <number>99999</number>
@@ -301,6 +313,9 @@
       <height>22</height>
      </rect>
     </property>
+    <property name="minimum">
+     <number>-99999</number>
+    </property>
     <property name="maximum">
      <number>99999</number>
     </property>
@@ -316,6 +331,9 @@
       <width>51</width>
       <height>22</height>
      </rect>
+    </property>
+    <property name="minimum">
+     <number>-99999</number>
     </property>
     <property name="maximum">
      <number>99999</number>
@@ -337,7 +355,7 @@
      <number>5</number>
     </property>
     <property name="value">
-     <number>15</number>
+     <number>30</number>
     </property>
    </widget>
    <widget class="QLabel" name="label_21">
@@ -369,7 +387,7 @@
      <number>1000</number>
     </property>
     <property name="value">
-     <number>10</number>
+     <number>20</number>
     </property>
    </widget>
    <widget class="QPushButton" name="pushButton_startImageAcq">
@@ -433,6 +451,9 @@
       <height>22</height>
      </rect>
     </property>
+    <property name="minimum">
+     <number>-99999</number>
+    </property>
     <property name="maximum">
      <number>99999</number>
     </property>
@@ -461,6 +482,9 @@
       <width>51</width>
       <height>22</height>
      </rect>
+    </property>
+    <property name="minimum">
+     <number>-99999</number>
     </property>
     <property name="maximum">
      <number>99999</number>
@@ -639,7 +663,7 @@
     <number>5</number>
    </property>
    <property name="minimum">
-    <double>0.000000000000000</double>
+    <double>-6.283190000000000</double>
    </property>
    <property name="maximum">
     <double>6.283190000000000</double>
@@ -664,7 +688,7 @@
     <number>5</number>
    </property>
    <property name="minimum">
-    <double>0.000000000000000</double>
+    <double>-6.2831900000000000</double>
    </property>
    <property name="maximum">
     <double>6.283190000000000</double>
