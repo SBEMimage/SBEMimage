@@ -44,6 +44,7 @@ from PyQt5.QtWidgets import QApplication, QDialog, QMessageBox, \
                             QFileDialog, QLineEdit, QDialogButtonBox
 
 import utils
+from utils import Error
 import acq_func
 
 
@@ -781,7 +782,7 @@ class StageCalibrationDlg(QDialog):
         self.pushButton_measureMotorSpeeds.setEnabled(True)
         self.pushButton_startImageAcq.setEnabled(True)
         self.pushButton_measureMotorSpeeds.setText('Measure XY motor speeds')
-        if self.motor_speed_x is None or self.stage.error_state > 0:
+        if self.motor_speed_x is None or self.stage.error_state != Error.none:
             self.stage.reset_error_state()
             QMessageBox.warning(self, 'Error',
                                 'XY motor speed measurement failed.',
@@ -3112,7 +3113,7 @@ class ApproachDlg(QDialog):
         # Move knife to "Clear" position
         self.utils.log_error('KNIFE', 'Moving to "Clear" position.')
         self.microtome.clear_knife()
-        if self.microtome.error_state > 0:
+        if self.microtome.error_state != Error.none:
             self.utils.log_error('KNIFE', 'Error moving to "Clear" position.')
             self.microtome.reset_error_state()
             QMessageBox.warning(self, 'Error',
@@ -3183,7 +3184,7 @@ class ApproachDlg(QDialog):
         if not self.aborted:
             self.microtome.near_knife()
             self.utils.log_info('KNIFE', 'Moving to "Near" position.')
-            if self.microtome.error_state > 0:
+            if self.microtome.error_state != Error.none:
                 self.utils.log_error(
                     'KNIFE', 'Error moving to "Near" position. '
                     'Approach aborted.')
@@ -3199,7 +3200,7 @@ class ApproachDlg(QDialog):
             # Show new Z position in main window
             self.main_controls_trigger.transmit('UPDATE Z')
             # Check if there were microtome problems
-            if self.microtome.error_state > 0:
+            if self.microtome.error_state != Error.none:
                 self.utils.log_error(
                     'STAGE', 'Error during Z move '
                     f'({self.microtome.error_state}). Approach aborted.')
@@ -3211,7 +3212,7 @@ class ApproachDlg(QDialog):
             # Do the approach cut (cut, retract, in near position)
             self.microtome.do_full_approach_cut()
             sleep(self.approach_cut_duration)
-            if self.microtome.error_state > 0:
+            if self.microtome.error_state != Error.none:
                 self.utils.log_error(
                     'KNIFE', 'Cutting problem detected. Approach aborted.')
                 self.aborted = True
@@ -3526,7 +3527,7 @@ class FTMoveDlg(QDialog):
             stage_x, stage_y = self.gm[self.grid_index][self.tile_index].sx_sy
         # Now move the stage
         self.microtome.move_stage_to_xy((stage_x, stage_y))
-        if self.microtome.error_state > 0:
+        if self.microtome.error_state != Error.none:
             self.error = True
             self.microtome.reset_error_state()
         # Signal that move complete
@@ -3605,7 +3606,7 @@ class MotorTestDlg(QDialog):
         self.utils.log_info('KNIFE', 'Moving to "Clear" position.')
         QApplication.processEvents()
         self.microtome.clear_knife()
-        if self.microtome.error_state > 0:
+        if self.microtome.error_state != Error.none:
             self.utils.log_error('KNIFE', 'Error moving to "Clear" position.')
             self.microtome.reset_error_state()
             self.pushButton_startTest.setText('Start')
@@ -3643,7 +3644,7 @@ class MotorTestDlg(QDialog):
         self.utils.log_info('STAGE', 'Moving back to starting Z position.')
         # Safe mode must be set to false because diff likely > 200 nm
         self.microtome.move_stage_to_z(self.start_z, safe_mode=False)
-        if self.microtome.error_state > 0:
+        if self.microtome.error_state != Error.none:
             self.microtome.reset_error_state()
             QMessageBox.warning(
                 self, 'Error',
@@ -3725,7 +3726,7 @@ class MotorTestDlg(QDialog):
                           + '{0:.3f}'.format(current_z) + '\n')
             self.microtome.move_stage_to_xy((current_x, current_y))
             self.number_moves += 2
-            if self.microtome.error_state > 0:
+            if self.microtome.error_state != Error.none:
                 mismatch_x = self.microtome.last_known_x - current_x
                 mismatch_y = self.microtome.last_known_y - current_y
                 logfile.write('ERROR DURING XY MOVE: '
@@ -3746,7 +3747,7 @@ class MotorTestDlg(QDialog):
             if self.use_z_moves:
                 self.microtome.move_stage_to_z(current_z, safe_mode=False)
                 self.number_moves += 1
-                if self.microtome.error_state > 0:
+                if self.microtome.error_state != Error.none:
                     self.number_errors_z += 1
                     logfile.write('ERROR DURING Z MOVE: '
                                   + self.microtome.error_info
