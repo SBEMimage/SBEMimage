@@ -1844,27 +1844,27 @@ class MainControls(QMainWindow):
     def test_get_mill_pos(self):
         if self.use_microtome:
             pos_fmt = [f"{p:.2f}" for p in self.microtome.xyzt_milling]
-            self.add_to_log(f'GCIB: Mill position (XYZT) {pos_fmt}.')
+            utils.log_info('GCIB', f'Mill position (XYZT) {pos_fmt}.')
         else:
-            self.add_to_log('CTRL: No microtome, or microtome not active.')
+            utils.log_warning('CTRL', 'No microtome, or microtome not active.')
 
     def test_set_mill_pos(self):
         if self.use_microtome:
             self.microtome.move_stage_to_millpos()
             if self.microtome.error_state != 0:
-                self.add_to_log(f'CTRL: Microtome error {self.microtome.error_state}: {self.microtome.error_info}')
+                utils.log_info('CTRL', f'Microtome error {self.microtome.error_state}: {self.microtome.error_info}')
                 self.microtome.reset_error_state()
         else:
-            self.add_to_log('CTRL: No microtome, or microtome not active.')
+            utils.log_warning('CTRL', 'No microtome, or microtome not active.')
 
     def test_set_pos_prior_mill_mov(self):
         if self.use_microtome:
             self.microtome.move_stage_to_pos_prior_mill_mov()
             if self.microtome.error_state != 0:
-                self.add_to_log(f'CTRL: Microtome error {self.microtome.error_state}: {self.microtome.error_info}')
+                utils.log_info('CTRL', f'Microtome error {self.microtome.error_state}: {self.microtome.error_info}')
                 self.microtome.reset_error_state()
         else:
-            self.add_to_log('CTRL: No microtome, or microtome not active.')
+            utils.log_warning('CTRL', 'No microtome, or microtome not active.')
 
     def test_stop_dm_script(self):
         if self.use_microtome:
