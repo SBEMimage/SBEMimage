@@ -16,14 +16,13 @@ import json
 import re
 import logging
 from enum import Enum
-
 import numpy as np
 
 from time import sleep
 from queue import Queue
 from serial.tools import list_ports
 from logging import StreamHandler
-
+from logging.handlers import RotatingFileHandler
 from PyQt5.QtCore import QObject, pyqtSignal
 
 # Size of the Viewport canvas. This is currently fixed and values other
@@ -63,6 +62,8 @@ LOG_FILENAME = '../log/SBEMimage.log'
 LOG_FORMAT = '%(asctime)s.%(msecs)03d %(levelname)s %(category)s: %(message)s'
 LOG_FORMAT_SCREEN = '%(asctime)s.%(msecs)03d | %(category)-5s : %(message)s'
 LOG_FORMAT_DATETIME = '%Y-%m-%d %H:%M:%S'
+LOG_MAX_FILESIZE = 1000000
+LOG_MAX_FILECOUNT = 10
 
 
 # TODO: replace values with auto()
@@ -255,7 +256,8 @@ def logging_init(message=""):
 
     logging.basicConfig(format=LOG_FORMAT, datefmt=LOG_FORMAT_DATETIME, level=logging.INFO)
     logger = logging.getLogger("SBEMimage")
-    logging_add_handler(logging.FileHandler(LOG_FILENAME))
+    logging_add_handler(RotatingFileHandler(
+        LOG_FILENAME, maxBytes=LOG_MAX_FILESIZE, backupCount=LOG_MAX_FILECOUNT))
     logging_add_handler(qt_text_handler, format=LOG_FORMAT_SCREEN)
 
     if message:
