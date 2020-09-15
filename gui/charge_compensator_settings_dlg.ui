@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>229</width>
-    <height>175</height>
+    <width>308</width>
+    <height>214</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -28,8 +28,8 @@
   <widget class="QDialogButtonBox" name="buttonBox">
    <property name="geometry">
     <rect>
-     <x>140</x>
-     <y>140</y>
+     <x>220</x>
+     <y>180</y>
      <width>81</width>
      <height>32</height>
     </rect>
@@ -44,24 +44,24 @@
     <set>QDialogButtonBox::Close</set>
    </property>
   </widget>
-  <widget class="QLabel" name="label_text_pressure">
+  <widget class="QLabel" name="label_text_level">
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>80</y>
-     <width>131</width>
+     <y>120</y>
+     <width>101</width>
      <height>20</height>
     </rect>
    </property>
    <property name="text">
-    <string>Pressure level:</string>
+    <string>FCC pressure level:</string>
    </property>
   </widget>
   <widget class="QDoubleSpinBox" name="doubleSpinBox_level">
    <property name="geometry">
     <rect>
      <x>120</x>
-     <y>80</y>
+     <y>120</y>
      <width>101</width>
      <height>22</height>
     </rect>
@@ -143,7 +143,7 @@
    <property name="geometry">
     <rect>
      <x>120</x>
-     <y>110</y>
+     <y>150</y>
      <width>101</width>
      <height>22</height>
     </rect>
@@ -159,6 +159,57 @@
    </property>
    <property name="orientation">
     <enum>Qt::Horizontal</enum>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="comboBox_units">
+   <property name="geometry">
+    <rect>
+     <x>230</x>
+     <y>80</y>
+     <width>69</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <item>
+    <property name="text">
+     <string>mbar</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>Pa</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>Torr</string>
+    </property>
+   </item>
+  </widget>
+  <widget class="QLabel" name="label_text_vacuumPressure">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>80</y>
+     <width>91</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Vacuum pressure:</string>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="lineEdit_vacuumPressure">
+   <property name="geometry">
+    <rect>
+     <x>120</x>
+     <y>80</y>
+     <width>101</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="readOnly">
+    <bool>true</bool>
    </property>
   </widget>
  </widget>

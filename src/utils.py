@@ -55,6 +55,9 @@ GRID_DIGITS = 4       # up to 9999 grids
 TILE_DIGITS = 4       # up to 9999 tiles per grid
 SLICE_DIGITS = 5      # up to 99999 slices per stack
 
+PRESSURE_FROM_SEM = {"mbar": 1000, "Pa": 100000, "Torr": 750.061682704}
+PRESSURE_TO_SEM = {"mbar": 0.001, "Pa": 0.00001, "Torr": 0.00133322368421}
+
 # Regular expressions for checking user input of tiles and overviews
 RE_TILE_LIST = re.compile('^((0|[1-9][0-9]*)[.](0|[1-9][0-9]*))'
                           '([ ]*,[ ]*(0|[1-9][0-9]*)[.](0|[1-9][0-9]*))*$')

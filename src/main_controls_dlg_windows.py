@@ -48,6 +48,24 @@ from utils import Error
 import acq_func
 
 
+class UpdateQThread(QThread):
+    """Helper for updating QDialogs using QThread"""
+    update = pyqtSignal()
+
+    def __init__(self, secs):
+        self.active = True
+        self.secs = secs
+        QThread.__init__(self)
+
+    def run(self):
+        while self.active:
+            self.update.emit()
+            sleep(self.secs)
+
+    def stop(self):
+        self.active = False
+
+
 class ConfigDlg(QDialog):
     """Start-up dialog window that lets user select a configuration file.
 
@@ -2807,25 +2825,8 @@ class PlasmaCleanerDlg(QDialog):
             'Start in-chamber cleaning process')
         self.pushButton_abortCleaning.setEnabled(False)
 
+
 # ------------------------------------------------------------------------------
-
-class PressureUpdateQThread(QThread):
-
-    update = pyqtSignal()
-
-    def __init__(self, secs):
-        self.active = True
-        self.secs = secs
-        QThread.__init__(self)
-
-    def run(self):
-        while self.active:
-            self.update.emit()
-            sleep(self.secs)
-
-    def stop(self):
-        self.active = False
-
 
 class VariablePressureDlg(QDialog):
     """Set Variable Pressure / High Vacuum."""
@@ -2833,8 +2834,6 @@ class VariablePressureDlg(QDialog):
     def __init__(self, sem):
         super().__init__()
         self.sem = sem
-        self.convert_from_sem = {"mbar": 1000, "Pa": 100000, "Torr": 750.061682704}
-        self.convert_to_sem = {"mbar": 0.001, "Pa": 0.00001, "Torr": 0.00133322368421}
         self.hv = True
         self.vp = False
         self.target = 0
@@ -2854,7 +2853,7 @@ class VariablePressureDlg(QDialog):
             self.target = self.sem.get_vp_target()
             self.update_target_pressure_text()
             self.update_target_pressure_slider()
-            self.thread = PressureUpdateQThread(1)
+            self.thread = UpdateQThread(1)
             self.thread.update.connect(self.update)
             self.thread.start()
         except Exception as e:
@@ -2908,13 +2907,13 @@ class VariablePressureDlg(QDialog):
         self.horizontalSlider_target.blockSignals(False)
 
     def update_pressure(self, textEdit, value):
-        unit_value = value * self.convert_from_sem[self.units]
+        unit_value = value * utils.PRESSURE_FROM_SEM[self.units]
         textEdit.setText("{:.2e}".format(unit_value))
 
     def target_text_changed(self):
         try:
             unit_value = float(self.lineEdit_target.text())
-            self.target = unit_value * self.convert_to_sem[self.units]
+            self.target = unit_value * utils.PRESSURE_TO_SEM[self.units]
             self.update_target_pressure_slider()
             self.sem.set_vp_target(self.target)
         except Exception as e:
@@ -2950,6 +2949,7 @@ class VariablePressureDlg(QDialog):
             pass
         event.accept()
 
+
 # ------------------------------------------------------------------------------
 
 class ChargeCompensatorDlg(QDialog):
@@ -2960,6 +2960,7 @@ class ChargeCompensatorDlg(QDialog):
         self.sem = sem
         self.state = False
         self.value = 0
+        self.vacuum_pressure = 0
         loadUi('..\\gui\\charge_compensator_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -2969,12 +2970,17 @@ class ChargeCompensatorDlg(QDialog):
         self.pushButton_off.clicked.connect(self.turn_off)
         self.doubleSpinBox_level.valueChanged.connect(self.value_changed)
         self.horizontalSlider_level.valueChanged.connect(self.slider_changed)
+        self.comboBox_units.currentTextChanged.connect(self.units_changed)
+        self.units = self.comboBox_units.currentText()
         try:
             self.state = self.sem.is_fcc_on()
             self.value = self.sem.get_fcc_level()
             self.update_buttons()
             self.update_value()
             self.update_slider()
+            self.thread = UpdateQThread(1)
+            self.thread.update.connect(self.update)
+            self.thread.start()
         except Exception as e:
             QMessageBox.warning(
                 self, 'Error',
@@ -2986,8 +2992,6 @@ class ChargeCompensatorDlg(QDialog):
     def turn_on(self):
         try:
             self.sem.turn_fcc_on()
-            self.state = True
-            self.update_buttons()
             sleep(0.1)
             self.set_fcc_level(self.value)
         except Exception as e:
@@ -3000,9 +3004,7 @@ class ChargeCompensatorDlg(QDialog):
     def turn_off(self):
         try:
             self.sem.turn_fcc_off()
-            self.state = False
             self.value = 0
-            self.update_buttons()
             self.update_value()
             self.update_slider()
         except Exception as e:
@@ -3011,6 +3013,20 @@ class ChargeCompensatorDlg(QDialog):
                 'Unable to disable fcc: '
                 + str(e),
                 QMessageBox.Ok)
+
+    def units_changed(self, text):
+        self.units = text
+        self.update_pressure()
+
+    def update(self):
+        self.state = self.sem.is_fcc_on()
+        self.vacuum_pressure = self.sem.get_chamber_pressure()
+        self.update_buttons()
+        self.update_pressure()
+
+    def update_pressure(self):
+        unit_value = self.vacuum_pressure * utils.PRESSURE_FROM_SEM[self.units]
+        self.lineEdit_vacuumPressure.setText("{:.2e}".format(unit_value))
 
     def update_buttons(self):
         self.pushButton_on.setEnabled(not self.state)

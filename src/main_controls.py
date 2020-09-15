@@ -171,6 +171,7 @@ class MainControls(QMainWindow):
             # Create object for 3View microtome (control via DigitalMicrograph)
             self.microtome = Microtome_3View(self.cfg, self.syscfg)
             if self.microtome.error_state in [Error.dm_init, Error.dm_comm_send, Error.dm_comm_response, Error.dm_comm_retval]:
+                utils.log_warning('CTRL', 'Error initializing DigitalMicrograph API')
                 QMessageBox.warning(
                     self, 'Error initializing DigitalMicrograph API',
                     'Have you forgotten to start the communication '
@@ -182,6 +183,7 @@ class MainControls(QMainWindow):
                 # Try again
                 self.microtome = Microtome_3View(self.cfg, self.syscfg)
                 if self.microtome.error_state in [Error.dm_init, Error.dm_comm_send, Error.dm_comm_response, Error.dm_comm_retval]:
+                    utils.log_error('CTRL', 'Error initializing DigitalMicrograph API')
                     QMessageBox.warning(
                         self, 'Error initializing DigitalMicrograph API',
                         'The second attempt to initialise the DigitalMicrograph '
