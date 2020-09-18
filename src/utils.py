@@ -15,6 +15,7 @@ import datetime
 import json
 import re
 import logging
+import threading
 from enum import Enum
 import numpy as np
 import cv2
@@ -250,6 +251,17 @@ class QtTextHandler(StreamHandler):
             self.buffer.append(message)
 
 
+def run_log_thread(thread_function, *args):
+    def run_log():
+        try:
+            thread_function(*args)
+        except:
+            log_exception("Exception")
+
+    thread = threading.Thread(target=run_log)
+    thread.start()
+
+
 logger: logging.Logger
 qt_text_handler = QtTextHandler()
 
@@ -311,7 +323,7 @@ def log_critical(*params):
     log(logging.CRITICAL, params)
 
 
-def log_exception(message = ""):
+def log_exception(message=""):
     logger.exception(message, extra={'category': ''})
 
 

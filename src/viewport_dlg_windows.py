@@ -174,14 +174,12 @@ class StubOVDlg(QDialog):
             self.progressBar.setValue(0)
             self.viewport_trigger.transmit('STATUS BUSY STUB')
             QApplication.processEvents()
-            stub_acq_thread = threading.Thread(
-                                  target=acq_func.acquire_stub_ov,
-                                  args=(self.sem, self.stage,
-                                        self.ovm, self.acq,
-                                        self.img_inspector,
-                                        self.stub_dlg_trigger,
-                                        self.abort_queue,))
-            stub_acq_thread.start()
+            utils.run_log_thread(acq_func.acquire_stub_ov,
+                                 self.sem, self.stage,
+                                 self.ovm, self.acq,
+                                 self.img_inspector,
+                                 self.stub_dlg_trigger,
+                                 self.abort_queue)
         else:
             QMessageBox.warning(
                 self, 'EHT off',
@@ -300,10 +298,7 @@ class GridRotationDlg(QDialog):
             # Start thread to ensure viewport is drawn with labels and previews
             # after rotation completed.
             self.rotation_in_progress = True
-            update_viewport_with_delay_thread = threading.Thread(
-                target=self.update_viewport_with_delay,
-                args=())
-            update_viewport_with_delay_thread.start()
+            utils.run_log_thread(self.update_viewport_with_delay)
         if self.radioButton_pivotCentre.isChecked():
             # Get current centre of grid:
             centre_dx, centre_dy = self.gm[self.selected_grid].centre_dx_dy

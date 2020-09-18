@@ -770,6 +770,7 @@ class StageCalibrationDlg(QDialog):
         self.doubleSpinBox_motorSpeedY.setValue(self.stage.motor_speed_y)
         self.comboBox_dwellTime.addItems(map(str, self.sem.DWELL_TIME))
         self.comboBox_dwellTime.setCurrentIndex(4)
+        # TODO: use a list instead:
         self.comboBox_package.addItems(['cv2', 'imreg_dft', 'skimage'])
         self.pushButton_startImageAcq.clicked.connect(
             self.start_stage_calibration_procedure)
@@ -787,8 +788,7 @@ class StageCalibrationDlg(QDialog):
         self.pushButton_measureMotorSpeeds.setEnabled(False)
         self.pushButton_startImageAcq.setEnabled(False)
         self.pushButton_measureMotorSpeeds.setText('Please wait... (~1 min)')
-        thread = threading.Thread(target=self.run_motor_speed_measurement)
-        thread.start()
+        utils.run_log_thread(self.run_motor_speed_measurement)
 
     def run_motor_speed_measurement(self):
         self.motor_speed_x, self.motor_speed_y = (
@@ -871,8 +871,7 @@ class StageCalibrationDlg(QDialog):
             self.pushButton_measureMotorSpeeds.setEnabled(False)
             self.pushButton_calcStage.setEnabled(False)
             # Acquire images in thread
-            thread = threading.Thread(target=self.calibration_images_acq_thread)
-            thread.start()
+            utils.run_log_thread(self.calibration_images_acq_thread)
 
     def calibration_images_acq_thread(self):
         """Acquisition thread for three images used for the stage calibration.
@@ -2510,8 +2509,7 @@ class MirrorDriveDlg(QDialog):
         QApplication.processEvents()
         # Search for drives in thread. If it gets stuck because drives are
         # not accessible, user can still cancel dialog.
-        t = threading.Thread(target=self.search_drives)
-        t.start()
+        utils.run_log_thread(self.search_drives)
 
     def search_drives(self):
         # Search for all available drives:
@@ -3122,8 +3120,7 @@ class ApproachDlg(QDialog):
         self.spinBox_thickness.setEnabled(False)
         self.spinBox_numberSlices.setEnabled(False)
         self.main_controls_trigger.transmit('STATUS BUSY APPROACH')
-        thread = threading.Thread(target=self.approach_thread)
-        thread.start()
+        utils.run_log_thread(self.approach_thread)
 
     def finish_approach(self):
         # Move knife to "Clear" position
@@ -3333,8 +3330,7 @@ class GrabFrameDlg(QDialog):
         self.pushButton_save.setEnabled(False)
         QApplication.processEvents()
         self.main_controls_trigger.transmit('STATUS BUSY GRAB IMAGE')
-        thread = threading.Thread(target=self.perform_scan)
-        thread.start()
+        utils.run_log_thread(self.perform_scan)
 
     def perform_scan(self):
         """Acquire a new frame. Executed in a thread because it may take some
@@ -3427,15 +3423,13 @@ class EHTDlg(QDialog):
     def turn_on(self):
         self.pushButton_on.setEnabled(False)
         self.pushButton_on.setText('Wait')
-        thread = threading.Thread(target=self.send_on_cmd_and_wait)
-        thread.start()
+        utils.run_log_thread(self.send_on_cmd_and_wait)
 
     def turn_off(self):
         self.pushButton_off.setEnabled(False)
         self.pushButton_off.setText('Wait')
         QApplication.processEvents()
-        thread = threading.Thread(target=self.send_off_cmd_and_wait)
-        thread.start()
+        utils.run_log_thread(self.send_off_cmd_and_wait)
 
     def send_on_cmd_and_wait(self):
         self.sem.turn_eht_on()
@@ -3532,8 +3526,7 @@ class FTMoveDlg(QDialog):
         self.error = False
         self.pushButton_move.setText('Busy... please wait.')
         self.pushButton_move.setEnabled(False)
-        thread = threading.Thread(target=self.move_and_wait)
-        thread.start()
+        utils.run_log_thread(self.move_and_wait)
 
     def move_and_wait(self):
         # Load target coordinates
@@ -3641,8 +3634,7 @@ class MotorTestDlg(QDialog):
                 self.checkBox_XYonly.setEnabled(False)
                 self.spinBox_duration.setEnabled(False)
                 self.progressBar.setValue(0)
-                thread = threading.Thread(target=self.random_walk_thread)
-                thread.start()
+                utils.run_log_thread(self.random_walk_thread)
             else:
                 self.microtome.reset_error_state()
                 self.pushButton_startTest.setText('Start')

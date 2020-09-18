@@ -1762,10 +1762,7 @@ class Viewport(QWidget):
             # Start thread to ensure viewport is drawn with labels and previews
             # after zooming completed.
             self.zooming_in_progress = True
-            vp_draw_zoom_delay_thread = threading.Thread(
-                target=self._vp_draw_zoom_delay,
-                args=())
-            vp_draw_zoom_delay_thread.start()
+            utils.run_log_thread(self._vp_draw_zoom_delay)
         # Recalculate scaling factor.
         self.cs.vp_scale = (
             self.VP_ZOOM[0]
@@ -1780,10 +1777,7 @@ class Viewport(QWidget):
             # Start thread to ensure viewport is drawn with labels and previews
             # after zooming completed.
             self.zooming_in_progress = True
-            vp_draw_zoom_delay_thread = threading.Thread(
-                target=self._vp_draw_zoom_delay,
-                args=())
-            vp_draw_zoom_delay_thread.start()
+            utils.run_log_thread(self._vp_draw_zoom_delay)
         # Recalculate scaling factor.
         old_vp_scale = self.cs.vp_scale
         self.cs.vp_scale = utils.fit_in_range(
@@ -2126,11 +2120,10 @@ class Viewport(QWidget):
         self.main_controls_trigger.transmit('RESTRICT GUI')
         self.restrict_gui(True)
         QApplication.processEvents()
-        move_thread = threading.Thread(target=acq_func.manual_stage_move,
-                                       args=(self.stage,
-                                             self.selected_stage_pos,
-                                             self.viewport_trigger,))
-        move_thread.start()
+        utils.run_log_thread(acq_func.manual_stage_move,
+                             self.stage,
+                             self.selected_stage_pos,
+                             self.viewport_trigger)
         self.main_controls_trigger.transmit('STATUS BUSY STAGE MOVE')
 
     def _vp_manual_stage_move_success(self, success):
@@ -2172,12 +2165,10 @@ class Viewport(QWidget):
                 self.main_controls_trigger.transmit('RESTRICT GUI')
                 self.main_controls_trigger.transmit('STATUS BUSY OV')
                 # Start OV acquisition thread
-                ov_acq_thread = threading.Thread(
-                    target=acq_func.acquire_ov,
-                    args=(self.acq.base_dir, self.vp_current_ov,
-                          self.sem, self.stage, self.ovm, self.img_inspector,
-                          self.main_controls_trigger, self.viewport_trigger,))
-                ov_acq_thread.start()
+                utils.run_log_thread(acq_func.acquire_ov,
+                                     self.acq.base_dir, self.vp_current_ov,
+                                     self.sem, self.stage, self.ovm, self.img_inspector,
+                                     self.main_controls_trigger, self.viewport_trigger)
         else:
             QMessageBox.information(
                 self, 'Acquisition of overview image(s)',

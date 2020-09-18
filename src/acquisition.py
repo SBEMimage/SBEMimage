@@ -518,14 +518,7 @@ class Acquisition:
 
 # ====================== STACK ACQUISITION THREAD run() ========================
 
-
     def run(self):
-        try:
-            self.run_acquisition()
-        except Exception as e:
-            utils.log_exception()
-
-    def run_acquisition(self):
         """Run acquisition in a thread started from main_controls.py."""
 
         self.reset_error_state()

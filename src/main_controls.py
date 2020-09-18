@@ -1720,10 +1720,9 @@ class MainControls(QMainWindow):
             self.restrict_gui(True)
             self.viewport.restrict_gui(True)
             QApplication.processEvents()
-            user_sweep_thread = threading.Thread(target=acq_func.manual_sweep,
-                                                 args=(self.microtome,
-                                                       self.trigger,))
-            user_sweep_thread.start()
+            utils.run_log_thread(acq_func.manual_sweep,
+                                 self.microtome,
+                                 self.trigger)
             self.set_status('Busy.', 'Sweep in progress...', True)
 
     def manual_sweep_success(self, success):
@@ -2032,8 +2031,7 @@ class MainControls(QMainWindow):
             # Start the thread running the stack acquisition
             # All source code in stack_acquisition.py
             # Thread is stopped by either stop or pause button
-            stack_thread = threading.Thread(target=self.acq.run)
-            stack_thread.start()
+            utils.run_log_thread(self.acq.run)
 
     def pause_acquisition(self):
         """Pause the acquisition after user has clicked 'Pause' button. Let
@@ -2533,8 +2531,7 @@ class MainControls(QMainWindow):
         self.ft_slider_delta = self.verticalSlider_ftDelta.value() + 1
         self.ft_clear_display()
         QApplication.processEvents()
-        ft_thread = threading.Thread(target=self.ft_move_and_acq_thread)
-        ft_thread.start()
+        utils.run_log_thread(self.ft_move_and_acq_thread)
 
     def ft_move_and_acq_thread(self):
         """Move to the target stage position with error handling, then acquire
