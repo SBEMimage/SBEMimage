@@ -988,8 +988,7 @@ class StageCalibrationDlg(QDialog):
         rot_x = atan(delta_xy/delta_xx)
         rot_y = atan(delta_yx/delta_yy)
         rot2_x = atan2(self.x_shift_vector[1], self.x_shift_vector[0])
-        rot2_y = atan2(self.y_shift_vector[1], self.y_shift_vector[0])
-        print(f'Rotation (atan2): {rot2_x:.5f}\t{rot2_y:.5f}')
+        rot2_y = atan2(self.y_shift_vector[0], self.y_shift_vector[1])
         # Scale factors
         scale_x = shift / (sqrt(delta_xx**2 + delta_xy**2) * pixel_size / 1000)
         scale_y = shift / (sqrt(delta_yx**2 + delta_yy**2) * pixel_size / 1000)
@@ -998,9 +997,8 @@ class StageCalibrationDlg(QDialog):
         x_abs = np.linalg.norm(self.x_shift_vector)
         y_abs = np.linalg.norm(self.y_shift_vector)
         # Rotation angles:
-        rot_x_alt = np.arccos(self.x_shift_vector[0] / x_abs)
-        rot_y_alt = np.arccos(self.y_shift_vector[1] / y_abs)
-        print(f'Super alternativ calc: {rot_x_alt:.5f}\t{rot_y_alt:.5f}')
+        rot_x_alt2 = np.arccos(self.x_shift_vector[0] / x_abs)
+        rot_y_alt2 = np.arccos(self.y_shift_vector[1] / y_abs)
         rot_x_alt = np.arctan2(self.x_shift_vector[1] / x_abs, self.x_shift_vector[0] / x_abs) - np.arctan2(0, 1)
         rot_y_alt = np.arctan2(self.y_shift_vector[1] / y_abs, self.y_shift_vector[0] / y_abs) - np.arctan2(1, 0)
 
@@ -1008,13 +1006,22 @@ class StageCalibrationDlg(QDialog):
         scale_x_alt = shift / (x_abs * pixel_size / 1000)
         scale_y_alt = shift / (y_abs * pixel_size / 1000)
 
-        print(f'Alternative calc.: {scale_x_alt:.5f}\t{scale_y_alt:.5f}\t{rot_x_alt:.5f}\t{rot_y_alt:.5f}')
-        print(f'Original calc.: {scale_x:.5f}\t{scale_y:.5f}\t{rot_x:.5f}\t{rot_y:.5f}')
+        # TODO: remove debugging:
+        print(f'Original calc: {scale_x:.5f}\t{scale_y:.5f}\t{rot_x:.5f}\t{rot_y:.5f}')
+        print(f'Alternative calc: {scale_x_alt:.5f}\t{scale_y_alt:.5f}\t{rot_x_alt:.5f}\t{rot_y_alt:.5f}')
+        print(f'Super alternative calc: {rot_x_alt2:.5f}\t{rot_y_alt2:.5f}')
+        print(f'Rotation (atan2): {rot2_x:.5f}\t{rot2_y:.5f}')
+
         if self.comboBox_package.currentIndex() != 2:
             scale_x = scale_x_alt
             scale_y = scale_y_alt
             rot_x = rot_x_alt
             rot_y = rot_y_alt
+        
+        if self.sem.syscfg['device']['sem'] == '2':
+            # ZEISS Sigma
+            rot_x = rot_x_alt2
+            rot_y = rot_y_alt2
 
         self.busy = False
         user_choice = QMessageBox.information(

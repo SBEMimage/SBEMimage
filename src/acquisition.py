@@ -2223,7 +2223,7 @@ class Acquisition:
             # After all preliminary checks complete, now acquire the frame!
             # (Even if error has been detected. May be helpful.)
             utils.log_info(
-                'SEM'
+                'SEM',
                 f'Acquiring tile at X:{stage_x:.3f}, '
                 f'Y:{stage_y:.3f}')
             self.add_to_main_log('SEM: Acquiring tile at X:'
