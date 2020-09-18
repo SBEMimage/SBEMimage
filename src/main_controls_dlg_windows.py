@@ -28,7 +28,7 @@ from random import random
 from time import sleep, time
 
 from validate_email import validate_email
-from math import atan, sqrt
+from math import atan, atan2, sqrt
 from statistics import mean
 from PIL import Image
 from skimage.io import imread
@@ -987,6 +987,9 @@ class StageCalibrationDlg(QDialog):
         # Rotation angles (in radians)
         rot_x = atan(delta_xy/delta_xx)
         rot_y = atan(delta_yx/delta_yy)
+        rot2_x = atan2(self.x_shift_vector[1], self.x_shift_vector[0])
+        rot2_y = atan2(self.y_shift_vector[1], self.y_shift_vector[0])
+        print(f'Rotation (atan2): {rot2_x:.5f}\t{rot2_y:.5f}')
         # Scale factors
         scale_x = shift / (sqrt(delta_xx**2 + delta_xy**2) * pixel_size / 1000)
         scale_y = shift / (sqrt(delta_yx**2 + delta_yy**2) * pixel_size / 1000)
