@@ -58,10 +58,40 @@ class SEM_SmartSEM(SEM):
         else:
             self.sem_api = None
 
+    def sem_get(self, key):
+        try:
+            return self.sem_api.Get(key, 0)[1]
+        except Exception as e:
+            utils.log_error(f"Unable to get SEM.{key} error: {e}")
+        return ""
+
+    def sem_set(self, key, value, convert_variant=True):
+        try:
+            if convert_variant:
+                value = VARIANT(pythoncom.VT_R4, value)
+            return self.sem_api.Set(key, value)[0]
+        except Exception as e:
+            utils.log_error(f"Unable to set SEM.{key} error: {e}")
+        return 0
+
+    def sem_execute(self, key):
+        try:
+            return self.sem_api.Execute(key)
+        except Exception as e:
+            utils.log_error(f"Unable to execute SEM.{key} error: {e}")
+        return 0
+
+    def sem_stage_busy(self):
+        try:
+            return self.sem_api.Get('DP_STAGE_IS')[1] == 'Busy'
+        except Exception as e:
+            utils.log_error(f"Unable to get SEM.DP_STAGE_IS error: {e}")
+        return False
+
     def turn_eht_on(self):
         """Turn EHT (= high voltage) on. Return True if successful,
         otherwise False."""
-        ret_val = self.sem_api.Execute('CMD_BEAM_ON')
+        ret_val = self.sem_execute('CMD_BEAM_ON')
         if ret_val == 0:
             return True
         else:
@@ -73,7 +103,7 @@ class SEM_SmartSEM(SEM):
     def turn_eht_off(self):
         """Turn EHT (= high voltage) off. Return True if successful,
         otherwise False."""
-        ret_val = self.sem_api.Execute('CMD_EHT_OFF')
+        ret_val = self.sem_execute('CMD_EHT_OFF')
         if ret_val == 0:
             return True
         else:
@@ -84,24 +114,23 @@ class SEM_SmartSEM(SEM):
 
     def is_eht_on(self):
         """Return True if EHT is on."""
-        return (self.sem_api.Get('DP_RUNUPSTATE', 0)[1] == 'Beam On')
+        return self.sem_get('DP_RUNUPSTATE') == 'Beam On'
 
     def is_eht_off(self):
         """Return True if EHT is off. This is not the same as "not is_eht_on()"
         because there are intermediate beam states between on and off."""
-        return (self.sem_api.Get('DP_RUNUPSTATE', 0)[1] == 'EHT Off')
+        return self.sem_get('DP_RUNUPSTATE') == 'EHT Off'
 
     def get_eht(self):
         """Return current SmartSEM EHT setting in kV."""
-        return self.sem_api.Get('AP_MANUALKV', 0)[1] / 1000
+        return self.sem_get('AP_MANUALKV') / 1000
 
     def set_eht(self, target_eht):
         """Save the target EHT (in kV) and set the EHT to this target value."""
         # Call method in parent class
         super().set_eht(target_eht)
         # target_eht given in kV
-        variant = VARIANT(pythoncom.VT_R4, target_eht * 1000)
-        ret_val = self.sem_api.Set('AP_MANUALKV', variant)[0]
+        ret_val = self.sem_set('AP_MANUALKV', target_eht * 1000)
         if ret_val == 0:
             return True
         else:
@@ -113,30 +142,28 @@ class SEM_SmartSEM(SEM):
     def has_vp(self):
         """Return True if VP (= Variable Pressure) is fitted."""
         if not self.simulation_mode:
-            return "yes" in self.sem_api.Get('DP_VP_SYSTEM', 0)[1].lower()
+            return "yes" in self.sem_get('DP_VP_SYSTEM').lower()
         return False
 
     def is_hv_on(self):
         """Return True if HV (= High Vacuum) is on."""
-        return "vacuum" in self.sem_api.Get('DP_VAC_MODE', 0)[1].lower()
+        return "vacuum" in self.sem_get('DP_VAC_MODE').lower()
 
     def is_vp_on(self):
         """Return True if VP is on."""
-        return "variable" in self.sem_api.Get('DP_VAC_MODE', 0)[1].lower()
+        return "variable" in self.sem_get('DP_VAC_MODE').lower()
 
     def get_chamber_pressure(self):
         """Read current chamber pressure from SmartSEM."""
-        response = self.sem_api.Get('AP_CHAMBER_PRESSURE', 0)
-        return response[1]
+        return self.sem_get('AP_CHAMBER_PRESSURE')
 
     def get_vp_target(self):
         """Read current VP target pressure from SmartSEM."""
-        response = self.sem_api.Get('AP_HP_TARGET', 0)
-        return response[1]
+        return self.sem_get('AP_HP_TARGET')
 
     def set_hv(self):
         """Set HV."""
-        ret_val = self.sem_api.Execute('CMD_GOTO_HV')
+        ret_val = self.sem_execute('CMD_GOTO_HV')
         if ret_val == 0:
             return True
         else:
@@ -147,7 +174,7 @@ class SEM_SmartSEM(SEM):
 
     def set_vp(self):
         """Set VP."""
-        ret_val = self.sem_api.Execute('CMD_GOTO_VP')
+        ret_val = self.sem_execute('CMD_GOTO_VP')
         if ret_val == 0:
             return True
         else:
@@ -158,8 +185,7 @@ class SEM_SmartSEM(SEM):
 
     def set_vp_target(self, target_pressure):
         """Set the VP target pressure."""
-        variant = VARIANT(pythoncom.VT_R4, target_pressure)
-        ret_val = self.sem_api.Set('AP_HP_TARGET', variant)[0]
+        ret_val = self.sem_set('AP_HP_TARGET', target_pressure)
         if ret_val == 0:
             return True
         else:
@@ -171,25 +197,24 @@ class SEM_SmartSEM(SEM):
     def has_fcc(self):
         """Return True if FCC (= Focal Charge Compensator) is fitted."""
         if not self.simulation_mode:
-            return "yes" in self.sem_api.Get('DP_CAPCC_FITTED', 0)[1].lower()
+            return "yes" in self.self.sem_get('DP_CAPCC_FITTED').lower()
         return False
 
     def is_fcc_on(self):
         """Return True if FCC is on."""
-        return "yes" in self.sem_api.Get('DP_CAPCC_INUSE', 0)[1].lower()
+        return "yes" in self.sem_get('DP_CAPCC_INUSE').lower()
 
     def is_fcc_off(self):
         """Return True if FCC is off."""
-        return "no" in self.sem_api.Get('DP_CAPCC_INUSE', 0)[1].lower()
+        return "no" in self.sem_get('DP_CAPCC_INUSE').lower()
 
     def get_fcc_level(self):
         """Read current FCC pressure (0-100) from SmartSEM."""
-        response = self.sem_api.Get('AP_CC_PRESSURE', 0)
-        return response[1]
+        return self.self.sem_get('AP_CC_PRESSURE')
 
     def turn_fcc_on(self):
         """Turn FCC on."""
-        ret_val = self.sem_api.Execute('CMD_CC_IN')
+        ret_val = self.sem_execute('CMD_CC_IN')
         if ret_val == 0:
             return True
         else:
@@ -200,7 +225,7 @@ class SEM_SmartSEM(SEM):
 
     def turn_fcc_off(self):
         """Turn FCC off."""
-        ret_val = self.sem_api.Execute('CMD_CC_OUT')
+        ret_val = self.sem_execute('CMD_CC_OUT')
         if ret_val == 0:
             return True
         else:
@@ -211,8 +236,7 @@ class SEM_SmartSEM(SEM):
 
     def set_fcc_level(self, target_fcc_level):
         """Save the target FCC (0-100) and set the FCC to this target value."""
-        variant = VARIANT(pythoncom.VT_R4, target_fcc_level)
-        ret_val = self.sem_api.Set('AP_CC_PRESSURE', variant)[0]
+        ret_val = self.sem_set('AP_CC_PRESSURE', target_fcc_level)
         if ret_val == 0:
             return True
         else:
@@ -223,7 +247,7 @@ class SEM_SmartSEM(SEM):
 
     def get_beam_current(self):
         """Read beam current (in pA) from SmartSEM."""
-        return int(round(self.sem_api.Get('AP_IPROBE', 0)[1] * 10**12))
+        return int(round(self.self.sem_get('AP_IPROBE') * 10**12))
 
     def set_beam_current(self, target_current):
         """Save the target beam current (in pA) and set the SEM's beam to this
@@ -231,8 +255,7 @@ class SEM_SmartSEM(SEM):
         # Call method in parent class
         super().set_beam_current(target_current)
         # target_current given in pA
-        variant = VARIANT(pythoncom.VT_R4, target_current * 10**(-12))
-        ret_val = self.sem_api.Set('AP_IPROBE', variant)[0]
+        ret_val = self.sem_set('AP_IPROBE', target_current * 10**(-12))
         if ret_val == 0:
             return True
         else:
@@ -244,18 +267,14 @@ class SEM_SmartSEM(SEM):
     def get_high_current(self):
         """Read high current mode from SmartSEM."""
         if self.HAS_HIGH_CURRENT:
-            return "on" in self.sem_api.Get('DP_HIGH_CURRENT', 0)[1].lower()
+            return "on" in self.sem_get('DP_HIGH_CURRENT').lower()
 
     def set_high_current(self, target_high_current):
         """Save the target high current mode and set the SEM value."""
         # Call method in parent class
         super().set_high_current(target_high_current)
         if self.HAS_HIGH_CURRENT:
-            if target_high_current:
-                variant = VARIANT(pythoncom.VT_R4, 1)
-            else:
-                variant = VARIANT(pythoncom.VT_R4, 0)
-            ret_val = self.sem_api.Set('DP_HIGH_CURRENT', variant)
+            ret_val = self.sem_set('DP_HIGH_CURRENT', int(self.HAS_HIGH_CURRENT))
             if ret_val == 0:
                 return True
             else:
@@ -267,7 +286,7 @@ class SEM_SmartSEM(SEM):
 
     def get_aperture_size(self):
         """Read aperture size (in μm) from SmartSEM."""
-        return round(self.sem_api.Get('AP_APERTURESIZE', 0)[1] * 10**6, 1)
+        return round(self.sem_get('AP_APERTURESIZE') * 10**6, 1)
 
     def set_aperture_size(self, aperture_size_index):
         """Save the aperture size (in μm) and set the SEM's beam to this
@@ -275,8 +294,7 @@ class SEM_SmartSEM(SEM):
         # Call method in parent class
         super().set_aperture_size(aperture_size_index)
         # aperture_size given in μm
-        selector_variant = VARIANT(pythoncom.VT_R4, aperture_size_index)
-        ret_val = self.sem_api.Set('DP_APERTURE', selector_variant)[0]
+        ret_val = self.sem_set('DP_APERTURE', aperture_size_index)
         if ret_val == 0:
             return True
         else:
@@ -322,7 +340,7 @@ class SEM_SmartSEM(SEM):
         """Read the current store resolution from the SEM and return the
         corresponding frame size selector.
         """
-        ret_val = self.sem_api.Get('DP_IMAGE_STORE', 0)[1]
+        ret_val = self.sem_get('DP_IMAGE_STORE')
         try:
             frame_size = [int(x) for x in ret_val.split('*')]
             frame_size_selector = self.STORE_RES.index(frame_size)
@@ -334,16 +352,13 @@ class SEM_SmartSEM(SEM):
         """Set SEM to frame size specified by frame_size_selector and freeze
         the frame. Only works well on Merlin/Gemini. OBSOLETE.
         """
-        freeze_variant = VARIANT(pythoncom.VT_R4, 2)  # 2 = freeze on command
-        self.sem_api.Set('DP_FREEZE_ON', freeze_variant)
-        selector_variant = VARIANT(pythoncom.VT_R4, frame_size_selector)
-        ret_val = self.sem_api.Set('DP_IMAGE_STORE', selector_variant)[0]
+        self.sem_set('DP_FREEZE_ON', 2)  # 2 = freeze on command
+        ret_val = self.sem_set('DP_IMAGE_STORE', frame_size_selector)
         # Changing this parameter causes an 'unfreeze' command.
         # Freeze again, immediately:
-        self.sem_api.Execute('CMD_FREEZE_ALL')
+        self.sem_execute('CMD_FREEZE_ALL')
         # Change back to 'freeze on end of frame' (0)
-        freeze_variant = VARIANT(pythoncom.VT_R4, 0)
-        self.sem_api.Set('DP_FREEZE_ON', freeze_variant)
+        self.sem_set('DP_FREEZE_ON', 0)
         if ret_val == 0:
             return True
         else:
@@ -354,8 +369,7 @@ class SEM_SmartSEM(SEM):
 
     def set_frame_size(self, frame_size_selector):
         """Set SEM to frame size specified by frame_size_selector."""
-        selector_variant = VARIANT(pythoncom.VT_R4, frame_size_selector)
-        ret_val = self.sem_api.Set('DP_IMAGE_STORE', selector_variant)[0]
+        ret_val = self.sem_set('DP_IMAGE_STORE', frame_size_selector)
         # Note: Changing this parameter causes an 'unfreeze' command.
         if ret_val == 0:
             return True
@@ -367,11 +381,11 @@ class SEM_SmartSEM(SEM):
 
     def get_mag(self):
         """Read current magnification from SEM."""
-        return self.sem_api.Get('AP_MAG', 0)[1]
+        return self.sem_get('AP_MAG')
 
     def set_mag(self, target_mag):
         """Set SEM magnification to target_mag."""
-        ret_val = self.sem_api.Set('AP_MAG', str(target_mag))[0]
+        ret_val = self.sem_set('AP_MAG', str(target_mag), convert_variant=False)
         if ret_val == 0:
             return True
         else:
@@ -397,12 +411,12 @@ class SEM_SmartSEM(SEM):
 
     def get_scan_rate(self):
         """Read the current scan rate from the SEM"""
-        return int(self.sem_api.Get('DP_SCANRATE', 0)[1])
+        return int(self.sem_get('DP_SCANRATE'))
 
     def set_scan_rate(self, scan_rate_selector):
         """Set SEM to pixel scan rate specified by scan_rate_selector."""
-        ret_val = self.sem_api.Execute('CMD_SCANRATE'
-                                       + str(scan_rate_selector))
+        ret_val = self.sem_execute('CMD_SCANRATE'
+                                   + str(scan_rate_selector))
         if ret_val == 0:
             return True
         else:
@@ -418,13 +432,8 @@ class SEM_SmartSEM(SEM):
     def set_scan_rotation(self, angle):
         """Set the scan rotation angle (in degrees). Enable scan rotation
         for angles > 0."""
-        if angle > 0:
-            enable_variant = VARIANT(pythoncom.VT_R4, 1)
-        else:
-            enable_variant = VARIANT(pythoncom.VT_R4, 0)
-        ret_val1 = self.sem_api.Set('DP_SCAN_ROT', enable_variant)[0]
-        angle_variant = VARIANT(pythoncom.VT_R4, angle)
-        ret_val2 = self.sem_api.Set('AP_SCANROTATION', angle_variant)[0]
+        ret_val1 = self.sem_set('DP_SCAN_ROT', int(angle > 0))
+        ret_val2 = self.sem_set('AP_SCANROTATION', angle)
         sleep(0.5)  # how long of a delay is necessary?
         return ret_val1 == 0 and ret_val2 == 0
 
@@ -435,8 +444,8 @@ class SEM_SmartSEM(SEM):
         additional waiting period after the cycle time (extra_delay, in seconds)
         may be necessary. The delay specified in syscfg (self.DEFAULT_DELAY)
         is added by default for cycle times > 0.5 s."""
-        self.sem_api.Execute('CMD_UNFREEZE_ALL')
-        self.sem_api.Execute('CMD_FREEZE_ALL') # Assume 'freeze on end of frame'
+        self.sem_execute('CMD_UNFREEZE_ALL')
+        self.sem_execute('CMD_FREEZE_ALL') # Assume 'freeze on end of frame'
 
         self.additional_cycle_time = extra_delay
         if self.current_cycle_time > 0.5:
@@ -474,12 +483,11 @@ class SEM_SmartSEM(SEM):
 
     def get_wd(self):
         """Return current working distance in metres."""
-        return float(self.sem_api.Get('AP_WD', 0)[1])
+        return float(self.sem_get('AP_WD'))
 
     def set_wd(self, target_wd):
         """Set working distance to target working distance (in metres)."""
-        variant = VARIANT(pythoncom.VT_R4, target_wd)
-        ret_val = self.sem_api.Set('AP_WD', variant)[0]
+        ret_val = self.sem_set('AP_WD', target_wd)
         if ret_val == 0:
             return True
         else:
@@ -490,16 +498,14 @@ class SEM_SmartSEM(SEM):
 
     def get_stig_xy(self):
         """Return XY stigmation parameters in %, as a tuple."""
-        stig_x = self.sem_api.Get('AP_STIG_X', 0)[1]
-        stig_y = self.sem_api.Get('AP_STIG_Y', 0)[1]
+        stig_x = self.sem_get('AP_STIG_X')
+        stig_y = self.sem_get('AP_STIG_Y')
         return (float(stig_x), float(stig_y))
 
     def set_stig_xy(self, target_stig_x, target_stig_y):
         """Set X and Y stigmation parameters (in %)."""
-        variant_x = VARIANT(pythoncom.VT_R4, target_stig_x)
-        ret_val1 = self.sem_api.Set('AP_STIG_X', variant_x)[0]
-        variant_y = VARIANT(pythoncom.VT_R4, target_stig_y)
-        ret_val2 = self.sem_api.Set('AP_STIG_Y', variant_y)[0]
+        ret_val1 = self.sem_set('AP_STIG_X', target_stig_x)
+        ret_val2 = self.sem_set('AP_STIG_Y', target_stig_y)
         if (ret_val1 == 0) and (ret_val2 == 0):
             return True
         else:
@@ -511,12 +517,11 @@ class SEM_SmartSEM(SEM):
 
     def get_stig_x(self):
         """Read X stigmation parameter (in %) from SEM."""
-        return float(self.sem_api.Get('AP_STIG_X', 0)[1])
+        return float(self.sem_get('AP_STIG_X'))
 
     def set_stig_x(self, target_stig_x):
         """Set X stigmation parameter (in %)."""
-        variant_x = VARIANT(pythoncom.VT_R4, target_stig_x)
-        ret_val = self.sem_api.Set('AP_STIG_X', variant_x)[0]
+        ret_val = self.sem_set('AP_STIG_X', target_stig_x)
         if ret_val == 0:
             return True
         else:
@@ -527,12 +532,11 @@ class SEM_SmartSEM(SEM):
 
     def get_stig_y(self):
         """Read Y stigmation parameter (in %) from SEM."""
-        return float(self.sem_api.Get('AP_STIG_Y', 0)[1])
+        return float(self.sem_get('AP_STIG_Y'))
 
     def set_stig_y(self, target_stig_y):
         """Set Y stigmation parameter (in %)."""
-        variant_y = VARIANT(pythoncom.VT_R4, target_stig_y)
-        ret_val = self.sem_api.Set('AP_STIG_Y', variant_y)[0]
+        ret_val = self.sem_set('AP_STIG_Y', target_stig_y)
         if ret_val == 0:
             return True
         else:
@@ -543,11 +547,7 @@ class SEM_SmartSEM(SEM):
 
     def set_beam_blanking(self, enable_blanking):
         """Enable beam blanking if enable_blanking == True."""
-        if enable_blanking:
-            blank_variant = VARIANT(pythoncom.VT_R4, 1)
-        else:
-            blank_variant = VARIANT(pythoncom.VT_R4, 0)
-        ret_val = self.sem_api.Set('DP_BEAM_BLANKING', blank_variant)[0]
+        ret_val = self.sem_set('DP_BEAM_BLANKING', int(enable_blanking))
         if ret_val == 0:
             return True
         else:
@@ -558,38 +558,38 @@ class SEM_SmartSEM(SEM):
 
     def run_autofocus(self):
         """Run ZEISS autofocus, break if it takes longer than 1 min."""
-        self.sem_api.Execute('CMD_UNFREEZE_ALL')
+        self.sem_execute('CMD_UNFREEZE_ALL')
         sleep(1)
-        ret_val = self.sem_api.Execute('CMD_AUTO_FOCUS_FINE')
+        ret_val = self.sem_execute('CMD_AUTO_FOCUS_FINE')
         sleep(1)
         timeout_counter = 0
-        while self.sem_api.Get('DP_AUTO_FUNCTION', 0)[1] == 'Focus':
+        while self.sem_get('DP_AUTO_FUNCTION') == 'Focus':
             sleep(1)
             timeout_counter += 1
             if timeout_counter > 60:
                 ret_val = 1
                 break
         if not self.magc_mode:
-            self.sem_api.Execute('CMD_FREEZE_ALL')
+            self.sem_execute('CMD_FREEZE_ALL')
         # Error state is set in acquisition.py when this function is
         # called via autofocus.py
         return ret_val == 0
 
     def run_autostig(self):
         """Run ZEISS autostig, break if it takes longer than 1 min."""
-        self.sem_api.Execute('CMD_UNFREEZE_ALL')
+        self.sem_execute('CMD_UNFREEZE_ALL')
         sleep(1)
-        ret_val = self.sem_api.Execute('CMD_AUTO_STIG')
+        ret_val = self.sem_execute('CMD_AUTO_STIG')
         sleep(1)
         timeout_counter = 0
-        while self.sem_api.Get('DP_AUTO_FN_STATUS', 0)[1] == 'Busy':
+        while self.sem_get('DP_AUTO_FN_STATUS') == 'Busy':
             sleep(1)
             timeout_counter += 1
             if timeout_counter > 60:
                 ret_val = 1
                 break
         if not self.magc_mode:
-            self.sem_api.Execute('CMD_FREEZE_ALL')
+            self.sem_execute('CMD_FREEZE_ALL')
         # Error state is set in acquisition.py when this function is
         # called via autofocus.py
         return ret_val == 0
@@ -597,18 +597,18 @@ class SEM_SmartSEM(SEM):
     def run_autofocus_stig(self):
         """Run combined ZEISS autofocus and autostig, break if it takes
         longer than 1 min."""
-        self.sem_api.Execute('CMD_UNFREEZE_ALL')
+        self.sem_execute('CMD_UNFREEZE_ALL')
         sleep(1)
-        ret_val = self.sem_api.Execute('CMD_FOCUS_STIG')
+        ret_val = self.sem_execute('CMD_FOCUS_STIG')
         sleep(1)
         timeout_counter = 0
-        while self.sem_api.Get('DP_AUTO_FN_STATUS', 0)[1] == 'Busy':
+        while self.sem_get('DP_AUTO_FN_STATUS') == 'Busy':
             sleep(1)
             timeout_counter += 1
             if timeout_counter > 60:
                 ret_val = 1
                 break
-        self.sem_api.Execute('CMD_FREEZE_ALL')
+        self.sem_execute('CMD_FREEZE_ALL')
         # Error state is set in acquisition.py when this function is
         # called via autofocus.py
         return ret_val == 0
@@ -655,7 +655,7 @@ class SEM_SmartSEM(SEM):
         y = self.get_stage_y() / 10**6
         z = self.get_stage_z() / 10**6
         self.sem_api.MoveStage(x, y, z, 0, self.stage_rotation, 0)
-        while self.sem_api.Get('DP_STAGE_IS')[1] == 'Busy':
+        while self.sem_stage_busy():
             sleep(self.stage_move_check_interval)
         sleep(self.stage_move_wait_interval)
         self.last_known_x = self.sem_api.GetStagePosition()[1] * 10**6
@@ -666,7 +666,7 @@ class SEM_SmartSEM(SEM):
         x = self.get_stage_x() / 10**6
         z = self.get_stage_z() / 10**6
         self.sem_api.MoveStage(x, y, z, 0, self.stage_rotation, 0)
-        while self.sem_api.Get('DP_STAGE_IS')[1] == 'Busy':
+        while self.sem_stage_busy():
             sleep(self.stage_move_check_interval)
         sleep(self.stage_move_wait_interval)
         self.last_known_y = self.sem_api.GetStagePosition()[2] * 10**6
@@ -677,7 +677,7 @@ class SEM_SmartSEM(SEM):
         x = self.get_stage_x() / 10**6
         y = self.get_stage_y() / 10**6
         self.sem_api.MoveStage(x, y, z, 0, self.stage_rotation, 0)
-        while self.sem_api.Get('DP_STAGE_IS')[1] == 'Busy':
+        while self.sem_stage_busy():
             sleep(self.stage_move_check_interval)
         sleep(self.stage_move_wait_interval)
         self.last_known_z = self.sem_api.GetStagePosition()[3] * 10**6
@@ -689,7 +689,7 @@ class SEM_SmartSEM(SEM):
         y /= 10**6
         z = self.get_stage_z() / 10**6
         self.sem_api.MoveStage(x, y, z, 0, self.stage_rotation, 0)
-        while self.sem_api.Get('DP_STAGE_IS')[1] == 'Busy':
+        while self.sem_stage_busy():
             sleep(self.stage_move_check_interval)
         sleep(self.stage_move_wait_interval)
         new_x, new_y = self.sem_api.GetStagePosition()[1:3]
@@ -702,7 +702,7 @@ class SEM_SmartSEM(SEM):
         if no_wait:
             sleep(self.stage_move_wait_interval)
             return
-        while self.sem_api.Get('DP_STAGE_IS')[1] == 'Busy':
+        while self.sem_stage_busy():
             sleep(self.stage_move_check_interval)
         sleep(self.stage_move_wait_interval)
 
@@ -713,7 +713,7 @@ class SEM_SmartSEM(SEM):
         if no_wait:
             sleep(self.stage_move_wait_interval)
             return
-        while self.sem_api.Get('DP_STAGE_IS')[1] == 'Busy':
+        while self.sem_stage_busy():
             sleep(self.stage_move_check_interval)
         sleep(self.stage_move_wait_interval)
 
@@ -723,7 +723,7 @@ class SEM_SmartSEM(SEM):
         y /= 10**6
         z /= 10**6
         self.sem_api.MoveStage(x, y, z, t, self.stage_rotation, 0)
-        while self.sem_api.Get('DP_STAGE_IS')[1] == 'Busy':
+        while self.sem_stage_busy():
             sleep(self.stage_move_check_interval)
         sleep(self.stage_move_wait_interval)
 
@@ -733,7 +733,7 @@ class SEM_SmartSEM(SEM):
         y /= 10**6
         z /= 10**6
         self.sem_api.MoveStage(x, y, z, t, r, 0)
-        while self.sem_api.Get('DP_STAGE_IS')[1] == 'Busy':
+        while self.sem_stage_busy():
             sleep(self.stage_move_check_interval)
         sleep(self.stage_move_wait_interval)
 
