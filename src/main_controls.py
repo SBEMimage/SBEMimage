@@ -306,6 +306,9 @@ class MainControls(QMainWindow):
             self.pushButton_startAcq.setText('CONTINUE')
             self.pushButton_resetAcq.setEnabled(True)
 
+        # *** for debugging ***
+        #self.restrict_gui(False)
+
         utils.show_progress_in_console(100)
 
         print('\n\nReady.\n')

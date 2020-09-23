@@ -197,7 +197,7 @@ class SEM_SmartSEM(SEM):
     def has_fcc(self):
         """Return True if FCC (= Focal Charge Compensator) is fitted."""
         if not self.simulation_mode:
-            return "yes" in self.self.sem_get('DP_CAPCC_FITTED').lower()
+            return "yes" in self.sem_get('DP_CAPCC_FITTED').lower()
         return False
 
     def is_fcc_on(self):
@@ -210,7 +210,7 @@ class SEM_SmartSEM(SEM):
 
     def get_fcc_level(self):
         """Read current FCC pressure (0-100) from SmartSEM."""
-        return self.self.sem_get('AP_CC_PRESSURE')
+        return self.sem_get('AP_CC_PRESSURE')
 
     def turn_fcc_on(self):
         """Turn FCC on."""
@@ -247,7 +247,7 @@ class SEM_SmartSEM(SEM):
 
     def get_beam_current(self):
         """Read beam current (in pA) from SmartSEM."""
-        return int(round(self.self.sem_get('AP_IPROBE') * 10**12))
+        return int(round(self.sem_get('AP_IPROBE') * 10**12))
 
     def set_beam_current(self, target_current):
         """Save the target beam current (in pA) and set the SEM's beam to this

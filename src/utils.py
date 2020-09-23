@@ -246,9 +246,9 @@ class QtTextHandler(StreamHandler):
             message = message[0:i].strip() + " : See log for details"
         if self.text_control:
             self.text_control.appendPlainText(message)
-            self.text_control.ensureCursorVisible()
-            # *** TODO: fix control refresh after adding text:
-            #self.text_control.update()
+            # fix refresh after updating text in thread:
+            self.text_control.hide()
+            self.text_control.show()
         else:
             self.buffer.append(message)
 

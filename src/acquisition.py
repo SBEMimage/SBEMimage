@@ -519,6 +519,15 @@ class Acquisition:
 # ====================== STACK ACQUISITION THREAD run() ========================
 
     def run(self):
+        # override exception catching to reset GUI on error
+        try:
+            self.run_acquisition()
+        except:
+            utils.log_exception("Exception")
+            # Reset GUI
+            self.main_controls_trigger.transmit('ACQ NOT IN PROGRESS')
+
+    def run_acquisition(self):
         """Run acquisition in a thread started from main_controls.py."""
 
         self.reset_error_state()
