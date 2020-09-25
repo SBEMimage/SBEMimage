@@ -77,6 +77,11 @@ LOG_MAX_FILECOUNT = 10
 class Error(Enum):
     none = 0
 
+    # Movement
+    move_init = 42
+    move_params = 44
+    move_unsafe = 45
+
     # DM communication
     dm_init = 101
     dm_comm_send = 102
@@ -135,6 +140,11 @@ class Error(Enum):
 
 Errors = {
     Error.none: 'No error',
+
+    # Movement
+    Error.move_init: 'Movement initialisation error',
+    Error.move_params: 'Movement invalid parameter',
+    Error.move_unsafe: 'Movement unsafe',
 
     # DM communication
     Error.dm_init: 'DM script initialisation error',

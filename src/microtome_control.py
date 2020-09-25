@@ -80,7 +80,7 @@ class BFRemover(ABC):
         raise NotImplementedError
 
     def reset_error_state(self):
-        self.error_state = 0
+        self.error_state = Error.none
         self.error_info = ''
 
     # Optional motor movements, e.g. these are available if SEM stage is active and must then

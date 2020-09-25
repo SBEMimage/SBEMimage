@@ -14,6 +14,7 @@ import serial
 import threading
 
 import utils
+from utils import Error
 from microtome_control import Microtome
 
 
@@ -334,7 +335,7 @@ class Microtome_katana(Microtome):
         pass
 
     def reset_error_state(self):
-        self.error_state = 0
+        self.error_state = Error.none
         self.error_info = ''
 
     def disconnect(self):

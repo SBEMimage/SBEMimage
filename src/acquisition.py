@@ -943,7 +943,7 @@ class Acquisition:
                 self.metadata_project_name, self.stack_name,
                 session_stopped_status)
             if status == 100:
-                self.error_state = 508
+                self.error_state = Error.metadata_server
                 self.pause_acquisition(1)
                 utils.log_error('CTRL',
                                 'Error sending "session stopped" '
