@@ -84,7 +84,7 @@ class MainControls(QMainWindow):
         self.cfg_file = config_file
         self.syscfg_file = self.cfg['sys']['sys_config_file']
         self.VERSION = VERSION
-    
+
         # Show progress bar in console during start-up. The percentages are
         # just estimates, but helpful for user to see that initialization
         # is in progress.
@@ -387,7 +387,7 @@ class MainControls(QMainWindow):
     def initialize_main_controls_gui(self):
         """Load and set up the Main Controls GUI"""
         loadUi('..\\gui\\main_window.ui', self)
-        if self.VERSION.lower() == 'dev':
+        if 'dev' in self.VERSION.lower():
             self.setWindowTitle(
                 'SBEMimage - Main Controls - DEVELOPMENT VERSION')
             # Disable 'Update' function (would overwrite current (local) changes

@@ -38,7 +38,7 @@ from main_controls import MainControls
 
 # VERSION contains the current version/release date information for the
 # master branch (for example, '2020.07 R2020-07-28'). For the current version
-# in the dev (development) branch, it is set to 'dev'.
+# in the dev (development) branch, it must contain the tag 'dev'.
 # Following https://www.python.org/dev/peps/pep-0440/#public-version-identifiers
 VERSION = '2020.09.11.dev1'
 
@@ -82,9 +82,9 @@ def main():
 
     colorama.init()
     os.system('cls')
-    if VERSION.lower() == 'dev':
+    if 'dev' in VERSION.lower():
         title_str = 'SBEMimage - Console - DEVELOPMENT VERSION'
-        version_info = 'DEVELOPMENT VERSION'
+        version_info = f'DEVELOPMENT VERSION ({VERSION})'
     else:
         title_str = 'SBEMimage - Console'
         version_info = 'Version ' + VERSION
