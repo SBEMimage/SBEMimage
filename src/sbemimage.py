@@ -20,11 +20,13 @@ Then the QMainWindow MainControls (in main_controls.py) is launched.
 
 Use 'python sbemimage.py' or call the batch file SBEMimage.bat to run SBEMimage.
 """
-
 import os
 import sys
 import platform
 import ctypes
+import traceback
+
+import utils
 from configparser import ConfigParser
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import Qt
@@ -37,7 +39,16 @@ from main_controls import MainControls
 # VERSION contains the current version/release date information for the
 # master branch (for example, '2020.07 R2020-07-28'). For the current version
 # in the dev (development) branch, it is set to 'dev'.
-VERSION = 'dev'
+# Following https://www.python.org/dev/peps/pep-0440/#public-version-identifiers
+VERSION = '2020.09.11.dev1'
+
+
+# Hook for uncaught/Qt exceptions
+def excepthook(exc_type, exc_value, exc_tb):
+    message = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
+    utils.log_exception(message)
+
+sys.excepthook = excepthook
 
 
 def main():
@@ -48,11 +59,14 @@ def main():
     Quit if default.ini can't be found, or if user/system configuration cannot
     be loaded.
     """
+
+    utils.logging_init("SBEMimage started")
+
     # Check Windows version
     if not (platform.system() == 'Windows'
             and platform.release() in ['7', '10']):
-        print('Error: This version of SBEMimage requires Windows 7 or 10. '
-              'Program aborted.\n')
+        utils.log_error('This version of SBEMimage requires Windows 7 or 10. '
+                        'Program aborted.\n')
         os.system('cmd /k')  # keep console window open
         sys.exit()
 
@@ -122,7 +136,7 @@ def main():
                 print(' Done.\n')
             except Exception as e:
                 configuration_loaded = False
-                print('\nError while loading configuration! '
+                utils.log_error('\nError while loading configuration! '
                       'Program aborted.\n Exception: ' + str(e))
                 # Keep terminal window open when run from batch file
                 os.system('cmd /k')
@@ -130,8 +144,8 @@ def main():
     else:
         # Quit if default.ini doesn't exist
         configuration_loaded = False
-        print('Error: default.ini and/or system.cfg not found. '
-              'Program aborted.\n')
+        utils.log_error('default.ini and/or system.cfg not found. '
+                      'Program aborted.\n')
         os.system('cmd /k')
         sys.exit()
 
@@ -152,7 +166,7 @@ def main():
 
         if success:
             if default_configuration:
-                print('Default configuration loaded (read-only).\n')
+                utils.log_info('Default configuration loaded (read-only).')
             else:
                 if cfg_changed and syscfg_changed:
                     ch_str = 'config and sysconfig updated'
@@ -162,7 +176,7 @@ def main():
                     ch_str = "sysconfig updated"
                 else:
                     ch_str = 'complete, no updates'
-                print('Configuration loaded and checked: ' + ch_str + '\n')
+                utils.log_info('Configuration loaded and checked: ' + ch_str)
 
             # Remove status.dat. This file will be recreated when the program
             # terminates normally. The start-up dialog checks if status.dat
@@ -170,19 +184,22 @@ def main():
             if os.path.isfile('..\\cfg\\status.dat'):
                 os.remove('..\\cfg\\status.dat')
 
-            print('Initializing SBEMimage. Please wait...\n')
+            print('Initialising SBEMimage. Please wait...\n')
 
             # Launch Main Controls window. The Viewport window (see viewport.py)
             # is launched from Main Controls.
-            SBEMimage_main_window = MainControls(config,
-                                                 sysconfig,
-                                                 config_file,
-                                                 VERSION)
-            sys.exit(SBEMimage.exec_())
+            try:
+                SBEMimage_main_window = MainControls(config,
+                                                     sysconfig,
+                                                     config_file,
+                                                     VERSION)
+                sys.exit(SBEMimage.exec_())
+            except Exception:
+                utils.log_exception("Exception")
         else:
-            print('Error(s) while checking configuration file(s): '
-                  + exceptions + '\n'
-                  + 'Program aborted.\n')
+            utils.log_error('Error(s) while checking configuration file(s): '
+                            + exceptions + '\n'
+                            + 'Program aborted.\n')
             os.system('cmd /k')
             sys.exit()
 

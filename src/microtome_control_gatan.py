@@ -13,6 +13,7 @@ import os
 from time import sleep
 
 import utils
+from utils import Error
 from microtome_control import Microtome
 
 
@@ -53,7 +54,7 @@ class Microtome_3View(Microtome):
         self.ERROR_FILE = os.path.join('..', 'dm', 'DMcom.err')
 
         # Perform handshake and read initial X/Y/Z
-        if not self.simulation_mode and self.error_state == 0:
+        if not self.simulation_mode and self.error_state == Error.none:
             self._send_dm_command('Handshake')
             # DM script should react to trigger file by reading command file
             # usually within 0.1 s (default check interval)
@@ -64,30 +65,30 @@ class Microtome_3View(Microtome):
                 current_x, current_y = self.get_stage_xy(wait_interval=1)
                 if ((current_x is None) or (current_y is None)
                         or (current_z is None)):
-                    self.error_state = 101
+                    self.error_state = Error.dm_init
                     self.error_info = ('microtome.__init__: could not read '
                                        'initial stage position')
                 elif current_z < 0:
-                    self.error_state = 101
+                    self.error_state = Error.dm_init
                     self.error_info = ('microtome.__init__: stage z position '
                                        'must not be negative.')
                 # Check if current Z coordinate matches last known Z from
                 # previous session
                 elif (self.stage_z_prev_session is not None
                       and abs(current_z - self.stage_z_prev_session) > 0.01):
-                    self.error_state = 206
+                    self.error_state = Error.mismatch_z
                     self.error_info = ('microtome.__init__: stage z position '
                                        'mismatch')
                 # Update motor speeds in DM script
                 success = self.update_motor_speeds_in_dm_script()
                 # If update unsuccesful, set new error state unless microtome
                 # is already in an error state after reading the coordinates.
-                if not success and self.error_state == 0:
-                    self.error_state = 101
+                if not success and self.error_state == Error.none:
+                    self.error_state = Error.dm_init
                     self.error_info = ('microtome.__init__: could not update '
                                        'DM script with current motor speeds')
             else:
-                self.error_state = 101
+                self.error_state = Error.dm_init
                 self.error_info = 'microtome.__init__: handshake failed'
 
     def _send_dm_command(self, cmd, set_values=[]):
@@ -113,12 +114,12 @@ class Microtome_3View(Microtome):
             try:
                 os.rename(self.INPUT_FILE, self.COMMAND_FILE)
             except Exception as e:
-                if self.error_state == 0:
-                    self.error_state = 102
+                if self.error_state == Error.none:
+                    self.error_state = Error.dm_comm_send
                     self.error_info = ('microtome._send_dm_command: could not '
                                        'rename input file (' + str(e) + ')')
-        elif self.error_state == 0:
-            self.error_state = 102
+        elif self.error_state == Error.none:
+            self.error_state = Error.dm_comm_send
             self.error_info = ('microtome._send_dm_command: could not write '
                                'to input file')
 
@@ -130,8 +131,8 @@ class Microtome_3View(Microtome):
             for line in return_file:
                 return_values.append(line.rstrip())
             return_file.close()
-        elif self.error_state == 0:
-            self.error_state = 104
+        elif self.error_state == Error.none:
+            self.error_state = Error.dm_comm_retval
             self.error_info = ('microtome._read_dm_return_values: could not '
                                'read from output file')
         if return_values == []:
@@ -178,36 +179,36 @@ class Microtome_3View(Microtome):
     def do_sweep(self, z_position):
         """Perform a sweep by cutting slightly above the surface."""
         if (((self.sweep_distance < 30) or (self.sweep_distance > 1000))
-                and self.error_state == 0):
-            self.error_state = 205
+                and self.error_state == Error.none):
+            self.error_state = Error.sweeping
             self.error_info = 'microtome.do_sweep: sweep distance out of range'
-        elif self.error_state == 0:
+        elif self.error_state == Error.none:
             # Move to new z position
             sweep_z_position = z_position - (self.sweep_distance / 1000)
             self.move_stage_to_z(sweep_z_position)
-            if self.error_state > 0:
+            if self.error_state != Error.none:
                 # Try again
                 self.reset_error_state()
                 sleep(2)
                 self.move_stage_to_z(sweep_z_position)
-            if self.error_state == 0:
+            if self.error_state == Error.none:
                 # Do a cut cycle above the sample surface to clear away debris
                 self.do_full_cut()
                 sleep(self.full_cut_duration)
                 # Check if error occurred during cut cycle.
                 if os.path.isfile(self.ERROR_FILE):
-                    self.error_state = 205
+                    self.error_state = Error.sweeping
                     self.error_info = ('microtome.do_sweep: error during '
                                        'cutting cycle')
                 elif not os.path.isfile(self.ACK_CUT_FILE):
                     # Cut cycle was not carried out
-                    self.error_state = 103
+                    self.error_state = Error.dm_comm_response
                     self.error_info = ('microtome.do_sweep: command not '
                                        'processed by DM script')
 
             # Move to previous z position (before sweep)
             self.move_stage_to_z(z_position)
-            if self.error_state > 0:
+            if self.error_state != Error.none:
                 # Try again
                 sleep(2)
                 self.reset_error_state()
@@ -235,8 +236,8 @@ class Microtome_3View(Microtome):
             success = os.path.isfile(self.ACK_FILE)
         if not success:
             # Command was not processed
-            if self.error_state == 0:
-                self.error_state = 103
+            if self.error_state == Error.none:
+                self.error_state = Error.dm_comm_response
                 self.error_info = ('microtome.update_motor_speeds_in_dm_script: '
                                    'command not processed by DM script')
         return success
@@ -265,8 +266,8 @@ class Microtome_3View(Microtome):
                 return speed_x, speed_y
 
         # Measurement command was not processed/finished within 90 s
-        if self.error_state == 0:
-            self.error_state = 103
+        if self.error_state == Error.none:
+            self.error_state = Error.dm_comm_response
             self.error_info = ('microtome.measure_motor_speeds: '
                                'DM script timeout')
         return None, None
@@ -347,10 +348,10 @@ class Microtome_3View(Microtome):
                 # Move did not fail: Update deques
                 self.failed_x_move_warnings.append(0)
                 self.failed_y_move_warnings.append(0)
-            elif os.path.isfile(self.ERROR_FILE) and self.error_state == 0:
+            elif os.path.isfile(self.ERROR_FILE) and self.error_state == Error.none:
                 # Move was not confirmed and error file exists:
                 # The motors did not reach the target position.
-                self.error_state = 201
+                self.error_state = Error.stage_xy
                 self.error_info = ('microtome.move_stage_to_xy: did not reach '
                                    'target xy position')
                 # Read last known position (written into output file by DM
@@ -379,9 +380,9 @@ class Microtome_3View(Microtome):
                     else:
                         self.failed_y_move_warnings.append(0)
 
-            elif self.error_state == 0:
+            elif self.error_state == Error.none:
                 # If neither .ack nor .err exist, the command was not processed
-                self.error_state = 103
+                self.error_state = Error.dm_comm_response
                 self.error_info = ('microtome.move_stage_to_xy: command not '
                                    'processed by DM script')
 
@@ -399,7 +400,7 @@ class Microtome_3View(Microtome):
         if success:
             if (self.last_known_z is not None
                 and abs(z - self.last_known_z) > 0.01):
-                self.error_state = 206
+                self.error_state = Error.mismatch_z
             self.prev_known_z = self.last_known_z
             self.last_known_z = z
         return z
@@ -409,9 +410,9 @@ class Microtome_3View(Microtome):
         before each cut and for sweeps.
         """
         if (((self.last_known_z >= 0) and (abs(z - self.last_known_z) > 0.205))
-                and self.error_state == 0 and safe_mode):
+                and self.error_state == Error.none and safe_mode):
             # Z must not change more than ~200 nm during stack acquisitions!
-            self.error_state = 203
+            self.error_state = Error.stage_z_move
             self.error_info = ('microtome.move_stage_to_z: Z move too '
                                'large (> 200 nm)')
         else:
@@ -433,9 +434,9 @@ class Microtome_3View(Microtome):
                     self.prev_known_z = self.last_known_z
                     self.last_known_z = z
                     self.failed_z_move_warnings.append(0)
-                elif os.path.isfile(self.ERROR_FILE) and self.error_state == 0:
+                elif os.path.isfile(self.ERROR_FILE) and self.error_state == Error.none:
                     # There was an error during the move
-                    self.error_state = 202
+                    self.error_state = Error.stage_z
                     self.error_info = ('microtome.move_stage_to_z: '
                                        'did not reach target z position')
                     self.failed_xyz_move_counter[2] += 1
@@ -448,9 +449,9 @@ class Microtome_3View(Microtome):
                             self.last_known_z = float(current_z[0])
                         except:
                             pass  # keep current coordinates
-                elif self.error_state == 0:
+                elif self.error_state == Error.none:
                     # If neither .ack nor .err exist, command was not processed
-                    self.error_state = 103
+                    self.error_state = Error.dm_comm_response
                     self.error_info = ('move_stage_to_z: command not processed '
                                        'by DM script')
 
@@ -472,13 +473,13 @@ class Microtome_3View(Microtome):
         # Excess duration of cutting cycle in seconds
         delay = 0
         # Check if error occurred during self.do_full_cut()
-        if self.error_state == 0 and os.path.isfile(self.ERROR_FILE):
-            self.error_state = 204
+        if self.error_state == Error.none and os.path.isfile(self.ERROR_FILE):
+            self.error_state = Error.cutting
             self.error_info = ('microtome.do_full_cut: error during '
                                'cutting cycle')
         elif not os.path.isfile(self.ACK_CUT_FILE):
             # Cut cycle was not carried out within the specified time limit
-            self.error_state = 103
+            self.error_state = Error.dm_comm_response
             self.error_info = ('microtome.do_full_cut: command not '
                                'processed by DM script')
             # Wait for another 15 sec maximum until cut is confirmed (.ac2
@@ -488,19 +489,19 @@ class Microtome_3View(Microtome):
                 delay += 1
                 if os.path.isfile(self.ACK_CUT_FILE):
                     # Cut is confirmed after delay, reset error state
-                    self.error_state = 0
+                    self.error_state = Error.none
                     self.error_info = ''
                     break
                 elif os.path.isfile(self.ERROR_FILE):
                     # An error occurred during the excess duration
-                    self.error_state = 204
+                    self.error_state = Error.cutting
                     self.error_info = ('microtome.do_full_cut: error during '
                                        'cutting cycle')
                     break
         return delay
 
     def reset_error_state(self):
-        self.error_state = 0
+        self.error_state = Error.none
         self.error_info = ''
         if os.path.isfile(self.ERROR_FILE):
             os.remove(self.ERROR_FILE)

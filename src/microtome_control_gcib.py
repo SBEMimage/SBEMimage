@@ -4,6 +4,10 @@ import json
 import numpy as np
 from microtome_control import BFRemover
 
+import utils
+from utils import Error
+
+
 try:
     import ftdidio
     _ftdidio_avail = True
@@ -35,7 +39,7 @@ class GCIB(BFRemover):
         self.cfg = config
         self.syscfg = sysconfig
         self.stage = stage
-        self.error_state = 0
+        self.error_state = Error.none
         self.error_info = ''
         self.acq = None
         # Load device name and other settings from sysconfig. These
@@ -61,13 +65,13 @@ class GCIB(BFRemover):
             self.xyzt_milling = np.array(json.loads(self.cfg['gcib']['xyzt_milling']))
             self.full_cut_duration = self.mill_cycle
         except Exception as e:
-            self.error_state = 701
+            self.error_state = Error.configuration
             self.error_info = str(e)
             return  # return here otherwise this error will be overwritten by the next lines
         try:
             self._ftdi_device = ftdidio.Ftdidio()
         except Exception as e:
-            self.error_state = 701
+            self.error_state = Error.configuration
             self.error_info = f'Could not initialize ftdidio: {str(e)}'
         self._connect_blanking()
 
@@ -77,7 +81,7 @@ class GCIB(BFRemover):
             self._ftdi_device.set_mask(1)
             self._blank_beam()  # 1 = blanking?
         except ftdidio.FtdidioError as e:
-            self.error_state = 42
+            self.error_state = Error.move_init
             self.error_info = str(e)
 
     def _disconnect_blanking(self):
@@ -88,7 +92,7 @@ class GCIB(BFRemover):
             self._unblank_beam()
             self._ftdi_device.close()
         except ftdidio.FtdidioError as e:
-            self.error_state = 42
+            self.error_state = Error.move_init
             self.error_info = str(e)
 
     def _blank_beam(self):
@@ -119,7 +123,7 @@ class GCIB(BFRemover):
         # move_to_xyzt will set rotation to self.stage.rotation, no need to store r explicitly
         if np.all(self.xyzt_milling == 0):
             self.error_info = 'NotInitializedError: Location parameters for milling have not been set.'
-            self.error_state = 44
+            self.error_state = Error.move_params
             return
         x, y, z, t, r = self.stage.get_stage_xyztr()
         msg = f'GCIB: Start position for milling cycle X={x}, Y={y}, Z={z}, T={t}, R={r}.'
@@ -128,7 +132,7 @@ class GCIB(BFRemover):
         else:
             print(msg)
         if not np.isclose(t, 0, atol=1e-4):
-            self.error_state = 45
+            self.error_state = Error.move_unsafe
             self.error_info = (f'UnsafeMovementError: Current t position is supposed to be close to 0,'
                                f'instead got: {t} != 0.')
             return
@@ -136,11 +140,11 @@ class GCIB(BFRemover):
         if not np.isclose(t, 0):
             self.error_info = 'UnsafeMovementError: Current tilt angle is not close to 0. As a safety measure, ' \
                               'this is currently not supported.'
-            self.error_state = 45
+            self.error_state = Error.move_unsafe
             return
         x_mill, y_mill, z_mill, t_mill = self.xyzt_milling
         if z < z_mill:
-            self.error_state = 45
+            self.error_state = Error.move_unsafe
             self.error_info = (f'UnsafeMovementError: Current z position is smaller than the '
                                f'one given as milling location: {z} < {z_mill}.')
             return
@@ -172,11 +176,11 @@ class GCIB(BFRemover):
         """
         if self._pos_prior_mill_mov is None:
             self.error_info = 'UnsafeMovementError: Position prior to mill movement is None.'
-            self.error_state = 44
+            self.error_state = Error.move_params
             return
         x, y, z, t, r = self._pos_prior_mill_mov
         if not np.isclose(t, 0, atol=1e-4):
-            self.error_state = 45
+            self.error_state = Error.move_unsafe
             self.error_info = (f'UnsafeMovementError: Tilt position before milling is supposed to be close to 0,'
                                f'instead got: {t} != 0.')
             return
@@ -188,7 +192,7 @@ class GCIB(BFRemover):
         _, _, _, t_curr, _ = self.stage.get_stage_xyztr()
         # double check tilt position
         if not np.isclose(t_curr, 0, atol=1e-4):
-            self.error_state = 45
+            self.error_state = Error.move_unsafe
             self.error_info = (f'IncosistentMoveError: Target t position is supposed to be close to 0,'
                                f'instead got: {t} != 0.')
             return
@@ -200,7 +204,7 @@ class GCIB(BFRemover):
         # TODO: any check required?
         # _, _, _, _, r_dest = self.stage.get_stage_xyztr()
         # if not np.isclose(r_dest, self.stage.stage_rotation, atol=1e-4):
-        #     self.error_state = 45
+        #     self.error_state = Error.move_unsafe
         #     self.error_info = (f'IncosistentMoveError: Current r position is supposed to be close to '
         #                        f'self.stage.stage_rotation={self.stage.stage_rotation},'
         #                        f'instead got: {r_dest} != 0.')

@@ -42,7 +42,7 @@ class StubOVDlg(QDialog):
         loadUi('..\\gui\\stub_ov_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         self.sem = sem
         self.stage = stage
@@ -174,14 +174,12 @@ class StubOVDlg(QDialog):
             self.progressBar.setValue(0)
             self.viewport_trigger.transmit('STATUS BUSY STUB')
             QApplication.processEvents()
-            stub_acq_thread = threading.Thread(
-                                  target=acq_func.acquire_stub_ov,
-                                  args=(self.sem, self.stage,
-                                        self.ovm, self.acq,
-                                        self.img_inspector,
-                                        self.stub_dlg_trigger,
-                                        self.abort_queue,))
-            stub_acq_thread.start()
+            utils.run_log_thread(acq_func.acquire_stub_ov,
+                                 self.sem, self.stage,
+                                 self.ovm, self.acq,
+                                 self.img_inspector,
+                                 self.stub_dlg_trigger,
+                                 self.abort_queue)
         else:
             QMessageBox.warning(
                 self, 'EHT off',
@@ -210,7 +208,7 @@ class FocusGradientTileSelectionDlg(QDialog):
         loadUi('..\\gui\\wd_gradient_tile_selection_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         self.grid_illustration.setPixmap(QPixmap('..\\img\\grid.png'))
         if current_ref_tiles[0] >= 0:
@@ -257,7 +255,7 @@ class GridRotationDlg(QDialog):
         loadUi('..\\gui\\change_grid_rotation_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         self.label_description.setText(
             f'Rotation of selected grid {self.selected_grid} in degrees:')
@@ -300,10 +298,7 @@ class GridRotationDlg(QDialog):
             # Start thread to ensure viewport is drawn with labels and previews
             # after rotation completed.
             self.rotation_in_progress = True
-            update_viewport_with_delay_thread = threading.Thread(
-                target=self.update_viewport_with_delay,
-                args=())
-            update_viewport_with_delay_thread.start()
+            utils.run_log_thread(self.update_viewport_with_delay)
         if self.radioButton_pivotCentre.isChecked():
             # Get current centre of grid:
             centre_dx, centre_dy = self.gm[self.selected_grid].centre_dx_dy
@@ -360,7 +355,7 @@ class ImportImageDlg(QDialog):
         loadUi('..\\gui\\import_image_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         self.pushButton_selectFile.clicked.connect(self.select_file)
         self.pushButton_selectFile.setIcon(QIcon('..\\img\\selectdir.png'))
@@ -455,7 +450,7 @@ class AdjustImageDlg(QDialog):
         loadUi('..\\gui\\adjust_imported_image_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
 
         if self.magc_mode:
             # magc_mode is restrictive about imported images
@@ -512,7 +507,7 @@ class DeleteImageDlg(QDialog):
         loadUi('..\\gui\\delete_image_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         # Populate the list widget with existing imported images:
         img_list = []

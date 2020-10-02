@@ -28,7 +28,7 @@ from random import random
 from time import sleep, time
 
 from validate_email import validate_email
-from math import atan, sqrt
+from math import atan, atan2, sqrt
 from statistics import mean
 from PIL import Image
 from skimage.io import imread
@@ -44,7 +44,26 @@ from PyQt5.QtWidgets import QApplication, QDialog, QMessageBox, \
                             QFileDialog, QLineEdit, QDialogButtonBox
 
 import utils
+from utils import Error
 import acq_func
+
+
+class UpdateQThread(QThread):
+    """Helper for updating QDialogs using QThread"""
+    update = pyqtSignal()
+
+    def __init__(self, secs):
+        self.active = True
+        self.secs = secs
+        QThread.__init__(self)
+
+    def run(self):
+        while self.active:
+            self.update.emit()
+            sleep(self.secs)
+
+    def stop(self):
+        self.active = False
 
 
 class ConfigDlg(QDialog):
@@ -67,7 +86,7 @@ class ConfigDlg(QDialog):
         self.label_website.setText('<a href="https://github.com/SBEMimage">'
                                    'https://github.com/SBEMimage</a>')
         self.label_website.setOpenExternalLinks(True)
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         self.abort = False
         # Populate the list widget with existing .ini files
@@ -137,7 +156,7 @@ class SaveConfigDlg(QDialog):
         loadUi('..\\gui\\save_config_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         self.lineEdit_cfgFileName.setText('')
         # lineEdit for syscfg is disabled by default
@@ -222,12 +241,14 @@ class SEMSettingsDlg(QDialog):
         loadUi('..\\gui\\sem_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         # Display actual settings from SmartSEM
         self.doubleSpinBox_actualEHT.setValue(self.sem.get_eht())
         self.spinBox_actualBeamCurrent.setValue(self.sem.get_beam_current())
         self.spinBox_actualBeamSize.setValue(self.sem.get_aperture_size())
+        self.checkBox_highCurrent.setEnabled(self.sem.HAS_HIGH_CURRENT)
+        self.checkBox_highCurrent.setChecked(self.sem.get_high_current())
         # Update/disable appropriate GUI elements
         self.spinBox_beamCurrent.setEnabled(self.sem.BEAM_CURRENT_MODE == 'current')
         self.comboBox_beamSize.setEnabled(self.sem.BEAM_CURRENT_MODE != 'current')
@@ -246,6 +267,7 @@ class SEMSettingsDlg(QDialog):
         self.sem.set_eht(self.doubleSpinBox_EHT.value())
         self.sem.set_beam_current(self.spinBox_beamCurrent.value())
         self.sem.set_aperture_size(self.comboBox_beamSize.currentIndex())
+        self.sem.set_high_current(self.checkBox_highCurrent.isChecked())
         super().accept()
 
 # ------------------------------------------------------------------------------
@@ -266,7 +288,7 @@ class MicrotomeSettingsDlg(QDialog):
         loadUi('..\\gui\\microtome_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         # Labels and selection options depend on whether microtome stage or
         # SEM stage is used.
@@ -385,7 +407,7 @@ class MotorStatusDlg(QDialog):
         loadUi('..\\gui\\motor_status_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         self.pushButton_update.clicked.connect(self.show_current_stats)
         self.pushButton_reset.clicked.connect(self.reset_counters)
@@ -559,7 +581,7 @@ class KatanaSettingsDlg(QDialog):
         loadUi('..\\gui\\katana_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
 
         # Set up COM port selector
@@ -734,7 +756,7 @@ class StageCalibrationDlg(QDialog):
         loadUi('..\\gui\\stage_calibration_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         self.arrow_symbol1.setPixmap(QPixmap('..\\img\\arrow.png'))
         self.arrow_symbol2.setPixmap(QPixmap('..\\img\\arrow.png'))
@@ -748,6 +770,7 @@ class StageCalibrationDlg(QDialog):
         self.doubleSpinBox_motorSpeedY.setValue(self.stage.motor_speed_y)
         self.comboBox_dwellTime.addItems(map(str, self.sem.DWELL_TIME))
         self.comboBox_dwellTime.setCurrentIndex(4)
+        # TODO: use a list instead:
         self.comboBox_package.addItems(['cv2', 'imreg_dft', 'skimage'])
         self.pushButton_startImageAcq.clicked.connect(
             self.start_stage_calibration_procedure)
@@ -765,8 +788,7 @@ class StageCalibrationDlg(QDialog):
         self.pushButton_measureMotorSpeeds.setEnabled(False)
         self.pushButton_startImageAcq.setEnabled(False)
         self.pushButton_measureMotorSpeeds.setText('Please wait... (~1 min)')
-        thread = threading.Thread(target=self.run_motor_speed_measurement)
-        thread.start()
+        utils.run_log_thread(self.run_motor_speed_measurement)
 
     def run_motor_speed_measurement(self):
         self.motor_speed_x, self.motor_speed_y = (
@@ -778,7 +800,7 @@ class StageCalibrationDlg(QDialog):
         self.pushButton_measureMotorSpeeds.setEnabled(True)
         self.pushButton_startImageAcq.setEnabled(True)
         self.pushButton_measureMotorSpeeds.setText('Measure XY motor speeds')
-        if self.motor_speed_x is None or self.stage.error_state > 0:
+        if self.motor_speed_x is None or self.stage.error_state != Error.none:
             self.stage.reset_error_state()
             QMessageBox.warning(self, 'Error',
                                 'XY motor speed measurement failed.',
@@ -849,8 +871,7 @@ class StageCalibrationDlg(QDialog):
             self.pushButton_measureMotorSpeeds.setEnabled(False)
             self.pushButton_calcStage.setEnabled(False)
             # Acquire images in thread
-            thread = threading.Thread(target=self.calibration_images_acq_thread)
-            thread.start()
+            utils.run_log_thread(self.calibration_images_acq_thread)
 
     def calibration_images_acq_thread(self):
         """Acquisition thread for three images used for the stage calibration.
@@ -966,6 +987,8 @@ class StageCalibrationDlg(QDialog):
         # Rotation angles (in radians)
         rot_x = atan(delta_xy/delta_xx)
         rot_y = atan(delta_yx/delta_yy)
+        rot2_x = atan2(self.x_shift_vector[1], self.x_shift_vector[0])
+        rot2_y = atan2(self.y_shift_vector[0], self.y_shift_vector[1])
         # Scale factors
         scale_x = shift / (sqrt(delta_xx**2 + delta_xy**2) * pixel_size / 1000)
         scale_y = shift / (sqrt(delta_yx**2 + delta_yy**2) * pixel_size / 1000)
@@ -974,9 +997,8 @@ class StageCalibrationDlg(QDialog):
         x_abs = np.linalg.norm(self.x_shift_vector)
         y_abs = np.linalg.norm(self.y_shift_vector)
         # Rotation angles:
-        rot_x_alt = np.arccos(self.x_shift_vector[0] / x_abs)
-        rot_y_alt = np.arccos(self.y_shift_vector[1] / y_abs)
-        print(f'Super alternativ calc: {rot_x_alt:.5f}\t{rot_y_alt:.5f}')
+        rot_x_alt2 = np.arccos(self.x_shift_vector[0] / x_abs)
+        rot_y_alt2 = np.arccos(self.y_shift_vector[1] / y_abs)
         rot_x_alt = np.arctan2(self.x_shift_vector[1] / x_abs, self.x_shift_vector[0] / x_abs) - np.arctan2(0, 1)
         rot_y_alt = np.arctan2(self.y_shift_vector[1] / y_abs, self.y_shift_vector[0] / y_abs) - np.arctan2(1, 0)
 
@@ -984,13 +1006,22 @@ class StageCalibrationDlg(QDialog):
         scale_x_alt = shift / (x_abs * pixel_size / 1000)
         scale_y_alt = shift / (y_abs * pixel_size / 1000)
 
-        print(f'Alternative calc.: {scale_x_alt:.5f}\t{scale_y_alt:.5f}\t{rot_x_alt:.5f}\t{rot_y_alt:.5f}')
-        print(f'Original calc.: {scale_x:.5f}\t{scale_y:.5f}\t{rot_x:.5f}\t{rot_y:.5f}')
+        # TODO: remove debugging:
+        print(f'Original calc: {scale_x:.5f}\t{scale_y:.5f}\t{rot_x:.5f}\t{rot_y:.5f}')
+        print(f'Alternative calc: {scale_x_alt:.5f}\t{scale_y_alt:.5f}\t{rot_x_alt:.5f}\t{rot_y_alt:.5f}')
+        print(f'Super alternative calc: {rot_x_alt2:.5f}\t{rot_y_alt2:.5f}')
+        print(f'Rotation (atan2): {rot2_x:.5f}\t{rot2_y:.5f}')
+
         if self.comboBox_package.currentIndex() != 2:
             scale_x = scale_x_alt
             scale_y = scale_y_alt
             rot_x = rot_x_alt
             rot_y = rot_y_alt
+        
+        if self.sem.syscfg['device']['sem'] == '2':
+            # ZEISS Sigma
+            rot_x = rot_x_alt2
+            rot_y = rot_y_alt2
 
         self.busy = False
         user_choice = QMessageBox.information(
@@ -1090,7 +1121,7 @@ class MagCalibrationDlg(QDialog):
         loadUi('..\\gui\\mag_calibration_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         self.spinBox_calibrationFactor.setValue(
             self.sem.MAG_PX_SIZE_FACTOR)
@@ -1132,7 +1163,7 @@ class CutDurationDlg(QDialog):
         loadUi('..\\gui\\cut_duration_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         self.doubleSpinBox_cutDuration.setValue(
             self.microtome.full_cut_duration)
@@ -1158,7 +1189,7 @@ class OVSettingsDlg(QDialog):
         loadUi('..\\gui\\overview_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         # Set up OV selector
         self.comboBox_OVSelector.addItems(self.ovm.ov_selector_list())
@@ -1323,7 +1354,7 @@ class GridSettingsDlg(QDialog):
         loadUi('..\\gui\\grid_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         # Set up grid selector:
         self.comboBox_gridSelector.addItems(self.gm.grid_selector_list())
@@ -1594,7 +1625,7 @@ class FocusGradientSettingsDlg(QDialog):
         loadUi('..\\gui\\wd_gradient_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         self.lineEdit_currentGrid.setText('Grid ' + str(current_grid))
         self.grid_illustration.setPixmap(QPixmap('..\\img\\grid.png'))
@@ -1708,7 +1739,7 @@ class AcqSettingsDlg(QDialog):
         loadUi('..\\gui\\acq_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         self.pushButton_selectDir.clicked.connect(self.select_directory)
         self.pushButton_selectDir.setIcon(QIcon('..\\img\\selectdir.png'))
@@ -1853,7 +1884,7 @@ class PreStackDlg(QDialog):
         loadUi('..\\gui\\pre_stack_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         # Different labels if stack is paused ('Continue' instead of 'Start')
         if self.acq.acq_paused:
@@ -1952,7 +1983,7 @@ class SetStartTileDlg(QDialog):
         loadUi('..\\gui\\set_start_tile_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         if self.acq.acq_interrupted:
             self.label_acqstatus1.setText(
@@ -2035,7 +2066,7 @@ class PauseDlg(QDialog):
         loadUi('..\\gui\\pause_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         self.pause_type = 0  # don't pause (when user clicks 'Cancel')
         self.pushButton_pauseNow.clicked.connect(self.pause_now)
@@ -2063,7 +2094,7 @@ class ExportDlg(QDialog):
         loadUi('..\\gui\\export_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.pushButton_export.clicked.connect(self.export_list)
         self.spinBox_untilSlice.setValue(int(self.acq.slice_counter))
         self.show()
@@ -2161,7 +2192,7 @@ class UpdateDlg(QDialog):
         loadUi('..\\gui\\update_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.pushButton_update.clicked.connect(self.update)
         self.show()
 
@@ -2222,7 +2253,7 @@ class EmailMonitoringSettingsDlg(QDialog):
         loadUi('..\\gui\\email_monitoring_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         self.lineEdit_notificationEmail.setText(
             self.notifications.user_email_addresses[0])
@@ -2349,7 +2380,7 @@ class DebrisSettingsDlg(QDialog):
         loadUi('..\\gui\\debris_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         # Detection area
         if self.ovm.use_auto_debris_area:
@@ -2467,7 +2498,7 @@ class AskUserDlg(QDialog):
         loadUi('..\\gui\\ask_user_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
 
 # ------------------------------------------------------------------------------
@@ -2481,15 +2512,14 @@ class MirrorDriveDlg(QDialog):
         loadUi('..\\gui\\mirror_drive_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         self.available_drives = []
         self.label_text.setText('Please wait. Searching for drives...')
         QApplication.processEvents()
         # Search for drives in thread. If it gets stuck because drives are
         # not accessible, user can still cancel dialog.
-        t = threading.Thread(target=self.search_drives)
-        t.start()
+        utils.run_log_thread(self.search_drives)
 
     def search_drives(self):
         # Search for all available drives:
@@ -2535,7 +2565,7 @@ class ImageMonitoringSettingsDlg(QDialog):
         loadUi('..\\gui\\image_monitoring_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         self.spinBox_meanMin.setValue(self.img_inspector.mean_lower_limit)
         self.spinBox_meanMax.setValue(self.img_inspector.mean_upper_limit)
@@ -2587,7 +2617,7 @@ class AutofocusSettingsDlg(QDialog):
         loadUi('..\\gui\\autofocus_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         if self.autofocus.method == 0:
             self.radioButton_useSmartSEM.setChecked(True)
@@ -2747,7 +2777,7 @@ class PlasmaCleanerDlg(QDialog):
         loadUi('..\\gui\\plasma_cleaner_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('icon.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         try:
             self.spinBox_currentPower.setValue(self.plc.get_power())
@@ -2803,25 +2833,8 @@ class PlasmaCleanerDlg(QDialog):
             'Start in-chamber cleaning process')
         self.pushButton_abortCleaning.setEnabled(False)
 
+
 # ------------------------------------------------------------------------------
-
-class PressureUpdateQThread(QThread):
-
-    update = pyqtSignal()
-
-    def __init__(self, secs):
-        self.active = True
-        self.secs = secs
-        QThread.__init__(self)
-
-    def run(self):
-        while self.active:
-            self.update.emit()
-            sleep(self.secs)
-
-    def stop(self):
-        self.active = False
-
 
 class VariablePressureDlg(QDialog):
     """Set Variable Pressure / High Vacuum."""
@@ -2829,8 +2842,6 @@ class VariablePressureDlg(QDialog):
     def __init__(self, sem):
         super().__init__()
         self.sem = sem
-        self.convert_from_sem = {"mbar": 1000, "Pa": 100000, "Torr": 750.061682704}
-        self.convert_to_sem = {"mbar": 0.001, "Pa": 0.00001, "Torr": 0.00133322368421}
         self.hv = True
         self.vp = False
         self.target = 0
@@ -2838,7 +2849,7 @@ class VariablePressureDlg(QDialog):
         loadUi('..\\gui\\variable_pressure_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         self.pushButton_hv.clicked.connect(self.set_hv)
         self.pushButton_vp.clicked.connect(self.set_vp)
@@ -2850,7 +2861,7 @@ class VariablePressureDlg(QDialog):
             self.target = self.sem.get_vp_target()
             self.update_target_pressure_text()
             self.update_target_pressure_slider()
-            self.thread = PressureUpdateQThread(1)
+            self.thread = UpdateQThread(1)
             self.thread.update.connect(self.update)
             self.thread.start()
         except Exception as e:
@@ -2904,13 +2915,13 @@ class VariablePressureDlg(QDialog):
         self.horizontalSlider_target.blockSignals(False)
 
     def update_pressure(self, textEdit, value):
-        unit_value = value * self.convert_from_sem[self.units]
+        unit_value = value * utils.PRESSURE_FROM_SEM[self.units]
         textEdit.setText("{:.2e}".format(unit_value))
 
     def target_text_changed(self):
         try:
             unit_value = float(self.lineEdit_target.text())
-            self.target = unit_value * self.convert_to_sem[self.units]
+            self.target = unit_value * utils.PRESSURE_TO_SEM[self.units]
             self.update_target_pressure_slider()
             self.sem.set_vp_target(self.target)
         except Exception as e:
@@ -2946,6 +2957,7 @@ class VariablePressureDlg(QDialog):
             pass
         event.accept()
 
+
 # ------------------------------------------------------------------------------
 
 class ChargeCompensatorDlg(QDialog):
@@ -2956,21 +2968,27 @@ class ChargeCompensatorDlg(QDialog):
         self.sem = sem
         self.state = False
         self.value = 0
+        self.vacuum_pressure = 0
         loadUi('..\\gui\\charge_compensator_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         self.pushButton_on.clicked.connect(self.turn_on)
         self.pushButton_off.clicked.connect(self.turn_off)
         self.doubleSpinBox_level.valueChanged.connect(self.value_changed)
         self.horizontalSlider_level.valueChanged.connect(self.slider_changed)
+        self.comboBox_units.currentTextChanged.connect(self.units_changed)
+        self.units = self.comboBox_units.currentText()
         try:
             self.state = self.sem.is_fcc_on()
             self.value = self.sem.get_fcc_level()
             self.update_buttons()
             self.update_value()
             self.update_slider()
+            self.thread = UpdateQThread(1)
+            self.thread.update.connect(self.update)
+            self.thread.start()
         except Exception as e:
             QMessageBox.warning(
                 self, 'Error',
@@ -2982,8 +3000,6 @@ class ChargeCompensatorDlg(QDialog):
     def turn_on(self):
         try:
             self.sem.turn_fcc_on()
-            self.state = True
-            self.update_buttons()
             sleep(0.1)
             self.set_fcc_level(self.value)
         except Exception as e:
@@ -2996,9 +3012,7 @@ class ChargeCompensatorDlg(QDialog):
     def turn_off(self):
         try:
             self.sem.turn_fcc_off()
-            self.state = False
             self.value = 0
-            self.update_buttons()
             self.update_value()
             self.update_slider()
         except Exception as e:
@@ -3007,6 +3021,20 @@ class ChargeCompensatorDlg(QDialog):
                 'Unable to disable fcc: '
                 + str(e),
                 QMessageBox.Ok)
+
+    def units_changed(self, text):
+        self.units = text
+        self.update_pressure()
+
+    def update(self):
+        self.state = self.sem.is_fcc_on()
+        self.vacuum_pressure = self.sem.get_chamber_pressure()
+        self.update_buttons()
+        self.update_pressure()
+
+    def update_pressure(self):
+        unit_value = self.vacuum_pressure * utils.PRESSURE_FROM_SEM[self.units]
+        self.lineEdit_vacuumPressure.setText("{:.2e}".format(unit_value))
 
     def update_buttons(self):
         self.pushButton_on.setEnabled(not self.state)
@@ -3055,7 +3083,7 @@ class ApproachDlg(QDialog):
         loadUi('..\\gui\\approach_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         # Set up trigger and queue to update dialog GUI during approach
         self.progress_trigger = utils.Trigger()
@@ -3080,9 +3108,6 @@ class ApproachDlg(QDialog):
         self.approach_cut_duration = self.microtome.full_cut_duration - 3
         self.update_progress()
 
-    def add_to_log(self, msg):
-        self.main_controls_trigger.transmit(utils.format_log_entry(msg))
-
     def update_progress(self):
         self.max_slices = self.spinBox_numberSlices.value()
         if self.slice_counter > 0:
@@ -3105,15 +3130,14 @@ class ApproachDlg(QDialog):
         self.spinBox_thickness.setEnabled(False)
         self.spinBox_numberSlices.setEnabled(False)
         self.main_controls_trigger.transmit('STATUS BUSY APPROACH')
-        thread = threading.Thread(target=self.approach_thread)
-        thread.start()
+        utils.run_log_thread(self.approach_thread)
 
     def finish_approach(self):
         # Move knife to "Clear" position
-        self.add_to_log('KNIFE: Moving to "Clear" position.')
+        utils.log_error('KNIFE', 'Moving to "Clear" position.')
         self.microtome.clear_knife()
-        if self.microtome.error_state > 0:
-            self.add_to_log('KNIFE: Error moving to "Clear" position.')
+        if self.microtome.error_state != Error.none:
+            utils.log_error('KNIFE', 'Error moving to "Clear" position.')
             self.microtome.reset_error_state()
             QMessageBox.warning(self, 'Error',
                                 'Warning: Move to "Clear" position failed. '
@@ -3169,23 +3193,26 @@ class ApproachDlg(QDialog):
             # Try again
             z_position = self.microtome.get_stage_z(wait_interval=2)
             if z_position is None or z_position < 0:
-                self.add_to_log(
-                    'STAGE: Error reading Z position. Approach aborted.')
+                utils.log_error(
+                    'STAGE',
+                    'Error reading Z position. Approach aborted.')
                 self.microtome.reset_error_state()
                 self.aborted = True
         if self.microtome.error_state == 206:
             self.microtome.reset_error_state()
             self.z_mismatch = True
             self.aborted = True
-            self.add_to_log(
-                'STAGE: Z position mismatch. Approach aborted.')
+            utils.log_error(
+                'STAGE',
+                'Z position mismatch. Approach aborted.')
         self.main_controls_trigger.transmit('UPDATE Z')
         if not self.aborted:
             self.microtome.near_knife()
-            self.add_to_log('KNIFE: Moving to "Near" position.')
-            if self.microtome.error_state > 0:
-                self.add_to_log(
-                    'KNIFE: Error moving to "Near" position. '
+            utils.log_info('KNIFE', 'Moving to "Near" position.')
+            if self.microtome.error_state != Error.none:
+                utils.log_error(
+                    'KNIFE',
+                    'Error moving to "Near" position. '
                     'Approach aborted.')
                 self.aborted = True
                 self.microtome.reset_error_state()
@@ -3193,32 +3220,35 @@ class ApproachDlg(QDialog):
         while (self.slice_counter < self.max_slices) and not self.aborted:
             # Move to new z position
             z_position = z_position + (self.thickness / 1000)
-            self.add_to_log(
-                'STAGE: Move to new Z: ' + '{0:.3f}'.format(z_position))
+            utils.log_info(
+                'STAGE',
+                'Move to new Z: ' + '{0:.3f}'.format(z_position))
             self.microtome.move_stage_to_z(z_position)
             # Show new Z position in main window
             self.main_controls_trigger.transmit('UPDATE Z')
             # Check if there were microtome problems
-            if self.microtome.error_state > 0:
-                self.add_to_log(
-                    f'STAGE: Error during Z move '
+            if self.microtome.error_state != Error.none:
+                utils.log_error(
+                    'STAGE',
+                    'Error during Z move '
                     f'({self.microtome.error_state}). Approach aborted.')
                 self.aborted = True
                 self.microtome.reset_error_state()
                 break
-            self.add_to_log('KNIFE: Cutting in progress ('
+            utils.log_error('KNIFE', 'Cutting in progress ('
                             + str(self.thickness) + ' nm cutting thickness).')
             # Do the approach cut (cut, retract, in near position)
             self.microtome.do_full_approach_cut()
             sleep(self.approach_cut_duration)
-            if self.microtome.error_state > 0:
-                self.add_to_log(
-                    'KNIFE: Cutting problem detected. Approach aborted.')
+            if self.microtome.error_state != Error.none:
+                utils.log_error(
+                    'KNIFE',
+                    'Cutting problem detected. Approach aborted.')
                 self.aborted = True
                 self.microtome.reset_error_state()
                 break
             else:
-                self.add_to_log('KNIFE: Approach cut completed.')
+                utils.log_info('KNIFE', 'Approach cut completed.')
                 self.slice_counter += 1
                 # Update progress bar and slice counter
                 self.progress_trigger.signal.emit()
@@ -3257,7 +3287,7 @@ class GrabFrameDlg(QDialog):
         loadUi('..\\gui\\grab_frame_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         timestamp = str(datetime.datetime.now())
         # Remove some characters from timestap to get valid file name
@@ -3316,8 +3346,7 @@ class GrabFrameDlg(QDialog):
         self.pushButton_save.setEnabled(False)
         QApplication.processEvents()
         self.main_controls_trigger.transmit('STATUS BUSY GRAB IMAGE')
-        thread = threading.Thread(target=self.perform_scan)
-        thread.start()
+        utils.run_log_thread(self.perform_scan)
 
     def perform_scan(self):
         """Acquire a new frame. Executed in a thread because it may take some
@@ -3336,7 +3365,7 @@ class GrabFrameDlg(QDialog):
         self.pushButton_scan.setEnabled(True)
         self.pushButton_save.setEnabled(True)
         if self.scan_success:
-            self.add_to_log('SEM: Single frame acquired (Grab dialog).')
+            utils.log_info('SEM', 'Single frame acquired (Grab dialog).')
             QMessageBox.information(
                 self, 'Frame acquired',
                 'The image was acquired and saved as '
@@ -3359,7 +3388,7 @@ class GrabFrameDlg(QDialog):
         success = self.sem.save_frame(os.path.join(
             self.acq.base_dir, self.file_name + '.tif'))
         if success:
-            self.add_to_log('SEM: Single frame saved (Grab dialog).')
+            utils.log_info('SEM', 'Single frame saved (Grab dialog).')
             QMessageBox.information(
                 self, 'Frame saved',
                 'The current image shown in SmartSEM was saved as '
@@ -3374,10 +3403,6 @@ class GrabFrameDlg(QDialog):
                 QMessageBox.Ok)
             self.sem.reset_error_state()
 
-    def add_to_log(self, msg):
-        """Use trigger and queue to add an entry to the main log."""
-        self.main_controls_trigger.transmit(utils.format_log_entry(msg))
-
 # ------------------------------------------------------------------------------
 
 class EHTDlg(QDialog):
@@ -3389,7 +3414,7 @@ class EHTDlg(QDialog):
         loadUi('..\\gui\\eht_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         self.pushButton_on.clicked.connect(self.turn_on)
         self.pushButton_off.clicked.connect(self.turn_off)
@@ -3414,15 +3439,13 @@ class EHTDlg(QDialog):
     def turn_on(self):
         self.pushButton_on.setEnabled(False)
         self.pushButton_on.setText('Wait')
-        thread = threading.Thread(target=self.send_on_cmd_and_wait)
-        thread.start()
+        utils.run_log_thread(self.send_on_cmd_and_wait)
 
     def turn_off(self):
         self.pushButton_off.setEnabled(False)
         self.pushButton_off.setText('Wait')
         QApplication.processEvents()
-        thread = threading.Thread(target=self.send_off_cmd_and_wait)
-        thread.start()
+        utils.run_log_thread(self.send_off_cmd_and_wait)
 
     def send_on_cmd_and_wait(self):
         self.sem.turn_eht_on()
@@ -3457,7 +3480,7 @@ class FTSetParamsDlg(QDialog):
         loadUi('..\\gui\\focus_tool_set_params_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         if simulation_mode:
             self.pushButton_getFromSmartSEM.setEnabled(False)
@@ -3506,7 +3529,7 @@ class FTMoveDlg(QDialog):
         loadUi('..\\gui\\focus_tool_move_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         self.pushButton_move.clicked.connect(self.start_move)
         if ov_index >= 0:
@@ -3519,8 +3542,7 @@ class FTMoveDlg(QDialog):
         self.error = False
         self.pushButton_move.setText('Busy... please wait.')
         self.pushButton_move.setEnabled(False)
-        thread = threading.Thread(target=self.move_and_wait)
-        thread.start()
+        utils.run_log_thread(self.move_and_wait)
 
     def move_and_wait(self):
         # Load target coordinates
@@ -3530,7 +3552,7 @@ class FTMoveDlg(QDialog):
             stage_x, stage_y = self.gm[self.grid_index][self.tile_index].sx_sy
         # Now move the stage
         self.microtome.move_stage_to_xy((stage_x, stage_y))
-        if self.microtome.error_state > 0:
+        if self.microtome.error_state != Error.none:
             self.error = True
             self.microtome.reset_error_state()
         # Signal that move complete
@@ -3566,7 +3588,7 @@ class MotorTestDlg(QDialog):
         loadUi('..\\gui\\motor_test_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         # Set up trigger and queue to update dialog GUI during approach
         self.progress_trigger = utils.Trigger()
@@ -3591,9 +3613,6 @@ class MotorTestDlg(QDialog):
         self.test_in_progress = False
         self.start_time = None
 
-    def add_to_log(self, msg):
-        self.main_controls_trigger.transmit(utils.format_log_entry(msg))
-
     def update_progress(self):
         if self.start_time is not None:
             elapsed_time = time() - self.start_time
@@ -3609,11 +3628,11 @@ class MotorTestDlg(QDialog):
         self.pushButton_startTest.setText('Wait')
         self.pushButton_startTest.setEnabled(False)
         # First make sure the knife is in "Clear" position
-        self.add_to_log('KNIFE: Moving to "Clear" position.')
+        utils.log_info('KNIFE', 'Moving to "Clear" position.')
         QApplication.processEvents()
         self.microtome.clear_knife()
-        if self.microtome.error_state > 0:
-            self.add_to_log('KNIFE: Error moving to "Clear" position.')
+        if self.microtome.error_state != Error.none:
+            utils.log_error('KNIFE', 'Error moving to "Clear" position.')
             self.microtome.reset_error_state()
             self.pushButton_startTest.setText('Start')
             self.pushButton_startTest.setEnabled(True)
@@ -3624,15 +3643,14 @@ class MotorTestDlg(QDialog):
         else:
             self.start_z = self.microtome.get_stage_z()
             if self.start_z is not None:
-                self.add_to_log('CTRL: Motor test started.')
+                utils.log_info('CTRL', 'Motor test started.')
                 self.pushButton_startTest.setText('Busy')
                 self.pushButton_abortTest.setEnabled(True)
                 self.buttonBox.setEnabled(False)
                 self.checkBox_XYonly.setEnabled(False)
                 self.spinBox_duration.setEnabled(False)
                 self.progressBar.setValue(0)
-                thread = threading.Thread(target=self.random_walk_thread)
-                thread.start()
+                utils.run_log_thread(self.random_walk_thread)
             else:
                 self.microtome.reset_error_state()
                 self.pushButton_startTest.setText('Start')
@@ -3646,11 +3664,11 @@ class MotorTestDlg(QDialog):
         self.test_in_progress = False
 
     def test_finished(self):
-        self.add_to_log('CTRL: Motor test finished.')
-        self.add_to_log('STAGE: Moving back to starting Z position.')
+        utils.log_info('CTRL', 'Motor test finished.')
+        utils.log_info('STAGE', 'Moving back to starting Z position.')
         # Safe mode must be set to false because diff likely > 200 nm
         self.microtome.move_stage_to_z(self.start_z, safe_mode=False)
-        if self.microtome.error_state > 0:
+        if self.microtome.error_state != Error.none:
             self.microtome.reset_error_state()
             QMessageBox.warning(
                 self, 'Error',
@@ -3732,7 +3750,7 @@ class MotorTestDlg(QDialog):
                           + '{0:.3f}'.format(current_z) + '\n')
             self.microtome.move_stage_to_xy((current_x, current_y))
             self.number_moves += 2
-            if self.microtome.error_state > 0:
+            if self.microtome.error_state != Error.none:
                 mismatch_x = self.microtome.last_known_x - current_x
                 mismatch_y = self.microtome.last_known_y - current_y
                 logfile.write('ERROR DURING XY MOVE: '
@@ -3753,7 +3771,7 @@ class MotorTestDlg(QDialog):
             if self.use_z_moves:
                 self.microtome.move_stage_to_z(current_z, safe_mode=False)
                 self.number_moves += 1
-                if self.microtome.error_state > 0:
+                if self.microtome.error_state != Error.none:
                     self.number_errors_z += 1
                     logfile.write('ERROR DURING Z MOVE: '
                                   + self.microtome.error_info
@@ -3799,7 +3817,7 @@ class SendCommandDlg(QDialog):
         loadUi('..\\gui\\send_dm_command_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()
         self.pushButton_sendCommand.clicked.connect(self.send_command)
         self.pushButton_checkResponse.clicked.connect(self.check_response)
@@ -3904,5 +3922,5 @@ class AboutBox(QDialog):
         else:
             self.label_version.setText('Version ' + VERSION)
         self.labelIcon.setPixmap(QPixmap('..\\img\\logo.png'))
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.show()

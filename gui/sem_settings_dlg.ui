@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>311</width>
-    <height>298</height>
+    <height>331</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -29,7 +29,7 @@
    <property name="geometry">
     <rect>
      <x>140</x>
-     <y>260</y>
+     <y>290</y>
      <width>161</width>
      <height>32</height>
     </rect>
@@ -118,7 +118,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>222</y>
+     <y>252</y>
      <width>131</width>
      <height>20</height>
     </rect>
@@ -134,7 +134,7 @@
    <property name="geometry">
     <rect>
      <x>150</x>
-     <y>162</y>
+     <y>192</y>
      <width>71</width>
      <height>20</height>
     </rect>
@@ -147,7 +147,7 @@
    <property name="geometry">
     <rect>
      <x>150</x>
-     <y>192</y>
+     <y>222</y>
      <width>71</width>
      <height>20</height>
     </rect>
@@ -157,7 +157,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>192</y>
+     <y>222</y>
      <width>131</width>
      <height>20</height>
     </rect>
@@ -170,7 +170,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>162</y>
+     <y>192</y>
      <width>151</width>
      <height>20</height>
     </rect>
@@ -186,7 +186,7 @@
    <property name="geometry">
     <rect>
      <x>150</x>
-     <y>222</y>
+     <y>252</y>
      <width>71</width>
      <height>20</height>
     </rect>
@@ -196,7 +196,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>140</y>
+     <y>170</y>
      <width>291</width>
      <height>16</height>
     </rect>
@@ -358,6 +358,19 @@
    </property>
    <property name="value">
     <double>30.000000000000000</double>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="checkBox_highCurrent">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>140</y>
+     <width>131</width>
+     <height>19</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>High Current</string>
    </property>
   </widget>
  </widget>

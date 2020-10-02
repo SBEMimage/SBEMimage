@@ -33,6 +33,8 @@ class CoordinateSystem:
         configuration."""
         self.cfg = config
         self.syscfg = sysconfig
+        self.vp_width = utils.VP_WIDTH
+        self.vp_height = utils.VP_HEIGHT
 
         if ((self.cfg['sys']['use_microtome'].lower() == 'true')
                 and (int(self.syscfg['device']['microtome']) not in [5, 6])):  # katana or GCIB
@@ -62,6 +64,13 @@ class CoordinateSystem:
         # Origin of the current OV relative to the Slice-by-Slice Viewer origin
         self.sv_ov_vx_vy = [int(self.cfg['viewport']['sv_offset_x_ov']),
                             int(self.cfg['viewport']['sv_offset_y_ov'])]
+
+    def update_vp_size(self, vp_width, vp_height):
+        self.vp_width = vp_width
+        self.vp_height = vp_height
+        self.update_vp_origin_dx_dy()
+        self.sv_scale_tile = 1
+        self.sv_scale_ov = 1
 
     def save_to_cfg(self):
         """Save current parameters to the self.cfg ConfigParser object.
@@ -220,8 +229,8 @@ class CoordinateSystem:
         """
         dx, dy = self._vp_centre_dx_dy
         self._vp_origin_dx_dy = [
-            dx - 0.5 * utils.VP_WIDTH / self._vp_scale,
-            dy - 0.5 * utils.VP_HEIGHT / self._vp_scale]
+            dx - 0.5 * self.vp_width / self._vp_scale,
+            dy - 0.5 * self.vp_height / self._vp_scale]
 
     @property
     def sv_scale_tile(self):
@@ -249,7 +258,7 @@ class CoordinateSystem:
         in the Slice-by-Slice Viewer.
         """
         old_vx, old_vy = old_vx_vy
-        dx = utils.VP_WIDTH // 2 - old_vx
-        dy = utils.VP_HEIGHT // 2 - old_vy
+        dx = self.vp_width // 2 - old_vx
+        dy = self.vp_height // 2 - old_vy
         return [int(old_vx - zoom_ratio * dx + dx),
                 int(old_vy - zoom_ratio * dy + dy)]

@@ -6,5 +6,6 @@
 //	   2) Near the knife
 //	   3) Run this script to execute the function MicrotomeStage_Cut(0)
 //	   4) Run this script to execute the function MicrotomeStage_Cut(1)
+//	   5) Clear the knife
 
-MicrotomeStage_Cut(1)
+MicrotomeStage_Cut(0)

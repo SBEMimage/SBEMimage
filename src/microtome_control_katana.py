@@ -13,6 +13,8 @@ from time import sleep
 import serial
 import threading
 
+import utils
+from utils import Error
 from microtome_control import Microtome
 
 
@@ -194,9 +196,8 @@ class Microtome_katana(Microtome):
 
     def do_full_cut(self):
         """Perform a full cut cycle. Code is run in a thread."""
-        katana_cut_thread = threading.Thread(target=self.run_cut_sequence)
         self.cut_completed = False
-        katana_cut_thread.start()
+        utils.run_log_thread(self.run_cut_sequence)
 
     def run_cut_sequence(self):
         # Move to cutting window
@@ -334,7 +335,7 @@ class Microtome_katana(Microtome):
         pass
 
     def reset_error_state(self):
-        self.error_state = 0
+        self.error_state = Error.none
         self.error_info = ''
 
     def disconnect(self):

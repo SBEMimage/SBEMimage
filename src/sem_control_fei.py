@@ -18,7 +18,6 @@ import pythoncom
 from win32com.client import VARIANT  # required for API function calls
 
 from sem_control import SEM
-from utils import ERROR_LIST
 
 
 class SEM_Quanta(SEM):   # or: SEM_XTLib(SEM)

@@ -256,24 +256,18 @@ class Notifications:
                          'Please review your e-mail report settings.\n\n')
             for file in missing_list:
                 msg_text += (file + '\n')
-        success, error_msg = self.send_email(
+        success, send_error = self.send_email(
             msg_subject, msg_text, attachment_list)
 
-        if success:
-            status_msg1 = 'CTRL: Status report e-mail sent.'
-        else:
-            status_msg1 = ('CTRL: ERROR sending status report e-mail: '
-                           + error_msg)
-
         # Clean up temporary files
+        cleanup_success = True
         for file in temp_file_list:
             try:
                 os.remove(file)
             except Exception as e:
-                status_msg2 = ('CTRL: ERROR while trying to remove '
-                               'temporary file: ' + str(e))
-        return status_msg1, status_msg2
-
+                cleanup_success = False
+                cleanup_error = str(e)
+        return success, send_error, cleanup_success, cleanup_error
 
     def send_error_report(self, stack_name, slice_counter, error_state,
                           recent_main_log, vp_screenshot):
@@ -292,7 +286,7 @@ class Notifications:
         msg_subject = (f'Error (slice {slice_counter}) '
                        f'during acquisition {stack_name}')
         error_description = (f'Error {error_state} has occurred: '
-                             + utils.ERROR_LIST[error_state])
+                             + utils.Errors[error_state])
 
         if os.path.isfile(recent_main_log):
             attachment_list.append(recent_main_log)

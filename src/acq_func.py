@@ -23,6 +23,7 @@ from time import sleep
 from skimage import io
 
 import utils
+from utils import Error
 
 
 def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
@@ -47,12 +48,12 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
         # Move to OV stage coordinates
         stage.move_to_xy(ovm[ov_index].centre_sx_sy)
         # Check to see if error ocurred
-        if stage.error_state > 0:
+        if stage.error_state != Error.none:
             stage.reset_error_state()
             sleep(1)
             # Try again
             stage.move_to_xy(ovm[ov_index].centre_sx_sy)
-            if stage.error_state > 0:
+            if stage.error_state != Error.none:
                 stage.reset_error_state()
                 main_controls_trigger.transmit(utils.format_log_entry(
                     'STAGE: Second attempt to move to OV %d position failed.'
@@ -180,12 +181,12 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
             # Only acquire tile if it is within stage limits
             if stage.pos_within_limits((target_x, target_y)):
                 stage.move_to_xy((target_x, target_y))
-                if stage.error_state > 0:
+                if stage.error_state != Error.none:
                     stage.reset_error_state()
                     # Try once more
                     sleep(3)
                     stage.move_to_xy((target_x, target_y))
-                    if stage.error_state > 0:
+                    if stage.error_state != Error.none:
                         success = False
                         stage.reset_error_state()
                         stub_dlg_trigger.transmit(
@@ -295,7 +296,7 @@ def manual_sweep(microtome, main_controls_trigger):
     z_position = microtome.get_stage_z(wait_interval=1)
     if (z_position is not None) and (z_position >= 0):
         microtome.do_sweep(z_position)
-    if microtome.error_state > 0:
+    if microtome.error_state != Error.none:
         microtome.reset_error_state()
         main_controls_trigger.transmit('MANUAL SWEEP FAILURE')
     else:
@@ -311,12 +312,12 @@ def manual_stage_move(stage, target_position, viewport_trigger):
     # stage.last_known_xy as the starting point.
     stage.get_xy()
     stage.move_to_xy(target_position)
-    if stage.error_state > 0:
+    if stage.error_state != Error.none:
         stage.reset_error_state()
         sleep(1)
         # Try again
         stage.move_to_xy(target_position)
-        if stage.error_state > 0:
+        if stage.error_state != Error.none:
             stage.reset_error_state()
             viewport_trigger.transmit('MANUAL MOVE FAILURE')
             return

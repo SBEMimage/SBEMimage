@@ -20,7 +20,6 @@ The 'Main Controls' window consists of four tabs:
 The 'Main Controls' window is a QMainWindow, and it launches the Viewport
 window (in viewport.py) as a QWidget.
 """
-
 import os
 import sys
 import threading
@@ -40,6 +39,7 @@ from PyQt5.uic import loadUi
 
 import acq_func
 import utils
+from utils import Error
 from sem_control_zeiss import SEM_SmartSEM
 from sem_control_fei import SEM_Quanta
 from microtome_control_gatan import Microtome_3View
@@ -84,7 +84,7 @@ class MainControls(QMainWindow):
         self.cfg_file = config_file
         self.syscfg_file = self.cfg['sys']['sys_config_file']
         self.VERSION = VERSION
-
+    
         # Show progress bar in console during start-up. The percentages are
         # just estimates, but helpful for user to see that initialization
         # is in progress.
@@ -116,22 +116,14 @@ class MainControls(QMainWindow):
 
         utils.show_progress_in_console(10)
 
-        # Store log messages during startup in startup_log_messages to be
-        # displayed when Main Controls window has been loaded.
-        startup_log_messages = []
-
         # Initialize SEM
         if self.syscfg['device']['sem'] in ['1', '2', '3', '4']:  # ZEISS SEMs
             # Create SEM instance to control SEM via SmartSEM API
             self.sem = SEM_SmartSEM(self.cfg, self.syscfg)
-            if self.sem.error_state > 0:
-                startup_log_messages.append(
-                    'SEM: Error initializing SmartSEM Remote API.')
-                startup_log_messages.append(
-                    'SEM: ' + self.sem.error_info)
+            if self.sem.error_state != Error.none:
                 QMessageBox.warning(
                     self, 'Error initializing SmartSEM Remote API',
-                    'Initalization of the SmartSEM Remote API failed. Please '
+                    'initialisation of the SmartSEM Remote API failed. Please '
                     'verify that the Remote API is installed and configured '
                     'correctly.'
                     '\nSBEMimage will be run in simulation mode.',
@@ -140,8 +132,8 @@ class MainControls(QMainWindow):
         else:
             # No other SEMs supported at the moment
             self.sem = None
-            startup_log_messages.append(
-                'SEM: No SEM found, or incompatible SEM selected.')
+            utils.log_warning(
+                'SEM', 'No SEM found, or incompatible SEM selected.')
             QMessageBox.warning(
                 self, 'No SEM found',
                 'No SEM was found, or an incompatible SEM was selected. '
@@ -164,13 +156,13 @@ class MainControls(QMainWindow):
         for i in range(self.imported.number_imported):
             if self.imported[i].image is None:
                 QMessageBox.warning(self, 'Error loading imported image',
-                    f'Imported image number {i} could not '
-                    f'be loaded. Check if the folder containing '
-                    f'the image ({self.imported[i].image_src}) was deleted or '
-                    f'moved, or if the image file is damaged or in '
-                    f'the wrong format.', QMessageBox.Ok)
-                startup_log_messages.append(
-                    f'CTRL: Error loading imported image {i}')
+                                          f'Imported image number {i} could not '
+                                          f'be loaded. Check if the folder containing '
+                                          f'the image ({self.imported[i].image_src}) was deleted or '
+                                          f'moved, or if the image file is damaged or in '
+                                          f'the wrong format.', QMessageBox.Ok)
+                utils.log_error(
+                    'CTRL', f'Error loading imported image {i}')
 
         utils.show_progress_in_console(30)
 
@@ -178,14 +170,8 @@ class MainControls(QMainWindow):
         if self.use_microtome and (self.syscfg['device']['microtome'] == '0'):
             # Create object for 3View microtome (control via DigitalMicrograph)
             self.microtome = Microtome_3View(self.cfg, self.syscfg)
-            if self.microtome.error_state in [101, 102, 103, 104]:
-                startup_log_messages.append(
-                    'CTRL: Error initializing DigitalMicrograph API.')
-                startup_log_messages.append(
-                    f'CTRL: Error {self.microtome.error_state}: '
-                    f'{utils.ERROR_LIST[self.microtome.error_state]}')
-                startup_log_messages.append(
-                    'CTRL: ' + self.microtome.error_info)
+            if self.microtome.error_state in [Error.dm_init, Error.dm_comm_send, Error.dm_comm_response, Error.dm_comm_retval]:
+                utils.log_warning('CTRL', 'Error initializing DigitalMicrograph API')
                 QMessageBox.warning(
                     self, 'Error initializing DigitalMicrograph API',
                     'Have you forgotten to start the communication '
@@ -196,22 +182,19 @@ class MainControls(QMainWindow):
                     QMessageBox.Retry)
                 # Try again
                 self.microtome = Microtome_3View(self.cfg, self.syscfg)
-                if self.microtome.error_state in [101, 102, 103, 104]:
-                    startup_log_messages.append(
-                        'CTRL: Error initializing DigitalMicrograph API '
-                        '(second attempt).')
-                    startup_log_messages.append(
-                        'CTRL: ' + self.microtome.error_info)
+                if self.microtome.error_state in [Error.dm_init, Error.dm_comm_send, Error.dm_comm_response, Error.dm_comm_retval]:
+                    utils.log_error('CTRL', 'Error initializing DigitalMicrograph API')
                     QMessageBox.warning(
                         self, 'Error initializing DigitalMicrograph API',
-                        'The second attempt to initalize the DigitalMicrograph '
+                        'The second attempt to initialise the DigitalMicrograph '
                         'API failed.\nSBEMimage will be run in simulation '
                         'mode.',
                         QMessageBox.Ok)
                     self.simulation_mode = True
                 else:
-                    startup_log_messages.append(
-                        'CTRL: Second attempt to initialize '
+                    utils.log_info(
+                        'CTRL',
+                        'Second attempt to initialize '
                         'DigitalMicrograph API successful.')
         elif self.use_microtome and (self.syscfg['device']['microtome'] == '5'):
             # Initialize katana microtome
@@ -222,9 +205,7 @@ class MainControls(QMainWindow):
             # Otherwise use SEM stage
             self.microtome = None
 
-        if self.microtome is not None and self.microtome.error_state == 701:
-            startup_log_messages.append(
-                'CTRL: Error loading microtome configuration.')
+        if self.microtome is not None and self.microtome.error_state == Error.configuration:
             QMessageBox.warning(
                 self, 'Error loading microtome configuration',
                 'While loading the microtome settings SBEMimage encountered '
@@ -298,9 +279,7 @@ class MainControls(QMainWindow):
         utils.show_progress_in_console(80)
 
         # First log messages
-        self.add_to_log('CTRL: SBEMimage Version ' + self.VERSION)
-        for msg in startup_log_messages:
-            self.add_to_log(msg)
+        utils.log_info('CTRL', 'SBEMimage Version ' + self.VERSION)
 
         # Initialize viewport window
         self.viewport = Viewport(self.cfg, self.sem, self.stage, self.cs,
@@ -327,13 +306,16 @@ class MainControls(QMainWindow):
             self.pushButton_startAcq.setText('CONTINUE')
             self.pushButton_resetAcq.setEnabled(True)
 
+        # *** for debugging ***
+        #self.restrict_gui(False)
+
         utils.show_progress_in_console(100)
 
         print('\n\nReady.\n')
         self.set_statusbar('Ready.')
 
         if self.simulation_mode:
-            self.add_to_log('CTRL: Simulation mode active.')
+            utils.log_warning('CTRL', 'Simulation mode active.')
             QMessageBox.information(
                 self, 'Simulation mode active',
                 'SBEMimage is running in simulation mode. You can change most '
@@ -351,7 +333,7 @@ class MainControls(QMainWindow):
                 '\nMenu  →  Calibration  →  Stage calibration',
                 QMessageBox.Ok)
         # Diplay warning if z coordinate differs from previous session
-        if self.use_microtome and self.microtome.error_state == 206:
+        if self.use_microtome and self.microtome.error_state == Error.mismatch_z:
             self.microtome.reset_error_state()
             QMessageBox.warning(
                 self, 'Stage Z position',
@@ -419,9 +401,11 @@ class MainControls(QMainWindow):
         app_icon.addFile('..\\img\\icon_16px.ico', QSize(16, 16))
         app_icon.addFile('..\\img\\icon_48px.ico', QSize(48, 48))
         self.setWindowIcon(app_icon)
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
         self.move(1120, 20)
         self.hide() # hide window until fully initialized
+        # Connect text area to logging
+        utils.set_log_text_handler(self.textarea_log)
         # Pushbuttons
         self.pushButton_SEMSettings.clicked.connect(self.open_sem_dlg)
         self.pushButton_SEMSettings.setIcon(QIcon('..\\img\\settings.png'))
@@ -942,11 +926,11 @@ class MainControls(QMainWindow):
             (self.tableView_magc_sections
                 .verticalScrollBar()
                 .setValue(indexes[0]))
-            self.add_to_log(
+            utils.log_info(
                 'Custom section string selection: '
                 + userString)
         else:
-            self.add_to_log(
+            utils.log_error(
                 'Something wrong in your input. Use 2,5,3 or 2-30 or 2-30-5')
 
     def magc_set_check_rows(self, rows, check_state):
@@ -1008,8 +992,8 @@ class MainControls(QMainWindow):
         self.cs.vp_centre_dx_dy = self.gm[row].centre_dx_dy
         self.viewport.vp_draw()
         if self.gm.magc_wafer_calibrated:
-            self.add_to_log('Section ' + str(sectionKey)
-                            + ' has been double-clicked. Moving to section...')
+            utils.log_info('Section ' + str(sectionKey)
+                                + ' has been double-clicked. Moving to section...')
             # set scan rotation
             theta = self.gm[row].rotation
             self.sem.set_scan_rotation(theta)
@@ -1017,7 +1001,7 @@ class MainControls(QMainWindow):
             grid_center_s = self.gm[row].centre_sx_sy
             self.stage.move_to_xy(grid_center_s)
         else:
-            self.add_to_log(
+            utils.log_warning(
                 'Section ' + str(sectionKey)
                 + ' has been double-clicked. Wafer is not '
                 + 'calibrated, therefore no stage movement.')
@@ -1170,8 +1154,8 @@ class MainControls(QMainWindow):
                 self.ovm.update_all_debris_detections_areas(self.gm)
             self.viewport.vp_draw()
             if not self.cs.calibration_found:
-                self.add_to_log(
-                    'CTRL: Warning - No stage calibration found for '
+                utils.log_error(
+                    'CTRL', 'Warning - No stage calibration found for '
                     'current EHT.')
                 QMessageBox.warning(
                     self, 'Missing stage calibration',
@@ -1196,7 +1180,7 @@ class MainControls(QMainWindow):
                 dialog = GCIBSettingsDlg(self.microtome)
                 dialog.exec_()
         else:
-            self.add_to_log('No microtome-related functions are available'
+            utils.log_error('No microtome-related functions are available'
                 ' because no microtome is configured in the current session')
 
     def open_calibration_dlg(self):
@@ -1488,7 +1472,7 @@ class MainControls(QMainWindow):
             try:
                 self.write_current_log_to_file(msg[15:])
             except Exception as e:
-                self.add_to_log('CTRL: Could not write current log to disk: '
+                utils.log_error('CTRL', 'Could not write current log to disk: '
                                 + str(e))
         elif msg == 'MAGC WAFER CALIBRATED':
             self.pushButton_magc_waferCalibration.setStyleSheet('background-color: green')
@@ -1602,6 +1586,7 @@ class MainControls(QMainWindow):
             self.acq.user_reply = reply
         else:
             # If msg is not a command, show it in log:
+            # TODO: remove
             self.textarea_log.appendPlainText(msg)
 
     def add_tile_folder(self):
@@ -1716,6 +1701,7 @@ class MainControls(QMainWindow):
         self.pushButton_testMoveMillPos.setEnabled(False)
         self.pushButton_testMovePriorMillPos.setEnabled(False)
 
+    #TODO: remove
     def add_to_log(self, text):
         """Update the log from the main thread."""
         self.textarea_log.appendPlainText(utils.format_log_entry(text))
@@ -1733,22 +1719,21 @@ class MainControls(QMainWindow):
             QMessageBox.Ok | QMessageBox.Cancel, QMessageBox.Cancel)
         if user_reply == QMessageBox.Ok:
             # Perform sweep: do a cut slightly above current surface
-            self.add_to_log('KNIFE: Performing user-requested sweep.')
+            utils.log_info('KNIFE', 'Performing user-requested sweep.')
             self.restrict_gui(True)
             self.viewport.restrict_gui(True)
             QApplication.processEvents()
-            user_sweep_thread = threading.Thread(target=acq_func.manual_sweep,
-                                                 args=(self.microtome,
-                                                       self.trigger,))
-            user_sweep_thread.start()
+            utils.run_log_thread(acq_func.manual_sweep,
+                                 self.microtome,
+                                 self.trigger)
             self.set_status('Busy.', 'Sweep in progress...', True)
 
     def manual_sweep_success(self, success):
         self.show_current_stage_z()
         if success:
-            self.add_to_log('KNIFE: User-requested sweep completed.')
+            utils.log_info('KNIFE', 'User-requested sweep completed.')
         else:
-            self.add_to_log('KNIFE: ERROR ocurred during sweep.')
+            utils.log_error('KNIFE', 'ERROR ocurred during sweep.')
             QMessageBox.warning(self, 'Error during sweep',
                 'An error occurred during the sweep cycle. '
                 'Please check the microtome status in DM '
@@ -1765,52 +1750,52 @@ class MainControls(QMainWindow):
         if ok_button_clicked:
             self.viewport.grab_viewport_screenshot(
                 os.path.join(self.acq.base_dir, file_name + '.png'))
-            self.add_to_log(
-                'CTRL: Saved screenshot of current Viewport to base directory.')
+            utils.log_info(
+                'CTRL', 'Saved screenshot of current Viewport to base directory.')
 
 # ======================= Test functions in third tab ==========================
 
     def test_get_mag(self):
         mag = self.sem.get_mag()
-        self.add_to_log('SEM: Current magnification: ' + '{0:.2f}'.format(mag))
+        utils.log_info('SEM', 'Current magnification: ' + '{0:.2f}'.format(mag))
 
     def test_set_mag(self):
         self.sem.set_mag(1000)
-        if self.sem.error_state > 0:
-            self.add_to_log('SEM: ' + self.sem.error_info)
+        if self.sem.error_state != Error.none:
+            utils.log_error('SEM', '' + self.sem.error_info)
             self.sem.reset_error_state()
         else:
-            self.add_to_log('SEM: Magnification set to 1000.00')
+            utils.log_info('SEM', 'Magnification set to 1000.00')
 
     def test_get_wd(self):
         wd = self.sem.get_wd()
-        self.add_to_log(
-            'SEM: Current working distance in mm: '
+        utils.log_info(
+            'SEM', 'Current working distance in mm: '
             + '{0:.4f}'.format(wd * 1000))
 
     def test_set_wd(self):
         self.sem.set_wd(0.006)
-        if self.sem.error_state > 0:
-            self.add_to_log('SEM: ' + self.sem.error_info)
+        if self.sem.error_state != Error.none:
+            utils.log_error('SEM', '' + self.sem.error_info)
             self.sem.reset_error_state()
         else:
-            self.add_to_log('SEM: Working distance set to 6 mm.')
+            utils.log_info('SEM', 'Working distance set to 6 mm.')
 
     def test_autofocus(self):
         self.sem.run_autofocus()
-        self.add_to_log('SEM: SmartSEM autofocus routine called.')
+        utils.log_info('SEM', 'SmartSEM autofocus routine called.')
 
     def test_autostig(self):
         self.sem.run_autostig()
-        self.add_to_log('SEM: SmartSEM autostig routine called.')
+        utils.log_info('SEM', 'SmartSEM autostig routine called.')
 
     def test_autofocus_stig(self):
         self.sem.run_autofocus_stig()
-        self.add_to_log('SEM: SmartSEM autofocus and autostig routine called.')
+        utils.log_info('SEM', 'SmartSEM autofocus and autostig routine called.')
 
     def test_autofocus_mapfost(self):
         self.autofocus.run_mapfost_af()
-        self.add_to_log('SEM: MAPFoSt autofocus called.')
+        utils.log_info('SEM', 'MAPFoSt autofocus called.')
 
     def test_zeiss_api_version(self):
         self.sem.show_about_box()
@@ -1823,19 +1808,19 @@ class MainControls(QMainWindow):
         if current_pos is not None:
             pos_fmt = [f"{p:.2f}" for p in current_pos]
             if len(current_pos) > 2:
-                self.add_to_log(
+                utils.log_info(
                     f'{self.stage}: Current XYZTR parameters: {pos_fmt}')
             else:
-                self.add_to_log(
+                utils.log_info(
                     f'{self.stage}: Current XY parameters: {pos_fmt}')
         else:
-            self.add_to_log(
+            utils.log_error(
                 'STAGE: Error - could not read current X position.')
 
     def test_set_stage(self):
         current_x = self.stage.get_x()
         self.stage.move_to_x(current_x + 10)
-        self.add_to_log(
+        utils.log_info(
             'STAGE: New X position should be: '
             + '{0:.2f}'.format(current_x + 10))
 
@@ -1849,56 +1834,56 @@ class MainControls(QMainWindow):
             if user_reply == QMessageBox.Cancel:
                 return
             self.microtome.near_knife()
-            self.add_to_log('KNIFE: Position should be NEAR.')
+            utils.log_info('KNIFE', 'Position should be NEAR.')
         else:
-            self.add_to_log('CTRL: No microtome, or microtome not active.')
+            utils.log_warning('CTRL', 'No microtome, or microtome not active.')
 
     def test_clear_knife(self):
         if self.use_microtome:
             self.microtome.clear_knife()
-            self.add_to_log('KNIFE: Position should be CLEAR.')
+            utils.log_info('KNIFE', 'Position should be CLEAR.')
         else:
-            self.add_to_log('CTRL: No microtome, or microtome not active.')
+            utils.log_warning('CTRL', 'No microtome, or microtome not active.')
 
     def test_get_mill_pos(self):
         if self.use_microtome:
             pos_fmt = [f"{p:.2f}" for p in self.microtome.xyzt_milling]
-            self.add_to_log(f'GCIB: Mill position (XYZT) {pos_fmt}.')
+            utils.log_info('GCIB', f'Mill position (XYZT) {pos_fmt}.')
         else:
-            self.add_to_log('CTRL: No microtome, or microtome not active.')
+            utils.log_warning('CTRL', 'No microtome, or microtome not active.')
 
     def test_set_mill_pos(self):
         if self.use_microtome:
             self.microtome.move_stage_to_millpos()
             if self.microtome.error_state != 0:
-                self.add_to_log(f'CTRL: Microtome error {self.microtome.error_state}: {self.microtome.error_info}')
+                utils.log_info('CTRL', f'Microtome error {self.microtome.error_state}: {self.microtome.error_info}')
                 self.microtome.reset_error_state()
         else:
-            self.add_to_log('CTRL: No microtome, or microtome not active.')
+            utils.log_warning('CTRL', 'No microtome, or microtome not active.')
 
     def test_set_pos_prior_mill_mov(self):
         if self.use_microtome:
             self.microtome.move_stage_to_pos_prior_mill_mov()
             if self.microtome.error_state != 0:
-                self.add_to_log(f'CTRL: Microtome error {self.microtome.error_state}: {self.microtome.error_info}')
+                utils.log_info('CTRL', f'Microtome error {self.microtome.error_state}: {self.microtome.error_info}')
                 self.microtome.reset_error_state()
         else:
-            self.add_to_log('CTRL: No microtome, or microtome not active.')
+            utils.log_warning('CTRL', 'No microtome, or microtome not active.')
 
     def test_stop_dm_script(self):
         if self.use_microtome:
             self.microtome.stop_script()
-            self.add_to_log('CTRL: STOP command sent to DM script.')
+            utils.log_info('CTRL', 'STOP command sent to DM script.')
         else:
-            self.add_to_log('CTRL: No microtome, or microtome not active.')
+            utils.log_warning('CTRL', 'No microtome, or microtome not active.')
 
     def test_send_email(self):
         """Send test e-mail to the specified user email addresses."""
-        self.add_to_log('CTRL: Trying to send test e-mail.')
+        utils.log_info('CTRL', 'Trying to send test e-mail.')
         success, error_msg = self.notifications.send_email(
             'Test mail', 'This mail was sent for testing purposes.')
         if success:
-            self.add_to_log('CTRL: E-mail was sent via '
+            utils.log_info('CTRL', 'E-mail was sent via '
                             + self.notifications.smtp_server)
             QMessageBox.information(
                 self, 'E-mail test',
@@ -1907,7 +1892,7 @@ class MainControls(QMainWindow):
                 + '. Check your inbox.',
                 QMessageBox.Ok)
         else:
-            self.add_to_log('CTRL: Error: Could not send e-mail.')
+            utils.log_error('CTRL', 'Error: Could not send e-mail.')
             QMessageBox.warning(
                 self, 'E-mail test failed',
                 'A error occurred while trying to send a test e-mail to '
@@ -1918,11 +1903,11 @@ class MainControls(QMainWindow):
 
     def test_plasma_cleaner(self):
         if self.plc_installed:
-            self.add_to_log(
-                'CTRL: Testing serial connection to plasma cleaner.')
-            self.add_to_log('CTRL: ' + self.plasma_cleaner.version())
+            utils.log_info(
+                'CTRL', 'Testing serial connection to plasma cleaner.')
+            utils.log_info('CTRL', '' + self.plasma_cleaner.version())
         else:
-            self.add_to_log('CTRL: Plasma cleaner not installed/activated.')
+            utils.log_error('CTRL', 'Plasma cleaner not installed/activated.')
 
     def test_server_request(self):
         url = self.cfg['sys']['metadata_server_url'] + '/version'
@@ -1978,20 +1963,20 @@ class MainControls(QMainWindow):
     def initialize_plasma_cleaner(self):
         if not self.plc_initialized:
             result = QMessageBox.question(
-                self, 'Initalizing plasma cleaner',
+                self, 'initialising plasma cleaner',
                 'Is the plasma cleaner GV10x DS connected and switched on?',
                 QMessageBox.Yes| QMessageBox.No)
             if result == QMessageBox.Yes:
                 self.plasma_cleaner = PlasmaCleaner(
                     self.cfg['sys']['plc_com_port'])
                 if self.plasma_cleaner.connection_established():
-                    self.add_to_log('CTRL: Plasma cleaner initalized, ver. '
+                    utils.log_info('CTRL', 'Plasma cleaner initialised, ver. '
                                     + self.plasma_cleaner.version()[0])
                     self.plc_initialized = True
                     self.open_plasma_cleaner_dlg()
                 else:
-                    self.add_to_log(
-                        'CTRL: Error: Plasma cleaner could not be initalized')
+                    utils.log_error(
+                        'CTRL', 'Error: Plasma cleaner could not be initialised')
         else:
             self.open_plasma_cleaner_dlg()
 
@@ -2049,8 +2034,7 @@ class MainControls(QMainWindow):
             # Start the thread running the stack acquisition
             # All source code in stack_acquisition.py
             # Thread is stopped by either stop or pause button
-            stack_thread = threading.Thread(target=self.acq.run)
-            stack_thread.start()
+            utils.run_log_thread(self.acq.run)
 
     def pause_acquisition(self):
         """Pause the acquisition after user has clicked 'Pause' button. Let
@@ -2062,7 +2046,7 @@ class MainControls(QMainWindow):
             dialog.exec_()
             pause_type = dialog.pause_type
             if pause_type == 1 or pause_type == 2:
-                self.add_to_log('CTRL: PAUSE command received.')
+                utils.log_info('CTRL', 'PAUSE command received.')
                 self.pushButton_pauseAcq.setEnabled(False)
                 self.acq.pause_acquisition(pause_type)
                 self.pushButton_startAcq.setText('CONTINUE')
@@ -2083,7 +2067,7 @@ class MainControls(QMainWindow):
                     'deleted.',
                     QMessageBox.Yes| QMessageBox.No)
         if result == QMessageBox.Yes:
-            self.add_to_log('CTRL: RESET command received.')
+            utils.log_info('CTRL', 'RESET command received.')
             result = QMessageBox.question(
                          self, 'Clear tile previews and overview images?',
                          'Would you like all current tile previews and '
@@ -2105,7 +2089,7 @@ class MainControls(QMainWindow):
             self.pushButton_startAcq.setText('START')
 
     def completion_stop(self):
-        self.add_to_log('CTRL: Target slice number reached.')
+        utils.log_info('CTRL', 'Target slice number reached.')
         self.pushButton_resetAcq.setEnabled(True)
         QMessageBox.information(
             self, 'Acquisition complete',
@@ -2113,7 +2097,7 @@ class MainControls(QMainWindow):
             QMessageBox.Ok)
 
     def remote_stop(self):
-        self.add_to_log('CTRL: STOP/PAUSE command received remotely.')
+        utils.log_info('CTRL', 'STOP/PAUSE command received remotely.')
         self.pushButton_resetAcq.setEnabled(True)
         self.pushButton_pauseAcq.setEnabled(False)
         self.pushButton_startAcq.setEnabled(True)
@@ -2133,7 +2117,7 @@ class MainControls(QMainWindow):
         QMessageBox.information(
             self, 'ERROR: Acquisition paused',
             f'Error {self.acq.error_state} '
-            f'({utils.ERROR_LIST[self.acq.error_state]}) has occurred '
+            f'({utils.Errors[self.acq.error_state]}) has occurred '
             f'(see log). Acquisition has been paused.',
             QMessageBox.Ok)
 
@@ -2195,10 +2179,10 @@ class MainControls(QMainWindow):
         with open(os.path.join(
             '..', 'cfg', self.cfg['sys']['sys_config_file']), 'w') as f:
             self.syscfg.write(f)
-        self.add_to_log('CTRL: Settings saved to disk.')
+        utils.log_info('CTRL', 'Settings saved to disk.')
 
     def closeEvent(self, event):
-        if self.microtome is not None and self.microtome.error_state == 701:
+        if self.microtome is not None and self.microtome.error_state == Error.configuration:
             if self.sem.sem_api is not None:
                 self.sem.disconnect()
             print('\n\nError in configuration file. Aborted.\n')
@@ -2214,16 +2198,15 @@ class MainControls(QMainWindow):
                     if (self.use_microtome
                             and self.microtome.device_name == 'Gatan 3View'):
                         self.microtome.stop_script()
-                        self.add_to_log('CTRL: Disconnected from DM/3View.')
+                        utils.log_info('CTRL', 'Disconnected from DM/3View.')
                     elif (self.use_microtome
                         and self.microtome.device_name == 'ConnectomX katana'):
                         self.microtome.disconnect()
                     if self.sem.sem_api is not None:
-                        sem_log_msg = self.sem.disconnect()
-                        self.add_to_log('SEM: ' + sem_log_msg)
+                        self.sem.disconnect()
                 if self.plc_initialized:
                     plasma_log_msg = self.plasma_cleaner.close_port()
-                    self.add_to_log(plasma_log_msg)
+                    utils.log_info(plasma_log_msg)
                 if self.acq.acq_paused:
                     if not(self.cfg_file == 'default.ini'):
                         QMessageBox.information(
@@ -2551,8 +2534,7 @@ class MainControls(QMainWindow):
         self.ft_slider_delta = self.verticalSlider_ftDelta.value() + 1
         self.ft_clear_display()
         QApplication.processEvents()
-        ft_thread = threading.Thread(target=self.ft_move_and_acq_thread)
-        ft_thread.start()
+        utils.run_log_thread(self.ft_move_and_acq_thread)
 
     def ft_move_and_acq_thread(self):
         """Move to the target stage position with error handling, then acquire
@@ -2573,14 +2555,14 @@ class MainControls(QMainWindow):
             stage_y += delta_y * self.ft_pixel_size/1000
             stage_x, stage_y = self.cs.convert_to_s((stage_x, stage_y))
             self.stage.move_to_xy((stage_x, stage_y))
-            if self.stage.error_state > 0:
+            if self.stage.error_state != Error.none:
                 self.stage.reset_error_state()
                 # Try again
                 sleep(2)
                 self.stage.move_to_xy((stage_x, stage_y))
-                if self.stage.error_state > 0:
+                if self.stage.error_state != Error.none:
                     move_success = False
-                    self.add_to_log('STAGE: Failed to move to selected '
+                    utils.log_error('STAGE: Failed to move to selected '
                                     'tile/OV for focus tool cycle.')
 
         # Use signal for update because we are in the focus tool acq thread

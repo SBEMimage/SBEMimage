@@ -28,6 +28,7 @@ import json
 from collections import deque
 from abc import ABC, abstractmethod
 import utils
+from utils import Error
 
 
 class BFRemover(ABC):
@@ -40,7 +41,7 @@ class BFRemover(ABC):
     def __init__(self, config, sysconfig):
         self.cfg = config
         self.syscfg = sysconfig
-        self.error_state = 0
+        self.error_state = Error.none
         self.error_info = ''
         self.device_name = 'Abstract block-face remover.'
         self.full_cut_duration = None  # use @property, @abstractmethod
@@ -79,7 +80,7 @@ class BFRemover(ABC):
         raise NotImplementedError
 
     def reset_error_state(self):
-        self.error_state = 0
+        self.error_state = Error.none
         self.error_info = ''
 
     # Optional motor movements, e.g. these are available if SEM stage is active and must then
@@ -158,14 +159,14 @@ class Microtome(BFRemover):
                 self.stage_z_prev_session = float(
                     self.cfg['microtome']['last_known_z'])
             except Exception as e:
-                self.error_state = 701
+                self.error_state = Error.configuration
                 self.error_info = str(e)
                 return
         try:
             self.z_range = json.loads(
                 self.syscfg['stage']['microtome_z_range'])
         except Exception as e:
-            self.error_state = 701
+            self.error_state = Error.configuration
             self.error_info = str(e)
             return
         self.simulation_mode = (
@@ -235,7 +236,7 @@ class Microtome(BFRemover):
             self.failed_z_move_warnings = deque(maxlen=200)
 
         except Exception as e:
-            self.error_state = 701
+            self.error_state = Error.configuration
             self.error_info = str(e)
 
     def save_to_cfg(self):
@@ -307,10 +308,10 @@ class Microtome(BFRemover):
     def do_sweep(self, z_position):
         """Perform a sweep by cutting slightly above the surface."""
         if (((self.sweep_distance < 30) or (self.sweep_distance > 1000))
-                and self.error_state == 0):
-            self.error_state = 205
+                and self.error_state == Error.none):
+            self.error_state = Error.sweeping
             self.error_info = 'microtome.do_sweep: sweep distance out of range'
-        elif self.error_state == 0:
+        elif self.error_state == Error.none:
             raise NotImplementedError
 
     def cut(self):
