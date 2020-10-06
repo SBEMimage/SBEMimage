@@ -200,14 +200,14 @@ def main():
                                                      VERSION)
                 sys.exit(SBEMimage.exec_())
             except Exception as e:
-                print('\nAn exception occured during this SBEMimage session: ')
-                print(str(e))
-                print('Program aborted.')
+                print('\nAn exception occured during this SBEMimage session:\n')
+                utils.logger.propagate = True
+                utils.log_exception("Exception")
+                print('\nProgram aborted.')
                 print('Please submit a bug report at '
                       'https://github.com/SBEMimage/SBEMimage/issues and '
                       'include all lines in /SBEMimage/log/SBEMimage.log '
                       'after the entry "ERROR : Exception".')
-                utils.log_exception("Exception")
                 os.system('cmd /k')
                 sys.exit()
 
