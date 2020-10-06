@@ -238,6 +238,7 @@ class SEMSettingsDlg(QDialog):
     def __init__(self, sem):
         super().__init__()
         self.sem = sem
+        self.current_high_current = self.sem.get_high_current()
         loadUi('..\\gui\\sem_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -248,7 +249,7 @@ class SEMSettingsDlg(QDialog):
         self.spinBox_actualBeamCurrent.setValue(self.sem.get_beam_current())
         self.spinBox_actualBeamSize.setValue(self.sem.get_aperture_size())
         self.checkBox_highCurrent.setEnabled(self.sem.HAS_HIGH_CURRENT)
-        self.checkBox_highCurrent.setChecked(self.sem.get_high_current())
+        self.checkBox_highCurrent.setChecked(self.current_high_current)
         # Update/disable appropriate GUI elements
         self.spinBox_beamCurrent.setEnabled(self.sem.BEAM_CURRENT_MODE == 'current')
         self.comboBox_beamSize.setEnabled(self.sem.BEAM_CURRENT_MODE != 'current')
@@ -267,7 +268,10 @@ class SEMSettingsDlg(QDialog):
         self.sem.set_eht(self.doubleSpinBox_EHT.value())
         self.sem.set_beam_current(self.spinBox_beamCurrent.value())
         self.sem.set_aperture_size(self.comboBox_beamSize.currentIndex())
-        self.sem.set_high_current(self.checkBox_highCurrent.isChecked())
+        if self.checkBox_highCurrent.isChecked() != self.current_high_current:
+            self.current_high_current = self.checkBox_highCurrent.isChecked()
+            sleep(0.1)
+            self.sem.set_high_current(self.current_high_current)
         super().accept()
 
 # ------------------------------------------------------------------------------
