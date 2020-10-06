@@ -78,8 +78,8 @@ class ConfigDlg(QDialog):
         super().__init__()
         loadUi('..\\gui\\config_dlg.ui', self)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        if VERSION.lower() == 'dev':
-            self.label_version.setText('DEVELOPMENT VERSION')
+        if 'dev' in VERSION.lower():
+            self.label_version.setText(f'DEVELOPMENT VERSION ({VERSION})')
         else:
             self.label_version.setText('Version ' + VERSION)
         self.labelIcon.setPixmap(QPixmap('..\\img\\logo.png'))
@@ -1021,7 +1021,7 @@ class StageCalibrationDlg(QDialog):
             scale_y = scale_y_alt
             rot_x = rot_x_alt
             rot_y = rot_y_alt
-        
+
         if self.sem.syscfg['device']['sem'] == '2':
             # ZEISS Sigma
             rot_x = rot_x_alt2
@@ -3921,8 +3921,8 @@ class AboutBox(QDialog):
         loadUi('..\\gui\\about_box.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        if VERSION.lower() == 'dev':
-            self.label_version.setText('DEVELOPMENT VERSION')
+        if 'dev' in VERSION.lower():
+            self.label_version.setText(f'DEVELOPMENT VERSION ({VERSION})')
         else:
             self.label_version.setText('Version ' + VERSION)
         self.labelIcon.setPixmap(QPixmap('..\\img\\logo.png'))
