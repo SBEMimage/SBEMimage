@@ -69,8 +69,8 @@ LOG_FILENAME = '../log/SBEMimage.log'
 LOG_FORMAT = '%(asctime)s.%(msecs)03d %(levelname)s %(category)s: %(message)s'
 LOG_FORMAT_SCREEN = '%(asctime)s.%(msecs)03d | %(category)-5s : %(message)s'
 LOG_FORMAT_DATETIME = '%Y-%m-%d %H:%M:%S'
-LOG_MAX_FILESIZE = 1000000
-LOG_MAX_FILECOUNT = 10
+LOG_MAX_FILESIZE = 10000000
+LOG_MAX_FILECOUNT = 20
 
 
 # TODO: replace values with auto()
