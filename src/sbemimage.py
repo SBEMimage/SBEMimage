@@ -2,8 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # ==============================================================================
-#   SBEMimage, ver. 2020.07
-#   https://github.com/SBEMimage
+#   SBEMimage – https://github.com/SBEMimage
 #   Acquisition control software for serial block-face electron microscopy
 #   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel,
 #   and the SBEMimage developers.
@@ -13,28 +12,29 @@
 
 """sbemimage.py launches the application.
 
-First, the start-up dialog is shown (ConfigDlg in
-main_controls_dlg_windows.py), and the user is asked to select a configuration
-file.
-Then the QMainWindow MainControls (in main_controls.py) is launched.
+First, the start-up dialog is shown (ConfigDlg in main_controls_dlg_windows.py),
+and the user is asked to select a user configuration file. The application
+attempts to load the user configuration file (.ini) and the associated system
+configuration file (.cfg). If the configuration is loaded successfully, the
+QMainWindow MainControls (in main_controls.py) is launched.
 
 Use 'python sbemimage.py' or call the batch file SBEMimage.bat to run SBEMimage.
 """
+
 import os
 import sys
 import platform
 import ctypes
 import traceback
-
-import utils
+import colorama # needed to suppress TIFFReadDirectory warnings in the console
 from configparser import ConfigParser
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import Qt
-import colorama # needed to suppress TIFFReadDirectory warnings in the console
 
 from main_controls_dlg_windows import ConfigDlg
 from config_template import process_cfg
 from main_controls import MainControls
+import utils
 
 # VERSION contains the current version/release date information for the
 # master branch (for example, '2020.07 R2020-07-28'). For the current version
@@ -60,13 +60,11 @@ def main():
     be loaded.
     """
 
-    utils.logging_init("SBEMimage started")
-
     # Check Windows version
     if not (platform.system() == 'Windows'
             and platform.release() in ['7', '10']):
-        utils.log_error('This version of SBEMimage requires Windows 7 or 10. '
-                        'Program aborted.\n')
+        print('This version of SBEMimage requires Windows 7 or 10. '
+              'Program aborted.\n')
         os.system('cmd /k')  # keep console window open
         sys.exit()
 
@@ -111,6 +109,10 @@ def main():
             sys.exit()
         else:
             try:
+                # Attempt to load the configuration files and start up the app.
+                # Logging to central log file starts at this point.
+                utils.logging_init('CTRL', '***** New SBEMimage session *****')
+                utils.log_info('CTRL', 'Loading user and system configuration.')
                 config_file = dlg_response
                 if config_file == 'default.ini':
                     default_configuration = True
@@ -121,7 +123,7 @@ def main():
                     config.read_file(file)
                 print(' Done.\n')
 
-                # Load corresponding system configuration file
+                # Load associated system configuration file
                 sysconfig_file = config['sys']['sys_config_file']
                 if default_configuration and sysconfig_file != 'system.cfg':
                     sysconfig_file = 'system.cfg'
@@ -136,16 +138,17 @@ def main():
                 print(' Done.\n')
             except Exception as e:
                 configuration_loaded = False
-                utils.log_error('\nError while loading configuration! '
-                      'Program aborted.\n Exception: ' + str(e))
+                config_error = ('\nError while loading configuration! '
+                                'Program aborted.\n Exception: ' + str(e))
+                utils.log_error('CTRL', config_error)
+                print(config_error)
                 # Keep terminal window open when run from batch file
                 os.system('cmd /k')
                 sys.exit()
     else:
         # Quit if default.ini doesn't exist
         configuration_loaded = False
-        utils.log_error('default.ini and/or system.cfg not found. '
-                      'Program aborted.\n')
+        print('default.ini and/or system.cfg not found. Program aborted.\n')
         os.system('cmd /k')
         sys.exit()
 
@@ -166,7 +169,8 @@ def main():
 
         if success:
             if default_configuration:
-                utils.log_info('Default configuration loaded (read-only).')
+                utils.log_info(
+                    'CTRL', 'Default configuration loaded (read-only).')
             else:
                 if cfg_changed and syscfg_changed:
                     ch_str = 'config and sysconfig updated'
@@ -176,7 +180,8 @@ def main():
                     ch_str = "sysconfig updated"
                 else:
                     ch_str = 'complete, no updates'
-                utils.log_info('Configuration loaded and checked: ' + ch_str)
+                utils.log_info(
+                    'CTRL', 'Configuration loaded and checked: ' + ch_str)
 
             # Remove status.dat. This file will be recreated when the program
             # terminates normally. The start-up dialog checks if status.dat
@@ -184,7 +189,7 @@ def main():
             if os.path.isfile('..\\cfg\\status.dat'):
                 os.remove('..\\cfg\\status.dat')
 
-            print('Initialising SBEMimage. Please wait...\n')
+            print('Please wait while SBEMimage is starting up...\n')
 
             # Launch Main Controls window. The Viewport window (see viewport.py)
             # is launched from Main Controls.
@@ -194,12 +199,24 @@ def main():
                                                      config_file,
                                                      VERSION)
                 sys.exit(SBEMimage.exec_())
-            except Exception:
+            except Exception as e:
+                print('\nAn exception occured during this SBEMimage session: ')
+                print(str(e))
+                print('Program aborted.')
+                print('Please submit a bug report at '
+                      'https://github.com/SBEMimage/SBEMimage/issues and '
+                      'include all lines in /SBEMimage/log/SBEMimage.log '
+                      'after the entry "ERROR : Exception".')
                 utils.log_exception("Exception")
+                os.system('cmd /k')
+                sys.exit()
+
         else:
-            utils.log_error('Error(s) while checking configuration file(s): '
+            config_error = ('Error(s) while checking configuration file(s): '
                             + exceptions + '\n'
                             + 'Program aborted.\n')
+            utils.log_error('CTRL', config_error)
+            print(config_error)
             os.system('cmd /k')
             sys.exit()
 
