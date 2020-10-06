@@ -285,8 +285,9 @@ def logging_init(message=""):
     if not os.path.exists(dirtree):
         os.makedirs(dirtree)
 
-    logging.basicConfig(format=LOG_FORMAT, datefmt=LOG_FORMAT_DATETIME, level=logging.INFO)
     logger = logging.getLogger("SBEMimage")
+    logger.setLevel(logging.INFO)   # important: anything below this will be filtered irrespective of handler level
+    logging_add_handler(StreamHandler(), level=logging.ERROR)   # filter messages to console log handler
     logging_add_handler(RotatingFileHandler(
         LOG_FILENAME, maxBytes=LOG_MAX_FILESIZE, backupCount=LOG_MAX_FILECOUNT))
     logging_add_handler(qt_text_handler, format=LOG_FORMAT_SCREEN)
@@ -295,9 +296,9 @@ def logging_init(message=""):
         log_info(message)
 
 
-def logging_add_handler(handler, format=LOG_FORMAT, date_format=LOG_FORMAT_DATETIME):
+def logging_add_handler(handler, format=LOG_FORMAT, date_format=LOG_FORMAT_DATETIME, level=logging.INFO):
     handler.setFormatter(logging.Formatter(fmt=format, datefmt=date_format))
-    handler.setLevel(logging.INFO)
+    handler.setLevel(level)
     logger.addHandler(handler)
 
 
