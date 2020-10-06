@@ -3134,7 +3134,7 @@ class ApproachDlg(QDialog):
 
     def finish_approach(self):
         # Move knife to "Clear" position
-        utils.log_error('KNIFE', 'Moving to "Clear" position.')
+        utils.log_info('KNIFE', 'Moving to "Clear" position.')
         self.microtome.clear_knife()
         if self.microtome.error_state != Error.none:
             utils.log_error('KNIFE', 'Error moving to "Clear" position.')
@@ -3235,7 +3235,7 @@ class ApproachDlg(QDialog):
                 self.aborted = True
                 self.microtome.reset_error_state()
                 break
-            utils.log_error('KNIFE', 'Cutting in progress ('
+            utils.log_info('KNIFE', 'Cutting in progress ('
                             + str(self.thickness) + ' nm cutting thickness).')
             # Do the approach cut (cut, retract, in near position)
             self.microtome.do_full_approach_cut()

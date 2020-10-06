@@ -405,7 +405,7 @@ class ImageInspector:
 
     def detect_debris(self, ov_index):
         debris_detected = False
-        msg = 'CTRL: No debris detection method selected.'
+        msg = 'No debris detection method selected.'
         ov_roi = [None, None]
         # Crop to current debris detection area
         top_left_px, top_left_py, bottom_right_px, bottom_right_py = (
@@ -459,7 +459,7 @@ class ImageInspector:
                 if diff_stddev_i > max_diff_stddev:
                     max_diff_stddev = diff_stddev_i
 
-            msg = ('CTRL: ' + var_str
+            msg = (var_str
                    + ': max. diff_M: {0:.2f}'.format(max_diff_mean)
                    + '; max. diff_SD: {0:.2f}'.format(max_diff_stddev))
 
@@ -493,7 +493,7 @@ class ImageInspector:
             for i in range(self.image_diff_hist_lower_limit, 256):
                 diff_sum += diff_histogram[i]
             threshold = self.image_diff_threshold * height * width / 1e6
-            msg = ('CTRL: OV: image_diff_hist_sum: ' + str(diff_sum)
+            msg = ('OV: image_diff_hist_sum: ' + str(diff_sum)
                    + ' (curr. threshold: ' + str(int(threshold)) + ')')
             debris_detected = (diff_sum > threshold)
 
@@ -509,7 +509,7 @@ class ImageInspector:
                 hist_diff_sum += abs(hist1[i] - hist2[i])
             threshold = self.histogram_diff_threshold * height * width / 1e6
 
-            msg = ('CTRL: OV: hist_diff_sum: ' + str(hist_diff_sum)
+            msg = ('OV: hist_diff_sum: ' + str(hist_diff_sum)
                    + ' (curr. threshold: ' + str(int(threshold)) + ')')
             debris_detected = (hist_diff_sum > threshold)
 

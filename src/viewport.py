@@ -2116,7 +2116,6 @@ class Viewport(QWidget):
 
     def _vp_manual_stage_move(self):
         utils.log_info('CTRL', 'Performing user-requested stage move.')
-        self._add_to_main_log('CTRL: Performing user-requested stage move.')
         self.main_controls_trigger.transmit('RESTRICT GUI')
         self.restrict_gui(True)
         QApplication.processEvents()
@@ -2131,11 +2130,8 @@ class Viewport(QWidget):
         self.main_controls_trigger.transmit('UPDATE XY')
         if success:
             utils.log_info('CTRL', 'User-requested stage move completed.')
-            self._add_to_main_log('CTRL: User-requested stage move completed.')
         else:
             utils.log_error('CTRL', 'ERROR ocurred during manual stage move.')
-            self._add_to_main_log(
-                'CTRL: ERROR ocurred during manual stage move.')
             QMessageBox.warning(
                 self, 'Error during stage move',
                 'An error occurred during the requested stage move: '

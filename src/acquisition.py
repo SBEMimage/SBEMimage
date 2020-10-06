@@ -1608,8 +1608,8 @@ class Acquisition:
                         # Detect potential debris
                         debris_detected, msg = self.img_inspector.detect_debris(
                             ov_index)
-                        utils.log_warning(msg)
-                        self.add_to_main_log(msg)
+                        utils.log_info('CTRL', msg)
+                        self.add_to_main_log('CTRL: ' + msg)
                         if debris_detected:
                             ov_accepted = False
                             # If 'Ask User' mode is active, ask user to
