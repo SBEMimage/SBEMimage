@@ -279,7 +279,7 @@ logger: logging.Logger
 qt_text_handler = QtTextHandler()
 
 
-def logging_init(message=""):
+def logging_init(*message):
     global logger
     dirtree = os.path.dirname(LOG_FILENAME)
     if not os.path.exists(dirtree):
@@ -291,8 +291,10 @@ def logging_init(message=""):
         LOG_FILENAME, maxBytes=LOG_MAX_FILESIZE, backupCount=LOG_MAX_FILECOUNT))
     logging_add_handler(qt_text_handler, format=LOG_FORMAT_SCREEN)
 
+    logger.propagate = False
+
     if message:
-        log_info(message)
+        log_info(*message)
 
 
 def logging_add_handler(handler, format=LOG_FORMAT, date_format=LOG_FORMAT_DATETIME):
