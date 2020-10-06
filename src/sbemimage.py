@@ -46,6 +46,7 @@ VERSION = '2020.10.06.dev1'
 # Hook for uncaught/Qt exceptions
 def excepthook(exc_type, exc_value, exc_tb):
     message = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
+    print("Exception hook caught: " + message)
     utils.log_exception(message)
 
 sys.excepthook = excepthook

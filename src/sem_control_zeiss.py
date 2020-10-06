@@ -274,7 +274,7 @@ class SEM_SmartSEM(SEM):
         # Call method in parent class
         super().set_high_current(target_high_current)
         if self.HAS_HIGH_CURRENT:
-            ret_val = self.sem_set('DP_HIGH_CURRENT', int(self.HAS_HIGH_CURRENT))
+            ret_val = self.sem_set('DP_HIGH_CURRENT', int(self.target_high_current))
             if ret_val == 0:
                 return True
             else:
