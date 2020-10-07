@@ -2022,7 +2022,7 @@
           <string>Get mill position</string>
          </property>
         </widget>
-        <widget class="QPushButton" name="pushButton_testMoveMillPos">
+        <widget class="QPushButton" name="pushButton_testMillMov">
          <property name="geometry">
           <rect>
            <x>20</x>
@@ -2032,10 +2032,10 @@
           </rect>
          </property>
          <property name="text">
-          <string>Set mill position</string>
+          <string>Mill movement</string>
          </property>
         </widget>
-        <widget class="QPushButton" name="pushButton_testMovePriorMillPos">
+        <widget class="QPushButton" name="pushButton_testMilling">
          <property name="geometry">
           <rect>
            <x>20</x>
@@ -2045,7 +2045,7 @@
           </rect>
          </property>
          <property name="text">
-          <string>Set prior-mill pos.</string>
+          <string>Milling (full)</string>
          </property>
         </widget>
        </widget>
@@ -2878,8 +2878,8 @@ Wafer Image</string>
   <tabstop>pushButton_testNearKnife</tabstop>
   <tabstop>pushButton_testClearKnife</tabstop>
   <tabstop>pushButton_testGetMillPos</tabstop>
-  <tabstop>pushButton_testMoveMillPos</tabstop>
-  <tabstop>pushButton_testMovePriorMillPos</tabstop>
+  <tabstop>pushButton_testMillMov</tabstop>
+  <tabstop>pushButton_testMilling</tabstop>
   <tabstop>pushButton_testMotors</tabstop>
   <tabstop>pushButton_testStopDMScript</tabstop>
   <tabstop>pushButton_testSendEMail</tabstop>
