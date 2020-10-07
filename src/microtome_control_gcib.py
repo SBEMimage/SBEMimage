@@ -3,7 +3,6 @@ from time import sleep
 import json
 import numpy as np
 from microtome_control import BFRemover
-
 import utils
 from utils import Error
 
@@ -13,6 +12,15 @@ try:
     _ftdidio_avail = True
 except ImportError as e:
     _ftdidio_avail = False
+
+# TODO: beam deceleration should be controlled elsewhere
+try:
+    import ftdirelais
+    _ftdirelais_avail = True
+except ImportError as e:
+    _ftdirelais_avail = False
+
+_ftdi_utils_avail = _ftdidio_avail and _ftdirelais_avail
 
 
 class GCIB(BFRemover):
@@ -33,9 +41,10 @@ class GCIB(BFRemover):
             stage: Stage class must implement XYZ translation, tilt and rotation.
         """
         super().__init__(config, sysconfig)
-        if not _ftdidio_avail:
-            raise ImportError(f'ImportError: {self} implementation requires the package "ftdidio" '
-                              f'which could not be imported.')
+        if not _ftdi_utils_avail:
+            self.error_state = Error.configuration
+            self.error_info = (f'ImportError: {self} implementation requires package "ftdidio" and "ftdirelais,'
+                               f'which could not be imported.')
         self.cfg = config
         self.syscfg = sysconfig
         self.stage = stage
@@ -73,23 +82,31 @@ class GCIB(BFRemover):
         except Exception as e:
             self.error_state = Error.configuration
             self.error_info = f'Could not initialize ftdidio: {str(e)}'
+        try:
+            self._ftdirelais = ftdirelais.Ftdirelais()
+        except Exception as e:
+            self.error_state = Error.configuration
+            self.error_info = f'Could not initialize ftdirelais: {str(e)}'
         self._connect_blanking()
+        self._connect_relais()
 
     def _connect_blanking(self):
         try:
             self._ftdi_device.open(serial=self._ftdi_serial)
             self._ftdi_device.set_mask(1)
-            self._blank_beam()  # 1 = blanking?
+            self._blank_beam()
+            msg = f'GCIB: Connected ftdidio.'
+            utils.log_info(msg)
         except ftdidio.FtdidioError as e:
             self.error_state = Error.move_init
             self.error_info = str(e)
 
     def _disconnect_blanking(self):
         """
-        TODO: This will also disable blanking!
+        Disconnect from ftdi device. Tries to blank beam.
         """
         try:
-            self._unblank_beam()
+            self._blank_beam()
             self._ftdi_device.close()
         except ftdidio.FtdidioError as e:
             self.error_state = Error.move_init
@@ -101,6 +118,28 @@ class GCIB(BFRemover):
     def _unblank_beam(self):
         self._ftdi_device.clear_bit(1)
 
+    def _connect_relais(self):
+        try:
+            self._ftdirelais.open(serial='4')
+            msg = f'GCIB: Connected ftdi relais.'
+            utils.log_info(msg)
+        except Exception as e:
+            self.error_state = Error.configuration
+            self.error_info = f'Could not initialize ftdirelais: {str(e)}'
+
+    def _disconnect_relais(self):
+        try:
+            self._ftdirelais.close()
+        except Exception as e:
+            self.error_state = Error.configuration
+            self.error_info = f'Could not initialize ftdirelais: {str(e)}'
+
+    def _relais_on(self):
+        self._ftdirelais.set_relais_0()
+
+    def _relais_off(self):
+        self._ftdirelais.clear_relais_0()
+
     def save_to_cfg(self):
         # Save full cut duration in both cfg and syscfg
         self.cfg['microtome']['full_cut_duration'] = str(self.full_cut_duration)
@@ -111,8 +150,9 @@ class GCIB(BFRemover):
         self.cfg['gcib']['last_known_z'] = str(self.last_known_z)
         self.stage.save_to_cfg()
 
-    def do_full_cut(self):
-        return self.do_full_removal()
+    def do_full_cut(self, **kwargs):
+        self.do_full_removal(**kwargs)
+        return
 
     def move_stage_to_millpos(self):
         """
@@ -127,10 +167,7 @@ class GCIB(BFRemover):
             return
         x, y, z, t, r = self.stage.get_stage_xyztr()
         msg = f'GCIB: Start position for milling cycle X={x}, Y={y}, Z={z}, T={t}, R={r}.'
-        if self.acq is not None:
-            self.acq.main_controls_trigger.transmit(msg)
-        else:
-            print(msg)
+        utils.log_info(msg)
         if not np.isclose(t, 0, atol=1e-4):
             self.error_state = Error.move_unsafe
             self.error_info = (f'UnsafeMovementError: Current t position is supposed to be close to 0,'
@@ -150,10 +187,7 @@ class GCIB(BFRemover):
             return
         self._pos_prior_mill_mov = [x, y, z, t, r]
         msg = f'Stored position prior to mill movement: {self._pos_prior_mill_mov}'
-        if self.acq is not None:
-            self.acq.main_controls_trigger.transmit(msg)
-        else:
-            print(msg)
+        utils.log_info(msg)
 
         if self.simulation_mode:
             time.sleep(self.full_cut_duration)
@@ -164,10 +198,7 @@ class GCIB(BFRemover):
         # # Only needed if non-continuous rotation.
         # self.stage.move_stage_delta_r(120, no_wait=True)
         msg = f'GCIB: Reached mill position: X={x_mill}, Y={y_mill}, Z={z_mill}, T={t_mill}, R=120.'
-        if self.acq is not None:
-            self.acq.main_controls_trigger.transmit(msg)
-        else:
-            print(msg)
+        utils.log_info(msg)
 
     def move_stage_to_pos_prior_mill_mov(self):
         """
@@ -210,61 +241,71 @@ class GCIB(BFRemover):
         #                        f'instead got: {r_dest} != 0.')
         #     return
         msg = f'GCIB: Reached original position after milling cycle: X={x}, Y={y}, Z={z}, T={t}, R={r}.'
-        if self.acq is not None:
-            self.acq.main_controls_trigger.transmit(msg)
-        else:
-            print(msg)
+        utils.log_info(msg)
 
-    def do_full_removal(self, mill_duration=None):
+    def do_full_removal(self, mill_duration=None, testing=False):
         """Perform a full milling cycle. This is the only removal function
            used during stack acquisitions.
         """
         if mill_duration is None:
             mill_duration = self.mill_cycle
+        self._relais_off()
         self.move_stage_to_millpos()
-        # Only required to test stage transitions
+        # mill_duration==0 is only required to test stage transitions
+        dt_milling = time.time()
         if mill_duration > 0:
             self._unblank_beam()
-
         self.rotate360(mill_duration)
-
         if mill_duration > 0:
             self._blank_beam()
+        dt_milling = time.time() - dt_milling
+        utils.log_info(f'GCIB: GCIB was unblanked with stage in focus position for {dt_milling:.1f} s')
         self.move_stage_to_pos_prior_mill_mov()
+        self._relais_on()
+        if testing:
+            return
         # TODO: requires further investigation (might disappear with proper gold coating and electron irradiation)
-        dt_sleep = 10
-        msg = f'GCIB: Sleeping for {dt_sleep} s to lose charge on sample.'
-        if self.acq is not None:
-            self.acq.main_controls_trigger.transmit(msg)
-        else:
-            print(msg)
-        sleep(dt_sleep)
+        dt_sleep = 0
+        if dt_sleep > 0:
+            msg = f'GCIB: Sleeping for {dt_sleep} s to lose charge on sample.'
+            utils.log_info(msg)
+            sleep(dt_sleep)
 
     def rotate360(self, mill_duration):
+        """
+        Args:
+            mill_duration: Total mill duration in seconds.
+        """
         # Hayworth et al, 2019, Nat. Methods: Three evenly spaced azimuthal
         # directions for 360 deg and 360 s per mill cycle
         if not self.continuous_rot:
             start = time.time()
-            while time.time() - start < mill_duration:
-                if self.acq is not None and self.acq.acq_paused:
+            while True:  # loop while < mill duration
+                start_invertall = time.time()
+                while True:  # sleep for 10s after rotating to new azimuth
+                    dt_intervall = time.time() - start_invertall
+                    dt = time.time() - start
+                    if self.acq is not None and self.acq.acq_paused and self.acq.pause_state == 1:
+                        break
+                    if dt_intervall >= 10 or dt >= mill_duration:
+                        break
+                    time.sleep(0.2)
+                # pause_state==1 -> pause immediately
+                if dt >= mill_duration or (self.acq is not None and self.acq.acq_paused and self.acq.pause_state == 1):
                     break
                 self.stage.move_stage_delta_r(120, no_wait=False)
-                time.sleep(10)
         else:
             dt_per_2deg = mill_duration / 180
             for deg in range(360):
-                if self.acq is not None and self.acq.acq_paused:
+                if self.acq is not None and self.acq.acq_paused and self.acq.pause_state == 1:
                     break
                 start = time.time()
                 self.stage.move_stage_delta_r(2)
                 dt = time.time() - start
                 if dt > dt_per_2deg:
-                    msg = (f'WARNING: Rotation speed was slower ({dt:.3f} s) than requested by the target mill '
+                    msg = (f'GCIB: WARNING: Rotation speed was slower ({dt:.3f} s) than requested by the target mill '
                            f'cycle ({dt_per_2deg:.2f s}).')
-                    if self.acq is not None:
-                        self.acq.main_controls_trigger.transmit(msg)
-                    else:
-                        print(msg)
+                    utils.log_info(msg)
                 else:
                     sleep(dt_per_2deg - dt)
 

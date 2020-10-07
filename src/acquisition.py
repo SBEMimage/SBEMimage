@@ -1707,7 +1707,8 @@ class Acquisition:
         # Use (SmartSEM) autofocus/autostig (method 0) on this slice for the
         # grid acquisition depending on whether MagC mode is active, and
         # on the slice number and current autofocus settings.
-        if self.magc_mode:
+        # Perform mapfost also prior to first removal.
+        if self.magc_mode or (self.use_autofocus and self.autofocus.method == 3):
             self.autofocus_stig_current_slice = True, True
         else:
             self.autofocus_stig_current_slice = (
@@ -2537,6 +2538,13 @@ class Acquisition:
             af_type = '(stig only)'
         wd = self.sem.get_wd()
         sx, sy = self.sem.get_stig_xy()
+        # added to adjust WD and stig values to tiles which are just used for autofocus!
+        tile_wd = self.gm[grid_index][tile_index].wd
+        tile_stig_x = self.gm[grid_index][tile_index].stig_xy[0]
+        tile_stig_y = self.gm[grid_index][tile_index].stig_xy[1]
+        if (tile_wd != wd) or (tile_stig_x != sx) or (tile_stig_y != sy):
+            self.sem.set_wd(tile_wd)
+            self.sem.set_stig_xy(tile_stig_x, tile_stig_y)
         # TODO: Use enum for method:
         if self.autofocus.method == 0:
             utils.log_info('SEM',
@@ -2548,19 +2556,18 @@ class Acquisition:
                                  + str(grid_index) + '.' + str(tile_index))
             return_msg = self.autofocus.run_zeiss_af(do_focus, do_stig)
         elif self.autofocus.method == 3:
-            utils.log_info('SEM',
-                           'Running MAPFoSt AF procedure for tile '
-                           + str(grid_index) + '.' + str(tile_index))
-            self.add_to_main_log('SEM: Running MAPFoSt AF procedure for tile '
-                                 + str(grid_index) + '.' + str(tile_index))
+            msg = f'Running MAPFoSt AF procedure for tile {grid_index}.{tile_index} with initial WD/STIG_X/Y: ' \
+                  f'{tile_wd*1000:.4f}, {tile_stig_x:.4f}, {tile_stig_y:.4f}'
+            utils.log_info('SEM', msg)
+            self.add_to_main_log(f'SEM: {msg}')
             return_msg = self.autofocus.run_mapfost_af()
-            if not self.autofocus.wd_stig_diff_below_max(wd, sx, sy):
+            if not self.autofocus.wd_stig_diff_below_max(tile_wd, tile_stig_x, tile_stig_y):
                 utils.log_info('SEM',
                                'Re-running MAPFoSt AF procedure for tile '
                                + str(grid_index) + '.' + str(tile_index))
                 self.add_to_main_log('SEM: Re-running MAPFoSt AF procedure for tile '
                                      + str(grid_index) + '.' + str(tile_index))
-                return_msg = self.autofocus.run_mapfost_af(defocus_arr=[10, 8, 8, 6, 4, 2])
+                return_msg = self.autofocus.run_mapfost_af(defocus_arr=[10, 8, 6, 4, 2])
         else:
             self.error_state = Error.autofocus_smartsem  # TODO: check if that code makes sense here
             return
@@ -2568,15 +2575,23 @@ class Acquisition:
         self.add_to_main_log(return_msg)
         if 'ERROR' in return_msg:
             self.error_state = Error.autofocus_smartsem
-        elif not self.autofocus.wd_stig_diff_below_max(wd, sx, sy):
-            self.add_to_incident_log(f'Autofocus out of range with new values: {self.sem.get_wd()} (WD), '
-                                     f'{self.sem.get_stig_xy()} (stig_xy).')
+        elif not self.autofocus.wd_stig_diff_below_max(tile_wd, tile_stig_x, tile_stig_y):
+            msg = (f'Autofocus for tile {grid_index}.{tile_index} out of range with new values: {self.sem.get_wd()*1000} (WD), '
+                   f'{self.sem.get_stig_xy()} (stig_xy).')
+            utils.log_error('STAGE', msg)
+            self.add_to_main_log(msg)
+            self.add_to_incident_log(msg)
             self.error_state = Error.wd_stig_difference
         else:
             # Save settings for specified tile
             self.gm[grid_index][tile_index].wd = self.sem.get_wd()
             self.gm[grid_index][tile_index].stig_xy = list(
                 self.sem.get_stig_xy())
+            msg = f'Finished MAPFoSt AF procedure for tile {grid_index}.{tile_index} with final WD/STIG_X/Y: ' \
+                  f'{self.gm[grid_index][tile_index].wd*1000:.4f}, {self.gm[grid_index][tile_index].stig_xy[0]:.4f},' \
+                  f' {self.gm[grid_index][tile_index].stig_xy[1]:.4f}'
+            utils.log_info('SEM', msg)
+            self.add_to_main_log(f'SEM: {msg}')
             # Show updated WD label(s) in Viewport
             self.main_controls_trigger.transmit('DRAW VP')
 

@@ -181,11 +181,11 @@ class Autofocus():
         if autofoc_mapfost is None:
             return 'CTRL: ERROR during MAPFoSt - Could not import "mapfost" package.'
         # TODO: add rotation parameter (maybe also the measurement)
-        default_kwargs = dict(defocus_arr=[8, 8, 6, 6, 4, 4, 2, 1])  # TODO: make adaptable (depends on detector type)
+        default_kwargs = dict(defocus_arr=[8, 8, 6, 6, 4, 4, 2])  # TODO: make adaptable (depends on detector type)
         default_kwargs.update(kwargs)
         # TODO: allow different dwell times and other mapfost parameters!
-        # use 2k image size (frame size selector: 2 for Merlin, PS)
-        self.sem.apply_frame_settings(2, self.pixel_size, 0.4)
+        # use 2k image size (frame size selector: 2 for Merlin, PS), frame size selector 1 -> 1k image
+        self.sem.apply_frame_settings(2, self.pixel_size, 0.2)
         sleep(0.2)
         try:
             corrections = autofoc_mapfost(ps=self.pixel_size / 1e3, set_final_values=True,
