@@ -240,12 +240,12 @@ class QtTextHandler(StreamHandler):
     def __init__(self):
         StreamHandler.__init__(self)
         self.buffer = []
-        self.text_control = None
+        self.qt_trigger = None
 
-    def set_output(self, text_control):
-        self.text_control = text_control
+    def set_output(self, qt_trigger):
+        self.qt_trigger = qt_trigger
         for message in self.buffer:
-            self.text_control.appendPlainText(message)
+            self.qt_trigger.transmit(message)
         self.buffer.clear()
 
     def emit(self, record):
@@ -254,12 +254,8 @@ class QtTextHandler(StreamHandler):
         if 'Traceback' in message:
             i = message.index('Traceback')
             message = message[0:i].strip() + " : See log for details"
-        if self.text_control:
-            self.text_control.appendPlainText(message)
-            self.text_control.ensureCursorVisible()
-            # fix refresh after updating text in thread:
-            self.text_control.hide()
-            self.text_control.show()
+        if self.qt_trigger:
+            self.qt_trigger.transmit(message)
         else:
             self.buffer.append(message)
 
@@ -302,8 +298,8 @@ def logging_add_handler(handler, format=LOG_FORMAT, date_format=LOG_FORMAT_DATET
     logger.addHandler(handler)
 
 
-def set_log_text_handler(text_control):
-    qt_text_handler.set_output(text_control)
+def set_log_text_handler(qt_trigger):
+    qt_text_handler.set_output(qt_trigger)
 
 
 def log(level, *pos_params, **key_params):
