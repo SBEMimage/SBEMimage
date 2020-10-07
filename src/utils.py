@@ -29,9 +29,7 @@ from logging import StreamHandler
 from logging.handlers import RotatingFileHandler
 from PyQt5.QtCore import QObject, pyqtSignal
 
-# Size of the Viewport canvas. This is currently fixed and values other
-# than 1000 and 800 are not fully supported/tested. In the future, these could
-# become parameters to allow resizing of the Viewport window.
+# Default and minimum size of the Viewport canvas.
 VP_WIDTH = 1000
 VP_HEIGHT = 800
 
@@ -40,6 +38,11 @@ VP_HEIGHT = 800
 # when the user clicks onto the window.
 VP_MARGIN_X = 20
 VP_MARGIN_Y = 40
+
+# Difference in pixels between the Viewport window width/height and the
+# Viewport canvas width/height.
+VP_WINDOW_DIFF_X = 50
+VP_WINDOW_DIFF_Y = 150
 
 # Zoom parameters to convert between the scale factors and the position
 # of the zoom sliders in the Viewport (VP) and the Slice-by-Slice viewer

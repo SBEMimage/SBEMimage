@@ -9,8 +9,8 @@
 # ==============================================================================
 
 """This module maintains the coordinate systems and the stage calibration, and
-   provides conversion functionality. It also keeps track of the Viewport scale
-   factors and display position coordinates.
+   provides conversion functionality. It also keeps track of the Viewport size,
+   scale factors, and display position coordinates.
    One-letter abbreviations for the type of coordinates used:
        s - Microtome or SEM stage coordinates in microns. Stage origin at (0, 0)
            _s, sx, sy, sx_sy
@@ -33,8 +33,6 @@ class CoordinateSystem:
         configuration."""
         self.cfg = config
         self.syscfg = sysconfig
-        self.vp_width = utils.VP_WIDTH
-        self.vp_height = utils.VP_HEIGHT
 
         if ((self.cfg['sys']['use_microtome'].lower() == 'true')
                 and (int(self.syscfg['device']['microtome']) not in [5, 6])):  # katana or GCIB
@@ -47,7 +45,10 @@ class CoordinateSystem:
         self.load_stage_calibration(initial_eht)
         self.apply_stage_calibration()
 
-        # Viewport (vp): centre position of visible area and scaling
+        # Viewport (vp): default width/height,
+        # centre position of visible area, and scale factor
+        self.vp_width = utils.VP_WIDTH
+        self.vp_height = utils.VP_HEIGHT
         self._vp_centre_dx_dy = json.loads(
             self.cfg['viewport']['vp_centre_dx_dy'])
         self._vp_scale = float(self.cfg['viewport']['vp_scale'])
@@ -64,13 +65,6 @@ class CoordinateSystem:
         # Origin of the current OV relative to the Slice-by-Slice Viewer origin
         self.sv_ov_vx_vy = [int(self.cfg['viewport']['sv_offset_x_ov']),
                             int(self.cfg['viewport']['sv_offset_y_ov'])]
-
-    def update_vp_size(self, vp_width, vp_height):
-        self.vp_width = vp_width
-        self.vp_height = vp_height
-        self.update_vp_origin_dx_dy()
-        self.sv_scale_tile = 1
-        self.sv_scale_ov = 1
 
     def save_to_cfg(self):
         """Save current parameters to the self.cfg ConfigParser object.
