@@ -238,17 +238,23 @@ class SEMSettingsDlg(QDialog):
     def __init__(self, sem):
         super().__init__()
         self.sem = sem
+        # Read actual values
+        self.actual_eht = self.sem.get_eht()
+        self.actual_beam_current = self.sem.get_beam_current()
+        self.actual_aperture_size = self.sem.get_aperture_size()
+        self.actual_high_current = self.sem.get_high_current()
+        
         loadUi('..\\gui\\sem_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         #self.setFixedSize(self.size())
         self.show()
         # Display actual settings from SmartSEM
-        self.doubleSpinBox_actualEHT.setValue(self.sem.get_eht())
-        self.spinBox_actualBeamCurrent.setValue(self.sem.get_beam_current())
-        self.spinBox_actualBeamSize.setValue(self.sem.get_aperture_size())
+        self.doubleSpinBox_actualEHT.setValue(self.actual_eht)
+        self.spinBox_actualBeamCurrent.setValue(self.actual_beam_current)
+        self.spinBox_actualBeamSize.setValue(self.actual_aperture_size)
         self.checkBox_highCurrent.setEnabled(self.sem.HAS_HIGH_CURRENT)
-        self.checkBox_highCurrent.setChecked(self.sem.get_high_current())
+        self.checkBox_highCurrent.setChecked(self.actual_high_current)
         # Update/disable appropriate GUI elements
         self.spinBox_beamCurrent.setEnabled(self.sem.BEAM_CURRENT_MODE == 'current')
         self.comboBox_beamSize.setEnabled(self.sem.BEAM_CURRENT_MODE != 'current')
@@ -264,10 +270,22 @@ class SEMSettingsDlg(QDialog):
         self.lineEdit_currentStigY.setText('{0:.6f}'.format(sem.get_stig_y()))
 
     def accept(self):
-        self.sem.set_eht(self.doubleSpinBox_EHT.value())
-        self.sem.set_beam_current(self.spinBox_beamCurrent.value())
-        self.sem.set_aperture_size(self.comboBox_beamSize.currentIndex())
-        self.sem.set_high_current(self.checkBox_highCurrent.isChecked())
+        self.target_eht = self.doubleSpinBox_EHT.value()
+        if self.target_eht != self.actual_eht:
+            self.sem.set_eht(self.target_eht)
+        
+        self.target_beam_current = self.spinBox_beamCurrent.value()
+        if self.target_beam_current != self.actual_beam_current:
+            self.sem.set_beam_current(self.target_beam_current)
+        
+        self.target_aperture_size = self.comboBox_beamSize.currentIndex()
+        if self.target_aperture_size != self.actual_aperture_size:
+            self.sem.set_aperture_size(self.target_aperture_size)
+        
+        self.target_high_current = self.checkBox_highCurrent.isChecked()
+        if self.target_high_current != self.actual_high_current:
+            self.sem.set_high_current(self.target_high_current)
+            
         super().accept()
 
 # ------------------------------------------------------------------------------

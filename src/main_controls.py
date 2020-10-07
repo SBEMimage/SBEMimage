@@ -405,7 +405,7 @@ class MainControls(QMainWindow):
         self.move(1120, 20)
         self.hide() # hide window until fully initialized
         # Connect text area to logging
-        utils.set_log_text_handler(self.textarea_log)
+        utils.set_log_text_handler(self.trigger)
         # Pushbuttons
         self.pushButton_SEMSettings.clicked.connect(self.open_sem_dlg)
         self.pushButton_SEMSettings.setIcon(QIcon('..\\img\\settings.png'))
@@ -1586,8 +1586,8 @@ class MainControls(QMainWindow):
             self.acq.user_reply = reply
         else:
             # If msg is not a command, show it in log:
-            # TODO: remove
             self.textarea_log.appendPlainText(msg)
+            self.textarea_log.ensureCursorVisible()
 
     def add_tile_folder(self):
         """Add a folder for a new tile to be acquired while the acquisition

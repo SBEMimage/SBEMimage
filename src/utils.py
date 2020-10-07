@@ -69,8 +69,8 @@ LOG_FILENAME = '../log/SBEMimage.log'
 LOG_FORMAT = '%(asctime)s.%(msecs)03d %(levelname)s %(category)s: %(message)s'
 LOG_FORMAT_SCREEN = '%(asctime)s.%(msecs)03d | %(category)-5s : %(message)s'
 LOG_FORMAT_DATETIME = '%Y-%m-%d %H:%M:%S'
-LOG_MAX_FILESIZE = 1000000
-LOG_MAX_FILECOUNT = 10
+LOG_MAX_FILESIZE = 10000000
+LOG_MAX_FILECOUNT = 20
 
 
 # TODO: replace values with auto()
@@ -240,12 +240,12 @@ class QtTextHandler(StreamHandler):
     def __init__(self):
         StreamHandler.__init__(self)
         self.buffer = []
-        self.text_control = None
+        self.qt_trigger = None
 
-    def set_output(self, text_control):
-        self.text_control = text_control
+    def set_output(self, qt_trigger):
+        self.qt_trigger = qt_trigger
         for message in self.buffer:
-            self.text_control.appendPlainText(message)
+            self.qt_trigger.transmit(message)
         self.buffer.clear()
 
     def emit(self, record):
@@ -254,12 +254,8 @@ class QtTextHandler(StreamHandler):
         if 'Traceback' in message:
             i = message.index('Traceback')
             message = message[0:i].strip() + " : See log for details"
-        if self.text_control:
-            self.text_control.appendPlainText(message)
-            self.text_control.ensureCursorVisible()
-            # fix refresh after updating text in thread:
-            self.text_control.hide()
-            self.text_control.show()
+        if self.qt_trigger:
+            self.qt_trigger.transmit(message)
         else:
             self.buffer.append(message)
 
@@ -285,8 +281,9 @@ def logging_init(*message):
     if not os.path.exists(dirtree):
         os.makedirs(dirtree)
 
-    logging.basicConfig(format=LOG_FORMAT, datefmt=LOG_FORMAT_DATETIME, level=logging.INFO)
     logger = logging.getLogger("SBEMimage")
+    logger.setLevel(logging.INFO)   # important: anything below this will be filtered irrespective of handler level
+    logging_add_handler(StreamHandler(), level=logging.ERROR)   # filter messages to console log handler
     logging_add_handler(RotatingFileHandler(
         LOG_FILENAME, maxBytes=LOG_MAX_FILESIZE, backupCount=LOG_MAX_FILECOUNT))
     logging_add_handler(qt_text_handler, format=LOG_FORMAT_SCREEN)
@@ -297,14 +294,14 @@ def logging_init(*message):
         log_info(*message)
 
 
-def logging_add_handler(handler, format=LOG_FORMAT, date_format=LOG_FORMAT_DATETIME):
+def logging_add_handler(handler, format=LOG_FORMAT, date_format=LOG_FORMAT_DATETIME, level=logging.INFO):
     handler.setFormatter(logging.Formatter(fmt=format, datefmt=date_format))
-    handler.setLevel(logging.INFO)
+    handler.setLevel(level)
     logger.addHandler(handler)
 
 
-def set_log_text_handler(text_control):
-    qt_text_handler.set_output(text_control)
+def set_log_text_handler(qt_trigger):
+    qt_text_handler.set_output(qt_trigger)
 
 
 def log(level, *pos_params, **key_params):
