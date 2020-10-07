@@ -60,6 +60,8 @@ def main():
     be loaded.
     """
 
+    utils.logging_init('CTRL', '***** New SBEMimage session *****')
+
     # Check Windows version
     if not (platform.system() == 'Windows'
             and platform.release() in ['7', '10']):
@@ -111,7 +113,6 @@ def main():
             try:
                 # Attempt to load the configuration files and start up the app.
                 # Logging to central log file starts at this point.
-                utils.logging_init('CTRL', '***** New SBEMimage session *****')
                 utils.log_info('CTRL', 'Loading user and system configuration.')
                 config_file = dlg_response
                 if config_file == 'default.ini':
