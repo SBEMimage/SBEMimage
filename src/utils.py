@@ -503,6 +503,8 @@ def suppress_console_warning():
     # Suppress TIFFReadDirectory warnings that otherwise flood console window
     print('\x1b[19;1H' + 80*' ' + '\x1b[19;1H', end='')
     print('\x1b[18;1H' + 80*' ' + '\x1b[18;1H', end='')
+    print('\x1b[17;1H' + 80*' ' + '\x1b[17;1H', end='')
+    print('\x1b[16;1H' + 80*' ' + '\x1b[16;1H', end='')
 
 def calculate_electron_dose(current, dwell_time, pixel_size):
     """Calculate the electron dose.
