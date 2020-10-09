@@ -1153,10 +1153,14 @@ class Acquisition:
             self.microtome.reset_error_state()
             self.pause_acquisition(1)
         else:
+            cut_duration = time() - start_cut
+            if cut_duration < 60:
+                cut_duration_str = f'{cut_duration:.1f} s'
+            else:
+                cut_duration_str = f'{cut_duration / 60:.2f} min'
             utils.log_info(
                 'KNIFE',
-                'Cut completed after '
-                f'{(time()-start_cut)/60:.2f} min.')
+                'Cut completed after ' + cut_duration_str)
             self.add_to_main_log(f'KNIFE: Cut completed after '
                                  f'{(time()-start_cut)/60:.2f} min.')
             self.slice_counter += 1
