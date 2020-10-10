@@ -2190,8 +2190,7 @@ class Viewport(QWidget):
         if centre_sx_sy[0] is None:
             # Use the last known position
             centre_sx_sy = self.ovm['stub'].centre_sx_sy
-        grid_size_selector = self.ovm['stub'].grid_size_selector
-        dialog = StubOVDlg(centre_sx_sy, grid_size_selector,
+        dialog = StubOVDlg(centre_sx_sy,
                            self.sem, self.stage, self.ovm, self.acq,
                            self.img_inspector,
                            self.viewport_trigger)
