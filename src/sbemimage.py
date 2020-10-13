@@ -23,6 +23,18 @@ Use 'python sbemimage.py' or call the batch file SBEMimage.bat to run SBEMimage.
 
 import os
 import sys
+
+# Required for pynsist (uncomment when building installer):
+# import site
+# scriptdir, script = os.path.split(__file__)
+# pkgdir = os.path.join(scriptdir, '..', 'pkgs')
+# # Ensure .pth files in pkgdir are handled properly and ensure importing
+# # local modules works.
+# site.addsitedir(pkgdir)
+# site.addsitedir(scriptdir)
+# sys.path.insert(0, pkgdir)
+# sys.path.append(scriptdir)
+
 import platform
 import ctypes
 import traceback
@@ -36,11 +48,12 @@ from config_template import process_cfg
 from main_controls import MainControls
 import utils
 
+
 # VERSION contains the current version/release date information for the
 # master branch (for example, '2020.07 R2020-07-28'). For the current version
 # in the dev (development) branch, it must contain the tag 'dev'.
 # Following https://www.python.org/dev/peps/pep-0440/#public-version-identifiers
-VERSION = '2020.10.06.dev1'
+VERSION = '2020.10.12.dev1'
 
 
 # Hook for uncaught/Qt exceptions
