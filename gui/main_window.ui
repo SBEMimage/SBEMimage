@@ -1328,13 +1328,13 @@
         <property name="geometry">
          <rect>
           <x>20</x>
-          <y>420</y>
+          <y>450</y>
           <width>101</width>
           <height>23</height>
          </rect>
         </property>
         <property name="text">
-         <string>Run cycle</string>
+         <string>Focus series</string>
         </property>
        </widget>
        <widget class="QRadioButton" name="radioButton_focus">
@@ -1650,7 +1650,7 @@
         <property name="geometry">
          <rect>
           <x>20</x>
-          <y>450</y>
+          <y>476</y>
           <width>101</width>
           <height>23</height>
          </rect>
@@ -1737,6 +1737,19 @@
         </property>
         <property name="text">
          <string>↓</string>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="pushButton_focusToolAutofocus">
+        <property name="geometry">
+         <rect>
+          <x>20</x>
+          <y>424</y>
+          <width>101</width>
+          <height>23</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Autofocus</string>
         </property>
        </widget>
       </widget>
@@ -2211,10 +2224,10 @@ Green: acquired</string>
         <attribute name="verticalHeaderVisible">
          <bool>false</bool>
         </attribute>
-        <attribute name="verticalHeaderMinimumSectionSize">
+        <attribute name="verticalHeaderDefaultSectionSize">
          <number>10</number>
         </attribute>
-        <attribute name="verticalHeaderDefaultSectionSize">
+        <attribute name="verticalHeaderMinimumSectionSize">
          <number>10</number>
         </attribute>
        </widget>
@@ -2585,7 +2598,7 @@ Wafer Image</string>
      <x>0</x>
      <y>0</y>
      <width>711</width>
-     <height>20</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">

@@ -1647,6 +1647,7 @@ class MainControls(QMainWindow):
         b ^= True
         self.pushButton_focusToolStart.setEnabled(b)
         self.pushButton_focusToolMove.setEnabled(b)
+        self.pushButton_focusToolAutofocus.setEnabled(b)
         self.checkBox_zoom.setEnabled(b)
 
     def restrict_tests_gui(self, b):
@@ -2306,6 +2307,13 @@ class MainControls(QMainWindow):
             self.ft_open_set_params_dlg)
         self.pushButton_moveUp.clicked.connect(self.ft_move_up)
         self.pushButton_moveDown.clicked.connect(self.ft_move_down)
+        # Radio buttons to select series type
+        self.radioButton_focus.toggled.connect(
+            lambda: self.pushButton_focusToolStart.setText('Focus Series'))
+        self.radioButton_stigX.toggled.connect(
+            lambda: self.pushButton_focusToolStart.setText('Stigmator Series'))
+        self.radioButton_stigY.toggled.connect(
+            lambda: self.pushButton_focusToolStart.setText('Stigmator Series'))
         # Default pixel size is 6 nm.
         self.spinBox_ftPixelSize.setValue(6)
         # Default dwell time is dwell time selector 4
@@ -2504,6 +2512,7 @@ class MainControls(QMainWindow):
             'Busy.', 'Focus tool image acquisition in progress...', True)
         self.pushButton_focusToolStart.setText('Busy')
         self.pushButton_focusToolStart.setEnabled(False)
+        self.pushButton_focusToolAutofocus.setEnabled(False)
         self.pushButton_focusToolMove.setEnabled(False)
         self.pushButton_focusToolSet.setEnabled(False)
         self.spinBox_ftPixelSize.setEnabled(False)
@@ -2587,8 +2596,12 @@ class MainControls(QMainWindow):
 
     def ft_reset(self):
         """Reset focus tool GUI to starting configuration."""
-        self.pushButton_focusToolStart.setText('Run cycle')
+        if self.radioButton_focus.isChecked():
+            self.pushButton_focusToolStart.setText('Focus series')
+        else:
+            self.pushButton_focusToolStart.setText('Stigmator series')
         self.pushButton_focusToolStart.setEnabled(True)
+        self.pushButton_focusToolAutofocus.setEnabled(True)
         self.pushButton_focusToolMove.setEnabled(True)
         self.pushButton_focusToolSet.setEnabled(True)
         # Arrow keys are disabled
