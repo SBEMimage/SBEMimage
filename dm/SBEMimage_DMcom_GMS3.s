@@ -733,7 +733,10 @@ void wait_for_command()
 // ============================ Initialization ============================
 
 if (!DoesFileExist(install_path + "SBEMimage_DMcom_GMS3.s")) {
-	Throw("Wrong install path. Please check and update the variable 'install_path' in this script.")
+	install_path = "C:\\pytools\\SBEMimage\\dm\\"	
+	if (!DoesFileExist(install_path + "SBEMimage_DMcom_GMS3.s")) {
+		Throw("Wrong install path. Please check and update the variable 'install_path' in this script.")
+	}
 }
 
 // The following files are used for communication between SBEMimage and DM:
