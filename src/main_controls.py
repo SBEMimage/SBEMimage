@@ -1810,20 +1810,22 @@ class MainControls(QMainWindow):
             pos_fmt = [f"{p:.2f}" for p in current_pos]
             if len(current_pos) > 2:
                 utils.log_info(
+                    'STAGE',
                     f'{self.stage}: Current XYZTR parameters: {pos_fmt}')
             else:
                 utils.log_info(
+                    'STAGE',
                     f'{self.stage}: Current XY parameters: {pos_fmt}')
         else:
-            utils.log_error(
-                'STAGE: Error - could not read current X position.')
+            utils.log_error('STAGE',
+                            'Error - could not read current X position.')
 
     def test_set_stage(self):
         current_x = self.stage.get_x()
         self.stage.move_to_x(current_x + 10)
-        utils.log_info(
-            'STAGE: New X position should be: '
-            + '{0:.2f}'.format(current_x + 10))
+        utils.log_info('STAGE',
+                       'New X position should be: '
+                       + '{0:.2f}'.format(current_x + 10))
 
     def test_near_knife(self):
         if self.use_microtome:
