@@ -2786,6 +2786,27 @@ class AutofocusSettingsDlg(QDialog):
 
 # ------------------------------------------------------------------------------
 
+class RunAutofocusDlg(QDialog):
+    """Run the autofocus/autostigmator or both and use method specifed by
+    user (SmartSEM or MAPFoSt).
+    """
+    def __init__(self, autofocus):
+        super().__init__()
+        self.autofocus = autofocus
+        loadUi('..\\gui\\run_autofocus_dlg.ui', self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setFixedSize(self.size())
+        self.show()
+
+        self.comboBox_method.addItems(['SmartSEM', 'MAPFoSt'])
+        self.comboBox_method.setCurrentIndex(0)
+        self.comboBox_mode.addItems(
+            ['Autofocus + stig', 'Autofocus only', 'Autostig only'])
+        self.comboBox_mode.setCurrentIndex(0)
+
+# ------------------------------------------------------------------------------
+
 class PlasmaCleanerDlg(QDialog):
     """Set parameters for the downstream asher, run it."""
 

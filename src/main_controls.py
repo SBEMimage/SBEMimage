@@ -69,7 +69,8 @@ from main_controls_dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                                       GrabFrameDlg, FTSetParamsDlg, FTMoveDlg, \
                                       AskUserDlg, UpdateDlg, CutDurationDlg, \
                                       KatanaSettingsDlg, SendCommandDlg, \
-                                      MotorTestDlg, MotorStatusDlg, AboutBox, GCIBSettingsDlg
+                                      MotorTestDlg, MotorStatusDlg, AboutBox, \
+                                      GCIBSettingsDlg, RunAutofocusDlg
 
 from magc_dlg_windows import ImportMagCDlg, ImportWaferImageDlg, \
                           WaferCalibrationDlg
@@ -450,7 +451,8 @@ class MainControls(QMainWindow):
             self.open_mirror_drive_dlg)
         self.toolButton_monitorTiles.clicked.connect(
             self.open_image_monitoring_dlg)
-        self.toolButton_autofocus.clicked.connect(self.open_autofocus_dlg)
+        self.toolButton_autofocus.clicked.connect(
+            self.open_autofocus_settings_dlg)
         self.toolButton_plasmaCleaner.clicked.connect(
             self.initialize_plasma_cleaner)
         self.toolButton_askUserMode.clicked.connect(self.open_ask_user_dlg)
@@ -472,7 +474,8 @@ class MainControls(QMainWindow):
             self.open_mirror_drive_dlg)
         self.actionTileMonitoringSettings.triggered.connect(
             self.open_image_monitoring_dlg)
-        self.actionAutofocusSettings.triggered.connect(self.open_autofocus_dlg)
+        self.actionAutofocusSettings.triggered.connect(
+            self.open_autofocus_settings_dlg)
         self.actionPlasmaCleanerSettings.triggered.connect(
             self.initialize_plasma_cleaner)
         self.actionVariablePressureSettings.triggered.connect(
@@ -1285,7 +1288,7 @@ class MainControls(QMainWindow):
         dialog = ImageMonitoringSettingsDlg(self.img_inspector)
         dialog.exec_()
 
-    def open_autofocus_dlg(self):
+    def open_autofocus_settings_dlg(self):
         dialog = AutofocusSettingsDlg(self.autofocus, self.gm, self.magc_mode)
         if dialog.exec_():
             if self.autofocus.method == 2:
@@ -1293,6 +1296,11 @@ class MainControls(QMainWindow):
             else:
                 self.checkBox_useAutofocus.setText('Autofocus')
             self.viewport.vp_draw()
+
+    def open_run_autofocus_dlg(self):
+        dialog = RunAutofocusDlg(self.autofocus)
+        if dialog.exec_():
+            pass
 
     def open_plasma_cleaner_dlg(self):
         dialog = PlasmaCleanerDlg(self.plasma_cleaner)
@@ -2308,6 +2316,8 @@ class MainControls(QMainWindow):
         self.pushButton_focusToolMove.clicked.connect(self.ft_open_move_dlg)
         self.pushButton_focusToolSet.clicked.connect(
             self.ft_open_set_params_dlg)
+        self.pushButton_focusToolAutofocus.clicked.connect(
+            self.open_run_autofocus_dlg)
         self.pushButton_moveUp.clicked.connect(self.ft_move_up)
         self.pushButton_moveDown.clicked.connect(self.ft_move_down)
         # Radio buttons to select series type
