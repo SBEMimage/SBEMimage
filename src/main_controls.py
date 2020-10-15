@@ -1298,7 +1298,7 @@ class MainControls(QMainWindow):
             self.viewport.vp_draw()
 
     def open_run_autofocus_dlg(self):
-        dialog = RunAutofocusDlg(self.autofocus)
+        dialog = RunAutofocusDlg(self.autofocus, self.sem)
         if dialog.exec_():
             pass
 

@@ -32,7 +32,7 @@
     <set>QDialogButtonBox::Cancel</set>
    </property>
   </widget>
-  <widget class="QLabel" name="label_acqstatus1">
+  <widget class="QLabel" name="label_info1">
    <property name="geometry">
     <rect>
      <x>10</x>
@@ -48,10 +48,10 @@
     </font>
    </property>
    <property name="text">
-    <string>The autofocus routine will be run for:</string>
+    <string>The autofocus routine will be run for</string>
    </property>
   </widget>
-  <widget class="QLabel" name="label_acqstatus2">
+  <widget class="QLabel" name="label_targetPosition">
    <property name="geometry">
     <rect>
      <x>10</x>
@@ -70,7 +70,7 @@
     <string>STAGE POS / TILE / OV</string>
    </property>
   </widget>
-  <widget class="QLabel" name="label_3">
+  <widget class="QLabel" name="label_info2">
    <property name="geometry">
     <rect>
      <x>10</x>
@@ -92,9 +92,9 @@
   <widget class="QComboBox" name="comboBox_mode">
    <property name="geometry">
     <rect>
-     <x>120</x>
+     <x>109</x>
      <y>80</y>
-     <width>111</width>
+     <width>121</width>
      <height>22</height>
     </rect>
    </property>
@@ -102,14 +102,14 @@
   <widget class="QComboBox" name="comboBox_method">
    <property name="geometry">
     <rect>
-     <x>10</x>
+     <x>11</x>
      <y>80</y>
-     <width>101</width>
+     <width>91</width>
      <height>22</height>
     </rect>
    </property>
   </widget>
-  <widget class="QPushButton" name="pushButton">
+  <widget class="QPushButton" name="pushButton_run">
    <property name="geometry">
     <rect>
      <x>10</x>
@@ -117,6 +117,12 @@
      <width>221</width>
      <height>23</height>
     </rect>
+   </property>
+   <property name="font">
+    <font>
+     <weight>75</weight>
+     <bold>true</bold>
+    </font>
    </property>
    <property name="text">
     <string>Run</string>

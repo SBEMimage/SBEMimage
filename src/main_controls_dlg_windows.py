@@ -2790,20 +2790,92 @@ class RunAutofocusDlg(QDialog):
     """Run the autofocus/autostigmator or both and use method specifed by
     user (SmartSEM or MAPFoSt).
     """
-    def __init__(self, autofocus):
+    def __init__(self, autofocus, sem, label_text='current stage position'):
         super().__init__()
         self.autofocus = autofocus
+        self.sem = sem
+        self.use_autofocus = False
+        self.use_autostig = False
+        self.finish_trigger = utils.Trigger()
+        self.finish_trigger.signal.connect(self.autofocus_completed)
+        self.new_wd_stig_xy = None, None, None
+        self.busy = False
+
         loadUi('..\\gui\\run_autofocus_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
 
+        self.label_targetPosition.setText(label_text)
         self.comboBox_method.addItems(['SmartSEM', 'MAPFoSt'])
         self.comboBox_method.setCurrentIndex(0)
         self.comboBox_mode.addItems(
             ['Autofocus + stig', 'Autofocus only', 'Autostig only'])
         self.comboBox_mode.setCurrentIndex(0)
+
+        self.pushButton_run.clicked.connect(self.run_autofocus)
+
+    def run_autofocus(self):
+        method = self.comboBox_method.currentIndex()
+        mode = self.comboBox_method.currentIndex()
+        if method == 1:
+            # MAPFoSt disabled for now
+            QMessageBox.information(
+                self, 'MAPFoSt',
+                'MAPFoSt Autofocus not available yet.',
+                QMessageBox.Ok)
+        elif method == 0:
+            if mode == 0:
+                self.use_autofocus = True
+                self.use_autostig = True
+            elif mode == 1:
+                self.use_autofocus = True
+                self.use_autostig = False
+            else:
+                self.use_autofocus = False
+                self.use_autostig = True
+
+            self.pushButton_run.setText('Busy... please wait')
+            self.pushButton_run.setEnabled(False)
+            utils.run_log_thread(self.call_zeiss_af_routine)
+
+    def call_zeiss_af_routine(self):
+        self.busy = True
+        self.zeiss_af_msg = self.autofocus.run_zeiss_af(
+            self.use_autofocus, self.use_autostig)
+        self.finish_trigger.signal.emit()
+
+    def autofocus_completed(self):
+        self.busy = False
+        self.pushButton_run.setText('Run')
+        self.pushButton_run.setEnabled(True)
+        if 'ERROR' in self.zeiss_af_msg:
+            self.new_wd_stig = None, None, None
+            QMessageBox.warning(
+                self, 'SmartSEM Autofocus error',
+                'An error occurred while running the SmartSEM Autofocus',
+                QMessageBox.Ok)
+            utils.log_error('SEM', self.zeiss_af_msg)
+        else:
+            self.new_wd_stig = self.sem.get_wd(), *self.sem.get_stig_xy()
+            QMessageBox.information(
+                self, 'SmartSEM Autofocus completed',
+                f'New working distance and stigmation: '
+                f'{utils.format_wd_stig(*self.new_wd_stig)}',
+                QMessageBox.Ok)
+            utils.log_info('SEM', self.zeiss_af_msg)
+            self.accept()
+
+    def reject(self):
+        if not self.busy:
+            super().reject()
+
+    def closeEvent(self, event):
+        if not self.busy:
+            event.accept()
+        else:
+            event.ignore()
 
 # ------------------------------------------------------------------------------
 
