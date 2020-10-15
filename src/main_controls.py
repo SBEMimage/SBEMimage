@@ -1913,16 +1913,17 @@ class MainControls(QMainWindow):
             utils.log_error('CTRL', 'Plasma cleaner not installed/activated.')
 
     def test_server_request(self):
-        url = self.cfg['sys']['metadata_server_url'] + '/version'
-        status, command, msg = utils.meta_server_get_request(url)
+        status, command, msg, exception_str = (
+            self.notifications.metadata_get_request(endpoint='/version'))
         if status == 100:
-            QMessageBox.warning(self, 'Server test',
-                                'Server test failed. Server probably '
-                                'not active.',
+            QMessageBox.warning(self, 'Server request test',
+                                f'Server test (for '
+                                f'{self.notifications.metadata_server_url}) '
+                                f'failed. Server probably not active.',
                                 QMessageBox.Ok)
         else:
-            QMessageBox.information(self, 'Server test',
-                                    'Version: ' + str(msg),
+            QMessageBox.information(self, 'Server test success',
+                                    'Server responded. Version: ' + str(msg),
                                     QMessageBox.Ok)
 
     def debris_detection_test(self):
