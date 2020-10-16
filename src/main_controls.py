@@ -502,9 +502,6 @@ class MainControls(QMainWindow):
         self.pushButton_testGetFocus.clicked.connect(self.test_get_wd)
         self.pushButton_testSetFocus.clicked.connect(self.test_set_wd)
         self.pushButton_testRunAutofocus.clicked.connect(self.test_autofocus)
-        self.pushButton_testRunAutostig.clicked.connect(self.test_autostig)
-        self.pushButton_testRunAutofocusStig.clicked.connect(self.test_autofocus_stig)
-        self.pushButton_testRunAutofocusMapfost.clicked.connect(self.test_autofocus_mapfost)
         self.pushButton_testZeissAPIVersion.clicked.connect(
             self.test_zeiss_api_version)
         self.pushButton_testGetStage.clicked.connect(self.test_get_stage)
@@ -1665,9 +1662,6 @@ class MainControls(QMainWindow):
         self.pushButton_testGetFocus.setEnabled(b)
         self.pushButton_testSetFocus.setEnabled(b)
         self.pushButton_testRunAutofocus.setEnabled(b)
-        self.pushButton_testRunAutostig.setEnabled(b)
-        self.pushButton_testRunAutofocusStig.setEnabled(b)
-        self.pushButton_testRunAutofocusMapfost.setEnabled(b)
         self.pushButton_testZeissAPIVersion.setEnabled(b)
         self.pushButton_testGetStage.setEnabled(b)
         self.pushButton_testSetStage.setEnabled(b)
@@ -1791,20 +1785,10 @@ class MainControls(QMainWindow):
             utils.log_info('SEM', 'Working distance set to 6 mm.')
 
     def test_autofocus(self):
-        self.sem.run_autofocus()
-        utils.log_info('SEM', 'SmartSEM autofocus routine called.')
-
-    def test_autostig(self):
-        self.sem.run_autostig()
-        utils.log_info('SEM', 'SmartSEM autostig routine called.')
-
-    def test_autofocus_stig(self):
-        self.sem.run_autofocus_stig()
-        utils.log_info('SEM', 'SmartSEM autofocus and autostig routine called.')
-
-    def test_autofocus_mapfost(self):
-        self.autofocus.run_mapfost_af()
-        utils.log_info('SEM', 'MAPFoSt autofocus called.')
+        new_wd_stig = self.open_run_autofocus_dlg()
+        utils.log_info('SEM',
+                       f'After autofocus: New '
+                       f'{utils.format_wd_stig(*new_wd_stig)}')
 
     def test_zeiss_api_version(self):
         self.sem.show_about_box()
