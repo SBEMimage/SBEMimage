@@ -2550,7 +2550,7 @@ class MainControls(QMainWindow):
         self.ft_pixel_size = self.spinBox_ftPixelSize.value()
         self.ft_dwell_time = self.sem.DWELL_TIME[
             self.comboBox_dwellTime.currentIndex()]
-        self.ft_slider_delta = self.verticalSlider_ftDelta.value() + 1
+        self.ft_slider_delta = self.verticalSlider_ftDelta.value()**2 + 1
         self.ft_clear_display()
         QApplication.processEvents()
         utils.run_log_thread(self.ft_move_and_acq_thread)
