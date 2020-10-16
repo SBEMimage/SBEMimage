@@ -2790,7 +2790,7 @@ class RunAutofocusDlg(QDialog):
     """Run the autofocus/autostigmator or both and use method specifed by
     user (SmartSEM or MAPFoSt).
     """
-    def __init__(self, autofocus, sem, label_text='current stage position'):
+    def __init__(self, autofocus, sem):
         super().__init__()
         self.autofocus = autofocus
         self.sem = sem
@@ -2807,7 +2807,6 @@ class RunAutofocusDlg(QDialog):
         self.setFixedSize(self.size())
         self.show()
 
-        self.label_targetPosition.setText(label_text)
         self.comboBox_method.addItems(['SmartSEM', 'MAPFoSt'])
         self.comboBox_method.setCurrentIndex(0)
         self.comboBox_mode.addItems(
@@ -2818,7 +2817,7 @@ class RunAutofocusDlg(QDialog):
 
     def run_autofocus(self):
         method = self.comboBox_method.currentIndex()
-        mode = self.comboBox_method.currentIndex()
+        mode = self.comboBox_mode.currentIndex()
         if method == 1:
             # MAPFoSt disabled for now
             QMessageBox.information(
@@ -2861,7 +2860,7 @@ class RunAutofocusDlg(QDialog):
             self.new_wd_stig = self.sem.get_wd(), *self.sem.get_stig_xy()
             QMessageBox.information(
                 self, 'SmartSEM Autofocus completed',
-                f'New working distance and stigmation: '
+                f'New working distance and stigmation:\n'
                 f'{utils.format_wd_stig(*self.new_wd_stig)}',
                 QMessageBox.Ok)
             utils.log_info('SEM', self.zeiss_af_msg)

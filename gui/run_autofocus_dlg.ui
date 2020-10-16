@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>241</width>
-    <height>188</height>
+    <height>148</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -20,7 +20,7 @@
    <property name="geometry">
     <rect>
      <x>40</x>
-     <y>150</y>
+     <y>110</y>
      <width>191</width>
      <height>32</height>
     </rect>
@@ -32,49 +32,11 @@
     <set>QDialogButtonBox::Cancel</set>
    </property>
   </widget>
-  <widget class="QLabel" name="label_info1">
+  <widget class="QLabel" name="label_info">
    <property name="geometry">
     <rect>
      <x>10</x>
      <y>10</y>
-     <width>201</width>
-     <height>16</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <weight>50</weight>
-     <bold>false</bold>
-    </font>
-   </property>
-   <property name="text">
-    <string>The autofocus routine will be run for</string>
-   </property>
-  </widget>
-  <widget class="QLabel" name="label_targetPosition">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>30</y>
-     <width>211</width>
-     <height>16</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <weight>50</weight>
-     <bold>false</bold>
-    </font>
-   </property>
-   <property name="text">
-    <string>STAGE POS / TILE / OV</string>
-   </property>
-  </widget>
-  <widget class="QLabel" name="label_info2">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>50</y>
      <width>231</width>
      <height>16</height>
     </rect>
@@ -86,14 +48,14 @@
     </font>
    </property>
    <property name="text">
-    <string>Please choose the method to be used below:</string>
+    <string>Please choose the method to be used below.</string>
    </property>
   </widget>
   <widget class="QComboBox" name="comboBox_mode">
    <property name="geometry">
     <rect>
      <x>109</x>
-     <y>80</y>
+     <y>40</y>
      <width>121</width>
      <height>22</height>
     </rect>
@@ -103,7 +65,7 @@
    <property name="geometry">
     <rect>
      <x>11</x>
-     <y>80</y>
+     <y>40</y>
      <width>91</width>
      <height>22</height>
     </rect>
@@ -113,7 +75,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>110</y>
+     <y>70</y>
      <width>221</width>
      <height>23</height>
     </rect>

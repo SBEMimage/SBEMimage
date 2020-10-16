@@ -1300,7 +1300,7 @@ class MainControls(QMainWindow):
     def open_run_autofocus_dlg(self):
         dialog = RunAutofocusDlg(self.autofocus, self.sem)
         if dialog.exec_():
-            pass
+            return dialog.new_wd_stig
 
     def open_plasma_cleaner_dlg(self):
         dialog = PlasmaCleanerDlg(self.plasma_cleaner)
@@ -2317,7 +2317,7 @@ class MainControls(QMainWindow):
         self.pushButton_focusToolSet.clicked.connect(
             self.ft_open_set_params_dlg)
         self.pushButton_focusToolAutofocus.clicked.connect(
-            self.open_run_autofocus_dlg)
+            self.ft_use_autofocus)
         self.pushButton_moveUp.clicked.connect(self.ft_move_up)
         self.pushButton_moveDown.clicked.connect(self.ft_move_down)
         # Radio buttons to select series type
@@ -2452,26 +2452,9 @@ class MainControls(QMainWindow):
                                     self.ft_selected_stig_y,
                                     self.simulation_mode)
             if dialog.exec_():
-                self.ft_selected_wd = dialog.new_wd
-                self.ft_selected_stig_x = dialog.new_stig_x
-                self.ft_selected_stig_y = dialog.new_stig_y
-                self.ft_update_wd_display()
-                self.ft_update_stig_display()
-                if self.ft_selected_ov >= 0:
-                    self.ovm[self.ft_selected_ov].wd_stig_xy = [
-                        self.ft_selected_wd,
-                        self.ft_selected_stig_x,
-                        self.ft_selected_stig_y]
-                elif self.ft_selected_tile >= 0:
-                    self.gm[self.ft_selected_grid][self.ft_selected_tile].wd = (
-                        self.ft_selected_wd)
-                    self.gm[self.ft_selected_grid][
-                            self.ft_selected_tile].stig_xy = (
-                        [self.ft_selected_stig_x, self.ft_selected_stig_y])
-                    if self.gm[self.ft_selected_grid].use_wd_gradient:
-                        # Recalculate with new wd:
-                        self.gm[self.ft_selected_grid].calculate_wd_gradient()
-                    self.viewport.vp_draw()
+                self.ft_set_new_wd_stig(dialog.new_wd,
+                                        dialog.new_stig_x,
+                                        dialog.new_stig_y)
                 # Set SEM to new values
                 self.sem.set_wd(self.ft_selected_wd)
                 self.sem.set_stig_xy(
@@ -2482,6 +2465,33 @@ class MainControls(QMainWindow):
                 'To manually set WD/stigmation parameters, you must first '
                 'select a tile or an overview.',
                 QMessageBox.Ok)
+
+    def ft_use_autofocus(self):
+        new_wd_stig = self.open_run_autofocus_dlg()
+        if new_wd_stig[0] is not None:
+            self.ft_set_new_wd_stig(*new_wd_stig)
+
+    def ft_set_new_wd_stig(self, wd, stig_x, stig_y):
+        self.ft_selected_wd = wd
+        self.ft_selected_stig_x = stig_x
+        self.ft_selected_stig_y = stig_y
+        self.ft_update_wd_display()
+        self.ft_update_stig_display()
+        if self.ft_selected_ov >= 0:
+            self.ovm[self.ft_selected_ov].wd_stig_xy = [
+                self.ft_selected_wd,
+                self.ft_selected_stig_x,
+                self.ft_selected_stig_y]
+        elif self.ft_selected_tile >= 0:
+            self.gm[self.ft_selected_grid][self.ft_selected_tile].wd = (
+                self.ft_selected_wd)
+            self.gm[self.ft_selected_grid][
+                    self.ft_selected_tile].stig_xy = (
+                [self.ft_selected_stig_x, self.ft_selected_stig_y])
+            if self.gm[self.ft_selected_grid].use_wd_gradient:
+                # Recalculate with new wd:
+                self.gm[self.ft_selected_grid].calculate_wd_gradient()
+            self.viewport.vp_draw()
 
     def ft_show_updated_stage_position(self):
         # Update stage position in main controls tab
