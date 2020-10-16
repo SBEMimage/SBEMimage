@@ -1298,6 +1298,8 @@ class MainControls(QMainWindow):
         dialog = RunAutofocusDlg(self.autofocus, self.sem)
         if dialog.exec_():
             return dialog.new_wd_stig
+        else:
+            return None, None, None
 
     def open_plasma_cleaner_dlg(self):
         dialog = PlasmaCleanerDlg(self.plasma_cleaner)
@@ -1786,9 +1788,10 @@ class MainControls(QMainWindow):
 
     def test_autofocus(self):
         new_wd_stig = self.open_run_autofocus_dlg()
-        utils.log_info('SEM',
-                       f'After autofocus: New '
-                       f'{utils.format_wd_stig(*new_wd_stig)}')
+        if new_wd_stig[0] is not None:
+            utils.log_info('SEM',
+                           f'After autofocus: New '
+                           f'{utils.format_wd_stig(*new_wd_stig)}')
 
     def test_zeiss_api_version(self):
         self.sem.show_about_box()
