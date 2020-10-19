@@ -256,3 +256,10 @@ class CoordinateSystem:
         dy = self.vp_height // 2 - old_vy
         return [int(old_vx - zoom_ratio * dx + dx),
                 int(old_vy - zoom_ratio * dy + dy)]
+
+    def convert_to_vp(self, screen_xy):
+        px, py = screen_xy
+        centre_dx, centre_dy = self.vp_centre_dx_dy
+        x = centre_dx + (px - self.vp_width / 2) / self.vp_scale
+        y = centre_dy + (py - self.vp_height / 2) / self.vp_scale
+        return x,y

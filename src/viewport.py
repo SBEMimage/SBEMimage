@@ -75,6 +75,7 @@ class Viewport(QWidget):
         self.doubleclick_registered = False
         self.zooming_in_progress = False
         self.drag_origin = (0, 0)
+        self.drag_current = (0, 0)
         self.fov_drag_active = False
         self.tile_paint_mode_active = False
         self.measure_p1 = (None, None)
@@ -189,6 +190,19 @@ class Viewport(QWidget):
             self.pushButton_measureSliceViewer.setIcon(
                 QIcon('..\\img\\measure.png'))
             self.pushButton_measureSliceViewer.setIconSize(QSize(16, 16))
+
+    def _draw_rectangle(self, qp, point0, point1):
+        x0, y0 = point0
+        x1, y1 = point1
+        if x0 > x1:
+            x1, x0 = x0, x1
+        if y0 > y1:
+            y1, y0 = y0, y1
+        w = x1 - x0
+        h = y1 - y0
+        qp.setPen(QPen(QColor(255, 255, 0), 1, Qt.SolidLine))
+        qp.setBrush(QColor(255, 255, 255, 0))
+        qp.drawRect(x0, y0, w, h)
 
     def _draw_measure_labels(self, qp):
         """Draw measure labels QPainter qp. qp must be active when calling this
@@ -376,6 +390,10 @@ class Viewport(QWidget):
                     self.drag_origin = (px, py)
                     self.stage_pos_backup = (
                         self.ovm[self.selected_ov].centre_sx_sy)
+                else:
+                    # Draw OV
+                    self.ov_draw_active = True
+                    self.drag_origin = px, py
 
             # Check if Alt key is pressed -> Move grid
             elif ((self.tabWidget.currentIndex() == 0)
@@ -388,6 +406,10 @@ class Viewport(QWidget):
                     # Save coordinates in case user wants to undo
                     self.stage_pos_backup = (
                         self.gm[self.selected_grid].origin_sx_sy)
+                else:
+                    # Draw grid
+                    self.grid_draw_active = True
+                    self.drag_origin = px, py
 
             # Check if Ctrl + Alt keys are pressed -> Move imported image
             elif ((self.tabWidget.currentIndex() == 0)
@@ -508,6 +530,12 @@ class Viewport(QWidget):
             else:
                 # Disable paint mode when mouse moved beyond grid edge.
                 self.tile_paint_mode_active = False
+        elif self.grid_draw_active:
+            self.drag_current = px, py
+            self.vp_draw()
+        elif self.ov_draw_active:
+            self.drag_current = px, py
+            self.vp_draw()
 
         elif ((self.tabWidget.currentIndex() == 0)
             and mouse_pos_within_viewer
@@ -577,6 +605,17 @@ class Viewport(QWidget):
                     # Remove current preview image from file list
                     self.ovm[self.selected_ov].vp_file_path = ''
                     self.ovm.update_all_debris_detections_areas(self.gm)
+
+            if self.grid_draw_active:
+                self.grid_draw_active = False
+                x0, y0 = self.cs.convert_to_vp(self.drag_origin)
+                x1, y1 = self.cs.convert_to_vp(self.drag_current)
+                self.create_grid(x0, y0, x1, y1)
+            if self.ov_draw_active:
+                self.ov_draw_active = False
+                x0, y0 = self.cs.convert_to_vp(self.drag_origin)
+                x1, y1 = self.cs.convert_to_vp(self.drag_current)
+                self.create_ov(x0, y0, x1, y1)
 
             if self.tile_paint_mode_active:
                 self.tile_paint_mode_active = False
@@ -670,6 +709,8 @@ class Viewport(QWidget):
         self.selected_imported = None
         # The following booleans are set to True when the corresponding
         # user actions are active.
+        self.grid_draw_active = False
+        self.ov_draw_active = False
         self.grid_drag_active = False
         self.ov_drag_active = False
         self.imported_img_drag_active = False
@@ -1107,6 +1148,11 @@ class Viewport(QWidget):
         self._vp_draw_stage_boundaries()
         if self.show_axes:
             self._vp_draw_stage_axes()
+        # Show interactive features
+        if self.grid_draw_active:
+            self._draw_rectangle(self.vp_qp, self.drag_origin, self.drag_current)
+        if self.ov_draw_active:
+            self._draw_rectangle(self.vp_qp, self.drag_origin, self.drag_current)
         if self.vp_measure_active:
             self._draw_measure_labels(self.vp_qp)
         # Show help panel
@@ -1714,17 +1760,12 @@ class Viewport(QWidget):
     def _vp_set_measure_point(self, px, py):
         """Convert pixel coordinates where mouse was clicked to SEM coordinates
         in Viewport for starting or end point of measurement."""
-        px -= self.cs.vp_width // 2
-        py -= self.cs.vp_height // 2
-        centre_dx, centre_dy = self.cs.vp_centre_dx_dy
         if self.measure_p1[0] is None or self.measure_complete:
-            self.measure_p1 = (centre_dx + px / self.cs.vp_scale,
-                               centre_dy + py / self.cs.vp_scale)
+            self.measure_p1 = self.cs.convert_to_vp((px, py))
             self.measure_complete = False
             self.measure_p2 = (None, None)
         elif self.measure_p2[0] is None:
-            self.measure_p2 = (centre_dx + px / self.cs.vp_scale,
-                               centre_dy + py / self.cs.vp_scale)
+            self.measure_p2 = self.cs.convert_to_vp((px, py))
             self.measure_complete = True
         self.vp_draw()
 
