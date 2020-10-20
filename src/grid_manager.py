@@ -978,6 +978,10 @@ class GridManager:
             self.number_grids = grid_index + 1
             del self.__grids[self.number_grids:]
 
+    def draw_grid(self, x, y, w, h):
+        """Draw grid/tiles rectangle using mouse"""
+        pass
+
     def tile_position_for_registration(self, grid_index, tile_index):
         """Provide tile location (upper left corner of tile) in nanometres.
         TODO: What is the best way to deal with grid rotations?

@@ -377,6 +377,10 @@ class OverviewManager:
         self.number_ov -= 1
         del self.__overviews[-1]
 
+    def draw_overview(self, x, y, w, h):
+        """Draw overview rectangle using mouse"""
+        pass
+
     def total_number_active_overviews(self):
         """Return the total number of active overviews."""
         sum_active_overviews = 0

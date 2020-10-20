@@ -191,7 +191,7 @@ class Viewport(QWidget):
                 QIcon('..\\img\\measure.png'))
             self.pushButton_measureSliceViewer.setIconSize(QSize(16, 16))
 
-    def _draw_rectangle(self, qp, point0, point1):
+    def _draw_rectangle(self, qp, point0, point1, color, line_style=Qt.SolidLine):
         x0, y0 = point0
         x1, y1 = point1
         if x0 > x1:
@@ -200,7 +200,7 @@ class Viewport(QWidget):
             y1, y0 = y0, y1
         w = x1 - x0
         h = y1 - y0
-        qp.setPen(QPen(QColor(255, 255, 0), 1, Qt.SolidLine))
+        qp.setPen(QPen(QColor(*color), 1, line_style))
         qp.setBrush(QColor(255, 255, 255, 0))
         qp.drawRect(x0, y0, w, h)
 
@@ -232,7 +232,7 @@ class Viewport(QWidget):
                     self.measure_p2, tile_display)
             draw_measure_point(qp, p2_x, p2_y)
 
-        if self.measure_complete:
+        if self.measure_p2[0] is not None:
             # Draw line between p1 and p2
             qp.drawLine(p1_x, p1_y, p2_x, p2_y)
             distance = sqrt((self.measure_p1[0] - self.measure_p2[0])**2
@@ -434,8 +434,8 @@ class Viewport(QWidget):
                                     p.y() - utils.VP_MARGIN_Y)
         # Now check right mouse button for context menus and measuring tool
         if ((event.button() == Qt.RightButton)
-           and (self.tabWidget.currentIndex() < 2)
-           and mouse_pos_within_viewer):
+                and (self.tabWidget.currentIndex() < 2)
+                and mouse_pos_within_viewer):
             if self.tabWidget.currentIndex() == 0:
                 if self.vp_measure_active:
                     self._vp_set_measure_point(px, py)
@@ -520,7 +520,7 @@ class Viewport(QWidget):
                 and self.selected_tile is not None):
                 if ((self.selected_grid == prev_selected_grid
                      and self.selected_tile != prev_selected_tile)
-                    or self.selected_grid != prev_selected_grid):
+                     or self.selected_grid != prev_selected_grid):
                         self.gm[self.selected_grid].toggle_active_tile(
                             self.selected_tile)
                         if self.autofocus.tracking_mode == 1:
@@ -542,10 +542,14 @@ class Viewport(QWidget):
             and self.vp_measure_active):
                 # Change cursor appearence
                 self.setCursor(Qt.CrossCursor)
+                if self.measure_p1[0] is not None and not self.measure_complete:
+                    self._vp_set_measure_point(px, py)
         elif ((self.tabWidget.currentIndex() == 1)
             and mouse_pos_within_viewer
             and self.sv_measure_active):
                 self.setCursor(Qt.CrossCursor)
+                if self.measure_p1[0] is not None and not self.measure_complete:
+                    self._sv_set_measure_point(px, py)
         else:
             self.setCursor(Qt.ArrowCursor)
 
@@ -606,16 +610,22 @@ class Viewport(QWidget):
                     self.ovm[self.selected_ov].vp_file_path = ''
                     self.ovm.update_all_debris_detections_areas(self.gm)
 
+            if self.grid_draw_active or self.ov_draw_active:
+                x0, y0 = self.cs.convert_to_vp(self.drag_origin)
+                x1, y1 = self.cs.convert_to_vp(self.drag_current)
+                if x0 > x1:
+                    x1, x0 = x0, x1
+                if y0 > y1:
+                    y1, y0 = y0, y1
+                w = x1 - x0
+                h = y1 - y0
+
             if self.grid_draw_active:
                 self.grid_draw_active = False
-                x0, y0 = self.cs.convert_to_vp(self.drag_origin)
-                x1, y1 = self.cs.convert_to_vp(self.drag_current)
-                self.create_grid(x0, y0, x1, y1)
+                self.gm.draw_grid(x0, y0, w, h)
             if self.ov_draw_active:
                 self.ov_draw_active = False
-                x0, y0 = self.cs.convert_to_vp(self.drag_origin)
-                x1, y1 = self.cs.convert_to_vp(self.drag_current)
-                self.create_ov(x0, y0, x1, y1)
+                self.ovm.draw_overview(x0, y0, w, h)
 
             if self.tile_paint_mode_active:
                 self.tile_paint_mode_active = False
@@ -634,6 +644,11 @@ class Viewport(QWidget):
             # Update viewport
             self.vp_draw()
             self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS')
+
+        elif event.button() == Qt.RightButton:
+            if self.vp_measure_active or self.sv_measure_active:
+                self.measure_complete = True
+
 
     def wheelEvent(self, event):
         if self.tabWidget.currentIndex() == 1:
@@ -1150,9 +1165,11 @@ class Viewport(QWidget):
             self._vp_draw_stage_axes()
         # Show interactive features
         if self.grid_draw_active:
-            self._draw_rectangle(self.vp_qp, self.drag_origin, self.drag_current)
+            self._draw_rectangle(self.vp_qp, self.drag_origin, self.drag_current,
+                                 utils.COLOUR_SELECTOR[0], line_style=Qt.DashLine)
         if self.ov_draw_active:
-            self._draw_rectangle(self.vp_qp, self.drag_origin, self.drag_current)
+            self._draw_rectangle(self.vp_qp, self.drag_origin, self.drag_current,
+                                 utils.COLOUR_SELECTOR[10], line_style=Qt.DashLine)
         if self.vp_measure_active:
             self._draw_measure_labels(self.vp_qp)
         # Show help panel
@@ -1764,9 +1781,8 @@ class Viewport(QWidget):
             self.measure_p1 = self.cs.convert_to_vp((px, py))
             self.measure_complete = False
             self.measure_p2 = (None, None)
-        elif self.measure_p2[0] is None:
+        else:
             self.measure_p2 = self.cs.convert_to_vp((px, py))
-            self.measure_complete = True
         self.vp_draw()
 
     def _vp_draw_zoom_delay(self):
@@ -2910,9 +2926,8 @@ class Viewport(QWidget):
             self.measure_p1 = px / scale, py / scale
             self.measure_complete = False
             self.measure_p2 = None, None
-        elif self.measure_p2[0] is None:
+        else:
             self.measure_p2 = px / scale, py / scale
-            self.measure_complete = True
         self.sv_draw()
 
     def sv_reset_view(self):
