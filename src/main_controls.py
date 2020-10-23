@@ -70,7 +70,8 @@ from main_controls_dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                                       GrabFrameDlg, FTSetParamsDlg, FTMoveDlg, \
                                       AskUserDlg, UpdateDlg, CutDurationDlg, \
                                       KatanaSettingsDlg, SendCommandDlg, \
-                                      MotorTestDlg, MotorStatusDlg, AboutBox, GCIBSettingsDlg
+                                      MotorTestDlg, MotorStatusDlg, AboutBox, \
+                                      GCIBSettingsDlg, RunAutofocusDlg
 
 from magc_dlg_windows import ImportMagCDlg, ImportWaferImageDlg, \
                           WaferCalibrationDlg
@@ -451,7 +452,8 @@ class MainControls(QMainWindow):
             self.open_mirror_drive_dlg)
         self.toolButton_monitorTiles.clicked.connect(
             self.open_image_monitoring_dlg)
-        self.toolButton_autofocus.clicked.connect(self.open_autofocus_dlg)
+        self.toolButton_autofocus.clicked.connect(
+            self.open_autofocus_settings_dlg)
         self.toolButton_plasmaCleaner.clicked.connect(
             self.initialize_plasma_cleaner)
         self.toolButton_askUserMode.clicked.connect(self.open_ask_user_dlg)
@@ -473,7 +475,8 @@ class MainControls(QMainWindow):
             self.open_mirror_drive_dlg)
         self.actionTileMonitoringSettings.triggered.connect(
             self.open_image_monitoring_dlg)
-        self.actionAutofocusSettings.triggered.connect(self.open_autofocus_dlg)
+        self.actionAutofocusSettings.triggered.connect(
+            self.open_autofocus_settings_dlg)
         self.actionPlasmaCleanerSettings.triggered.connect(
             self.initialize_plasma_cleaner)
         self.actionVariablePressureSettings.triggered.connect(
@@ -500,9 +503,6 @@ class MainControls(QMainWindow):
         self.pushButton_testGetFocus.clicked.connect(self.test_get_wd)
         self.pushButton_testSetFocus.clicked.connect(self.test_set_wd)
         self.pushButton_testRunAutofocus.clicked.connect(self.test_autofocus)
-        self.pushButton_testRunAutostig.clicked.connect(self.test_autostig)
-        self.pushButton_testRunAutofocusStig.clicked.connect(self.test_autofocus_stig)
-        self.pushButton_testRunAutofocusMapfost.clicked.connect(self.test_autofocus_mapfost)
         self.pushButton_testZeissAPIVersion.clicked.connect(
             self.test_zeiss_api_version)
         self.pushButton_testGetStage.clicked.connect(self.test_get_stage)
@@ -1288,7 +1288,7 @@ class MainControls(QMainWindow):
         dialog = ImageMonitoringSettingsDlg(self.img_inspector)
         dialog.exec_()
 
-    def open_autofocus_dlg(self):
+    def open_autofocus_settings_dlg(self):
         dialog = AutofocusSettingsDlg(self.autofocus, self.gm, self.magc_mode)
         if dialog.exec_():
             if self.autofocus.method == 2:
@@ -1296,6 +1296,13 @@ class MainControls(QMainWindow):
             else:
                 self.checkBox_useAutofocus.setText('Autofocus')
             self.viewport.vp_draw()
+
+    def open_run_autofocus_dlg(self):
+        dialog = RunAutofocusDlg(self.autofocus, self.sem)
+        if dialog.exec_():
+            return dialog.new_wd_stig
+        else:
+            return None, None, None
 
     def open_plasma_cleaner_dlg(self):
         dialog = PlasmaCleanerDlg(self.plasma_cleaner)
@@ -1650,6 +1657,7 @@ class MainControls(QMainWindow):
         b ^= True
         self.pushButton_focusToolStart.setEnabled(b)
         self.pushButton_focusToolMove.setEnabled(b)
+        self.pushButton_focusToolAutofocus.setEnabled(b)
         self.checkBox_zoom.setEnabled(b)
 
     def restrict_tests_gui(self, b):
@@ -1659,9 +1667,6 @@ class MainControls(QMainWindow):
         self.pushButton_testGetFocus.setEnabled(b)
         self.pushButton_testSetFocus.setEnabled(b)
         self.pushButton_testRunAutofocus.setEnabled(b)
-        self.pushButton_testRunAutostig.setEnabled(b)
-        self.pushButton_testRunAutofocusStig.setEnabled(b)
-        self.pushButton_testRunAutofocusMapfost.setEnabled(b)
         self.pushButton_testZeissAPIVersion.setEnabled(b)
         self.pushButton_testGetStage.setEnabled(b)
         self.pushButton_testSetStage.setEnabled(b)
@@ -1785,20 +1790,11 @@ class MainControls(QMainWindow):
             utils.log_info('SEM', 'Working distance set to 6 mm.')
 
     def test_autofocus(self):
-        self.sem.run_autofocus()
-        utils.log_info('SEM', 'SmartSEM autofocus routine called.')
-
-    def test_autostig(self):
-        self.sem.run_autostig()
-        utils.log_info('SEM', 'SmartSEM autostig routine called.')
-
-    def test_autofocus_stig(self):
-        self.sem.run_autofocus_stig()
-        utils.log_info('SEM', 'SmartSEM autofocus and autostig routine called.')
-
-    def test_autofocus_mapfost(self):
-        self.autofocus.run_mapfost_af()
-        utils.log_info('SEM', 'MAPFoSt autofocus called.')
+        new_wd_stig = self.open_run_autofocus_dlg()
+        if new_wd_stig[0] is not None:
+            utils.log_info('SEM',
+                           f'After autofocus: New '
+                           f'{utils.format_wd_stig(*new_wd_stig)}')
 
     def test_zeiss_api_version(self):
         self.sem.show_about_box()
@@ -1812,20 +1808,22 @@ class MainControls(QMainWindow):
             pos_fmt = [f"{p:.2f}" for p in current_pos]
             if len(current_pos) > 2:
                 utils.log_info(
+                    'STAGE',
                     f'{self.stage}: Current XYZTR parameters: {pos_fmt}')
             else:
                 utils.log_info(
+                    'STAGE',
                     f'{self.stage}: Current XY parameters: {pos_fmt}')
         else:
-            utils.log_error(
-                'STAGE: Error - could not read current X position.')
+            utils.log_error('STAGE',
+                            'Error - could not read current X position.')
 
     def test_set_stage(self):
         current_x = self.stage.get_x()
         self.stage.move_to_x(current_x + 10)
-        utils.log_info(
-            'STAGE: New X position should be: '
-            + '{0:.2f}'.format(current_x + 10))
+        utils.log_info('STAGE',
+                       'New X position should be: '
+                       + '{0:.2f}'.format(current_x + 10))
 
     def test_near_knife(self):
         if self.use_microtome:
@@ -1945,16 +1943,17 @@ class MainControls(QMainWindow):
             utils.log_error('CTRL', 'Plasma cleaner not installed/activated.')
 
     def test_server_request(self):
-        url = self.cfg['sys']['metadata_server_url'] + '/version'
-        status, command, msg = utils.meta_server_get_request(url)
+        status, command, msg, exception_str = (
+            self.notifications.metadata_get_request(endpoint='/version'))
         if status == 100:
-            QMessageBox.warning(self, 'Server test',
-                                'Server test failed. Server probably '
-                                'not active.',
+            QMessageBox.warning(self, 'Server request test',
+                                f'Server test (for '
+                                f'{self.notifications.metadata_server_url}) '
+                                f'failed. Server probably not active.',
                                 QMessageBox.Ok)
         else:
-            QMessageBox.information(self, 'Server test',
-                                    'Version: ' + str(msg),
+            QMessageBox.information(self, 'Server test success',
+                                    'Server responded. Version: ' + str(msg),
                                     QMessageBox.Ok)
 
     def debris_detection_test(self):
@@ -2339,8 +2338,17 @@ class MainControls(QMainWindow):
         self.pushButton_focusToolMove.clicked.connect(self.ft_open_move_dlg)
         self.pushButton_focusToolSet.clicked.connect(
             self.ft_open_set_params_dlg)
+        self.pushButton_focusToolAutofocus.clicked.connect(
+            self.ft_use_autofocus)
         self.pushButton_moveUp.clicked.connect(self.ft_move_up)
         self.pushButton_moveDown.clicked.connect(self.ft_move_down)
+        # Radio buttons to select series type
+        self.radioButton_focus.toggled.connect(
+            lambda: self.pushButton_focusToolStart.setText('Focus Series'))
+        self.radioButton_stigX.toggled.connect(
+            lambda: self.pushButton_focusToolStart.setText('Stigmator Series'))
+        self.radioButton_stigY.toggled.connect(
+            lambda: self.pushButton_focusToolStart.setText('Stigmator Series'))
         # Default pixel size is 6 nm.
         self.spinBox_ftPixelSize.setValue(6)
         # Default dwell time is dwell time selector 4
@@ -2466,26 +2474,9 @@ class MainControls(QMainWindow):
                                     self.ft_selected_stig_y,
                                     self.simulation_mode)
             if dialog.exec_():
-                self.ft_selected_wd = dialog.new_wd
-                self.ft_selected_stig_x = dialog.new_stig_x
-                self.ft_selected_stig_y = dialog.new_stig_y
-                self.ft_update_wd_display()
-                self.ft_update_stig_display()
-                if self.ft_selected_ov >= 0:
-                    self.ovm[self.ft_selected_ov].wd_stig_xy = [
-                        self.ft_selected_wd,
-                        self.ft_selected_stig_x,
-                        self.ft_selected_stig_y]
-                elif self.ft_selected_tile >= 0:
-                    self.gm[self.ft_selected_grid][self.ft_selected_tile].wd = (
-                        self.ft_selected_wd)
-                    self.gm[self.ft_selected_grid][
-                            self.ft_selected_tile].stig_xy = (
-                        [self.ft_selected_stig_x, self.ft_selected_stig_y])
-                    if self.gm[self.ft_selected_grid].use_wd_gradient:
-                        # Recalculate with new wd:
-                        self.gm[self.ft_selected_grid].calculate_wd_gradient()
-                    self.viewport.vp_draw()
+                self.ft_set_new_wd_stig(dialog.new_wd,
+                                        dialog.new_stig_x,
+                                        dialog.new_stig_y)
                 # Set SEM to new values
                 self.sem.set_wd(self.ft_selected_wd)
                 self.sem.set_stig_xy(
@@ -2496,6 +2487,33 @@ class MainControls(QMainWindow):
                 'To manually set WD/stigmation parameters, you must first '
                 'select a tile or an overview.',
                 QMessageBox.Ok)
+
+    def ft_use_autofocus(self):
+        new_wd_stig = self.open_run_autofocus_dlg()
+        if new_wd_stig[0] is not None:
+            self.ft_set_new_wd_stig(*new_wd_stig)
+
+    def ft_set_new_wd_stig(self, wd, stig_x, stig_y):
+        self.ft_selected_wd = wd
+        self.ft_selected_stig_x = stig_x
+        self.ft_selected_stig_y = stig_y
+        self.ft_update_wd_display()
+        self.ft_update_stig_display()
+        if self.ft_selected_ov >= 0:
+            self.ovm[self.ft_selected_ov].wd_stig_xy = [
+                self.ft_selected_wd,
+                self.ft_selected_stig_x,
+                self.ft_selected_stig_y]
+        elif self.ft_selected_tile >= 0:
+            self.gm[self.ft_selected_grid][self.ft_selected_tile].wd = (
+                self.ft_selected_wd)
+            self.gm[self.ft_selected_grid][
+                    self.ft_selected_tile].stig_xy = (
+                [self.ft_selected_stig_x, self.ft_selected_stig_y])
+            if self.gm[self.ft_selected_grid].use_wd_gradient:
+                # Recalculate with new wd:
+                self.gm[self.ft_selected_grid].calculate_wd_gradient()
+            self.viewport.vp_draw()
 
     def ft_show_updated_stage_position(self):
         # Update stage position in main controls tab
@@ -2539,6 +2557,7 @@ class MainControls(QMainWindow):
             'Busy.', 'Focus tool image acquisition in progress...', True)
         self.pushButton_focusToolStart.setText('Busy')
         self.pushButton_focusToolStart.setEnabled(False)
+        self.pushButton_focusToolAutofocus.setEnabled(False)
         self.pushButton_focusToolMove.setEnabled(False)
         self.pushButton_focusToolSet.setEnabled(False)
         self.spinBox_ftPixelSize.setEnabled(False)
@@ -2566,7 +2585,7 @@ class MainControls(QMainWindow):
         self.ft_pixel_size = self.spinBox_ftPixelSize.value()
         self.ft_dwell_time = self.sem.DWELL_TIME[
             self.comboBox_dwellTime.currentIndex()]
-        self.ft_slider_delta = self.verticalSlider_ftDelta.value() + 1
+        self.ft_slider_delta = self.verticalSlider_ftDelta.value()**2 + 1
         self.ft_clear_display()
         QApplication.processEvents()
         utils.run_log_thread(self.ft_move_and_acq_thread)
@@ -2622,8 +2641,12 @@ class MainControls(QMainWindow):
 
     def ft_reset(self):
         """Reset focus tool GUI to starting configuration."""
-        self.pushButton_focusToolStart.setText('Run cycle')
+        if self.radioButton_focus.isChecked():
+            self.pushButton_focusToolStart.setText('Focus series')
+        else:
+            self.pushButton_focusToolStart.setText('Stigmator series')
         self.pushButton_focusToolStart.setEnabled(True)
+        self.pushButton_focusToolAutofocus.setEnabled(True)
         self.pushButton_focusToolMove.setEnabled(True)
         self.pushButton_focusToolSet.setEnabled(True)
         # Arrow keys are disabled

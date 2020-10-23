@@ -6,12 +6,13 @@ __pycache__/
 # Pytest
 .pytest_cache
 
-# Ignore configuration files, except defaults
+# Ignore configuration files, except templates and installer.cfg
 *.ini
 *.cfg
 *.dat
 !default.ini
 !system.cfg
+!installer.cfg
 
 # Ignore DM script control files:
 DMcom.*

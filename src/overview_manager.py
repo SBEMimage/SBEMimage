@@ -179,16 +179,14 @@ class Overview(Grid):
 
 class StubOverview(Grid):
 
-    GRID_SIZE = [[2, 2], [3, 3], [5, 4], [6, 5], [7, 6], [8, 7], [9, 8]]
-
     def __init__(self, coordinate_system, sem,
-                 centre_sx_sy, grid_size_selector, overlap, frame_size_selector,
+                 centre_sx_sy, grid_size, overlap, frame_size_selector,
                  pixel_size, dwell_time_selector, vp_file_path):
 
         # Initialize the stub overview as a grid
         super().__init__(coordinate_system, sem,
                          active=True, origin_sx_sy=[0, 0],
-                         rotation=0, size=self.GRID_SIZE[grid_size_selector],
+                         rotation=0, size=grid_size,
                          overlap=overlap, row_shift=0, active_tiles=[],
                          frame_size=[], frame_size_selector=frame_size_selector,
                          pixel_size=pixel_size, dwell_time=0.8,
@@ -200,17 +198,6 @@ class StubOverview(Grid):
         self.image = None
         # Image is loaded when file path is set/changed.
         self.vp_file_path = vp_file_path
-        self._grid_size_selector = grid_size_selector
-
-    @property
-    def grid_size_selector(self):
-        return self._grid_size_selector
-
-    @grid_size_selector.setter
-    def grid_size_selector(self, selector):
-        self._grid_size_selector = selector
-        self.size = self.GRID_SIZE[selector]
-        self.update_tile_positions()
 
     @property
     def vp_file_path(self):
@@ -227,7 +214,6 @@ class StubOverview(Grid):
                 self.image = None
         else:
             self.image = None
-
 
 class OverviewManager:
 
@@ -291,8 +277,8 @@ class OverviewManager:
 
         stub_ov_centre_sx_sy = json.loads(
             self.cfg['overviews']['stub_ov_centre_sx_sy'])
-        stub_ov_grid_size_selector = int(
-            self.cfg['overviews']['stub_ov_grid_size_selector'])
+        stub_ov_grid_size = json.loads(
+            self.cfg['overviews']['stub_ov_grid_size'])
         stub_ov_overlap = int(self.cfg['overviews']['stub_ov_overlap'])
         stub_ov_frame_size_selector = int(
             self.cfg['overviews']['stub_ov_frame_size_selector'])
@@ -304,7 +290,7 @@ class OverviewManager:
 
         self.__stub_overview = StubOverview(self.cs, self.sem,
                                             stub_ov_centre_sx_sy,
-                                            stub_ov_grid_size_selector,
+                                            stub_ov_grid_size,
                                             stub_ov_overlap,
                                             stub_ov_frame_size_selector,
                                             stub_ov_pixel_size,
@@ -357,8 +343,8 @@ class OverviewManager:
         # Stub OV
         self.cfg['overviews']['stub_ov_centre_sx_sy'] = str(
             utils.round_xy(self.__stub_overview.centre_sx_sy))
-        self.cfg['overviews']['stub_ov_grid_size_selector'] = str(
-            self.__stub_overview.grid_size_selector)
+        self.cfg['overviews']['stub_ov_grid_size'] = json.dumps(
+            self.__stub_overview.size)
         self.cfg['overviews']['stub_ov_overlap'] = str(
             self.__stub_overview.overlap)
         self.cfg['overviews']['stub_ov_frame_size_selector'] = str(

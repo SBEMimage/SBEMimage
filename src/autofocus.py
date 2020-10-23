@@ -136,7 +136,7 @@ class Autofocus():
         message that the routine was completed or an error message if not.
         """
         assert autostig or autofocus
-        msg = 'CTRL: SmartSEM AF did not run.'
+        msg = 'SmartSEM AF did not run.'
         if autofocus or autostig:
             # Switch to autofocus settings
             # TODO: allow different dwell times
@@ -166,9 +166,9 @@ class Autofocus():
                 # Call only SmartSEM autostig routine
                 success = self.sem.run_autostig()
         if success:
-            msg = 'CTRL: Completed ' + msg + '.'
+            msg = 'Completed ' + msg + '.'
         else:
-            msg = 'CTRL: ERROR during ' + msg + '.'
+            msg = 'ERROR during ' + msg + '.'
         return msg
 
     def run_mapfost_af(self, **kwargs) -> str:

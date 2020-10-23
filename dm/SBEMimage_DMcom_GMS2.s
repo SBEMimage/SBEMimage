@@ -17,7 +17,7 @@
 //
 // INSTRUCTIONS
 //
-// If your SBEMimage installation is not in C:\pytools\SBEMimage, you must
+// If your SBEMimage installation is not in C:\Utilities\SBEMimage, you must
 // change the variable install_path in line 40 before using this script.
 //
 // Open this script file (SBEMimage_DMcom_GMS2.s) in DigitalMicrograph (DM)
@@ -37,7 +37,7 @@
 // full record cycle from within DM with the intended knife speed.
 
 
-string install_path = "C:\\pytools\\SBEMimage\\dm\\"
+string install_path = "C:\\Utilities\\SBEMimage\\dm\\"
 
 string input_file
 string command_file
@@ -653,7 +653,10 @@ void wait_for_command()
 // install_path = GetApplicationDirectory(0, 0)
 
 if (!DoesFileExist(install_path + "SBEMimage_DMcom_GMS2.s")) {
-	Throw("Wrong install path. Please check and update the variable 'install_path' in this script.")
+	install_path = "C:\\pytools\\SBEMimage\\dm\\"	
+	if (!DoesFileExist(install_path + "SBEMimage_DMcom_GMS2.s")) {
+		Throw("Wrong install path. Please check and update the variable 'install_path' in this script.")
+	}
 }
 
 // The following files are used for communication between SBEMimage and DM:

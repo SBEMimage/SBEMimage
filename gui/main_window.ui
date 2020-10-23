@@ -1328,13 +1328,13 @@
         <property name="geometry">
          <rect>
           <x>20</x>
-          <y>420</y>
+          <y>450</y>
           <width>101</width>
           <height>23</height>
          </rect>
         </property>
         <property name="text">
-         <string>Run cycle</string>
+         <string>Focus series</string>
         </property>
        </widget>
        <widget class="QRadioButton" name="radioButton_focus">
@@ -1437,7 +1437,7 @@
          <number>10</number>
         </property>
         <property name="value">
-         <number>2</number>
+         <number>1</number>
         </property>
         <property name="orientation">
          <enum>Qt::Vertical</enum>
@@ -1650,7 +1650,7 @@
         <property name="geometry">
          <rect>
           <x>20</x>
-          <y>450</y>
+          <y>476</y>
           <width>101</width>
           <height>23</height>
          </rect>
@@ -1737,6 +1737,19 @@
         </property>
         <property name="text">
          <string>↓</string>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="pushButton_focusToolAutofocus">
+        <property name="geometry">
+         <rect>
+          <x>20</x>
+          <y>424</y>
+          <width>101</width>
+          <height>23</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Autofocus</string>
         </property>
        </widget>
       </widget>
@@ -1851,45 +1864,6 @@
          </property>
          <property name="text">
           <string>Run autofocus</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testRunAutostig">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>180</y>
-           <width>121</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Run autostig</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testRunAutofocusStig">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>210</y>
-           <width>121</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Run autofocus + stig</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testRunAutofocusMapfost">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>240</y>
-           <width>121</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Run MAPFoSt</string>
          </property>
         </widget>
        </widget>
@@ -2237,10 +2211,10 @@ Green: acquired</string>
         <attribute name="verticalHeaderVisible">
          <bool>false</bool>
         </attribute>
-        <attribute name="verticalHeaderMinimumSectionSize">
+        <attribute name="verticalHeaderDefaultSectionSize">
          <number>10</number>
         </attribute>
-        <attribute name="verticalHeaderDefaultSectionSize">
+        <attribute name="verticalHeaderMinimumSectionSize">
          <number>10</number>
         </attribute>
        </widget>
@@ -2611,7 +2585,7 @@ Wafer Image</string>
      <x>0</x>
      <y>0</y>
      <width>711</width>
-     <height>20</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -2895,9 +2869,6 @@ Wafer Image</string>
   <tabstop>pushButton_testGetFocus</tabstop>
   <tabstop>pushButton_testSetFocus</tabstop>
   <tabstop>pushButton_testRunAutofocus</tabstop>
-  <tabstop>pushButton_testRunAutostig</tabstop>
-  <tabstop>pushButton_testRunAutofocusStig</tabstop>
-  <tabstop>pushButton_testRunAutofocusMapfost</tabstop>
   <tabstop>pushButton_testZeissAPIVersion</tabstop>
   <tabstop>pushButton_testGetStage</tabstop>
   <tabstop>pushButton_testSetStage</tabstop>

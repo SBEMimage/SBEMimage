@@ -86,7 +86,7 @@ class ConfigDlg(QDialog):
         self.label_website.setText('<a href="https://github.com/SBEMimage">'
                                    'https://github.com/SBEMimage</a>')
         self.label_website.setOpenExternalLinks(True)
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         self.abort = False
         # Populate the list widget with existing .ini files
@@ -156,7 +156,7 @@ class SaveConfigDlg(QDialog):
         loadUi('..\\gui\\save_config_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         self.lineEdit_cfgFileName.setText('')
         # lineEdit for syscfg is disabled by default
@@ -243,11 +243,11 @@ class SEMSettingsDlg(QDialog):
         self.actual_beam_current = self.sem.get_beam_current()
         self.actual_aperture_size = self.sem.get_aperture_size()
         self.actual_high_current = self.sem.get_high_current()
-        
+
         loadUi('..\\gui\\sem_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         # Display actual settings from SmartSEM
         self.doubleSpinBox_actualEHT.setValue(self.actual_eht)
@@ -273,19 +273,19 @@ class SEMSettingsDlg(QDialog):
         self.target_eht = self.doubleSpinBox_EHT.value()
         if self.target_eht != self.actual_eht:
             self.sem.set_eht(self.target_eht)
-        
+
         self.target_beam_current = self.spinBox_beamCurrent.value()
         if self.target_beam_current != self.actual_beam_current:
             self.sem.set_beam_current(self.target_beam_current)
-        
+
         self.target_aperture_size = self.comboBox_beamSize.currentIndex()
         if self.target_aperture_size != self.actual_aperture_size:
             self.sem.set_aperture_size(self.target_aperture_size)
-        
+
         self.target_high_current = self.checkBox_highCurrent.isChecked()
         if self.target_high_current != self.actual_high_current:
             self.sem.set_high_current(self.target_high_current)
-            
+
         super().accept()
 
 # ------------------------------------------------------------------------------
@@ -306,7 +306,7 @@ class MicrotomeSettingsDlg(QDialog):
         loadUi('..\\gui\\microtome_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         # Labels and selection options depend on whether microtome stage or
         # SEM stage is used.
@@ -425,7 +425,7 @@ class MotorStatusDlg(QDialog):
         loadUi('..\\gui\\motor_status_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         self.pushButton_update.clicked.connect(self.show_current_stats)
         self.pushButton_reset.clicked.connect(self.reset_counters)
@@ -599,7 +599,7 @@ class KatanaSettingsDlg(QDialog):
         loadUi('..\\gui\\katana_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
 
         # Set up COM port selector
@@ -774,7 +774,7 @@ class StageCalibrationDlg(QDialog):
         loadUi('..\\gui\\stage_calibration_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         self.arrow_symbol1.setPixmap(QPixmap('..\\img\\arrow.png'))
         self.arrow_symbol2.setPixmap(QPixmap('..\\img\\arrow.png'))
@@ -1139,7 +1139,7 @@ class MagCalibrationDlg(QDialog):
         loadUi('..\\gui\\mag_calibration_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         self.spinBox_calibrationFactor.setValue(
             self.sem.MAG_PX_SIZE_FACTOR)
@@ -1181,7 +1181,7 @@ class CutDurationDlg(QDialog):
         loadUi('..\\gui\\cut_duration_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         self.doubleSpinBox_cutDuration.setValue(
             self.microtome.full_cut_duration)
@@ -1207,7 +1207,7 @@ class OVSettingsDlg(QDialog):
         loadUi('..\\gui\\overview_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         # Set up OV selector
         self.comboBox_OVSelector.addItems(self.ovm.ov_selector_list())
@@ -1372,7 +1372,7 @@ class GridSettingsDlg(QDialog):
         loadUi('..\\gui\\grid_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         # Set up grid selector:
         self.comboBox_gridSelector.addItems(self.gm.grid_selector_list())
@@ -1643,7 +1643,7 @@ class FocusGradientSettingsDlg(QDialog):
         loadUi('..\\gui\\wd_gradient_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         self.lineEdit_currentGrid.setText('Grid ' + str(current_grid))
         self.grid_illustration.setPixmap(QPixmap('..\\img\\grid.png'))
@@ -1757,7 +1757,7 @@ class AcqSettingsDlg(QDialog):
         loadUi('..\\gui\\acq_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         self.pushButton_selectDir.clicked.connect(self.select_directory)
         self.pushButton_selectDir.setIcon(QIcon('..\\img\\selectdir.png'))
@@ -1902,7 +1902,7 @@ class PreStackDlg(QDialog):
         loadUi('..\\gui\\pre_stack_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         # Different labels if stack is paused ('Continue' instead of 'Start')
         if self.acq.acq_paused:
@@ -2001,7 +2001,7 @@ class SetStartTileDlg(QDialog):
         loadUi('..\\gui\\set_start_tile_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         if self.acq.acq_interrupted:
             self.label_acqstatus1.setText(
@@ -2084,7 +2084,7 @@ class PauseDlg(QDialog):
         loadUi('..\\gui\\pause_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         self.pause_type = 0  # don't pause (when user clicks 'Cancel')
         self.pushButton_pauseNow.clicked.connect(self.pause_now)
@@ -2112,7 +2112,7 @@ class ExportDlg(QDialog):
         loadUi('..\\gui\\export_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.pushButton_export.clicked.connect(self.export_list)
         self.spinBox_untilSlice.setValue(int(self.acq.slice_counter))
         self.show()
@@ -2210,7 +2210,7 @@ class UpdateDlg(QDialog):
         loadUi('..\\gui\\update_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.pushButton_update.clicked.connect(self.update)
         self.show()
 
@@ -2271,7 +2271,7 @@ class EmailMonitoringSettingsDlg(QDialog):
         loadUi('..\\gui\\email_monitoring_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         self.lineEdit_notificationEmail.setText(
             self.notifications.user_email_addresses[0])
@@ -2398,7 +2398,7 @@ class DebrisSettingsDlg(QDialog):
         loadUi('..\\gui\\debris_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         # Detection area
         if self.ovm.use_auto_debris_area:
@@ -2516,7 +2516,7 @@ class AskUserDlg(QDialog):
         loadUi('..\\gui\\ask_user_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
 
 # ------------------------------------------------------------------------------
@@ -2530,7 +2530,7 @@ class MirrorDriveDlg(QDialog):
         loadUi('..\\gui\\mirror_drive_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         self.available_drives = []
         self.label_text.setText('Please wait. Searching for drives...')
@@ -2583,7 +2583,7 @@ class ImageMonitoringSettingsDlg(QDialog):
         loadUi('..\\gui\\image_monitoring_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         self.spinBox_meanMin.setValue(self.img_inspector.mean_lower_limit)
         self.spinBox_meanMax.setValue(self.img_inspector.mean_upper_limit)
@@ -2635,7 +2635,7 @@ class AutofocusSettingsDlg(QDialog):
         loadUi('..\\gui\\autofocus_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         if self.autofocus.method == 0:
             self.radioButton_useSmartSEM.setChecked(True)
@@ -2786,6 +2786,98 @@ class AutofocusSettingsDlg(QDialog):
 
 # ------------------------------------------------------------------------------
 
+class RunAutofocusDlg(QDialog):
+    """Run the autofocus/autostigmator or both and use method specifed by
+    user (SmartSEM or MAPFoSt).
+    """
+    def __init__(self, autofocus, sem):
+        super().__init__()
+        self.autofocus = autofocus
+        self.sem = sem
+        self.use_autofocus = False
+        self.use_autostig = False
+        self.finish_trigger = utils.Trigger()
+        self.finish_trigger.signal.connect(self.autofocus_completed)
+        self.new_wd_stig_xy = None, None, None
+        self.busy = False
+
+        loadUi('..\\gui\\run_autofocus_dlg.ui', self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setFixedSize(self.size())
+        self.show()
+
+        self.comboBox_method.addItems(['SmartSEM', 'MAPFoSt'])
+        self.comboBox_method.setCurrentIndex(0)
+        self.comboBox_mode.addItems(
+            ['Autofocus + stig', 'Autofocus only', 'Autostig only'])
+        self.comboBox_mode.setCurrentIndex(0)
+
+        self.pushButton_run.clicked.connect(self.run_autofocus)
+
+    def run_autofocus(self):
+        method = self.comboBox_method.currentIndex()
+        mode = self.comboBox_mode.currentIndex()
+        if method == 1:
+            # MAPFoSt disabled for now
+            QMessageBox.information(
+                self, 'MAPFoSt',
+                'MAPFoSt Autofocus not available yet.',
+                QMessageBox.Ok)
+        elif method == 0:
+            if mode == 0:
+                self.use_autofocus = True
+                self.use_autostig = True
+            elif mode == 1:
+                self.use_autofocus = True
+                self.use_autostig = False
+            else:
+                self.use_autofocus = False
+                self.use_autostig = True
+
+            self.pushButton_run.setText('Busy... please wait')
+            self.pushButton_run.setEnabled(False)
+            utils.run_log_thread(self.call_zeiss_af_routine)
+
+    def call_zeiss_af_routine(self):
+        self.busy = True
+        self.zeiss_af_msg = self.autofocus.run_zeiss_af(
+            self.use_autofocus, self.use_autostig)
+        self.finish_trigger.signal.emit()
+
+    def autofocus_completed(self):
+        self.busy = False
+        self.pushButton_run.setText('Run')
+        self.pushButton_run.setEnabled(True)
+        if 'ERROR' in self.zeiss_af_msg:
+            self.new_wd_stig = None, None, None
+            QMessageBox.warning(
+                self, 'SmartSEM Autofocus error',
+                'An error occurred while running the SmartSEM Autofocus',
+                QMessageBox.Ok)
+            utils.log_error('SEM', self.zeiss_af_msg)
+        else:
+            self.new_wd_stig = self.sem.get_wd(), *self.sem.get_stig_xy()
+            QMessageBox.information(
+                self, 'SmartSEM Autofocus completed',
+                f'New working distance and stigmation:\n'
+                f'{utils.format_wd_stig(*self.new_wd_stig)}',
+                QMessageBox.Ok)
+            utils.log_info('SEM', self.zeiss_af_msg)
+            self.accept()
+
+    def reject(self):
+        if not self.busy:
+            super().reject()
+
+    def closeEvent(self, event):
+        if not self.busy:
+            event.accept()
+        else:
+            event.ignore()
+
+# ------------------------------------------------------------------------------
+
 class PlasmaCleanerDlg(QDialog):
     """Set parameters for the downstream asher, run it."""
 
@@ -2795,7 +2887,7 @@ class PlasmaCleanerDlg(QDialog):
         loadUi('..\\gui\\plasma_cleaner_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('icon.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         try:
             self.spinBox_currentPower.setValue(self.plc.get_power())
@@ -2867,7 +2959,7 @@ class VariablePressureDlg(QDialog):
         loadUi('..\\gui\\variable_pressure_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         self.pushButton_hv.clicked.connect(self.set_hv)
         self.pushButton_vp.clicked.connect(self.set_vp)
@@ -2990,7 +3082,7 @@ class ChargeCompensatorDlg(QDialog):
         loadUi('..\\gui\\charge_compensator_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         self.pushButton_on.clicked.connect(self.turn_on)
         self.pushButton_off.clicked.connect(self.turn_off)
@@ -3101,7 +3193,7 @@ class ApproachDlg(QDialog):
         loadUi('..\\gui\\approach_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         # Set up trigger and queue to update dialog GUI during approach
         self.progress_trigger = utils.Trigger()
@@ -3305,7 +3397,7 @@ class GrabFrameDlg(QDialog):
         loadUi('..\\gui\\grab_frame_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         timestamp = str(datetime.datetime.now())
         # Remove some characters from timestap to get valid file name
@@ -3432,7 +3524,7 @@ class EHTDlg(QDialog):
         loadUi('..\\gui\\eht_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         self.pushButton_on.clicked.connect(self.turn_on)
         self.pushButton_off.clicked.connect(self.turn_off)
@@ -3498,7 +3590,7 @@ class FTSetParamsDlg(QDialog):
         loadUi('..\\gui\\focus_tool_set_params_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         if simulation_mode:
             self.pushButton_getFromSmartSEM.setEnabled(False)
@@ -3547,7 +3639,7 @@ class FTMoveDlg(QDialog):
         loadUi('..\\gui\\focus_tool_move_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         self.pushButton_move.clicked.connect(self.start_move)
         if ov_index >= 0:
@@ -3606,7 +3698,7 @@ class MotorTestDlg(QDialog):
         loadUi('..\\gui\\motor_test_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         # Set up trigger and queue to update dialog GUI during approach
         self.progress_trigger = utils.Trigger()
@@ -3835,7 +3927,7 @@ class SendCommandDlg(QDialog):
         loadUi('..\\gui\\send_dm_command_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         self.pushButton_sendCommand.clicked.connect(self.send_command)
         self.pushButton_checkResponse.clicked.connect(self.check_response)
@@ -3940,5 +4032,5 @@ class AboutBox(QDialog):
         else:
             self.label_version.setText('Version ' + VERSION)
         self.labelIcon.setPixmap(QPixmap('..\\img\\logo.png'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()

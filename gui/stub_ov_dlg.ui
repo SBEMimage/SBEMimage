@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>231</width>
-    <height>317</height>
+    <width>252</width>
+    <height>296</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -28,8 +28,8 @@
   <widget class="QDialogButtonBox" name="buttonBox">
    <property name="geometry">
     <rect>
-     <x>30</x>
-     <y>280</y>
+     <x>50</x>
+     <y>258</y>
      <width>191</width>
      <height>32</height>
     </rect>
@@ -51,8 +51,8 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>174</y>
-     <width>211</width>
+     <y>152</y>
+     <width>231</width>
      <height>16</height>
     </rect>
    </property>
@@ -64,8 +64,8 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>240</y>
-     <width>101</width>
+     <y>218</y>
+     <width>111</width>
      <height>23</height>
     </rect>
    </property>
@@ -95,38 +95,25 @@
     <string>Centre coordinates (X, Y) in µm:</string>
    </property>
   </widget>
-  <widget class="QComboBox" name="comboBox_sizeSelector">
-   <property name="geometry">
-    <rect>
-     <x>90</x>
-     <y>120</y>
-     <width>131</width>
-     <height>22</height>
-    </rect>
-   </property>
-   <property name="layoutDirection">
-    <enum>Qt::LeftToRight</enum>
-   </property>
-  </widget>
   <widget class="QLabel" name="label">
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>122</y>
-     <width>71</width>
+     <y>80</y>
+     <width>51</width>
      <height>16</height>
     </rect>
    </property>
    <property name="text">
-    <string>Choose size:</string>
+    <string>Grid size:</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_2">
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>150</y>
-     <width>101</width>
+     <y>128</y>
+     <width>71</width>
      <height>16</height>
     </rect>
    </property>
@@ -137,9 +124,9 @@
   <widget class="QLabel" name="label_duration">
    <property name="geometry">
     <rect>
-     <x>90</x>
-     <y>150</y>
-     <width>101</width>
+     <x>80</x>
+     <y>128</y>
+     <width>161</width>
      <height>16</height>
     </rect>
    </property>
@@ -194,38 +181,12 @@
     <number>0</number>
    </property>
   </widget>
-  <widget class="QLabel" name="label_4">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>70</y>
-     <width>211</width>
-     <height>16</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Coordinates can be set by right-clicking</string>
-   </property>
-  </widget>
-  <widget class="QLabel" name="label_5">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>90</y>
-     <width>211</width>
-     <height>16</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>on the desired location in the Viewport.</string>
-   </property>
-  </widget>
   <widget class="QProgressBar" name="progressBar">
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>200</y>
-     <width>211</width>
+     <y>178</y>
+     <width>231</width>
      <height>23</height>
     </rect>
    </property>
@@ -239,9 +200,9 @@
   <widget class="QPushButton" name="pushButton_abort">
    <property name="geometry">
     <rect>
-     <x>120</x>
-     <y>240</y>
-     <width>101</width>
+     <x>130</x>
+     <y>218</y>
+     <width>111</width>
      <height>23</height>
     </rect>
    </property>
@@ -255,11 +216,112 @@
     <string>Abort</string>
    </property>
   </widget>
+  <widget class="QLabel" name="label_dimension">
+   <property name="geometry">
+    <rect>
+     <x>80</x>
+     <y>108</y>
+     <width>161</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_6">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>108</y>
+     <width>61</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Dimensions:</string>
+   </property>
+  </widget>
+  <widget class="QSpinBox" name="spinBox_rows">
+   <property name="geometry">
+    <rect>
+     <x>80</x>
+     <y>77</y>
+     <width>41</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="layoutDirection">
+    <enum>Qt::LeftToRight</enum>
+   </property>
+   <property name="minimum">
+    <number>2</number>
+   </property>
+   <property name="maximum">
+    <number>99</number>
+   </property>
+   <property name="singleStep">
+    <number>1</number>
+   </property>
+   <property name="value">
+    <number>5</number>
+   </property>
+  </widget>
+  <widget class="QSpinBox" name="spinBox_cols">
+   <property name="geometry">
+    <rect>
+     <x>165</x>
+     <y>77</y>
+     <width>41</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="layoutDirection">
+    <enum>Qt::LeftToRight</enum>
+   </property>
+   <property name="minimum">
+    <number>2</number>
+   </property>
+   <property name="maximum">
+    <number>99</number>
+   </property>
+   <property name="singleStep">
+    <number>1</number>
+   </property>
+   <property name="value">
+    <number>4</number>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_7">
+   <property name="geometry">
+    <rect>
+     <x>125</x>
+     <y>80</y>
+     <width>41</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>rows ×</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_8">
+   <property name="geometry">
+    <rect>
+     <x>210</x>
+     <y>80</y>
+     <width>21</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>cols</string>
+   </property>
+  </widget>
  </widget>
  <tabstops>
   <tabstop>spinBox_X</tabstop>
   <tabstop>spinBox_Y</tabstop>
-  <tabstop>comboBox_sizeSelector</tabstop>
   <tabstop>pushButton_acquire</tabstop>
   <tabstop>pushButton_abort</tabstop>
  </tabstops>

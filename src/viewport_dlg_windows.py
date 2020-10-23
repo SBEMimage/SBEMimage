@@ -36,13 +36,13 @@ class StubOVDlg(QDialog):
     in stage coordinates and the size of the grid.
     """
 
-    def __init__(self, centre_sx_sy, grid_size_selector,
+    def __init__(self, centre_sx_sy,
                  sem, stage, ovm, acq, img_inspector, viewport_trigger):
         super().__init__()
         loadUi('..\\gui\\stub_ov_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         self.sem = sem
         self.stage = stage
@@ -61,40 +61,17 @@ class StubOVDlg(QDialog):
         self.pushButton_abort.clicked.connect(self.abort)
         self.spinBox_X.setValue(centre_sx_sy[0])
         self.spinBox_Y.setValue(centre_sx_sy[1])
-        self.grid_size_selector = grid_size_selector
-        self.durations = []
-
-        # Show available grid sizes and the corresponding estimated
-        # durations in min
-        tile_width = self.ovm['stub'].frame_size[0]
-        tile_height = self.ovm['stub'].frame_size[1]
-        overlap = self.ovm['stub'].overlap
-        pixel_size = self.ovm['stub'].pixel_size
-        cycle_time = self.ovm['stub'].tile_cycle_time()
-        motor_move_time = self.stage.stage_move_duration(
-            *self.ovm['stub'][0].sx_sy, *self.ovm['stub'][1].sx_sy)
-
-        self.grid_size_list = []
-        for grid_size in self.ovm['stub'].GRID_SIZE:
-            rows, cols = grid_size
-            width = int(
-                (cols * tile_width - (cols-1) * overlap) * pixel_size / 1000)
-            height = int(
-                (rows * tile_height - (rows-1) * overlap) * pixel_size / 1000)
-            duration = int(round(
-                (rows * cols * (cycle_time + motor_move_time) + 30) / 60))
-
-            self.grid_size_list.append(
-                str(width) + ' µm × ' + str(height) + ' µm')
-            self.durations.append('Up to ~' + str(duration) + ' min')
-        # Grid size selection
-        self.comboBox_sizeSelector.addItems(self.grid_size_list)
-        self.comboBox_sizeSelector.setCurrentIndex(self.grid_size_selector)
-        self.comboBox_sizeSelector.currentIndexChanged.connect(
-            self.update_duration)
-        self.label_duration.setText(self.durations[self.grid_size_selector])
+        self.spinBox_rows.setValue(ovm['stub'].size[0])
+        self.spinBox_cols.setValue(ovm['stub'].size[1])
+        self.spinBox_rows.valueChanged.connect(
+            self.update_dimension_and_duration_display)
+        self.spinBox_cols.valueChanged.connect(
+            self.update_dimension_and_duration_display)
+        self.update_dimension_and_duration_display()
+        # Save previous settings. If user aborts the stub OV acquisition
+        # revert to these settings.
         self.previous_centre_sx_sy = self.ovm['stub'].centre_sx_sy
-        self.previous_grid_size_selector = self.ovm['stub'].grid_size_selector
+        self.previous_grid_size = self.ovm['stub'].size
 
     def process_thread_signal(self):
         """Process commands from the queue when a trigger signal occurs
@@ -115,7 +92,8 @@ class StubOVDlg(QDialog):
             self.buttonBox.setEnabled(True)
             self.spinBox_X.setEnabled(True)
             self.spinBox_Y.setEnabled(True)
-            self.comboBox_sizeSelector.setEnabled(True)
+            self.spinBox_rows.setEnabled(True)
+            self.spinBox_cols.setEnabled(True)
             QMessageBox.information(
                 self, 'Stub Overview acquisition complete',
                 'The stub overview was completed successfully.',
@@ -135,8 +113,7 @@ class StubOVDlg(QDialog):
         elif msg == 'STUB OV ABORT':
             self.viewport_trigger.transmit('STATUS IDLE')
             # Restore previous grid size and grid position
-            self.ovm['stub'].grid_size_selector = (
-                self.previous_grid_size_selector)
+            self.ovm['stub'].size = self.previous_grid_size
             self.ovm['stub'].centre_sx_sy = self.previous_centre_sx_sy
             QMessageBox.information(
                 self, 'Stub Overview acquisition aborted',
@@ -148,9 +125,26 @@ class StubOVDlg(QDialog):
             # Use as error message
             self.error_msg_from_acq_thread = msg
 
-    def update_duration(self):
-        self.label_duration.setText(self.durations[
-            self.comboBox_sizeSelector.currentIndex()])
+    def update_dimension_and_duration_display(self):
+        rows = self.spinBox_rows.value()
+        cols = self.spinBox_cols.value()
+        tile_width = self.ovm['stub'].frame_size[0]
+        tile_height = self.ovm['stub'].frame_size[1]
+        overlap = self.ovm['stub'].overlap
+        pixel_size = self.ovm['stub'].pixel_size
+        cycle_time = self.ovm['stub'].tile_cycle_time()
+        motor_move_time = self.stage.stage_move_duration(
+            *self.ovm['stub'][0].sx_sy, *self.ovm['stub'][1].sx_sy)
+        width = int(
+            (cols * tile_width - (cols - 1) * overlap) * pixel_size / 1000)
+        height = int(
+            (rows * tile_height - (rows - 1) * overlap) * pixel_size / 1000)
+        duration = int(round(
+            (rows * cols * (cycle_time + motor_move_time) + 30) / 60))
+        dimension_str = str(width) + ' µm × ' + str(height) + ' µm'
+        duration_str = 'Up to ~' + str(duration) + ' min'
+        self.label_dimension.setText(dimension_str)
+        self.label_duration.setText(duration_str)
 
     def start_stub_ov_acquisition(self):
         """Acquire the stub overview. Acquisition routine runs in a thread."""
@@ -159,9 +153,9 @@ class StubOVDlg(QDialog):
         if self.sem.is_eht_on():
             self.acq_in_progress = True
             centre_sx_sy = self.spinBox_X.value(), self.spinBox_Y.value()
-            grid_size_selector = self.comboBox_sizeSelector.currentIndex()
+            grid_size = [self.spinBox_rows.value(), self.spinBox_cols.value()]
             # Change the Stub Overview to the requested grid size and centre
-            self.ovm['stub'].grid_size_selector = grid_size_selector
+            self.ovm['stub'].size = grid_size
             self.ovm['stub'].centre_sx_sy = centre_sx_sy
             self.viewport_trigger.transmit(
                 'CTRL: Acquisition of stub overview image started.')
@@ -170,7 +164,8 @@ class StubOVDlg(QDialog):
             self.buttonBox.setEnabled(False)
             self.spinBox_X.setEnabled(False)
             self.spinBox_Y.setEnabled(False)
-            self.comboBox_sizeSelector.setEnabled(False)
+            self.spinBox_rows.setEnabled(False)
+            self.spinBox_cols.setEnabled(False)
             self.progressBar.setValue(0)
             self.viewport_trigger.transmit('STATUS BUSY STUB')
             QApplication.processEvents()
@@ -208,7 +203,7 @@ class FocusGradientTileSelectionDlg(QDialog):
         loadUi('..\\gui\\wd_gradient_tile_selection_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         self.grid_illustration.setPixmap(QPixmap('..\\img\\grid.png'))
         if current_ref_tiles[0] >= 0:
@@ -255,7 +250,7 @@ class GridRotationDlg(QDialog):
         loadUi('..\\gui\\change_grid_rotation_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         self.label_description.setText(
             f'Rotation of selected grid {self.selected_grid} in degrees:')
@@ -355,7 +350,7 @@ class ImportImageDlg(QDialog):
         loadUi('..\\gui\\import_image_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         self.pushButton_selectFile.clicked.connect(self.select_file)
         self.pushButton_selectFile.setIcon(QIcon('..\\img\\selectdir.png'))
@@ -450,7 +445,7 @@ class AdjustImageDlg(QDialog):
         loadUi('..\\gui\\adjust_imported_image_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
 
         if self.magc_mode:
             # magc_mode is restrictive about imported images
@@ -507,7 +502,7 @@ class DeleteImageDlg(QDialog):
         loadUi('..\\gui\\delete_image_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        #self.setFixedSize(self.size())
+        self.setFixedSize(self.size())
         self.show()
         # Populate the list widget with existing imported images:
         img_list = []
