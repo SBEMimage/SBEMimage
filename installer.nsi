@@ -171,6 +171,9 @@ Section "Uninstall"
   Delete $INSTDIR\uninstall.exe
   Delete "$INSTDIR\${PRODUCT_ICON}"
   RMDir /r "$INSTDIR\pkgs"
+  
+  ; Rename configuration folder to preserve it
+  Rename "$INSTDIR\cfg" "$INSTDIR\cfg_backup"
 
   ; Remove ourselves from %PATH%
   [% block uninstall_commands %]
@@ -200,7 +203,10 @@ Section "Uninstall"
     RMDir /r "$SMPROGRAMS\${PRODUCT_NAME}"
   [% endif %]
   [% endblock uninstall_shortcuts %]
-  RMDir $INSTDIR
+
+  ; Revert to name 'cfg' for configuration folder
+  Rename "$INSTDIR\cfg_backup" "$INSTDIR\cfg"
+  
   DeleteRegKey SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
 SectionEnd
 
