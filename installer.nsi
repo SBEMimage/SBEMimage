@@ -8,6 +8,7 @@
 !define ARCH_TAG "[[arch_tag]]"
 !define INSTALLER_NAME "[[ib.installer_name]]"
 !define PRODUCT_ICON "[[icon]]"
+!define SHORTCUT_TARGET "$INSTDIR\SBEMimage.bat"
 
 ; Marker file to tell the uninstaller that it's a user installation
 !define USER_INSTALL_MARKER _user_install_marker
@@ -97,10 +98,13 @@ Section "!${PRODUCT_NAME}" sec_app
   [% block install_shortcuts %]
   ; Install shortcuts
   ; The output path becomes the working directory for shortcuts
-  SetOutPath "%HOMEDRIVE%\%HOMEPATH%"
+  SetOutPath "$INSTDIR"
   [% if single_shortcut %]
     [% for scname, sc in ib.shortcuts.items() %]
-    CreateShortCut "$SMPROGRAMS\[[scname]].lnk" "[[sc['target'] ]]" \
+    CreateShortCut "$SMPROGRAMS\[[scname]].lnk" "${SHORTCUT_TARGET}" \
+      '[[ sc['parameters'] ]]' "$INSTDIR\[[ sc['icon'] ]]"
+    ; Create additional shortcut on Desktop  
+    CreateShortCut "$DESKTOP\[[scname]].lnk" "${SHORTCUT_TARGET}" \
       '[[ sc['parameters'] ]]' "$INSTDIR\[[ sc['icon'] ]]"
     [% endfor %]
   [% else %]
