@@ -1031,7 +1031,7 @@ class StageCalibrationDlg(QDialog):
         # print(f'Rotation (atan2): {rot2_x:.5f}\t{rot2_y:.5f}')
 
         if (self.comboBox_package.currentIndex() != 2
-            and self.sem.device_name not in ['ZEISS Merlin', 'ZEISS Gemini']):
+            and self.sem.device_name not in ['ZEISS Merlin', 'ZEISS GeminiSEM']):
             scale_x = scale_x_alt
             scale_y = scale_y_alt
             rot_x = rot_x_alt
