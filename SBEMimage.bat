@@ -1,16 +1,20 @@
 @echo off
-rem Assuming that the current directory is the SBEMimage folder
-rem and that the command "python" works.
+rem The current directory (where this batch file is located) must be the SBEMimage installation directory.
 cd src
-python SBEMimage.py
-rem Use the following (commented out) command instead when building installer (uses bundled Python interpreter)
-rem ..\Python\python.exe SBEMimage.py
+IF EXIST ..\Python\ (
+	rem Run python installed by NSIS installer.
+	..\Python\python.exe SBEMimage.py
+) ELSE (
+	rem Run system python (path must be in %PATH% environment variable).
+	python SBEMimage.py
+)
 cd..
-cd cfg 
+rem Check if status.dat exists in cfg directory (this means that the program terminated normally.)
+cd cfg
 IF EXIST status.dat (
-rem Console window will be closed
+rem Console window will be closed automatically.
 ) ELSE (
 cd..
-rem Console window will stay open
+rem Console window will stay open.
 cmd /k
 )
