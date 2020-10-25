@@ -301,11 +301,12 @@ class MainControls(QMainWindow):
         else:
             self.actionLeaveSimulationMode.setEnabled(False)
 
+        self.show_stack_progress()
+        self.pushButton_resetAcq.setEnabled(True)
+
         # Check if there is a previous acquisition to be be restarted.
         if self.acq.acq_paused:
-            self.show_stack_progress()
             self.pushButton_startAcq.setText('CONTINUE')
-            self.pushButton_resetAcq.setEnabled(True)
 
         # *** for debugging ***
         #self.restrict_gui(False)
