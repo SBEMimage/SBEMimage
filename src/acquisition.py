@@ -1036,11 +1036,11 @@ class Acquisition:
             status_msg1, status_msg2 = self.notifications.send_error_report(
                 self.stack_name, self.slice_counter, self.error_state,
                 self.recent_log_filename, self.vp_screenshot_filename)
-            utils.log_info(status_msg1)
-            self.add_to_main_log(status_msg1)
+            utils.log_info('CTRL', status_msg1)
+            self.add_to_main_log('CTRL: ' + status_msg1)
             if status_msg2:
-                utils.log_info(status_msg2)
-                self.add_to_main_log(status_msg2)
+                utils.log_info('CTRL', status_msg2)
+                self.add_to_main_log('CTRL: ' + status_msg2)
         # Send signal to Main Controls that there was an error.
         self.main_controls_trigger.transmit('ERROR PAUSE')
 
@@ -2552,27 +2552,27 @@ class Acquisition:
             self.add_to_main_log('SEM: Running SmartSEM AF procedure '
                                  + af_type + ' for tile '
                                  + str(grid_index) + '.' + str(tile_index))
-            return_msg = self.autofocus.run_zeiss_af(do_focus, do_stig)
+            autofocus_msg = 'SEM', self.autofocus.run_zeiss_af(do_focus, do_stig)
         elif self.autofocus.method == 3:
             utils.log_info('SEM',
                            'Running MAPFoSt AF procedure for tile '
                            + str(grid_index) + '.' + str(tile_index))
             self.add_to_main_log('SEM: Running MAPFoSt AF procedure for tile '
                                  + str(grid_index) + '.' + str(tile_index))
-            return_msg = self.autofocus.run_mapfost_af()
+            autofocus_msg = 'CTRL', self.autofocus.run_mapfost_af()
             if not self.autofocus.wd_stig_diff_below_max(wd, sx, sy):
                 utils.log_info('SEM',
                                'Re-running MAPFoSt AF procedure for tile '
                                + str(grid_index) + '.' + str(tile_index))
                 self.add_to_main_log('SEM: Re-running MAPFoSt AF procedure for tile '
                                      + str(grid_index) + '.' + str(tile_index))
-                return_msg = self.autofocus.run_mapfost_af(defocus_arr=[10, 8, 8, 6, 4, 2])
+                autofocus_msg = 'CTRL', self.autofocus.run_mapfost_af(defocus_arr=[10, 8, 8, 6, 4, 2])
         else:
             self.error_state = Error.autofocus_smartsem  # TODO: check if that code makes sense here
             return
-        utils.log_info(return_msg)
-        self.add_to_main_log(return_msg)
-        if 'ERROR' in return_msg:
+        utils.log_info(*autofocus_msg)
+        self.add_to_main_log(autofocus_msg[0] + ': ' + autofocus_msg[1])
+        if 'ERROR' in autofocus_msg[1]:
             self.error_state = Error.autofocus_smartsem
         elif not self.autofocus.wd_stig_diff_below_max(wd, sx, sy):
             self.add_to_incident_log(f'Autofocus out of range with new values: {self.sem.get_wd()} (WD), '
@@ -2791,6 +2791,7 @@ class Acquisition:
         self.grids_acquired = []
 
     def add_to_main_log(self, msg):
+        # TODO (BT): Remove this method and add log handler for the session logs
         """Add entry to the Main Controls log."""
         msg = utils.format_log_entry(msg)
         # Store entry in main log file
