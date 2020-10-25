@@ -286,8 +286,10 @@ class Notifications:
 
         msg_subject = (f'Error (slice {slice_counter}) '
                        f'during acquisition {stack_name}')
-        error_description = (f'Error {error_state} has occurred: '
-                             + utils.Errors[error_state])
+        error_description = (f'An error has occurred: '
+                             + utils.Errors[error_state]
+                             + '\n\nThe acquisition has been paused. '
+                             + 'See attached log file for details.')
 
         if os.path.isfile(recent_main_log):
             attachment_list.append(recent_main_log)
