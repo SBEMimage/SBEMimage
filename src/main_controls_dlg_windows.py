@@ -1025,18 +1025,19 @@ class StageCalibrationDlg(QDialog):
         scale_y_alt = shift / (y_abs * pixel_size / 1000)
 
         # TODO: remove debugging:
-        print(f'Original calc: {scale_x:.5f}\t{scale_y:.5f}\t{rot_x:.5f}\t{rot_y:.5f}')
-        print(f'Alternative calc: {scale_x_alt:.5f}\t{scale_y_alt:.5f}\t{rot_x_alt:.5f}\t{rot_y_alt:.5f}')
-        print(f'Super alternative calc: {rot_x_alt2:.5f}\t{rot_y_alt2:.5f}')
-        print(f'Rotation (atan2): {rot2_x:.5f}\t{rot2_y:.5f}')
+        # print(f'Original calc: {scale_x:.5f}\t{scale_y:.5f}\t{rot_x:.5f}\t{rot_y:.5f}')
+        # print(f'Alternative calc: {scale_x_alt:.5f}\t{scale_y_alt:.5f}\t{rot_x_alt:.5f}\t{rot_y_alt:.5f}')
+        # print(f'Super alternative calc: {rot_x_alt2:.5f}\t{rot_y_alt2:.5f}')
+        # print(f'Rotation (atan2): {rot2_x:.5f}\t{rot2_y:.5f}')
 
-        if self.comboBox_package.currentIndex() != 2:
+        if (self.comboBox_package.currentIndex() != 2
+            and self.sem.device_name not in ['ZEISS Merlin', 'ZEISS Gemini']):
             scale_x = scale_x_alt
             scale_y = scale_y_alt
             rot_x = rot_x_alt
             rot_y = rot_y_alt
 
-        if self.sem.syscfg['device']['sem'] == '2':
+        if self.sem.device_name == 'ZEISS Sigma':
             # ZEISS Sigma
             rot_x = rot_x_alt2
             rot_y = rot_y_alt2
@@ -2241,7 +2242,7 @@ class UpdateDlg(QDialog):
                             continue
                         # Remove string 'SBEMimage-master/'
                         zip_info.filename = zip_info.filename[17:]
-                        print(zip_info.filename)
+                        # print(zip_info.filename)
                         zip_object.extract(zip_info, install_path)
             except:
                 QMessageBox.warning(
