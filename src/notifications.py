@@ -261,13 +261,14 @@ class Notifications:
 
         # Clean up temporary files
         cleanup_success = True
+        cleanup_exception = ''
         for file in temp_file_list:
             try:
                 os.remove(file)
             except Exception as e:
                 cleanup_success = False
-                cleanup_error = str(e)
-        return success, send_error, cleanup_success, cleanup_error
+                cleanup_exception = str(e)
+        return success, send_error, cleanup_success, cleanup_exception
 
     def send_error_report(self, stack_name, slice_counter, error_state,
                           recent_main_log, vp_screenshot):
@@ -285,8 +286,10 @@ class Notifications:
 
         msg_subject = (f'Error (slice {slice_counter}) '
                        f'during acquisition {stack_name}')
-        error_description = (f'Error {error_state} has occurred: '
-                             + utils.Errors[error_state])
+        error_description = (f'An error has occurred: '
+                             + utils.Errors[error_state]
+                             + '\n\nThe acquisition has been paused. '
+                             + 'See attached log file for details.')
 
         if os.path.isfile(recent_main_log):
             attachment_list.append(recent_main_log)
@@ -300,16 +303,16 @@ class Notifications:
         success, error_msg = self.send_email(
             msg_subject, error_description, attachment_list)
         if success:
-            status_msg1 = 'CTRL: Error notification email sent.'
+            status_msg1 = 'Error notification email sent.'
         else:
-            status_msg1 = ('CTRL: ERROR sending notification email: '
+            status_msg1 = ('ERROR sending notification email: '
                            + error_msg)
         # Remove temporary log file of most recent entries
         try:
             if os.path.isfile(recent_main_log):
                 os.remove(recent_main_log)
         except Exception as e:
-            status_msg2 = ('CTRL: ERROR while trying to remove '
+            status_msg2 = ('ERROR while trying to remove '
                            'temporary file: ' + str(e))
         return status_msg1, status_msg2
 

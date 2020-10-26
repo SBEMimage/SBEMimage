@@ -70,7 +70,7 @@ RE_OV_LIST = re.compile('^([0-9]+)([ ]*,[ ]*[0-9]+)*$')
 LOG_FILENAME = '../log/SBEMimage.log'
 # Custom date/time / format to get '.' instead of ',' as millisecond separator
 LOG_FORMAT = '%(asctime)s.%(msecs)03d %(levelname)s %(category)s: %(message)s'
-LOG_FORMAT_SCREEN = '%(asctime)s.%(msecs)03d | %(category)-5s : %(message)s'
+LOG_FORMAT_SCREEN = '%(asctime)s | %(category)-5s : %(message)s'
 LOG_FORMAT_DATETIME = '%Y-%m-%d %H:%M:%S'
 LOG_MAX_FILESIZE = 10000000
 LOG_MAX_FILECOUNT = 20
@@ -255,8 +255,9 @@ class QtTextHandler(StreamHandler):
         message = self.format(record)
         # Filter stack trace from main view
         if 'Traceback' in message:
-            i = message.index('Traceback')
-            message = message[0:i].strip() + " : See log for details"
+            message = (message[:message.index('Traceback')]
+                + 'EXCEPTION occurred: See \\log\\SBEMimage.log '
+                'and output in console window for details.')
         if self.qt_trigger:
             self.qt_trigger.transmit(message)
         else:
@@ -286,12 +287,12 @@ def logging_init(*message):
 
     logger = logging.getLogger("SBEMimage")
     logger.setLevel(logging.INFO)   # important: anything below this will be filtered irrespective of handler level
-    logging_add_handler(StreamHandler(), level=logging.ERROR)   # filter messages to console log handler
+    # logging_add_handler(StreamHandler(), level=logging.ERROR)   # filter messages to console log handler
     logging_add_handler(RotatingFileHandler(
         LOG_FILENAME, maxBytes=LOG_MAX_FILESIZE, backupCount=LOG_MAX_FILECOUNT))
     logging_add_handler(qt_text_handler, format=LOG_FORMAT_SCREEN)
 
-    logger.propagate = False
+    # logger.propagate = False
 
     if message:
         log_info(*message)
@@ -339,7 +340,7 @@ def log_critical(*params):
 
 
 def log_exception(message=""):
-    logger.exception(message, extra={'category': ''})
+    logger.exception(message, extra={'category': 'EXC'})
 
 
 def try_to_open(file_name, mode):
@@ -396,7 +397,7 @@ def fit_in_range(value, min_value, max_value):
         value = max_value
     return value
 
-# TODO: remove/use format_log_entry, run through standard logging instead
+# TODO (BT): Remove format_log_entry, run through standard logging instead
 def format_log_entry(msg):
     """Add timestamp and align msg for logging purposes"""
     timestamp = str(datetime.datetime.now())
@@ -405,7 +406,7 @@ def format_log_entry(msg):
     i = msg.find(':')
     if i == -1:   # colon not found
         i = 0
-    return (timestamp[:23] + ' | ' + msg[:i] + (6-i) * ' ' + msg[i:])
+    return (timestamp[:19] + ' | ' + msg[:i] + (6-i) * ' ' + msg[i:])
 
 def format_wd_stig(wd, stig_x, stig_y):
     """Return a formatted string of focus parameters."""

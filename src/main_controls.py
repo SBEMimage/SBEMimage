@@ -301,11 +301,12 @@ class MainControls(QMainWindow):
         else:
             self.actionLeaveSimulationMode.setEnabled(False)
 
+        self.show_stack_progress()
+        self.pushButton_resetAcq.setEnabled(True)
+
         # Check if there is a previous acquisition to be be restarted.
         if self.acq.acq_paused:
-            self.show_stack_progress()
             self.pushButton_startAcq.setText('CONTINUE')
-            self.pushButton_resetAcq.setEnabled(True)
 
         # *** for debugging ***
         #self.restrict_gui(False)
@@ -316,7 +317,7 @@ class MainControls(QMainWindow):
         self.set_statusbar('Ready.')
 
         if self.simulation_mode:
-            utils.log_warning('CTRL', 'Simulation mode active.')
+            utils.log_info('CTRL', 'Simulation mode active.')
             QMessageBox.information(
                 self, 'Simulation mode active',
                 'SBEMimage is running in simulation mode. You can change most '
@@ -2115,8 +2116,8 @@ class MainControls(QMainWindow):
         self.pushButton_startAcq.setText('CONTINUE')
         QMessageBox.information(
             self, 'ERROR: Acquisition paused',
-            f'Error {self.acq.error_state} '
-            f'({utils.Errors[self.acq.error_state]}) has occurred '
+            f'An error has occurred: '
+            f'{utils.Errors[self.acq.error_state]} '
             f'(see log). Acquisition has been paused.',
             QMessageBox.Ok)
 

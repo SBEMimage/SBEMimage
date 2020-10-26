@@ -14,17 +14,21 @@ __pycache__/
 !system.cfg
 !installer.cfg
 
-# Ignore DM script control files:
+# Ignore DM script control files
 DMcom.*
 
-# Ignore virtual environment:
+# Ignore virtual environment
 venv/
 
-# Ignore _build folder in docs:
+# Ignore _build folder in docs
 docs/_build/
 
-# Ignore log files:
+# Ignore log files
 log/
 
-### PyCharm ###
+# PyCharm
 .idea
+
+# Ignore build and extra_wheels folder (NSIS)
+build
+extra_wheels
