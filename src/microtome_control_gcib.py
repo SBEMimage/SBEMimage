@@ -82,13 +82,13 @@ class GCIB(BFRemover):
         except Exception as e:
             self.error_state = Error.configuration
             self.error_info = f'Could not initialize ftdidio: {str(e)}'
-        try:
-            self._ftdirelais = ftdirelais.Ftdirelais()
-        except Exception as e:
-            self.error_state = Error.configuration
-            self.error_info = f'Could not initialize ftdirelais: {str(e)}'
+        # try:
+        #     self._ftdirelais = ftdirelais.Ftdirelais()
+        # except Exception as e:
+        #     self.error_state = Error.configuration
+        #     self.error_info = f'Could not initialize ftdirelais: {str(e)}'
         self._connect_blanking()
-        self._connect_relais()
+        # self._connect_relais()
 
     def _connect_blanking(self):
         try:
@@ -249,7 +249,7 @@ class GCIB(BFRemover):
         """
         if mill_duration is None:
             mill_duration = self.mill_cycle
-        self._relais_off()
+        # self._relais_off()
         self.move_stage_to_millpos()
         # mill_duration==0 is only required to test stage transitions
         dt_milling = time.time()
@@ -261,7 +261,7 @@ class GCIB(BFRemover):
         dt_milling = time.time() - dt_milling
         utils.log_info(f'GCIB: GCIB was unblanked with stage in focus position for {dt_milling:.1f} s')
         self.move_stage_to_pos_prior_mill_mov()
-        self._relais_on()
+        # self._relais_on()
         if testing:
             return
         # TODO: requires further investigation (might disappear with proper gold coating and electron irradiation)

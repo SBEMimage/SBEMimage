@@ -28,6 +28,7 @@ from utils import Error
 
 def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
                main_controls_trigger, viewport_trigger):
+    check_ov_acceptance = bool(sem.cfg['overviews']['check_acceptance'].lower() == 'true')
     # Update current XY stage position
     stage.get_xy()
     success = True
@@ -89,7 +90,7 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
             viewport_trigger.transmit('ACQ IND OV' + str(ov_index))
             _, _, _, load_error, _, grab_incomplete = (
                 img_inspector.load_and_inspect(save_path))
-            if load_error or grab_incomplete:
+            if load_error or grab_incomplete and check_ov_acceptance:
                 # Try again
                 sleep(0.5)
                 main_controls_trigger.transmit(utils.format_log_entry(

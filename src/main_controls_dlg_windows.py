@@ -2800,6 +2800,7 @@ class RunAutofocusDlg(QDialog):
         self.finish_trigger.signal.connect(self.autofocus_completed)
         self.new_wd_stig_xy = None, None, None
         self.busy = False
+        self.af_msg = None
 
         loadUi('..\\gui\\run_autofocus_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
@@ -2819,11 +2820,16 @@ class RunAutofocusDlg(QDialog):
         method = self.comboBox_method.currentIndex()
         mode = self.comboBox_mode.currentIndex()
         if method == 1:
-            # MAPFoSt disabled for now
-            QMessageBox.information(
-                self, 'MAPFoSt',
-                'MAPFoSt Autofocus not available yet.',
-                QMessageBox.Ok)
+            if mode != 0:
+                utils.run_log_thread(f'MAPFoSt always corrects focus and stigmation.')
+            try:
+                utils.run_log_thread(self.call_mapfost_af_routine)
+            except ImportError:
+                # MAPFoSt disabled for now
+                QMessageBox.information(
+                    self, 'MAPFoSt',
+                    'MAPFoSt Autofocus not available yet.',
+                    QMessageBox.Ok)
         elif method == 0:
             if mode == 0:
                 self.use_autofocus = True
@@ -2841,21 +2847,26 @@ class RunAutofocusDlg(QDialog):
 
     def call_zeiss_af_routine(self):
         self.busy = True
-        self.zeiss_af_msg = self.autofocus.run_zeiss_af(
+        self.af_msg = self.autofocus.run_zeiss_af(
             self.use_autofocus, self.use_autostig)
+        self.finish_trigger.signal.emit()
+
+    def call_mapfost_af_routine(self):
+        self.busy = True
+        self.af_msg = self.autofocus.run_mapfost_af()
         self.finish_trigger.signal.emit()
 
     def autofocus_completed(self):
         self.busy = False
         self.pushButton_run.setText('Run')
         self.pushButton_run.setEnabled(True)
-        if 'ERROR' in self.zeiss_af_msg:
+        if 'ERROR' in self.af_msg:
             self.new_wd_stig = None, None, None
             QMessageBox.warning(
                 self, 'SmartSEM Autofocus error',
                 'An error occurred while running the SmartSEM Autofocus',
                 QMessageBox.Ok)
-            utils.log_error('SEM', self.zeiss_af_msg)
+            utils.log_error('SEM', self.af_msg)
         else:
             self.new_wd_stig = self.sem.get_wd(), *self.sem.get_stig_xy()
             QMessageBox.information(
@@ -2863,7 +2874,7 @@ class RunAutofocusDlg(QDialog):
                 f'New working distance and stigmation:\n'
                 f'{utils.format_wd_stig(*self.new_wd_stig)}',
                 QMessageBox.Ok)
-            utils.log_info('SEM', self.zeiss_af_msg)
+            utils.log_info('SEM', self.af_msg)
             self.accept()
 
     def reject(self):

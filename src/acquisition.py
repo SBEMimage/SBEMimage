@@ -1458,6 +1458,7 @@ class Acquisition:
         ov_save_path = None
         ov_accepted = False
         rejected_by_user = False
+        check_ov_acceptance = bool(self.cfg['overviews']['check_acceptance'].lower() == 'true')
 
         ov_stage_position = self.ovm[ov_index].centre_sx_sy
         # Move to OV stage coordinates if required (this method can be called
@@ -1576,11 +1577,11 @@ class Acquisition:
                     self.error_state = Error.image_load
                     ov_accepted = False
                     # Don't pause yet, try again in OV acquisition loop.
-                elif grab_incomplete:
+                elif grab_incomplete and check_ov_acceptance:
                     self.error_state = Error.grab_incomplete
                     ov_accepted = False
                     # Don't pause yet, try again in OV acquisition loop.
-                elif (self.monitor_images and not range_test_passed):
+                elif self.monitor_images and not range_test_passed and check_ov_acceptance:
                     ov_accepted = False
                     self.error_state = Error.overview_image    # OV image error
                     self.pause_acquisition(1)
@@ -1592,7 +1593,8 @@ class Acquisition:
                 else:
                     # OV has passed all tests, but now check for debris
                     ov_accepted = True
-                    if self.first_ov[ov_index]:
+                    # do not check if using GCIB
+                    if self.first_ov[ov_index] and not self.syscfg['device']['microtome'] == '6':
                         self.main_controls_trigger.transmit(
                             'ASK DEBRIS FIRST OV' + str(ov_index))
                         # The command above causes a message box to be displayed
@@ -2566,14 +2568,16 @@ class Acquisition:
                   f'{tile_wd*1000:.4f}, {tile_stig_x:.4f}, {tile_stig_y:.4f}'
             utils.log_info('SEM', msg)
             self.add_to_main_log(f'SEM: {msg}')
-            return_msg = self.autofocus.run_mapfost_af()
-            if not self.autofocus.wd_stig_diff_below_max(tile_wd, tile_stig_x, tile_stig_y):
-                utils.log_info('SEM',
-                               'Re-running MAPFoSt AF procedure for tile '
-                               + str(grid_index) + '.' + str(tile_index))
-                self.add_to_main_log('SEM: Re-running MAPFoSt AF procedure for tile '
-                                     + str(grid_index) + '.' + str(tile_index))
-                return_msg = self.autofocus.run_mapfost_af(defocus_arr=[10, 8, 6, 4, 2])
+            # needed here because first slice required additional AF trials when using GCIB
+            af_kwargs = dict(defocus_arr=self.autofocus.mapfost_defocus_trials, rot=self.autofocus.rot_angle_mafpsot,
+                             scale=self.autofocus.scale_factor_mapfost, na=self.autofocus.na_mapfost)
+            if self.slice_counter == 1 and self.microtome.device_name == 'GCIB':
+                af_kwargs['defocus_arr'] = [8, 8] + af_kwargs['defocus_arr']
+                msg = f'Added additional [8, 8] µm defocus trials to MAPoSt AF procedure for tile ' \
+                      f'{grid_index}.{tile_index}'
+                utils.log_info('SEM', msg)
+                self.add_to_main_log(f'SEM: {msg}')
+            return_msg = self.autofocus.run_mapfost_af(**af_kwargs)
         else:
             self.error_state = Error.autofocus_smartsem  # TODO: check if that code makes sense here
             return

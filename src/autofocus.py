@@ -50,6 +50,11 @@ class Autofocus():
             self.cfg['autofocus']['heuristic_calibration'])
         self.rot_angle, self.scale_factor = json.loads(
             self.cfg['autofocus']['heuristic_rot_scale'])
+        self.mapfost_defocus_trials = json.loads(
+            self.cfg['autofocus']['mapfost_defocus_trials'])
+        self.rot_angle_mafpsot, *self.scale_factor_mapfost, self.na_mapfost = json.loads(
+            self.cfg['autofocus']['mapfost_rot_scalex_scaley_na'])
+        self.dwell_time_mapfost = float(self.cfg['autofocus']['mapfost_dwell_time'])
         self.ACORR_WIDTH = 64
         self.fi_mask = np.empty((self.ACORR_WIDTH, self.ACORR_WIDTH))
         self.fo_mask = np.empty((self.ACORR_WIDTH, self.ACORR_WIDTH))
@@ -180,16 +185,13 @@ class Autofocus():
         """
         if autofoc_mapfost is None:
             return 'CTRL: ERROR during MAPFoSt - Could not import "mapfost" package.'
-        # TODO: add rotation parameter (maybe also the measurement)
-        default_kwargs = dict(defocus_arr=[8, 8, 6, 6, 4, 4, 2])  # TODO: make adaptable (depends on detector type)
-        default_kwargs.update(kwargs)
-        # TODO: allow different dwell times and other mapfost parameters!
-        # use 2k image size (frame size selector: 2 for Merlin, PS), frame size selector 1 -> 1k image
-        self.sem.apply_frame_settings(2, self.pixel_size, 0.2)
+        # use 2k image size (frame size selector: 2 for Merlin, PS), frame size selector 0 -> 1k image
+        # works for 8 nm pixel size
+        self.sem.apply_frame_settings(2, self.pixel_size, self.dwell_time_mapfost)
         sleep(0.2)
         try:
             corrections = autofoc_mapfost(ps=self.pixel_size / 1e3, set_final_values=True,
-                                          sem_api=self.sem.sem_api, **default_kwargs)
+                                          sem_api=self.sem.sem_api, **kwargs)
             msg = f'CTRL: Completed MAPFoSt AF (corrections: {corrections})'
         except ValueError as e:
             msg = f'CTRL: ValueError ({str(e)}) during MAPFoSt AF.'
