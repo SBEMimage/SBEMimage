@@ -1168,8 +1168,9 @@ class MainControls(QMainWindow):
     def open_microtome_dlg(self):
         if self.microtome is not None:
             if self.microtome.device_name == 'Gatan 3View':
-                dialog = MicrotomeSettingsDlg(self.microtome, self.sem, self.cs,
-                                              self.use_microtome)
+                dialog = MicrotomeSettingsDlg(self.microtome, self.sem,
+                                              self.stage, self.cs,
+                                              self.trigger, self.use_microtome)
                 if dialog.exec_():
                     self.show_current_settings()
                     self.show_stack_acq_estimates()
