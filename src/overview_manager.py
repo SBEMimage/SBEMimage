@@ -356,11 +356,14 @@ class OverviewManager:
         self.cfg['overviews']['stub_ov_viewport_image'] = str(
             self.__stub_overview.vp_file_path)
 
-    def add_new_overview(self):
+    def add_new_overview(self, centre_sx_sy=None):
         new_ov_index = self.number_ov
-        # Position new OV next to previous OV
-        x_pos, y_pos = self.__overviews[new_ov_index - 1].centre_sx_sy
-        y_pos += 50
+        if centre_sx_sy is None:
+            # Position new OV next to previous OV
+            x_pos, y_pos = self.__overviews[new_ov_index - 1].centre_sx_sy
+            y_pos += 50
+        else:
+            x_pos, y_pos = centre_sx_sy
 
         new_ov = Overview(self.cs, self.sem, ov_active=True,
                           centre_sx_sy=[x_pos, y_pos], frame_size=[2048, 1536],
@@ -379,7 +382,7 @@ class OverviewManager:
 
     def draw_overview(self, x, y, w, h):
         """Draw overview rectangle using mouse"""
-        pass
+        self.add_new_overview((x + w / 2, y + h / 2))
 
     def total_number_active_overviews(self):
         """Return the total number of active overviews."""

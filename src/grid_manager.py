@@ -980,7 +980,7 @@ class GridManager:
 
     def draw_grid(self, x, y, w, h):
         """Draw grid/tiles rectangle using mouse"""
-        pass
+        self.add_new_grid((x, y))
 
     def tile_position_for_registration(self, grid_index, tile_index):
         """Provide tile location (upper left corner of tile) in nanometres.
