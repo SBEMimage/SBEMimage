@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>331</width>
-    <height>648</height>
+    <height>677</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -23,7 +23,7 @@
    <property name="geometry">
     <rect>
      <x>130</x>
-     <y>610</y>
+     <y>640</y>
      <width>191</width>
      <height>32</height>
     </rect>
@@ -41,7 +41,7 @@
      <x>10</x>
      <y>10</y>
      <width>311</width>
-     <height>411</height>
+     <height>441</height>
     </rect>
    </property>
    <property name="title">
@@ -51,7 +51,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>80</y>
+      <y>105</y>
       <width>131</width>
       <height>16</height>
      </rect>
@@ -64,7 +64,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>110</y>
+      <y>135</y>
       <width>131</width>
       <height>16</height>
      </rect>
@@ -77,7 +77,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>50</y>
+      <y>75</y>
       <width>211</width>
       <height>16</height>
      </rect>
@@ -93,7 +93,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>140</y>
+      <y>165</y>
       <width>131</width>
       <height>16</height>
      </rect>
@@ -109,7 +109,7 @@
     <property name="geometry">
      <rect>
       <x>150</x>
-      <y>170</y>
+      <y>195</y>
       <width>71</width>
       <height>20</height>
      </rect>
@@ -122,7 +122,7 @@
     <property name="geometry">
      <rect>
       <x>230</x>
-      <y>140</y>
+      <y>165</y>
       <width>71</width>
       <height>20</height>
      </rect>
@@ -135,7 +135,7 @@
     <property name="geometry">
      <rect>
       <x>150</x>
-      <y>140</y>
+      <y>165</y>
       <width>71</width>
       <height>20</height>
      </rect>
@@ -148,7 +148,7 @@
     <property name="geometry">
      <rect>
       <x>230</x>
-      <y>170</y>
+      <y>195</y>
       <width>71</width>
       <height>20</height>
      </rect>
@@ -161,7 +161,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>170</y>
+      <y>195</y>
       <width>131</width>
       <height>16</height>
      </rect>
@@ -174,7 +174,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>230</y>
+      <y>255</y>
       <width>291</width>
       <height>16</height>
      </rect>
@@ -187,7 +187,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>250</y>
+      <y>275</y>
       <width>261</width>
       <height>16</height>
      </rect>
@@ -200,7 +200,7 @@
     <property name="geometry">
      <rect>
       <x>230</x>
-      <y>50</y>
+      <y>75</y>
       <width>71</width>
       <height>22</height>
      </rect>
@@ -216,7 +216,7 @@
     <property name="geometry">
      <rect>
       <x>150</x>
-      <y>80</y>
+      <y>105</y>
       <width>71</width>
       <height>22</height>
      </rect>
@@ -235,7 +235,7 @@
     <property name="geometry">
      <rect>
       <x>230</x>
-      <y>80</y>
+      <y>105</y>
       <width>71</width>
       <height>22</height>
      </rect>
@@ -254,7 +254,7 @@
     <property name="geometry">
      <rect>
       <x>150</x>
-      <y>110</y>
+      <y>135</y>
       <width>71</width>
       <height>22</height>
      </rect>
@@ -273,7 +273,7 @@
     <property name="geometry">
      <rect>
       <x>230</x>
-      <y>110</y>
+      <y>135</y>
       <width>71</width>
       <height>22</height>
      </rect>
@@ -295,7 +295,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>200</y>
+      <y>225</y>
       <width>131</width>
       <height>16</height>
      </rect>
@@ -311,7 +311,7 @@
     <property name="geometry">
      <rect>
       <x>230</x>
-      <y>200</y>
+      <y>225</y>
       <width>71</width>
       <height>20</height>
      </rect>
@@ -324,7 +324,7 @@
     <property name="geometry">
      <rect>
       <x>150</x>
-      <y>200</y>
+      <y>225</y>
       <width>71</width>
       <height>20</height>
      </rect>
@@ -372,7 +372,7 @@
     <property name="geometry">
      <rect>
       <x>150</x>
-      <y>280</y>
+      <y>305</y>
       <width>71</width>
       <height>22</height>
      </rect>
@@ -382,7 +382,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>282</y>
+      <y>307</y>
       <width>111</width>
       <height>16</height>
      </rect>
@@ -395,7 +395,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>312</y>
+      <y>337</y>
       <width>121</width>
       <height>16</height>
      </rect>
@@ -411,7 +411,7 @@
     <property name="geometry">
      <rect>
       <x>150</x>
-      <y>310</y>
+      <y>335</y>
       <width>71</width>
       <height>22</height>
      </rect>
@@ -421,7 +421,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>350</y>
+      <y>375</y>
       <width>181</width>
       <height>17</height>
      </rect>
@@ -434,7 +434,7 @@
     <property name="geometry">
      <rect>
       <x>230</x>
-      <y>377</y>
+      <y>402</y>
       <width>71</width>
       <height>22</height>
      </rect>
@@ -456,7 +456,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>380</y>
+      <y>405</y>
       <width>201</width>
       <height>16</height>
      </rect>
@@ -465,12 +465,28 @@
      <string>Maintenance move interval (# of moves):</string>
     </property>
    </widget>
+   <widget class="QPushButton" name="pushButton_setStagePosition">
+    <property name="enabled">
+     <bool>true</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>190</x>
+      <y>40</y>
+      <width>112</width>
+      <height>19</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Set XYZ</string>
+    </property>
+   </widget>
   </widget>
   <widget class="QGroupBox" name="groupBox_2">
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>430</y>
+     <y>460</y>
      <width>311</width>
      <height>171</height>
     </rect>
@@ -598,6 +614,7 @@
  </widget>
  <tabstops>
   <tabstop>pushButton_showMotorStatus</tabstop>
+  <tabstop>pushButton_setStagePosition</tabstop>
   <tabstop>doubleSpinBox_waitInterval</tabstop>
   <tabstop>spinBox_stageMinX</tabstop>
   <tabstop>spinBox_stageMaxX</tabstop>
@@ -611,6 +628,8 @@
   <tabstop>lineEdit_speedY</tabstop>
   <tabstop>spinBox_xyTolerance</tabstop>
   <tabstop>spinBox_zTolerance</tabstop>
+  <tabstop>checkBox_enableMaintenanceMoves</tabstop>
+  <tabstop>spinBox_maintenanceMoveInterval</tabstop>
   <tabstop>lineEdit_knifeCutSpeed</tabstop>
   <tabstop>lineEdit_knifeRetractSpeed</tabstop>
   <tabstop>checkBox_useOscillation</tabstop>
