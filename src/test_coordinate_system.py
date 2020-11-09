@@ -26,6 +26,6 @@ def test_initial_config(cs):
     assert cs.calibration_found
 
 def test_convert_coordinates(cs):
-    assert cs.convert_to_s(cs.convert_to_d([0, 0])) == [0, 0]
-    assert cs.convert_to_d(cs.convert_to_s([-100, 100])) == pytest.approx([-100, 100])
+    assert cs.convert_d_to_s(cs.convert_s_to_d([0, 0])) == [0, 0]
+    assert cs.convert_s_to_d(cs.convert_d_to_s([-100, 100])) == pytest.approx([-100, 100])
 

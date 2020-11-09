@@ -109,7 +109,7 @@ class Grid:
 
         # The origin of the grid (origin_sx_sy) is the stage position of tile 0.
         self._origin_sx_sy = origin_sx_sy
-        self._origin_dx_dy = self.cs.convert_to_d(origin_sx_sy)
+        self._origin_dx_dy = self.cs.convert_s_to_d(origin_sx_sy)
         # Size of the grid: [rows, cols]
         self._size = size
         self.number_tiles = self.size[0] * self.size[1]
@@ -194,7 +194,7 @@ class Grid:
         # Now calculate absolute stage positions.
         origin_sx, origin_sy = self.origin_sx_sy
         for tile in self.__tiles:
-            tile_sx, tile_sy = self.cs.convert_to_s(tile.dx_dy)
+            tile_sx, tile_sy = self.cs.convert_d_to_s(tile.dx_dy)
             tile.sx_sy = [origin_sx + tile_sx, origin_sy + tile_sy]
 
     def calculate_wd_gradient(self):
@@ -257,7 +257,7 @@ class Grid:
     @origin_sx_sy.setter
     def origin_sx_sy(self, sx_sy):
         self._origin_sx_sy = list(sx_sy)
-        self._origin_dx_dy = self.cs.convert_to_d(sx_sy)
+        self._origin_dx_dy = self.cs.convert_s_to_d(sx_sy)
         if self.auto_update_tile_positions:
             self.update_tile_positions()
 
@@ -268,7 +268,7 @@ class Grid:
     @origin_dx_dy.setter
     def origin_dx_dy(self, dx_dy):
         self._origin_dx_dy = list(dx_dy)
-        self._origin_sx_sy = self.cs.convert_to_s(dx_dy)
+        self._origin_sx_sy = self.cs.convert_d_to_s(dx_dy)
         if self.auto_update_tile_positions:
             self.update_tile_positions()
 
@@ -290,7 +290,7 @@ class Grid:
 
     @property
     def centre_dx_dy(self):
-        return self.cs.convert_to_d(self.centre_sx_sy)
+        return self.cs.convert_s_to_d(self.centre_sx_sy)
 
     @property
     def rotation(self):
@@ -319,7 +319,7 @@ class Grid:
             origin_dx = origin_dx_rot + centre_dx
             origin_dy = origin_dy_rot + centre_dy
         # Update grid with the new origin:
-        self.origin_sx_sy = self.cs.convert_to_s((origin_dx, origin_dy))
+        self.origin_sx_sy = self.cs.convert_d_to_s((origin_dx, origin_dy))
 
     def tile_positions_p(self):
         """Return list of relative pixel positions of all tiles in the grid."""
@@ -986,7 +986,7 @@ class GridManager:
         """Provide tile location (upper left corner of tile) in nanometres.
         TODO: What is the best way to deal with grid rotations?
         """
-        dx, dy = self.cs.convert_to_d(
+        dx, dy = self.cs.convert_s_to_d(
             self.__grids[grid_index][tile_index].sx_sy)
         width_d = self.__grids[grid_index].width_d()
         height_d = self.__grids[grid_index].height_d()
