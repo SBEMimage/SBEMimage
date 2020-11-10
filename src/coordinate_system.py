@@ -199,7 +199,7 @@ class CoordinateSystem:
             offset_x, offset_y = self.sv_ov_vx_vy
         return [int(dx * scale + offset_x), int(dy * scale + offset_y)]
 
-    def convert_mouse_to_stage(self, screen_xy):
+    def convert_mouse_to_s(self, screen_xy):
         dx, dy = screen_xy[0] - self.vp_width // 2, screen_xy[1] - self.vp_height // 2
         vp_centre_dx, vp_centre_dy = self.vp_centre_dx_dy
         dx_pos, dy_pos = (vp_centre_dx + dx / self.vp_scale,

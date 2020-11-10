@@ -468,7 +468,7 @@ class Viewport(QWidget):
             px in range(self.cs.vp_width) and py in range(self.cs.vp_height))
         if ((self.tabWidget.currentIndex() == 0)
                 and mouse_pos_within_viewer):
-            sx, sy = self.cs.convert_mouse_to_stage((px, py))
+            sx, sy = self.cs.convert_mouse_to_s((px, py))
             dx, dy = self.cs.convert_s_to_d([sx, sy])
             self.label_mousePos.setText(
                 'Stage: {0:.1f}, '.format(sx)
@@ -609,8 +609,8 @@ class Viewport(QWidget):
                     self.ovm.update_all_debris_detections_areas(self.gm)
 
             if self.grid_draw_active or self.ov_draw_active:
-                x0, y0 = self.cs.convert_mouse_to_stage(self.drag_origin)
-                x1, y1 = self.cs.convert_mouse_to_stage(self.drag_current)
+                x0, y0 = self.cs.convert_mouse_to_s(self.drag_origin)
+                x1, y1 = self.cs.convert_mouse_to_s(self.drag_current)
                 if x0 > x1:
                     x1, x0 = x0, x1
                 if y0 > y1:
@@ -897,7 +897,7 @@ class Viewport(QWidget):
             self.selected_ov = self._vp_ov_mouse_selection(px, py)
             self.selected_imported = (
                 self._vp_imported_img_mouse_selection(px, py))
-            sx, sy = self.cs.convert_mouse_to_stage((px, py))
+            sx, sy = self.cs.convert_mouse_to_s((px, py))
             dx, dy = self.cs.convert_s_to_d((sx, sy))
             current_pos_str = ('Move stage to X: {0:.3f}, '.format(sx)
                                + 'Y: {0:.3f}'.format(sy))

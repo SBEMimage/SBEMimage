@@ -685,6 +685,7 @@ class MainControls(QMainWindow):
 
     def change_grid_settings_display(self):
         self.grid_index_dropdown = self.comboBox_gridSelector.currentIndex()
+        self.gm.current_grid = self.grid_index_dropdown
         self.show_current_settings()
 
     def change_ov_settings_display(self):

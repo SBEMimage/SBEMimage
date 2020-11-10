@@ -736,6 +736,7 @@ class GridManager:
         self.cfg = config
         self.sem = sem
         self.cs = coordinate_system
+        self.current_grid = 0
         # Load grid parameters stored as lists in configuration.
         self.number_grids = int(self.cfg['grids']['number_grids'])
         grid_active = json.loads(self.cfg['grids']['grid_active'])
@@ -921,7 +922,13 @@ class GridManager:
 
         # Save MagC settings to config (currently none)
 
-    def add_new_grid(self, origin_sx_sy=None):
+    def add_new_grid(self, origin_sx_sy=None, active=True,
+                     frame_size=None, frame_size_selector=None, overlap=None,
+                     pixel_size=10.0, dwell_time=0.8, dwell_time_selector=4,
+                     rotation=0, row_shift=0, acq_interval=1, acq_interval_offset=0,
+                     wd_stig_xy=[0, 0, 0], use_wd_gradient=False,
+                     wd_gradient_ref_tiles=[-1, -1, -1], wd_gradient_params=[0, 0, 0],
+                     size=[5, 5]):
         """Add new grid with default parameters. A new grid is always added
         at the next available grid index, after all existing grids."""
         new_grid_index = self.number_grids
@@ -934,13 +941,19 @@ class GridManager:
             x_pos, y_pos = origin_sx_sy
         # Set tile size and overlap according to store resolutions available
         if len(self.sem.STORE_RES) > 4:
-            frame_size = [4096, 3072]
-            frame_size_selector = 4
-            overlap = 200
+            if frame_size is None:
+                frame_size = [4096, 3072]
+            if frame_size_selector is None:
+                frame_size_selector = 4
+            if overlap is None:
+                overlap = 200
         else:
-            frame_size = [3072, 2304]
-            frame_size_selector = 3
-            overlap = 150
+            if frame_size is None:
+                frame_size = [3072, 2304]
+            if frame_size_selector is None:
+                frame_size_selector = 3
+            if overlap is None:
+                overlap = 150
         # Set grid colour
         if self.sem.magc_mode:
             # Cycle through available colours.
@@ -951,16 +964,16 @@ class GridManager:
             display_colour = 1
 
         new_grid = Grid(self.cs, self.sem,
-                        active=True, origin_sx_sy=[x_pos, y_pos],
-                        rotation=0, size=[5, 5], overlap=overlap, row_shift=0,
+                        active=active, origin_sx_sy=[x_pos, y_pos],
+                        rotation=rotation, size=size, overlap=overlap, row_shift=row_shift,
                         active_tiles=[], frame_size=frame_size,
-                        frame_size_selector=frame_size_selector, pixel_size=10.0,
-                        dwell_time=0.8, dwell_time_selector=4,
-                        display_colour=display_colour, acq_interval=1,
-                        acq_interval_offset=0, wd_stig_xy=[0, 0, 0],
-                        use_wd_gradient=False,
-                        wd_gradient_ref_tiles=[-1, -1, -1],
-                        wd_gradient_params=[0, 0, 0])
+                        frame_size_selector=frame_size_selector, pixel_size=pixel_size,
+                        dwell_time=dwell_time, dwell_time_selector=dwell_time_selector,
+                        display_colour=display_colour, acq_interval=acq_interval,
+                        acq_interval_offset=acq_interval_offset, wd_stig_xy=wd_stig_xy,
+                        use_wd_gradient=use_wd_gradient,
+                        wd_gradient_ref_tiles=wd_gradient_ref_tiles,
+                        wd_gradient_params=wd_gradient_params)
         self.__grids.append(new_grid)
         self.number_grids += 1
 
@@ -980,7 +993,19 @@ class GridManager:
 
     def draw_grid(self, x, y, w, h):
         """Draw grid/tiles rectangle using mouse"""
-        self.add_new_grid((x, y))
+        grid = self.__grids[self.current_grid]
+
+        size = [5, 5]
+
+        self.add_new_grid(origin_sx_sy=(x, y), active=grid.active,
+                          frame_size=grid.frame_size, frame_size_selector=grid.frame_size_selector,
+                          overlap=grid.overlap, pixel_size=grid.pixel_size,
+                          dwell_time_selector=grid.dwell_time_selector, dwell_time=grid.dwell_time,
+                          rotation=grid.rotation, row_shift=grid.row_shift,
+                          acq_interval=grid.acq_interval, acq_interval_offset=grid.acq_interval_offset,
+                          wd_stig_xy=grid.wd_stig_xy, use_wd_gradient=grid.use_wd_gradient,
+                          wd_gradient_ref_tiles=grid.wd_gradient_ref_tiles, wd_gradient_params=grid.wd_gradient_params,
+                          size=size)
 
     def tile_position_for_registration(self, grid_index, tile_index):
         """Provide tile location (upper left corner of tile) in nanometres.

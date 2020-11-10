@@ -1624,7 +1624,25 @@ class GridSettingsDlg(QDialog):
         self.pushButton_deleteGrid.setText('Delete grid %d' % self.current_grid)
 
     def add_grid(self):
-        self.gm.add_new_grid()
+        active = self.radioButton_active.isChecked()
+        frame_size_selector = self.comboBox_tileSize.currentIndex()
+        frame_size = self.comboBox_tileSize.currentText()
+        input_overlap = self.spinBox_overlap.value()
+        pixel_size = self.doubleSpinBox_pixelSize.value()
+        dwell_time_selector = self.comboBox_dwellTime.currentIndex()
+        dwell_time = self.comboBox_dwellTime.currentText()
+        rotation = self.doubleSpinBox_rotation.value()
+        input_shift = self.spinBox_shift.value()
+        acq_interval = self.spinBox_acqInterval.value()
+        acq_interval_offset = self.spinBox_acqIntervalOffset.value()
+        size = [self.spinBox_rows.value(), self.spinBox_cols.value()]
+        self.gm.add_new_grid(active=active,
+                             frame_size=frame_size, frame_size_selector=frame_size_selector,
+                             overlap=input_overlap, pixel_size=pixel_size,
+                             dwell_time_selector=dwell_time_selector, dwell_time=dwell_time,
+                             rotation=rotation, row_shift=input_shift,
+                             acq_interval=acq_interval, acq_interval_offset=acq_interval_offset,
+                             size=size)
         self.current_grid = self.gm.number_grids - 1
         # Update grid selector:
         self.comboBox_gridSelector.blockSignals(True)
