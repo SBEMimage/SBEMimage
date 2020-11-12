@@ -87,7 +87,7 @@ class Grid:
     """Store all grid parameters and a list of Tile objects."""
 
     def __init__(self, coordinate_system, sem,
-                 active=True, origin_sx_sy=[0, 0], rotation=0,
+                 active=True, origin_sx_sy=[0, 0], sw_sh=[0, 0], rotation=0,
                  size=[5, 5], overlap=200, row_shift=0, active_tiles=[],
                  frame_size=[4096, 3072], frame_size_selector=4,
                  pixel_size=10.0, dwell_time=0.8, dwell_time_selector=4,
@@ -113,6 +113,7 @@ class Grid:
         # Size of the grid: [rows, cols]
         self._size = size
         self.number_tiles = self.size[0] * self.size[1]
+        self.sw_sh = sw_sh
         # Rotation in degrees
         self.rotation = rotation
         # Overlap between neighbouring tiles in pixels
@@ -741,6 +742,9 @@ class GridManager:
         self.number_grids = int(self.cfg['grids']['number_grids'])
         grid_active = json.loads(self.cfg['grids']['grid_active'])
         origin_sx_sy = json.loads(self.cfg['grids']['origin_sx_sy'])
+        if 'sw_sh' in self.cfg['grids']:
+            # * backward compatibility
+            sw_sh = json.loads(self.cfg['grids']['sw_sh'])
         rotation = json.loads(self.cfg['grids']['rotation'])
         size = json.loads(self.cfg['grids']['size'])
         overlap = json.loads(self.cfg['grids']['overlap'])
@@ -777,7 +781,8 @@ class GridManager:
         # the user configuration.
         self.__grids = []
         for i in range(self.number_grids):
-            grid = Grid(self.cs, self.sem, grid_active[i] == 1, origin_sx_sy[i],
+            # * backward compatibility sw_sh[i] -> (0, 0)
+            grid = Grid(self.cs, self.sem, grid_active[i] == 1, origin_sx_sy[i], (0, 0),    # replace with sw_sh[i]
                         rotation[i], size[i], overlap[i], row_shift[i],
                         active_tiles[i], frame_size[i], frame_size_selector[i],
                         pixel_size[i], dwell_time[i], dwell_time_selector[i],
@@ -851,6 +856,8 @@ class GridManager:
             [int(grid.active) for grid in self.__grids])
         self.cfg['grids']['origin_sx_sy'] = str(
             [utils.round_xy(grid.origin_sx_sy) for grid in self.__grids])
+        self.cfg['grids']['sw_sh'] = str(
+            [utils.round_xy(grid.sw_sh) for grid in self.__grids])
         self.cfg['grids']['rotation'] = str(
             [grid.rotation for grid in self.__grids])
         self.cfg['grids']['size'] = str(
@@ -922,7 +929,7 @@ class GridManager:
 
         # Save MagC settings to config (currently none)
 
-    def add_new_grid(self, origin_sx_sy=None, active=True,
+    def add_new_grid(self, origin_sx_sy=None, sw_sh=None, active=True,
                      frame_size=None, frame_size_selector=None, overlap=None,
                      pixel_size=10.0, dwell_time=0.8, dwell_time_selector=4,
                      rotation=0, row_shift=0, acq_interval=1, acq_interval_offset=0,
@@ -964,7 +971,7 @@ class GridManager:
             display_colour = 1
 
         new_grid = Grid(self.cs, self.sem,
-                        active=active, origin_sx_sy=[x_pos, y_pos],
+                        active=active, origin_sx_sy=[x_pos, y_pos], sw_sh=sw_sh,
                         rotation=rotation, size=size, overlap=overlap, row_shift=row_shift,
                         active_tiles=[], frame_size=frame_size,
                         frame_size_selector=frame_size_selector, pixel_size=pixel_size,
@@ -995,9 +1002,15 @@ class GridManager:
         """Draw grid/tiles rectangle using mouse"""
         grid = self.__grids[self.current_grid]
 
-        size = [5, 5]
+        tile_width = grid.tile_width_d()
+        tile_height = grid.tile_height_d()
 
-        self.add_new_grid(origin_sx_sy=(x, y), active=grid.active,
+        origin_sx_sy = self.cs.convert_d_to_s((x + tile_width / 2, y + tile_height / 2))
+
+        # size[rows, cols]
+        size = [np.int(np.ceil(h / tile_height)), np.int(np.ceil(w / tile_width))]
+
+        self.add_new_grid(origin_sx_sy=origin_sx_sy, sw_sh=(w, h), active=grid.active,
                           frame_size=grid.frame_size, frame_size_selector=grid.frame_size_selector,
                           overlap=grid.overlap, pixel_size=grid.pixel_size,
                           dwell_time_selector=grid.dwell_time_selector, dwell_time=grid.dwell_time,

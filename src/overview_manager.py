@@ -382,7 +382,10 @@ class OverviewManager:
 
     def draw_overview(self, x, y, w, h):
         """Draw overview rectangle using mouse"""
-        self.add_new_overview((x + w / 2, y + h / 2))
+
+        sx, sy = self.cs.convert_d_to_s((x, y))
+
+        self.add_new_overview((sx, sy))
 
     def total_number_active_overviews(self):
         """Return the total number of active overviews."""

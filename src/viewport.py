@@ -609,8 +609,8 @@ class Viewport(QWidget):
                     self.ovm.update_all_debris_detections_areas(self.gm)
 
             if self.grid_draw_active or self.ov_draw_active:
-                x0, y0 = self.cs.convert_mouse_to_s(self.drag_origin)
-                x1, y1 = self.cs.convert_mouse_to_s(self.drag_current)
+                x0, y0 = self.cs.convert_mouse_to_v(self.drag_origin)
+                x1, y1 = self.cs.convert_mouse_to_v(self.drag_current)
                 if x0 > x1:
                     x1, x0 = x0, x1
                 if y0 > y1:
