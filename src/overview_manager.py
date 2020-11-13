@@ -221,6 +221,7 @@ class OverviewManager:
         self.cfg = config
         self.sem = sem
         self.cs = coordinate_system
+        self.current_ov = 0
         self.number_ov = int(self.cfg['overviews']['number_ov'])
 
         # Load OV parameters from user configuration
@@ -356,7 +357,10 @@ class OverviewManager:
         self.cfg['overviews']['stub_ov_viewport_image'] = str(
             self.__stub_overview.vp_file_path)
 
-    def add_new_overview(self, centre_sx_sy=None):
+    def add_new_overview(self, ov_active=True, centre_sx_sy=None,
+                         frame_size=None, frame_size_selector=None, pixel_size=None,
+                         dwell_time=0.8, dwell_time_selector=4,
+                         acq_interval=1, acq_interval_offset=0):
         new_ov_index = self.number_ov
         if centre_sx_sy is None:
             # Position new OV next to previous OV
@@ -365,11 +369,18 @@ class OverviewManager:
         else:
             x_pos, y_pos = centre_sx_sy
 
-        new_ov = Overview(self.cs, self.sem, ov_active=True,
-                          centre_sx_sy=[x_pos, y_pos], frame_size=[2048, 1536],
-                          frame_size_selector=2, pixel_size=155.0,
-                          dwell_time=0.8, dwell_time_selector=4,
-                          acq_interval=1, acq_interval_offset=0,
+        if frame_size is None:
+            frame_size = [2048, 1536]
+        if frame_size_selector is None:
+            frame_size_selector = 2
+        if pixel_size is None:
+            pixel_size = 155.0
+
+        new_ov = Overview(self.cs, self.sem, ov_active=ov_active,
+                          centre_sx_sy=[x_pos, y_pos], frame_size=frame_size,
+                          frame_size_selector=frame_size_selector, pixel_size=pixel_size,
+                          dwell_time_selector=dwell_time_selector, dwell_time=dwell_time,
+                          acq_interval=acq_interval, acq_interval_offset=acq_interval_offset,
                           wd_stig_xy=[0, 0, 0], vp_file_path='',
                           debris_detection_area=[])
         self.__overviews.append(new_ov)
@@ -382,10 +393,29 @@ class OverviewManager:
 
     def draw_overview(self, x, y, w, h):
         """Draw overview rectangle using mouse"""
+        ov = self.__overviews[self.current_ov]
 
-        sx, sy = self.cs.convert_d_to_s((x, y))
+        # Vary magnification / pixel size to get desired frame size
+        pixel_size_x = w * 1000 / ov.frame_size[0]
+        pixel_size_y = h * 1000 / ov.frame_size[1]
+        pixel_size = max(pixel_size_x, pixel_size_y)
+        # Check if valid mag
+        mag = self.sem.MAG_PX_SIZE_FACTOR / (ov.frame_size[0] * pixel_size)
+        if mag < 30 or mag > 3000:
+            if mag < 30:
+                mag = 30
+            if mag > 3000:
+                mag = 3000
+            pixel_size = self.sem.MAG_PX_SIZE_FACTOR / (ov.frame_size[0] * mag)
 
-        self.add_new_overview((sx, sy))
+        ov_width_d = ov.frame_size[0] * pixel_size / 1000
+        ov_height_d = ov.frame_size[1] * pixel_size / 1000
+        sx, sy = self.cs.convert_d_to_s((x + ov_width_d / 2, y + ov_height_d / 2))
+
+        self.add_new_overview(ov_active=ov.active, centre_sx_sy=(sx, sy), pixel_size=pixel_size,
+                              frame_size=ov.frame_size, frame_size_selector=ov.frame_size_selector,
+                              dwell_time_selector=ov.dwell_time_selector, dwell_time=ov.dwell_time,
+                              acq_interval=ov.acq_interval, acq_interval_offset=ov.acq_interval_offset)
 
     def total_number_active_overviews(self):
         """Return the total number of active overviews."""

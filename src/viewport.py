@@ -619,11 +619,15 @@ class Viewport(QWidget):
                 h = y1 - y0
 
             if self.grid_draw_active:
-                self.grid_draw_active = False
-                self.gm.draw_grid(x0, y0, w, h)
+                if h != 0 and w != 0:
+                    self.grid_draw_active = False
+                    self.gm.draw_grid(x0, y0, w, h)
+                    self.main_controls_trigger.transmit('GRID SETTINGS CHANGED')
             if self.ov_draw_active:
-                self.ov_draw_active = False
-                self.ovm.draw_overview(x0, y0, w, h)
+                if h != 0 and w != 0:
+                    self.ov_draw_active = False
+                    self.ovm.draw_overview(x0, y0, w, h)
+                    self.main_controls_trigger.transmit('OV SETTINGS CHANGED')
 
             if self.tile_paint_mode_active:
                 self.tile_paint_mode_active = False

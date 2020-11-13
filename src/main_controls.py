@@ -690,6 +690,7 @@ class MainControls(QMainWindow):
 
     def change_ov_settings_display(self):
         self.ov_index_dropdown = self.comboBox_OVSelector.currentIndex()
+        self.ovm.current_ov = self.ov_index_dropdown
         self.show_current_settings()
 
     def show_current_settings(self):

@@ -1437,7 +1437,16 @@ class OVSettingsDlg(QDialog):
         self.main_controls_trigger.transmit('OV SETTINGS CHANGED')
 
     def add_ov(self):
-        self.ovm.add_new_overview()
+        frame_size_selector = self.comboBox_frameSize.currentIndex()
+        frame_size = self.comboBox_frameSize.currentText()
+        pixel_size = self.doubleSpinBox_pixelSize.value()
+        dwell_time_selector = self.comboBox_dwellTime.currentIndex()
+        dwell_time = self.comboBox_dwellTime.currentText()
+        acq_interval = self.spinBox_acqInterval.value()
+        acq_interval_offset = self.spinBox_acqIntervalOffset.value()
+        self.ovm.add_new_overview(frame_size=frame_size, frame_size_selector=frame_size_selector, pixel_size=pixel_size,
+                                  dwell_time_selector=dwell_time_selector, dwell_time=dwell_time,
+                                  acq_interval=acq_interval, acq_interval_offset=acq_interval_offset)
         self.current_ov = self.ovm.number_ov - 1
         # Update OV selector:
         self.comboBox_OVSelector.blockSignals(True)
