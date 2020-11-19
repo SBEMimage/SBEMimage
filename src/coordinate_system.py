@@ -153,7 +153,7 @@ class CoordinateSystem:
         self.syscfg['stage'][self._device + '_calibration_params'] = json.dumps(
             calibration_params)
 
-    def convert_to_s(self, d_coordinates):
+    def convert_d_to_s(self, d_coordinates):
         """Convert SEM XY coordinates provided as a tuple or list into stage
         coordinates. The SEM coordinates [dx, dy] are multiplied with the
         rotation matrix.
@@ -163,7 +163,7 @@ class CoordinateSystem:
         stage_y = (self.rot_mat_c * dx + self.rot_mat_d * dy) * self.scale_y
         return [stage_x, stage_y]
 
-    def convert_to_d(self, s_coordinates):
+    def convert_s_to_d(self, s_coordinates):
         """Convert stage XY coordinates provided as a tuple or list into
         SEM coordinates. The stage coordinates are multiplied with the
         inverse of the rotation matrix.
@@ -177,7 +177,7 @@ class CoordinateSystem:
               / self.rot_mat_determinant)
         return [dx, dy]
 
-    def convert_to_v(self, d_coordinates):
+    def convert_d_to_v(self, d_coordinates):
         """Convert SEM XY coordinates into Viewport window coordinates.
         These coordinates in units of pixels specify an object's location
         relative to the Viewport origin.
@@ -186,7 +186,7 @@ class CoordinateSystem:
         return [int((dx - self._vp_origin_dx_dy[0]) * self._vp_scale),
                 int((dy - self._vp_origin_dx_dy[1]) * self._vp_scale)]
 
-    def convert_to_sv(self, d_coordinates, tile_display=True):
+    def convert_d_to_sv(self, d_coordinates, tile_display=True):
         """Convert SEM coordinates in microns (relative to image origin) to
         pixel coordinates in Slice-by-Slice Viewer.
         """
@@ -198,6 +198,21 @@ class CoordinateSystem:
             scale = self._sv_scale_ov
             offset_x, offset_y = self.sv_ov_vx_vy
         return [int(dx * scale + offset_x), int(dy * scale + offset_y)]
+
+    def convert_mouse_to_s(self, screen_xy):
+        dx, dy = screen_xy[0] - self.vp_width // 2, screen_xy[1] - self.vp_height // 2
+        vp_centre_dx, vp_centre_dy = self.vp_centre_dx_dy
+        dx_pos, dy_pos = (vp_centre_dx + dx / self.vp_scale,
+                          vp_centre_dy + dy / self.vp_scale)
+        sx_pos, sy_pos = self.convert_d_to_s((dx_pos, dy_pos))
+        return sx_pos, sy_pos
+
+    def convert_mouse_to_v(self, screen_xy):
+        px, py = screen_xy
+        centre_dx, centre_dy = self.vp_centre_dx_dy
+        x = centre_dx + (px - self.vp_width / 2) / self.vp_scale
+        y = centre_dy + (py - self.vp_height / 2) / self.vp_scale
+        return x, y
 
     @property
     def vp_centre_dx_dy(self):
