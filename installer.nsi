@@ -8,6 +8,7 @@
 !define ARCH_TAG "[[arch_tag]]"
 !define INSTALLER_NAME "[[ib.installer_name]]"
 !define PRODUCT_ICON "[[icon]]"
+!define SHORTCUT_TARGET "$INSTDIR\SBEMimage.bat"
 
 ; Marker file to tell the uninstaller that it's a user installation
 !define USER_INSTALL_MARKER _user_install_marker
@@ -97,10 +98,13 @@ Section "!${PRODUCT_NAME}" sec_app
   [% block install_shortcuts %]
   ; Install shortcuts
   ; The output path becomes the working directory for shortcuts
-  SetOutPath "%HOMEDRIVE%\%HOMEPATH%"
+  SetOutPath "$INSTDIR"
   [% if single_shortcut %]
     [% for scname, sc in ib.shortcuts.items() %]
-    CreateShortCut "$SMPROGRAMS\[[scname]].lnk" "[[sc['target'] ]]" \
+    CreateShortCut "$SMPROGRAMS\[[scname]].lnk" "${SHORTCUT_TARGET}" \
+      '[[ sc['parameters'] ]]' "$INSTDIR\[[ sc['icon'] ]]"
+    ; Create additional shortcut on Desktop
+    CreateShortCut "$DESKTOP\[[scname]].lnk" "${SHORTCUT_TARGET}" \
       '[[ sc['parameters'] ]]' "$INSTDIR\[[ sc['icon'] ]]"
     [% endfor %]
   [% else %]
@@ -172,6 +176,9 @@ Section "Uninstall"
   Delete "$INSTDIR\${PRODUCT_ICON}"
   RMDir /r "$INSTDIR\pkgs"
 
+  ; Rename configuration folder to preserve it
+  Rename "$INSTDIR\cfg" "$INSTDIR\cfg_backup"
+
   ; Remove ourselves from %PATH%
   [% block uninstall_commands %]
   [% if has_commands %]
@@ -200,7 +207,10 @@ Section "Uninstall"
     RMDir /r "$SMPROGRAMS\${PRODUCT_NAME}"
   [% endif %]
   [% endblock uninstall_shortcuts %]
-  RMDir $INSTDIR
+
+  ; Revert to name 'cfg' for configuration folder
+  Rename "$INSTDIR\cfg_backup" "$INSTDIR\cfg"
+
   DeleteRegKey SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
 SectionEnd
 

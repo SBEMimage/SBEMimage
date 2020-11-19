@@ -69,14 +69,22 @@ class Stage:
     def move_to_y(self, y):
         return self._stage.move_stage_to_y(y)
 
-    def move_to_z(self, z):
+    def move_to_z(self, z, safe_mode=True):
         if self.use_microtome_z:
-            return self.microtome.move_stage_to_z(z)
+            return self.microtome.move_stage_to_z(z, safe_mode)
         else:
             return self._stage.move_stage_to_z(z)
 
     def move_to_xy(self, coordinates):
         return self._stage.move_stage_to_xy(coordinates)
+
+    @property
+    def last_known_x(self):
+        return self._stage.last_known_x
+
+    @property
+    def last_known_y(self):
+        return self._stage.last_known_y
 
     @property
     def last_known_xy(self):

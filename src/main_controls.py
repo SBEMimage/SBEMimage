@@ -302,11 +302,12 @@ class MainControls(QMainWindow):
         else:
             self.actionLeaveSimulationMode.setEnabled(False)
 
+        self.show_stack_progress()
+        self.pushButton_resetAcq.setEnabled(True)
+
         # Check if there is a previous acquisition to be be restarted.
         if self.acq.acq_paused:
-            self.show_stack_progress()
             self.pushButton_startAcq.setText('CONTINUE')
-            self.pushButton_resetAcq.setEnabled(True)
 
         # *** for debugging ***
         #self.restrict_gui(False)
@@ -317,7 +318,7 @@ class MainControls(QMainWindow):
         self.set_statusbar('Ready.')
 
         if self.simulation_mode:
-            utils.log_warning('CTRL', 'Simulation mode active.')
+            utils.log_info('CTRL', 'Simulation mode active.')
             QMessageBox.information(
                 self, 'Simulation mode active',
                 'SBEMimage is running in simulation mode. You can change most '
@@ -687,10 +688,12 @@ class MainControls(QMainWindow):
 
     def change_grid_settings_display(self):
         self.grid_index_dropdown = self.comboBox_gridSelector.currentIndex()
+        self.gm.current_grid = self.grid_index_dropdown
         self.show_current_settings()
 
     def change_ov_settings_display(self):
         self.ov_index_dropdown = self.comboBox_OVSelector.currentIndex()
+        self.ovm.current_ov = self.ov_index_dropdown
         self.show_current_settings()
 
     def show_current_settings(self):
@@ -1170,8 +1173,9 @@ class MainControls(QMainWindow):
     def open_microtome_dlg(self):
         if self.microtome is not None:
             if self.microtome.device_name == 'Gatan 3View':
-                dialog = MicrotomeSettingsDlg(self.microtome, self.sem, self.cs,
-                                              self.use_microtome)
+                dialog = MicrotomeSettingsDlg(self.microtome, self.sem,
+                                              self.stage, self.cs,
+                                              self.trigger, self.use_microtome)
                 if dialog.exec_():
                     self.show_current_settings()
                     self.show_stack_acq_estimates()
@@ -2150,8 +2154,8 @@ class MainControls(QMainWindow):
         self.pushButton_startAcq.setText('CONTINUE')
         QMessageBox.information(
             self, 'ERROR: Acquisition paused',
-            f'Error {self.acq.error_state} '
-            f'({utils.Errors[self.acq.error_state]}) has occurred '
+            f'An error has occurred: '
+            f'{utils.Errors[self.acq.error_state]} '
             f'(see log). Acquisition has been paused.',
             QMessageBox.Ok)
 
@@ -2525,7 +2529,7 @@ class MainControls(QMainWindow):
         self.cs.vp_scale = 8
         self.viewport.vp_adjust_zoom_slider()
         # Recentre at current stage position and redraw
-        self.cs.vp_centre_dx_dy = self.cs.convert_to_d(self.stage.last_known_xy)
+        self.cs.vp_centre_dx_dy = self.cs.convert_s_to_d(self.stage.last_known_xy)
         self.viewport.vp_draw()
 
     def ft_open_move_dlg(self):
@@ -2599,7 +2603,7 @@ class MainControls(QMainWindow):
             if self.ft_selected_ov >= 0:
                 stage_x, stage_y = self.ovm[self.ft_selected_ov].centre_dx_dy
             elif self.ft_selected_tile >= 0:
-                stage_x, stage_y = self.cs.convert_to_d(
+                stage_x, stage_y = self.cs.convert_s_to_d(
                     self.gm[self.ft_selected_grid][self.ft_selected_tile].sx_sy)
             # Get the shifts for the current focus area and add them to the
             # centre coordinates in the SEM coordinate system. Then convert to
@@ -2607,7 +2611,7 @@ class MainControls(QMainWindow):
             delta_x, delta_y = self.ft_locations[self.ft_cycle_counter]
             stage_x += delta_x * self.ft_pixel_size/1000
             stage_y += delta_y * self.ft_pixel_size/1000
-            stage_x, stage_y = self.cs.convert_to_s((stage_x, stage_y))
+            stage_x, stage_y = self.cs.convert_d_to_s((stage_x, stage_y))
             self.stage.move_to_xy((stage_x, stage_y))
             if self.stage.error_state != Error.none:
                 self.stage.reset_error_state()

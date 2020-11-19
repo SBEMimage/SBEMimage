@@ -24,16 +24,17 @@ Use 'python sbemimage.py' or call the batch file SBEMimage.bat to run SBEMimage.
 import os
 import sys
 
-# Required for pynsist (uncomment when building installer):
-# import site
-# scriptdir, script = os.path.split(__file__)
-# pkgdir = os.path.join(scriptdir, '..', 'pkgs')
-# # Ensure .pth files in pkgdir are handled properly and ensure importing
-# # local modules works.
-# site.addsitedir(pkgdir)
-# site.addsitedir(scriptdir)
-# sys.path.insert(0, pkgdir)
-# sys.path.append(scriptdir)
+# Required for version installed with pynsist installer
+if os.path.exists('..\\Python') and os.path.exists('..\\pkgs'):
+    import site
+    scriptdir, script = os.path.split(__file__)
+    pkgdir = os.path.join(scriptdir, '..', 'pkgs')
+    # Ensure .pth files in pkgdir are handled properly and ensure importing
+    # local modules works.
+    site.addsitedir(pkgdir)
+    site.addsitedir(scriptdir)
+    sys.path.insert(0, pkgdir)
+    sys.path.append(scriptdir)
 
 import platform
 import ctypes

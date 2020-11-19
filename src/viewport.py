@@ -17,10 +17,8 @@
 
 import os
 import shutil
-import json
 import yaml
 import numpy as np
-import threading
 from time import time, sleep
 from PIL import Image
 from math import log, sqrt, sin, cos, radians
@@ -29,8 +27,8 @@ from statistics import mean
 from PyQt5.uic import loadUi
 from PyQt5.QtWidgets import QWidget, QApplication, QMessageBox, QMenu
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QFont, QIcon, QPen, \
-                        QBrush, QTransform, QKeyEvent
-from PyQt5.QtCore import Qt, QObject, QRect, QPoint, QSize, pyqtSignal
+                        QBrush, QKeyEvent
+from PyQt5.QtCore import Qt, QObject, QRect, QPoint, QSize
 
 import utils
 import acq_func
@@ -75,6 +73,7 @@ class Viewport(QWidget):
         self.doubleclick_registered = False
         self.zooming_in_progress = False
         self.drag_origin = (0, 0)
+        self.drag_current = (0, 0)
         self.fov_drag_active = False
         self.tile_paint_mode_active = False
         self.measure_p1 = (None, None)
@@ -190,6 +189,19 @@ class Viewport(QWidget):
                 QIcon('..\\img\\measure.png'))
             self.pushButton_measureSliceViewer.setIconSize(QSize(16, 16))
 
+    def _draw_rectangle(self, qp, point0, point1, color, line_style=Qt.SolidLine):
+        x0, y0 = point0
+        x1, y1 = point1
+        if x0 > x1:
+            x1, x0 = x0, x1
+        if y0 > y1:
+            y1, y0 = y0, y1
+        w = x1 - x0
+        h = y1 - y0
+        qp.setPen(QPen(QColor(*color), 1, line_style))
+        qp.setBrush(QColor(255, 255, 255, 0))
+        qp.drawRect(x0, y0, w, h)
+
     def _draw_measure_labels(self, qp):
         """Draw measure labels QPainter qp. qp must be active when calling this
         method."""
@@ -205,20 +217,20 @@ class Viewport(QWidget):
         qp.setBrush(QColor(0, 0, 0, 0))
         if self.measure_p1[0] is not None:
             if draw_in_vp:
-                p1_x, p1_y = self.cs.convert_to_v(self.measure_p1)
+                p1_x, p1_y = self.cs.convert_d_to_v(self.measure_p1)
             else:
-                p1_x, p1_y = self.cs.convert_to_sv(
+                p1_x, p1_y = self.cs.convert_d_to_sv(
                     self.measure_p1, tile_display)
             draw_measure_point(qp, p1_x, p1_y)
         if self.measure_p2[0] is not None:
             if draw_in_vp:
-                p2_x, p2_y = self.cs.convert_to_v(self.measure_p2)
+                p2_x, p2_y = self.cs.convert_d_to_v(self.measure_p2)
             else:
-                p2_x, p2_y = self.cs.convert_to_sv(
+                p2_x, p2_y = self.cs.convert_d_to_sv(
                     self.measure_p2, tile_display)
             draw_measure_point(qp, p2_x, p2_y)
 
-        if self.measure_complete:
+        if self.measure_p2[0] is not None:
             # Draw line between p1 and p2
             qp.drawLine(p1_x, p1_y, p2_x, p2_y)
             distance = sqrt((self.measure_p1[0] - self.measure_p2[0])**2
@@ -376,6 +388,10 @@ class Viewport(QWidget):
                     self.drag_origin = (px, py)
                     self.stage_pos_backup = (
                         self.ovm[self.selected_ov].centre_sx_sy)
+                else:
+                    # Draw OV
+                    self.ov_draw_active = True
+                    self.drag_origin = px, py
 
             # Check if Alt key is pressed -> Move grid
             elif ((self.tabWidget.currentIndex() == 0)
@@ -388,6 +404,10 @@ class Viewport(QWidget):
                     # Save coordinates in case user wants to undo
                     self.stage_pos_backup = (
                         self.gm[self.selected_grid].origin_sx_sy)
+                else:
+                    # Draw grid
+                    self.grid_draw_active = True
+                    self.drag_origin = px, py
 
             # Check if Ctrl + Alt keys are pressed -> Move imported image
             elif ((self.tabWidget.currentIndex() == 0)
@@ -412,8 +432,8 @@ class Viewport(QWidget):
                                     p.y() - utils.VP_MARGIN_Y)
         # Now check right mouse button for context menus and measuring tool
         if ((event.button() == Qt.RightButton)
-           and (self.tabWidget.currentIndex() < 2)
-           and mouse_pos_within_viewer):
+                and (self.tabWidget.currentIndex() < 2)
+                and mouse_pos_within_viewer):
             if self.tabWidget.currentIndex() == 0:
                 if self.vp_measure_active:
                     self._vp_set_measure_point(px, py)
@@ -448,8 +468,8 @@ class Viewport(QWidget):
             px in range(self.cs.vp_width) and py in range(self.cs.vp_height))
         if ((self.tabWidget.currentIndex() == 0)
                 and mouse_pos_within_viewer):
-            sx, sy = self._vp_stage_coordinates_from_mouse_position(px, py)
-            dx, dy = self.cs.convert_to_d([sx, sy])
+            sx, sy = self.cs.convert_mouse_to_s((px, py))
+            dx, dy = self.cs.convert_s_to_d([sx, sy])
             self.label_mousePos.setText(
                 'Stage: {0:.1f}, '.format(sx)
                 + '{0:.1f}; '.format(sy)
@@ -498,7 +518,7 @@ class Viewport(QWidget):
                 and self.selected_tile is not None):
                 if ((self.selected_grid == prev_selected_grid
                      and self.selected_tile != prev_selected_tile)
-                    or self.selected_grid != prev_selected_grid):
+                     or self.selected_grid != prev_selected_grid):
                         self.gm[self.selected_grid].toggle_active_tile(
                             self.selected_tile)
                         if self.autofocus.tracking_mode == 1:
@@ -508,16 +528,26 @@ class Viewport(QWidget):
             else:
                 # Disable paint mode when mouse moved beyond grid edge.
                 self.tile_paint_mode_active = False
+        elif self.grid_draw_active:
+            self.drag_current = px, py
+            self.vp_draw()
+        elif self.ov_draw_active:
+            self.drag_current = px, py
+            self.vp_draw()
 
         elif ((self.tabWidget.currentIndex() == 0)
             and mouse_pos_within_viewer
             and self.vp_measure_active):
                 # Change cursor appearence
                 self.setCursor(Qt.CrossCursor)
+                if self.measure_p1[0] is not None and not self.measure_complete:
+                    self._vp_set_measure_point(px, py)
         elif ((self.tabWidget.currentIndex() == 1)
             and mouse_pos_within_viewer
             and self.sv_measure_active):
                 self.setCursor(Qt.CrossCursor)
+                if self.measure_p1[0] is not None and not self.measure_complete:
+                    self._sv_set_measure_point(px, py)
         else:
             self.setCursor(Qt.ArrowCursor)
 
@@ -578,6 +608,27 @@ class Viewport(QWidget):
                     self.ovm[self.selected_ov].vp_file_path = ''
                     self.ovm.update_all_debris_detections_areas(self.gm)
 
+            if self.grid_draw_active or self.ov_draw_active:
+                x0, y0 = self.cs.convert_mouse_to_v(self.drag_origin)
+                x1, y1 = self.cs.convert_mouse_to_v(self.drag_current)
+                if x0 > x1:
+                    x1, x0 = x0, x1
+                if y0 > y1:
+                    y1, y0 = y0, y1
+                w = x1 - x0
+                h = y1 - y0
+
+            if self.grid_draw_active:
+                if h != 0 and w != 0:
+                    self.grid_draw_active = False
+                    self.gm.draw_grid(x0, y0, w, h)
+                    self.main_controls_trigger.transmit('GRID SETTINGS CHANGED')
+            if self.ov_draw_active:
+                if h != 0 and w != 0:
+                    self.ov_draw_active = False
+                    self.ovm.draw_overview(x0, y0, w, h)
+                    self.main_controls_trigger.transmit('OV SETTINGS CHANGED')
+
             if self.tile_paint_mode_active:
                 self.tile_paint_mode_active = False
                 self.vp_update_after_active_tile_selection()
@@ -595,6 +646,11 @@ class Viewport(QWidget):
             # Update viewport
             self.vp_draw()
             self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS')
+
+        elif event.button() == Qt.RightButton:
+            if self.vp_measure_active or self.sv_measure_active:
+                self.measure_complete = True
+
 
     def wheelEvent(self, event):
         if self.tabWidget.currentIndex() == 1:
@@ -670,6 +726,8 @@ class Viewport(QWidget):
         self.selected_imported = None
         # The following booleans are set to True when the corresponding
         # user actions are active.
+        self.grid_draw_active = False
+        self.ov_draw_active = False
         self.grid_drag_active = False
         self.ov_drag_active = False
         self.imported_img_drag_active = False
@@ -843,8 +901,8 @@ class Viewport(QWidget):
             self.selected_ov = self._vp_ov_mouse_selection(px, py)
             self.selected_imported = (
                 self._vp_imported_img_mouse_selection(px, py))
-            sx, sy = self._vp_stage_coordinates_from_mouse_position(px, py)
-            dx, dy = self.cs.convert_to_d((sx, sy))
+            sx, sy = self.cs.convert_mouse_to_s((px, py))
+            dx, dy = self.cs.convert_s_to_d((sx, sy))
             current_pos_str = ('Move stage to X: {0:.3f}, '.format(sx)
                                + 'Y: {0:.3f}'.format(sy))
             self.selected_stage_pos = (sx, sy)
@@ -1027,21 +1085,13 @@ class Viewport(QWidget):
         self.stub_ov_centre = self.selected_stage_pos
         self._vp_open_stub_overview_dlg()
 
-    def _vp_stage_coordinates_from_mouse_position(self, px, py):
-        dx, dy = px - self.cs.vp_width // 2, py - self.cs.vp_height // 2
-        vp_centre_dx, vp_centre_dy = self.cs.vp_centre_dx_dy
-        dx_pos, dy_pos = (vp_centre_dx + dx / self.cs.vp_scale,
-                          vp_centre_dy + dy / self.cs.vp_scale)
-        sx_pos, sy_pos = self.cs.convert_to_s((dx_pos, dy_pos))
-        return (sx_pos, sy_pos)
-
     def vp_dx_dy_range(self):
         x_min, x_max, y_min, y_max = self.stage.limits
         dx, dy = [0, 0, 0, 0], [0, 0, 0, 0]
-        dx[0], dy[0] = self.cs.convert_to_d((x_min, y_min))
-        dx[1], dy[1] = self.cs.convert_to_d((x_max, y_min))
-        dx[2], dy[2] = self.cs.convert_to_d((x_max, y_max))
-        dx[3], dy[3] = self.cs.convert_to_d((x_min, y_max))
+        dx[0], dy[0] = self.cs.convert_s_to_d((x_min, y_min))
+        dx[1], dy[1] = self.cs.convert_s_to_d((x_max, y_min))
+        dx[2], dy[2] = self.cs.convert_s_to_d((x_max, y_max))
+        dx[3], dy[3] = self.cs.convert_s_to_d((x_min, y_max))
         return min(dx), max(dx), min(dy), max(dy)
 
     def vp_draw(self, suppress_labels=False, suppress_previews=False):
@@ -1107,6 +1157,13 @@ class Viewport(QWidget):
         self._vp_draw_stage_boundaries()
         if self.show_axes:
             self._vp_draw_stage_axes()
+        # Show interactive features
+        if self.grid_draw_active:
+            self._draw_rectangle(self.vp_qp, self.drag_origin, self.drag_current,
+                                 utils.COLOUR_SELECTOR[0], line_style=Qt.DashLine)
+        if self.ov_draw_active:
+            self._draw_rectangle(self.vp_qp, self.drag_origin, self.drag_current,
+                                 utils.COLOUR_SELECTOR[10], line_style=Qt.DashLine)
         if self.vp_measure_active:
             self._draw_measure_labels(self.vp_qp)
         # Show help panel
@@ -1147,8 +1204,8 @@ class Viewport(QWidget):
         """Draw red bullseye indicator at last known stage position.
         QPainter object self.vp_qp must be active when caling this method.
         """
-        vx, vy = self.cs.convert_to_v(
-            self.cs.convert_to_d(self.stage.last_known_xy))
+        vx, vy = self.cs.convert_d_to_v(
+            self.cs.convert_s_to_d(self.stage.last_known_xy))
         size = int(self.cs.vp_scale * 5)
         if size < 10:
             size = 10
@@ -1232,7 +1289,7 @@ class Viewport(QWidget):
         dx, dy = self.ovm['stub'].origin_dx_dy
         dx -= self.ovm['stub'].tile_width_d() / 2
         dy -= self.ovm['stub'].tile_height_d() / 2
-        vx, vy = self.cs.convert_to_v((dx, dy))
+        vx, vy = self.cs.convert_d_to_v((dx, dy))
         width_px = self.ovm['stub'].width_p()
         height_px = self.ovm['stub'].height_p()
         # Crop and resize stub OV before placing it
@@ -1261,7 +1318,7 @@ class Viewport(QWidget):
             resize_ratio = img_pixel_size / viewport_pixel_size
 
             # Compute position of image in viewport:
-            dx, dy = self.cs.convert_to_d(
+            dx, dy = self.cs.convert_s_to_d(
                 self.imported[index].centre_sx_sy)
             # Get width and height of the imported QPixmap:
             width = self.imported[index].image.width()
@@ -1269,7 +1326,7 @@ class Viewport(QWidget):
             pixel_size = self.imported[index].pixel_size
             dx -= (width * pixel_size / 1000) / 2
             dy -= (height * pixel_size / 1000) / 2
-            vx, vy = self.cs.convert_to_v((dx, dy))
+            vx, vy = self.cs.convert_d_to_v((dx, dy))
             # Crop and resize image before placing it into viewport:
             visible, crop_area, vx_cropped, vy_cropped = self._vp_visible_area(
                 vx, vy, width, height, resize_ratio)
@@ -1302,7 +1359,7 @@ class Viewport(QWidget):
         width_px = self.ovm[ov_index].width_p()
         height_px = self.ovm[ov_index].height_p()
         # Convert to viewport window coordinates.
-        vx, vy = self.cs.convert_to_v((dx, dy))
+        vx, vy = self.cs.convert_d_to_v((dx, dy))
 
         if not suppress_labels:
             # Suppress the display of labels for performance reasons.
@@ -1407,12 +1464,12 @@ class Viewport(QWidget):
 
         # Calculate coordinates of grid origin with respect to Viewport canvas
         dx, dy = self.gm[grid_index].origin_dx_dy
-        origin_vx, origin_vy = self.cs.convert_to_v((dx, dy))
+        origin_vx, origin_vy = self.cs.convert_d_to_v((dx, dy))
 
         # Calculate top-left corner of the (unrotated) grid
         dx -= self.gm[grid_index].tile_width_d() / 2
         dy -= self.gm[grid_index].tile_height_d() / 2
-        topleft_vx, topleft_vy = self.cs.convert_to_v((dx, dy))
+        topleft_vx, topleft_vy = self.cs.convert_d_to_v((dx, dy))
 
         width_px = self.gm[grid_index].width_p()
         height_px = self.gm[grid_index].height_p()
@@ -1656,10 +1713,10 @@ class Viewport(QWidget):
         """Calculate and show bounding box around the area accessible to the
         stage motors."""
         x_min, x_max, y_min, y_max = self.stage.limits
-        b_left = self.cs.convert_to_v(self.cs.convert_to_d((x_min, y_min)))
-        b_top = self.cs.convert_to_v(self.cs.convert_to_d((x_max, y_min)))
-        b_right = self.cs.convert_to_v(self.cs.convert_to_d((x_max, y_max)))
-        b_bottom = self.cs.convert_to_v(self.cs.convert_to_d((x_min, y_max)))
+        b_left = self.cs.convert_d_to_v(self.cs.convert_s_to_d((x_min, y_min)))
+        b_top = self.cs.convert_d_to_v(self.cs.convert_s_to_d((x_max, y_min)))
+        b_right = self.cs.convert_d_to_v(self.cs.convert_s_to_d((x_max, y_max)))
+        b_bottom = self.cs.convert_d_to_v(self.cs.convert_s_to_d((x_min, y_max)))
         self.vp_qp.setPen(QColor(255, 255, 255))
         self.vp_qp.drawLine(b_left[0], b_left[1], b_top[0], b_top[1])
         self.vp_qp.drawLine(b_top[0], b_top[1], b_right[0], b_right[1])
@@ -1690,14 +1747,14 @@ class Viewport(QWidget):
     def _vp_draw_stage_axes(self):
         """Calculate and show the x axis and the y axis of the stage."""
         x_min, x_max, y_min, y_max = self.stage.limits
-        x_axis_start = self.cs.convert_to_v(
-            self.cs.convert_to_d((x_min - 100, 0)))
-        x_axis_end = self.cs.convert_to_v(
-            self.cs.convert_to_d((x_max + 100, 0)))
-        y_axis_start = self.cs.convert_to_v(
-            self.cs.convert_to_d((0, y_min - 100)))
-        y_axis_end = self.cs.convert_to_v(
-            self.cs.convert_to_d((0, y_max + 100)))
+        x_axis_start = self.cs.convert_d_to_v(
+            self.cs.convert_s_to_d((x_min - 100, 0)))
+        x_axis_end = self.cs.convert_d_to_v(
+            self.cs.convert_s_to_d((x_max + 100, 0)))
+        y_axis_start = self.cs.convert_d_to_v(
+            self.cs.convert_s_to_d((0, y_min - 100)))
+        y_axis_end = self.cs.convert_d_to_v(
+            self.cs.convert_s_to_d((0, y_max + 100)))
         self.vp_qp.setPen(QPen(QColor(255, 255, 255), 1, Qt.DashLine))
         self.vp_qp.drawLine(x_axis_start[0], x_axis_start[1],
                             x_axis_end[0], x_axis_end[1])
@@ -1714,18 +1771,12 @@ class Viewport(QWidget):
     def _vp_set_measure_point(self, px, py):
         """Convert pixel coordinates where mouse was clicked to SEM coordinates
         in Viewport for starting or end point of measurement."""
-        px -= self.cs.vp_width // 2
-        py -= self.cs.vp_height // 2
-        centre_dx, centre_dy = self.cs.vp_centre_dx_dy
         if self.measure_p1[0] is None or self.measure_complete:
-            self.measure_p1 = (centre_dx + px / self.cs.vp_scale,
-                               centre_dy + py / self.cs.vp_scale)
+            self.measure_p1 = self.cs.convert_mouse_to_v((px, py))
             self.measure_complete = False
             self.measure_p2 = (None, None)
-        elif self.measure_p2[0] is None:
-            self.measure_p2 = (centre_dx + px / self.cs.vp_scale,
-                               centre_dy + py / self.cs.vp_scale)
-            self.measure_complete = True
+        else:
+            self.measure_p2 = self.cs.convert_mouse_to_v((px, py))
         self.vp_draw()
 
     def _vp_draw_zoom_delay(self):
@@ -1824,7 +1875,7 @@ class Viewport(QWidget):
         new_ov_dx = old_ov_dx + dx / self.cs.vp_scale
         new_ov_dy = old_ov_dy + dy / self.cs.vp_scale
         # Set new OV centre and redraw.
-        self.ovm[self.selected_ov].centre_sx_sy = self.cs.convert_to_s(
+        self.ovm[self.selected_ov].centre_sx_sy = self.cs.convert_d_to_s(
             (new_ov_dx, new_ov_dy))
         self.vp_draw()
 
@@ -1832,13 +1883,13 @@ class Viewport(QWidget):
         """Shift the imported image selected by the mouse click
         (self.selected_imported) by shift_vector."""
         dx, dy = shift_vector
-        old_origin_dx, old_origin_dy = self.cs.convert_to_d(
+        old_origin_dx, old_origin_dy = self.cs.convert_s_to_d(
             self.imported[self.selected_imported].centre_sx_sy)
         new_origin_dx = old_origin_dx + dx / self.cs.vp_scale
         new_origin_dy = old_origin_dy + dy / self.cs.vp_scale
         # Set new centre coordinates.
         self.imported[self.selected_imported].centre_sx_sy = (
-            self.cs.convert_to_s((new_origin_dx, new_origin_dy)))
+            self.cs.convert_d_to_s((new_origin_dx, new_origin_dy)))
         self.vp_draw()
 
     def _vp_reposition_grid(self, shift_vector):
@@ -1851,7 +1902,7 @@ class Viewport(QWidget):
         new_grid_origin_dy = old_grid_origin_dy + dy / self.cs.vp_scale
         # Set new grid origin and redraw.
         self.gm[self.selected_grid].origin_sx_sy = (
-            self.cs.convert_to_s((new_grid_origin_dx, new_grid_origin_dy)))
+            self.cs.convert_d_to_s((new_grid_origin_dx, new_grid_origin_dy)))
         self.vp_draw()
 
     def _vp_grid_tile_mouse_selection(self, px, py):
@@ -1873,12 +1924,12 @@ class Viewport(QWidget):
         for grid_index in grid_range:
             # Calculate origin of the grid with respect to viewport canvas
             dx, dy = self.gm[grid_index].origin_dx_dy
-            grid_origin_vx, grid_origin_vy = self.cs.convert_to_v((dx, dy))
+            grid_origin_vx, grid_origin_vy = self.cs.convert_d_to_v((dx, dy))
             pixel_size = self.gm[grid_index].pixel_size
             # Calculate top-left corner of unrotated grid
             dx -= self.gm[grid_index].tile_width_d() / 2
             dy -= self.gm[grid_index].tile_height_d() / 2
-            grid_topleft_vx, grid_topleft_vy = self.cs.convert_to_v((dx, dy))
+            grid_topleft_vx, grid_topleft_vy = self.cs.convert_d_to_v((dx, dy))
             cols = self.gm[grid_index].number_cols()
             rows = self.gm[grid_index].number_rows()
             overlap = self.gm[grid_index].overlap
@@ -1955,7 +2006,7 @@ class Viewport(QWidget):
                 dx, dy = self.ovm[ov_index].centre_dx_dy
                 dx -= self.ovm[ov_index].width_d() / 2
                 dy -= self.ovm[ov_index].height_d() / 2
-                pixel_offset_x, pixel_offset_y = self.cs.convert_to_v((dx, dy))
+                pixel_offset_x, pixel_offset_y = self.cs.convert_d_to_v((dx, dy))
                 p_width = self.ovm[ov_index].width_d() * self.cs.vp_scale
                 p_height = self.ovm[ov_index].height_d() * self.cs.vp_scale
                 x, y = px - pixel_offset_x, py - pixel_offset_y
@@ -1995,7 +2046,7 @@ class Viewport(QWidget):
                 # Use width and heigh of the QPixmap (may be rotated
                 # and therefore larger than original image).
                 if self.imported[i].image is not None:
-                    dx, dy = self.cs.convert_to_d(
+                    dx, dy = self.cs.convert_s_to_d(
                         self.imported[i].centre_sx_sy)
                     pixel_size = self.imported[i].pixel_size
                     width_d = (self.imported[i].image.size().width()
@@ -2004,7 +2055,7 @@ class Viewport(QWidget):
                                 * pixel_size / 1000)
                     dx -= width_d / 2
                     dy -= height_d / 2
-                    pixel_offset_x, pixel_offset_y = self.cs.convert_to_v(
+                    pixel_offset_x, pixel_offset_y = self.cs.convert_d_to_v(
                         (dx, dy))
                     p_width = width_d * self.cs.vp_scale
                     p_height = height_d * self.cs.vp_scale
@@ -2869,9 +2920,8 @@ class Viewport(QWidget):
             self.measure_p1 = px / scale, py / scale
             self.measure_complete = False
             self.measure_p2 = None, None
-        elif self.measure_p2[0] is None:
+        else:
             self.measure_p2 = px / scale, py / scale
-            self.measure_complete = True
         self.sv_draw()
 
     def sv_reset_view(self):
