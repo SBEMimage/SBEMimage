@@ -1741,7 +1741,13 @@ class Acquisition:
                 'CTRL: DELTA_WD: {0:+.4f}'.format(self.wd_delta * 1000)
                 + ', DELTA_STIG_X: {0:+.2f}'.format(self.stig_x_delta)
                 + ', DELTA_STIG_Y: {0:+.2f}'.format(self.stig_x_delta))
-
+        # fit a plane for
+        if self.autofocus.tracking_mode == 3:  # global aberration gradient
+            for grid_index in range(self.gm.number_grids):
+                if self.error_state != Error.none or self.pause_state == 1:
+                    break
+                self.do_autofocus_before_grid_acq(grid_index)
+            self.gm.fit_apply_aberration_gradient()
         for grid_index in range(self.gm.number_grids):
             if self.error_state != Error.none or self.pause_state == 1:
                 break
@@ -1789,9 +1795,11 @@ class Acquisition:
                     else:
                         # Do autofocus on non-active tiles before grid acq
                         if (self.use_autofocus
-                                and self.autofocus.method in [0, 3]  # zeiss or mapfost
-                                and (self.autofocus_stig_current_slice[0]
-                                or self.autofocus_stig_current_slice[1])):
+                            and self.autofocus.method in [0, 3]  # zeiss or mapfost
+                            and (self.autofocus_stig_current_slice[0]
+                            or self.autofocus_stig_current_slice[1])
+                            and not self.autofocus.tracking_mode == 3  # in that case these tiles have been visited already
+                        ):
                             self.do_autofocus_before_grid_acq(grid_index)
                         # Adjust working distances and stigmation parameters
                         # for this grid with autofocus corrections
@@ -1818,7 +1826,6 @@ class Acquisition:
         # If there was no (new) interuption, reset self.grids_acquired
         if not self.acq_interrupted:
             self.grids_acquired = []
-
 
     def acquire_grid(self, grid_index):
         """Acquire all active tiles of grid specified by grid_index"""

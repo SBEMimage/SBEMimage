@@ -1569,7 +1569,6 @@ class GridSettingsDlg(QDialog):
             self.gm[self.current_grid].display_colour)
         self.checkBox_focusGradient.setChecked(
             self.gm[self.current_grid].use_wd_gradient)
-
         self.spinBox_rows.setValue(self.gm[self.current_grid].number_rows())
         self.spinBox_cols.setValue(self.gm[self.current_grid].number_cols())
         self.spinBox_overlap.setValue(self.gm[self.current_grid].overlap)
@@ -2067,6 +2066,9 @@ class PreStackDlg(QDialog):
             elif autofocus.method == 1:
                 self.label_autofocusActive.setFont(boldFont)
                 self.label_autofocusActive.setText('Active (heuristic)')
+            if autofocus.method == 3:
+                self.label_autofocusActive.setFont(boldFont)
+                self.label_autofocusActive.setText('Active (MAPFoSt)')
         else:
             self.label_autofocusActive.setText('Inactive')
         if self.gm.wd_gradient_active():
@@ -2794,7 +2796,8 @@ class AutofocusSettingsDlg(QDialog):
             self.autofocus.max_stig_y_diff)
         self.comboBox_trackingMode.addItems(['Track selected, approx. others',
                                              'Track all active tiles',
-                                             'Average over selected'])
+                                             'Average over selected',
+                                             'Track selected, fit others (global)'])
         self.comboBox_trackingMode.setCurrentIndex(
             self.autofocus.tracking_mode)
         self.comboBox_trackingMode.currentIndexChanged.connect(
@@ -2822,6 +2825,7 @@ class AutofocusSettingsDlg(QDialog):
         if magc_mode:
             self.radioButton_useHeuristic.setEnabled(False)
             self.radioButton_useTrackingOnly.setEnabled(False)
+            self.radioButton_useMAPFoSt.setEnabled(False)
             self.comboBox_trackingMode.setEnabled(False)
             self.spinBox_interval.setEnabled(False)
             # make autostig interval work on grids instead of slices
@@ -2881,7 +2885,7 @@ class AutofocusSettingsDlg(QDialog):
             self.autofocus.method = 1
         elif self.radioButton_useTrackingOnly.isChecked():
             self.autofocus.method = 2
-        elif self.radioButton_useTrackingOnly.isChecked():
+        elif self.radioButton_useMAPFoSt.isChecked():
             self.autofocus.method = 3
 
         success, tile_list = utils.validate_tile_list(
