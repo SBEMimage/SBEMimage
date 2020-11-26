@@ -375,7 +375,7 @@
     </rect>
    </property>
    <property name="title">
-    <string>SmartSEM autofocus parameters</string>
+    <string>SmartSEM/MAPFoSt autofocus parameters</string>
    </property>
    <widget class="QDoubleSpinBox" name="doubleSpinBox_pixelSize">
     <property name="geometry">

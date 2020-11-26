@@ -28,7 +28,7 @@ import numpy as np
 from statistics import mean
 from math import sqrt, radians, sin, cos
 from PyQt5.QtGui import QPixmap
-
+import scipy
 import utils
 
 
@@ -839,6 +839,33 @@ class GridManager:
         self.magc_wafer_transform = []
         self.magc_roi_mode = True
         self.magc_wafer_calibrated = False
+
+    def fit_apply_aberration_gradient(self):
+        dc_aberr = dict()
+        dc_pos = dict()
+        for tile_key in self.autofocus_ref_tiles:
+            g, t = (int(s) for s in tile_key.split('.'))
+            if (g < self.number_grids) and (t < self.__grids[g].number_tiles):
+                stig_xy = self.__grids[g][t].stig_xy
+                dc_aberr[(g, t)] = (self.__grids[g][t].wd, stig_xy[0], stig_xy[1])
+                dc_pos[(g, t)] = self.__grids[g][t].px_py  # original coordinates
+        # make use of python dict's order sensitivity
+        arr_pos = np.array(list(dc_pos.values()))
+        arr_aberr = np.array(list(dc_aberr.values()))
+
+        # best-fit linear plane
+        a = np.c_[arr_pos[:, 0], arr_pos[:, 1], np.ones(arr_pos.shape[0])]
+        params_wd, _, _, _ = scipy.linalg.lstsq(a, arr_aberr[:, 0])  # wd
+        params_stigx, _, _, _ = scipy.linalg.lstsq(a, arr_aberr[:, 1])  # stigx
+        params_stigy, _, _, _ = scipy.linalg.lstsq(a, arr_aberr[:, 2])  # stigy
+
+        for g in self.__grids:
+            for t in self.__grids[g].__tiles:
+                corrected_wd = self.__grids[g][t].px_py * params_wd[:2] + params_wd[0]
+                corrected_stigx = self.__grids[g][t].px_py * params_stigx[:2] + params_stigx[0]
+                corrected_stigy = self.__grids[g][t].px_py * params_stigy[:2] + params_stigy[0]
+                self.__grids[g][t].stig_xy = (corrected_stigx, corrected_stigy)
+                self.__grids[g][t].wd = corrected_wd
 
     def __getitem__(self, grid_index):
         """Return the Grid object selected by index."""

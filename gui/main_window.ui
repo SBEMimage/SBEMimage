@@ -1669,7 +1669,7 @@
          </rect>
         </property>
         <property name="text">
-         <string>Dwell time (µm):</string>
+         <string>Dwell time (µs):</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
