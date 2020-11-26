@@ -2577,7 +2577,7 @@ class Acquisition:
                       f'{grid_index}.{tile_index}'
                 utils.log_info('SEM', msg)
                 self.add_to_main_log(f'SEM: {msg}')
-            autofocus_msg = self.autofocus.run_mapfost_af(**af_kwargs)
+            autofocus_msg = 'SEM', self.autofocus.run_mapfost_af(**af_kwargs)
         else:
             self.error_state = Error.autofocus_smartsem  # TODO: check if that code makes sense here
             return

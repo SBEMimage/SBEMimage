@@ -184,7 +184,7 @@ class Autofocus():
 
         """
         if autofoc_mapfost is None:
-            return 'CTRL: ERROR during MAPFoSt - Could not import "mapfost" package.'
+            return 'ERROR during MAPFoSt - Could not import "mapfost" package.'
         # use 2k image size (frame size selector: 2 for Merlin, PS), frame size selector 0 -> 1k image
         # works for 8 nm pixel size
         self.sem.apply_frame_settings(2, self.pixel_size, self.dwell_time_mapfost)
@@ -192,9 +192,9 @@ class Autofocus():
         try:
             corrections = autofoc_mapfost(ps=self.pixel_size / 1e3, set_final_values=True,
                                           sem_api=self.sem.sem_api, **kwargs)
-            msg = f'CTRL: Completed MAPFoSt AF (corrections: {corrections})'
+            msg = f'Completed MAPFoSt AF (corrections: {corrections})'
         except ValueError as e:
-            msg = f'CTRL: ValueError ({str(e)}) during MAPFoSt AF.'
+            msg = f'ValueError ({str(e)}) during MAPFoSt AF.'
         return msg
 
     # ================ Below: methods for heuristic autofocus ==================
