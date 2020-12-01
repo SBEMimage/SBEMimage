@@ -202,11 +202,11 @@ class SEM_SmartSEM(SEM):
 
     def is_fcc_on(self):
         """Return True if FCC is on."""
-        return "yes" in self.sem_get('DP_CAPCC_INUSE').lower()
+        return "on" in self.sem_get('DP_CC_STATUS').lower()
 
     def is_fcc_off(self):
         """Return True if FCC is off."""
-        return "no" in self.sem_get('DP_CAPCC_INUSE').lower()
+        return "off" in self.sem_get('DP_CC_STATUS').lower()
 
     def get_fcc_level(self):
         """Read current FCC pressure (0-100) from SmartSEM."""
