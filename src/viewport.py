@@ -1169,7 +1169,7 @@ class Viewport(QWidget):
         # Show help panel
         if self.help_panel_visible:
             self.vp_qp.drawPixmap(self.cs.vp_width - 200,
-                                  self.cs.vp_height - 490,
+                                  self.cs.vp_height - 550,
                                   self.vp_help_panel_img)
         # Simulation mode indicator
         if self.sem.simulation_mode:
