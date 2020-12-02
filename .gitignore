@@ -6,7 +6,7 @@ __pycache__/
 # Pytest
 .pytest_cache
 
-# Ignore configuration files, except templates and installer.cfg
+# Configuration files, except templates and installer.cfg
 *.ini
 *.cfg
 *.dat
@@ -14,21 +14,24 @@ __pycache__/
 !system.cfg
 !installer.cfg
 
-# Ignore DM script control files
+# DM script control files
 DMcom.*
 
-# Ignore virtual environment
+# Virtual environment
 venv/
 
-# Ignore _build folder in docs
+# _build folder in docs
 docs/_build/
 
-# Ignore log files
+# Log files
 log/
 
 # PyCharm
 .idea
 
-# Ignore build and extra_wheels folder (NSIS)
-build
-extra_wheels
+# Installer-related (NSIS)
+build/
+extra_wheels/
+pkgs/
+Python/
+uninstall.exe
