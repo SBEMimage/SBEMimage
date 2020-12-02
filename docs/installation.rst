@@ -76,11 +76,11 @@ Calibration
 
 When you have created your first custom user and system configuration files (see above), you must perform several calibration routines to make *SBEMimage* ready for routine use on your setup.
 
-Magnification factor
-^^^^^^^^^^^^^^^^^^^^
+Magnification
+^^^^^^^^^^^^^
 
 In the top menu in Main Controls, click on 'Calibration' -> 'Magnification calibration'.
-Take an image on your SEM with a frame width of either 2048 or 4096 pixels and a pixel size of about 10 nm. In the dialog (see below), select the frame width, pixel size and magnification used for that image, and click on 'Calculate'. Confirm the new value by clicking on 'OK'.
+Take an image on your SEM with a frame width of either 2048 or 4096 pixels. Use a pixel size that matches your target resolution for tiles, for example 10.00 nm (recommended default choice). In the dialog (see below), select the frame width and pixel size used for that image, and the exact magnification factor you had to select to get that pixel size. Then click on 'Calculate' to calculate the new calibration factor. Confirm the new value by clicking on 'OK'.
 
 .. image:: /images/mag_calibration.jpg
    :width: 250
@@ -91,13 +91,16 @@ Take an image on your SEM with a frame width of either 2048 or 4096 pixels and a
 Stage calibration
 ^^^^^^^^^^^^^^^^^
 
-In the top menu in Main Controls, click on 'Calibration' -> 'Stage Calibration' to launch the stage calibration dialog (see below). Start the automatic stage calibration procedure. Click on the button with the question mark for more information.
+In the top menu in Main Controls, click on 'Calibration' -> 'Stage Calibration' to launch the stage calibration dialog (see below). Start the automatic stage calibration procedure with the default settings by clicking on 'Start automatic calibration'. Click on the button with the question mark for more information.
+
+Note that the stage must be calibrated separately for each EHT (high voltage) that you would like to use for your projects. If no calibration is found for the current EHT, a warning message will be displayed. In that case, *SBEMimage* will use whatever calibration is available for the EHT closest to the current EHT.
+
+For the automatic calibration routine, you can select different Python packages ('cv2', 'imreg_dft', 'skimage') to perform the pixel shift calculations. If the selected package fails to calculate reasonable parameters for the current sample, try another package. If the automatic routine does not work, you can manually input the pixel shifts. Use a program such as ImageJ to look at the three images that were acquired. You'll find the images in your current base directory (start.tif, shift_x.tif, shift_y.tif). Find an image feature in start.tif and input its precise pixel coordinates (X/Y), then find this feature in the image acquired after the X shift (shift_x.tif) and input the new pixel coordinates. Do the same for the shift in Y direction and click on 'Calculate' to find the new calibration parameters.
 
 .. image:: /images/stage_calibration.jpg
    :width: 600
    :align: center
    :alt: Stage calibration dialog
-
 
 Motor speeds
 ^^^^^^^^^^^^
