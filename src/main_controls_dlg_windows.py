@@ -1033,7 +1033,7 @@ class StageCalibrationDlg(QDialog):
         self.calc_exception = None
         try:
             # # [::-1] to use x, y, z order
-            if self.comboBox_package.currentIndex() == 0:  # alternative calculation selected
+            if self.comboBox_package.currentIndex() == 0:  # cv2 calculation selected
                 start_img = (start_img*255).astype(np.uint8)
                 shift_x_img = (shift_x_img*255).astype(np.uint8)
                 shift_y_img = (shift_y_img*255).astype(np.uint8)
@@ -1047,6 +1047,8 @@ class StageCalibrationDlg(QDialog):
             else:  # use skimage.register_translation
                 x_shift = register_translation(start_img, shift_x_img)[0][::-1]
                 y_shift = register_translation(start_img, shift_y_img)[0][::-1]
+            x_shift = x_shift.astype(np.int)
+            y_shift = y_shift.astype(np.int)
             self.x_shift_vector = [x_shift[0], x_shift[1]]
             self.y_shift_vector = [y_shift[0], y_shift[1]]
         except Exception as e:
@@ -1108,42 +1110,34 @@ class StageCalibrationDlg(QDialog):
         # Rotation angles (in radians)
         rot_x = atan(delta_xy/delta_xx)
         rot_y = atan(delta_yx/delta_yy)
-        rot2_x = atan2(self.x_shift_vector[1], self.x_shift_vector[0])
-        rot2_y = atan2(self.y_shift_vector[0], self.y_shift_vector[1])
         # Scale factors
         scale_x = shift / (sqrt(delta_xx**2 + delta_xy**2) * pixel_size / 1000)
         scale_y = shift / (sqrt(delta_yx**2 + delta_yy**2) * pixel_size / 1000)
 
-        # alternative calc
+        # Alternative calc.
         x_abs = np.linalg.norm(self.x_shift_vector)
         y_abs = np.linalg.norm(self.y_shift_vector)
         # Rotation angles:
-        rot_x_alt2 = np.arccos(self.x_shift_vector[0] / x_abs)
-        rot_y_alt2 = np.arccos(self.y_shift_vector[1] / y_abs)
-        rot_x_alt = np.arctan2(self.x_shift_vector[1] / x_abs, self.x_shift_vector[0] / x_abs) - np.arctan2(0, 1)
-        rot_y_alt = np.arctan2(self.y_shift_vector[1] / y_abs, self.y_shift_vector[0] / y_abs) - np.arctan2(1, 0)
-
+        rot_x_alt = np.arccos(self.x_shift_vector[0] / x_abs)
+        rot_y_alt = np.arccos(self.y_shift_vector[1] / y_abs)
         # Scale factors:
         scale_x_alt = shift / (x_abs * pixel_size / 1000)
         scale_y_alt = shift / (y_abs * pixel_size / 1000)
 
+        # Alternative calc. with atan2
+        # This only works if the reference vector is (0, 0)
+        rot2_x = atan2(self.x_shift_vector[1], self.x_shift_vector[0])
+        rot2_y = atan2(self.y_shift_vector[0], self.y_shift_vector[1])
+
         # TODO: remove debugging:
-        # print(f'Original calc: {scale_x:.5f}\t{scale_y:.5f}\t{rot_x:.5f}\t{rot_y:.5f}')
-        # print(f'Alternative calc: {scale_x_alt:.5f}\t{scale_y_alt:.5f}\t{rot_x_alt:.5f}\t{rot_y_alt:.5f}')
-        # print(f'Super alternative calc: {rot_x_alt2:.5f}\t{rot_y_alt2:.5f}')
-        # print(f'Rotation (atan2): {rot2_x:.5f}\t{rot2_y:.5f}')
+        print(f'Original calc: {scale_x:.5f}\t{scale_y:.5f}\t{rot_x:.5f}\t{rot_y:.5f}')
+        print(f'Alternative calc: {scale_x_alt:.5f}\t{scale_y_alt:.5f}\t{rot_x_alt:.5f}\t{rot_y_alt:.5f}')
+        print(f'Rotation (atan2): {rot2_x:.5f}\t{rot2_y:.5f}')
 
-        if (self.comboBox_package.currentIndex() != 2
-            and self.sem.device_name not in ['ZEISS Merlin', 'ZEISS GeminiSEM']):
-            scale_x = scale_x_alt
-            scale_y = scale_y_alt
-            rot_x = rot_x_alt
-            rot_y = rot_y_alt
-
-        if self.sem.device_name == 'ZEISS Sigma':
-            # ZEISS Sigma
-            rot_x = rot_x_alt2
-            rot_y = rot_y_alt2
+        scale_x = scale_x_alt
+        scale_y = scale_y_alt
+        rot_x = rot_x_alt
+        rot_y = rot_y_alt
 
         self.busy = False
         user_choice = QMessageBox.information(
@@ -1179,16 +1173,10 @@ class StageCalibrationDlg(QDialog):
         y2y = self.spinBox_y2y.value()
 
         # Distances in pixels
-        if self.comboBox_package.currentIndex() != 2:
-            delta_xx = x2x - x1x
-            delta_xy = x2y - x1y
-            delta_yx = y2x - y1x
-            delta_yy = y2y - y1y
-        else:
-            delta_xx = abs(x1x - x2x)
-            delta_xy = abs(x1y - x2y)
-            delta_yx = abs(y1x - y2x)
-            delta_yy = abs(y1y - y2y)
+        delta_xx = x2x - x1x
+        delta_xy = x2y - x1y
+        delta_yx = y2x - y1x
+        delta_yy = y2y - y1y
         if delta_xx == 0 or delta_yy == 0:
             QMessageBox.warning(
                 self, 'Error computing stage calibration',
@@ -2988,7 +2976,9 @@ class RunAutofocusDlg(QDialog):
 
     def call_mapfost_af_routine(self):
         self.busy = True
-        self.af_msg = self.autofocus.run_mapfost_af()
+        af_kwargs = dict(defocus_arr=self.autofocus.mapfost_defocus_trials, rot=self.autofocus.rot_angle_mafpsot,
+                         scale=self.autofocus.scale_factor_mapfost, na=self.autofocus.na_mapfost)
+        self.af_msg = self.autofocus.run_mapfost_af(**af_kwargs)
         self.finish_trigger.signal.emit()
 
     def autofocus_completed(self):

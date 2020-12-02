@@ -19,6 +19,7 @@ import json
 import numpy as np
 from math import sqrt, exp, sin, cos
 from statistics import mean
+import utils
 from time import sleep, time
 from scipy.signal import correlate2d, fftconvolve
 try:
@@ -190,8 +191,7 @@ class Autofocus():
         self.sem.apply_frame_settings(2, self.pixel_size, self.dwell_time_mapfost)
         sleep(0.2)
         try:
-            corrections = autofoc_mapfost(ps=self.pixel_size / 1e3, set_final_values=True,
-                                          sem_api=self.sem.sem_api, **kwargs)
+            corrections = autofoc_mapfost(ps=self.pixel_size / 1e3, sem_api=self.sem.sem_api, **kwargs)
             msg = f'Completed MAPFoSt AF (corrections: {corrections})'
         except ValueError as e:
             msg = f'ValueError ({str(e)}) during MAPFoSt AF.'

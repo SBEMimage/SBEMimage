@@ -23,6 +23,7 @@ self.gm[grid_index][tile_index].sx_sy  (stage position of specified tile)
 import os
 import json
 import yaml
+from typing import List, Optional
 
 import numpy as np
 from statistics import mean
@@ -43,18 +44,18 @@ class Tile:
     # TBD: Keep this class or include as dict in class Grid?
     # Or make this a dataclass (new in Python 3.7)?
 
-    def __init__(self, px_py=[0, 0], dx_dy=[0, 0], sx_sy=[0, 0],
-                 wd=0, stig_xy=[0, 0], tile_active=False,
+    def __init__(self, px_py=(0, 0), dx_dy=(0, 0), sx_sy=(0, 0),
+                 wd=0, stig_xy=(0, 0), tile_active=False,
                  autofocus_active=False, wd_grad_active=False):
         # Relative pixel (p) coordinates of the tile, unrotated grid:
         # Upper left (origin) tile: 0, 0
-        self.px_py = px_py
+        self.px_py = np.array(px_py)
         # Relative SEM (d) coordinates (distances as shown in SEM images)
         # with grid rotation applied (if theta > 0)
-        self.dx_dy = dx_dy
+        self.dx_dy = np.array(dx_dy)
         # Absolute stage coordinates in microns. The stage calibration
         # parameters are needed to calculate these coordinates.
-        self.sx_sy = sx_sy
+        self.sx_sy = np.array(sx_sy)
         # wd: working distance in m
         self.wd = wd
         # stig_xy: stigmation parameters in %
@@ -87,17 +88,22 @@ class Grid:
     """Store all grid parameters and a list of Tile objects."""
 
     def __init__(self, coordinate_system, sem,
-                 active=True, origin_sx_sy=[0, 0], sw_sh=[0, 0], rotation=0,
-                 size=[5, 5], overlap=200, row_shift=0, active_tiles=[],
-                 frame_size=[4096, 3072], frame_size_selector=4,
+                 active=True, origin_sx_sy=(0, 0), sw_sh=(0, 0), rotation=0,
+                 size=(5, 5), overlap=200, row_shift=0, active_tiles=None,
+                 frame_size=(4096, 3072), frame_size_selector=4,
                  pixel_size=10.0, dwell_time=0.8, dwell_time_selector=4,
                  display_colour=0, acq_interval=1, acq_interval_offset=0,
-                 wd_stig_xy=[0, 0, 0], use_wd_gradient=False,
-                 wd_gradient_ref_tiles=[-1, -1, -1],
-                 wd_gradient_params=[0, 0, 0]):
+                 wd_stig_xy=(0, 0, 0), use_wd_gradient=False,
+                 wd_gradient_ref_tiles=None,
+                 wd_gradient_params=None):
         self.cs = coordinate_system
         self.sem = sem
-
+        if active_tiles is None:
+            active_tiles = []
+        if wd_gradient_ref_tiles is None:
+            wd_gradient_ref_tiles = [-1, -1, -1]
+        if wd_gradient_params is None:
+            wd_gradient_params = [0, 0, 0]
         # If auto_update_tile_positions is True, every change to an attribute
         # that influences the tile positions (for example, rotation or overlap)
         # will automatically update the tile positions (default behaviour).
@@ -108,7 +114,7 @@ class Grid:
         self.auto_update_tile_positions = False
 
         # The origin of the grid (origin_sx_sy) is the stage position of tile 0.
-        self._origin_sx_sy = origin_sx_sy
+        self._origin_sx_sy = np.array(origin_sx_sy)
         self._origin_dx_dy = self.cs.convert_s_to_d(origin_sx_sy)
         # Size of the grid: [rows, cols]
         self._size = size
@@ -138,6 +144,7 @@ class Grid:
         self.acq_interval_offset = acq_interval_offset
         self.wd_stig_xy = wd_stig_xy
         self.use_wd_gradient = use_wd_gradient
+        self.__tiles = []
         self.initialize_tiles()
         self.update_tile_positions()
         # Restore default for updating tile positions
@@ -181,22 +188,20 @@ class Grid:
                 x_shift = self.row_shift * (y_pos % 2)
                 x_coord += x_shift
                 # Save position (non-rotated)
-                self.__tiles[tile_index].px_py = [x_coord, y_coord]
+                self.__tiles[tile_index].px_py = np.array([x_coord, y_coord])
                 if theta > 0:
                     # Rotate coordinates
                     x_coord_rot = x_coord * cos(theta) - y_coord * sin(theta)
                     y_coord_rot = x_coord * sin(theta) + y_coord * cos(theta)
                     x_coord, y_coord = x_coord_rot, y_coord_rot
                 # Save SEM coordinates in microns (include rotation)
-                self.__tiles[tile_index].dx_dy = [
+                self.__tiles[tile_index].dx_dy = np.array([
                     x_coord * self.pixel_size / 1000,
-                    y_coord * self.pixel_size / 1000]
+                    y_coord * self.pixel_size / 1000])
 
         # Now calculate absolute stage positions.
-        origin_sx, origin_sy = self.origin_sx_sy
         for tile in self.__tiles:
-            tile_sx, tile_sy = self.cs.convert_d_to_s(tile.dx_dy)
-            tile.sx_sy = [origin_sx + tile_sx, origin_sy + tile_sy]
+            tile.sx_sy = self.cs.convert_d_to_s(tile.dx_dy) + self.origin_sx_sy
 
     def calculate_wd_gradient(self):
         """Calculate the working distance gradient for this grid using
@@ -257,7 +262,7 @@ class Grid:
 
     @origin_sx_sy.setter
     def origin_sx_sy(self, sx_sy):
-        self._origin_sx_sy = list(sx_sy)
+        self._origin_sx_sy = np.array(sx_sy)
         self._origin_dx_dy = self.cs.convert_s_to_d(sx_sy)
         if self.auto_update_tile_positions:
             self.update_tile_positions()
@@ -268,26 +273,20 @@ class Grid:
 
     @origin_dx_dy.setter
     def origin_dx_dy(self, dx_dy):
-        self._origin_dx_dy = list(dx_dy)
+        self._origin_dx_dy = np.array(dx_dy)
         self._origin_sx_sy = self.cs.convert_d_to_s(dx_dy)
         if self.auto_update_tile_positions:
             self.update_tile_positions()
 
     @property
-    def centre_sx_sy(self):
+    def centre_sx_sy(self) -> np.ndarray:
         """Calculate the centre coordinates of the grid as the midpoint
         between the origin (= first tile) and last tile of the grid."""
-        sx1, sy1 = self._origin_sx_sy
-        sx2, sy2 = self.__tiles[-1].sx_sy
-        return [(sx1 + sx2)/2, (sy1 + sy2)/2]
+        return (self._origin_sx_sy + self.__tiles[-1].sx_sy) / 2
 
     @centre_sx_sy.setter
-    def centre_sx_sy(self, sx_sy):
-        new_x, new_y = sx_sy
-        old_x, old_y = self.centre_sx_sy
-        origin_x, origin_y = self._origin_sx_sy
-        self.origin_sx_sy = [
-            origin_x + new_x - old_x, origin_y + new_y - old_y]
+    def centre_sx_sy(self, sx_sy: np.ndarray):
+        self.origin_sx_sy = self._origin_sx_sy + sx_sy - self.centre_sx_sy
 
     @property
     def centre_dx_dy(self):
@@ -322,7 +321,7 @@ class Grid:
         # Update grid with the new origin:
         self.origin_sx_sy = self.cs.convert_d_to_s((origin_dx, origin_dy))
 
-    def tile_positions_p(self):
+    def tile_positions_p(self) -> List[np.ndarray]:
         """Return list of relative pixel positions of all tiles in the grid."""
         return [self.__tiles[t].px_py for t in range(self.number_tiles)]
 
@@ -450,7 +449,7 @@ class Grid:
     def frame_size_selector(self, selector):
         self._frame_size_selector = selector
         # Update explicit storage of frame size:
-        if selector < len(self.sem.STORE_RES):
+        if selector is not None and selector < len(self.sem.STORE_RES):
             self.frame_size = self.sem.STORE_RES[selector]
         if self.auto_update_tile_positions:
             self.update_tile_positions()
@@ -609,7 +608,7 @@ class Grid:
             tile.wd = 0
             tile.stig_xy = 0
 
-    def distance_between_tiles(self, tile_index1, tile_index2):
+    def distance_between_tiles(self, tile_index1, tile_index2) -> float:
         """Compute the distance between two tile centres in microns."""
         dx1, dy1 = self.__tiles[tile_index1].dx_dy
         dx2, dy2 = self.__tiles[tile_index2].dx_dy
@@ -808,6 +807,9 @@ class GridManager:
             if (g < self.number_grids) and (t < self.__grids[g].number_tiles):
                 self.__grids[g][t].autofocus_active = True
 
+        # aberration gradient
+        self.aberr_gradient_params = None
+
         # Load tile previews for active tiles if available and if source tiles
         # are present at the current slice number in the base directory
         base_dir = self.cfg['acq']['base_dir']
@@ -843,27 +845,30 @@ class GridManager:
     def fit_apply_aberration_gradient(self):
         dc_aberr = dict()
         dc_pos = dict()
+        cnt = 0
         for tile_key in self.autofocus_ref_tiles:
             g, t = (int(s) for s in tile_key.split('.'))
             if (g < self.number_grids) and (t < self.__grids[g].number_tiles):
                 stig_xy = self.__grids[g][t].stig_xy
                 dc_aberr[(g, t)] = (self.__grids[g][t].wd, stig_xy[0], stig_xy[1])
-                dc_pos[(g, t)] = self.__grids[g][t].px_py  # original coordinates
+                dc_pos[(g, t)] = self.__grids[g][t].sx_sy  # stage coordinates
+                cnt += 1
         # make use of python dict's order sensitivity
         arr_pos = np.array(list(dc_pos.values()))
         arr_aberr = np.array(list(dc_aberr.values()))
 
         # best-fit linear plane
         a = np.c_[arr_pos[:, 0], arr_pos[:, 1], np.ones(arr_pos.shape[0])]
-        params_wd, _, _, _ = scipy.linalg.lstsq(a, arr_aberr[:, 0])  # wd
-        params_stigx, _, _, _ = scipy.linalg.lstsq(a, arr_aberr[:, 1])  # stigx
-        params_stigy, _, _, _ = scipy.linalg.lstsq(a, arr_aberr[:, 2])  # stigy
+        params_wd, res_wd, _, _ = scipy.linalg.lstsq(a, arr_aberr[:, 0])  # wd
+        params_stigx, res_stigx, _, _ = scipy.linalg.lstsq(a, arr_aberr[:, 1])  # stigx
+        params_stigy, res_stigy, _, _ = scipy.linalg.lstsq(a, arr_aberr[:, 2])  # stigy
+        self.aberr_gradient_params = dict(wd=params_wd, stigx=params_stigx, stigy=params_stigy)
 
-        for g in self.__grids:
-            for t in self.__grids[g].__tiles:
-                corrected_wd = self.__grids[g][t].px_py * params_wd[:2] + params_wd[0]
-                corrected_stigx = self.__grids[g][t].px_py * params_stigx[:2] + params_stigx[0]
-                corrected_stigy = self.__grids[g][t].px_py * params_stigy[:2] + params_stigy[0]
+        for g in range(self.number_grids):
+            for t in range(self.__grids[g].number_tiles):
+                corrected_wd = np.sum(self.__grids[g][t].sx_sy * params_wd[:2]) + params_wd[2]
+                corrected_stigx = np.sum(self.__grids[g][t].sx_sy * params_stigx[:2]) + params_stigx[2]
+                corrected_stigy = np.sum(self.__grids[g][t].sx_sy * params_stigy[:2]) + params_stigy[2]
                 self.__grids[g][t].stig_xy = (corrected_stigx, corrected_stigy)
                 self.__grids[g][t].wd = corrected_wd
 
@@ -956,13 +961,13 @@ class GridManager:
 
         # Save MagC settings to config (currently none)
 
-    def add_new_grid(self, origin_sx_sy=None, sw_sh=None, active=True,
+    def add_new_grid(self, origin_sx_sy=None, sw_sh=(0, 0), active=True,
                      frame_size=None, frame_size_selector=None, overlap=None,
                      pixel_size=10.0, dwell_time=0.8, dwell_time_selector=4,
                      rotation=0, row_shift=0, acq_interval=1, acq_interval_offset=0,
-                     wd_stig_xy=[0, 0, 0], use_wd_gradient=False,
-                     wd_gradient_ref_tiles=[-1, -1, -1], wd_gradient_params=[0, 0, 0],
-                     size=[5, 5]):
+                     wd_stig_xy=(0, 0, 0), use_wd_gradient=False,
+                     wd_gradient_ref_tiles=None, wd_gradient_params=None,
+                     size=(5, 5)):
         """Add new grid with default parameters. A new grid is always added
         at the next available grid index, after all existing grids."""
         new_grid_index = self.number_grids
@@ -989,7 +994,7 @@ class GridManager:
             if overlap is None:
                 overlap = 150
         # Set grid colour
-        if self.sem.magc_mode:
+        if self.sem.magc_mode or self.sem.syscfg['device']['microtome'] == '6':  # or GCIB in use
             # Cycle through available colours.
             display_colour = (
                 (self.__grids[new_grid_index - 1].display_colour + 1) % 10)

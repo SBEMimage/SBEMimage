@@ -25,6 +25,7 @@ import os
 import json
 from PyQt5.QtGui import QPixmap, QPainter, QColor
 
+import numpy as np
 import utils
 from grid_manager import Grid
 
@@ -61,7 +62,7 @@ class Overview(Grid):
 
     @centre_sx_sy.setter
     def centre_sx_sy(self, sx_sy):
-        self._origin_sx_sy = list(sx_sy)
+        self._origin_sx_sy = np.array(sx_sy)
 
     @property
     def magnification(self):

@@ -2577,7 +2577,8 @@ class Acquisition:
             self.add_to_main_log(f'SEM: {msg}')
             # needed here because first slice required additional AF trials when using GCIB
             af_kwargs = dict(defocus_arr=self.autofocus.mapfost_defocus_trials, rot=self.autofocus.rot_angle_mafpsot,
-                             scale=self.autofocus.scale_factor_mapfost, na=self.autofocus.na_mapfost)
+                             scale=self.autofocus.scale_factor_mapfost, na=self.autofocus.na_mapfost,
+                             log_func=self.add_to_main_log)
             if self.slice_counter == 1 and self.microtome.device_name == 'GCIB':
                 af_kwargs['defocus_arr'] = [8, 8] + af_kwargs['defocus_arr']
                 msg = f'Added additional [8, 8] µm defocus trials to MAPoSt AF procedure for tile ' \
@@ -2823,7 +2824,7 @@ class Acquisition:
         # Store entry in main log file
         self.main_log_file.write(msg + '\n')
         # Send entry to Main Controls via queue and trigger
-        #self.main_controls_trigger.transmit(msg)
+        # self.main_controls_trigger.transmit(msg)
 
     def add_to_incident_log(self, msg):
         """Add msg to the incident log file (after formatting it) and show it

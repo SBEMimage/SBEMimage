@@ -30,6 +30,8 @@ class GCIB(BFRemover):
     Todo:
         * use consistent error states.
         * remove redundant interface to SEMstage
+        * Update full_cut_duration when changing mill_cycle / mill_duration
+        * Unify mill_cycle and mill_duration!
     """
 
     def __init__(self, config: dict, sysconfig: dict, stage):
@@ -72,6 +74,7 @@ class GCIB(BFRemover):
             self._ftdi_serial = str(self.cfg['gcib']['ftdi_serial'])
             self.continuous_rot = int(self.cfg['gcib']['continuous_rot'])
             self.xyzt_milling = np.array(json.loads(self.cfg['gcib']['xyzt_milling']))
+            self.full_cut_duration = self.mill_cycle
         except Exception as e:
             self.error_state = Error.configuration
             self.error_info = str(e)
@@ -140,18 +143,14 @@ class GCIB(BFRemover):
         self._ftdirelais.clear_relais_0()
 
     def save_to_cfg(self):
-        # Save full cut duration in both cfg and syscfg
-        self.cfg['microtome']['full_cut_duration'] = str(self.full_cut_duration)
+        self.cfg['microtome']['full_cut_duration'] = str(self.mill_cycle)
         self.cfg['gcib']['ftdi_serial'] = str(self._ftdi_serial)
         self.cfg['gcib']['xyzt_milling'] = str(self.xyzt_milling.tolist())
         self.cfg['gcib']['mill_cycle'] = str(self.mill_cycle)
         self.cfg['gcib']['continuous_rot'] = str(self.continuous_rot)
         self.cfg['gcib']['last_known_z'] = str(self.last_known_z)
+        # TODO: why is this called here?
         self.stage.save_to_cfg()
-
-    @property
-    def full_cut_duration(self):
-        return self.mill_cycle
 
     def do_full_cut(self, **kwargs):
         self.do_full_removal(**kwargs)

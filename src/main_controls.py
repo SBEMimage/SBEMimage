@@ -53,6 +53,7 @@ from notifications import Notifications
 from overview_manager import OverviewManager
 from imported_img import ImportedImages
 from grid_manager import GridManager
+from template_manager import TemplateManager
 from coordinate_system import CoordinateSystem
 from viewport import Viewport
 from image_inspector import ImageInspector
@@ -152,6 +153,7 @@ class MainControls(QMainWindow):
         # Set up the objects to manage overviews, grids, and imported images
         self.ovm = OverviewManager(self.cfg, self.sem, self.cs)
         self.gm = GridManager(self.cfg, self.sem, self.cs)
+        self.tm = TemplateManager(self.cfg, self.sem, self.cs)
         self.imported = ImportedImages(self.cfg)
 
         # Notify user if imported images could not be loaded
@@ -287,7 +289,7 @@ class MainControls(QMainWindow):
         self.viewport = Viewport(self.cfg, self.sem, self.stage, self.cs,
                                  self.ovm, self.gm, self.imported,
                                  self.autofocus, self.acq, self.img_inspector,
-                                 self.trigger)
+                                 self.trigger, self.tm)
         self.viewport.show()
 
         # Draw the viewport canvas
@@ -2198,6 +2200,7 @@ class MainControls(QMainWindow):
         self.acq.save_to_cfg()
         self.gm.save_to_cfg()
         self.ovm.save_to_cfg()
+        self.tm.save_to_cfg()
         self.imported.save_to_cfg()
         self.autofocus.save_to_cfg()
         self.sem.save_to_cfg()
