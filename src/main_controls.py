@@ -42,6 +42,7 @@ import utils
 from utils import Error
 from sem_control_zeiss import SEM_SmartSEM
 from sem_control_fei import SEM_Quanta
+from sem_control_tescan import SEM_SharkSEM
 from microtome_control_gatan import Microtome_3View
 from microtome_control_katana import Microtome_katana
 from microtome_control_gcib import GCIB
@@ -130,6 +131,12 @@ class MainControls(QMainWindow):
                     '\nSBEMimage will be run in simulation mode.',
                     QMessageBox.Ok)
                 self.simulation_mode = True
+        elif self.syscfg['device']['sem'] == '7':
+            # TESCAN, only for testing at this point
+            # Create SEM instance to control SEM via SharkSEM API
+            self.sem = SEM_SharkSEM(self.cfg, self.syscfg)
+            if self.sem.error_state != Error.none:
+                pass
         else:
             # No other SEMs supported at the moment
             self.sem = None

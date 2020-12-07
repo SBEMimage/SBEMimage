@@ -19,7 +19,12 @@ class SEM_SharkSEM(SEM):
     """
 
     def __init__(self, config, sysconfig):
-        pass
+        super().__init__(config, sysconfig)   # Base class initialization
+        if not self.simulation_mode:
+            # Connect to remote API / handshake...
+            pass
+        else:
+            self.sem_api = None
 
     def get_mag(self):
         """Read current magnification from SEM."""
@@ -28,5 +33,9 @@ class SEM_SharkSEM(SEM):
     def set_mag(self, target_mag):
         """Set SEM magnification to target_mag."""
         raise NotImplementedError
+
+    def has_fcc(self):
+        """Return True if FCC is fitted."""
+        return False    # for testing
 
     # ...
