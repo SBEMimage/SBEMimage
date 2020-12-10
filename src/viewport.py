@@ -27,7 +27,7 @@ from statistics import mean
 from PyQt5.uic import loadUi
 from PyQt5.QtWidgets import QWidget, QApplication, QMessageBox, QMenu
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QFont, QIcon, QPen, \
-                        QBrush, QKeyEvent
+                        QBrush, QKeyEvent, QFontMetrics
 from PyQt5.QtCore import Qt, QObject, QRect, QPoint, QSize
 
 import utils
@@ -1209,14 +1209,16 @@ class Viewport(QWidget):
         self.vp_qp.drawText(7, 15, 'SIMULATION MODE')
 
     def _show_active_user_flag(self):
+        custom_text = 'ACTIVE USER: ' + self.active_user_flag_text
         self.vp_qp.setPen(QPen(QColor(0, 0, 0), 1, Qt.SolidLine))
         self.vp_qp.setBrush(QColor(0, 0, 0, 255))
-        self.vp_qp.drawRect(0, 0, 120, 20)
-        self.vp_qp.setPen(QPen(QColor(255, 0, 0), 1, Qt.SolidLine))
         font = QFont()
-        font.setPixelSize(12)
+        font.setPixelSize(16)
+        metrics = QFontMetrics(font);
+        self.vp_qp.drawRect(0, 0, metrics.width(custom_text) + 15, 30)
+        self.vp_qp.setPen(QPen(QColor(255, 0, 0), 1, Qt.SolidLine))
         self.vp_qp.setFont(font)
-        self.vp_qp.drawText(7, 15, 'ACTIVE USER: ' + self.active_user_flag_text)
+        self.vp_qp.drawText(7, 21, custom_text)
 
     def _show_stage_position_indicator(self):
         """Draw red bullseye indicator at last known stage position.

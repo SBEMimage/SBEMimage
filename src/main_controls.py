@@ -822,12 +822,18 @@ class MainControls(QMainWindow):
         self.viewport.vp_draw()
 
     def set_active_user_flag(self):
-        self.viewport.active_user_flag_text = 'test'
+        self.viewport.active_user_flag_text = (
+            self.lineEdit_activeUserFlagText.text())
+        self.lineEdit_activeUserFlagText.setEnabled(False)
+        self.pushButton_setActiveUserFlag.setEnabled(False)
         self.viewport.active_user_flag_enabled = True
         self.viewport.vp_draw()
 
     def clear_activate_user_flag(self):
         self.viewport.active_user_flag_text = ''
+        self.lineEdit_activeUserFlagText.setText('')
+        self.lineEdit_activeUserFlagText.setEnabled(True)
+        self.pushButton_setActiveUserFlag.setEnabled(True)
         self.viewport.active_user_flag_enabled = False
         self.viewport.vp_draw()
 

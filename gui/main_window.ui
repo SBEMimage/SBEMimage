@@ -2186,15 +2186,18 @@
          <rect>
           <x>10</x>
           <y>30</y>
-          <width>141</width>
+          <width>171</width>
           <height>21</height>
          </rect>
+        </property>
+        <property name="maxLength">
+         <number>30</number>
         </property>
        </widget>
        <widget class="QPushButton" name="pushButton_setActiveUserFlag">
         <property name="geometry">
          <rect>
-          <x>160</x>
+          <x>190</x>
           <y>30</y>
           <width>51</width>
           <height>21</height>
@@ -2207,7 +2210,7 @@
        <widget class="QPushButton" name="pushButton_clearActiveUserFlag">
         <property name="geometry">
          <rect>
-          <x>210</x>
+          <x>240</x>
           <y>30</y>
           <width>51</width>
           <height>21</height>
