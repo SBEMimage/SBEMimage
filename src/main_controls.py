@@ -435,6 +435,10 @@ class MainControls(QMainWindow):
             self.open_acq_settings_dlg)
         self.pushButton_acqSettings.setIcon(QIcon('..\\img\\settings.png'))
         self.pushButton_acqSettings.setIconSize(QSize(16, 16))
+        self.pushButton_setActiveUserFlag.clicked.connect(
+            self.set_active_user_flag)
+        self.pushButton_clearActiveUserFlag.clicked.connect(
+            self.clear_activate_user_flag)
         # Command buttons
         self.pushButton_doApproach.clicked.connect(self.open_approach_dlg)
         self.pushButton_doSweep.clicked.connect(self.manual_sweep)
@@ -589,10 +593,10 @@ class MainControls(QMainWindow):
 
         if not self.magc_mode:
             # disable MagC tab
-            self.tabWidget.setTabEnabled(3, False)
+            self.tabWidget.setTabEnabled(4, False)
             self.actionImportMagCMetadata.setEnabled(False)
             # activate MagC with a double-click on the MagC tab
-            self.tabWidget.setTabToolTip(3, 'Double-click to toggle MagC mode')
+            self.tabWidget.setTabToolTip(4, 'Double-click to toggle MagC mode')
             self.tabWidget.tabBarDoubleClicked.connect(self.activate_magc_mode)
         else:
             self.initialize_magc_gui()
@@ -815,6 +819,16 @@ class MainControls(QMainWindow):
         # Show updated debris detectiona area
         self.show_current_settings()
         # Redraw Viewport canvas (some labels may have changed)
+        self.viewport.vp_draw()
+
+    def set_active_user_flag(self):
+        self.viewport.active_user_flag_text = 'test'
+        self.viewport.active_user_flag_enabled = True
+        self.viewport.vp_draw()
+
+    def clear_activate_user_flag(self):
+        self.viewport.active_user_flag_text = ''
+        self.viewport.active_user_flag_enabled = False
         self.viewport.vp_draw()
 
 # ----------------------------- MagC tab ---------------------------------------

@@ -714,6 +714,11 @@ class Viewport(QWidget):
         # by user in GUI
         self.show_stage_pos = False
 
+        # Active user flag (highlighted text in the upper left corner of the
+        # Viewport to show that a user is actively using the program.)
+        self.active_user_flag_enabled = False
+        self.active_user_flag_text = ''
+
         # The following variables store the tile or OV that is being acquired.
         self.tile_acq_indicator = [None, None]
         self.ov_acq_indicator = None
@@ -1174,6 +1179,9 @@ class Viewport(QWidget):
         # Simulation mode indicator
         if self.sem.simulation_mode:
             self._show_simulation_mode_indicator()
+        # Active user flag
+        if self.active_user_flag_enabled:
+            self._show_active_user_flag()
         # Show current stage position
         if self.show_stage_pos:
             self._show_stage_position_indicator()
@@ -1199,6 +1207,16 @@ class Viewport(QWidget):
         font.setPixelSize(12)
         self.vp_qp.setFont(font)
         self.vp_qp.drawText(7, 15, 'SIMULATION MODE')
+
+    def _show_active_user_flag(self):
+        self.vp_qp.setPen(QPen(QColor(0, 0, 0), 1, Qt.SolidLine))
+        self.vp_qp.setBrush(QColor(0, 0, 0, 255))
+        self.vp_qp.drawRect(0, 0, 120, 20)
+        self.vp_qp.setPen(QPen(QColor(255, 0, 0), 1, Qt.SolidLine))
+        font = QFont()
+        font.setPixelSize(12)
+        self.vp_qp.setFont(font)
+        self.vp_qp.drawText(7, 15, 'ACTIVE USER: ' + self.active_user_flag_text)
 
     def _show_stage_position_indicator(self):
         """Draw red bullseye indicator at last known stage position.
