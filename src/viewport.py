@@ -27,7 +27,7 @@ from statistics import mean
 from PyQt5.uic import loadUi
 from PyQt5.QtWidgets import QWidget, QApplication, QMessageBox, QMenu
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QFont, QIcon, QPen, \
-                        QBrush, QKeyEvent
+                        QBrush, QKeyEvent, QFontMetrics
 from PyQt5.QtCore import Qt, QObject, QRect, QPoint, QSize
 
 import utils
@@ -761,6 +761,11 @@ class Viewport(QWidget):
         # by user in GUI
         self.show_stage_pos = False
 
+        # Active user flag (highlighted text in the upper left corner of the
+        # Viewport to show that a user is actively using the program.)
+        self.active_user_flag_enabled = False
+        self.active_user_flag_text = ''
+
         # The following variables store the tile or OV that is being acquired.
         self.tile_acq_indicator = [None, None]
         self.ov_acq_indicator = None
@@ -1225,11 +1230,14 @@ class Viewport(QWidget):
         # Show help panel
         if self.help_panel_visible:
             self.vp_qp.drawPixmap(self.cs.vp_width - 200,
-                                  self.cs.vp_height - 490,
+                                  self.cs.vp_height - 550,
                                   self.vp_help_panel_img)
         # Simulation mode indicator
         if self.sem.simulation_mode:
             self._show_simulation_mode_indicator()
+        # Active user flag
+        if self.active_user_flag_enabled:
+            self._show_active_user_flag()
         # Show current stage position
         if self.show_stage_pos:
             self._show_stage_position_indicator()
@@ -1255,6 +1263,18 @@ class Viewport(QWidget):
         font.setPixelSize(12)
         self.vp_qp.setFont(font)
         self.vp_qp.drawText(7, 15, 'SIMULATION MODE')
+
+    def _show_active_user_flag(self):
+        custom_text = 'ACTIVE USER: ' + self.active_user_flag_text
+        self.vp_qp.setPen(QPen(QColor(0, 0, 0), 1, Qt.SolidLine))
+        self.vp_qp.setBrush(QColor(0, 0, 0, 255))
+        font = QFont()
+        font.setPixelSize(16)
+        metrics = QFontMetrics(font);
+        self.vp_qp.drawRect(0, 0, metrics.width(custom_text) + 15, 30)
+        self.vp_qp.setPen(QPen(QColor(255, 0, 0), 1, Qt.SolidLine))
+        self.vp_qp.setFont(font)
+        self.vp_qp.drawText(7, 21, custom_text)
 
     def _show_stage_position_indicator(self):
         """Draw red bullseye indicator at last known stage position.

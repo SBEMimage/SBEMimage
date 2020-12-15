@@ -43,6 +43,7 @@ import utils
 from utils import Error
 from sem_control_zeiss import SEM_SmartSEM
 from sem_control_fei import SEM_Quanta
+from sem_control_tescan import SEM_SharkSEM
 from microtome_control_gatan import Microtome_3View
 from microtome_control_katana import Microtome_katana
 from microtome_control_gcib import GCIB
@@ -132,6 +133,12 @@ class MainControls(QMainWindow):
                     '\nSBEMimage will be run in simulation mode.',
                     QMessageBox.Ok)
                 self.simulation_mode = True
+        elif self.syscfg['device']['sem'] == '7':
+            # TESCAN, only for testing at this point
+            # Create SEM instance to control SEM via SharkSEM API
+            self.sem = SEM_SharkSEM(self.cfg, self.syscfg)
+            if self.sem.error_state != Error.none:
+                pass
         else:
             # No other SEMs supported at the moment
             self.sem = None
@@ -431,6 +438,10 @@ class MainControls(QMainWindow):
             self.open_acq_settings_dlg)
         self.pushButton_acqSettings.setIcon(QIcon('..\\img\\settings.png'))
         self.pushButton_acqSettings.setIconSize(QSize(16, 16))
+        self.pushButton_setActiveUserFlag.clicked.connect(
+            self.set_active_user_flag)
+        self.pushButton_clearActiveUserFlag.clicked.connect(
+            self.clear_activate_user_flag)
         # Command buttons
         self.pushButton_doApproach.clicked.connect(self.open_approach_dlg)
         self.pushButton_doSweep.clicked.connect(self.manual_sweep)
@@ -587,10 +598,10 @@ class MainControls(QMainWindow):
 
         if not self.magc_mode:
             # disable MagC tab
-            self.tabWidget.setTabEnabled(3, False)
+            self.tabWidget.setTabEnabled(4, False)
             self.actionImportMagCMetadata.setEnabled(False)
             # activate MagC with a double-click on the MagC tab
-            self.tabWidget.setTabToolTip(3, 'Double-click to toggle MagC mode')
+            self.tabWidget.setTabToolTip(4, 'Double-click to toggle MagC mode')
             self.tabWidget.tabBarDoubleClicked.connect(self.activate_magc_mode)
         else:
             self.initialize_magc_gui()
@@ -813,6 +824,22 @@ class MainControls(QMainWindow):
         # Show updated debris detectiona area
         self.show_current_settings()
         # Redraw Viewport canvas (some labels may have changed)
+        self.viewport.vp_draw()
+
+    def set_active_user_flag(self):
+        self.viewport.active_user_flag_text = (
+            self.lineEdit_activeUserFlagText.text())
+        self.lineEdit_activeUserFlagText.setEnabled(False)
+        self.pushButton_setActiveUserFlag.setEnabled(False)
+        self.viewport.active_user_flag_enabled = True
+        self.viewport.vp_draw()
+
+    def clear_activate_user_flag(self):
+        self.viewport.active_user_flag_text = ''
+        self.lineEdit_activeUserFlagText.setText('')
+        self.lineEdit_activeUserFlagText.setEnabled(True)
+        self.pushButton_setActiveUserFlag.setEnabled(True)
+        self.viewport.active_user_flag_enabled = False
         self.viewport.vp_draw()
 
 # ----------------------------- MagC tab ---------------------------------------
