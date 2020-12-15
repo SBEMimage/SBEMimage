@@ -43,8 +43,10 @@ class Template(Grid):
 
 
 class TemplateManager:
+    # TODO: add multi-template support...
+    # TODO: add multiprocessing with shared (Raw)Array (multiprocessing.Array supports concurrent writes with locking)
+    # TODO: add parameters to config
     def __init__(self, ovm):
-        # TODO: add multi-template support...
         self.cfg = ovm.cfg
         self.sem = ovm.sem
         self.cs = ovm.cs
@@ -99,11 +101,9 @@ class TemplateManager:
     def _run_template_matching(self, ds: float = 5, sigma: float = 1, n_rotations: int = 60, threshold=0.7,
                                min_cc_cnt: int = 5, max_cc_cnt: int = 5000):
         """
-        # TODO: add multiprocessing with shared (Raw)Array (multiprocessing.Array supports concurrent writes with locking)
-        # TODO: add parameters to config
 
         Args:
-            ds: Downsampling applied to template and stub OV.
+            ds: Down sampling applied to template and stub OV.
             sigma: Sigma for Gaussian Smoothing. Applied to stub OV and template image.
             n_rotations: Number of rotations to use for template matching. Applies equi-distant rotations to template
                 between 0 and 360 and uses each version for template matching.
@@ -132,7 +132,6 @@ class TemplateManager:
         # maybe can be solved more elegant by bordermode / value in warpAffine
         pad_extent = ((np.sqrt(stubov.shape[0]**2 + stubov.shape[1]**2) - np.array(stubov.shape)) / 2).astype(np.int)
         stubov = np.pad(stubov, ((pad_extent[0], pad_extent[0]), (pad_extent[1], pad_extent[1])), constant_values=0)
-        # imageio.imsave(self.stub_ov_viewport_image[:-4] + '_DS.tif', stubov[pad_extent[0]:-pad_extent[0], pad_extent[1]:-pad_extent[1]].astype(np.uint16))
         # get center in pixels relative to stub ov origin
         center = tuple((stubov.shape[0] // 2, stubov.shape[1] // 2))
         for angle in tqdm.tqdm(np.linspace(0, 360, n_rotations, endpoint=False), total=n_rotations, desc='Templates'):
@@ -156,8 +155,10 @@ class TemplateManager:
                 # update angles
                 out_angles[mask_angle] = angle  # +angle because we rotated the stub ov
                 del out_
-        imageio.imsave(self.stub_ov_viewport_image[:-4] + '_MASK.tif', (out_scores > threshold).astype(np.uint16) * 255)
-        imageio.imsave(self.stub_ov_viewport_image[:-4] + '_ANGLES.tif', (out_angles + 360).astype(np.uint16))
+
+        # might be useful for GUI
+        # imageio.imsave(self.stub_ov_viewport_image[:-4] + '_MASK.tif', (out_scores > threshold).astype(np.uint16) * 255)
+        # imageio.imsave(self.stub_ov_viewport_image[:-4] + '_ANGLES.tif', (out_angles + 360).astype(np.uint16))
 
         # Compute position of stub overview (upper left corner) and its
         # width and height
@@ -181,8 +182,7 @@ class TemplateManager:
             dc_angles[ix] = Counter(angles).most_common(1)[0][0]  # first element, and (angle, counts)[0]
             dc_locs[ix] = (np.transpose(locs).mean(axis=0) * ds * self.pixel_size / 1000 + origin_stub)
             out_angles[locs] = dc_angles[ix]
-        imageio.imsave(self.stub_ov_viewport_image[:-4] + '_ANGLES_MAJOR.tif', (out_angles + 360).astype(np.uint16))
-        imageio.imsave(self.stub_ov_viewport_image[:-4] + '_SEG.tif', lbl.astype(np.uint16))
+
         return dc_locs, dc_angles
 
     def place_grids_template_matching(self, gm: GridManager):
@@ -246,6 +246,4 @@ class TemplateManager:
             res = cv2.getRectSubPix(stub_ov_warped, tuple(map(int, self.template.frame_size)), center)
         else:
             res = stub_ov[lower_p_y:upper_p_y, lower_p_x:upper_p_x]
-        # TODO: remove saving to file
-        imageio.imsave(self.stub_ov_viewport_image[:-4] + '_TEMPLATE.png', res)
         return res.swapaxes(1, 0)

@@ -196,9 +196,15 @@ class StubOverview(Grid):
 
         # Set the centre coordinates, which will update the origin.
         self.centre_sx_sy = centre_sx_sy
-        self.image = None
         # Image is loaded when file path is set/changed.
         self.vp_file_path = vp_file_path
+
+    def image(self, mag=1):
+        if mag == 1:
+            vp_fname_mag = self._vp_file_path
+        else:
+            vp_fname_mag = self._vp_file_path[:-4] + f'_mag{mag}.png'
+        return QPixmap(vp_fname_mag)
 
     @property
     def vp_file_path(self):
@@ -206,18 +212,32 @@ class StubOverview(Grid):
 
     @vp_file_path.setter
     def vp_file_path(self, file_path):
+        import imageio
+        import scipy.ndimage
         self._vp_file_path = file_path
         # Load image as QPixmap
         if os.path.isfile(self._vp_file_path):
             try:
-                self.image = QPixmap(self._vp_file_path)
-            except:
+                # TODO: move to original stub OV acquisition
+                # generate down sampled versions of stub OV; check if already existent
+                img_temp = None  # not sure how to use QPixmap with scipy -> load numpy array
+                for mag in [2, 4, 8, 16]:
+                    vp_fname_mag = self._vp_file_path[:-4] + f'_mag{mag}.png'
+                    if not os.path.isfile(vp_fname_mag):
+                        if img_temp is None:
+                            img_temp = imageio.imread(self._vp_file_path)
+                        img_mag = scipy.ndimage.zoom(img_temp, 1 / mag, order=3)
+                        imageio.imsave(vp_fname_mag, img_mag)
+                        del img_mag
+                del img_temp
+            except Exception as e:
+                print('EXCEPTION:', str(e))
                 self.image = None
         else:
             self.image = None
 
-class OverviewManager:
 
+class OverviewManager:
     def __init__(self, config, sem, coordinate_system):
         self.cfg = config
         self.sem = sem

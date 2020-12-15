@@ -1340,19 +1340,25 @@ class Viewport(QWidget):
         when calling this method."""
         viewport_pixel_size = 1000 / self.cs.vp_scale
         resize_ratio = self.ovm['stub'].pixel_size / viewport_pixel_size
+        mag_level = np.round(np.log2(resize_ratio))
+        # set to 1 for resize_ratio >= 1 else store 2^-x down sizing
+        mag_level = int(1 if mag_level >= 0 else 2**(-mag_level))
+        mag_level = min(mag_level, 16)
         # Compute position of stub overview (upper left corner) and its
         # width and height
         dx, dy = self.ovm['stub'].origin_dx_dy
         dx -= self.ovm['stub'].tile_width_d() / 2
         dy -= self.ovm['stub'].tile_height_d() / 2
         vx, vy = self.cs.convert_d_to_v((dx, dy))
-        width_px = self.ovm['stub'].width_p()
-        height_px = self.ovm['stub'].height_p()
+
+        width_px = self.ovm['stub'].width_p() // mag_level
+        height_px = self.ovm['stub'].height_p() // mag_level
+        resize_ratio = self.ovm['stub'].pixel_size * mag_level / viewport_pixel_size
         # Crop and resize stub OV before placing it
         visible, crop_area, vx_cropped, vy_cropped = self._vp_visible_area(
             vx, vy, width_px, height_px, resize_ratio)
         if visible:
-            cropped_img = self.ovm['stub'].image.copy(crop_area)
+            cropped_img = self.ovm['stub'].image(mag=mag_level).copy(crop_area)
             v_width = cropped_img.size().width()
             cropped_resized_img = cropped_img.scaledToWidth(
                 v_width * resize_ratio)

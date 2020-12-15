@@ -1129,11 +1129,6 @@ class StageCalibrationDlg(QDialog):
         rot2_x = atan2(self.x_shift_vector[1], self.x_shift_vector[0])
         rot2_y = atan2(self.y_shift_vector[0], self.y_shift_vector[1])
 
-        # TODO: remove debugging:
-        print(f'Original calc: {scale_x:.5f}\t{scale_y:.5f}\t{rot_x:.5f}\t{rot_y:.5f}')
-        print(f'Alternative calc: {scale_x_alt:.5f}\t{scale_y_alt:.5f}\t{rot_x_alt:.5f}\t{rot_y_alt:.5f}')
-        print(f'Rotation (atan2): {rot2_x:.5f}\t{rot2_y:.5f}')
-
         scale_x = scale_x_alt
         scale_y = scale_y_alt
         rot_x = rot_x_alt
