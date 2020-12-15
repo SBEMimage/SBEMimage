@@ -153,7 +153,7 @@ class MainControls(QMainWindow):
         # Set up the objects to manage overviews, grids, and imported images
         self.ovm = OverviewManager(self.cfg, self.sem, self.cs)
         self.gm = GridManager(self.cfg, self.sem, self.cs)
-        self.tm = TemplateManager(self.cfg, self.sem, self.cs)
+        self.tm = TemplateManager(self.ovm)
         self.imported = ImportedImages(self.cfg)
 
         # Notify user if imported images could not be loaded

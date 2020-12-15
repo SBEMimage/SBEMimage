@@ -142,7 +142,7 @@ class Grid:
         self.display_colour = display_colour
         self.acq_interval = acq_interval
         self.acq_interval_offset = acq_interval_offset
-        self.wd_stig_xy = wd_stig_xy
+        self.wd_stig_xy = list(wd_stig_xy)
         self.use_wd_gradient = use_wd_gradient
         self.__tiles = []
         self.initialize_tiles()
@@ -1042,11 +1042,12 @@ class GridManager:
         # size[rows, cols]
         size = [np.int(np.ceil(h / tile_height)), np.int(np.ceil(w / tile_width))]
 
+        # do not use rotation of previous grid!
         self.add_new_grid(origin_sx_sy=origin_sx_sy, sw_sh=(w, h), active=grid.active,
                           frame_size=grid.frame_size, frame_size_selector=grid.frame_size_selector,
                           overlap=grid.overlap, pixel_size=grid.pixel_size,
                           dwell_time_selector=grid.dwell_time_selector, dwell_time=grid.dwell_time,
-                          rotation=grid.rotation, row_shift=grid.row_shift,
+                          rotation=0, row_shift=grid.row_shift,
                           acq_interval=grid.acq_interval, acq_interval_offset=grid.acq_interval_offset,
                           wd_stig_xy=grid.wd_stig_xy, use_wd_gradient=grid.use_wd_gradient,
                           wd_gradient_ref_tiles=grid.wd_gradient_ref_tiles, wd_gradient_params=grid.wd_gradient_params,

@@ -2259,8 +2259,8 @@ class ExportDlg(QDialog):
                 imagelist_str.extend(f.readlines())
         if len(imagelist_str) > 0:
             # split strings, store entries in variables, find minimum x and y
-            min_x = 1000000
-            min_y = 1000000
+            min_x = 10000000
+            min_y = 10000000
             for line in imagelist_str:
                 elements = line.split(';')
                 # elements[0]: relative path to tile image

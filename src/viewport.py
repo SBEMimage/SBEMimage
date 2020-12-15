@@ -33,7 +33,7 @@ from PyQt5.QtCore import Qt, QObject, QRect, QPoint, QSize
 import utils
 import acq_func
 from viewport_dlg_windows import StubOVDlg, FocusGradientTileSelectionDlg, \
-                                 GridRotationDlg, ImportImageDlg, \
+                                 GridRotationDlg, TemplateRotationDlg, ImportImageDlg, \
                                  AdjustImageDlg, DeleteImageDlg
 from main_controls_dlg_windows import MotorStatusDlg
 
@@ -135,6 +135,7 @@ class Viewport(QWidget):
             self.pushButton_refreshOVs.setEnabled(False)
             self.pushButton_acquireStubOV.setEnabled(False)
             self.checkBox_showStagePos.setEnabled(False)
+            self.pushButton_runTemplateMatching.setEnabled(False)
         # Detect if tab is changed
         self.tabWidget.currentChanged.connect(self.tab_changed)
 
@@ -153,6 +154,10 @@ class Viewport(QWidget):
         if not b:
             self.radioButton_fromStack.setChecked(not b)
         self.radioButton_fromSEM.setEnabled(b)
+        # not GCIB
+        if self.syscfg['device']['microtome'] != '6':
+            b = False
+        self.pushButton_runTemplateMatching.setEnabled(b)
 
     def update_grids(self):
         """Update the grid selectors after grid is added or deleted."""
@@ -797,8 +802,9 @@ class Viewport(QWidget):
         self.pushButton_measureViewport.setToolTip(
             'Measure with right mouse clicks')
         self.pushButton_helpViewport.clicked.connect(self.vp_toggle_help_panel)
-        self.pushButton_helpSliceViewer.clicked.connect(
-            self.vp_toggle_help_panel)
+        self.pushButton_helpSliceViewer.clicked.connect(self.vp_toggle_help_panel)
+        # for some reason clicked.connect passes False to the method call without using lambda
+        self.pushButton_runTemplateMatching.clicked.connect(lambda _: self._vp_place_grids_template_matching())
         # Slider for zoom
         self.horizontalSlider_VP.valueChanged.connect(
             self._vp_adjust_scale_from_slider)
@@ -1098,6 +1104,7 @@ class Viewport(QWidget):
                 action_openGridSettings.setEnabled(False)
                 action_selectAll.setEnabled(False)
                 action_deselectAll.setEnabled(False)
+            if self.selected_template is None and self.selected_grid is None:
                 action_changeRotation.setEnabled(False)
             if self.selected_tile is None:
                 action_selectAutofocus.setEnabled(False)
@@ -2050,6 +2057,11 @@ class Viewport(QWidget):
             (new_ov_dx, new_ov_dy))
         self.vp_draw()
 
+    def _vp_place_grids_template_matching(self):
+        """Find candidate locations and place grids in VP using template matching."""
+        self.tm.place_grids_template_matching(self.gm)
+        self.main_controls_trigger.transmit('GRID SETTINGS CHANGED')
+
     def _vp_reposition_imported_img(self, shift_vector):
         """Shift the imported image selected by the mouse click
         (self.selected_imported) by shift_vector."""
@@ -2523,8 +2535,11 @@ class Viewport(QWidget):
         self.main_controls_trigger.transmit('STATUS IDLE')
 
     def _vp_open_change_grid_rotation_dlg(self):
-        dialog = GridRotationDlg(self.selected_grid, self.gm,
-                                 self.viewport_trigger, self.sem.magc_mode)
+        if self.selected_template:
+            dialog = TemplateRotationDlg(self.tm, self.viewport_trigger)
+        else:
+            dialog = GridRotationDlg(self.selected_grid, self.gm,
+                                     self.viewport_trigger, self.sem.magc_mode)
         if dialog.exec_():
             if self.ovm.use_auto_debris_area:
                 self.ovm.update_all_debris_detections_areas(self.gm)
