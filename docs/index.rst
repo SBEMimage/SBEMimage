@@ -1,12 +1,11 @@
 User guide
 ==========
 
-Last updated: 28 July 2020, for *SBEMimage* v2020.07;
-author: Benjamin Titze (benjamin.titze ÄT fmi.ch)
+Last updated: 25 October 2020, for *SBEMimage* 2020.10 beta
 
 This is the user guide for the acquisition software *SBEMimage*.
 
-For support and discussion, please use the `Image.sc forum <https://forum.image.sc/>`_.
+For support questions and general discussion, please use the `Image.sc forum <https://forum.image.sc/>`_, for bug reports use `GitHub Issues <https://github.com/SBEMimage/SBEMimage/issues>`_.
 
 The source code of *SBEMimage* is hosted on `github.com/SBEMimage <https://github.com/SBEMimage>`_. The source files for this user guide are located in the folder '/docs'.
 

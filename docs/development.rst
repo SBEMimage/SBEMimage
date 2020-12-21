@@ -11,8 +11,8 @@ Use Python 3.6 and PyQt 5, and see requirements.txt for dependencies.
 
 Folder structure:
 
-* ``cfg``: Contains default configuration files ``default.ini`` and ``system.cfg``, and all custom user and system configuration files. Also, ``status.dat`` is saved here when *SBEMimage* is closed; it contains the file name of the last configuration used.
-* ``dm``: Scripts for *DigitalMicrograph* (in a proprietary language with C syntax)
+* ``cfg``: Contains default configuration files ``default.ini`` and ``system.cfg``, and all custom user and system configuration files. Also, ``status.dat`` is saved here when *SBEMimage* is closed; it contains the file name of the last configuration used. When using the Windows uninstaller, this directory will be preserved.
+* ``dm``: Scripts for *DigitalMicrograph* (in a proprietary language) for both GMS 2 and GMS 3.
 * ``docs``: Documentation (reStructuredText; HTML output generated with Sphinx and hosted on https://sbemimage.readthedocs.io)
 * ``gui``: All PyQT user interface files (.ui), created with *Qt Designer* (bundled with *Anaconda*)
 * ``img``: Various images and icons
@@ -25,7 +25,8 @@ In the root folder:
 * ``LICENSE``: Text of MIT License
 * ``README.md``: Readme file (Markdown) for GitHub
 * ``requirements.txt``: Required libraries, currently listed without version specifications
-* ``SBEMimage.bat``: Windows batch file to run 'python SBEMimage.py'
+* ``installer.cfg`` and ``installer.nsi``: Configuration files for building the installer with pynsist/NSIS installer
+* ``SBEMimage.bat``: Windows batch file to run SBEMimage (works for both the system Python and the Python interpreter (+ packages) installed by the NSIS installer)
 
 -----------
 Conventions
@@ -70,5 +71,5 @@ Git workflow
 
 The 'master' branch contains tested code ready for production use. It is protected, currently only `btitze <https://github.com/btitze>`_ can push to this branch.
 
-The `dev <https://github.com/SBEMimage/SBEMimage/tree/dev>`_ branch is used for all ongoing development. Several developers who are familiar with the code base can work directly on that branch. Pull requests to that branch are welcome. If you wish to develop new functionality or suggest larger (structural) changes, it is recommended to contact benjamin.titze ÄT fmi.ch first to discuss what you have in mind, or post a message on *SBEMimage*'s `GitHub Issues <https://github.com/SBEMimage/SBEMimage/issues>`_ page.
+The `dev <https://github.com/SBEMimage/SBEMimage/tree/dev>`_ branch is used for all ongoing development. Several developers who are familiar with the code base can work directly on that branch. Pull requests to that branch are welcome, ideally from short-lived feature branches. If you wish to develop new functionality or suggest larger (structural) changes, it is recommended to contact benjamin.titze ÄT fmi.ch first to discuss what you have in mind, or post a message on *SBEMimage*'s `GitHub Issues <https://github.com/SBEMimage/SBEMimage/issues>`_ page.
 
