@@ -4163,5 +4163,12 @@ class AboutBox(QDialog):
         else:
             self.label_version.setText('Version ' + VERSION)
         self.labelIcon.setPixmap(QPixmap('..\\img\\logo.png'))
+        # Enable links to readthedocs and GitHub
+        self.label_readthedocs.setText('<a href="https://sbemimage.readthedocs.io">'
+                                       'https://sbemimage.readthedocs.io</a>')
+        self.label_readthedocs.setOpenExternalLinks(True)
+        self.label_github.setText('<a href="https://github.com/SBEMimage">'
+                                  'https://github.com/SBEMimage</a>')
+        self.label_github.setOpenExternalLinks(True)
         self.setFixedSize(self.size())
         self.show()
