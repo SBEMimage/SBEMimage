@@ -1,7 +1,7 @@
 User guide
 ==========
 
-Last updated: 25 October 2020, for *SBEMimage* 2020.10 beta
+Last updated: 23 December 2020, for *SBEMimage* 2020.12
 
 This is the user guide for the acquisition software *SBEMimage*.
 

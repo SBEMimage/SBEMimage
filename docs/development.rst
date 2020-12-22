@@ -1,7 +1,7 @@
 For developers
 ==============
 
-The following notes (to be expanded) are for developers who would like to contribute to the development of *SBEMimage*. Questions? Please contact benjamin.titze ÄT fmi.ch.
+The following notes (to be expanded) are for developers who would like to contribute to the development of *SBEMimage*. Questions? Please contact btitze ÄT protonmail.ch.
 
 -------
 General
@@ -71,5 +71,5 @@ Git workflow
 
 The 'master' branch contains tested code ready for production use. It is protected, currently only `btitze <https://github.com/btitze>`_ can push to this branch.
 
-The `dev <https://github.com/SBEMimage/SBEMimage/tree/dev>`_ branch is used for all ongoing development. Several developers who are familiar with the code base can work directly on that branch. Pull requests to that branch are welcome, ideally from short-lived feature branches. If you wish to develop new functionality or suggest larger (structural) changes, it is recommended to contact benjamin.titze ÄT fmi.ch first to discuss what you have in mind, or post a message on *SBEMimage*'s `GitHub Issues <https://github.com/SBEMimage/SBEMimage/issues>`_ page.
+The `dev <https://github.com/SBEMimage/SBEMimage/tree/dev>`_ branch is used for all ongoing development. Several developers who are familiar with the code base can work directly on that branch. Pull requests to that branch are welcome, ideally from short-lived feature branches. If you wish to develop new functionality or suggest larger (structural) changes, it is recommended to contact btitze ÄT protonmail.ch first to discuss what you have in mind, or post a message on *SBEMimage*'s `GitHub Issues <https://github.com/SBEMimage/SBEMimage/issues>`_ page.
 
