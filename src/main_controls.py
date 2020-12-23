@@ -579,7 +579,7 @@ class MainControls(QMainWindow):
         self.textarea_log.setMaximumBlockCount(
             int(self.cfg['monitoring']['max_log_line_count']))
         # Acquisition notes text area
-        self.textarea_acqNotes.setPlainText(self.acq.load_acq_notes())
+        self.update_acq_notes()
         self.textarea_acqNotes.textChanged.connect(self.acq_notes_text_changed)
 
         # Enable plasma cleaner GUI elements if plasma cleaner installed.
@@ -845,6 +845,14 @@ class MainControls(QMainWindow):
         self.pushButton_setActiveUserFlag.setEnabled(True)
         self.viewport.active_user_flag_enabled = False
         self.viewport.vp_draw()
+
+    def update_acq_notes(self):
+        text = self.acq.load_acq_notes()
+        if text is not None:
+            self.textarea_acqNotes.setPlainText(text)
+        self.label_acqNotes.setText(
+            'Notes about this acquisition (saved as '
+            + self.acq.stack_name + '_notes.txt in base directory):')
 
     def acq_notes_text_changed(self):
         if self.acq_notes_saved:
@@ -1290,12 +1298,15 @@ class MainControls(QMainWindow):
         self.viewport.vp_draw()
 
     def open_acq_settings_dlg(self):
+        prev_stack_name = self.acq.stack_name
         dialog = AcqSettingsDlg(self.acq, self.notifications,
                                 self.use_microtome)
         if dialog.exec_():
             self.show_current_settings()
             self.show_stack_acq_estimates()
             self.show_stack_progress()   # Slice number may have changed.
+            if self.acq.stack_name != prev_stack_name:
+                self.update_acq_notes()
 
     def open_pre_stack_dlg(self):
         # Calculate new estimates first, then open dialog:

@@ -521,9 +521,13 @@ class Acquisition:
                 self.error_state = Error.mirror_drive
 
     def load_acq_notes(self):
-        """Read the contents of the notes text file and return them."""
-        with open(os.path.join(self.base_dir, self.stack_name + '_notes.txt'),
-                  mode='r') as f:
+        """Read the contents of the notes text file and return them. Return
+        None if the file does not exist.
+        """
+        notes_file = os.path.join(self.base_dir, self.stack_name + '_notes.txt')
+        if not os.path.isfile(notes_file):
+            return None
+        with open(notes_file, mode='r') as f:
             notes = f.read()
         return notes
 
