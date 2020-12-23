@@ -2269,6 +2269,16 @@ class MainControls(QMainWindow):
                 if self.plc_initialized:
                     plasma_log_msg = self.plasma_cleaner.close_port()
                     utils.log_info(plasma_log_msg)
+                if not self.acq_notes_saved:
+                    # Switch to Notes tab
+                    self.tabWidget.setCurrentIndex(3)
+                    result = QMessageBox.question(
+                        self, 'Save acquisition notes?',
+                        'There are unsaved changes to your acquisition notes. '
+                        'Would you like to save them?',
+                        QMessageBox.Yes| QMessageBox.No)
+                    if result == QMessageBox.Yes:
+                        self.save_acq_notes()
                 if self.acq.acq_paused:
                     if not(self.cfg_file == 'default.ini'):
                         QMessageBox.information(
