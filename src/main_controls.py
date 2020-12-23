@@ -818,6 +818,9 @@ class MainControls(QMainWindow):
             self.checkBox_useDebrisDetection.isChecked())
         self.acq.ask_user_mode = self.checkBox_askUser.isChecked()
         self.acq.use_mirror_drive = self.checkBox_mirrorDrive.isChecked()
+        if (self.acq.use_mirror_drive
+                and not os.path.exists(self.acq.mirror_drive_dir)):
+            self.try_to_create_directory(self.acq.mirror_drive_dir)
         self.acq.monitor_images = self.checkBox_monitorTiles.isChecked()
         self.acq.use_autofocus = self.checkBox_useAutofocus.isChecked()
         # Show updated stack estimates (depend on options selected)
