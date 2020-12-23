@@ -135,6 +135,10 @@ class Acquisition:
             self.cfg['debris']['continue_after_max_sweeps'].lower() == 'true')
 
         self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
+        # Create text file for notes
+        notes_file = os.path.join(self.base_dir, self.stack_name + '_notes.txt')
+        if not os.path.isfile(notes_file):
+            open(notes_file, 'a').close()
 
     @property
     def base_dir(self):
@@ -515,6 +519,19 @@ class Acquisition:
                     'CTRL: Copying file(s) to mirror drive failed: ' + str(e))
                 self.pause_acquisition(1)
                 self.error_state = Error.mirror_drive
+
+    def load_acq_notes(self):
+        """Read the contents of the notes text file and return them."""
+        with open(os.path.join(self.base_dir, self.stack_name + '_notes.txt'),
+                  mode='r') as f:
+            notes = f.read()
+        return notes
+
+    def save_acq_notes(self, contents):
+        """Save contents to the acquisition notes text file."""
+        with open(os.path.join(self.base_dir, self.stack_name + '_notes.txt'),
+                  mode='w') as f:
+            f.write(contents)
 
 # ====================== STACK ACQUISITION THREAD run() ========================
 

@@ -2124,7 +2124,7 @@
          </font>
         </property>
         <property name="readOnly">
-         <bool>true</bool>
+         <bool>false</bool>
         </property>
        </widget>
        <widget class="QLabel" name="label_14">
@@ -2132,7 +2132,7 @@
          <rect>
           <x>10</x>
           <y>60</y>
-          <width>531</width>
+          <width>661</width>
           <height>16</height>
          </rect>
         </property>
@@ -2148,7 +2148,7 @@
        </widget>
        <widget class="QPushButton" name="pushButton_saveNotes">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="geometry">
          <rect>

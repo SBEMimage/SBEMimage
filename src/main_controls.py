@@ -100,6 +100,7 @@ class MainControls(QMainWindow):
         self.use_microtome = (
             self.cfg['sys']['use_microtome'].lower() == 'true')
         self.statusbar_msg = ''
+        self.acq_notes_saved = False
 
         # If workspace folder does not exist, create it.
         workspace_dir = os.path.join(self.cfg['acq']['base_dir'], 'workspace')
@@ -439,6 +440,8 @@ class MainControls(QMainWindow):
             self.set_active_user_flag)
         self.pushButton_clearActiveUserFlag.clicked.connect(
             self.clear_activate_user_flag)
+        self.pushButton_saveNotes.clicked.connect(
+            self.save_acq_notes)
         # Command buttons
         self.pushButton_doApproach.clicked.connect(self.open_approach_dlg)
         self.pushButton_doSweep.clicked.connect(self.manual_sweep)
@@ -575,6 +578,9 @@ class MainControls(QMainWindow):
         # Limit the log to user-specified number of most recent lines
         self.textarea_log.setMaximumBlockCount(
             int(self.cfg['monitoring']['max_log_line_count']))
+        # Acquisition notes text area
+        self.textarea_acqNotes.setPlainText(self.acq.load_acq_notes())
+        self.textarea_acqNotes.textChanged.connect(self.acq_notes_text_changed)
 
         # Enable plasma cleaner GUI elements if plasma cleaner installed.
         self.toolButton_plasmaCleaner.setEnabled(self.plc_installed)
@@ -836,6 +842,18 @@ class MainControls(QMainWindow):
         self.pushButton_setActiveUserFlag.setEnabled(True)
         self.viewport.active_user_flag_enabled = False
         self.viewport.vp_draw()
+
+    def acq_notes_text_changed(self):
+        if self.acq_notes_saved:
+            self.acq_notes_saved = False
+            self.pushButton_saveNotes.setText('Save')
+            self.pushButton_saveNotes.setEnabled(True)
+
+    def save_acq_notes(self):
+        self.acq.save_acq_notes(self.textarea_acqNotes.toPlainText())
+        self.acq_notes_saved = True
+        self.pushButton_saveNotes.setText('Saved')
+        self.pushButton_saveNotes.setEnabled(False)
 
 # ----------------------------- MagC tab ---------------------------------------
 
