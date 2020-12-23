@@ -502,7 +502,7 @@ class Acquisition:
                 dst_file_name = os.path.join(self.mirror_drive, file_name[2:])
                 shutil.copy(file_name, dst_file_name)
         except Exception as e:
-            utils.log_warning('WARNING (Could not mirror file(s))')
+            utils.log_warning('CTRL', 'WARNING (Could not mirror file(s))')
             self.add_to_incident_log('WARNING (Could not mirror file(s))')
             sleep(2)
             # Try again
@@ -529,9 +529,11 @@ class Acquisition:
 
     def save_acq_notes(self, contents):
         """Save contents to the acquisition notes text file."""
-        with open(os.path.join(self.base_dir, self.stack_name + '_notes.txt'),
-                  mode='w') as f:
+        notes_file = os.path.join(self.base_dir, self.stack_name + '_notes.txt')
+        with open(notes_file, mode='w') as f:
             f.write(contents)
+        if self.use_mirror_drive:
+            self.mirror_files([notes_file])
 
 # ====================== STACK ACQUISITION THREAD run() ========================
 
@@ -2812,7 +2814,8 @@ class Acquisition:
         """Add entry to the Main Controls log."""
         msg = utils.format_log_entry(msg)
         # Store entry in main log file
-        self.main_log_file.write(msg + '\n')
+        if self.main_log_file is not None:
+            self.main_log_file.write(msg + '\n')
         # Send entry to Main Controls via queue and trigger
         #self.main_controls_trigger.transmit(msg)
 
@@ -2822,7 +2825,8 @@ class Acquisition:
         """
         timestamp = str(datetime.datetime.now())[:-7]
         msg = f'{timestamp} | Slice {self.slice_counter}: {msg}'
-        self.incident_log_file.write(msg + '\n')
+        if self.incident_log_file is not None:
+            self.incident_log_file.write(msg + '\n')
         # Signal to main window to update incident log in Viewport
         self.main_controls_trigger.transmit('INCIDENT LOG' + msg)
 
