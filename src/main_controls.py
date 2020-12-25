@@ -34,7 +34,7 @@ from PyQt5.QtCore import Qt, QRect, QSize, QEvent, QItemSelection, \
 from PyQt5.QtGui import QIcon, QPalette, QColor, QPixmap, QKeyEvent, \
                         QStatusTipEvent, QStandardItem, QStandardItemModel
 from PyQt5.QtWidgets import QMainWindow, QMessageBox, QInputDialog, QLineEdit, \
-                            QHeaderView
+                            QHeaderView, QProgressDialog
 from PyQt5.uic import loadUi
 
 import acq_func
@@ -100,7 +100,7 @@ class MainControls(QMainWindow):
         self.use_microtome = (
             self.cfg['sys']['use_microtome'].lower() == 'true')
         self.statusbar_msg = ''
-        self.acq_notes_saved = False
+        self.acq_notes_saved = True
 
         # If workspace folder does not exist, create it.
         workspace_dir = os.path.join(self.cfg['acq']['base_dir'], 'workspace')
@@ -1507,7 +1507,7 @@ class MainControls(QMainWindow):
             self.set_status('', 'Ready.', False)
             self.acq_not_in_progress_update_gui()
         elif msg == 'SAVE CFG':
-            self.save_settings()
+            self.save_config_to_disk()
         elif msg.startswith('ACQ IND OV'):
             self.viewport.vp_toggle_ov_acq_indicator(
                 int(msg[len('ACQ IND OV'):]))
@@ -2215,15 +2215,30 @@ class MainControls(QMainWindow):
                 'the menu.',
                 QMessageBox.Ok)
 
-    def save_config_to_disk(self):
+    def save_config_to_disk(self, show_msg=False):
         """Save the updated ConfigParser objects for the user and the
         system configuration to disk.
         """
+        if show_msg:
+            # Show progress while saving (0..10)
+            progress_dlg = QProgressDialog('Saving configuration and workspace status... '
+                                           'Please wait.',
+                                           'Cancel', 0, 10, self);
+            progress_dlg.setWindowModality(Qt.WindowModal)
+            progress_dlg.setWindowTitle('Saving configuration in progress')
+            progress_dlg.setCancelButton(None)
+            progress_dlg.setValue(1)
+            progress_dlg.show()
+            QApplication.processEvents()
+            sleep(1)
+
         self.acq.save_to_cfg()
         self.gm.save_to_cfg()
         self.ovm.save_to_cfg()
         self.imported.save_to_cfg()
         self.autofocus.save_to_cfg()
+        if show_msg:
+            progress_dlg.setValue(5)
         self.sem.save_to_cfg()
         if self.microtome is not None:
             self.microtome.save_to_cfg()
@@ -2234,13 +2249,18 @@ class MainControls(QMainWindow):
         # Save settings from Main Controls
         self.cfg['sys']['simulation_mode'] = str(self.simulation_mode)
 
-        # Write config to disk:
+        if show_msg:
+            progress_dlg.setValue(9)
+        # Write config to disk
         with open(os.path.join('..', 'cfg', self.cfg_file), 'w') as f:
             self.cfg.write(f)
-        # Also save system settings:
+        # Also save system settings
         with open(os.path.join(
             '..', 'cfg', self.cfg['sys']['sys_config_file']), 'w') as f:
             self.syscfg.write(f)
+        if show_msg:
+            progress_dlg.setValue(10)  # final step, will close dialog
+
         utils.log_info('CTRL', 'Settings saved to disk.')
 
     def closeEvent(self, event):
@@ -2289,7 +2309,7 @@ class MainControls(QMainWindow):
                             'after restarting the program with the current '
                             'configuration file.',
                             QMessageBox.Ok)
-                        self.save_settings()
+                        self.save_config_to_disk(show_msg=True)
                     else:
                         result = QMessageBox.question(
                             self, 'Save settings?',
@@ -2307,7 +2327,7 @@ class MainControls(QMainWindow):
                             + self.cfg_file + '? ',
                             QMessageBox.Yes| QMessageBox.No)
                         if result == QMessageBox.Yes:
-                            self.save_settings()
+                            self.save_config_to_disk(show_msg=True)
                     else:
                         result = QMessageBox.question(
                             self, 'Save settings?',
