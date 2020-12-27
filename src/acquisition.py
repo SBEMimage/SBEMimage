@@ -1190,12 +1190,14 @@ class Acquisition:
             self.total_z_diff += self.slice_thickness/1000
         sleep(1)
 
-    def do_maintenance_moves(self):
+    def do_maintenance_moves(self, manual_run=False):
         """Move XY motors over the entire XY range."""
-        utils.log_info(
-            'STAGE',
-            'Carrying out XY stage maintenance moves.')
-        self.add_to_main_log('STAGE: Carrying out XY stage maintenance moves.')
+        if not manual_run:
+            utils.log_info(
+                'STAGE',
+                'Carrying out XY stage maintenance moves.')
+            self.add_to_main_log(
+                'STAGE: Carrying out XY stage maintenance moves.')
         # First move to origin
         self.stage.move_to_xy((0, 0))
         # Show new stage coordinates in GUI
@@ -1209,17 +1211,21 @@ class Acquisition:
         # Move back to the origin
         self.stage.move_to_xy((0, 0))
         self.main_controls_trigger.transmit('UPDATE XY')
-        utils.log_info(
-            'STAGE',
-            'XY stage maintenance moves completed.')
-        utils.log_info(
-            'STAGE',
-            'Next maintenance cycle after '
-            f'{self.microtome.maintenance_move_interval} XY moves.')
-        self.add_to_main_log('STAGE: XY stage maintenance moves completed.')
-        self.add_to_main_log(
-            f'STAGE: Next maintenance cycle after '
-            f'{self.microtome.maintenance_move_interval} XY moves.')
+        if not manual_run:
+            utils.log_info(
+                'STAGE',
+                'XY stage maintenance moves completed.')
+            self.add_to_main_log('STAGE: XY stage maintenance moves completed.')
+            utils.log_info(
+                'STAGE',
+                'Next maintenance cycle after '
+                f'{self.microtome.maintenance_move_interval} XY moves.')
+            self.add_to_main_log(
+                f'STAGE: Next maintenance cycle after '
+                f'{self.microtome.maintenance_move_interval} XY moves.')
+        if manual_run:
+            # Signal to Main Controls that run is complete
+            self.main_controls_trigger.transmit('MAINTENANCE FINISHED')
 
     def confirm_slice_complete(self):
         """Confirm that the current slice is completely acquired without error

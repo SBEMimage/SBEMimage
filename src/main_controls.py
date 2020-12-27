@@ -526,9 +526,12 @@ class MainControls(QMainWindow):
         self.pushButton_testClearKnife.clicked.connect(self.test_clear_knife)
         self.pushButton_testGetMillPos.clicked.connect(self.test_get_mill_pos)
         self.pushButton_testMoveMillPos.clicked.connect(self.test_set_mill_pos)
-        self.pushButton_testMovePriorMillPos.clicked.connect(self.test_set_pos_prior_mill_mov)
+        self.pushButton_testMovePriorMillPos.clicked.connect(
+            self.test_set_pos_prior_mill_mov)
         self.pushButton_testSendCommand.clicked.connect(
             self.open_send_command_dlg)
+        self.pushButton_testRunMaintenanceMoves.clicked.connect(
+            self.test_run_maintenance_moves)
         self.pushButton_testStopDMScript.clicked.connect(
             self.test_stop_dm_script)
         self.pushButton_testSendEMail.clicked.connect(self.test_send_email)
@@ -1502,6 +1505,8 @@ class MainControls(QMainWindow):
             self.manual_sweep_success(True)
         elif msg == 'MANUAL SWEEP FAILURE':
             self.manual_sweep_success(False)
+        elif msg == 'MAINTENANCE FINISHED':
+            self.test_run_maintenance_moves_finished()
         elif msg == 'REMOTE STOP':
             self.remote_stop()
         elif msg == 'ERROR PAUSE':
@@ -1744,6 +1749,7 @@ class MainControls(QMainWindow):
         self.pushButton_testPlasmaCleaner.setEnabled(b)
         self.pushButton_testMotors.setEnabled(b)
         self.pushButton_testSendCommand.setEnabled(b)
+        self.pushButton_testRunMaintenanceMoves.setEnabled(b)
 
     def restrict_gui_for_simulation_mode(self):
         self.pushButton_SEMSettings.setEnabled(False)
@@ -1910,6 +1916,20 @@ class MainControls(QMainWindow):
             utils.log_info('KNIFE', 'Position should be CLEAR.')
         else:
             utils.log_warning('CTRL', 'No microtome, or microtome not active.')
+
+    def test_run_maintenance_moves(self):
+        utils.log_info('STAGE',
+            'Performing user-requested XY stage maintenance moves.')
+        self.restrict_gui(True)
+        self.viewport.restrict_gui(True)
+        self.set_status('Busy.', 'Stage maintenance moves...', True)
+        utils.run_log_thread(self.acq.do_maintenance_moves, True)
+
+    def test_run_maintenance_moves_finished(self):
+        utils.log_info('STAGE', 'XY stage maintenance moves completed.')
+        self.set_status('', 'Ready.', False)
+        self.restrict_gui(False)
+        self.viewport.restrict_gui(False)
 
     def test_get_mill_pos(self):
         if self.use_microtome:
