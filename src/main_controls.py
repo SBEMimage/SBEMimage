@@ -497,7 +497,8 @@ class MainControls(QMainWindow):
             self.open_variable_pressure_dlg)
         self.actionChargeCompensatorSettings.triggered.connect(
             self.open_charge_compensator_dlg)
-        self.actionSaveConfig.triggered.connect(self.save_settings)
+        self.actionSaveConfig.triggered.connect(
+            lambda: self.save_config_to_disk(show_msg=True))
         self.actionSaveNewConfig.triggered.connect(
             self.open_save_settings_new_file_dlg)
         self.actionLeaveSimulationMode.triggered.connect(
@@ -1195,7 +1196,7 @@ class MainControls(QMainWindow):
             if new_syscfg:
                 self.syscfg_file = dialog.sysfile_name
                 self.cfg['sys']['sys_config_file'] = self.syscfg_file
-            self.save_config_to_disk()
+            self.save_config_to_disk(show_msg=True)
             # Show new config file name in status bar
             self.set_statusbar('Ready.')
 
@@ -2219,6 +2220,8 @@ class MainControls(QMainWindow):
         """Save the updated ConfigParser objects for the user and the
         system configuration to disk.
         """
+        # TODO: Saving may take a while -> run in thread
+        # TODO: Reconsider when and how tile previews are saved...
         if show_msg:
             # Show progress while saving (0..10)
             progress_dlg = QProgressDialog('Saving configuration and workspace status... '
