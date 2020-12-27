@@ -929,7 +929,7 @@ class GridManager:
 
         # Save MagC settings to config (currently none)
 
-    def add_new_grid(self, origin_sx_sy=None, sw_sh=None, active=True,
+    def add_new_grid(self, origin_sx_sy=None, sw_sh=(0, 0), active=True,
                      frame_size=None, frame_size_selector=None, overlap=None,
                      pixel_size=10.0, dwell_time=0.8, dwell_time_selector=4,
                      rotation=0, row_shift=0, acq_interval=1, acq_interval_offset=0,
