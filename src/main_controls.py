@@ -672,6 +672,7 @@ class MainControls(QMainWindow):
         """Update the combo box for grid selection in Main Controls window."""
         if grid_index >= self.gm.number_grids:
             grid_index = 0
+            self.gm.template_grid_index = 0
         self.comboBox_gridSelector.blockSignals(True)
         self.comboBox_gridSelector.clear()
         grid_list_str = self.gm.grid_selector_list()
@@ -691,6 +692,7 @@ class MainControls(QMainWindow):
         """Update the combo box for OV selection in the Main Controls window."""
         if ov_index >= self.ovm.number_ov:
             ov_index = 0
+            self.ovm.template_ov_index = 0
         self.comboBox_OVSelector.blockSignals(True)
         self.comboBox_OVSelector.clear()
         ov_list_str = self.ovm.ov_selector_list()
@@ -703,12 +705,14 @@ class MainControls(QMainWindow):
 
     def change_grid_settings_display(self):
         self.grid_index_dropdown = self.comboBox_gridSelector.currentIndex()
-        self.gm.current_grid = self.grid_index_dropdown
+        # Use currently selected grid as template when drawing new grids
+        self.gm.template_grid_index = self.grid_index_dropdown
         self.show_current_settings()
 
     def change_ov_settings_display(self):
         self.ov_index_dropdown = self.comboBox_OVSelector.currentIndex()
-        self.ovm.current_ov = self.ov_index_dropdown
+        # Use currently selected OV as template when drawing new OVs
+        self.ovm.template_ov_index = self.ov_index_dropdown
         self.show_current_settings()
 
     def show_current_settings(self):
@@ -1285,7 +1289,7 @@ class MainControls(QMainWindow):
         dialog.exec_()
 
     def update_from_grid_dlg(self):
-        # Update selectors:
+        # Update selectors
         self.update_main_controls_grid_selector(self.grid_index_dropdown)
         self.ft_update_grid_selector(self.ft_selected_grid)
         self.ft_update_tile_selector()
