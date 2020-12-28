@@ -20,11 +20,11 @@ The development of *SBEMimage* at the Friedrich Miescher Institute in Basel has 
 
 Current development team: Benjamin Titze ([btitze](https://github.com/btitze)), Friedrich Miescher Institute for Biomedical Research, Basel, Switzerland (lead developer); Thomas Templier, Janelia Research Campus; Joost de Folter, Francis Crick Institute; Philipp Schubert, Max Planck Institute of Neurobiology; and others: https://github.com/SBEMimage/SBEMimage/graphs/contributors
 
-Contact benjamin.titze ÄT fmi.ch if you are interested in contributing to the development of *SBEMimage*. All ongoing development takes place in the ['dev' branch](https://github.com/SBEMimage/SBEMimage/tree/dev). Pull requests to that branch are welcome. For more information, see the section ['For developers'](https://sbemimage.readthedocs.io/en/latest/development.html) in the user guide.
+Contact btitze ÄT protonmail.ch if you are interested in contributing to the development of *SBEMimage*. All ongoing development takes place in the ['dev' branch](https://github.com/SBEMimage/SBEMimage/tree/dev). Pull requests to that branch are welcome. For more information, see the section ['For developers'](https://sbemimage.readthedocs.io/en/latest/development.html) in the user guide.
 
 ## Feedback and bug reports
 
-Please use GitHub Issues (https://github.com/SBEMimage/SBEMimage/issues) for bug reports. For general feedback or feature suggestions, post to the [Image.sc forum](https://forum.image.sc/) with the tag 'sbemimage', or send an email to benjamin.titze ÄT fmi.ch.
+Please use GitHub Issues (https://github.com/SBEMimage/SBEMimage/issues) for bug reports. For general feedback or feature suggestions, post to the [Image.sc forum](https://forum.image.sc/) with the tag 'sbemimage', or send an email to btitze ÄT protonmail.ch.
 
 ## Publication
 
