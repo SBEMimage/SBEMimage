@@ -736,7 +736,7 @@ class GridManager:
         self.cfg = config
         self.sem = sem
         self.cs = coordinate_system
-        self.current_grid = 0
+        self.template_grid_index = 0
         # Load grid parameters stored as lists in configuration.
         self.number_grids = int(self.cfg['grids']['number_grids'])
         grid_active = json.loads(self.cfg['grids']['grid_active'])
@@ -1032,7 +1032,10 @@ class GridManager:
 
     def draw_grid(self, x, y, w, h):
         """Draw grid/tiles rectangle using mouse"""
-        grid = self.__grids[self.current_grid]
+        # Use attributes of grid at template_grid_index for new grid
+        if self.template_grid_index >= self.number_grids:
+            self.template_grid_index = 0
+        grid = self.__grids[self.template_grid_index]
 
         tile_width = grid.tile_width_d()
         tile_height = grid.tile_height_d()

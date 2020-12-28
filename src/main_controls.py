@@ -35,7 +35,7 @@ from PyQt5.QtCore import Qt, QRect, QSize, QEvent, QItemSelection, \
 from PyQt5.QtGui import QIcon, QPalette, QColor, QPixmap, QKeyEvent, \
                         QStatusTipEvent, QStandardItem, QStandardItemModel
 from PyQt5.QtWidgets import QMainWindow, QMessageBox, QInputDialog, QLineEdit, \
-                            QHeaderView
+                            QHeaderView, QProgressDialog
 from PyQt5.uic import loadUi
 
 import acq_func
@@ -102,6 +102,7 @@ class MainControls(QMainWindow):
         self.use_microtome = (
             self.cfg['sys']['use_microtome'].lower() == 'true')
         self.statusbar_msg = ''
+        self.acq_notes_saved = True
 
         # If workspace folder does not exist, create it.
         workspace_dir = os.path.join(self.cfg['acq']['base_dir'], 'workspace')
@@ -442,6 +443,8 @@ class MainControls(QMainWindow):
             self.set_active_user_flag)
         self.pushButton_clearActiveUserFlag.clicked.connect(
             self.clear_activate_user_flag)
+        self.pushButton_saveNotes.clicked.connect(
+            self.save_acq_notes)
         # Command buttons
         self.pushButton_doApproach.clicked.connect(self.open_approach_dlg)
         self.pushButton_doSweep.clicked.connect(self.manual_sweep)
@@ -497,7 +500,8 @@ class MainControls(QMainWindow):
             self.open_variable_pressure_dlg)
         self.actionChargeCompensatorSettings.triggered.connect(
             self.open_charge_compensator_dlg)
-        self.actionSaveConfig.triggered.connect(self.save_settings)
+        self.actionSaveConfig.triggered.connect(
+            lambda: self.save_config_to_disk(show_msg=True))
         self.actionSaveNewConfig.triggered.connect(
             self.open_save_settings_new_file_dlg)
         self.actionLeaveSimulationMode.triggered.connect(
@@ -527,9 +531,12 @@ class MainControls(QMainWindow):
         self.pushButton_testMillMov.clicked.connect(self.test_mill_mov)
         self.pushButton_testMilling.clicked.connect(self.test_milling)
         self.pushButton_testMoveMillPos.clicked.connect(self.test_set_mill_pos)
-        self.pushButton_testMovePriorMillPos.clicked.connect(self.test_set_pos_prior_mill_mov)
+        self.pushButton_testMovePriorMillPos.clicked.connect(
+            self.test_set_pos_prior_mill_mov)
         self.pushButton_testSendCommand.clicked.connect(
             self.open_send_command_dlg)
+        self.pushButton_testRunMaintenanceMoves.clicked.connect(
+            self.test_run_maintenance_moves)
         self.pushButton_testStopDMScript.clicked.connect(
             self.test_stop_dm_script)
         self.pushButton_testSendEMail.clicked.connect(self.test_send_email)
@@ -580,6 +587,9 @@ class MainControls(QMainWindow):
         # Limit the log to user-specified number of most recent lines
         self.textarea_log.setMaximumBlockCount(
             int(self.cfg['monitoring']['max_log_line_count']))
+        # Acquisition notes text area
+        self.update_acq_notes()
+        self.textarea_acqNotes.textChanged.connect(self.acq_notes_text_changed)
 
         # Enable plasma cleaner GUI elements if plasma cleaner installed.
         self.toolButton_plasmaCleaner.setEnabled(self.plc_installed)
@@ -598,10 +608,10 @@ class MainControls(QMainWindow):
 
         if not self.magc_mode:
             # disable MagC tab
-            self.tabWidget.setTabEnabled(4, False)
+            self.tabWidget.setTabEnabled(3, False)
             self.actionImportMagCMetadata.setEnabled(False)
             # activate MagC with a double-click on the MagC tab
-            self.tabWidget.setTabToolTip(4, 'Double-click to toggle MagC mode')
+            self.tabWidget.setTabToolTip(3, 'Double-click to toggle MagC mode')
             self.tabWidget.tabBarDoubleClicked.connect(self.activate_magc_mode)
         else:
             self.initialize_magc_gui()
@@ -670,6 +680,7 @@ class MainControls(QMainWindow):
         """Update the combo box for grid selection in Main Controls window."""
         if grid_index >= self.gm.number_grids:
             grid_index = 0
+            self.gm.template_grid_index = 0
         self.comboBox_gridSelector.blockSignals(True)
         self.comboBox_gridSelector.clear()
         grid_list_str = self.gm.grid_selector_list()
@@ -689,6 +700,7 @@ class MainControls(QMainWindow):
         """Update the combo box for OV selection in the Main Controls window."""
         if ov_index >= self.ovm.number_ov:
             ov_index = 0
+            self.ovm.template_ov_index = 0
         self.comboBox_OVSelector.blockSignals(True)
         self.comboBox_OVSelector.clear()
         ov_list_str = self.ovm.ov_selector_list()
@@ -701,12 +713,14 @@ class MainControls(QMainWindow):
 
     def change_grid_settings_display(self):
         self.grid_index_dropdown = self.comboBox_gridSelector.currentIndex()
-        self.gm.current_grid = self.grid_index_dropdown
+        # Use currently selected grid as template when drawing new grids
+        self.gm.template_grid_index = self.grid_index_dropdown
         self.show_current_settings()
 
     def change_ov_settings_display(self):
         self.ov_index_dropdown = self.comboBox_OVSelector.currentIndex()
-        self.ovm.current_ov = self.ov_index_dropdown
+        # Use currently selected OV as template when drawing new OVs
+        self.ovm.template_ov_index = self.ov_index_dropdown
         self.show_current_settings()
 
     def show_current_settings(self):
@@ -736,7 +750,7 @@ class MainControls(QMainWindow):
         self.label_OVDwellTime.setText(
             str(self.ovm[self.ov_index_dropdown].dwell_time) + ' µs')
         self.label_OVMagnification.setText(
-            str(self.ovm[self.ov_index_dropdown].magnification))
+            f'{self.ovm[self.ov_index_dropdown].magnification:.1f}')
         self.label_OVSize.setText(
             str(self.ovm[self.ov_index_dropdown].width_p())
             + ' × '
@@ -817,6 +831,9 @@ class MainControls(QMainWindow):
             self.checkBox_useDebrisDetection.isChecked())
         self.acq.ask_user_mode = self.checkBox_askUser.isChecked()
         self.acq.use_mirror_drive = self.checkBox_mirrorDrive.isChecked()
+        if (self.acq.use_mirror_drive
+                and not os.path.exists(self.acq.mirror_drive_dir)):
+            self.try_to_create_directory(self.acq.mirror_drive_dir)
         self.acq.monitor_images = self.checkBox_monitorTiles.isChecked()
         self.acq.use_autofocus = self.checkBox_useAutofocus.isChecked()
         # Show updated stack estimates (depend on options selected)
@@ -841,6 +858,26 @@ class MainControls(QMainWindow):
         self.pushButton_setActiveUserFlag.setEnabled(True)
         self.viewport.active_user_flag_enabled = False
         self.viewport.vp_draw()
+
+    def update_acq_notes(self):
+        text = self.acq.load_acq_notes()
+        if text is not None:
+            self.textarea_acqNotes.setPlainText(text)
+        self.label_acqNotes.setText(
+            'Notes about this acquisition (saved as '
+            + self.acq.stack_name + '_notes.txt in base directory):')
+
+    def acq_notes_text_changed(self):
+        if self.acq_notes_saved:
+            self.acq_notes_saved = False
+            self.pushButton_saveNotes.setText('Save')
+            self.pushButton_saveNotes.setEnabled(True)
+
+    def save_acq_notes(self):
+        self.acq.save_acq_notes(self.textarea_acqNotes.toPlainText())
+        self.acq_notes_saved = True
+        self.pushButton_saveNotes.setText('Saved')
+        self.pushButton_saveNotes.setEnabled(False)
 
 # ----------------------------- MagC tab ---------------------------------------
 
@@ -1171,7 +1208,7 @@ class MainControls(QMainWindow):
             if new_syscfg:
                 self.syscfg_file = dialog.sysfile_name
                 self.cfg['sys']['sys_config_file'] = self.syscfg_file
-            self.save_config_to_disk()
+            self.save_config_to_disk(show_msg=True)
             # Show new config file name in status bar
             self.set_statusbar('Ready.')
 
@@ -1226,9 +1263,14 @@ class MainControls(QMainWindow):
         if dialog.exec_() and self.cs.stage_calibration != prev_calibration:
             # Recalculate all grids and debris detection areas
             for grid_index in range(self.gm.number_grids):
-                self.gm[grid_index].update_tile_positions()
+                # Resetting the origin triggers updates of dx_dy coordinates
+                self.gm[grid_index].auto_update_tile_positions = True
+                self.gm[grid_index].origin_sx_sy = (
+                    self.gm[grid_index].origin_sx_sy)
             if self.ovm.use_auto_debris_area:
                 self.ovm.update_all_debris_detections_areas(self.gm)
+            # Reset origin of stub OV
+            self.ovm['stub'].origin_sx_sy = self.ovm['stub'].origin_sx_sy
             self.viewport.vp_draw()
 
     def open_cut_duration_dlg(self):
@@ -1260,7 +1302,7 @@ class MainControls(QMainWindow):
         dialog.exec_()
 
     def update_from_grid_dlg(self):
-        # Update selectors:
+        # Update selectors
         self.update_main_controls_grid_selector(self.grid_index_dropdown)
         self.ft_update_grid_selector(self.ft_selected_grid)
         self.ft_update_tile_selector()
@@ -1274,12 +1316,15 @@ class MainControls(QMainWindow):
         self.viewport.vp_draw()
 
     def open_acq_settings_dlg(self):
+        prev_stack_name = self.acq.stack_name
         dialog = AcqSettingsDlg(self.acq, self.notifications,
                                 self.use_microtome)
         if dialog.exec_():
             self.show_current_settings()
             self.show_stack_acq_estimates()
             self.show_stack_progress()   # Slice number may have changed.
+            if self.acq.stack_name != prev_stack_name:
+                self.update_acq_notes()
 
     def open_pre_stack_dlg(self):
         # Calculate new estimates first, then open dialog:
@@ -1470,6 +1515,8 @@ class MainControls(QMainWindow):
             self.manual_sweep_success(True)
         elif msg == 'MANUAL SWEEP FAILURE':
             self.manual_sweep_success(False)
+        elif msg == 'MAINTENANCE FINISHED':
+            self.test_run_maintenance_moves_finished()
         elif msg == 'REMOTE STOP':
             self.remote_stop()
         elif msg == 'ERROR PAUSE':
@@ -1480,7 +1527,7 @@ class MainControls(QMainWindow):
             self.set_status('', 'Ready.', False)
             self.acq_not_in_progress_update_gui()
         elif msg == 'SAVE CFG':
-            self.save_settings()
+            self.save_config_to_disk()
         elif msg.startswith('ACQ IND OV'):
             self.viewport.vp_toggle_ov_acq_indicator(
                 int(msg[len('ACQ IND OV'):]))
@@ -1712,6 +1759,7 @@ class MainControls(QMainWindow):
         self.pushButton_testPlasmaCleaner.setEnabled(b)
         self.pushButton_testMotors.setEnabled(b)
         self.pushButton_testSendCommand.setEnabled(b)
+        self.pushButton_testRunMaintenanceMoves.setEnabled(b)
 
     def restrict_gui_for_simulation_mode(self):
         self.pushButton_SEMSettings.setEnabled(False)
@@ -1878,6 +1926,20 @@ class MainControls(QMainWindow):
             utils.log_info('KNIFE', 'Position should be CLEAR.')
         else:
             utils.log_warning('CTRL', 'No microtome, or microtome not active.')
+
+    def test_run_maintenance_moves(self):
+        utils.log_info('STAGE',
+            'Performing user-requested XY stage maintenance moves.')
+        self.restrict_gui(True)
+        self.viewport.restrict_gui(True)
+        self.set_status('Busy.', 'Stage maintenance moves...', True)
+        utils.run_log_thread(self.acq.do_maintenance_moves, True)
+
+    def test_run_maintenance_moves_finished(self):
+        utils.log_info('STAGE', 'XY stage maintenance moves completed.')
+        self.set_status('', 'Ready.', False)
+        self.restrict_gui(False)
+        self.viewport.restrict_gui(False)
 
     def test_get_mill_pos(self):
         if self.use_microtome:
@@ -2220,16 +2282,33 @@ class MainControls(QMainWindow):
                 'the menu.',
                 QMessageBox.Ok)
 
-    def save_config_to_disk(self):
+    def save_config_to_disk(self, show_msg=False):
         """Save the updated ConfigParser objects for the user and the
         system configuration to disk.
         """
+        # TODO: Saving may take a while -> run in thread
+        # TODO: Reconsider when and how tile previews are saved...
+        if show_msg:
+            # Show progress while saving (0..10)
+            progress_dlg = QProgressDialog('Saving configuration and workspace status... '
+                                           'Please wait.',
+                                           'Cancel', 0, 10, self);
+            progress_dlg.setWindowModality(Qt.WindowModal)
+            progress_dlg.setWindowTitle('Saving configuration in progress')
+            progress_dlg.setCancelButton(None)
+            progress_dlg.setValue(1)
+            progress_dlg.show()
+            QApplication.processEvents()
+            sleep(1)
+
         self.acq.save_to_cfg()
         self.gm.save_to_cfg()
         self.ovm.save_to_cfg()
         self.tm.save_to_cfg()
         self.imported.save_to_cfg()
         self.autofocus.save_to_cfg()
+        if show_msg:
+            progress_dlg.setValue(5)
         self.sem.save_to_cfg()
         if self.microtome is not None:
             self.microtome.save_to_cfg()
@@ -2240,13 +2319,18 @@ class MainControls(QMainWindow):
         # Save settings from Main Controls
         self.cfg['sys']['simulation_mode'] = str(self.simulation_mode)
 
-        # Write config to disk:
+        if show_msg:
+            progress_dlg.setValue(9)
+        # Write config to disk
         with open(os.path.join('..', 'cfg', self.cfg_file), 'w') as f:
             self.cfg.write(f)
-        # Also save system settings:
+        # Also save system settings
         with open(os.path.join(
             '..', 'cfg', self.cfg['sys']['sys_config_file']), 'w') as f:
             self.syscfg.write(f)
+        if show_msg:
+            progress_dlg.setValue(10)  # final step, will close dialog
+
         utils.log_info('CTRL', 'Settings saved to disk.')
 
     def closeEvent(self, event):
@@ -2275,6 +2359,16 @@ class MainControls(QMainWindow):
                 if self.plc_initialized:
                     plasma_log_msg = self.plasma_cleaner.close_port()
                     utils.log_info(plasma_log_msg)
+                if not self.acq_notes_saved:
+                    # Switch to Notes tab
+                    self.tabWidget.setCurrentIndex(2)
+                    result = QMessageBox.question(
+                        self, 'Save acquisition notes?',
+                        'There are unsaved changes to your acquisition notes. '
+                        'Would you like to save them?',
+                        QMessageBox.Yes| QMessageBox.No)
+                    if result == QMessageBox.Yes:
+                        self.save_acq_notes()
                 if self.acq.acq_paused:
                     if not(self.cfg_file == 'default.ini'):
                         QMessageBox.information(
@@ -2285,7 +2379,7 @@ class MainControls(QMainWindow):
                             'after restarting the program with the current '
                             'configuration file.',
                             QMessageBox.Ok)
-                        self.save_settings()
+                        self.save_config_to_disk(show_msg=True)
                     else:
                         result = QMessageBox.question(
                             self, 'Save settings?',
@@ -2303,7 +2397,7 @@ class MainControls(QMainWindow):
                             + self.cfg_file + '? ',
                             QMessageBox.Yes| QMessageBox.No)
                         if result == QMessageBox.Yes:
-                            self.save_settings()
+                            self.save_config_to_disk(show_msg=True)
                     else:
                         result = QMessageBox.question(
                             self, 'Save settings?',
@@ -2511,10 +2605,11 @@ class MainControls(QMainWindow):
                 self.ft_set_new_wd_stig(dialog.new_wd,
                                         dialog.new_stig_x,
                                         dialog.new_stig_y)
-                # Set SEM to new values
-                self.sem.set_wd(self.ft_selected_wd)
-                self.sem.set_stig_xy(
-                    self.ft_selected_stig_x, self.ft_selected_stig_y)
+                # Set SEM to new values unless WD == 0
+                if self.ft_selected_wd != 0:
+                    self.sem.set_wd(self.ft_selected_wd)
+                    self.sem.set_stig_xy(
+                        self.ft_selected_stig_x, self.ft_selected_stig_y)
         else:
             QMessageBox.information(
                 self, 'Select target tile/OV',
@@ -2606,9 +2701,11 @@ class MainControls(QMainWindow):
         self.comboBox_selectOVFT.setEnabled(False)
         # Disable menu
         self.menubar.setEnabled(False)
-        # Disable the other tabs:
+        # Disable the other tabs
         self.tabWidget.setTabEnabled(0, False)
         self.tabWidget.setTabEnabled(2, False)
+        self.tabWidget.setTabEnabled(3, False)
+        self.tabWidget.setTabEnabled(4, False)
         # Restrict viewport:
         self.viewport.restrict_gui(True)
         # Use current WD/Stig if selected working distance == 0 or None:
@@ -2700,9 +2797,12 @@ class MainControls(QMainWindow):
             self.comboBox_selectOVFT.setEnabled(True)
         # Enable menu
         self.menubar.setEnabled(True)
-        # Enable the other tabs:
+        # Enable the other tabs
         self.tabWidget.setTabEnabled(0, True)
         self.tabWidget.setTabEnabled(2, True)
+        if self.magc_mode:
+            self.tabWidget.setTabEnabled(3, True)
+        self.tabWidget.setTabEnabled(4, True)
         # Unrestrict viewport:
         self.viewport.restrict_gui(False)
         self.ft_mode = 0
@@ -2973,7 +3073,7 @@ class MainControls(QMainWindow):
             self.ft_selected_tile = -1
         # Clear current image:
         self.ft_clear_display()
-        # Switch to Focus Tool tab:
+        # Switch to Focus Tool tab
         self.tabWidget.setCurrentIndex(1)
         self.ft_cycle_counter = 0
 

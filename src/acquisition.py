@@ -135,6 +135,10 @@ class Acquisition:
             self.cfg['debris']['continue_after_max_sweeps'].lower() == 'true')
 
         self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
+        # Create text file for notes
+        notes_file = os.path.join(self.base_dir, self.stack_name + '_notes.txt')
+        if not os.path.isfile(notes_file):
+            open(notes_file, 'a').close()
 
     @property
     def base_dir(self):
@@ -498,7 +502,7 @@ class Acquisition:
                 dst_file_name = os.path.join(self.mirror_drive, file_name[2:])
                 shutil.copy(file_name, dst_file_name)
         except Exception as e:
-            utils.log_warning('WARNING (Could not mirror file(s))')
+            utils.log_warning('CTRL', 'WARNING (Could not mirror file(s))')
             self.add_to_incident_log('WARNING (Could not mirror file(s))')
             sleep(2)
             # Try again
@@ -515,6 +519,25 @@ class Acquisition:
                     'CTRL: Copying file(s) to mirror drive failed: ' + str(e))
                 self.pause_acquisition(1)
                 self.error_state = Error.mirror_drive
+
+    def load_acq_notes(self):
+        """Read the contents of the notes text file and return them. Return
+        None if the file does not exist.
+        """
+        notes_file = os.path.join(self.base_dir, self.stack_name + '_notes.txt')
+        if not os.path.isfile(notes_file):
+            return None
+        with open(notes_file, mode='r') as f:
+            notes = f.read()
+        return notes
+
+    def save_acq_notes(self, contents):
+        """Save contents to the acquisition notes text file."""
+        notes_file = os.path.join(self.base_dir, self.stack_name + '_notes.txt')
+        with open(notes_file, mode='w') as f:
+            f.write(contents)
+        if self.use_mirror_drive:
+            self.mirror_files([notes_file])
 
 # ====================== STACK ACQUISITION THREAD run() ========================
 
@@ -629,19 +652,30 @@ class Acquisition:
             # Create metadata summary for this run, write it to disk and send it
             # to remote (VIME) server (if feature enabled).
             timestamp = int(time())
-            grid_list = [str(i).zfill(utils.GRID_DIGITS)
-                         for i in range(self.gm.number_grids)]
+            grid_list = []
+            grid_origin_list = []
+            rotation_angle_list = []
+            pixel_size_list = []
+            dwell_time_list = []
+            for grid_index in range(self.gm.number_grids):
+                grid_list.append(str(grid_index).zfill(utils.GRID_DIGITS))
+                grid_origin_list.append(self.gm[grid_index].origin_sx_sy)
+                rotation_angle_list.append(self.gm[grid_index].rotation)
+                pixel_size_list.append(self.gm[grid_index].pixel_size)
+                dwell_time_list.append(self.gm[grid_index].dwell_time)
             session_metadata = {
                 'timestamp': timestamp,
                 'eht': self.sem.target_eht,
                 'beam_current': self.sem.target_beam_current,
-                'stig_parameters': (self.stig_x_default, self.stig_y_default),
-                'working_distance': self.wd_default,
+                'wd_stig_xy_default': [self.wd_default,
+                                       self.stig_x_default,
+                                       self.stig_y_default],
                 'slice_thickness': self.slice_thickness,
                 'grids': grid_list,
-                'grid_origins': [],
-                'pixel_sizes': [],
-                'dwell_times': [],
+                'grid_origins': grid_origin_list,
+                'rotation_angles': rotation_angle_list,
+                'pixel_sizes': pixel_size_list,
+                'dwell_times': dwell_time_list,
                 'contrast': self.sem.bsd_contrast,
                 'brightness': self.sem.bsd_brightness,
                 'email_addresses: ': self.notifications.user_email_addresses
@@ -1167,12 +1201,14 @@ class Acquisition:
             self.total_z_diff += self.slice_thickness/1000
         sleep(1)
 
-    def do_maintenance_moves(self):
+    def do_maintenance_moves(self, manual_run=False):
         """Move XY motors over the entire XY range."""
-        utils.log_info(
-            'STAGE',
-            'Carrying out XY stage maintenance moves.')
-        self.add_to_main_log('STAGE: Carrying out XY stage maintenance moves.')
+        if not manual_run:
+            utils.log_info(
+                'STAGE',
+                'Carrying out XY stage maintenance moves.')
+            self.add_to_main_log(
+                'STAGE: Carrying out XY stage maintenance moves.')
         # First move to origin
         self.stage.move_to_xy((0, 0))
         # Show new stage coordinates in GUI
@@ -1186,17 +1222,21 @@ class Acquisition:
         # Move back to the origin
         self.stage.move_to_xy((0, 0))
         self.main_controls_trigger.transmit('UPDATE XY')
-        utils.log_info(
-            'STAGE',
-            'XY stage maintenance moves completed.')
-        utils.log_info(
-            'STAGE',
-            'Next maintenance cycle after '
-            f'{self.microtome.maintenance_move_interval} XY moves.')
-        self.add_to_main_log('STAGE: XY stage maintenance moves completed.')
-        self.add_to_main_log(
-            f'STAGE: Next maintenance cycle after '
-            f'{self.microtome.maintenance_move_interval} XY moves.')
+        if not manual_run:
+            utils.log_info(
+                'STAGE',
+                'XY stage maintenance moves completed.')
+            self.add_to_main_log('STAGE: XY stage maintenance moves completed.')
+            utils.log_info(
+                'STAGE',
+                'Next maintenance cycle after '
+                f'{self.microtome.maintenance_move_interval} XY moves.')
+            self.add_to_main_log(
+                f'STAGE: Next maintenance cycle after '
+                f'{self.microtome.maintenance_move_interval} XY moves.')
+        if manual_run:
+            # Signal to Main Controls that run is complete
+            self.main_controls_trigger.transmit('MAINTENANCE FINISHED')
 
     def confirm_slice_complete(self):
         """Confirm that the current slice is completely acquired without error
@@ -2438,12 +2478,13 @@ class Acquisition:
         self.tiles_acquired.append(tile_index)
         tile_width, tile_height = self.gm[grid_index].frame_size
         tile_metadata = {
-            'timestamp': timestamp,
             'tileid': tile_id,
+            'timestamp': timestamp,
             'filename': relative_save_path.replace('\\', '/'),
             'tile_width': tile_width,
             'tile_height': tile_height,
-            'working_distance': self.gm[grid_index][tile_index].wd,
+            'wd_stig_xy': [self.gm[grid_index][tile_index].wd,
+                           *self.gm[grid_index][tile_index].stig_xy],
             'glob_x': global_x,
             'glob_y': global_y,
             'glob_z': global_z,
@@ -2822,7 +2863,8 @@ class Acquisition:
         """Add entry to the Main Controls log."""
         msg = utils.format_log_entry(msg)
         # Store entry in main log file
-        self.main_log_file.write(msg + '\n')
+        if self.main_log_file is not None:
+            self.main_log_file.write(msg + '\n')
         # Send entry to Main Controls via queue and trigger
         # self.main_controls_trigger.transmit(msg)
 
@@ -2832,7 +2874,8 @@ class Acquisition:
         """
         timestamp = str(datetime.datetime.now())[:-7]
         msg = f'{timestamp} | Slice {self.slice_counter}: {msg}'
-        self.incident_log_file.write(msg + '\n')
+        if self.incident_log_file is not None:
+            self.incident_log_file.write(msg + '\n')
         # Signal to main window to update incident log in Viewport
         self.main_controls_trigger.transmit('INCIDENT LOG' + msg)
 
