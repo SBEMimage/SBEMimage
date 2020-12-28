@@ -530,9 +530,6 @@ class MainControls(QMainWindow):
         self.pushButton_testGetMillPos.clicked.connect(self.test_get_mill_pos)
         self.pushButton_testMillMov.clicked.connect(self.test_mill_mov)
         self.pushButton_testMilling.clicked.connect(self.test_milling)
-        self.pushButton_testMoveMillPos.clicked.connect(self.test_set_mill_pos)
-        self.pushButton_testMovePriorMillPos.clicked.connect(
-            self.test_set_pos_prior_mill_mov)
         self.pushButton_testSendCommand.clicked.connect(
             self.open_send_command_dlg)
         self.pushButton_testRunMaintenanceMoves.clicked.connect(
@@ -1979,24 +1976,6 @@ class MainControls(QMainWindow):
 
     def test_milling(self):
         self.test_mill_mov(duration=None)
-
-    def test_set_mill_pos(self):
-        if self.use_microtome:
-            self.microtome.move_stage_to_millpos()
-            if self.microtome.error_state != 0:
-                self.add_to_log(f'CTRL: Microtome error {self.microtome.error_state}: {self.microtome.error_info}')
-                self.microtome.reset_error_state()
-        else:
-            self.add_to_log('CTRL: No microtome, or microtome not active.')
-
-    def test_set_pos_prior_mill_mov(self):
-        if self.use_microtome:
-            self.microtome.move_stage_to_pos_prior_mill_mov()
-            if self.microtome.error_state != 0:
-                self.add_to_log(f'CTRL: Microtome error {self.microtome.error_state}: {self.microtome.error_info}')
-                self.microtome.reset_error_state()
-        else:
-            self.add_to_log('CTRL: No microtome, or microtome not active.')
 
     def test_stop_dm_script(self):
         if self.use_microtome:
