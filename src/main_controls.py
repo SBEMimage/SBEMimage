@@ -2567,10 +2567,11 @@ class MainControls(QMainWindow):
                 self.ft_set_new_wd_stig(dialog.new_wd,
                                         dialog.new_stig_x,
                                         dialog.new_stig_y)
-                # Set SEM to new values
-                self.sem.set_wd(self.ft_selected_wd)
-                self.sem.set_stig_xy(
-                    self.ft_selected_stig_x, self.ft_selected_stig_y)
+                # Set SEM to new values unless WD == 0
+                if self.ft_selected_wd != 0:
+                    self.sem.set_wd(self.ft_selected_wd)
+                    self.sem.set_stig_xy(
+                        self.ft_selected_stig_x, self.ft_selected_stig_y)
         else:
             QMessageBox.information(
                 self, 'Select target tile/OV',
