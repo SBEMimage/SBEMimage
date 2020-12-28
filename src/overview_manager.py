@@ -64,6 +64,10 @@ class Overview(Grid):
         self._origin_sx_sy = list(sx_sy)
 
     @property
+    def centre_dx_dy(self):
+        return self.cs.convert_s_to_d(self._origin_sx_sy)
+
+    @property
     def magnification(self):
         return (self.sem.MAG_PX_SIZE_FACTOR
                 / (self.frame_size[0] * self.pixel_size))

@@ -1258,9 +1258,14 @@ class MainControls(QMainWindow):
         if dialog.exec_() and self.cs.stage_calibration != prev_calibration:
             # Recalculate all grids and debris detection areas
             for grid_index in range(self.gm.number_grids):
-                self.gm[grid_index].update_tile_positions()
+                # Resetting the origin triggers updates of dx_dy coordinates
+                self.gm[grid_index].auto_update_tile_positions = True
+                self.gm[grid_index].origin_sx_sy = (
+                    self.gm[grid_index].origin_sx_sy)
             if self.ovm.use_auto_debris_area:
                 self.ovm.update_all_debris_detections_areas(self.gm)
+            # Reset origin of stub OV
+            self.ovm['stub'].origin_sx_sy = self.ovm['stub'].origin_sx_sy
             self.viewport.vp_draw()
 
     def open_cut_duration_dlg(self):
