@@ -745,7 +745,7 @@ class MainControls(QMainWindow):
         self.label_OVDwellTime.setText(
             str(self.ovm[self.ov_index_dropdown].dwell_time) + ' µs')
         self.label_OVMagnification.setText(
-            str(self.ovm[self.ov_index_dropdown].magnification))
+            f'{self.ovm[self.ov_index_dropdown].magnification:.1f}')
         self.label_OVSize.setText(
             str(self.ovm[self.ov_index_dropdown].width_p())
             + ' × '
