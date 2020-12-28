@@ -603,10 +603,10 @@ class MainControls(QMainWindow):
 
         if not self.magc_mode:
             # disable MagC tab
-            self.tabWidget.setTabEnabled(4, False)
+            self.tabWidget.setTabEnabled(3, False)
             self.actionImportMagCMetadata.setEnabled(False)
             # activate MagC with a double-click on the MagC tab
-            self.tabWidget.setTabToolTip(4, 'Double-click to toggle MagC mode')
+            self.tabWidget.setTabToolTip(3, 'Double-click to toggle MagC mode')
             self.tabWidget.tabBarDoubleClicked.connect(self.activate_magc_mode)
         else:
             self.initialize_magc_gui()
@@ -2318,7 +2318,7 @@ class MainControls(QMainWindow):
                     utils.log_info(plasma_log_msg)
                 if not self.acq_notes_saved:
                     # Switch to Notes tab
-                    self.tabWidget.setCurrentIndex(3)
+                    self.tabWidget.setCurrentIndex(2)
                     result = QMessageBox.question(
                         self, 'Save acquisition notes?',
                         'There are unsaved changes to your acquisition notes. '
@@ -2657,9 +2657,11 @@ class MainControls(QMainWindow):
         self.comboBox_selectOVFT.setEnabled(False)
         # Disable menu
         self.menubar.setEnabled(False)
-        # Disable the other tabs:
+        # Disable the other tabs
         self.tabWidget.setTabEnabled(0, False)
         self.tabWidget.setTabEnabled(2, False)
+        self.tabWidget.setTabEnabled(3, False)
+        self.tabWidget.setTabEnabled(4, False)
         # Restrict viewport:
         self.viewport.restrict_gui(True)
         # Use current WD/Stig if selected working distance == 0 or None:
@@ -2751,9 +2753,12 @@ class MainControls(QMainWindow):
             self.comboBox_selectOVFT.setEnabled(True)
         # Enable menu
         self.menubar.setEnabled(True)
-        # Enable the other tabs:
+        # Enable the other tabs
         self.tabWidget.setTabEnabled(0, True)
         self.tabWidget.setTabEnabled(2, True)
+        if self.magc_mode:
+            self.tabWidget.setTabEnabled(3, True)
+        self.tabWidget.setTabEnabled(4, True)
         # Unrestrict viewport:
         self.viewport.restrict_gui(False)
         self.ft_mode = 0
@@ -3024,7 +3029,7 @@ class MainControls(QMainWindow):
             self.ft_selected_tile = -1
         # Clear current image:
         self.ft_clear_display()
-        # Switch to Focus Tool tab:
+        # Switch to Focus Tool tab
         self.tabWidget.setCurrentIndex(1)
         self.ft_cycle_counter = 0
 
