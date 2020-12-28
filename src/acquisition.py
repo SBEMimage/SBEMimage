@@ -652,19 +652,30 @@ class Acquisition:
             # Create metadata summary for this run, write it to disk and send it
             # to remote (VIME) server (if feature enabled).
             timestamp = int(time())
-            grid_list = [str(i).zfill(utils.GRID_DIGITS)
-                         for i in range(self.gm.number_grids)]
+            grid_list = []
+            grid_origin_list = []
+            rotation_angle_list = []
+            pixel_size_list = []
+            dwell_time_list = []
+            for grid_index in range(self.gm.number_grids):
+                grid_list.append(str(grid_index).zfill(utils.GRID_DIGITS))
+                grid_origin_list.append(self.gm[grid_index].origin_sx_sy)
+                rotation_angle_list.append(self.gm[grid_index].rotation)
+                pixel_size_list.append(self.gm[grid_index].pixel_size)
+                dwell_time_list.append(self.gm[grid_index].dwell_time)
             session_metadata = {
                 'timestamp': timestamp,
                 'eht': self.sem.target_eht,
                 'beam_current': self.sem.target_beam_current,
-                'stig_parameters': (self.stig_x_default, self.stig_y_default),
-                'working_distance': self.wd_default,
+                'wd_stig_xy_default': [self.wd_default,
+                                       self.stig_x_default,
+                                       self.stig_y_default],
                 'slice_thickness': self.slice_thickness,
                 'grids': grid_list,
-                'grid_origins': [],
-                'pixel_sizes': [],
-                'dwell_times': [],
+                'grid_origins': grid_origin_list,
+                'rotation_angles': rotation_angle_list,
+                'pixel_sizes': pixel_size_list,
+                'dwell_times': dwell_time_list,
                 'contrast': self.sem.bsd_contrast,
                 'brightness': self.sem.bsd_brightness,
                 'email_addresses: ': self.notifications.user_email_addresses
@@ -2457,12 +2468,13 @@ class Acquisition:
         self.tiles_acquired.append(tile_index)
         tile_width, tile_height = self.gm[grid_index].frame_size
         tile_metadata = {
-            'timestamp': timestamp,
             'tileid': tile_id,
+            'timestamp': timestamp,
             'filename': relative_save_path.replace('\\', '/'),
             'tile_width': tile_width,
             'tile_height': tile_height,
-            'working_distance': self.gm[grid_index][tile_index].wd,
+            'wd_stig_xy': [self.gm[grid_index][tile_index].wd,
+                           *self.gm[grid_index][tile_index].stig_xy],
             'glob_x': global_x,
             'glob_y': global_y,
             'glob_z': global_z,
