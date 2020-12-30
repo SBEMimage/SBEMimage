@@ -22,6 +22,7 @@ window (in viewport.py) as a QWidget.
 """
 import os
 import sys
+from typing import Optional
 import threading
 import json
 
@@ -53,6 +54,7 @@ from notifications import Notifications
 from overview_manager import OverviewManager
 from imported_img import ImportedImages
 from grid_manager import GridManager
+from template_manager import TemplateManager
 from coordinate_system import CoordinateSystem
 from viewport import Viewport
 from image_inspector import ImageInspector
@@ -159,6 +161,7 @@ class MainControls(QMainWindow):
         # Set up the objects to manage overviews, grids, and imported images
         self.ovm = OverviewManager(self.cfg, self.sem, self.cs)
         self.gm = GridManager(self.cfg, self.sem, self.cs)
+        self.tm = TemplateManager(self.ovm)
         self.imported = ImportedImages(self.cfg)
 
         # Notify user if imported images could not be loaded
@@ -294,7 +297,7 @@ class MainControls(QMainWindow):
         self.viewport = Viewport(self.cfg, self.sem, self.stage, self.cs,
                                  self.ovm, self.gm, self.imported,
                                  self.autofocus, self.acq, self.img_inspector,
-                                 self.trigger)
+                                 self.trigger, self.tm)
         self.viewport.show()
 
         # Draw the viewport canvas
@@ -525,9 +528,8 @@ class MainControls(QMainWindow):
         self.pushButton_testNearKnife.clicked.connect(self.test_near_knife)
         self.pushButton_testClearKnife.clicked.connect(self.test_clear_knife)
         self.pushButton_testGetMillPos.clicked.connect(self.test_get_mill_pos)
-        self.pushButton_testMoveMillPos.clicked.connect(self.test_set_mill_pos)
-        self.pushButton_testMovePriorMillPos.clicked.connect(
-            self.test_set_pos_prior_mill_mov)
+        self.pushButton_testMillMov.clicked.connect(self.test_mill_mov)
+        self.pushButton_testMilling.clicked.connect(self.test_milling)
         self.pushButton_testSendCommand.clicked.connect(
             self.open_send_command_dlg)
         self.pushButton_testRunMaintenanceMoves.clicked.connect(
@@ -1748,8 +1750,8 @@ class MainControls(QMainWindow):
         self.pushButton_testNearKnife.setEnabled(b)
         self.pushButton_testClearKnife.setEnabled(b)
         self.pushButton_testGetMillPos.setEnabled(b)
-        self.pushButton_testMoveMillPos.setEnabled(b)
-        self.pushButton_testMovePriorMillPos.setEnabled(b)
+        self.pushButton_testMillMov.setEnabled(b)
+        self.pushButton_testMilling.setEnabled(b)
         self.pushButton_testStopDMScript.setEnabled(b)
         self.pushButton_testPlasmaCleaner.setEnabled(b)
         self.pushButton_testMotors.setEnabled(b)
@@ -1782,8 +1784,8 @@ class MainControls(QMainWindow):
 
     def restrict_gui_wo_gcib(self):
         self.pushButton_testGetMillPos.setEnabled(False)
-        self.pushButton_testMoveMillPos.setEnabled(False)
-        self.pushButton_testMovePriorMillPos.setEnabled(False)
+        self.pushButton_testMillMov.setEnabled(False)
+        self.pushButton_testMilling.setEnabled(False)
 
     #TODO: remove
     def add_to_log(self, text):
@@ -1944,22 +1946,36 @@ class MainControls(QMainWindow):
             utils.log_warning('CTRL', 'No microtome, or microtome not active.')
 
     def test_set_mill_pos(self):
+        # Deprecated
         if self.use_microtome:
             self.microtome.move_stage_to_millpos()
-            if self.microtome.error_state != 0:
+            if self.microtome.error_state != Error.none:
                 utils.log_info('CTRL', f'Microtome error {self.microtome.error_state}: {self.microtome.error_info}')
                 self.microtome.reset_error_state()
         else:
             utils.log_warning('CTRL', 'No microtome, or microtome not active.')
 
     def test_set_pos_prior_mill_mov(self):
+        # Deprecated
         if self.use_microtome:
             self.microtome.move_stage_to_pos_prior_mill_mov()
-            if self.microtome.error_state != 0:
+            if self.microtome.error_state != Error.none:
                 utils.log_info('CTRL', f'Microtome error {self.microtome.error_state}: {self.microtome.error_info}')
                 self.microtome.reset_error_state()
         else:
             utils.log_warning('CTRL', 'No microtome, or microtome not active.')
+
+    def test_mill_mov(self, duration: Optional[int] = 0):
+        if self.use_microtome:
+            self.microtome.do_full_cut(mill_duration=duration, testing=True)
+            if self.microtome.error_state != Error.none:
+                utils.log_info('CTRL', f'Microtome error {self.microtome.error_state}: {self.microtome.error_info}')
+                self.microtome.reset_error_state()
+        else:
+            utils.log_warning('CTRL', 'No microtome, or microtome not active.')
+
+    def test_milling(self):
+        self.test_mill_mov(duration=None)
 
     def test_stop_dm_script(self):
         if self.use_microtome:
@@ -2267,6 +2283,7 @@ class MainControls(QMainWindow):
         self.acq.save_to_cfg()
         self.gm.save_to_cfg()
         self.ovm.save_to_cfg()
+        self.tm.save_to_cfg()
         self.imported.save_to_cfg()
         self.autofocus.save_to_cfg()
         if show_msg:

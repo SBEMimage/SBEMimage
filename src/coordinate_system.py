@@ -22,6 +22,7 @@
 
 from math import sin, cos
 import json
+import numpy as np
 
 import utils
 
@@ -153,7 +154,7 @@ class CoordinateSystem:
         self.syscfg['stage'][self._device + '_calibration_params'] = json.dumps(
             calibration_params)
 
-    def convert_d_to_s(self, d_coordinates):
+    def convert_d_to_s(self, d_coordinates) -> np.ndarray:
         """Convert SEM XY coordinates provided as a tuple or list into stage
         coordinates. The SEM coordinates [dx, dy] are multiplied with the
         rotation matrix.
@@ -161,9 +162,9 @@ class CoordinateSystem:
         dx, dy = d_coordinates
         stage_x = (self.rot_mat_a * dx + self.rot_mat_b * dy) * self.scale_x
         stage_y = (self.rot_mat_c * dx + self.rot_mat_d * dy) * self.scale_y
-        return [stage_x, stage_y]
+        return np.array([stage_x, stage_y])
 
-    def convert_s_to_d(self, s_coordinates):
+    def convert_s_to_d(self, s_coordinates) -> np.ndarray:
         """Convert stage XY coordinates provided as a tuple or list into
         SEM coordinates. The stage coordinates are multiplied with the
         inverse of the rotation matrix.
@@ -175,18 +176,16 @@ class CoordinateSystem:
               / self.rot_mat_determinant)
         dy = ((-self.rot_mat_c * stage_x + self.rot_mat_a * stage_y)
               / self.rot_mat_determinant)
-        return [dx, dy]
+        return np.array([dx, dy])
 
-    def convert_d_to_v(self, d_coordinates):
+    def convert_d_to_v(self, d_coordinates) -> np.ndarray:
         """Convert SEM XY coordinates into Viewport window coordinates.
         These coordinates in units of pixels specify an object's location
         relative to the Viewport origin.
         """
-        dx, dy = d_coordinates
-        return [int((dx - self._vp_origin_dx_dy[0]) * self._vp_scale),
-                int((dy - self._vp_origin_dx_dy[1]) * self._vp_scale)]
+        return ((d_coordinates - self._vp_origin_dx_dy) * self._vp_scale).astype(np.int)
 
-    def convert_d_to_sv(self, d_coordinates, tile_display=True):
+    def convert_d_to_sv(self, d_coordinates, tile_display=True) -> np.ndarray:
         """Convert SEM coordinates in microns (relative to image origin) to
         pixel coordinates in Slice-by-Slice Viewer.
         """
@@ -197,15 +196,14 @@ class CoordinateSystem:
         else:
             scale = self._sv_scale_ov
             offset_x, offset_y = self.sv_ov_vx_vy
-        return [int(dx * scale + offset_x), int(dy * scale + offset_y)]
+        return np.array([int(dx * scale + offset_x), int(dy * scale + offset_y)])
 
-    def convert_mouse_to_s(self, screen_xy):
+    def convert_mouse_to_s(self, screen_xy) -> np.ndarray:
         dx, dy = screen_xy[0] - self.vp_width // 2, screen_xy[1] - self.vp_height // 2
         vp_centre_dx, vp_centre_dy = self.vp_centre_dx_dy
         dx_pos, dy_pos = (vp_centre_dx + dx / self.vp_scale,
                           vp_centre_dy + dy / self.vp_scale)
-        sx_pos, sy_pos = self.convert_d_to_s((dx_pos, dy_pos))
-        return sx_pos, sy_pos
+        return self.convert_d_to_s((dx_pos, dy_pos))
 
     def convert_mouse_to_v(self, screen_xy):
         px, py = screen_xy
@@ -220,7 +218,7 @@ class CoordinateSystem:
 
     @vp_centre_dx_dy.setter
     def vp_centre_dx_dy(self, dx_dy):
-        self._vp_centre_dx_dy = list(dx_dy)
+        self._vp_centre_dx_dy = np.array(dx_dy)
         self.update_vp_origin_dx_dy()
 
     @property
@@ -237,9 +235,9 @@ class CoordinateSystem:
         area in the Viewport.
         """
         dx, dy = self._vp_centre_dx_dy
-        self._vp_origin_dx_dy = [
+        self._vp_origin_dx_dy = np.array([
             dx - 0.5 * self.vp_width / self._vp_scale,
-            dy - 0.5 * self.vp_height / self._vp_scale]
+            dy - 0.5 * self.vp_height / self._vp_scale])
 
     @property
     def sv_scale_tile(self):
@@ -251,6 +249,7 @@ class CoordinateSystem:
         self._sv_scale_tile = new_scale
         self.sv_tile_vx_vy = self._adjust_sv_offset(self.sv_tile_vx_vy,
                                                     new_scale / old_scale)
+
     @property
     def sv_scale_ov(self):
         return self._sv_scale_ov
@@ -262,12 +261,12 @@ class CoordinateSystem:
         self.sv_ov_vx_vy = self._adjust_sv_offset(self.sv_ov_vx_vy,
                                                   new_scale / old_scale)
 
-    def _adjust_sv_offset(self, old_vx_vy, zoom_ratio):
+    def _adjust_sv_offset(self, old_vx_vy, zoom_ratio) -> np.ndarray:
         """Adjust the origin coordinates (= offset) of the tile/OV displayed
         in the Slice-by-Slice Viewer.
         """
         old_vx, old_vy = old_vx_vy
         dx = self.vp_width // 2 - old_vx
         dy = self.vp_height // 2 - old_vy
-        return [int(old_vx - zoom_ratio * dx + dx),
-                int(old_vy - zoom_ratio * dy + dy)]
+        return np.array([int(old_vx - zoom_ratio * dx + dx),
+                int(old_vy - zoom_ratio * dy + dy)])

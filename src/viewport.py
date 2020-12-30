@@ -33,7 +33,7 @@ from PyQt5.QtCore import Qt, QObject, QRect, QPoint, QSize
 import utils
 import acq_func
 from viewport_dlg_windows import StubOVDlg, FocusGradientTileSelectionDlg, \
-                                 GridRotationDlg, ImportImageDlg, \
+                                 GridRotationDlg, TemplateRotationDlg, ImportImageDlg, \
                                  AdjustImageDlg, DeleteImageDlg
 from main_controls_dlg_windows import MotorStatusDlg
 
@@ -43,7 +43,7 @@ class Viewport(QWidget):
     def __init__(self, config, sem, stage, coordinate_system,
                  ov_manager, grid_manager, imported_images,
                  autofocus, acquisition, img_inspector,
-                 main_controls_trigger):
+                 main_controls_trigger, template_manager):
         super().__init__()
         self.cfg = config
         self.sem = sem
@@ -51,6 +51,7 @@ class Viewport(QWidget):
         self.cs = coordinate_system
         self.gm = grid_manager
         self.ovm = ov_manager
+        self.tm = template_manager
         self.imported = imported_images
         self.autofocus = autofocus
         self.acq = acquisition
@@ -94,6 +95,11 @@ class Viewport(QWidget):
         self._m_initialize()   # Monitoring tab
         self.setMouseTracking(True)
 
+        self.selected_template = False
+        self.selected_grid, self.selected_tile = None, None
+        self.selected_ov = None
+        self.selected_imported = None
+
     def save_to_cfg(self):
         """Save viewport configuration to ConfigParser object."""
         self.cfg['viewport']['vp_current_grid'] = str(self.vp_current_grid)
@@ -129,6 +135,7 @@ class Viewport(QWidget):
             self.pushButton_refreshOVs.setEnabled(False)
             self.pushButton_acquireStubOV.setEnabled(False)
             self.checkBox_showStagePos.setEnabled(False)
+            self.pushButton_runTemplateMatching.setEnabled(False)
         # Detect if tab is changed
         self.tabWidget.currentChanged.connect(self.tab_changed)
 
@@ -147,6 +154,10 @@ class Viewport(QWidget):
         if not b:
             self.radioButton_fromStack.setChecked(not b)
         self.radioButton_fromSEM.setEnabled(b)
+        # not GCIB
+        if self.syscfg['device']['microtome'] != '6':
+            b = False
+        self.pushButton_runTemplateMatching.setEnabled(b)
 
     def update_grids(self):
         """Update the grid selectors after grid is added or deleted."""
@@ -336,7 +347,7 @@ class Viewport(QWidget):
             self.selected_ov = self._vp_ov_mouse_selection(px, py)
             self.selected_imported = (
                 self._vp_imported_img_mouse_selection(px, py))
-
+            self.selected_template = self._vp_template_mouse_selection(px, py)
             # Shift pressed in first tab? Toggle active tiles.
             if ((self.tabWidget.currentIndex() == 0)
                and (QApplication.keyboardModifiers() == Qt.ShiftModifier)):
@@ -409,6 +420,20 @@ class Viewport(QWidget):
                     self.grid_draw_active = True
                     self.drag_origin = px, py
 
+            # Check if ctrl+shift key is pressed -> Move template
+            elif ((self.tabWidget.currentIndex() == 0)
+                  and (QApplication.keyboardModifiers() == (Qt.ControlModifier | Qt.ShiftModifier))
+                  and not self.busy):
+                if self.selected_template:
+                    self.template_drag_active = True
+                    self.drag_origin = px, py
+                    # Save coordinates in case user wants to undo
+                    self.stage_pos_backup = self.tm.template.origin_sx_sy
+                else:
+                    # Draw template
+                    self.template_draw_active = True
+                    self.drag_origin = px, py
+
             # Check if Ctrl + Alt keys are pressed -> Move imported image
             elif ((self.tabWidget.currentIndex() == 0)
                 and (QApplication.keyboardModifiers()
@@ -419,7 +444,6 @@ class Viewport(QWidget):
                     # Save coordinates in case user wants to undo
                     self.stage_pos_backup = (
                         self.imported[self.selected_imported].centre_sx_sy)
-
             # No key pressed -> Panning
             elif (QApplication.keyboardModifiers() == Qt.NoModifier):
                 # Move the viewport's FOV
@@ -493,6 +517,12 @@ class Viewport(QWidget):
                            py - self.drag_origin[1])
             self.drag_origin = px, py
             self._vp_reposition_ov(drag_vector)
+        elif self.template_drag_active:
+            self.setCursor(Qt.SizeAllCursor)
+            drag_vector = (px - self.drag_origin[0],
+                           py - self.drag_origin[1])
+            self.drag_origin = px, py
+            self._vp_reposition_template(drag_vector)
         elif self.imported_img_drag_active:
             self.setCursor(Qt.SizeAllCursor)
             drag_vector = (px - self.drag_origin[0],
@@ -532,6 +562,9 @@ class Viewport(QWidget):
             self.drag_current = px, py
             self.vp_draw()
         elif self.ov_draw_active:
+            self.drag_current = px, py
+            self.vp_draw()
+        elif self.template_draw_active:
             self.drag_current = px, py
             self.vp_draw()
 
@@ -607,8 +640,18 @@ class Viewport(QWidget):
                     # Remove current preview image from file list
                     self.ovm[self.selected_ov].vp_file_path = ''
                     self.ovm.update_all_debris_detections_areas(self.gm)
+            if self.template_drag_active:
+                self.template_drag_active = False
+                user_reply = QMessageBox.question(
+                    self, 'Repositioning template',
+                    'You have moved the selected template. Please '
+                    'confirm the new position. Click "Cancel" to undo.',
+                    QMessageBox.Ok | QMessageBox.Cancel)
+                if user_reply == QMessageBox.Cancel:
+                    # Restore centre coordinates
+                    self.tm.template.origin_sx_sy = self.stage_pos_backup
 
-            if self.grid_draw_active or self.ov_draw_active:
+            if self.grid_draw_active or self.ov_draw_active or self.template_draw_active:
                 x0, y0 = self.cs.convert_mouse_to_v(self.drag_origin)
                 x1, y1 = self.cs.convert_mouse_to_v(self.drag_current)
                 if x0 > x1:
@@ -628,6 +671,11 @@ class Viewport(QWidget):
                     self.ov_draw_active = False
                     self.ovm.draw_overview(x0, y0, w, h)
                     self.main_controls_trigger.transmit('OV SETTINGS CHANGED')
+            if self.template_draw_active:
+                if h != 0 and w != 0:
+                    self.template_draw_active = False
+                    self.tm.draw_template(x0, y0, w, h)
+                    self.main_controls_trigger.transmit('TEMPLATE SETTINGS CHANGED')
 
             if self.tile_paint_mode_active:
                 self.tile_paint_mode_active = False
@@ -650,7 +698,6 @@ class Viewport(QWidget):
         elif event.button() == Qt.RightButton:
             if self.vp_measure_active or self.sv_measure_active:
                 self.measure_complete = True
-
 
     def wheelEvent(self, event):
         if self.tabWidget.currentIndex() == 1:
@@ -733,8 +780,10 @@ class Viewport(QWidget):
         # user actions are active.
         self.grid_draw_active = False
         self.ov_draw_active = False
+        self.template_draw_active = False
         self.grid_drag_active = False
         self.ov_drag_active = False
+        self.template_drag_active = False
         self.imported_img_drag_active = False
         self.vp_measure_active = False
 
@@ -758,8 +807,9 @@ class Viewport(QWidget):
         self.pushButton_measureViewport.setToolTip(
             'Measure with right mouse clicks')
         self.pushButton_helpViewport.clicked.connect(self.vp_toggle_help_panel)
-        self.pushButton_helpSliceViewer.clicked.connect(
-            self.vp_toggle_help_panel)
+        self.pushButton_helpSliceViewer.clicked.connect(self.vp_toggle_help_panel)
+        # for some reason clicked.connect passes False to the method call without using lambda
+        self.pushButton_runTemplateMatching.clicked.connect(lambda _: self._vp_place_grids_template_matching())
         # Slider for zoom
         self.horizontalSlider_VP.valueChanged.connect(
             self._vp_adjust_scale_from_slider)
@@ -906,6 +956,7 @@ class Viewport(QWidget):
             self.selected_ov = self._vp_ov_mouse_selection(px, py)
             self.selected_imported = (
                 self._vp_imported_img_mouse_selection(px, py))
+            self.selected_template = self._vp_template_mouse_selection(px, py)
             sx, sy = self.cs.convert_mouse_to_s((px, py))
             dx, dy = self.cs.convert_s_to_d((sx, sy))
             current_pos_str = ('Move stage to X: {0:.3f}, '.format(sx)
@@ -1058,6 +1109,7 @@ class Viewport(QWidget):
                 action_openGridSettings.setEnabled(False)
                 action_selectAll.setEnabled(False)
                 action_deselectAll.setEnabled(False)
+            if self.selected_template is None and self.selected_grid is None:
                 action_changeRotation.setEnabled(False)
             if self.selected_tile is None:
                 action_selectAutofocus.setEnabled(False)
@@ -1103,7 +1155,7 @@ class Viewport(QWidget):
         """Draw all elements on Viewport canvas"""
         show_debris_area = (self.ovm.detection_area_visible
                             and self.acq.use_debris_detection)
-        if self.ov_drag_active or self.grid_drag_active:
+        if self.ov_drag_active or self.grid_drag_active or self.template_drag_active:
             show_debris_area = False
         # Start with empty black canvas
         self.vp_canvas.fill(Qt.black)
@@ -1112,6 +1164,7 @@ class Viewport(QWidget):
         # First, show stub OV if option selected and stub OV image exists:
         if self.show_stub_ov and self.ovm['stub'].image is not None:
             self._vp_place_stub_overview()
+            self._place_template()
         # For MagC mode: show imported images before drawing grids
         # TODO: Think about more general solution to organize display layers.
         if (self.show_imported and self.imported.number_imported > 0
@@ -1169,6 +1222,9 @@ class Viewport(QWidget):
         if self.ov_draw_active:
             self._draw_rectangle(self.vp_qp, self.drag_origin, self.drag_current,
                                  utils.COLOUR_SELECTOR[10], line_style=Qt.DashLine)
+        if self.template_draw_active:
+            self._draw_rectangle(self.vp_qp, self.drag_origin, self.drag_current,
+                                 utils.COLOUR_SELECTOR[8], line_style=Qt.DashLine)
         if self.vp_measure_active:
             self._draw_measure_labels(self.vp_qp)
         # Show help panel
@@ -1301,22 +1357,28 @@ class Viewport(QWidget):
     def _vp_place_stub_overview(self):
         """Place stub overview image onto the Viewport canvas. Crop and resize
         the image before placing it. QPainter object self.vp_qp must be active
-        when caling this method."""
+        when calling this method."""
         viewport_pixel_size = 1000 / self.cs.vp_scale
         resize_ratio = self.ovm['stub'].pixel_size / viewport_pixel_size
+        mag_level = np.round(np.log2(resize_ratio))
+        # set to 1 for resize_ratio >= 1 else store 2^-x down sizing
+        mag_level = int(1 if mag_level >= 0 else 2**(-mag_level))
+        mag_level = min(mag_level, 16)
         # Compute position of stub overview (upper left corner) and its
         # width and height
         dx, dy = self.ovm['stub'].origin_dx_dy
         dx -= self.ovm['stub'].tile_width_d() / 2
         dy -= self.ovm['stub'].tile_height_d() / 2
         vx, vy = self.cs.convert_d_to_v((dx, dy))
-        width_px = self.ovm['stub'].width_p()
-        height_px = self.ovm['stub'].height_p()
+
+        width_px = self.ovm['stub'].width_p() // mag_level
+        height_px = self.ovm['stub'].height_p() // mag_level
+        resize_ratio = self.ovm['stub'].pixel_size * mag_level / viewport_pixel_size
         # Crop and resize stub OV before placing it
         visible, crop_area, vx_cropped, vy_cropped = self._vp_visible_area(
             vx, vy, width_px, height_px, resize_ratio)
         if visible:
-            cropped_img = self.ovm['stub'].image.copy(crop_area)
+            cropped_img = self.ovm['stub'].image(mag=mag_level).copy(crop_area)
             v_width = cropped_img.size().width()
             cropped_resized_img = cropped_img.scaledToWidth(
                 v_width * resize_ratio)
@@ -1470,7 +1532,6 @@ class Viewport(QWidget):
                                     vy + top_left_dy * resize_ratio - w3,
                                     width * resize_ratio + w4,
                                     height * resize_ratio + w4)
-
 
     def _vp_place_grid(self, grid_index,
                        show_grid=True, show_previews=False, with_gaps=False,
@@ -1675,7 +1736,7 @@ class Viewport(QWidget):
                     show_autofocus_label = (
                         self.gm[grid_index][tile_index].autofocus_active
                         and self.acq.use_autofocus
-                        and self.autofocus.method < 2)
+                        and (self.autofocus.method < 2 or self.autofocus.method == 3))
                     show_tracking_label = (
                         self.gm[grid_index][tile_index].autofocus_active
                         and self.acq.use_autofocus
@@ -1719,6 +1780,115 @@ class Viewport(QWidget):
                             Qt.AlignVCenter | Qt.AlignHCenter,
                             'WD: {0:.6f}'.format(
                                 self.gm[grid_index][tile_index].wd * 1000))
+        else:
+            # Show the grid as a single pixel (for performance reasons when
+            # zoomed out).
+            self.vp_qp.setPen(grid_pen)
+            self.vp_qp.drawPoint(tile_map[0][0] * resize_ratio,
+                                 tile_map[0][1] * resize_ratio)
+
+        # Reset painter (undo translation and rotation).
+        self.vp_qp.resetTransform()
+
+    def _place_template(self):
+        if np.prod(self.tm.template.frame_size) == 0:
+            return
+        viewport_pixel_size = 1000 / self.cs.vp_scale
+        grid_pixel_size = self.tm.pixel_size
+        resize_ratio = grid_pixel_size / viewport_pixel_size
+
+        # Calculate coordinates of grid origin with respect to Viewport canvas
+        dx, dy = self.tm.template.origin_dx_dy
+        origin_vx, origin_vy = self.cs.convert_d_to_v((dx, dy))
+
+        # Calculate top-left corner of the (unrotated) grid
+        dx -= self.tm.template.tile_width_d() / 2
+        dy -= self.tm.template.tile_height_d() / 2
+        topleft_vx, topleft_vy = self.cs.convert_d_to_v((dx, dy))
+
+        width_px = self.tm.template.width_p()
+        height_px = self.tm.template.height_p()
+        theta = self.tm.template.rotation
+        use_rotation = theta > 0
+
+        font = QFont()
+        grid_colour_rgb = self.tm.template.display_colour_rgb()
+        grid_colour = QColor(*grid_colour_rgb, 255)
+
+        visible = self._vp_element_visible(
+            topleft_vx, topleft_vy, width_px, height_px, resize_ratio,
+            origin_vx, origin_vy, theta)
+
+        # Proceed only if at least a part of the grid is visible
+        if not visible:
+            return
+
+        # Rotate the painter if grid has a rotation angle > 0
+        if use_rotation:
+            # Translate painter to coordinates of grid origin, then rotate
+            self.vp_qp.translate(origin_vx, origin_vy)
+            self.vp_qp.rotate(theta)
+            # Translate to top-left corner
+            self.vp_qp.translate(
+                -self.tm.template.tile_width_d() / 2 * self.cs.vp_scale,
+                -self.tm.template.tile_height_d() / 2 * self.cs.vp_scale)
+            # Enable anti-aliasing in this case:
+            # self.vp_qp.setRenderHint(QPainter.Antialiasing)
+            # TODO: Try Antialiasing again - advantageous or not? What about
+            # Windows 7 vs Windows 10?
+        else:
+            # Translate painter to coordinates of top-left corner
+            self.vp_qp.translate(topleft_vx, topleft_vy)
+
+        # Show grid label in upper left corner
+        if self.show_labels:
+            fontsize = int(self.cs.vp_scale * 8)
+            if fontsize < 12:
+                fontsize = 12
+            font.setPixelSize(fontsize)
+            self.vp_qp.setFont(font)
+            self.vp_qp.setPen(grid_colour)
+            self.vp_qp.setBrush(grid_colour)
+            if self.tm.template.active:
+                width_factor = 5.3
+            else:
+                width_factor = 10.5
+            grid_label_rect = QRect(0,
+                                    -int(4/3 * fontsize),
+                                    int(width_factor * fontsize),
+                                    int(4/3 * fontsize))
+            self.vp_qp.drawRect(grid_label_rect)
+            if self.tm.template.display_colour in [1, 2, 3]:
+            # Use black for light and white for dark background colour
+                self.vp_qp.setPen(QColor(0, 0, 0))
+            else:
+                self.vp_qp.setPen(QColor(255, 255, 255))
+
+            self.vp_qp.drawText(grid_label_rect,
+                                Qt.AlignVCenter | Qt.AlignHCenter,
+                                'TEMPLATE')
+
+        # Tile grid in pixels (coordinates not rotated)
+        tile_map = self.tm.template.tile_positions_p()
+
+        tile_width_v = self.tm.template.tile_width_d() * self.cs.vp_scale
+        tile_height_v = self.tm.template.tile_height_d() * self.cs.vp_scale
+
+        # Display grid lines
+        rows, cols = self.tm.template.size
+        grid_pen = QPen(grid_colour, 1, Qt.SolidLine)
+        grid_brush_active_tile = QBrush(QColor(*grid_colour_rgb, 40),
+                                        Qt.SolidPattern)
+        if tile_width_v * cols > 2 or tile_height_v * rows > 2:
+            # Draw grid if at least 3 pixels wide or high.
+            for tile_index in range(rows * cols):
+                self.vp_qp.setPen(grid_pen)
+                self.vp_qp.setBrush(grid_brush_active_tile)
+                # Draw tile rectangles.
+                self.vp_qp.drawRect(
+                    tile_map[tile_index][0] * resize_ratio,
+                    tile_map[tile_index][1] * resize_ratio,
+                    tile_width_v, tile_height_v)
         else:
             # Show the grid as a single pixel (for performance reasons when
             # zoomed out).
@@ -1898,6 +2068,25 @@ class Viewport(QWidget):
         self.ovm[self.selected_ov].centre_sx_sy = self.cs.convert_d_to_s(
             (new_ov_dx, new_ov_dy))
         self.vp_draw()
+
+    def _vp_reposition_template(self, shift_vector):
+        """Shift the template by the mouse click (self.selected_ov) by
+        shift_vector."""
+        dx, dy = shift_vector
+        old_ov_dx, old_ov_dy = self.tm.template.origin_dx_dy
+        # Move OV along shift vector.
+        new_ov_dx = old_ov_dx + dx / self.cs.vp_scale
+        new_ov_dy = old_ov_dy + dy / self.cs.vp_scale
+        # Set new OV centre and redraw.
+
+        self.tm.template.origin_sx_sy = self.cs.convert_d_to_s(
+            (new_ov_dx, new_ov_dy))
+        self.vp_draw()
+
+    def _vp_place_grids_template_matching(self):
+        """Find candidate locations and place grids in VP using template matching."""
+        self.tm.place_grids_template_matching(self.gm)
+        self.main_controls_trigger.transmit('GRID SETTINGS CHANGED')
 
     def _vp_reposition_imported_img(self, shift_vector):
         """Shift the imported image selected by the mouse click
@@ -2084,6 +2273,79 @@ class Viewport(QWidget):
                         if x < p_width and y < p_height:
                             return i
         return None
+
+    def _vp_template_mouse_selection(self, px, py):
+        if self.tm.template.origin_sx_sy is None:  # no template exists
+            return False
+        # Calculate origin of the grid with respect to viewport canvas
+        selected_template = False
+        template = self.tm.template
+        dx, dy = template.origin_dx_dy
+        grid_origin_vx, grid_origin_vy = self.cs.convert_d_to_v((dx, dy))
+        pixel_size = template.pixel_size
+        # Calculate top-left corner of unrotated grid
+        dx -= template.tile_width_d() / 2
+        dy -= template.tile_height_d() / 2
+        grid_topleft_vx, grid_topleft_vy = self.cs.convert_d_to_v((dx, dy))
+        cols = template.number_cols()
+        rows = template.number_rows()
+        overlap = template.overlap
+        tile_width_p = template.tile_width_p()
+        tile_height_p = template.tile_height_p()
+        # Tile width in viewport pixels taking overlap into account
+        tile_width_v = ((tile_width_p - overlap) * pixel_size
+                        / 1000 * self.cs.vp_scale)
+        tile_height_v = ((tile_height_p - overlap) * pixel_size
+                         / 1000 * self.cs.vp_scale)
+        # Row shift in viewport pixels
+        shift_v = (template.row_shift * pixel_size
+                   / 1000 * self.cs.vp_scale)
+        # Mouse click position relative to top-left corner of grid
+        x, y = px - grid_topleft_vx, py - grid_topleft_vy
+        theta = radians(template.rotation)
+        if theta > 0:
+            # Rotate the mouse click coordinates if grid is rotated.
+            # Use grid origin as pivot.
+            x, y = px - grid_origin_vx, py - grid_origin_vy
+            # Inverse rotation for (x, y).
+            x_rot = x * cos(-theta) - y * sin(-theta)
+            y_rot = x * sin(-theta) + y * cos(-theta)
+            x, y = x_rot, y_rot
+            # Correction for top-left corner.
+            x += tile_width_p / 2 * pixel_size / 1000 * self.cs.vp_scale
+            y += tile_height_p / 2 * pixel_size / 1000 * self.cs.vp_scale
+        # Check if mouse click position is within current grid's tile area
+        # if the current grid is active
+        if template.active and x >= 0 and y >= 0:
+            j = y // tile_height_v
+            if j % 2 == 0:
+                i = x // tile_width_v
+            elif x > shift_v:
+                # Subtract shift for odd rows.
+                i = (x - shift_v) // tile_width_v
+            else:
+                i = cols
+            if (i < cols) and (j < rows):
+                selected_template = True
+
+        # Also check whether template label clicked. This selects only the grid
+        # and not a specific tile.
+        f = int(self.cs.vp_scale * 8)
+        if f < 12:
+            f = 12
+        # Active and inactive grids have different label widths
+        if template.active:
+            width_factor = 5.3
+        else:
+            width_factor = 10.5
+        label_width = int(width_factor * f)
+        label_height = int(4/3 * f)
+        l_y = y + label_height
+        if x >= 0 and l_y >= 0 and not selected_template:
+            if x < label_width and l_y < label_height:
+                selected_template = True
+
+        return selected_template
 
     def vp_activate_all_tiles(self):
         """Activate all tiles in the selected grid (mouse selection)."""
@@ -2299,8 +2561,11 @@ class Viewport(QWidget):
         self.main_controls_trigger.transmit('STATUS IDLE')
 
     def _vp_open_change_grid_rotation_dlg(self):
-        dialog = GridRotationDlg(self.selected_grid, self.gm,
-                                 self.viewport_trigger, self.sem.magc_mode)
+        if self.selected_template:
+            dialog = TemplateRotationDlg(self.tm, self.viewport_trigger)
+        else:
+            dialog = GridRotationDlg(self.selected_grid, self.gm,
+                                     self.viewport_trigger, self.sem.magc_mode)
         if dialog.exec_():
             if self.ovm.use_auto_debris_area:
                 self.ovm.update_all_debris_detections_areas(self.gm)

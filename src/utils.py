@@ -547,6 +547,7 @@ def get_indexes_from_user_string(userString):
         return [int(userString)]
     return None
 
+
 def get_days_hours_minutes(duration_in_seconds):
     minutes, seconds = divmod(int(duration_in_seconds), 60)
     hours, minutes = divmod(minutes, 60)
@@ -558,12 +559,15 @@ def get_hours_minutes(duration_in_seconds):
     hours, minutes = divmod(minutes, 60)
     return hours, minutes
 
+
 def get_serial_ports():
     return [port.device for port in list_ports.comports()]
 
-def round_xy(coordinates):
+
+def round_xy(coordinates, digits=3):
     x, y = coordinates
-    return [round(x, 3), round(y, 3)]
+    return [round(x, digits), round(y, digits)]
+
 
 def round_floats(input_var, precision=3):
     """Round floats, or (nested) lists of floats."""
@@ -572,6 +576,7 @@ def round_floats(input_var, precision=3):
     if isinstance(input_var, list):
         return [round_floats(entry) for entry in input_var]
     return input_var
+
 
 # ----------------- Functions for geometric transforms (MagC) ------------------
 def affineT(x_in, y_in, x_out, y_out):
@@ -694,6 +699,9 @@ def sectionsYAML_to_sections_landmarks(sectionsYAML):
 
 
 class TranslationTransform(ProjectiveTransform):
+    """
+    Helper Transform class for pure translations.
+    """
     def estimate(self, src, dst):
         try:
             T = np.mean(dst, axis=0) - np.mean(src, axis=0)
@@ -709,10 +717,22 @@ class TranslationTransform(ProjectiveTransform):
 
 
 def align_images_cv2(src: np.ndarray, target: np.ndarray) -> np.ndarray:
-    MAX_FEATURES = 1000
-    GOOD_MATCH_PERCENT = 0.3
+    """
+    Align (translation) two images with ORB, a SIFT variant, which extracts features in both images and matches them
+    according to ``cv2.DESCRIPTOR_MATCHER_BRUTEFORCE_HAMMING``. The final translation vector is estimated using
+    RANSAC with a fixed random state. Implementation is based on opencv (cv2 python module).
+
+    Args:
+        src: Source image.
+        target: Target image.
+
+    Returns:
+        Translation vector as the displacement from `src` to `target`.
+    """
+    MAX_FEATURES = 2000
+    GOOD_MATCH_PERCENT = 0.2
     # Detect ORB features and compute descriptors.
-    orb = cv2.ORB_create(MAX_FEATURES, nlevels=10, patchSize=60)
+    orb = cv2.ORB_create(MAX_FEATURES, nlevels=12, patchSize=128)
 
     kp1, des1 = orb.detectAndCompute(src, None)
     kp2, des2 = orb.detectAndCompute(target, None)
@@ -742,3 +762,27 @@ def align_images_cv2(src: np.ndarray, target: np.ndarray) -> np.ndarray:
     affine_m = model_robust.params[:2]
     # displacement from im1 to im2
     return affine_m[:, -1]  # only return translation vector
+
+
+def match_template(img: np.ndarray, templ: np.ndarray, thresh_match: float) -> np.ndarray:
+    """
+
+    Args:
+        img: Image.
+        templ: Template structure.
+        thresh_match: Matching score threshold.
+
+    Returns:
+        Mean pixel locations of connected components with high matching score within `img` array.
+    """
+    import skimage.feature
+    import scipy.ndimage
+    import skimage.measure
+    match = skimage.feature.match_template(img, templ, pad_input=True) > thresh_match
+    # get connected components
+    match, nb_matches = skimage.measure.label(match, background=0, return_num=True)
+    locs = np.zeros((nb_matches, 3))
+    for ix, sl in enumerate(scipy.ndimage.find_objects(match)):
+        # store coordinate of this object
+        locs[ix] = np.mean(match[sl] == (ix + 1)) + np.array([sl[0].start, sl[1].start])
+    return locs.astype(np.int)

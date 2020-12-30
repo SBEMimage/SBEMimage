@@ -1498,6 +1498,7 @@ class Acquisition:
         ov_save_path = None
         ov_accepted = False
         rejected_by_user = False
+        check_ov_acceptance = bool(self.cfg['overviews']['check_acceptance'].lower() == 'true')
 
         ov_stage_position = self.ovm[ov_index].centre_sx_sy
         # Move to OV stage coordinates if required (this method can be called
@@ -1616,11 +1617,11 @@ class Acquisition:
                     self.error_state = Error.image_load
                     ov_accepted = False
                     # Don't pause yet, try again in OV acquisition loop.
-                elif grab_incomplete:
+                elif grab_incomplete and check_ov_acceptance:
                     self.error_state = Error.grab_incomplete
                     ov_accepted = False
                     # Don't pause yet, try again in OV acquisition loop.
-                elif (self.monitor_images and not range_test_passed):
+                elif self.monitor_images and not range_test_passed and check_ov_acceptance:
                     ov_accepted = False
                     self.error_state = Error.overview_image    # OV image error
                     self.pause_acquisition(1)
@@ -1632,7 +1633,8 @@ class Acquisition:
                 else:
                     # OV has passed all tests, but now check for debris
                     ov_accepted = True
-                    if self.first_ov[ov_index]:
+                    # do not check if using GCIB
+                    if self.first_ov[ov_index] and not self.syscfg['device']['microtome'] == '6':
                         self.main_controls_trigger.transmit(
                             'ASK DEBRIS FIRST OV' + str(ov_index))
                         # The command above causes a message box to be displayed
@@ -1753,7 +1755,8 @@ class Acquisition:
         # Use (SmartSEM) autofocus/autostig (method 0) on this slice for the
         # grid acquisition depending on whether MagC mode is active, and
         # on the slice number and current autofocus settings.
-        if self.magc_mode:
+        # Perform mapfost also prior to first removal.
+        if self.magc_mode or (self.use_autofocus and self.autofocus.method == 3):
             self.autofocus_stig_current_slice = True, True
         else:
             self.autofocus_stig_current_slice = (
@@ -1778,7 +1781,13 @@ class Acquisition:
                 'CTRL: DELTA_WD: {0:+.4f}'.format(self.wd_delta * 1000)
                 + ', DELTA_STIG_X: {0:+.2f}'.format(self.stig_x_delta)
                 + ', DELTA_STIG_Y: {0:+.2f}'.format(self.stig_x_delta))
-
+        # fit a plane for
+        if self.autofocus.tracking_mode == 3:  # global aberration gradient
+            for grid_index in range(self.gm.number_grids):
+                if self.error_state != Error.none or self.pause_state == 1:
+                    break
+                self.do_autofocus_before_grid_acq(grid_index)
+            self.gm.fit_apply_aberration_gradient()
         for grid_index in range(self.gm.number_grids):
             if self.error_state != Error.none or self.pause_state == 1:
                 break
@@ -1826,9 +1835,11 @@ class Acquisition:
                     else:
                         # Do autofocus on non-active tiles before grid acq
                         if (self.use_autofocus
-                                and self.autofocus.method in [0, 3]  # zeiss or mapfost
-                                and (self.autofocus_stig_current_slice[0]
-                                or self.autofocus_stig_current_slice[1])):
+                            and self.autofocus.method in [0, 3]  # zeiss or mapfost
+                            and (self.autofocus_stig_current_slice[0]
+                            or self.autofocus_stig_current_slice[1])
+                            and not self.autofocus.tracking_mode == 3  # in that case these tiles have been visited already
+                        ):
                             self.do_autofocus_before_grid_acq(grid_index)
                         # Adjust working distances and stigmation parameters
                         # for this grid with autofocus corrections
@@ -1855,7 +1866,6 @@ class Acquisition:
         # If there was no (new) interuption, reset self.grids_acquired
         if not self.acq_interrupted:
             self.grids_acquired = []
-
 
     def acquire_grid(self, grid_index):
         """Acquire all active tiles of grid specified by grid_index"""
@@ -2584,6 +2594,13 @@ class Acquisition:
             af_type = '(stig only)'
         wd = self.sem.get_wd()
         sx, sy = self.sem.get_stig_xy()
+        # added to adjust WD and stig values to tiles which are just used for autofocus!
+        tile_wd = self.gm[grid_index][tile_index].wd
+        tile_stig_x = self.gm[grid_index][tile_index].stig_xy[0]
+        tile_stig_y = self.gm[grid_index][tile_index].stig_xy[1]
+        if (tile_wd != wd) or (tile_stig_x != sx) or (tile_stig_y != sy):
+            self.sem.set_wd(tile_wd)
+            self.sem.set_stig_xy(tile_stig_x, tile_stig_y)
         # TODO: Use enum for method:
         if self.autofocus.method == 0:
             utils.log_info('SEM',
@@ -2595,19 +2612,21 @@ class Acquisition:
                                  + str(grid_index) + '.' + str(tile_index))
             autofocus_msg = 'SEM', self.autofocus.run_zeiss_af(do_focus, do_stig)
         elif self.autofocus.method == 3:
-            utils.log_info('SEM',
-                           'Running MAPFoSt AF procedure for tile '
-                           + str(grid_index) + '.' + str(tile_index))
-            self.add_to_main_log('SEM: Running MAPFoSt AF procedure for tile '
-                                 + str(grid_index) + '.' + str(tile_index))
-            autofocus_msg = 'CTRL', self.autofocus.run_mapfost_af()
-            if not self.autofocus.wd_stig_diff_below_max(wd, sx, sy):
-                utils.log_info('SEM',
-                               'Re-running MAPFoSt AF procedure for tile '
-                               + str(grid_index) + '.' + str(tile_index))
-                self.add_to_main_log('SEM: Re-running MAPFoSt AF procedure for tile '
-                                     + str(grid_index) + '.' + str(tile_index))
-                autofocus_msg = 'CTRL', self.autofocus.run_mapfost_af(defocus_arr=[10, 8, 8, 6, 4, 2])
+            msg = f'Running MAPFoSt AF procedure for tile {grid_index}.{tile_index} with initial WD/STIG_X/Y: ' \
+                  f'{tile_wd*1000:.4f}, {tile_stig_x:.4f}, {tile_stig_y:.4f}'
+            utils.log_info('SEM', msg)
+            self.add_to_main_log(f'SEM: {msg}')
+            # needed here because first slice required additional AF trials when using GCIB
+            af_kwargs = dict(defocus_arr=self.autofocus.mapfost_defocus_trials, rot=self.autofocus.rot_angle_mafpsot,
+                             scale=self.autofocus.scale_factor_mapfost, na=self.autofocus.na_mapfost,
+                             log_func=self.add_to_main_log)
+            if self.slice_counter == 1 and self.microtome.device_name == 'GCIB':
+                af_kwargs['defocus_arr'] = [8, 8] + af_kwargs['defocus_arr']
+                msg = f'Added additional [8, 8] µm defocus trials to MAPoSt AF procedure for tile ' \
+                      f'{grid_index}.{tile_index}'
+                utils.log_info('SEM', msg)
+                self.add_to_main_log(f'SEM: {msg}')
+            autofocus_msg = 'SEM', self.autofocus.run_mapfost_af(**af_kwargs)
         else:
             self.error_state = Error.autofocus_smartsem  # TODO: check if that code makes sense here
             return
@@ -2615,15 +2634,23 @@ class Acquisition:
         self.add_to_main_log(autofocus_msg[0] + ': ' + autofocus_msg[1])
         if 'ERROR' in autofocus_msg[1]:
             self.error_state = Error.autofocus_smartsem
-        elif not self.autofocus.wd_stig_diff_below_max(wd, sx, sy):
-            self.add_to_incident_log(f'Autofocus out of range with new values: {self.sem.get_wd()} (WD), '
-                                     f'{self.sem.get_stig_xy()} (stig_xy).')
+        elif not self.autofocus.wd_stig_diff_below_max(tile_wd, tile_stig_x, tile_stig_y):
+            msg = (f'Autofocus for tile {grid_index}.{tile_index} out of range with new values: {self.sem.get_wd()*1000} (WD), '
+                   f'{self.sem.get_stig_xy()} (stig_xy).')
+            utils.log_error('STAGE', msg)
+            self.add_to_main_log(msg)
+            self.add_to_incident_log(msg)
             self.error_state = Error.wd_stig_difference
         else:
             # Save settings for specified tile
             self.gm[grid_index][tile_index].wd = self.sem.get_wd()
             self.gm[grid_index][tile_index].stig_xy = list(
                 self.sem.get_stig_xy())
+            msg = f'Finished MAPFoSt AF procedure for tile {grid_index}.{tile_index} with final WD/STIG_X/Y: ' \
+                  f'{self.gm[grid_index][tile_index].wd*1000:.4f}, {self.gm[grid_index][tile_index].stig_xy[0]:.4f},' \
+                  f' {self.gm[grid_index][tile_index].stig_xy[1]:.4f}'
+            utils.log_info('SEM', msg)
+            self.add_to_main_log(f'SEM: {msg}')
             # Show updated WD label(s) in Viewport
             self.main_controls_trigger.transmit('DRAW VP')
 
@@ -2839,7 +2866,7 @@ class Acquisition:
         if self.main_log_file is not None:
             self.main_log_file.write(msg + '\n')
         # Send entry to Main Controls via queue and trigger
-        #self.main_controls_trigger.transmit(msg)
+        # self.main_controls_trigger.transmit(msg)
 
     def add_to_incident_log(self, msg):
         """Add msg to the incident log file (after formatting it) and show it

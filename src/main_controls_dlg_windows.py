@@ -1033,7 +1033,7 @@ class StageCalibrationDlg(QDialog):
         self.calc_exception = None
         try:
             # # [::-1] to use x, y, z order
-            if self.comboBox_package.currentIndex() == 0:  # alternative calculation selected
+            if self.comboBox_package.currentIndex() == 0:  # cv2 calculation selected
                 start_img = (start_img*255).astype(np.uint8)
                 shift_x_img = (shift_x_img*255).astype(np.uint8)
                 shift_y_img = (shift_y_img*255).astype(np.uint8)
@@ -1047,6 +1047,8 @@ class StageCalibrationDlg(QDialog):
             else:  # use skimage.register_translation
                 x_shift = register_translation(start_img, shift_x_img)[0][::-1]
                 y_shift = register_translation(start_img, shift_y_img)[0][::-1]
+            x_shift = x_shift.astype(np.int)
+            y_shift = y_shift.astype(np.int)
             self.x_shift_vector = [x_shift[0], x_shift[1]]
             self.y_shift_vector = [y_shift[0], y_shift[1]]
         except Exception as e:
@@ -1108,42 +1110,29 @@ class StageCalibrationDlg(QDialog):
         # Rotation angles (in radians)
         rot_x = atan(delta_xy/delta_xx)
         rot_y = atan(delta_yx/delta_yy)
-        rot2_x = atan2(self.x_shift_vector[1], self.x_shift_vector[0])
-        rot2_y = atan2(self.y_shift_vector[0], self.y_shift_vector[1])
         # Scale factors
         scale_x = shift / (sqrt(delta_xx**2 + delta_xy**2) * pixel_size / 1000)
         scale_y = shift / (sqrt(delta_yx**2 + delta_yy**2) * pixel_size / 1000)
 
-        # alternative calc
+        # Alternative calc.
         x_abs = np.linalg.norm(self.x_shift_vector)
         y_abs = np.linalg.norm(self.y_shift_vector)
         # Rotation angles:
-        rot_x_alt2 = np.arccos(self.x_shift_vector[0] / x_abs)
-        rot_y_alt2 = np.arccos(self.y_shift_vector[1] / y_abs)
-        rot_x_alt = np.arctan2(self.x_shift_vector[1] / x_abs, self.x_shift_vector[0] / x_abs) - np.arctan2(0, 1)
-        rot_y_alt = np.arctan2(self.y_shift_vector[1] / y_abs, self.y_shift_vector[0] / y_abs) - np.arctan2(1, 0)
-
+        rot_x_alt = np.arccos(self.x_shift_vector[0] / x_abs)
+        rot_y_alt = np.arccos(self.y_shift_vector[1] / y_abs)
         # Scale factors:
         scale_x_alt = shift / (x_abs * pixel_size / 1000)
         scale_y_alt = shift / (y_abs * pixel_size / 1000)
 
-        # TODO: remove debugging:
-        # print(f'Original calc: {scale_x:.5f}\t{scale_y:.5f}\t{rot_x:.5f}\t{rot_y:.5f}')
-        # print(f'Alternative calc: {scale_x_alt:.5f}\t{scale_y_alt:.5f}\t{rot_x_alt:.5f}\t{rot_y_alt:.5f}')
-        # print(f'Super alternative calc: {rot_x_alt2:.5f}\t{rot_y_alt2:.5f}')
-        # print(f'Rotation (atan2): {rot2_x:.5f}\t{rot2_y:.5f}')
+        # Alternative calc. with atan2
+        # This only works if the reference vector is (0, 0)
+        rot2_x = atan2(self.x_shift_vector[1], self.x_shift_vector[0])
+        rot2_y = atan2(self.y_shift_vector[0], self.y_shift_vector[1])
 
-        if (self.comboBox_package.currentIndex() != 2
-            and self.sem.device_name not in ['ZEISS Merlin', 'ZEISS GeminiSEM']):
-            scale_x = scale_x_alt
-            scale_y = scale_y_alt
-            rot_x = rot_x_alt
-            rot_y = rot_y_alt
-
-        if self.sem.device_name == 'ZEISS Sigma':
-            # ZEISS Sigma
-            rot_x = rot_x_alt2
-            rot_y = rot_y_alt2
+        scale_x = scale_x_alt
+        scale_y = scale_y_alt
+        rot_x = rot_x_alt
+        rot_y = rot_y_alt
 
         self.busy = False
         user_choice = QMessageBox.information(
@@ -1179,16 +1168,10 @@ class StageCalibrationDlg(QDialog):
         y2y = self.spinBox_y2y.value()
 
         # Distances in pixels
-        if self.comboBox_package.currentIndex() != 2:
-            delta_xx = x2x - x1x
-            delta_xy = x2y - x1y
-            delta_yx = y2x - y1x
-            delta_yy = y2y - y1y
-        else:
-            delta_xx = abs(x1x - x2x)
-            delta_xy = abs(x1y - x2y)
-            delta_yx = abs(y1x - y2x)
-            delta_yy = abs(y1y - y2y)
+        delta_xx = x2x - x1x
+        delta_xy = x2y - x1y
+        delta_yx = y2x - y1x
+        delta_yy = y2y - y1y
         if delta_xx == 0 or delta_yy == 0:
             QMessageBox.warning(
                 self, 'Error computing stage calibration',
@@ -1569,7 +1552,6 @@ class GridSettingsDlg(QDialog):
             self.gm[self.current_grid].display_colour)
         self.checkBox_focusGradient.setChecked(
             self.gm[self.current_grid].use_wd_gradient)
-
         self.spinBox_rows.setValue(self.gm[self.current_grid].number_rows())
         self.spinBox_cols.setValue(self.gm[self.current_grid].number_cols())
         self.spinBox_overlap.setValue(self.gm[self.current_grid].overlap)
@@ -2067,6 +2049,9 @@ class PreStackDlg(QDialog):
             elif autofocus.method == 1:
                 self.label_autofocusActive.setFont(boldFont)
                 self.label_autofocusActive.setText('Active (heuristic)')
+            if autofocus.method == 3:
+                self.label_autofocusActive.setFont(boldFont)
+                self.label_autofocusActive.setText('Active (MAPFoSt)')
         else:
             self.label_autofocusActive.setText('Inactive')
         if self.gm.wd_gradient_active():
@@ -2269,8 +2254,8 @@ class ExportDlg(QDialog):
                 imagelist_str.extend(f.readlines())
         if len(imagelist_str) > 0:
             # split strings, store entries in variables, find minimum x and y
-            min_x = 1000000
-            min_y = 1000000
+            min_x = 10000000
+            min_y = 10000000
             for line in imagelist_str:
                 elements = line.split(';')
                 # elements[0]: relative path to tile image
@@ -2794,7 +2779,8 @@ class AutofocusSettingsDlg(QDialog):
             self.autofocus.max_stig_y_diff)
         self.comboBox_trackingMode.addItems(['Track selected, approx. others',
                                              'Track all active tiles',
-                                             'Average over selected'])
+                                             'Average over selected',
+                                             'Track selected, fit others (global)'])
         self.comboBox_trackingMode.setCurrentIndex(
             self.autofocus.tracking_mode)
         self.comboBox_trackingMode.currentIndexChanged.connect(
@@ -2822,6 +2808,7 @@ class AutofocusSettingsDlg(QDialog):
         if magc_mode:
             self.radioButton_useHeuristic.setEnabled(False)
             self.radioButton_useTrackingOnly.setEnabled(False)
+            self.radioButton_useMAPFoSt.setEnabled(False)
             self.comboBox_trackingMode.setEnabled(False)
             self.spinBox_interval.setEnabled(False)
             # make autostig interval work on grids instead of slices
@@ -2881,7 +2868,7 @@ class AutofocusSettingsDlg(QDialog):
             self.autofocus.method = 1
         elif self.radioButton_useTrackingOnly.isChecked():
             self.autofocus.method = 2
-        elif self.radioButton_useTrackingOnly.isChecked():
+        elif self.radioButton_useMAPFoSt.isChecked():
             self.autofocus.method = 3
 
         success, tile_list = utils.validate_tile_list(
@@ -2929,8 +2916,9 @@ class RunAutofocusDlg(QDialog):
         self.use_autostig = False
         self.finish_trigger = utils.Trigger()
         self.finish_trigger.signal.connect(self.autofocus_completed)
-        self.new_wd_stig_xy = None, None, None
+        self.new_wd_stig = None, None, None
         self.busy = False
+        self.af_msg = None
 
         loadUi('..\\gui\\run_autofocus_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
@@ -2950,11 +2938,16 @@ class RunAutofocusDlg(QDialog):
         method = self.comboBox_method.currentIndex()
         mode = self.comboBox_mode.currentIndex()
         if method == 1:
-            # MAPFoSt disabled for now
-            QMessageBox.information(
-                self, 'MAPFoSt',
-                'MAPFoSt Autofocus not available yet.',
-                QMessageBox.Ok)
+            if mode != 0:
+                utils.run_log_thread(f'MAPFoSt always corrects focus and stigmation.')
+            try:
+                utils.run_log_thread(self.call_mapfost_af_routine)
+            except ImportError:
+                # MAPFoSt disabled for now
+                QMessageBox.information(
+                    self, 'MAPFoSt',
+                    'MAPFoSt Autofocus not available yet.',
+                    QMessageBox.Ok)
         elif method == 0:
             if mode == 0:
                 self.use_autofocus = True
@@ -2972,21 +2965,28 @@ class RunAutofocusDlg(QDialog):
 
     def call_zeiss_af_routine(self):
         self.busy = True
-        self.zeiss_af_msg = self.autofocus.run_zeiss_af(
+        self.af_msg = self.autofocus.run_zeiss_af(
             self.use_autofocus, self.use_autostig)
+        self.finish_trigger.signal.emit()
+
+    def call_mapfost_af_routine(self):
+        self.busy = True
+        af_kwargs = dict(defocus_arr=self.autofocus.mapfost_defocus_trials, rot=self.autofocus.rot_angle_mafpsot,
+                         scale=self.autofocus.scale_factor_mapfost, na=self.autofocus.na_mapfost)
+        self.af_msg = self.autofocus.run_mapfost_af(**af_kwargs)
         self.finish_trigger.signal.emit()
 
     def autofocus_completed(self):
         self.busy = False
         self.pushButton_run.setText('Run')
         self.pushButton_run.setEnabled(True)
-        if 'ERROR' in self.zeiss_af_msg:
+        if 'ERROR' in self.af_msg:
             self.new_wd_stig = None, None, None
             QMessageBox.warning(
                 self, 'SmartSEM Autofocus error',
                 'An error occurred while running the SmartSEM Autofocus',
                 QMessageBox.Ok)
-            utils.log_error('SEM', self.zeiss_af_msg)
+            utils.log_error('SEM', self.af_msg)
         else:
             self.new_wd_stig = self.sem.get_wd(), *self.sem.get_stig_xy()
             QMessageBox.information(
@@ -2994,7 +2994,7 @@ class RunAutofocusDlg(QDialog):
                 f'New working distance and stigmation:\n'
                 f'{utils.format_wd_stig(*self.new_wd_stig)}',
                 QMessageBox.Ok)
-            utils.log_info('SEM', self.zeiss_af_msg)
+            utils.log_info('SEM', self.af_msg)
             self.accept()
 
     def reject(self):
