@@ -1753,355 +1753,6 @@
         </property>
        </widget>
       </widget>
-      <widget class="QWidget" name="comTests">
-       <attribute name="title">
-        <string>Tests</string>
-       </attribute>
-       <widget class="QLabel" name="label_3">
-        <property name="geometry">
-         <rect>
-          <x>20</x>
-          <y>20</y>
-          <width>311</width>
-          <height>16</height>
-         </rect>
-        </property>
-        <property name="font">
-         <font>
-          <weight>75</weight>
-          <bold>true</bold>
-         </font>
-        </property>
-        <property name="text">
-         <string>Use only for testing and debugging purposes!</string>
-        </property>
-       </widget>
-       <widget class="QGroupBox" name="groupBox_4">
-        <property name="geometry">
-         <rect>
-          <x>20</x>
-          <y>50</y>
-          <width>161</width>
-          <height>351</height>
-         </rect>
-        </property>
-        <property name="title">
-         <string>SEM</string>
-        </property>
-        <widget class="QPushButton" name="pushButton_testGetMag">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>30</y>
-           <width>121</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Get mag</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testSetMag">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>60</y>
-           <width>121</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Set mag to 1K</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testZeissAPIVersion">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>310</y>
-           <width>121</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Zeiss API Version</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testGetFocus">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>90</y>
-           <width>121</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Get working distance</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testSetFocus">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>120</y>
-           <width>121</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Set WD to 6mm</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testRunAutofocus">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>150</y>
-           <width>121</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Run autofocus</string>
-         </property>
-        </widget>
-       </widget>
-       <widget class="QGroupBox" name="groupBox_6">
-        <property name="geometry">
-         <rect>
-          <x>200</x>
-          <y>50</y>
-          <width>161</width>
-          <height>351</height>
-         </rect>
-        </property>
-        <property name="title">
-         <string>Stage and microtome</string>
-        </property>
-        <widget class="QPushButton" name="pushButton_testGetStage">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>30</y>
-           <width>121</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Get stage position</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testSetStage">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>60</y>
-           <width>121</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Set stage X to X+10</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testNearKnife">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>90</y>
-           <width>121</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Near knife</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testStopDMScript">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>310</y>
-           <width>121</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Stop DM script</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testClearKnife">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>120</y>
-           <width>121</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Clear knife</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testMotors">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>150</y>
-           <width>121</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>XYZ motor test</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testSendCommand">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>210</y>
-           <width>121</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Send command to DM</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testMotorStatusDlg">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>180</y>
-           <width>121</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Motor status</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testGetMillPos">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>210</y>
-           <width>121</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Get mill position</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testMillMov">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>240</y>
-           <width>121</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Mill movement</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testMilling">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>270</y>
-           <width>121</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Milling (full)</string>
-         </property>
-        </widget>
-       </widget>
-       <widget class="QGroupBox" name="groupBox_7">
-        <property name="geometry">
-         <rect>
-          <x>380</x>
-          <y>50</y>
-          <width>161</width>
-          <height>351</height>
-         </rect>
-        </property>
-        <property name="title">
-         <string>Misc</string>
-        </property>
-        <widget class="QPushButton" name="pushButton_testSendEMail">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>30</y>
-           <width>121</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Send test e-mail</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testPlasmaCleaner">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>60</y>
-           <width>121</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Plasma cleaner test</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testServerRequest">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>90</y>
-           <width>121</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Test server request</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testCustom">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>310</y>
-           <width>121</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Custom test</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testDebrisDetection">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>120</y>
-           <width>121</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Debris detection test</string>
-         </property>
-        </widget>
-       </widget>
-      </widget>
       <widget class="QWidget" name="tab_Notes">
        <attribute name="title">
         <string>Notes</string>
@@ -2893,6 +2544,45 @@ Wafer Image</string>
           <string>Maintenance moves</string>
          </property>
         </widget>
+        <widget class="QPushButton" name="pushButton_testMillMov">
+         <property name="geometry">
+          <rect>
+           <x>20</x>
+           <y>300</y>
+           <width>131</width>
+           <height>23</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Mill movement</string>
+         </property>
+        </widget>
+        <widget class="QPushButton" name="pushButton_testMilling">
+         <property name="geometry">
+          <rect>
+           <x>20</x>
+           <y>330</y>
+           <width>131</width>
+           <height>23</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Milling (full)</string>
+         </property>
+        </widget>
+        <widget class="QPushButton" name="pushButton_testGetMillPos">
+         <property name="geometry">
+          <rect>
+           <x>20</x>
+           <y>270</y>
+           <width>131</width>
+           <height>23</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Get mill position</string>
+         </property>
+        </widget>
        </widget>
        <widget class="QGroupBox" name="groupBox_7">
         <property name="geometry">
@@ -3280,25 +2970,6 @@ Wafer Image</string>
   <tabstop>verticalSlider_ftDelta</tabstop>
   <tabstop>checkBox_zoom</tabstop>
   <tabstop>spinBox_ftPixelSize</tabstop>
-  <tabstop>pushButton_testGetMag</tabstop>
-  <tabstop>pushButton_testSetMag</tabstop>
-  <tabstop>pushButton_testGetFocus</tabstop>
-  <tabstop>pushButton_testSetFocus</tabstop>
-  <tabstop>pushButton_testRunAutofocus</tabstop>
-  <tabstop>pushButton_testZeissAPIVersion</tabstop>
-  <tabstop>pushButton_testGetStage</tabstop>
-  <tabstop>pushButton_testSetStage</tabstop>
-  <tabstop>pushButton_testNearKnife</tabstop>
-  <tabstop>pushButton_testClearKnife</tabstop>
-  <tabstop>pushButton_testGetMillPos</tabstop>
-  <tabstop>pushButton_testMillMov</tabstop>
-  <tabstop>pushButton_testMilling</tabstop>
-  <tabstop>pushButton_testMotors</tabstop>
-  <tabstop>pushButton_testStopDMScript</tabstop>
-  <tabstop>pushButton_testSendEMail</tabstop>
-  <tabstop>pushButton_testPlasmaCleaner</tabstop>
-  <tabstop>pushButton_testServerRequest</tabstop>
-  <tabstop>pushButton_testCustom</tabstop>
  </tabstops>
  <resources/>
  <connections>
