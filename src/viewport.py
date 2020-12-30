@@ -135,7 +135,6 @@ class Viewport(QWidget):
             self.pushButton_refreshOVs.setEnabled(False)
             self.pushButton_acquireStubOV.setEnabled(False)
             self.checkBox_showStagePos.setEnabled(False)
-            self.pushButton_runTemplateMatching.setEnabled(False)
         # Detect if tab is changed
         self.tabWidget.currentChanged.connect(self.tab_changed)
 
@@ -154,10 +153,6 @@ class Viewport(QWidget):
         if not b:
             self.radioButton_fromStack.setChecked(not b)
         self.radioButton_fromSEM.setEnabled(b)
-        # not GCIB
-        if self.syscfg['device']['microtome'] != '6':
-            b = False
-        self.pushButton_runTemplateMatching.setEnabled(b)
 
     def update_grids(self):
         """Update the grid selectors after grid is added or deleted."""
@@ -808,8 +803,6 @@ class Viewport(QWidget):
             'Measure with right mouse clicks')
         self.pushButton_helpViewport.clicked.connect(self.vp_toggle_help_panel)
         self.pushButton_helpSliceViewer.clicked.connect(self.vp_toggle_help_panel)
-        # for some reason clicked.connect passes False to the method call without using lambda
-        self.pushButton_runTemplateMatching.clicked.connect(lambda _: self._vp_place_grids_template_matching())
         # Slider for zoom
         self.horizontalSlider_VP.valueChanged.connect(
             self._vp_adjust_scale_from_slider)
@@ -1053,6 +1046,10 @@ class Viewport(QWidget):
             action_move.triggered.connect(self._vp_manual_stage_move)
             action_stub = menu.addAction('Acquire stub OV at this position')
             action_stub.triggered.connect(self._vp_set_stub_ov_centre)
+
+            menu.addSeparator()
+            action_templateMatching = menu.addAction('Run Template Matching')
+            action_templateMatching.triggered.connect(self._vp_place_grids_template_matching)
 
             menu.addSeparator()
             action_import = menu.addAction('Import and place image')

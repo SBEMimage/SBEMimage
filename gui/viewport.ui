@@ -207,19 +207,6 @@
             <string/>
            </property>
           </widget>
-          <widget class="QPushButton" name="pushButton_runTemplateMatching">
-           <property name="geometry">
-            <rect>
-             <x>10</x>
-             <y>40</y>
-             <width>71</width>
-             <height>24</height>
-            </rect>
-           </property>
-           <property name="text">
-            <string>Template Matching</string>
-           </property>
-          </widget>
           <widget class="QCheckBox" name="checkBox_showStubOV">
            <property name="geometry">
             <rect>
