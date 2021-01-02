@@ -659,7 +659,7 @@ class Acquisition:
             dwell_time_list = []
             for grid_index in range(self.gm.number_grids):
                 grid_list.append(str(grid_index).zfill(utils.GRID_DIGITS))
-                grid_origin_list.append(self.gm[grid_index].origin_sx_sy)
+                grid_origin_list.append(self.gm[grid_index].origin_sx_sy.tolist())
                 rotation_angle_list.append(self.gm[grid_index].rotation)
                 pixel_size_list.append(self.gm[grid_index].pixel_size)
                 dwell_time_list.append(self.gm[grid_index].dwell_time)
@@ -973,7 +973,7 @@ class Acquisition:
         if self.send_metadata:
             session_stopped_status = {
                 'timestamp': int(time()),
-                'error_state': self.error_state
+                'error_state': str(self.error_state)
             }
             status, exc_str = self.notifications.send_session_stopped(
                 self.metadata_project_name, self.stack_name,
