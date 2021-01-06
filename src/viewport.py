@@ -219,7 +219,7 @@ class Viewport(QWidget):
         draw_in_vp = (self.tabWidget.currentIndex() == 0)
         tile_display = (self.sv_current_tile >= 0)
 
-        qp.setPen(QPen(QColor(*utils.COLOUR_SELECTOR[6]), 2, Qt.SolidLine))
+        qp.setPen(QPen(QColor(*utils.COLOUR_SELECTOR[13]), 2, Qt.SolidLine))
         qp.setBrush(QColor(0, 0, 0, 0))
         if self.measure_p1[0] is not None:
             if draw_in_vp:
@@ -244,7 +244,10 @@ class Viewport(QWidget):
             qp.setPen(QPen(QColor(0, 0, 0), 1, Qt.SolidLine))
             qp.setBrush(QColor(0, 0, 0, 255))
             qp.drawRect(self.cs.vp_width - 80, self.cs.vp_height - 20, 80, 20)
-            qp.setPen(QPen(QColor(*utils.COLOUR_SELECTOR[6]), 1, Qt.SolidLine))
+            font = QFont()
+            font.setPixelSize(12)
+            qp.setFont(font)
+            qp.setPen(QPen(QColor(*utils.COLOUR_SELECTOR[13]), 1, Qt.SolidLine))
             if distance < 1:
                 qp.drawText(self.cs.vp_width - 75, self.cs.vp_height - 5,
                             str((int(distance * 1000))) + ' nm')
@@ -1269,7 +1272,8 @@ class Viewport(QWidget):
         font.setPixelSize(16)
         metrics = QFontMetrics(font);
         self.vp_qp.drawRect(0, 0, metrics.width(custom_text) + 15, 30)
-        self.vp_qp.setPen(QPen(QColor(255, 0, 0), 1, Qt.SolidLine))
+        self.vp_qp.setPen(
+            QPen(QColor(*utils.COLOUR_SELECTOR[13]), 1, Qt.SolidLine))
         self.vp_qp.setFont(font)
         self.vp_qp.drawText(7, 21, custom_text)
 

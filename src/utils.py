@@ -214,13 +214,14 @@ COLOUR_SELECTOR = [
     [0, 255, 255],      #3  cyan
     [128, 0, 0],        #4  dark red
     [0, 128, 0],        #5  dark green
-    [255, 165, 0],      #6  orange (also used for measuring tool)
+    [255, 165, 0],      #6  orange
     [255, 0, 255],      #7  pink
     [173, 216, 230],    #8  grey
     [184, 134, 11],     #9  brown
     [0, 0, 255],        #10 blue (used only for OVs)
     [50, 50, 50],       #11 dark grey for stub OV border
-    [128, 0, 128, 80]   #12 transparent violet (to indicate live acq)
+    [128, 0, 128, 80],  #12 transparent violet (to indicate live acq)
+    [255, 195, 0]       #13 bright orange (active user flag, measuring tool)
 ]
 
 
