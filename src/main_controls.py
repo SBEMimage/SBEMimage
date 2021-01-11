@@ -293,7 +293,7 @@ class MainControls(QMainWindow):
         utils.log_info('CTRL', 'SBEMimage Version ' + self.VERSION)
 
         # Initialize viewport window
-        self.viewport = Viewport(self.cfg, self.sem, self.stage, self.cs,
+        self.viewport = Viewport(self.cfg, self.syscfg, self.sem, self.stage, self.cs,
                                  self.ovm, self.gm, self.imported,
                                  self.autofocus, self.acq, self.img_inspector,
                                  self.trigger, self.tm)

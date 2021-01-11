@@ -40,12 +40,13 @@ from main_controls_dlg_windows import MotorStatusDlg
 
 class Viewport(QWidget):
 
-    def __init__(self, config, sem, stage, coordinate_system,
+    def __init__(self, config, syscfg, sem, stage, coordinate_system,
                  ov_manager, grid_manager, imported_images,
                  autofocus, acquisition, img_inspector,
                  main_controls_trigger, template_manager):
         super().__init__()
         self.cfg = config
+        self.syscfg = syscfg
         self.sem = sem
         self.stage = stage
         self.cs = coordinate_system
