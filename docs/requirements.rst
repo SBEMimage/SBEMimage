@@ -1,7 +1,7 @@
 Requirements
 ============
 
-*SBEMimage* can be run in simulation mode on any computer with Windows 7 or 10 and a Python 3.6+ environment (can be downloaded for free, see Installation instructions). A screen resolution of at least 1920 × 1080 is required to fully see both application windows. On Windows 10, it is recommended not to use high-resolution scaling. Currently, when using a scaling other than 100% on Windows 10, there may be problems with the font size in the GUI (but no impact on functionality).
+*SBEMimage* can be run in simulation mode on any computer with Windows 7 or 10 and a Python 3.6+ environment. The Python environment is provided automatically if you use the installer, or it can be downloaded for free, see installation instructions. A screen resolution of at least 1920 × 1080 is required to fully see both application windows. On Windows 10, it is recommended not to use high-resolution scaling. Currently, when using a scaling other than 100% on Windows 10, there may be problems with the font size in the GUI (but no impact on functionality).
 
 For data acquisitions, the following requirements must be met (version 2020.07 of *SBEMimage*). We will support SEMs and microtomes from other manufacturers in future releases.
 

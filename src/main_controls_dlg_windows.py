@@ -3721,6 +3721,7 @@ class FTSetParamsDlg(QDialog):
         if simulation_mode:
             self.pushButton_getFromSmartSEM.setEnabled(False)
         self.pushButton_getFromSmartSEM.clicked.connect(self.get_from_sem)
+        self.pushButton_resetFocusParams.clicked.connect(self.reset)
         if current_wd is not None:
             self.doubleSpinBox_currentFocus.setValue(1000 * current_wd)
         else:
@@ -3738,6 +3739,11 @@ class FTSetParamsDlg(QDialog):
         self.doubleSpinBox_currentFocus.setValue(1000 * self.sem.get_wd())
         self.doubleSpinBox_currentStigX.setValue(self.sem.get_stig_x())
         self.doubleSpinBox_currentStigY.setValue(self.sem.get_stig_y())
+
+    def reset(self):
+        self.doubleSpinBox_currentFocus.setValue(0)
+        self.doubleSpinBox_currentStigX.setValue(0)
+        self.doubleSpinBox_currentStigY.setValue(0)
 
     def accept(self):
         self.new_wd = self.doubleSpinBox_currentFocus.value() / 1000
@@ -4158,5 +4164,12 @@ class AboutBox(QDialog):
         else:
             self.label_version.setText('Version ' + VERSION)
         self.labelIcon.setPixmap(QPixmap('..\\img\\logo.png'))
+        # Enable links to readthedocs and GitHub
+        self.label_readthedocs.setText('<a href="https://sbemimage.readthedocs.io">'
+                                       'https://sbemimage.readthedocs.io</a>')
+        self.label_readthedocs.setOpenExternalLinks(True)
+        self.label_github.setText('<a href="https://github.com/SBEMimage">'
+                                  'https://github.com/SBEMimage</a>')
+        self.label_github.setOpenExternalLinks(True)
         self.setFixedSize(self.size())
         self.show()

@@ -65,6 +65,10 @@ class Overview(Grid):
         self._origin_sx_sy = np.array(sx_sy)
 
     @property
+    def centre_dx_dy(self):
+        return self.cs.convert_s_to_d(self._origin_sx_sy)
+
+    @property
     def magnification(self):
         return (self.sem.MAG_PX_SIZE_FACTOR
                 / (self.frame_size[0] * self.pixel_size))
@@ -242,7 +246,7 @@ class OverviewManager:
         self.cfg = config
         self.sem = sem
         self.cs = coordinate_system
-        self.current_ov = 0
+        self.template_ov_index = 0
         self.number_ov = int(self.cfg['overviews']['number_ov'])
 
         # Load OV parameters from user configuration
@@ -414,7 +418,10 @@ class OverviewManager:
 
     def draw_overview(self, x, y, w, h):
         """Draw overview rectangle using mouse"""
-        ov = self.__overviews[self.current_ov]
+        # Use attributes of OV at template_ov_index for new OV
+        if self.template_ov_index >= self.number_ov:
+            self.template_ov_index = 0
+        ov = self.__overviews[self.template_ov_index]
 
         # Vary magnification / pixel size to get desired frame size
         pixel_size_x = w * 1000 / ov.frame_size[0]
