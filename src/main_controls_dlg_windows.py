@@ -2218,7 +2218,6 @@ class PauseDlg(QDialog):
         super().accept()
 
 # ------------------------------------------------------------------------------
-
 class ExportDlg(QDialog):
     """Export image list in TrakEM2 format."""
 
@@ -2234,10 +2233,11 @@ class ExportDlg(QDialog):
         self.show()
 
     def export_list(self):
+        # TODO: refactor into dict or fixed size array to prevent multiple entries in case of acquisition restarts
         self.pushButton_export.setText('Busy')
         self.pushButton_export.setEnabled(False)
         QApplication.processEvents()
-        base_dir = self.acq.base_dir
+        base_dir = os.path.join(self.acq.base_dir, 'trakem2')
         target_grid_index = str(
             self.spinBox_gridNumber.value()).zfill(utils.GRID_DIGITS)
         pixel_size = self.doubleSpinBox_pixelSize.value()
@@ -2281,12 +2281,8 @@ class ExportDlg(QDialog):
                 item[2] -= min_y
             # Write to output file
             try:
-                output_file = os.path.join(base_dir,
-                                           'trakem2_imagelist_slice'
-                                           + str(start_slice)
-                                           + 'to'
-                                           + str(end_slice)
-                                           + '.txt')
+                output_file = os.path.join(base_dir, f'trakem2_imagelist_grid_{target_grid_index}slice{start_slice}'
+                                                     f'to{end_slice}.txt')
                 with open(output_file, 'w') as f:
                     for item in imagelist_data:
                         f.write(item[0] + '\t'
@@ -2317,7 +2313,6 @@ class ExportDlg(QDialog):
         QApplication.processEvents()
 
 # ------------------------------------------------------------------------------
-
 class UpdateDlg(QDialog):
     """Update SBEMimage by downloading latest version from GitHub."""
 

@@ -97,8 +97,8 @@ class GCIB(BFRemover):
             self._ftdi_device.open(serial=self._ftdi_serial)
             self._ftdi_device.set_mask(1)
             self._blank_beam()
-            msg = f'GCIB: Connected ftdidio.'
-            utils.log_info(msg)
+            msg = f'Connected ftdidio.'
+            utils.log_info('GCIB', msg)
         except ftdidio.FtdidioError as e:
             self.error_state = Error.move_init
             self.error_info = str(e)
@@ -123,8 +123,8 @@ class GCIB(BFRemover):
     def _connect_relais(self):
         try:
             self._ftdirelais.open(serial='4')
-            msg = f'GCIB: Connected ftdi relais.'
-            utils.log_info(msg)
+            msg = f'Connected ftdi relais.'
+            utils.log_info('GCIB', msg)
         except Exception as e:
             self.error_state = Error.configuration
             self.error_info = f'Could not initialize ftdirelais: {str(e)}'
@@ -168,8 +168,8 @@ class GCIB(BFRemover):
             self.error_state = Error.move_params
             return
         x, y, z, t, r = self.stage.get_stage_xyztr()
-        msg = f'GCIB: Start position for milling cycle X={x}, Y={y}, Z={z}, T={t}, R={r}.'
-        utils.log_info(msg)
+        msg = f'Start position for milling cycle X={x}, Y={y}, Z={z}, T={t}, R={r}.'
+        utils.log_info('GCIB', msg)
         if not np.isclose(t, 0, atol=1e-4):
             self.error_state = Error.move_unsafe
             self.error_info = (f'UnsafeMovementError: Current t position is supposed to be close to 0,'
@@ -189,7 +189,7 @@ class GCIB(BFRemover):
             return
         self._pos_prior_mill_mov = [x, y, z, t, r]
         msg = f'Stored position prior to mill movement: {self._pos_prior_mill_mov}'
-        utils.log_info(msg)
+        utils.log_info('GCIB', msg)
 
         if self.simulation_mode:
             time.sleep(self.full_cut_duration)
@@ -199,8 +199,8 @@ class GCIB(BFRemover):
         self.stage.move_stage_to_xyzt(x_mill, y_mill, z_mill, t_mill)
         # # Only needed if non-continuous rotation.
         # self.stage.move_stage_delta_r(120, no_wait=True)
-        msg = f'GCIB: Reached mill position: X={x_mill}, Y={y_mill}, Z={z_mill}, T={t_mill}, R=120.'
-        utils.log_info(msg)
+        msg = f'Reached mill position: X={x_mill}, Y={y_mill}, Z={z_mill}, T={t_mill}, R=120.'
+        utils.log_info('GCIB', msg)
 
     def move_stage_to_pos_prior_mill_mov(self):
         """
@@ -242,8 +242,8 @@ class GCIB(BFRemover):
         #                        f'self.stage.stage_rotation={self.stage.stage_rotation},'
         #                        f'instead got: {r_dest} != 0.')
         #     return
-        msg = f'GCIB: Reached original position after milling cycle: X={x}, Y={y}, Z={z}, T={t}, R={r}.'
-        utils.log_info(msg)
+        msg = f'Reached original position after milling cycle: X={x}, Y={y}, Z={z}, T={t}, R={r}.'
+        utils.log_info('GCIB', msg)
 
     def do_full_removal(self, mill_duration=None, testing=False):
         """Perform a full milling cycle. This is the only removal function
@@ -254,6 +254,7 @@ class GCIB(BFRemover):
         # self._relais_off()
         self.move_stage_to_millpos()
         # mill_duration==0 is only required to test stage transitions
+        utils.log_info('GCIB', f'Milling starts now (mill duration: {mill_duration:.1f} s).')
         dt_milling = time.time()
         if mill_duration > 0:
             self._unblank_beam()
@@ -261,7 +262,7 @@ class GCIB(BFRemover):
         if mill_duration > 0:
             self._blank_beam()
         dt_milling = time.time() - dt_milling
-        utils.log_info(f'GCIB: GCIB was unblanked with stage in focus position for {dt_milling:.1f} s')
+        utils.log_info('GCIB', f'GCIB was unblanked with stage in focus position for {dt_milling:.1f} s')
         self.move_stage_to_pos_prior_mill_mov()
         # self._relais_on()
         if testing:
@@ -270,7 +271,7 @@ class GCIB(BFRemover):
         dt_sleep = 0
         if dt_sleep > 0:
             msg = f'GCIB: Sleeping for {dt_sleep} s to lose charge on sample.'
-            utils.log_info(msg)
+            utils.log_info('GCIB', msg)
             sleep(dt_sleep)
 
     def rotate360(self, mill_duration):
@@ -305,9 +306,9 @@ class GCIB(BFRemover):
                 self.stage.move_stage_delta_r(2)
                 dt = time.time() - start
                 if dt > dt_per_2deg:
-                    msg = (f'GCIB: WARNING: Rotation speed was slower ({dt:.3f} s) than requested by the target mill '
+                    msg = (f'WARNING: Rotation speed was slower ({dt:.3f} s) than requested by the target mill '
                            f'cycle ({dt_per_2deg:.2f s}).')
-                    utils.log_info(msg)
+                    utils.log_info('GCIB', msg)
                 else:
                     sleep(dt_per_2deg - dt)
 
