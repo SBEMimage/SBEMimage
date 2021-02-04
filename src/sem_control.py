@@ -43,6 +43,15 @@ class SEM:
         except:
             self.cfg['sem']['device'] = 'NOT RECOGNIZED'
         self.device_name = self.cfg['sem']['device']
+        # IP address and port to communicate with SEM
+        self.ip_address = self.syscfg['device']['sem_ip_address']
+        if not self.ip_address:
+            self.ip_address = None
+        port_str = self.syscfg['device']['sem_port']
+        try:
+            self.port = int(port_str)
+        except ValueError:
+            self.port = None
         # In simulation mode, there is no connection to the SEM hardware
         self.simulation_mode = (
             self.cfg['sys']['simulation_mode'].lower() == 'true')
