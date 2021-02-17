@@ -35,12 +35,11 @@ class SEM:
         # self.error_info: further description / exception error message
         self.error_state = Error.none
         self.error_info = ''
-        # Try to read selected device from recognized devices
+        # Check if specified device is recognized
         recognized_devices = json.loads(self.syscfg['device']['recognized'])
-        try:
-            self.cfg['sem']['device'] = (
-                recognized_devices[int(self.syscfg['device']['sem'])])
-        except:
+        # Use device selection from system configuration
+        self.cfg['sem']['device'] = self.syscfg['device']['sem']
+        if self.cfg['sem']['device'] not in recognized_devices:
             self.cfg['sem']['device'] = 'NOT RECOGNIZED'
         self.device_name = self.cfg['sem']['device']
         # IP address and port to communicate with SEM

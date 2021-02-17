@@ -122,7 +122,7 @@ class MainControls(QMainWindow):
         utils.show_progress_in_console(10)
 
         # Initialize SEM
-        if self.syscfg['device']['sem'] in ['1', '2', '3', '4']:  # ZEISS SEMs
+        if self.syscfg['device']['sem'].startswith('ZEISS'):
             # Create SEM instance to control SEM via SmartSEM API
             self.sem = SEM_SmartSEM(self.cfg, self.syscfg)
             if self.sem.error_state != Error.none:
@@ -134,7 +134,7 @@ class MainControls(QMainWindow):
                     '\nSBEMimage will be run in simulation mode.',
                     QMessageBox.Ok)
                 self.simulation_mode = True
-        elif self.syscfg['device']['sem'] == '7':
+        elif self.syscfg['device']['sem'].startswith('TESCAN'):
             # TESCAN, only for testing at this point
             # Create SEM instance to control SEM via SharkSEM API
             self.sem = SEM_SharkSEM(self.cfg, self.syscfg)
@@ -179,7 +179,8 @@ class MainControls(QMainWindow):
         utils.show_progress_in_console(30)
 
         # Initialize microtome
-        if self.use_microtome and (self.syscfg['device']['microtome'] == '0'):
+        if (self.use_microtome 
+                and self.syscfg['device']['microtome'] == 'Gatan 3View'):
             # Create object for 3View microtome (control via DigitalMicrograph)
             self.microtome = Microtome_3View(self.cfg, self.syscfg)
             if self.microtome.error_state in [Error.dm_init, Error.dm_comm_send, Error.dm_comm_response, Error.dm_comm_retval]:
@@ -208,10 +209,12 @@ class MainControls(QMainWindow):
                         'CTRL',
                         'Second attempt to initialize '
                         'DigitalMicrograph API successful.')
-        elif self.use_microtome and (self.syscfg['device']['microtome'] == '5'):
+        elif (self.use_microtome 
+                and self.syscfg['device']['microtome'] == 'ConnectomX katana'):
             # Initialize katana microtome
             self.microtome = Microtome_katana(self.cfg, self.syscfg)
-        elif self.use_microtome and (self.syscfg['device']['microtome'] == '6'):
+        elif (self.use_microtome 
+                and self.syscfg['device']['microtome'] == 'GCIB'):
             self.microtome = GCIB(self.cfg, self.syscfg, self.sem)
         else:
             # Otherwise use SEM stage

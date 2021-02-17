@@ -124,10 +124,9 @@ class Microtome(BFRemover):
         # Load device name and other settings from sysconfig. These
         # settings overwrite the settings in config.
         recognized_devices = json.loads(self.syscfg['device']['recognized'])
-        try:
-            self.cfg['microtome']['device'] = (
-                recognized_devices[int(self.syscfg['device']['microtome'])])
-        except:
+        # Use device selection from system configuration
+        self.cfg['microtome']['device'] = self.syscfg['device']['microtome']
+        if self.cfg['microtome']['device'] not in recognized_devices:
             self.cfg['microtome']['device'] = 'NOT RECOGNIZED'
         self.device_name = self.cfg['microtome']['device']
         # Get microtome stage limits from systemcfg

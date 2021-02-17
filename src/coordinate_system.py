@@ -36,7 +36,8 @@ class CoordinateSystem:
         self.syscfg = sysconfig
 
         if ((self.cfg['sys']['use_microtome'].lower() == 'true')
-                and (int(self.syscfg['device']['microtome']) not in [5, 6])):  # katana or GCIB
+                and (self.syscfg['device']['microtome'] 
+                     not in ['ConnectomX katana', 'GCIB'])):
             self._device = 'microtome'
         else:
             self._device = 'sem'
