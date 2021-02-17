@@ -29,6 +29,15 @@ SYSCFG_TEMPLATE_FILE = '..\\cfg\\system.cfg'  # Template of system configuration
 SYSCFG_NUMBER_SECTIONS = 8
 SYSCFG_NUMBER_KEYS = 49
 
+# Backward compatibility for older system config files
+LEGACY_DEVICE_NUMBERS = {0: 'Gatan 3View',
+                         1: 'ZEISS Merlin',
+                         2: 'ZEISS Sigma', 
+                         3: 'ZEISS GeminiSEM', 
+                         4: 'ZEISS Ultra Plus',
+                         5: 'ConnectomX katana', 
+                         6: 'GCIB'}
+
 
 def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):
     """Go through all sections and keys of the template configuration files and
@@ -96,6 +105,15 @@ def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):
                         if key != 'recognized':
                             syscfg_template[section][key] = (
                                 current_syscfg[section][key])
+                        if key in ['sem', 'microtome']:
+                            device = current_syscfg[section][key]
+                            if len(device) == 1:
+                                try:                            
+                                    syscfg_template[section][key] = (
+                                        LEGACY_DEVICE_NUMBERS[int(device)])
+                                except (ValueError, KeyError):
+                                    syscfg_template[section][key] = (
+                                        'INVALID SELECTION')
                     else:
                         syscfg_changed = True
 
