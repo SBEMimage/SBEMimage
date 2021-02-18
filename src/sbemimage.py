@@ -4,7 +4,7 @@
 # ==============================================================================
 #   SBEMimage – https://github.com/SBEMimage
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel,
+#   (c) 2018-2021 Friedrich Miescher Institute for Biomedical Research, Basel,
 #   and the SBEMimage developers.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
@@ -54,7 +54,7 @@ import utils
 # master branch (for example, '2020.07 R2020-07-28'). For the current version
 # in the dev (development) branch, it must contain the tag 'dev'.
 # Following https://www.python.org/dev/peps/pep-0440/#public-version-identifiers
-VERSION = '2020.12 dev'
+VERSION = '2021.02 dev'
 
 
 # Hook for uncaught/Qt exceptions
