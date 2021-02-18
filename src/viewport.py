@@ -345,7 +345,11 @@ class Viewport(QWidget):
             self.selected_ov = self._vp_ov_mouse_selection(px, py)
             self.selected_imported = (
                 self._vp_imported_img_mouse_selection(px, py))
-            self.selected_template = self._vp_template_mouse_selection(px, py)
+            
+            # Disable self.selected_template for now (causing runtime warnings)
+            # TODO (Benjamin / Philipp): look into this
+            # self.selected_template = self._vp_template_mouse_selection(px, py)
+            
             # Shift pressed in first tab? Toggle active tiles.
             if ((self.tabWidget.currentIndex() == 0)
                and (QApplication.keyboardModifiers() == Qt.ShiftModifier)):
