@@ -139,7 +139,13 @@ class MainControls(QMainWindow):
             # Create SEM instance to control SEM via SharkSEM API
             self.sem = SEM_SharkSEM(self.cfg, self.syscfg)
             if self.sem.error_state != Error.none:
-                pass
+                QMessageBox.warning(
+                    self, 'Error initializing TESCAN SharkSEM API',
+                    'TESCAN SharkSEM API could not be initialized / '
+                    'connection to SEM failed.'
+                    '\nSBEMimage will be run in simulation mode.',
+                    QMessageBox.Ok)
+                self.simulation_mode = True
         else:
             # No other SEMs supported at the moment
             self.sem = None
@@ -217,7 +223,9 @@ class MainControls(QMainWindow):
                 and self.syscfg['device']['microtome'] == 'GCIB'):
             self.microtome = GCIB(self.cfg, self.syscfg, self.sem)
         else:
-            # Otherwise use SEM stage
+            # No microtome or unknown device: Use SEM stage
+            self.use_microtome = False
+            self.cfg['sys']['use_microtome'] == 'False'
             self.microtome = None
 
         if self.microtome is not None and self.microtome.error_state == Error.configuration:
@@ -2317,7 +2325,8 @@ class MainControls(QMainWindow):
 
     def closeEvent(self, event):
         if self.microtome is not None and self.microtome.error_state == Error.configuration:
-            if self.sem.sem_api is not None:
+            if (self.sem.device_name.startswith('ZEISS')
+                    and self.sem.sem_api is not None):
                 self.sem.disconnect()
             print('\n\nError in configuration file. Aborted.\n')
             event.accept()
@@ -2336,7 +2345,8 @@ class MainControls(QMainWindow):
                     elif (self.use_microtome
                         and self.microtome.device_name == 'ConnectomX katana'):
                         self.microtome.disconnect()
-                    if self.sem.sem_api is not None:
+                    if (self.sem.device_name.startswith('ZEISS')
+                            and self.sem.sem_api is not None):
                         self.sem.disconnect()
                 if self.plc_initialized:
                     plasma_log_msg = self.plasma_cleaner.close_port()
