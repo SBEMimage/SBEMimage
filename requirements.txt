@@ -15,3 +15,5 @@ imageio
 pyyaml
 psutil
 opencv-python
+comtypes
+shapely

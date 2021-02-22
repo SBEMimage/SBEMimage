@@ -24,7 +24,7 @@ import shutil
 import yaml
 
 from random import random
-from time import sleep, time
+from time import sleep, time, strftime, localtime
 from PIL import Image
 from skimage.io import imread
 from skimage.feature import register_translation
@@ -52,12 +52,13 @@ class ImportMagCDlg(QDialog):
     """Import MagC metadata."""
 
     def __init__(self, acq, grid_manager, sem, imported,
-                 gui_items, main_controls_trigger):
+                 coordinate_system, gui_items, main_controls_trigger):
         super().__init__()
         self.acq = acq
         self.gm = grid_manager
         self.sem = sem
         self.imported = imported
+        self.cs = coordinate_system
         self.gui_items = gui_items
         self.main_controls_trigger = main_controls_trigger
         self.target_dir = os.path.join(
@@ -74,8 +75,6 @@ class ImportMagCDlg(QDialog):
         self.pushButton_selectFile.clicked.connect(self.select_file)
         self.pushButton_selectFile.setIcon(
             QIcon(os.path.join('..','img','selectdir.png')))
-        self.pushButton_selectFile.setIcon(
-            QIcon(os.path.join('..', 'img', 'selectdir.png')))
         self.pushButton_selectFile.setIconSize(QSize(16, 16))
         self.setFixedSize(self.size())
         self.pushButton_import.accepted.connect(self.import_metadata)
@@ -84,6 +83,13 @@ class ImportMagCDlg(QDialog):
             '%d × %d' % (res[0], res[1]) for res in self.sem.STORE_RES]
         self.comboBox_frameSize.addItems(store_res_list)
         self.comboBox_frameSize.setCurrentIndex(5)
+        if 'multisem' in self.sem.device_name.lower():
+            self.comboBox_frameSize.setEnabled(False)
+            self.comboBox_frameSize.setCurrentIndex(0)
+            self.spinBox_rows.setEnabled(False)
+            self.spinBox_cols.setEnabled(False)
+            self.spinBox_rows.setValue(1)
+            self.spinBox_cols.setValue(1)
         self.show()
 
     def _add_to_main_log(self, msg):
@@ -113,14 +119,9 @@ class ImportMagCDlg(QDialog):
             .sectionsYAML_to_sections_landmarks(sectionsYAML))
 
         # load ROIs updated by user manually
-        if 'sourceROIsUpdatedFromSBEMimage' in sectionsYAML:
-            result = QMessageBox.question(
-                self, 'Section import',
-                'Use section locations that have been previously updated '
-                'in SBEMimage instead of the locations '
-                'in the original .magc file?',
-                QMessageBox.Yes| QMessageBox.No)
-            if result == QMessageBox.Yes:
+
+        if self.checkBox.isChecked():
+            if 'sourceROIsUpdatedFromSBEMimage' in sectionsYAML:
                 for sectionId, sectionXYA in \
                     sectionsYAML['sourceROIsUpdatedFromSBEMimage'].items():
                     sections[int(sectionId)] = {
@@ -130,6 +131,10 @@ class ImportMagCDlg(QDialog):
                 # they are not calculated any more
                 # based on the ROI defined inside a section
                 self.gm.magc_roi_mode = False
+            else:
+                self._add_to_main_log(
+                    'There are no custom section locations in the file'
+                    ' you selected. Loading original section locations instead.')
 
         n_sections = len(
             [k for k in sections.keys()
@@ -169,6 +174,14 @@ class ImportMagCDlg(QDialog):
         header.setStretchLastSection(True)
 
         self.gm.delete_all_grids_above_index(0)
+        self.gm[0].magc_delete_autofocus_points()
+        self.gm[0].magc_polyroi_points_source = [
+            (-10, 0),
+            ( 10, 0),
+            ( 10, 20),
+            (-10, 20)]
+
+        self.gm[0].origin_sx_sy = [0,0]
         for s in range(n_sections-1):
             self.gm.add_new_grid([0, 0])
         for idx, section in sections.items():
@@ -183,10 +196,16 @@ class ImportMagCDlg(QDialog):
                 self.gm[idx].overlap = tile_overlap
                 self.gm[idx].activate_all_tiles()
                 self.gm[idx].rotation = (180 - float(section['angle'])) % 360
-                self.gm[idx].centre_sx_sy = list(map(float, section['center']))
                 # Update tile positions after initializing all grid attributes
                 self.gm[idx].update_tile_positions()
+                # centre must be finally set after updating tile positions
                 self.gm[idx].auto_update_tile_positions = True
+                self.gm[idx].centre_sx_sy = list(map(float, section['center']))
+                self.gm[idx].magc_polyroi_points_source = [
+                    (-10, 0),
+                    ( 10, 0),
+                    ( 10, 20),
+                    (-10, 20)]
 
                 # populate the section_table
                 item1 = QStandardItem(str(idx))
@@ -205,10 +224,10 @@ class ImportMagCDlg(QDialog):
         self.gm.magc_sections = sections
         self.gm.magc_selected_sections = []
         self.gm.magc_checked_sections = []
-        self.gm.magc_landmarks = landmarks
+        self.cs.magc_landmarks = landmarks
         # xxx does importing a new magc file always require
         # a wafer_calibration ?
-        self.gm.magc_wafer_calibrated = False
+        self.cs.magc_wafer_calibrated = False
         #------------------------------
 
         # enable wafer configuration buttons
@@ -352,7 +371,7 @@ class WaferCalibrationDlg(QDialog):
 
         landmark_model = self.lTable.model()
         for id,(key,source_target) \
-            in enumerate(self.gm.magc_landmarks.items()):
+            in enumerate(self.cs.magc_landmarks.items()):
 
             # source_target is a dictionary for each landmark
             # that contains two keys
@@ -423,7 +442,7 @@ class WaferCalibrationDlg(QDialog):
             item4.setData('', Qt.DisplayRole)
             item4.setBackground(GRAY)
 
-            del self.gm.magc_landmarks[str(row)]['target']
+            del self.cs.magc_landmarks[str(row)]['target']
 
             # update table
             item0 = self.lTable.model().item(row, 0)
@@ -462,13 +481,13 @@ class WaferCalibrationDlg(QDialog):
             item7.setEnabled(True)
 
             # update landmarks
-            self.gm.magc_landmarks[str(row)]['target'] = [x,y]
+            self.cs.magc_landmarks[str(row)]['target'] = [x,y]
 
             # compute transform and update landmarks
-            nLandmarks = len(self.gm.magc_landmarks)
+            nLandmarks = len(self.cs.magc_landmarks)
             calibratedLandmarkIds = [
                 int(id) for id,landmark
-                in self.gm.magc_landmarks.items()
+                in self.cs.magc_landmarks.items()
                 if (self.lTable.model().item(int(id), 0)
                     .background().color() == GREEN)]
                 # the green color shows that the landmark has been
@@ -486,29 +505,29 @@ class WaferCalibrationDlg(QDialog):
                 # (minimum 2)
 
                 x_landmarks_source = np.array([
-                    self.gm.magc_landmarks[str(i)]['source'][0]
+                    self.cs.magc_landmarks[str(i)]['source'][0]
                     for i in range(nLandmarks)])
                 y_landmarks_source = np.array([
-                    self.gm.magc_landmarks[str(i)]['source'][1]
+                    self.cs.magc_landmarks[str(i)]['source'][1]
                     for i in range(nLandmarks)])
 
                 # taking only the source landmarks for which there is a
                 # corresponding target landmark
                 x_landmarks_source_partial = np.array(
-                    [self.gm.magc_landmarks[str(i)]['source'][0]
+                    [self.cs.magc_landmarks[str(i)]['source'][0]
                      for i in calibratedLandmarkIds])
                 y_landmarks_source_partial = np.array(
-                    [self.gm.magc_landmarks[str(i)]['source'][1]
+                    [self.cs.magc_landmarks[str(i)]['source'][1]
                      for i in calibratedLandmarkIds])
 
                 x_landmarks_target_partial = np.array(
-                    [self.gm.magc_landmarks[str(i)]['target'][0]
+                    [self.cs.magc_landmarks[str(i)]['target'][0]
                      for i in calibratedLandmarkIds])
                 y_landmarks_target_partial = np.array(
-                    [self.gm.magc_landmarks[str(i)]['target'][1]
+                    [self.cs.magc_landmarks[str(i)]['target'][1]
                      for i in calibratedLandmarkIds])
 
-                self.gm.magc_wafer_transform = utils.rigidT(
+                self.cs.magc_wafer_transform = utils.rigidT(
                     x_landmarks_source_partial, y_landmarks_source_partial,
                     x_landmarks_target_partial, y_landmarks_target_partial)[0]
 
@@ -517,7 +536,7 @@ class WaferCalibrationDlg(QDialog):
                     utils.applyRigidT(
                         x_landmarks_source,
                         y_landmarks_source,
-                        self.gm.magc_wafer_transform))
+                        self.cs.magc_wafer_transform))
 
                 # x_target_updated_landmarks = -x_target_updated_landmarks
                 # x axis flipping on Merlin
@@ -526,7 +545,7 @@ class WaferCalibrationDlg(QDialog):
                 for noncalibratedLandmarkId in noncalibratedLandmarkIds:
                     x = x_target_updated_landmarks[noncalibratedLandmarkId]
                     y = y_target_updated_landmarks[noncalibratedLandmarkId]
-                    (self.gm.magc_landmarks
+                    (self.cs.magc_landmarks
                         [str(noncalibratedLandmarkId)]['target']) = [x,y]
 
                     item0 = self.lTable.model().item(noncalibratedLandmarkId, 0)
@@ -571,11 +590,11 @@ class WaferCalibrationDlg(QDialog):
     def validate_calibration(self):
         calibratedLandmarkIds = [
             int(id) for id,landmark
-            in self.gm.magc_landmarks.items()
+            in self.cs.magc_landmarks.items()
             if (self.lTable.model().item(int(id), 0)
                 .background().color() == GREEN)]
 
-        n_landmarks = len(self.gm.magc_landmarks)
+        n_landmarks = len(self.cs.magc_landmarks)
 
         if len(calibratedLandmarkIds) != n_landmarks:
             self._add_to_main_log(
@@ -583,28 +602,28 @@ class WaferCalibrationDlg(QDialog):
                 'must first be validated.')
         else:
             x_landmarks_source = [
-                self.gm.magc_landmarks[str(i)]['source'][0]
+                self.cs.magc_landmarks[str(i)]['source'][0]
                 for i in range(n_landmarks)]
             y_landmarks_source = [
-                self.gm.magc_landmarks[str(i)]['source'][1]
+                self.cs.magc_landmarks[str(i)]['source'][1]
                 for i in range(n_landmarks)]
 
             x_landmarks_target = [
-                self.gm.magc_landmarks[str(i)]['target'][0]
+                self.cs.magc_landmarks[str(i)]['target'][0]
                 for i in range(n_landmarks)]
             y_landmarks_target = [
-                self.gm.magc_landmarks[str(i)]['target'][1]
+                self.cs.magc_landmarks[str(i)]['target'][1]
                 for i in range(n_landmarks)]
 
             print('x_landmarks_source, y_landmarks_source, x_landmarks_target, '
                   'y_landmarks_target', x_landmarks_source, y_landmarks_source,
                   x_landmarks_target, y_landmarks_target)
 
-            self.gm.magc_wafer_transform = utils.affineT(
+            self.cs.magc_wafer_transform = utils.affineT(
                 x_landmarks_source, y_landmarks_source,
                 x_landmarks_target, y_landmarks_target)
 
-            print('waferTransform', self.gm.magc_wafer_transform)
+            print('waferTransform', self.cs.magc_wafer_transform)
 
             # compute new grid locations
             # (always transform from reference source)
@@ -623,10 +642,10 @@ class WaferCalibrationDlg(QDialog):
             x_target, y_target = utils.applyAffineT(
                 x_source,
                 y_source,
-                self.gm.magc_wafer_transform)
+                self.cs.magc_wafer_transform)
 
             transformAngle = -utils.getAffineRotation(
-                self.gm.magc_wafer_transform)
+                self.cs.magc_wafer_transform)
             angles_target = [
                 (180 - self.gm.magc_sections[str(k)]['angle'] + transformAngle) % 360
                 for k in range(nSections)]
@@ -646,14 +665,14 @@ class WaferCalibrationDlg(QDialog):
 
             # update wafer picture
             waferTransformAngle = -utils.getAffineRotation(
-                self.gm.magc_wafer_transform)
+                self.cs.magc_wafer_transform)
             waferTransformScaling = utils.getAffineScaling(
-                self.gm.magc_wafer_transform)
+                self.cs.magc_wafer_transform)
 
             im_center_target_s = utils.applyAffineT(
                 [self.imported[0].centre_sx_sy[0]],
                 [self.imported[0].centre_sx_sy[1]],
-                self.gm.magc_wafer_transform)
+                self.cs.magc_wafer_transform)
 
             im_center_target_s = [float(a[0]) for a in im_center_target_s]
 
@@ -672,8 +691,8 @@ class WaferCalibrationDlg(QDialog):
             self.main_controls_trigger.transmit('DRAW VP')
 
             # update calibration flag
-            self.gm.magc_wafer_calibrated = True
-            self._transmit_cmd('MAGC WAFER CALIBRATED')
+            self.cs.magc_wafer_calibrated = True
+            self.main_controls_trigger.transmit('MAGC WAFER CALIBRATED')
 
             self.accept()
 
@@ -684,3 +703,83 @@ class WaferCalibrationDlg(QDialog):
         """Add entry to the log in the main window"""
         msg = utils.format_log_entry(msg)
         self.main_controls_trigger.transmit(msg)
+
+class ImportZENExperimentDlg(QDialog):
+    """Import a ZEN experiment setup."""
+
+    def __init__(self, msem_variables, main_controls_trigger):
+        super().__init__()
+        self.msem_variables = msem_variables
+        self.main_controls_trigger = main_controls_trigger
+        loadUi(os.path.join(
+            '..', 'gui', 'import_zen_dlg.ui'),
+            self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon(os.path.join(
+            '..', 'img', 'icon_16px.ico')))
+        self.pushButton_selectFile.clicked.connect(self.select_file)
+        self.pushButton_selectFile.setIcon(
+            QIcon(os.path.join('..','img','selectdir.png')))
+        self.pushButton_selectFile.setIconSize(QSize(16, 16))
+        self.setFixedSize(self.size())
+        self.buttonBox.accepted.connect(self.import_zen)
+        self.buttonBox.rejected.connect(self.accept)
+        self.show()
+
+    def _add_to_main_log(self, msg):
+        """Add entry to the log in the main window"""
+        msg = utils.format_log_entry(msg)
+        self.main_controls_trigger.transmit(msg)
+
+    def import_zen(self):
+        #-----------------------------
+        # read sections from zen .json experiment file
+        selected_file = os.path.normpath(
+            self.lineEdit_fileName.text())
+
+        if not os.path.isfile(selected_file):
+            self._add_to_main_log('ZEN input file not found')
+            self.accept()
+            return
+        elif os.path.splitext(selected_file)[1] != '.json':
+            self._add_to_main_log(
+                'The file chosen should be in .json format')
+            self.accept()
+            return
+
+        # update zen experiment flag
+        self.main_controls_trigger.transmit(
+            'MSEM GUI-'
+            + os.path.join(
+                os.path.basename(
+                    os.path.dirname(selected_file)),
+                os.path.basename(selected_file))
+            + '-green-'
+            + os.path.splitext(
+                self.output_name(selected_file))[0])
+
+        self.msem_variables['zen_input_path'] = selected_file
+
+    def output_name(self, path):
+        name = os.path.splitext(os.path.basename(path))[0]
+        output = (
+            name
+            + '_from_SBEMimage_'
+            + strftime("%Y_%m_%d_%H_%M_%S", localtime())
+            + '.json')
+        return output
+
+    def select_file(self):
+        start_path = 'C:\\'
+        selected_file = str(QFileDialog.getOpenFileName(
+                self, 'Select ZEN experiment file',
+                start_path,
+                'ZEN experiment setup (*.json)'
+                )[0])
+        if len(selected_file) > 0:
+            selected_file = os.path.normpath(selected_file)
+            if os.path.splitext(selected_file)[1] == '.json':
+                self.lineEdit_fileName.setText(selected_file)
+
+    def accept(self):
+        super(ImportZENExperimentDlg, self).accept()

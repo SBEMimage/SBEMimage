@@ -2300,6 +2300,136 @@ Wafer Image</string>
        <zorder>pushButton_magc_deleteLastSection</zorder>
        <zorder>line_3</zorder>
        <zorder>pushButton_magc_waferCalibration</zorder>
+      </widget>      
+      <widget class="QWidget" name="multisemTab">
+       <attribute name="title">
+        <string>MultiSEM</string>
+       </attribute>
+       <widget class="QPushButton" name="pushButton_msem_transferToZen">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>120</y>
+          <width>169</width>
+          <height>58</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Transfer setup
+  to ZEN experiment</string>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="pushButton_msem_adjustAfterWaferInsertion">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>200</y>
+          <width>283</width>
+          <height>81</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Prepare start of ZEN experiment
+   by performing AF/AS/BoD 
+  after wafer insertion</string>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="pushButton_msem_loadZen">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>20</y>
+          <width>211</width>
+          <height>30</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Load ZEN experiment</string>
+        </property>
+       </widget>
+       <widget class="QGraphicsView" name="graphicsView">
+        <property name="geometry">
+         <rect>
+          <x>230</x>
+          <y>20</y>
+          <width>451</width>
+          <height>30</height>
+         </rect>
+        </property>
+        <property name="interactive">
+         <bool>false</bool>
+        </property>
+       </widget>
+       <widget class="QLabel" name="label_input_experiment_flag">
+        <property name="geometry">
+         <rect>
+          <x>230</x>
+          <y>20</y>
+          <width>451</width>
+          <height>30</height>
+         </rect>
+        </property>
+        <property name="layoutDirection">
+         <enum>Qt::LeftToRight</enum>
+        </property>
+        <property name="autoFillBackground">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>No experiment loaded</string>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="pushButton_msem_exportZen">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>60</y>
+          <width>211</width>
+          <height>30</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Export ZEN experiment</string>
+        </property>
+       </widget>
+       <widget class="QTextEdit" name="textEdit_msem_zen_export_name">
+        <property name="geometry">
+         <rect>
+          <x>230</x>
+          <y>60</y>
+          <width>411</width>
+          <height>30</height>
+         </rect>
+        </property>
+        <property name="toolTip">
+         <string>You can input 
+  - a list: 2,5,3 
+  - a range: 2-30 
+  - a range with increment: 2-30-5</string>
+        </property>
+        <property name="verticalScrollBarPolicy">
+         <enum>Qt::ScrollBarAlwaysOff</enum>
+        </property>
+       </widget>
+       <widget class="QLabel" name="label_input_experiment_flag_2">
+        <property name="geometry">
+         <rect>
+          <x>642</x>
+          <y>54</y>
+          <width>40</width>
+          <height>40</height>
+         </rect>
+        </property>
+        <property name="layoutDirection">
+         <enum>Qt::LeftToRight</enum>
+        </property>
+        <property name="autoFillBackground">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>.json</string>
+        </property>
+       </widget>
       </widget>
       <widget class="QWidget" name="comTests">
        <attribute name="title">
@@ -2681,6 +2811,27 @@ Wafer Image</string>
      </widget>
     </item>
    </layout>
+   <widget class="QPlainTextEdit" name="textarea_log">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>560</y>
+      <width>691</width>
+      <height>341</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>Lucida Console</family>
+      <pointsize>8</pointsize>
+      <weight>50</weight>
+      <bold>false</bold>
+     </font>
+    </property>
+    <property name="readOnly">
+     <bool>true</bool>
+    </property>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="enabled">

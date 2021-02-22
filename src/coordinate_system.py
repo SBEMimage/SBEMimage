@@ -68,6 +68,12 @@ class CoordinateSystem:
         self.sv_ov_vx_vy = [int(self.cfg['viewport']['sv_offset_x_ov']),
                             int(self.cfg['viewport']['sv_offset_y_ov'])]
 
+        # --- MagC --- #
+        self.magc_landmarks = []
+        self.magc_wafer_transform = []
+        self.magc_wafer_calibrated = False
+        #--------------#
+
     def save_to_cfg(self):
         """Save current parameters to the self.cfg ConfigParser object.
         The stage calibration parameters are saved to self.syscfg whenever

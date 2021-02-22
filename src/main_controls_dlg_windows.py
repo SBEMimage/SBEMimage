@@ -1518,6 +1518,16 @@ class GridSettingsDlg(QDialog):
         # (should be done in MagC panel instead)
         if self.magc_mode:
             self.pushButton_addGrid.setEnabled(False)
+        if 'multisem' in self.sem.device_name.lower():
+            # in multisem ROIs are used instead of grids
+            # the smallest possible grid is kept for compatibility
+            self.spinBox_rows.setEnabled(False)
+            self.spinBox_rows.setValue(1)
+            self.spinBox_cols.setEnabled(False)
+            self.spinBox_cols.setValue(1)
+            self.comboBox_tileSize.setEnabled(False)
+            self.comboBox_tileSize.setCurrentIndex(0)
+            self.spinBox_shift.setEnabled(False)
 
     def update_active_status(self):
         # If current grid is inactive, disable GUI elements
@@ -1706,8 +1716,12 @@ class GridSettingsDlg(QDialog):
         else:
             error_msg = ('Overlap outside of allowed '
                          'range (-30% .. 30% frame width).')
+        # Get current centre of grid:
+        centre_dx, centre_dy = self.gm[self.current_grid].centre_dx_dy
+        # Set new angle
         self.gm[self.current_grid].rotation = (
             self.doubleSpinBox_rotation.value())
+        self.gm[self.current_grid].rotate_around_grid_centre(centre_dx, centre_dy)
         if 0 <= input_shift <= tile_width_p:
             self.gm[self.current_grid].row_shift = input_shift
         else:
@@ -1728,13 +1742,13 @@ class GridSettingsDlg(QDialog):
             self.spinBox_acqInterval.value())
         self.gm[self.current_grid].acq_interval_offset = (
             self.spinBox_acqIntervalOffset.value())
+        # Finally, recalculate tile positions
+        self.gm[self.current_grid].update_tile_positions()
+        self.gm[self.current_grid].auto_update_tile_positions = True
         if self.magc_mode:
             self.gm[self.current_grid].centre_sx_sy = prev_grid_centre
             self.gm.update_source_ROIs_from_grids()
-        # Finally, recalculate tile positions
-        self.gm[self.current_grid].update_tile_positions()
         # Restore default behaviour for updating tile positions
-        self.gm[self.current_grid].auto_update_tile_positions = True
         if error_msg:
             QMessageBox.warning(self, 'Error', error_msg, QMessageBox.Ok)
         else:
@@ -3540,6 +3554,9 @@ class GrabFrameDlg(QDialog):
         self.comboBox_frameSize.addItems(store_res_list)
         self.comboBox_frameSize.setCurrentIndex(
             self.sem.grab_frame_size_selector)
+        # no frame size selection with the MultiSEM
+        if self.sem.device == 'MultiSEM':
+            self.comboBox_frameSize.setEnabled(False)
         self.doubleSpinBox_pixelSize.setValue(self.sem.grab_pixel_size)
         self.comboBox_dwellTime.addItems(map(str, self.sem.DWELL_TIME))
         self.comboBox_dwellTime.setCurrentIndex(
