@@ -145,10 +145,10 @@ class Error(Enum):
     configuration = 701
 
     # MultiSEM
-    multisem_beam_control = 901: 'Error: beam control',
-    multisem_imaging = 902: 'Error: imaging not possible',
-    multisem_alignment = 903: 'Error: auto alignment not possible',
-    multisem_failed_to_write = 904: 'Error: failed to write metadata or thumbnails'
+    multisem_beam_control = 901
+    multisem_imaging = 902
+    multisem_alignment = 903
+    multisem_failed_to_write = 904
 
 
 Errors = {

@@ -2300,7 +2300,7 @@ Wafer Image</string>
        <zorder>pushButton_magc_deleteLastSection</zorder>
        <zorder>line_3</zorder>
        <zorder>pushButton_magc_waferCalibration</zorder>
-      </widget>      
+      </widget>
       <widget class="QWidget" name="multisemTab">
        <attribute name="title">
         <string>MultiSEM</string>
@@ -2811,27 +2811,6 @@ Wafer Image</string>
      </widget>
     </item>
    </layout>
-   <widget class="QPlainTextEdit" name="textarea_log">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>560</y>
-      <width>691</width>
-      <height>341</height>
-     </rect>
-    </property>
-    <property name="font">
-     <font>
-      <family>Lucida Console</family>
-      <pointsize>8</pointsize>
-      <weight>50</weight>
-      <bold>false</bold>
-     </font>
-    </property>
-    <property name="readOnly">
-     <bool>true</bool>
-    </property>
-   </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="enabled">
@@ -3106,7 +3085,6 @@ Wafer Image</string>
   <tabstop>pushButton_startAcq</tabstop>
   <tabstop>pushButton_pauseAcq</tabstop>
   <tabstop>pushButton_resetAcq</tabstop>
-  <tabstop>textarea_log</tabstop>
   <tabstop>pushButton_focusToolStart</tabstop>
   <tabstop>comboBox_selectGridFT</tabstop>
   <tabstop>comboBox_selectTileFT</tabstop>
