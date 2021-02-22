@@ -100,6 +100,8 @@ class MainControls(QMainWindow):
         self.simulation_mode = (
             self.cfg['sys']['simulation_mode'].lower() == 'true')
         self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
+        self.multisem_mode = (self.cfg['sys']['multisem_mode'].lower() == 'true'
+                              and self.syscfg['device']['sem'] == 'MultiSEM')
         self.use_microtome = (
             self.cfg['sys']['use_microtome'].lower() == 'true')
         self.statusbar_msg = ''
@@ -130,7 +132,7 @@ class MainControls(QMainWindow):
                 'IT CAN PRODUCE UNSAFE STAGE MOVEMENTS LEADING TO '
                 'COLLISIONS WITH THE LENS. \n\n\n\n'
                 '\n ONLY PROCEED IF YOU KNOW WHAT YOU ARE DOING',
-                QMessageBox.Ok)
+                QMessageBox.Ok) 
 
         elif self.syscfg['device']['sem'].startswith('ZEISS'):
             # Create SEM instance to control SEM via SmartSEM API
@@ -636,13 +638,16 @@ class MainControls(QMainWindow):
         #------------------#
 
         #-------MultiSEM-------#
-        if 'multisem' in self.sem.device_name.lower():
+        if self.multisem_mode:
             # no aboutBox in MultiSEM API
             self.pushButton_testZeissAPIVersion.setEnabled(False)
 
             self.pushButton_msem_transferToZen.setEnabled(False)
             self.gm[0].size = [1,1]
             self.msem_variables = {}
+        else:
+            # Disable MultiSEM tab
+            self.tabWidget.setTabEnabled(4, False)
         #----------------------#
 
     def activate_magc_mode(self, tabIndex):
@@ -2907,6 +2912,7 @@ class MainControls(QMainWindow):
         self.tabWidget.setTabEnabled(2, False)
         self.tabWidget.setTabEnabled(3, False)
         self.tabWidget.setTabEnabled(4, False)
+        self.tabWidget.setTabEnabled(5, False)
         # Restrict viewport:
         self.viewport.restrict_gui(True)
         # Use current WD/Stig if selected working distance == 0 or None:
@@ -3003,7 +3009,9 @@ class MainControls(QMainWindow):
         self.tabWidget.setTabEnabled(2, True)
         if self.magc_mode:
             self.tabWidget.setTabEnabled(3, True)
-        self.tabWidget.setTabEnabled(4, True)
+        if self.multisem_mode:
+            self.tabWidget.setTabEnabled(4, True)
+        self.tabWidget.setTabEnabled(5, True)
         # Unrestrict viewport:
         self.viewport.restrict_gui(False)
         self.ft_mode = 0
