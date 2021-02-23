@@ -20,13 +20,13 @@
 # -- Project information -----------------------------------------------------
 
 project = 'SBEMimage'
-copyright = '2018-2020, Friedrich Miescher Institute, Basel, Switzerland'
+copyright = '2018-2021, Friedrich Miescher Institute, Basel, Switzerland'
 author = 'Benjamin Titze'
 
 # The short X.Y version
-version = '2020.05'
+version = '2020.12'
 # The full version, including alpha/beta/rc tags
-release = '2020.05 Rxxx'
+release = '2020.12'
 
 
 # -- General configuration ---------------------------------------------------
