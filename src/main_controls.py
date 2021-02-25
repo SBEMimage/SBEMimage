@@ -650,6 +650,7 @@ class MainControls(QMainWindow):
         else:
             # Disable MultiSEM tab
             self.tabWidget.setTabEnabled(4, False)
+            self.tabWidget.setTabToolTip(4, 'MultiSEM mode under development')
         #----------------------#
 
     def activate_magc_mode(self, tabIndex):
