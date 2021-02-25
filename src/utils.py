@@ -16,18 +16,22 @@ import json
 import re
 import logging
 import threading
-from enum import Enum
-import numpy as np
+import math
 import cv2
-from skimage.transform import ProjectiveTransform
-from skimage.measure import ransac
+import numpy as np
 
+from enum import Enum
 from time import sleep
 from queue import Queue
-from serial.tools import list_ports
 from logging import StreamHandler
 from logging.handlers import RotatingFileHandler
+from shapely.geometry import Polygon
+from shapely.geometry import Point
+from skimage.transform import ProjectiveTransform
+from skimage.measure import ransac
+from serial.tools import list_ports
 from PyQt5.QtCore import QObject, pyqtSignal
+
 
 # Default and minimum size of the Viewport canvas.
 VP_WIDTH = 1000
@@ -140,6 +144,12 @@ class Error(Enum):
     # Error in configuration
     configuration = 701
 
+    # MultiSEM
+    multisem_beam_control = 901
+    multisem_imaging = 902
+    multisem_alignment = 903
+    multisem_failed_to_write = 904
+
 
 Errors = {
     Error.none: 'No error',
@@ -181,6 +191,12 @@ Errors = {
     Error.fcc: 'FCC error',
     Error.aperture_size: 'Aperture size error',
 
+    # MultiSEM
+    Error.multisem_beam_control: 'Error: beam control',
+    Error.multisem_imaging: 'Error: imaging not possible',
+    Error.multisem_alignment: 'Error: auto alignment not possible',
+    Error.multisem_failed_to_write: 'Error: failed to write metadata or thumbnails',
+
     # I/O error
     Error.primary_drive: 'Primary drive error',
     Error.mirror_drive: 'Mirror drive error',
@@ -202,6 +218,7 @@ Errors = {
 
     # Error in configuration
     Error.configuration: 'Configuration error',
+
 }
 
 
@@ -542,7 +559,7 @@ def get_indexes_from_user_string(userString):
         splitIndexes = [int(splitIndex) for splitIndex in userString.split('-')
                         if splitIndex.isdigit()]
         if len(splitIndexes) == 2 or len(splitIndexes) == 3:
-            splitIndexes[-1] = splitIndexes[-1] + 1 # inclusive is more natural (2-5 = 2,3,4,5)
+            splitIndexes[1] = splitIndexes[1] + 1 # inclusive is more natural (2-5 = 2,3,4,5)
             return range(*splitIndexes)
     elif userString.isdigit():
         return [int(userString)]
@@ -787,3 +804,78 @@ def match_template(img: np.ndarray, templ: np.ndarray, thresh_match: float) -> n
         # store coordinate of this object
         locs[ix] = np.mean(match[sl] == (ix + 1)) + np.array([sl[0].start, sl[1].start])
     return locs.astype(np.int)
+
+
+def is_convex_polygon(polygon):
+    """Source: https://stackoverflow.com/a/45372025/10832217
+    Return True if the polynomial defined by the sequence of 2D
+    points is 'strictly convex': points are valid, side lengths non-
+    zero, interior angles are strictly between zero and a straight
+    angle, and the polygon does not intersect itself.
+
+    NOTES:  1.  Algorithm: the signed changes of the direction angles
+                from one side to the next side must be all positive or
+                all negative, and their sum must equal plus-or-minus
+                one full turn (2 pi radians). Also check for too few,
+                invalid, or repeated points.
+            2.  No check is explicitly done for zero internal angles
+                (180 degree direction-change angle) as this is covered
+                in other ways, including the `n < 3` check.
+    """
+    try:  # needed for any bad points or direction changes
+        # Check for too few points
+        if len(polygon) < 3:
+            return False
+        # Get starting information
+        old_x, old_y = polygon[-2]
+        new_x, new_y = polygon[-1]
+        new_direction = math.atan2(new_y - old_y, new_x - old_x)
+        angle_sum = 0.0
+        # Check each point (the side ending there, its angle) and accum. angles
+        for ndx, newpoint in enumerate(polygon):
+            # Update point coordinates and side directions, check side length
+            old_x, old_y, old_direction = new_x, new_y, new_direction
+            new_x, new_y = newpoint
+            new_direction = math.atan2(new_y - old_y, new_x - old_x)
+            if old_x == new_x and old_y == new_y:
+                return False  # repeated consecutive points
+            # Calculate & check the normalized direction-change angle
+            angle = new_direction - old_direction
+            if angle <= -math.pi:
+                angle += (2 * math.pi)  # make it in half-open interval (-Pi, Pi]
+            elif angle > math.pi:
+                angle -= (2 * math.pi)
+            if ndx == 0:  # if first time through loop, initialize orientation
+                if angle == 0.0:
+                    return False
+                orientation = 1.0 if angle > 0.0 else -1.0
+            else:  # if other time through loop, check orientation is stable
+                if orientation * angle <= 0.0:  # not both pos. or both neg.
+                    return False
+            # Accumulate the direction-change angle
+            angle_sum += angle
+        # Check that the total number of full turns is plus-or-minus 1
+        return abs(round(angle_sum / (2 * math.pi) )) == 1
+    except (ArithmeticError, TypeError, ValueError):
+        return False  # any exception means not a proper convex polygon
+
+def is_valid_polygon(polygon):
+    p = Polygon(polygon)
+    return p.is_valid
+
+def is_point_inside_polygon(point, polygon):
+    p = Polygon(polygon)
+    point = Point(point)
+    return p.contains(point)
+
+def barycenter(points):
+    xSum = 0
+    ySum = 0
+    for i,point in enumerate(points):
+        xSum = xSum + point[0]
+        ySum = ySum + point[1]
+    x = round(xSum/float(i+1))
+    y = round(ySum/float(i+1))
+    return x,y
+
+# -------------- End of MagC utils --------------

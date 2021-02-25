@@ -16,6 +16,11 @@ from collections import deque
 
 from utils import Error
 
+import pythoncom
+import win32com.client  # required to use CZEMApi.ocx (Carl Zeiss EM API)
+from win32com.client import VARIANT  # required for API function calls
+import comtypes.client as cc
+
 
 class SEM:
     """Base class for remote SEM control. Implements minimum parameter handling.

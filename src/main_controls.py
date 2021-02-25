@@ -25,7 +25,8 @@ import sys
 from typing import Optional
 import threading
 import json
-
+import copy
+import xml.etree.ElementTree as ET
 from time import sleep
 
 from PyQt5.QtWidgets import QApplication, QTableWidgetSelectionRange, \
@@ -41,7 +42,7 @@ from PyQt5.uic import loadUi
 import acq_func
 import utils
 from utils import Error
-from sem_control_zeiss import SEM_SmartSEM
+from sem_control_zeiss import SEM_SmartSEM, SEM_MultiSEM
 from sem_control_fei import SEM_Quanta
 from sem_control_tescan import SEM_SharkSEM
 from microtome_control_gatan import Microtome_3View
@@ -76,7 +77,7 @@ from main_controls_dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                                       GCIBSettingsDlg, RunAutofocusDlg
 
 from magc_dlg_windows import ImportMagCDlg, ImportWaferImageDlg, \
-                          WaferCalibrationDlg
+                          WaferCalibrationDlg, ImportZENExperimentDlg
 
 
 class MainControls(QMainWindow):
@@ -99,6 +100,9 @@ class MainControls(QMainWindow):
         self.simulation_mode = (
             self.cfg['sys']['simulation_mode'].lower() == 'true')
         self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
+        self.multisem_mode = (
+            self.cfg['sys']['multisem_mode'].lower() == 'true'
+            and self.syscfg['device']['sem'] == 'ZEISS MultiSEM')
         self.use_microtome = (
             self.cfg['sys']['use_microtome'].lower() == 'true')
         self.statusbar_msg = ''
@@ -122,7 +126,17 @@ class MainControls(QMainWindow):
         utils.show_progress_in_console(10)
 
         # Initialize SEM
-        if self.syscfg['device']['sem'].startswith('ZEISS'):
+        if self.syscfg['device']['sem'] == 'ZEISS MultiSEM':
+            QMessageBox.critical(
+                self, 'STAGE COLLISION WARNING - MULTISEM',
+                'THIS MODULE FOR MULTISEM IS STILL IN DEVELOPMENT.\n\n\n\n'
+                'IT CAN PRODUCE UNSAFE STAGE MOVEMENTS LEADING TO '
+                'COLLISIONS WITH THE LENS. \n\n\n\n'
+                '\n ONLY PROCEED IF YOU KNOW WHAT YOU ARE DOING',
+                QMessageBox.Ok)
+            self.sem = SEM_MultiSEM(self.cfg, self.syscfg)
+
+        elif self.syscfg['device']['sem'].startswith('ZEISS'):
             # Create SEM instance to control SEM via SmartSEM API
             self.sem = SEM_SmartSEM(self.cfg, self.syscfg)
             if self.sem.error_state != Error.none:
@@ -623,6 +637,20 @@ class MainControls(QMainWindow):
             self.tabWidget.tabBarDoubleClicked.connect(self.activate_magc_mode)
         else:
             self.initialize_magc_gui()
+        #------------------#
+
+        #-------MultiSEM-------#
+        if self.multisem_mode:
+            # no aboutBox in MultiSEM API
+            self.pushButton_testZeissAPIVersion.setEnabled(False)
+
+            self.pushButton_msem_transferToZen.setEnabled(False)
+            self.gm[0].size = [1,1]
+            self.msem_variables = {}
+        else:
+            # Disable MultiSEM tab
+            self.tabWidget.setTabEnabled(4, False)
+        #----------------------#
 
     def activate_magc_mode(self, tabIndex):
         if tabIndex != 3:
@@ -892,7 +920,7 @@ class MainControls(QMainWindow):
     def initialize_magc_gui(self):
         self.gm.magc_selected_sections = []
         self.gm.magc_checked_sections = []
-        self.gm.magc_wafer_calibrated = False
+        self.cs.magc_wafer_calibrated = False
         self.actionImportMagCMetadata.triggered.connect(
             self.magc_open_import_dlg)
 
@@ -942,7 +970,7 @@ class MainControls(QMainWindow):
             self.pushButton_magc_importWaferImage.setEnabled(False)
         self.pushButton_magc_addSection.clicked.connect(
             self.magc_add_section)
-        if not self.gm.magc_wafer_calibrated:
+        if not self.cs.magc_wafer_calibrated:
             self.pushButton_magc_addSection.setEnabled(False)
         self.pushButton_magc_deleteLastSection.clicked.connect(
             self.magc_delete_last_section)
@@ -956,6 +984,144 @@ class MainControls(QMainWindow):
         self.actionMicrotomeSettings.setEnabled(False)
         self.actionDebrisDetectionSettings.setEnabled(False)
         self.actionAskUserModeSettings.setEnabled(False)
+
+        # multisem
+        self.pushButton_msem_loadZen.clicked.connect(
+            self.msem_import_zen_experiment)
+        self.label_input_experiment_flag.setAlignment(
+            Qt.AlignCenter)
+        self.pushButton_msem_exportZen.setEnabled(False)
+        self.pushButton_msem_exportZen.clicked.connect(
+            self.msem_export_zen_experiment)
+
+    def msem_import_zen_experiment(self):
+        import_zen_dialog = ImportZENExperimentDlg(
+            self.msem_variables, self.trigger)
+        if import_zen_dialog.exec_():
+            pass
+
+    def msem_export_zen_experiment(self):
+        save_dir = os.path.dirname(
+            self.msem_variables['zen_input_path'])
+        save_name = (
+            self.textEdit_msem_zen_export_name.toPlainText()
+            + '.json')
+        zen_output_path = os.path.join(save_dir, save_name)
+        with open(
+            self.msem_variables['zen_input_path'],
+            'rb') as f:
+            input_json = json.load(f)
+
+        output_json = copy.deepcopy(input_json)
+        output_json['Name'] = os.path.splitext(save_name)[0]
+        # print(json.dumps(output_json, indent=4, sort_keys=True))
+
+        input_regions = input_json['Regions']
+        region_template_xml = ET.fromstring(input_regions[0])
+
+        # WorkflowParameter_element = region_template_xml.find('WorkflowParameter')
+        # print(json.dumps(WorkflowParameter_element.attrib, indent=4))
+
+        output_regions = []
+        polyrois = [
+            self.gm[id].magc_polyroi_points
+            for id in range(self.gm.number_grids)]
+        if [] in polyrois:
+            self.add_to_log(
+                'MSEM: No file written. These sections lack a ROI: '
+                + ', '.join(
+                    [str(i) for i,p in enumerate(polyrois) if p == []]))
+            return
+        all_focus_points = [
+            self.gm[id].magc_autofocus_points
+            for id in range(self.gm.number_grids)]
+
+        for id, (polyroi, focus_points) \
+            in enumerate(zip(polyrois, all_focus_points)):
+
+            output_region = copy.deepcopy(region_template_xml)
+
+            # set name
+            output_region.attrib['Name'] = 'Section' + str(id).zfill(4)
+
+            # set ROI points
+            (output_region
+                .find('Contour')
+                .attrib['Type']) = 'Polygon'
+
+            # remove existing contours
+            while output_region.find('Contour'):
+                output_region.find('Contour').remove(
+                    output_region.find('Contour')[0])
+
+            points_element = ET.SubElement(
+                output_region.find('Contour'),
+                'Points')
+            points_element.text = ' '.join(
+                [','.join(map(str, point))
+                    for point in polyroi])
+
+            # set ROI center position
+            (output_region
+                .find('CenterPosition')
+                .text) = ','.join(
+                    map(str,
+                        utils.barycenter(polyroi)))
+
+            # set autofocus points
+            focus_points_elements = output_region.find('SupportPoints')
+            # remove elements of focus_points_elements
+            while focus_points_elements:
+                focus_points_elements.remove(focus_points_elements[0])
+            for focus_id, focus_point in enumerate(focus_points):
+                point_id = int(id * 10e10 + focus_id)
+                focus_point_element = ET.SubElement(
+                    focus_points_elements,
+                    'SupportPoint')
+                focus_point_element.attrib['Id'] = str(point_id).zfill(18)
+                X_element = ET.SubElement(focus_point_element, 'X')
+                Y_element = ET.SubElement(focus_point_element, 'Y')
+                Z_element = ET.SubElement(focus_point_element, 'Z')
+                OL_element = ET.SubElement(focus_point_element, 'OL')
+                OLTiltX_element = ET.SubElement(focus_point_element, 'OLTiltX')
+                OLTiltY_element = ET.SubElement(focus_point_element, 'OLTiltY')
+
+                X_element.text = str(focus_point[0])
+                Y_element.text = str(focus_point[1])
+                Z_element.text = str(0)
+                OL_element = str(0)
+                OLTiltX_element = str(0)
+                OLTiltY_element = str(0)
+
+            output_regions.append(
+                ET.tostring(
+                    output_region,
+                    encoding='unicode', # utf8 returns a bytestring
+                    method='xml'))
+        output_json['Regions'] = output_regions
+
+        with open(
+            zen_output_path,
+            'w',
+            encoding='utf-8') as f:
+            json.dump(output_json,
+                f,
+                indent=4)
+
+        self.add_to_log(
+            'MSEM: ZEN experiment written to '
+            + zen_output_path)
+
+
+    def msem_update_gui(self, msg):
+        input_text, input_color, output_text = msg.split('-')[1:]
+        self.label_input_experiment_flag.setText(input_text)
+        (self.label_input_experiment_flag
+            .setStyleSheet(
+                'background-color: ' + input_color))
+        self.textEdit_msem_zen_export_name.setPlainText(output_text)
+        if input_color == 'green':
+            self.pushButton_msem_exportZen.setEnabled(True)
 
     def magc_select_all(self):
         model = self.tableView_magc_sections.model()
@@ -985,8 +1151,23 @@ class MainControls(QMainWindow):
             id.row() for id
                 in self.tableView_magc_sections
                     .selectedIndexes()]
-        model = tableView.model()
+        model = self.tableView_magc_sections.model()
         rowsToSelect = set(range(model.rowCount())) - set(selectedRows)
+        self.magc_select_rows(rowsToSelect)
+
+    def magc_toggle_selection(self, section_number):
+        # ctrl+click in viewport: select or deselect clicked
+        # section without changing existing selected sections
+        selectedRows = [
+            id.row() for id
+                in self.tableView_magc_sections
+                    .selectedIndexes()]
+        rowsToSelect = set(selectedRows)
+        if section_number in selectedRows:
+            rowsToSelect.remove(section_number)
+        else:
+            rowsToSelect.add(section_number)
+        rowsToSelect = list(rowsToSelect)
         self.magc_select_rows(rowsToSelect)
 
     def magc_select_checked(self):
@@ -1034,7 +1215,7 @@ class MainControls(QMainWindow):
                 QItemSelection(index, index),
                 QItemSelectionModel.Select)
         selectionModel.select(selection, QItemSelectionModel.Select)
-        self.tableView_magc_sections.setFocus()
+        tableView.setFocus()
 
     def magc_actions_selected_sections_changed(
         self, changedSelected, changedDeselected):
@@ -1071,9 +1252,10 @@ class MainControls(QMainWindow):
         sectionKey = int(model.data(firstColumnIndex))
         self.cs.vp_centre_dx_dy = self.gm[row].centre_dx_dy
         self.viewport.vp_draw()
-        if self.gm.magc_wafer_calibrated:
-            utils.log_info('Section ' + str(sectionKey)
-                                + ' has been double-clicked. Moving to section...')
+
+        if self.cs.magc_wafer_calibrated:
+            self.add_to_log('Section ' + str(sectionKey)
+                            + ' has been double-clicked. Moving to section...')
             # set scan rotation
             theta = self.gm[row].rotation
             self.sem.set_scan_rotation(theta)
@@ -1088,39 +1270,71 @@ class MainControls(QMainWindow):
 
     def magc_set_section_state_in_table(self, msg):
         model = self.tableView_magc_sections.model()
-        section_number, state = msg.split('-')[1:]
-        if state == 'acquiring':
-            state_color = QColor(Qt.yellow)
-        elif state == 'acquired':
-            state_color = QColor(Qt.green)
-        else:
-            state_color = QColor(Qt.lightGray)
-        item = model.item(int(section_number), 1)
-        item.setBackground(state_color)
-        index = model.index(int(section_number), 1)
-        self.tableView_magc_sections.scrollTo(index,
-            QAbstractItemView.PositionAtCenter)
+        section_number = int(msg.split('-')[-2])
+        state = msg.split('-')[-1]
+        index = model.index(section_number, 1)
+        if 'acquir' in state:
+            if state == 'acquiring':
+                state_color = QColor(Qt.yellow)
+            elif state == 'acquired':
+                state_color = QColor(Qt.green)
+            else:
+                state_color = QColor(Qt.lightGray)
+            item = model.item(section_number, 1)
+            item.setBackground(state_color)
+            self.tableView_magc_sections.scrollTo(
+                index,
+                QAbstractItemView.PositionAtCenter)
+        if state == 'select':
+            self.magc_select_rows([section_number])
+            self.tableView_magc_sections.scrollTo(
+                index,
+                QAbstractItemView.PositionAtCenter)
+        if state == 'toggle':
+            self.magc_toggle_selection(section_number)
+            if section_number in self.gm.magc_selected_sections:
+                self.tableView_magc_sections.scrollTo(
+                    index,
+                    QAbstractItemView.PositionAtCenter)
+        if state == 'deselectall':
+            self.magc_deselect_all()
 
     def magc_reset(self):
         model = self.tableView_magc_sections.model()
         model.removeRows(0, model.rowCount(), QModelIndex())
         self.gm.magc_sections_path = ''
-        self.gm.magc_wafer_calibrated = False
+        self.cs.magc_wafer_calibrated = False
+        self.magc_trigger_wafer_uncalibrated()
+        # the trigger shows only that the wafer is not calibrated
+        # but the reset is stronger: it means that the wafer
+        # is not calibratable, therefore setting gray color
+        self.pushButton_magc_waferCalibration.setStyleSheet(
+            'background-color: lightgray')
         self.gm.magc_selected_sections = []
         self.gm.magc_checked_sections = []
         self.gm.delete_all_grids_above_index(0)
+        self.gm[0].magc_delete_autofocus_points()
+        self.gm[0].magc_delete_polyroi()
         self.viewport.update_grids()
-        # unenable wafer calibration button
-        self.pushButton_magc_waferCalibration.setEnabled(False)
         # unenable wafer image import
         self.pushButton_magc_importWaferImage.setEnabled(False)
-        # change wafer flag
-        self.pushButton_magc_waferCalibration.setStyleSheet(
-            'background-color: lightgray')
         # delete all imported images in viewport
         self.imported.delete_all_images()
         self.viewport.vp_draw()
 
+    def magc_trigger_wafer_calibrated(self):
+        (self.pushButton_magc_waferCalibration
+            .setStyleSheet('background-color: green'))
+        self.pushButton_msem_transferToZen.setEnabled(True)
+
+    def magc_trigger_wafer_uncalibrated(self):
+        # unenable wafer calibration button
+        self.pushButton_magc_waferCalibration.setEnabled(False)
+        # change wafer flag
+        (self.pushButton_magc_waferCalibration
+            .setStyleSheet('background-color: yellow'))
+        # inactivate msem transfer to ZEN
+        self.pushButton_msem_transferToZen.setEnabled(False)
 
     def magc_open_import_wafer_image(self):
         target_dir = os.path.join(
@@ -1156,30 +1370,30 @@ class MainControls(QMainWindow):
         item2.setBackground(color_not_acquired)
         item2.setCheckable(False)
         item2.setSelectable(False)
-        tableView = self.tableView_magc_sections
-        model = tableView.model()
+        model = self.tableView_magc_sections.model()
         model.appendRow([item1, item2])
 
     def magc_delete_last_section(self):
         # remove section from list
         model = self.tableView_magc_sections.model()
         lastSectionNumber = model.rowCount()-1
-        model.removeRow(lastSectionNumber)
-        # unselect and uncheck section
-        if lastSectionNumber in self.gm.magc_selected_sections:
-            self.gm.magc_selected_sections.remove(lastSectionNumber)
+        if lastSectionNumber > 0:
+            model.removeRow(lastSectionNumber)
+            # unselect and uncheck section
+            if lastSectionNumber in self.gm.magc_selected_sections:
+                self.gm.magc_selected_sections.remove(lastSectionNumber)
 
-        if lastSectionNumber in self.gm.magc_checked_sections:
-            self.gm.magc_checked_sections.remove(lastSectionNumber)
+            if lastSectionNumber in self.gm.magc_checked_sections:
+                self.gm.magc_checked_sections.remove(lastSectionNumber)
 
-        # remove grid
-        self.gm.delete_grid()
-        self.update_from_grid_dlg()
+            # remove grid
+            self.gm.delete_grid()
+            self.update_from_grid_dlg()
 
     def magc_open_import_dlg(self):
         gui_items = {'section_table': self.tableView_magc_sections,}
         dialog = ImportMagCDlg(self.acq, self.gm, self.sem, self.imported,
-                               gui_items, self.trigger)
+                               self.cs, gui_items, self.trigger)
         if dialog.exec_():
             # self.tabWidget.setTabEnabled(3, True)
             self.update_from_grid_dlg()
@@ -1573,17 +1787,19 @@ class MainControls(QMainWindow):
                 utils.log_error('CTRL', 'Could not write current log to disk: '
                                 + str(e))
         elif msg == 'MAGC WAFER CALIBRATED':
-            self.pushButton_magc_waferCalibration.setStyleSheet('background-color: green')
+            self.magc_trigger_wafer_uncalibrated()
         elif msg == 'MAGC WAFER NOT CALIBRATED':
-            self.pushButton_magc_waferCalibration.setStyleSheet('background-color: yellow')
+            self.magc_trigger_wafer_uncalibrated()
         elif msg == 'MAGC ENABLE CALIBRATION':
             self.pushButton_magc_waferCalibration.setEnabled(True)
         elif msg == 'MAGC UNENABLE CALIBRATION':
             self.pushButton_magc_waferCalibration.setEnabled(False)
         elif msg == 'MAGC ENABLE WAFER IMAGE IMPORT':
             self.pushButton_magc_importWaferImage.setEnabled(True)
-        elif 'SET SECTION STATE' in msg:
+        elif 'MAGC SET SECTION STATE' in msg:
             self.magc_set_section_state_in_table(msg)
+        elif 'MSEM GUI' in msg:
+            self.msem_update_gui(msg)
         elif msg == 'REFRESH OV':
             self.acquire_ov()
         elif msg == 'SHOW CURRENT SETTINGS':
@@ -2698,6 +2914,7 @@ class MainControls(QMainWindow):
         self.tabWidget.setTabEnabled(2, False)
         self.tabWidget.setTabEnabled(3, False)
         self.tabWidget.setTabEnabled(4, False)
+        self.tabWidget.setTabEnabled(5, False)
         # Restrict viewport:
         self.viewport.restrict_gui(True)
         # Use current WD/Stig if selected working distance == 0 or None:
@@ -2794,7 +3011,9 @@ class MainControls(QMainWindow):
         self.tabWidget.setTabEnabled(2, True)
         if self.magc_mode:
             self.tabWidget.setTabEnabled(3, True)
-        self.tabWidget.setTabEnabled(4, True)
+        if self.multisem_mode:
+            self.tabWidget.setTabEnabled(4, True)
+        self.tabWidget.setTabEnabled(5, True)
         # Unrestrict viewport:
         self.viewport.restrict_gui(False)
         self.ft_mode = 0
