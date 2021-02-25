@@ -42,7 +42,7 @@ from PyQt5.uic import loadUi
 import acq_func
 import utils
 from utils import Error
-from sem_control_zeiss import SEM_SmartSEM
+from sem_control_zeiss import SEM_SmartSEM, SEM_MultiSEM
 from sem_control_fei import SEM_Quanta
 from sem_control_tescan import SEM_SharkSEM
 from microtome_control_gatan import Microtome_3View
@@ -100,8 +100,9 @@ class MainControls(QMainWindow):
         self.simulation_mode = (
             self.cfg['sys']['simulation_mode'].lower() == 'true')
         self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
-        self.multisem_mode = (self.cfg['sys']['multisem_mode'].lower() == 'true'
-                              and self.syscfg['device']['sem'] == 'MultiSEM')
+        self.multisem_mode = (
+            self.cfg['sys']['multisem_mode'].lower() == 'true'
+            and self.syscfg['device']['sem'] == 'ZEISS MultiSEM')
         self.use_microtome = (
             self.cfg['sys']['use_microtome'].lower() == 'true')
         self.statusbar_msg = ''
@@ -125,14 +126,15 @@ class MainControls(QMainWindow):
         utils.show_progress_in_console(10)
 
         # Initialize SEM
-        if self.syscfg['device']['sem'] == 'MultiSEM':
+        if self.syscfg['device']['sem'] == 'ZEISS MultiSEM':
             QMessageBox.critical(
                 self, 'STAGE COLLISION WARNING - MULTISEM',
                 'THIS MODULE FOR MULTISEM IS STILL IN DEVELOPMENT.\n\n\n\n'
                 'IT CAN PRODUCE UNSAFE STAGE MOVEMENTS LEADING TO '
                 'COLLISIONS WITH THE LENS. \n\n\n\n'
                 '\n ONLY PROCEED IF YOU KNOW WHAT YOU ARE DOING',
-                QMessageBox.Ok) 
+                QMessageBox.Ok)
+            self.sem = SEM_MultiSEM(self.cfg, self.syscfg)
 
         elif self.syscfg['device']['sem'].startswith('ZEISS'):
             # Create SEM instance to control SEM via SmartSEM API

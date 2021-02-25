@@ -761,6 +761,8 @@ class SEM_MultiSEM(SEM):
         # do not use  __init__ from base class (which loads all settings from
         # config and sysconfig) because some single beam parameters do not
         # apply to MultiSEM
+        # TODO: Better use base class constructor and then ignore single-beam 
+        # parameters and define additional parameters if necessary
 
         self.cfg = config  # user/project configuration (ConfigParser object)
         self.syscfg = sysconfig  # system configuration
@@ -773,12 +775,9 @@ class SEM_MultiSEM(SEM):
         # self.error_info: further description / exception error message
         self.error_state = 0
         self.error_info = ''
-        # Try to read selected device from recognized devices
-        recognized_devices = json.loads(self.syscfg['device']['recognized'])
-        try:
-            self.cfg['sem']['device'] = (
-                recognized_devices[int(self.syscfg['device']['sem'])])
-        except:
+        # Use device selection from system configuration
+        self.cfg['sem']['device'] = self.syscfg['device']['sem']
+        if self.cfg['sem']['device'] not in recognized_devices:
             self.cfg['sem']['device'] = 'NOT RECOGNIZED'
         self.device_name = self.cfg['sem']['device']
         # In simulation mode, there is no connection to the SEM hardware
