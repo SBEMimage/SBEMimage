@@ -788,7 +788,7 @@ class SEM_MultiSEM(SEM):
         # self.use_sem_stage: True if microtome not used
         self.use_sem_stage = (
             self.cfg['sys']['use_microtome'].lower() == 'false')
-        if self.use_sem_stage:
+        if not self.use_sem_stage:
             QMessageBox.critical(self,
                 'MultiSEM device error:'
                 '\nuse_microtome is set to True in the configuration file'
@@ -796,7 +796,7 @@ class SEM_MultiSEM(SEM):
                 '\n then start again SBEMimage.',
                 QMessageBox.Ok)
             print('Error in the configuration file:'
-              '\n use_microtome must be set to True with the MultiSEM.\n')
+              '\n use_microtome must be set to False with the MultiSEM.\n')
             sys.exit()
 
         # The target EHT (= high voltage, in kV) and beam current (in pA)
