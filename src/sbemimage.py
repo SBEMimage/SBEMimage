@@ -205,6 +205,11 @@ def main():
             if os.path.isfile('..\\cfg\\status.dat'):
                 os.remove('..\\cfg\\status.dat')
 
+            # Switch to dark style (experimental) if specified in user config
+            if config['sys']['use_dark_mode_gui'].lower() == 'true':
+                import qdarkstyle
+                SBEMimage.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt5'))
+
             print('Please wait while SBEMimage is starting up...\n')
 
             # Launch Main Controls window. The Viewport window (see viewport.py)
