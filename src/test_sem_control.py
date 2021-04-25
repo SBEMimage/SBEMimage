@@ -24,6 +24,6 @@ def sem():
     return SEM(config, sysconfig)
 
 def test_initial_config(sem):
-    assert sem.device_name == 'ZEISS GeminiSEM'
+    assert sem.device_name == 'NOT RECOGNIZED'
     assert sem.target_eht == 1.5
     assert sem.simulation_mode

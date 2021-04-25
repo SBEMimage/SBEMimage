@@ -26,7 +26,7 @@ def microtome():
     return Microtome(config, sysconfig)
 
 def test_initial_config(microtome):
-    assert microtome.device_name == 'Gatan 3View'  # 3View loaded by default
+    assert microtome.device_name == 'NOT RECOGNIZED'
     assert len(microtome.stage_limits) == 4
 
 def test_cut(microtome):
