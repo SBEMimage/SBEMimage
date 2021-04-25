@@ -43,28 +43,30 @@ class GCIB(BFRemover):
             stage: Stage class must implement XYZ translation, tilt and rotation.
         """
         super().__init__(config, sysconfig)
-        if not _ftdi_utils_avail:
-            self.error_state = Error.configuration
-            self.error_info = (f'ImportError: {self} implementation requires package "ftdidio" and "ftdirelais,'
-                               f'which could not be imported.')
         self.cfg = config
         self.syscfg = sysconfig
         self.stage = stage
         self.error_state = Error.none
         self.error_info = ''
         self.acq = None
+        self.simulation_mode = (
+            self.cfg['sys']['simulation_mode'].lower() == 'true')
+
+        if not _ftdi_utils_avail and not self.simulation_mode:
+            self.error_state = Error.configuration
+            self.error_info = (
+                f'ImportError: {self} implementation requires package "ftdidio"'
+                f' and "ftdirelais", which could not be imported.')
+
         # Load device name and other settings from sysconfig. These
         # settings overwrite the settings in config.
-        recognized_devices = json.loads(self.syscfg['device']['recognized'])
-        try:
-            self.cfg['microtome']['device'] = (
-                recognized_devices[int(self.syscfg['device']['microtome'])])
-        except:
+        recognized_devices = json.loads(
+            self.syscfg['device']['microtome_recognized'])
+        self.cfg['microtome']['device'] = self.syscfg['device']['microtome']
+        if self.cfg['microtome']['device'] not in recognized_devices:
             self.cfg['microtome']['device'] = 'NOT RECOGNIZED'
         self.device_name = self.cfg['microtome']['device']
 
-        self.simulation_mode = (
-            self.cfg['sys']['simulation_mode'].lower() == 'true')
         self._pos_prior_mill_mov = None
         # Catch errors that occur while reading configuration and converting
         # the string values into floats or integers
@@ -79,18 +81,20 @@ class GCIB(BFRemover):
             self.error_state = Error.configuration
             self.error_info = str(e)
             return  # return here otherwise this error will be overwritten by the next lines
-        try:
-            self._ftdi_device = ftdidio.Ftdidio()
-        except Exception as e:
-            self.error_state = Error.configuration
-            self.error_info = f'Could not initialize ftdidio: {str(e)}'
-        # try:
-        #     self._ftdirelais = ftdirelais.Ftdirelais()
-        # except Exception as e:
-        #     self.error_state = Error.configuration
-        #     self.error_info = f'Could not initialize ftdirelais: {str(e)}'
-        self._connect_blanking()
-        # self._connect_relais()
+        
+        if _ftdi_utils_avail and not self.simulation_mode:
+            try:
+                self._ftdi_device = ftdidio.Ftdidio()
+            except Exception as e:
+                self.error_state = Error.configuration
+                self.error_info = f'Could not initialize ftdidio: {str(e)}'
+            # try:
+            #     self._ftdirelais = ftdirelais.Ftdirelais()
+            # except Exception as e:
+            #     self.error_state = Error.configuration
+            #     self.error_info = f'Could not initialize ftdirelais: {str(e)}'
+            self._connect_blanking()
+            # self._connect_relais()
 
     def _connect_blanking(self):
         try:
