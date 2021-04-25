@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>271</width>
-    <height>338</height>
+    <height>379</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -23,7 +23,7 @@
    <property name="geometry">
     <rect>
      <x>80</x>
-     <y>300</y>
+     <y>340</y>
      <width>181</width>
      <height>32</height>
     </rect>
@@ -113,6 +113,19 @@
    </property>
    <property name="text">
     <string>https://github.com/SBEMimage</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButton_deviceSelection">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>290</y>
+     <width>141</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>SEM/microtome setup</string>
    </property>
   </widget>
  </widget>

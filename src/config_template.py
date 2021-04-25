@@ -27,7 +27,10 @@ CFG_NUMBER_KEYS = 213
 
 SYSCFG_TEMPLATE_FILE = '..\\cfg\\system.cfg'  # Template of system configuration
 SYSCFG_NUMBER_SECTIONS = 8
-SYSCFG_NUMBER_KEYS = 49
+SYSCFG_NUMBER_KEYS = 50
+
+# Presets file: contains presets for different devices
+DEVICE_PRESETS_FILE = '..\\cfg\\device_presets.cfg'
 
 # Backward compatibility for older system config files
 LEGACY_DEVICE_NUMBERS = {0: 'Gatan 3View',
@@ -63,22 +66,20 @@ def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):
     else:
         # Load default configuration. This file must be up-to-date. It is always
         # bundled with each new version of SBEMimage.
-        if os.path.isfile(CFG_TEMPLATE_FILE):
-            cfg_template = ConfigParser()
-            try:
-                with open(CFG_TEMPLATE_FILE, 'r') as file:
-                    cfg_template.read_file(file)
-            except Exception as e:
-                cfg_load_success = False
-                exceptions += str(e) + '; '
-        if os.path.isfile(SYSCFG_TEMPLATE_FILE):
-            syscfg_template = ConfigParser()
-            try:
-                with open(SYSCFG_TEMPLATE_FILE, 'r') as file:
-                    syscfg_template.read_file(file)
-            except Exception as e:
-                syscfg_load_success = False
-                exceptions += str(e) + '; '
+        cfg_template = ConfigParser()
+        try:
+            with open(CFG_TEMPLATE_FILE, 'r') as file:
+                cfg_template.read_file(file)
+        except Exception as e:
+            cfg_load_success = False
+            exceptions += str(e) + '; '
+        syscfg_template = ConfigParser()
+        try:
+            with open(SYSCFG_TEMPLATE_FILE, 'r') as file:
+                syscfg_template.read_file(file)
+        except Exception as e:
+            syscfg_load_success = False
+            exceptions += str(e) + '; '
         if cfg_load_success:
             cfg_valid = check_number_of_entries(cfg_template, False)
         if syscfg_load_success:
@@ -183,3 +184,42 @@ def update_key_names(cfg, syscfg):
             syscfg['stage']['sem_calibration_data'])
         syscfg_changed = True
     return cfg_changed, syscfg_changed
+
+
+def load_device_presets(syscfg, selected_sem, selected_microtome):
+    """Load presets for selected SEM/microtome from the file 
+    DEVICE_PRESETS_FILE into the system configuration (syscfg).
+    Return (True, '') if successful, otherwise (False, exception_str). 
+    """
+    if selected_sem is None and selected_microtome is None:
+        return False, ''
+
+    device_presets = ConfigParser()
+    try:
+        with open(DEVICE_PRESETS_FILE, 'r') as file:
+            device_presets.read_file(file)
+    except Exception as e:
+        return False, str(e)
+
+    if selected_sem:
+        # Load SEM presets and write them into system configuration
+        try:
+            sem_presets = device_presets[selected_sem]
+            for key in sem_presets:
+                syscfg_section, syscfg_key = key.split('_', 1)
+                syscfg[syscfg_section][syscfg_key] = sem_presets[key]
+        except Exception as e:
+            return False, str(e)
+
+    if selected_microtome:
+        # Load microtome presets and write them into system configuration
+        try:
+            microtome_presets = device_presets[selected_microtome]
+            for key in microtome_presets:
+                syscfg_section, syscfg_key = key.split('_', 1)
+                syscfg[syscfg_section][syscfg_key] = microtome_presets[key]
+        except Exception as e:
+            return False, str(e)    
+
+    return True, ''
+
