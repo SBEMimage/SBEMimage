@@ -123,7 +123,8 @@ class Microtome(BFRemover):
         self.motor_warning = False  # True when motors slower than expected
         # Load device name and other settings from sysconfig. These
         # settings overwrite the settings in config.
-        recognized_devices = json.loads(self.syscfg['device']['recognized'])
+        recognized_devices = json.loads(
+            self.syscfg['device']['microtome_recognized'])
         # Use device selection from system configuration
         self.cfg['microtome']['device'] = self.syscfg['device']['microtome']
         if self.cfg['microtome']['device'] not in recognized_devices:

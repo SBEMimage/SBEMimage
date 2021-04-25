@@ -21,12 +21,12 @@ class Stage:
         self.microtome = microtome
         self.use_microtome = use_microtome
         # Select the stage to be used:
-        if use_microtome and microtome.device_name == 'Gatan 3View':
+        if use_microtome and microtome.device_name not in ['ConnectomX katana', 'GCIB']:
             # Use microtome for X, Y, Z control
             self._stage = microtome
             self.use_microtome_xy = True
             self.use_microtome_z = True
-        elif use_microtome and microtome.device_name == 'ConnectomX katana':
+        elif use_microtome:
             # Use SEM stage for X, Y control, and microtome for Z control
             self._stage = sem
             self.use_microtome_xy = False

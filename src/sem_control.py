@@ -41,7 +41,7 @@ class SEM:
         self.error_state = Error.none
         self.error_info = ''
         # Check if specified device is recognized
-        recognized_devices = json.loads(self.syscfg['device']['recognized'])
+        recognized_devices = json.loads(self.syscfg['device']['sem_recognized'])
         # Use device selection from system configuration
         self.cfg['sem']['device'] = self.syscfg['device']['sem']
         if self.cfg['sem']['device'] not in recognized_devices:

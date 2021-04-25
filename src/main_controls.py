@@ -42,9 +42,11 @@ from PyQt5.uic import loadUi
 import acq_func
 import utils
 from utils import Error
+from sem_control import SEM
 from sem_control_zeiss import SEM_SmartSEM, SEM_MultiSEM
 from sem_control_fei import SEM_Quanta
 from sem_control_tescan import SEM_SharkSEM
+from microtome_control import Microtome
 from microtome_control_gatan import Microtome_3View
 from microtome_control_katana import Microtome_katana
 from microtome_control_gcib import GCIB
@@ -160,16 +162,24 @@ class MainControls(QMainWindow):
                     '\nSBEMimage will be run in simulation mode.',
                     QMessageBox.Ok)
                 self.simulation_mode = True
+        elif self.syscfg['device']['sem'] == 'Unknown':
+            # SBEMimage started with default configuration, no SEM selected yet.
+            # Use base class in simulation mode
+            self.sem = SEM(self.cfg, self.syscfg)
+            self.simulation_mode = True
         else:
-            # No other SEMs supported at the moment
-            self.sem = None
+            # Unknown model selected, show warning and use base class to support
+            # simulation mode
+            self.sem = SEM(self.cfg, self.syscfg)
             utils.log_warning(
-                'SEM', 'No SEM found, or incompatible SEM selected.')
+                'SEM', 'No SEM or incompatible model selected.')
             QMessageBox.warning(
-                self, 'No SEM found',
-                'No SEM was found, or an incompatible SEM was selected. '
-                'Check your system configuration file.'
-                '\nSBEMimage will be run in simulation mode.',
+                self, 'No SEM selected',
+                'No SEM or an incompatible model was selected. '
+                'Restart SBEMimage and click on "SEM/microtome setup" to '
+                'load presets for supported models, or manually check '
+                'your system configuration file.'
+                '\n\nSBEMimage will be run in simulation mode.',
                 QMessageBox.Ok)
             self.simulation_mode = True
 
@@ -236,8 +246,20 @@ class MainControls(QMainWindow):
         elif (self.use_microtome 
                 and self.syscfg['device']['microtome'] == 'GCIB'):
             self.microtome = GCIB(self.cfg, self.syscfg, self.sem)
+        elif (self.use_microtome
+                and self.syscfg['device']['microtome'] == 'Unknown'):
+            # Started with default system configuration for the first time; use base class
+            self.microtome = Microtome(self.cfg, self.syscfg)
         else:
-            # No microtome or unknown device: Use SEM stage
+            # No microtome or unknown device: Show warning, and use SEM stage
+            utils.log_error('CTRL', 'Unknown microtome selected, SEM stage will be used.')
+            QMessageBox.warning(
+                self, 'Unknown microtome model selected',
+                'An unknown microtome model was selected. '
+                'Restart SBEMimage and click on "SEM/microtome setup" to '
+                'load presets for supported models, or manually check '
+                'your system configuration file.',
+                QMessageBox.Ok)
             self.use_microtome = False
             self.cfg['sys']['use_microtome'] == 'False'
             self.microtome = None
@@ -286,7 +308,11 @@ class MainControls(QMainWindow):
             self.vp_installed = self.sem.has_vp()
         else:
             self.vp_installed = False
-        self.fcc_installed = self.sem.has_fcc()
+
+        if self.syscfg['device']['sem'].startswith('ZEISS'):
+            self.fcc_installed = self.sem.has_fcc()
+        else:
+            self.fcc_installed = False
 
         self.initialize_main_controls_gui()
 
@@ -352,6 +378,49 @@ class MainControls(QMainWindow):
         print('\n\nReady.\n')
         self.set_statusbar('Ready.')
 
+        # If user has selected the default.ini configuration, provide some
+        # guidance
+        if self.cfg_file == 'default.ini':
+            # Check how many .cfg files exist
+            cfgfile_counter = 0
+            for file in os.listdir('..\\cfg'):
+                if file.endswith('.cfg'):
+                    cfgfile_counter += 1
+            if cfgfile_counter > 2:
+                # Explain that default.ini will use the default system
+                # configuration.
+                QMessageBox.warning(
+                    self, 'Default user and system configuration',
+                    'You have selected default.ini to load SBEMimage, but '
+                    'there is at least one custom system configuration file '
+                    'available for this installation.\nPlease note that '
+                    'default.ini will use the unmodified default system '
+                    'configuration (system.cfg), in which no SEM/microtome '
+                    'models are specified.'
+                    '\n\nIf you want to create new user configuration files, '
+                    'you should first load a configuration other than '
+                    'default.ini.',
+                    QMessageBox.Ok)
+            elif self.simulation_mode:
+                # Show welcome message if SBEMimage is started with default.ini
+                # in simulation mode and no custom system configuration exists.
+                QMessageBox.information(
+                    self, 'Welcome to SBEMimage',
+                    'You can explore the user interface in simulation mode. If you '
+                    'want to get started with using SBEMimage on your '
+                    'SEM/microtome setup, save the current configuration '
+                    'under a new name. This will create a new custom user '
+                    'configuration file and a system configuration file:\n'
+                    'Menu  →  Configuration  →  Save as new configuration file'
+                    '\n\nThen leave the simulation mode:\n'
+                    'Menu  →  Configuration  →  Leave simulation mode'
+                    '\nRestart SBEMimage and load your new configuration file. '
+                    'Select your SEM and (optional) microtome model in '
+                    'the start-up dialog (button "SEM/microtome setup").'
+                    '\n\nFollow the instructions in the user guide '
+                    '(sbemimage.readthedocs.io) to calibrate your setup.',
+                    QMessageBox.Ok)
+
         if self.simulation_mode:
             utils.log_info('CTRL', 'Simulation mode active.')
             QMessageBox.information(
@@ -381,46 +450,6 @@ class MainControls(QMainWindow):
                 + ' Please make sure that the Z position is correct.',
                 QMessageBox.Ok)
 
-        # If user has selected the default.ini configuration, provide some
-        # guidance
-        if self.cfg_file == 'default.ini':
-            # Check how many .cfg files exist
-            cfgfile_counter = 0
-            for file in os.listdir('..\\cfg'):
-                if file.endswith('.cfg'):
-                    cfgfile_counter += 1
-            if cfgfile_counter > 1:
-                # Explain that default.ini will use the default system
-                # configuration.
-                QMessageBox.warning(
-                    self, 'Default user and system configuration',
-                    'You have selected default.ini to load SBEMimage, but '
-                    'there is at least one custom system configuration file '
-                    'available for this installation.\nPlease note that '
-                    'default.ini will use the unmodified default system '
-                    'configuration (system.cfg), which will probably not work '
-                    'for your setup.'
-                    '\n\nIf you want to create new user configuration files, '
-                    'you should first load a configuration other than '
-                    'default.ini.',
-                    QMessageBox.Ok)
-            elif self.simulation_mode:
-                # Show welcome message if SBEMimage is started with default.ini
-                # in simulation mode and no custom system configuration exists.
-                QMessageBox.information(
-                    self, 'Welcome to SBEMimage',
-                    'You can explore the user interface in simulation mode. If you '
-                    'want to get started with using SBEMimage on your '
-                    'SEM/microtome setup, save the current configuration '
-                    'under a new name. This will create a new custom user '
-                    'configuration file and a system configuration file:\n'
-                    'Menu  →  Configuration  →  Save as new configuration file'
-                    '\n\nThen leave the simulation mode:\n'
-                    'Menu  →  Configuration  →  Leave simulation mode'
-                    '\nRestart SBEMimage and load your new configuration file.'
-                    '\n\nFollow the instructions in the user guide '
-                    '(sbemimage.readthedocs.io) to calibrate your setup.',
-                    QMessageBox.Ok)
 
     def initialize_main_controls_gui(self):
         """Load and set up the Main Controls GUI"""
