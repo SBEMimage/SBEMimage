@@ -6,12 +6,13 @@ __pycache__/
 # Pytest
 .pytest_cache
 
-# Configuration files, except templates and installer.cfg
+# Configuration files, except templates, device presets and installer.cfg
 *.ini
 *.cfg
 *.dat
 !default.ini
 !system.cfg
+!device_presets.cfg
 !installer.cfg
 
 # DM script control files
