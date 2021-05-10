@@ -934,7 +934,7 @@ class GridManager:
         if len(wd_gradient_params) < self.number_grids:
             wd_gradient_params = [[0, 0, 0]] * self.number_grids
         if len(sw_sh) < self.number_grids:
-            sw_sh = (0, 0) * self.number_grids
+            sw_sh = [(0, 0)] * self.number_grids
 
         # Create a list of grid objects with the parameters read from
         # the user configuration.
