@@ -897,9 +897,11 @@ class GridManager:
         self.number_grids = int(self.cfg['grids']['number_grids'])
         grid_active = json.loads(self.cfg['grids']['grid_active'])
         origin_sx_sy = json.loads(self.cfg['grids']['origin_sx_sy'])
+        # * backward compatibility:
         if 'sw_sh' in self.cfg['grids']:
-            # * backward compatibility
             sw_sh = json.loads(self.cfg['grids']['sw_sh'])
+        else:
+            sw_sh = []
         rotation = json.loads(self.cfg['grids']['rotation'])
         size = json.loads(self.cfg['grids']['size'])
         overlap = json.loads(self.cfg['grids']['overlap'])
@@ -931,13 +933,14 @@ class GridManager:
             wd_stig_xy = [[0, 0, 0]] * self.number_grids
         if len(wd_gradient_params) < self.number_grids:
             wd_gradient_params = [[0, 0, 0]] * self.number_grids
+        if len(sw_sh) < self.number_grids:
+            sw_sh = [(0, 0)] * self.number_grids
 
         # Create a list of grid objects with the parameters read from
         # the user configuration.
         self.__grids = []
         for i in range(self.number_grids):
-            # * backward compatibility sw_sh[i] -> (0, 0)
-            grid = Grid(self.cs, self.sem, grid_active[i] == 1, origin_sx_sy[i], (0, 0),    # replace with sw_sh[i]
+            grid = Grid(self.cs, self.sem, grid_active[i] == 1, origin_sx_sy[i], sw_sh[i],
                         rotation[i], size[i], overlap[i], row_shift[i],
                         active_tiles[i], frame_size[i], frame_size_selector[i],
                         pixel_size[i], dwell_time[i], dwell_time_selector[i],
