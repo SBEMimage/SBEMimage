@@ -23,11 +23,11 @@ from configparser import ConfigParser
 # deleted from the default configuration files
 CFG_TEMPLATE_FILE = '..\\cfg\\default.ini'  # Template of user configuration
 CFG_NUMBER_SECTIONS = 12
-CFG_NUMBER_KEYS = 213
+CFG_NUMBER_KEYS = 214
 
 SYSCFG_TEMPLATE_FILE = '..\\cfg\\system.cfg'  # Template of system configuration
 SYSCFG_NUMBER_SECTIONS = 8
-SYSCFG_NUMBER_KEYS = 50
+SYSCFG_NUMBER_KEYS = 54
 
 # Presets file: contains presets for different devices
 DEVICE_PRESETS_FILE = '..\\cfg\\device_presets.cfg'

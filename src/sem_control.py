@@ -79,10 +79,21 @@ class SEM:
         # 'Grab frame' settings: these are the settings for acquiring single
         # frames with the SEM using the 'Grab frame' feature in SBEMimage.
         # dwell time provided in microseconds, pixel size in nanometres
-        self.grab_dwell_time = float(self.cfg['sem']['grab_frame_dwell_time'])
-        self.grab_pixel_size = float(self.cfg['sem']['grab_frame_pixel_size'])
-        self.grab_frame_size_selector = int(
-            self.cfg['sem']['grab_frame_size_selector'])
+        if self.cfg['sem']['grab_frame_dwell_time_selector'] == 'None':
+            self.grab_dwell_time_selector = self.DWELL_TIME_DEFAULT_INDEX
+        else:
+            self.grab_dwell_time_selector = int(
+                self.cfg['sem']['grab_frame_dwell_time_selector'])
+        if self.cfg['sem']['grab_frame_dwell_time'] == 'None':
+            self.grab_dwell_time = self.DWELL_TIME[self.grab_dwell_time_selector]
+        else:
+            self.grab_dwell_time = float(self.cfg['sem']['grab_frame_dwell_time'])
+        self.grab_pixel_size = float(self.cfg['sem']['grab_frame_pixel_size'])        
+        if self.cfg['sem']['grab_frame_size_selector'] == 'None':
+            self.grab_frame_size_selector = self.STORE_RES_DEFAULT_INDEX_TILE
+        else:
+            self.grab_frame_size_selector = int(
+                self.cfg['sem']['grab_frame_size_selector'])
         # The cycle time is total duration to acquire a full frame.
         # self.current_cycle_time will be set (in seconds) the first time when
         # self.apply_frame_settings() is called.
@@ -144,8 +155,16 @@ class SEM:
         self.HAS_HIGH_CURRENT = bool(self.syscfg['sem']['has_high_current'])
         # self.STORE_RES: available store resolutions (= frame size in pixels)
         self.STORE_RES = json.loads(self.syscfg['sem']['store_res'])
+        # self.STORE_RES_DEFAULT_INDEX_TILE: default store resolution for new grids and grabbing tiles
+        self.STORE_RES_DEFAULT_INDEX_TILE = int(self.syscfg['sem']['store_res_default_index_tile'])
+        # self.STORE_RES_DEFAULT_INDEX_OV: default store resolution for OVs
+        self.STORE_RES_DEFAULT_INDEX_OV = int(self.syscfg['sem']['store_res_default_index_ov'])
+        # self.STORE_RES_DEFAULT_INDEX_STUB_OV: default store resolution for stub OV tiles
+        self.STORE_RES_DEFAULT_INDEX_STUB_OV = int(self.syscfg['sem']['store_res_default_index_stub_ov'])
         # self.DWELL_TIME: available dwell times in microseconds
         self.DWELL_TIME = json.loads(self.syscfg['sem']['dwell_time'])
+        # self.DWELL_TIME_DEFAULT_INDEX: default dwell time
+        self.DWELL_TIME_DEFAULT_INDEX = int(self.syscfg['sem']['dwell_time_default_index'])
         # self.APERTURE_SIZE: available aperture sizes in microns
         self.APERTURE_SIZE = json.loads(self.syscfg['sem']['aperture_size'])
         # Cycle times: Duration of scanning one full frame, depends on
