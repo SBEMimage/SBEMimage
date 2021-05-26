@@ -250,16 +250,18 @@ class MainControls(QMainWindow):
                 and self.syscfg['device']['microtome'] == 'Unknown'):
             # Started with default system configuration for the first time; use base class
             self.microtome = Microtome(self.cfg, self.syscfg)
-        else:
-            # No microtome or unknown device: Show warning, and use SEM stage
-            utils.log_error('CTRL', 'Unknown microtome selected, SEM stage will be used.')
-            QMessageBox.warning(
-                self, 'Unknown microtome model selected',
-                'An unknown microtome model was selected. '
-                'Restart SBEMimage and click on "SEM/microtome setup" to '
-                'load presets for supported models, or manually check '
-                'your system configuration file.',
-                QMessageBox.Ok)
+        else: 
+            # No microtome or unknown device
+            # Show warning if use_microtome set to True
+            if self.use_microtome:
+                utils.log_error('CTRL', 'Unknown microtome selected, SEM stage will be used.')
+                QMessageBox.warning(
+                    self, 'Unknown microtome model selected',
+                    'An unknown microtome model was selected. '
+                    'Restart SBEMimage and click on "SEM/microtome setup" to '
+                    'load presets for supported models, or manually check '
+                    'your system configuration file.',
+                    QMessageBox.Ok)
             self.use_microtome = False
             self.cfg['sys']['use_microtome'] == 'False'
             self.microtome = None
