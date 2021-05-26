@@ -37,6 +37,10 @@ class Overview(Grid):
                  acq_interval_offset, wd_stig_xy, vp_file_path,
                  debris_detection_area):
 
+        # Use default OV frame size selector if selector not specified
+        if frame_size_selector is None:
+            frame_size_selector = sem.STORE_RES_DEFAULT_INDEX_OV
+
         # Initialize the overview as a 1x1 grid
         super().__init__(coordinate_system, sem,
                          active=ov_active, origin_sx_sy=centre_sx_sy,
@@ -193,8 +197,8 @@ class StubOverview(Grid):
                          active=True, origin_sx_sy=[0, 0],
                          rotation=0, size=grid_size,
                          overlap=overlap, row_shift=0, active_tiles=[],
-                         frame_size=[], frame_size_selector=frame_size_selector,
-                         pixel_size=pixel_size, dwell_time=0.8,
+                         frame_size=None, frame_size_selector=frame_size_selector,
+                         pixel_size=pixel_size, dwell_time=None,
                          dwell_time_selector=dwell_time_selector,
                          display_colour=11)
 
@@ -305,12 +309,18 @@ class OverviewManager:
             self.cfg['overviews']['stub_ov_centre_sx_sy'])
         stub_ov_grid_size = json.loads(
             self.cfg['overviews']['stub_ov_grid_size'])
-        stub_ov_overlap = int(self.cfg['overviews']['stub_ov_overlap'])
-        stub_ov_frame_size_selector = int(
-            self.cfg['overviews']['stub_ov_frame_size_selector'])
+        stub_ov_overlap = int(self.cfg['overviews']['stub_ov_overlap'])  
+        if self.cfg['overviews']['stub_ov_frame_size_selector'] == 'None':
+            stub_ov_frame_size_selector = self.sem.STORE_RES_DEFAULT_INDEX_STUB_OV
+        else:
+            stub_ov_frame_size_selector = int(
+                self.cfg['overviews']['stub_ov_frame_size_selector'])
         stub_ov_pixel_size = float(self.cfg['overviews']['stub_ov_pixel_size'])
-        stub_ov_dwell_time = int(
-            self.cfg['overviews']['stub_ov_dwell_time_selector'])
+        if self.cfg['overviews']['stub_ov_dwell_time_selector'] == 'None':
+            stub_ov_dwell_time_selector = self.sem.DWELL_TIME_DEFAULT_INDEX
+        else:
+            stub_ov_dwell_time_selector = int(
+                self.cfg['overviews']['stub_ov_dwell_time_selector'])
         stub_ov_file_path = (
             self.cfg['overviews']['stub_ov_viewport_image'])
 
@@ -320,7 +330,7 @@ class OverviewManager:
                                             stub_ov_overlap,
                                             stub_ov_frame_size_selector,
                                             stub_ov_pixel_size,
-                                            stub_ov_dwell_time,
+                                            stub_ov_dwell_time_selector,
                                             stub_ov_file_path)
 
     def __getitem__(self, ov_index):

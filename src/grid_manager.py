@@ -91,9 +91,9 @@ class Grid:
 
     def __init__(self, coordinate_system, sem,
                  active=True, origin_sx_sy=(0, 0), sw_sh=(0, 0), rotation=0,
-                 size=(5, 5), overlap=200, row_shift=0, active_tiles=None,
-                 frame_size=(4096, 3072), frame_size_selector=4,
-                 pixel_size=10.0, dwell_time=0.8, dwell_time_selector=4,
+                 size=(5, 5), overlap=None, row_shift=0, active_tiles=None,
+                 frame_size=None, frame_size_selector=None,
+                 pixel_size=10.0, dwell_time=None, dwell_time_selector=None,
                  display_colour=0, acq_interval=1, acq_interval_offset=0,
                  wd_stig_xy=(0, 0, 0), use_wd_gradient=False,
                  wd_gradient_ref_tiles=None,
@@ -124,22 +124,39 @@ class Grid:
         self.sw_sh = sw_sh
         # Rotation in degrees
         self.rotation = rotation
-        # Overlap between neighbouring tiles in pixels
-        self.overlap = overlap
         # Every other row of tiles is shifted by row_shift (number of pixels)
         self.row_shift = row_shift
         # The boolean active indicates whether the grid will be acquired
         # or skipped.
         self.active = active
+
+        # Use device-dependent default for frame size if no frame size selector specified
+        if frame_size_selector is None:
+            frame_size_selector = self.sem.STORE_RES_DEFAULT_INDEX_TILE
+
         self.frame_size = frame_size
         # Setting the frame_size_selector will automatically update the frame
-        # size.
+        # size unless the selector is -1.
         self.frame_size_selector = frame_size_selector
-        # Pixel size in nm (float)
-        self.pixel_size = pixel_size
+
+        # Overlap between neighbouring tiles in pixels.
+        # If not specified, use 5% of the image width, rounded to 10px
+        if overlap is None:
+            overlap = round(0.05 * self.frame_size[0], -1)
+        
+        self.overlap = overlap
+        
+        # Use device-dependent default for dwell time if no dwell time selector specified
+        if dwell_time_selector is None:
+            dwell_time_selector = self.sem.DWELL_TIME_DEFAULT_INDEX
+
         # Dwell time in microseconds (float)
         self.dwell_time = dwell_time
         self.dwell_time_selector = dwell_time_selector
+        
+        # Pixel size in nm (float)
+        self.pixel_size = pixel_size
+
         # Colour of the grid in the Viewport. See utils.COLOUR_SELECTOR
         self.display_colour = display_colour
         self.acq_interval = acq_interval
@@ -604,7 +621,9 @@ class Grid:
     @frame_size_selector.setter
     def frame_size_selector(self, selector):
         self._frame_size_selector = selector
-        # Update explicit storage of frame size:
+        if selector == -1:
+            return
+        # Update explicit storage of frame size
         if selector is not None and selector < len(self.sem.STORE_RES):
             self.frame_size = self.sem.STORE_RES[selector]
         if self.auto_update_tile_positions:
@@ -1122,7 +1141,7 @@ class GridManager:
 
     def add_new_grid(self, origin_sx_sy=None, sw_sh=(0, 0), active=True,
                      frame_size=None, frame_size_selector=None, overlap=None,
-                     pixel_size=10.0, dwell_time=0.8, dwell_time_selector=4,
+                     pixel_size=10.0, dwell_time=None, dwell_time_selector=None,
                      rotation=0, row_shift=0, acq_interval=1, acq_interval_offset=0,
                      wd_stig_xy=(0, 0, 0), use_wd_gradient=False,
                      wd_gradient_ref_tiles=None, wd_gradient_params=None,
@@ -1137,21 +1156,7 @@ class GridManager:
             y_pos += 50
         else:
             x_pos, y_pos = origin_sx_sy
-        # Set tile size and overlap according to store resolutions available
-        if len(self.sem.STORE_RES) > 4:
-            if frame_size is None:
-                frame_size = [4096, 3072]
-            if frame_size_selector is None:
-                frame_size_selector = 4
-            if overlap is None:
-                overlap = 200
-        else:
-            if frame_size is None:
-                frame_size = [3072, 2304]
-            if frame_size_selector is None:
-                frame_size_selector = 3
-            if overlap is None:
-                overlap = 150
+
         # Set grid colour
         if self.sem.magc_mode or self.sem.syscfg['device']['microtome'] == '6':  # or GCIB in use
             # Cycle through available colours.

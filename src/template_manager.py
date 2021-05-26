@@ -18,7 +18,7 @@ class Template(Grid):
         super().__init__(coordinate_system, sem, origin_sx_sy=centre_sx_sy,
                          rotation=rotation, size=[1, 1], overlap=0, row_shift=0,
                          active_tiles=[0], frame_size=(w, h), display_colour=8,
-                         frame_size_selector=None, pixel_size=pixel_size)
+                         frame_size_selector=-1, pixel_size=pixel_size)
         self._origin_sx_sy = centre_sx_sy
 
     @property
