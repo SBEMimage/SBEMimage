@@ -181,13 +181,6 @@ def main():
             # Check if number of entries correct (no other checks at the moment)
             success, exceptions, _, _, _, _ = process_cfg(config, sysconfig,
                                                           is_default_cfg=True)
-        else:
-            # Check and update if necessary: obsolete entries are ignored,
-            # missing/new entries are added with default values.
-            (success, exceptions,
-             cfg_changed, syscfg_changed,
-             config, sysconfig) = (
-                process_cfg(config, sysconfig))
 
             if success and device_presets_selection != [None, None]:
                 # Attempt to load presets into system configuration
@@ -198,6 +191,13 @@ def main():
                 if success:
                     syscfg_changed = True
                     presets_loaded = True
+        else:
+            # Check and update if necessary: obsolete entries are ignored,
+            # missing/new entries are added with default values.
+            (success, exceptions,
+             cfg_changed, syscfg_changed,
+             config, sysconfig) = (
+                process_cfg(config, sysconfig))
 
         if success:
             if default_configuration:

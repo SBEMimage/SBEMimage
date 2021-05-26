@@ -146,11 +146,11 @@ class ConfigDlg(QDialog):
                     QMessageBox.Ok)
 
     def ini_file_selection_changed(self):
-        # Disable device presets selection button if default.ini selected
+        # Enable device presets selection button if default.ini selected
         if self.listWidget_filelist.currentItem().text() == 'default.ini':
-            self.pushButton_deviceSelection.setEnabled(False)
-        else:
             self.pushButton_deviceSelection.setEnabled(True)
+        else:
+            self.pushButton_deviceSelection.setEnabled(False)
         
     def open_device_selection_dlg(self):
         dialog = DeviceSelectionDlg(self.load_presets_enabled,
