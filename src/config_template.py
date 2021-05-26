@@ -201,6 +201,20 @@ def load_device_presets(syscfg, selected_sem, selected_microtome):
     except Exception as e:
         return False, str(e)
 
+    # Note: Load microtome presets first because in case of a Sigma-3View
+    # combination, different values for the 3View stage calibration are 
+    # loaded from the SEM presets. 
+
+    if selected_microtome:
+        # Load microtome presets and write them into system configuration
+        try:
+            microtome_presets = device_presets[selected_microtome]
+            for key in microtome_presets:
+                syscfg_section, syscfg_key = key.split('_', 1)
+                syscfg[syscfg_section][syscfg_key] = microtome_presets[key]
+        except Exception as e:
+            return False, str(e)
+
     if selected_sem:
         # Load SEM presets and write them into system configuration
         try:
@@ -211,15 +225,4 @@ def load_device_presets(syscfg, selected_sem, selected_microtome):
         except Exception as e:
             return False, str(e)
 
-    if selected_microtome:
-        # Load microtome presets and write them into system configuration
-        try:
-            microtome_presets = device_presets[selected_microtome]
-            for key in microtome_presets:
-                syscfg_section, syscfg_key = key.split('_', 1)
-                syscfg[syscfg_section][syscfg_key] = microtome_presets[key]
-        except Exception as e:
-            return False, str(e)    
-
     return True, ''
-
