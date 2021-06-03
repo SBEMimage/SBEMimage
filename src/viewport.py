@@ -752,9 +752,9 @@ class Viewport(QWidget):
                 px in range(self.cs.vp_width) and py in range(self.cs.vp_height))
             if mouse_pos_within_viewer:
                 if event.angleDelta().y() > 0:
-                    self._vp_mouse_zoom(px, py, 1.25)
+                    self._vp_mouse_zoom(px, py, 1.1)
                 if event.angleDelta().y() < 0:
-                    self._vp_mouse_zoom(px, py, 0.8)
+                    self._vp_mouse_zoom(px, py, 0.9)
 
     def keyPressEvent(self, event):
         # Move through slices in slice-by-slice viewer with PgUp/PgDn
@@ -2249,9 +2249,9 @@ class Viewport(QWidget):
             # Doubleclick is (usually) a single event: draw with labels/previews
             self.vp_draw()
         else:
-            # Continuous zoom with the mouse wheel: Suppress labels and previews
+            # Continuous zoom with the mouse wheel: Suppress previews
             # for smoother redrawing.
-            self.vp_draw(suppress_labels=True, suppress_previews=True)
+            self.vp_draw(suppress_labels=False, suppress_previews=True)
 
     def _vp_shift_fov(self, shift_vector):
         """Shift the Viewport's field of view (FOV) by shift_vector."""
