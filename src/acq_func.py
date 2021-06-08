@@ -140,10 +140,9 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
     stage.get_xy()
     stub_dlg_trigger.transmit('UPDATE XY')
 
-    if stage.use_microtome:
-        # When using the microtome stage, make sure the DigitalMicrograph script
-        # uses the correct motor speeds (this information is lost when script
-        # crashes.)
+    if stage.use_microtome_xy:
+        # When using the microtome for XY moves, make sure the correct motor 
+        # speeds are being set. This is currently only relevant for Gatan 3View.
         success = stage.update_motor_speed()
 
     if success:
