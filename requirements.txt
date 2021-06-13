@@ -18,3 +18,4 @@ opencv-python
 comtypes
 shapely
 qdarkstyle
+tqdm
