@@ -46,6 +46,7 @@ from sem_control import SEM
 from sem_control_zeiss import SEM_SmartSEM, SEM_MultiSEM
 from sem_control_fei import SEM_Quanta
 from sem_control_tescan import SEM_SharkSEM
+from sem_control_mock import SEM_Mock
 from microtome_control import Microtome
 from microtome_control_gatan import Microtome_3View
 from microtome_control_katana import Microtome_katana
@@ -162,6 +163,8 @@ class MainControls(QMainWindow):
                     '\nSBEMimage will be run in simulation mode.',
                     QMessageBox.Ok)
                 self.simulation_mode = True
+        elif self.syscfg['device']['sem'] == 'Mock SEM':
+            self.sem = SEM_Mock(self.cfg, self.syscfg)        
         elif self.syscfg['device']['sem'] == 'Unknown':
             # SBEMimage started with default configuration, no SEM selected yet.
             # Use base class in simulation mode
@@ -2524,6 +2527,12 @@ class MainControls(QMainWindow):
         """Save the updated ConfigParser objects for the user and the
         system configuration to disk.
         """
+        # If the current session configuration file is "default.ini",
+        # the user must create a new session configuration file
+        if self.cfg_file == 'default.ini':
+            self.open_save_settings_new_file_dlg()
+            return
+
         # TODO: Saving may take a while -> run in thread
         # TODO: Reconsider when and how tile previews are saved...
         if show_msg:
