@@ -128,25 +128,6 @@
     <string>Calibration factor:</string>
    </property>
   </widget>
-  <widget class="QSpinBox" name="spinBox_calibrationFactor">
-   <property name="geometry">
-    <rect>
-     <x>110</x>
-     <y>10</y>
-     <width>101</width>
-     <height>22</height>
-    </rect>
-   </property>
-   <property name="minimum">
-    <number>9999999</number>
-   </property>
-   <property name="maximum">
-    <number>999999999</number>
-   </property>
-   <property name="singleStep">
-    <number>100000</number>
-   </property>
-  </widget>
   <widget class="QSpinBox" name="spinBox_mag">
    <property name="geometry">
     <rect>
@@ -218,9 +199,24 @@
     </rect>
    </property>
   </widget>
+  <widget class="QLineEdit" name="lineEdit_calibrationFactor">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>112</x>
+     <y>9</y>
+     <width>101</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>0</string>
+   </property>
+  </widget>
  </widget>
  <tabstops>
-  <tabstop>spinBox_calibrationFactor</tabstop>
   <tabstop>comboBox_frameWidth</tabstop>
   <tabstop>spinBox_mag</tabstop>
   <tabstop>doubleSpinBox_pixelSize</tabstop>

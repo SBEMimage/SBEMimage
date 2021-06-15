@@ -147,10 +147,10 @@
     <enum>Qt::LeftToRight</enum>
    </property>
    <property name="minimum">
-    <number>-1400</number>
+    <number>-200000</number>
    </property>
    <property name="maximum">
-    <number>140000</number>
+    <number>200000</number>
    </property>
    <property name="singleStep">
     <number>10</number>
@@ -169,10 +169,10 @@
     <enum>Qt::LeftToRight</enum>
    </property>
    <property name="minimum">
-    <number>-1400</number>
+    <number>-200000</number>
    </property>
    <property name="maximum">
-    <number>140000</number>
+    <number>200000</number>
    </property>
    <property name="singleStep">
     <number>10</number>
