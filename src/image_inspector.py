@@ -29,6 +29,9 @@ import utils
 # Remove image size limit in PIL (Pillow) to prevent DecompressionBombError
 Image.MAX_IMAGE_PIXELS = None
 
+# Preview image width in pixels
+PREVIEW_IMG_WIDTH = 512
+
 class ImageInspector:
 
     def __init__(self, config, overview_manager, grid_manager):
@@ -183,7 +186,10 @@ class ImageInspector:
             img_tostring = img.tostring()
             preview_img = Image.frombytes(
                 'L', (width, height),
-                img_tostring).resize((512, 384), resample=2)
+                img_tostring).resize((
+                    PREVIEW_IMG_WIDTH, 
+                    int(PREVIEW_IMG_WIDTH * height / width)), 
+                    resample=Image.BILINEAR)
 
             # Convert to QPixmap and save in grid_manager
             self.gm[grid_index][tile_index].preview_img = QPixmap.fromImage(
