@@ -51,6 +51,7 @@ from microtome_control import Microtome
 from microtome_control_gatan import Microtome_3View
 from microtome_control_katana import Microtome_katana
 from microtome_control_gcib import GCIB
+from microtome_control_mock import Microtome_Mock
 from stage import Stage
 from plasma_cleaner import PlasmaCleaner
 from acquisition import Acquisition
@@ -253,6 +254,9 @@ class MainControls(QMainWindow):
                 and self.syscfg['device']['microtome'] == 'Unknown'):
             # Started with default system configuration for the first time; use base class
             self.microtome = Microtome(self.cfg, self.syscfg)
+        elif (self.use_microtome
+                and self.syscfg['device']['microtome'] == 'Mock Microtome'):
+            self.microtome = Microtome_Mock(self.cfg, self.syscfg)
         else: 
             # No microtome or unknown device
             # Show warning if use_microtome set to True

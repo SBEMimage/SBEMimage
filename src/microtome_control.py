@@ -340,7 +340,7 @@ class Microtome(BFRemover):
         """
         duration_x = abs(target_x - self.last_known_x) / self.motor_speed_x
         duration_y = abs(target_y - self.last_known_y) / self.motor_speed_y
-        return duration_x + self.stage_move_wait_interval, duration_y + + self.stage_move_wait_interval
+        return duration_x + self.stage_move_wait_interval, duration_y + self.stage_move_wait_interval
 
     def stage_move_duration(self, from_x, from_y, to_x, to_y):
         """Return the total duration for a move including the
