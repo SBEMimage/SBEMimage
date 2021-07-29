@@ -442,7 +442,11 @@ def show_progress_in_console(progress):
 
 def ov_save_path(base_dir, stack_name, ov_index, slice_counter):
     return os.path.join(
-        base_dir, 'overviews', 'ov' + str(ov_index).zfill(OV_DIGITS),
+        base_dir, ov_relative_save_path(stack_name, ov_index, slice_counter))
+
+def ov_relative_save_path(stack_name, ov_index, slice_counter):
+    return os.path.join(
+        'overviews', 'ov' + str(ov_index).zfill(OV_DIGITS),
         stack_name + '_ov' + str(ov_index).zfill(OV_DIGITS)
         + '_s' + str(slice_counter).zfill(SLICE_DIGITS) + '.tif')
 
@@ -490,6 +494,10 @@ def ov_reslice_save_path(base_dir, ov_index):
 def tile_id(grid_index, tile_index, slice_counter):
     return (str(grid_index).zfill(GRID_DIGITS)
             + '.' + str(tile_index).zfill(TILE_DIGITS)
+            + '.' + str(slice_counter).zfill(SLICE_DIGITS))
+
+def overview_id(ov_index, slice_counter):
+    return (str(ov_index).zfill(OV_DIGITS)
             + '.' + str(slice_counter).zfill(SLICE_DIGITS))
 
 def validate_tile_list(input_str):

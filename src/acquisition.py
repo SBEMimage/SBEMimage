@@ -57,7 +57,9 @@ class Acquisition:
         # Log file handles
         self.main_log_file = None
         self.imagelist_file = None
+        self.imagelist_ov_file = None
         self.mirror_imagelist_file = None
+        self.mirror_imagelist_ov_file = None
         self.incident_log_file = None
         self.metadata_file = None
         # Filename of current Viewport screenshot
@@ -451,6 +453,13 @@ class Acquisition:
                 'imagelist_' + timestamp + '.txt')
             self.imagelist_file = open(self.imagelist_filename,
                                        'w', buffer_size)
+            # Set up overview imagelist file, which contains the paths, file names and
+            # positions of all acquired overviews
+            self.imagelist_ov_filename = os.path.join(
+                self.base_dir, 'meta', 'logs',
+                'imagelist_ov_' + timestamp + '.txt')
+            self.imagelist_ov_file = open(self.imagelist_ov_filename,
+                                          'w', buffer_size)
             # Incident log for warnings, errors and debris detection events
             # (All incidents are also logged in the main log file.)
             self.incident_log_filename = os.path.join(
@@ -475,22 +484,26 @@ class Acquisition:
                     gridmap_filename,
                     self.main_log_filename,
                     self.imagelist_filename,
+                    self.imagelist_ov_filename,
                     self.incident_log_filename,
                     self.metadata_filename])
-                # Create file handle for imagelist file on mirror drive.
-                # The imagelist file on the mirror drive is updated continously.
+                # Create file handle for imagelist files on mirror drive.
+                # The imagelist files on the mirror drive are updated continously.
                 # The other logfiles are copied at the end of each run.
                 try:
                     self.mirror_imagelist_file = open(os.path.join(
                         self.mirror_drive, self.imagelist_filename[2:]),
                         'w', buffer_size)
+                    self.mirror_imagelist_ov_file = open(os.path.join(
+                        self.mirror_drive, self.imagelist_ov_filename[2:]),
+                        'w', buffer_size)
                 except Exception as e:
                     utils.log_error(
                         'CTRL',
-                        'Error while creating imagelist file on mirror '
+                        'Error while creating imagelist files on mirror '
                         'drive: ' + str(e))
                     self.add_to_main_log(
-                        'CTRL: Error while creating imagelist file on mirror '
+                        'CTRL: Error while creating imagelist files on mirror '
                         'drive: ' + str(e))
                     self.pause_acquisition(1)
                     self.error_state = Error.mirror_drive
@@ -1001,8 +1014,11 @@ class Acquisition:
             self.main_log_file.close()
         if self.imagelist_file is not None:
             self.imagelist_file.close()
+        if self.imagelist_ov_file is not None:
+            self.imagelist_ov_file.close()
         if self.use_mirror_drive and self.mirror_imagelist_file is not None:
             self.mirror_imagelist_file.close()
+            self.mirror_imagelist_ov_file.close()
         if self.incident_log_file is not None:
             self.incident_log_file.close()
         if self.metadata_file is not None:
@@ -1374,7 +1390,7 @@ class Acquisition:
                        and not self.pause_state == 1
                        and fail_counter < 3):
 
-                    ov_filename, ov_accepted, rejected_by_user = (
+                    relative_ov_save_path, ov_save_path, ov_accepted, rejected_by_user = (
                         self.acquire_overview(ov_index))
 
                     if (self.error_state in [Error.grab_incomplete, Error.image_load]
@@ -1403,7 +1419,7 @@ class Acquisition:
                           and (self.use_debris_detection
                           or self.first_ov[ov_index])):
                         # Save image with debris
-                        self.save_debris_image(ov_filename, ov_index,
+                        self.save_debris_image(ov_save_path, ov_index,
                                                sweep_counter)
                         self.img_inspector.discard_last_ov(ov_index)
                         # Try to remove debris
@@ -1454,6 +1470,8 @@ class Acquisition:
                 self.first_ov[ov_index] = False
 
                 if ov_accepted:
+                    # Write overview's name and position into imagelist_ov
+                    self.register_accepted_ov(relative_ov_save_path, ov_index)
                     # Write stats and reslice to disk. If this does not work,
                     # show a warning in the log, but don't pause the acquisition
                     success, error_msg = (
@@ -1481,7 +1499,7 @@ class Acquisition:
                         self.add_to_main_log('CTRL: ' + error_msg)
                     # Mirror the acquired overview
                     if self.use_mirror_drive:
-                        self.mirror_files([ov_filename])
+                        self.mirror_files([ov_save_path])
                 if sweep_counter > 0:
                     self.add_to_incident_log(
                         'Debris, ' + str(sweep_counter) + ' sweep(s)')
@@ -1561,8 +1579,8 @@ class Acquisition:
                     + utils.format_wd_stig(ov_wd, stig_x, stig_y))
 
             # Path and filename of overview image to be acquired
-            ov_save_path = utils.ov_save_path(
-                self.base_dir, self.stack_name, ov_index, self.slice_counter)
+            relative_ov_save_path = utils.ov_relative_save_path(self.stack_name, ov_index, self.slice_counter)
+            ov_save_path = os.path.join(self.base_dir, relative_ov_save_path)
 
             utils.log_info(
                 'SEM',
@@ -1699,7 +1717,7 @@ class Acquisition:
                 rejected_by_user = True
             self.user_reply = None
 
-        return ov_save_path, ov_accepted, rejected_by_user
+        return relative_ov_save_path, ov_save_path, ov_accepted, rejected_by_user
 
     def remove_debris(self):
         """Try to remove detected debris by sweeping the surface. Microtome must
@@ -2502,6 +2520,49 @@ class Acquisition:
                                 'Error sending tile metadata '
                                 'to server. ' + exc_str)
                 self.add_to_main_log('CTRL: Error sending tile metadata '
+                                     'to server. ' + exc_str)
+
+    def register_accepted_ov(self, relative_save_path, ov_index):
+        """Register the overview image in the overview image list file and the metadata
+        file. Send metadata to remote server.
+        """
+        timestamp = int(time())
+        ov_id = utils.overview_id(ov_index, self.slice_counter)
+        global_x, global_y = (self.ovm.overview_position_for_registration(ov_index))
+        global_z = int(self.total_z_diff * 1000)
+        overviewinfo_str = (relative_save_path + ';'
+                        + str(global_x) + ';'
+                        + str(global_y) + ';'
+                        + str(global_z) + ';'
+                        + str(self.slice_counter) + '\n')
+        self.imagelist_ov_file.write(overviewinfo_str)
+        # Write the same information to the ov_imagelist on the mirror drive
+        if self.use_mirror_drive:
+            self.mirror_imagelist_ov_file.write(overviewinfo_str)
+        ov_width, ov_height = self.ovm[ov_index].frame_size
+        ov_metadata = {
+            'ov_id': ov_id,
+            'timestamp': timestamp,
+            'filename': relative_save_path.replace('\\', '/'),
+            'ov_width': ov_width,
+            'ov_height': ov_height,
+            'wd_stig_xy': self.ovm[ov_index].wd_stig_xy,
+            'glob_x': global_x,
+            'glob_y': global_y,
+            'glob_z': global_z,
+            'slice_counter': self.slice_counter}
+        self.metadata_file.write('OVERVIEW: ' + str(ov_metadata) + '\n')
+        # Server notification
+        if self.send_metadata:
+            status, exc_str = self.notifications.send_ov_metadata(
+                self.metadata_project_name, self.stack_name, ov_metadata)
+            if status == 100:
+                self.error_state = Error.metadata_server
+                self.pause_acquisition(1)
+                utils.log_error('CTRL',
+                                'Error sending overview metadata '
+                                'to server. ' + exc_str)
+                self.add_to_main_log('CTRL: Error sending overview metadata '
                                      'to server. ' + exc_str)
 
     def save_rejected_tile(self, tile_save_path, grid_index, tile_index,
