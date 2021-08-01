@@ -81,7 +81,7 @@ class ImportedImages:
         self.cfg = config
         self.number_imported = int(self.cfg['imported']['number_imported'])
 
-        # Load parameters from user configuration
+        # Load parameters from session configuration
         image_src = json.loads(self.cfg['imported']['image_src'])
         description = json.loads(self.cfg['imported']['description'])
         centre_sx_sy = json.loads(self.cfg['imported']['centre_sx_sy'])

@@ -54,7 +54,7 @@ class TemplateManager:
         self.template = None
         self._img_arr = None
         self._stub_ov_arr = None
-        # Load OV parameters from user configuration
+        # Load OV parameters from session configuration
         centre_sx_sy = json.loads(self.cfg['gcib']['template_centre_sx_sy'])
         rotation = json.loads(self.cfg['gcib']['template_rotation'])
         w_h = json.loads(self.cfg['gcib']['template_w_h'])

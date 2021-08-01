@@ -253,7 +253,7 @@ class OverviewManager:
         self.template_ov_index = 0
         self.number_ov = int(self.cfg['overviews']['number_ov'])
 
-        # Load OV parameters from user configuration
+        # Load OV parameters from session configuration
         ov_active = json.loads(self.cfg['overviews']['ov_active'])
         ov_centre_sx_sy = json.loads(self.cfg['overviews']['ov_centre_sx_sy'])
         ov_rotation = json.loads(self.cfg['overviews']['ov_rotation'])

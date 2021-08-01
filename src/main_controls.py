@@ -399,14 +399,14 @@ class MainControls(QMainWindow):
                 # Explain that default.ini will use the default system
                 # configuration.
                 QMessageBox.warning(
-                    self, 'Default user and system configuration',
+                    self, 'Default session and system configuration',
                     'You have selected default.ini to load SBEMimage, but '
                     'there is at least one custom system configuration file '
                     'available for this installation.\nPlease note that '
                     'default.ini will use the unmodified default system '
                     'configuration (system.cfg), in which no SEM/microtome '
                     'models are specified.'
-                    '\n\nIf you want to create new user configuration files, '
+                    '\n\nIf you want to create new session configuration files, '
                     'you should first load a configuration other than '
                     'default.ini.',
                     QMessageBox.Ok)

@@ -956,7 +956,7 @@ class GridManager:
             sw_sh = [(0, 0)] * self.number_grids
 
         # Create a list of grid objects with the parameters read from
-        # the user configuration.
+        # the session configuration.
         self.__grids = []
         for i in range(self.number_grids):
             grid = Grid(self.cs, self.sem, grid_active[i] == 1, origin_sx_sy[i], sw_sh[i],

@@ -246,7 +246,7 @@ class DeviceSelectionDlg(QDialog):
 # ------------------------------------------------------------------------------
 
 class SaveConfigDlg(QDialog):
-    """Save current user configuration in a new config (.ini) file."""
+    """Save current session configuration in a new .ini file."""
 
     def __init__(self, syscfg_file='', new_syscfg=False):
         super().__init__()
@@ -265,15 +265,13 @@ class SaveConfigDlg(QDialog):
         # and enable lineEdit
         if new_syscfg:
             QMessageBox.information(
-                self, 'New user and system configuration',
-                'You are about to save a custom user configuation based '
+                self, 'New session and system configuration',
+                'You are about to save a custom session configuration based '
                 'on default.ini. Please also choose a name for your '
-                'system configuration in this dialog. The name you choose '
-                'will be used for all future user configurations '
-                'on this setup.\n\n'
-                'To create additional user configurations (after creating '
-                'this new one), please load any existing .ini file other than '
-                'default.ini and save it under a new name.',
+                'system configuration in this dialog.\n\n'
+                'To create additional session configuration files (after creating '
+                'this new one), please load an existing .ini file and save it ' 
+                'under a new name.',
                 QMessageBox.Ok)
             self.lineEdit_syscfgFileName.setEnabled(True)
             self.label_syscfgInput.setText(
@@ -302,7 +300,7 @@ class SaveConfigDlg(QDialog):
             success = False
             QMessageBox.warning(
                 self, 'Error',
-                'You cannot choose "default" for the user configuration or '
+                'You cannot choose "default" for the session configuration or '
                 '"system" for the system configuration.',
                 QMessageBox.Ok)
         # Check if files already exist
@@ -312,7 +310,7 @@ class SaveConfigDlg(QDialog):
                 success = False
                 QMessageBox.warning(
                     self, 'Error',
-                    'User configuration with that name already exists!',
+                    'Session configuration with that name already exists!',
                     QMessageBox.Ok)
             self.sysfile_name = self.lineEdit_syscfgFileName.text() + '.cfg'
             if self.new_syscfg and os.path.isfile(

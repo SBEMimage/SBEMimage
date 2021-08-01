@@ -13,8 +13,8 @@
 """sbemimage.py launches the application.
 
 First, the start-up dialog is shown (ConfigDlg in main_controls_dlg_windows.py),
-and the user is asked to select a user configuration file. The application
-attempts to load the user configuration file (.ini) and the associated system
+and the user is asked to select a session configuration. The application
+attempts to load the session configuration file (.ini) and the associated system
 configuration file (.cfg). If the configuration is loaded successfully, the
 QMainWindow MainControls (in main_controls.py) is launched.
 
@@ -54,7 +54,7 @@ import utils
 # master branch (for example, '2020.07 R2020-07-28'). For the current version
 # in the dev (development) branch, it must contain the tag 'dev'.
 # Following https://www.python.org/dev/peps/pep-0440/#public-version-identifiers
-VERSION = '2021.04 dev'
+VERSION = '2021.08 dev'
 
 
 # Hook for uncaught/Qt exceptions
@@ -255,7 +255,7 @@ def main():
             if os.path.isfile('..\\cfg\\status.dat'):
                 os.remove('..\\cfg\\status.dat')
 
-            # Switch to dark style (experimental) if specified in user config
+            # Switch to dark style (experimental) if specified in session configuration
             if config['sys']['use_dark_mode_gui'].lower() == 'true':
                 import qdarkstyle
                 SBEMimage.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt5'))

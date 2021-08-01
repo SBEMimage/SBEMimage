@@ -137,7 +137,7 @@ class Microtome(BFRemover):
         # Get microtome motor speeds from syscfg
         self.motor_speed_x, self.motor_speed_y = (
             json.loads(self.syscfg['stage']['microtome_motor_speed']))
-        # Knife settings in system config override the user config settings.
+        # Knife settings in system config override the session config settings.
         self.cfg['microtome']['full_cut_duration'] = (
             self.syscfg['knife']['full_cut_duration'])
         self.cfg['microtome']['sweep_distance'] = (
@@ -151,7 +151,7 @@ class Microtome(BFRemover):
         # ensure that Z moves cannot be larger than 200 nm in safe mode.
         self.prev_known_z = None
         # self.stage_z_prev_session stores the last known Z coordinate at the end of
-        # the previous session associated with the current user configuration.
+        # the previous session associated with the current session configuration.
         if self.cfg['microtome']['last_known_z'].lower() == 'none':
             self.stage_z_prev_session = None
         else:

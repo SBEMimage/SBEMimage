@@ -21,7 +21,7 @@ from configparser import ConfigParser
 
 # The following constants must be updated if entries are added to or
 # deleted from the default configuration files
-CFG_TEMPLATE_FILE = '..\\src\\default_cfg\\default.ini'    # Template of user configuration
+CFG_TEMPLATE_FILE = '..\\src\\default_cfg\\default.ini'    # Template of session configuration
 CFG_NUMBER_SECTIONS = 12
 CFG_NUMBER_KEYS = 214
 
@@ -91,7 +91,7 @@ def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):
             # the entries.
             cfg_changed, syscfg_changed = (
                 update_key_names(current_cfg, current_syscfg))
-            # Compare default config to current user config.
+            # Compare default config to current session config
             for section in cfg_template.sections():
                 # Go through all sections and keys.
                 for key in cfg_template[section]:

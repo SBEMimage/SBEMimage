@@ -30,8 +30,9 @@ import utils
 class CoordinateSystem:
 
     def __init__(self, config, sysconfig):
-        """Initialize with the user configuration and the system
-        configuration."""
+        """Initialize with the session configuration and the system
+        configuration.
+        """
         self.cfg = config
         self.syscfg = sysconfig
 
