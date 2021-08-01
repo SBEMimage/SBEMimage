@@ -45,7 +45,7 @@ from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import Qt
 
 from main_controls_dlg_windows import ConfigDlg
-from config_template import process_cfg, load_device_presets
+from config_template import process_cfg, load_device_presets, default_cfg_found
 from main_controls import MainControls
 import utils
 
@@ -115,8 +115,7 @@ def main():
     default_configuration = False
     presets_loaded = False
 
-    if (os.path.isfile('..\\cfg\\default.ini')
-            and os.path.isfile('..\\cfg\\system.cfg')):
+    if default_cfg_found():
         # Ask user to select .ini file
         startup_dialog = ConfigDlg(VERSION)
         startup_dialog.exec_()
@@ -130,12 +129,19 @@ def main():
             try:
                 # Attempt to load the configuration files and start up the app.
                 # Logging to central log file starts at this point.
-                config_file = dlg_response
-                if config_file == 'default.ini':
+                if dlg_response == 'Default Configuration':
                     default_configuration = True
+                    config_file = 'default.ini'
+                else:
+                    config_file = dlg_response
+                    
                 print(f'Loading configuration file {config_file} ...', end='')
                 config = ConfigParser()
-                config_file_path = os.path.join('..', 'cfg', config_file)
+                if default_configuration:
+                    config_file_path = os.path.join('..', 'src', 'default_cfg', 
+                                                    config_file)
+                else:
+                    config_file_path = os.path.join('..', 'cfg', config_file)
                 with open(config_file_path, 'r') as file:
                     config.read_file(file)
                 print(' Done.\n')
@@ -148,7 +154,11 @@ def main():
                 print(f'Loading system settings file {sysconfig_file} ...',
                       end='')
                 sysconfig = ConfigParser()
-                sysconfig_file_path = os.path.join('..', 'cfg', sysconfig_file)
+                if default_configuration:
+                    sysconfig_file_path = os.path.join('..', 'src', 'default_cfg', 
+                                                       sysconfig_file)
+                else:
+                    sysconfig_file_path = os.path.join('..', 'cfg', sysconfig_file)
                 with open(sysconfig_file_path, 'r') as file:
                     sysconfig.read_file(file)
                 configuration_loaded = True
@@ -166,9 +176,9 @@ def main():
                 os.system('cmd /k')
                 sys.exit()
     else:
-        # Quit if default.ini doesn't exist
+        # Quit if default configuration files in src\default_cfg not found
         configuration_loaded = False
-        default_not_found = 'default.ini and/or system.cfg not found. Program aborted.\n'
+        default_not_found = 'Default configuration missing or incomplete. Program aborted.\n'
         print(default_not_found)
         utils.log_error('CTRL', default_not_found)
         os.system('cmd /k')

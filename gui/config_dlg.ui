@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>271</width>
-    <height>379</height>
+    <height>349</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -23,7 +23,7 @@
    <property name="geometry">
     <rect>
      <x>80</x>
-     <y>340</y>
+     <y>310</y>
      <width>181</width>
      <height>32</height>
     </rect>
@@ -45,7 +45,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>Select configuration file:</string>
+    <string>Select session configuration:</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_version">
@@ -84,19 +84,6 @@
     </rect>
    </property>
   </widget>
-  <widget class="QLabel" name="label_3">
-   <property name="geometry">
-    <rect>
-     <x>14</x>
-     <y>264</y>
-     <width>191</width>
-     <height>16</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Select default.ini for default settings.</string>
-   </property>
-  </widget>
   <widget class="QLabel" name="label_website">
    <property name="geometry">
     <rect>
@@ -118,8 +105,8 @@
   <widget class="QPushButton" name="pushButton_deviceSelection">
    <property name="geometry">
     <rect>
-     <x>10</x>
-     <y>290</y>
+     <x>12</x>
+     <y>270</y>
      <width>141</width>
      <height>23</height>
     </rect>

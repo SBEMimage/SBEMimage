@@ -21,16 +21,16 @@ from configparser import ConfigParser
 
 # The following constants must be updated if entries are added to or
 # deleted from the default configuration files
-CFG_TEMPLATE_FILE = '..\\cfg\\default.ini'  # Template of user configuration
+CFG_TEMPLATE_FILE = '..\\src\\default_cfg\\default.ini'    # Template of user configuration
 CFG_NUMBER_SECTIONS = 12
 CFG_NUMBER_KEYS = 214
 
-SYSCFG_TEMPLATE_FILE = '..\\cfg\\system.cfg'  # Template of system configuration
+SYSCFG_TEMPLATE_FILE = '..\\src\\default_cfg\\system.cfg'  # Template of system configuration
 SYSCFG_NUMBER_SECTIONS = 8
 SYSCFG_NUMBER_KEYS = 54
 
 # Presets file: contains presets for different devices
-DEVICE_PRESETS_FILE = '..\\cfg\\device_presets.cfg'
+DEVICE_PRESETS_FILE = '..\\src\\default_cfg\\device_presets.cfg'
 
 # Backward compatibility for older system config files
 LEGACY_DEVICE_NUMBERS = {0: 'Gatan 3View',
@@ -226,3 +226,8 @@ def load_device_presets(syscfg, selected_sem, selected_microtome):
             return False, str(e)
 
     return True, ''
+
+def default_cfg_found():
+    return (os.path.isfile(CFG_TEMPLATE_FILE) and
+            os.path.isfile(SYSCFG_TEMPLATE_FILE) and
+            os.path.isfile(DEVICE_PRESETS_FILE))
