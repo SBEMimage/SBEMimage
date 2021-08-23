@@ -1991,7 +1991,11 @@ class AcqSettingsDlg(QDialog):
         self.update_stack_name()
         self.new_base_dir = ''
         self.spinBox_sliceThickness.setValue(self.acq.slice_thickness)
-        self.spinBox_numberSlices.setValue(self.acq.number_slices)
+
+        self.comboBox_targetType.currentIndexChanged.connect(self.switch_target_spinbox)
+        self.spinBox_targetNumberSlices.setValue(self.acq.number_slices)
+        self.doubleSpinBox_targetZDepth.hide()
+
         self.spinBox_sliceCounter.setValue(self.acq.slice_counter)
         self.doubleSpinBox_zDiff.setValue(self.acq.total_z_diff)
         self.checkBox_sendMetaData.setChecked(self.acq.send_metadata)
@@ -2031,6 +2035,15 @@ class AcqSettingsDlg(QDialog):
     def update_stack_name(self):
         base_dir = self.lineEdit_baseDir.text().rstrip(r'\/ ')
         self.label_stackName.setText(base_dir[base_dir.rfind('\\') + 1:])
+
+    def switch_target_spinbox(self):
+        """ When target number of slices is used, a QSpinbox with integer steps is used.
+        When target depth is used, a QDoubleSpinbox with fractional steps is used.
+        """
+        slice_spin_box = self.spinBox_targetNumberSlices
+        depth_spin_box = self.doubleSpinBox_targetZDepth
+        slice_spin_box.setVisible(not slice_spin_box.isVisible())
+        depth_spin_box.setVisible(not depth_spin_box.isVisible())
 
     def accept(self):
         success = True

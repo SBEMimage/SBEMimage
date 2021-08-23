@@ -106,19 +106,6 @@
     <enum>Qt::Horizontal</enum>
    </property>
   </widget>
-  <widget class="QLabel" name="label_sn">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>120</y>
-     <width>161</width>
-     <height>20</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Target number of slices:</string>
-   </property>
-  </widget>
   <widget class="QLabel" name="label_st">
    <property name="geometry">
     <rect>
@@ -132,7 +119,7 @@
     <string>Slice thickness in nanometres:</string>
    </property>
   </widget>
-  <widget class="QSpinBox" name="spinBox_numberSlices">
+  <widget class="QSpinBox" name="spinBox_targetNumberSlices">
    <property name="geometry">
     <rect>
      <x>220</x>
@@ -392,15 +379,57 @@
     <string>MyStackName</string>
    </property>
   </widget>
+  <widget class="QComboBox" name="comboBox_targetType">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>120</y>
+     <width>141</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="layoutDirection">
+    <enum>Qt::LeftToRight</enum>
+   </property>
+   <item>
+    <property name="text">
+     <string>Target number of slices:</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>Target depth (μm):</string>
+    </property>
+   </item>
+  </widget>
+  <widget class="QDoubleSpinBox" name="doubleSpinBox_targetZDepth">
+   <property name="geometry">
+    <rect>
+     <x>220</x>
+     <y>120</y>
+     <width>71</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="decimals">
+    <number>3</number>
+   </property>
+   <property name="maximum">
+    <double>999.999000000000024</double>
+   </property>
+   <property name="value">
+    <double>0.000000000000000</double>
+   </property>
+  </widget>
+  <zorder>doubleSpinBox_targetZDepth</zorder>
   <zorder>buttonBox</zorder>
   <zorder>label_csn</zorder>
   <zorder>label_bd</zorder>
   <zorder>lineEdit_baseDir</zorder>
   <zorder>pushButton_selectDir</zorder>
   <zorder>line_1</zorder>
-  <zorder>label_sn</zorder>
   <zorder>label_st</zorder>
-  <zorder>spinBox_numberSlices</zorder>
+  <zorder>spinBox_targetNumberSlices</zorder>
   <zorder>spinBox_sliceCounter</zorder>
   <zorder>spinBox_sliceThickness</zorder>
   <zorder>label_expl0</zorder>
@@ -417,12 +446,13 @@
   <zorder>doubleSpinBox_zDiff</zorder>
   <zorder>label_st_2</zorder>
   <zorder>label_stackName</zorder>
+  <zorder>comboBox_targetType</zorder>
  </widget>
  <tabstops>
   <tabstop>lineEdit_baseDir</tabstop>
   <tabstop>pushButton_selectDir</tabstop>
   <tabstop>spinBox_sliceThickness</tabstop>
-  <tabstop>spinBox_numberSlices</tabstop>
+  <tabstop>spinBox_targetNumberSlices</tabstop>
   <tabstop>spinBox_sliceCounter</tabstop>
   <tabstop>doubleSpinBox_zDiff</tabstop>
   <tabstop>checkBox_EHTOff</tabstop>
