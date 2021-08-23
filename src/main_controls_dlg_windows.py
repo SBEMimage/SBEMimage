@@ -1990,10 +1990,11 @@ class AcqSettingsDlg(QDialog):
         self.lineEdit_baseDir.textChanged.connect(self.update_stack_name)
         self.update_stack_name()
         self.new_base_dir = ''
-        self.spinBox_sliceThickness.setValue(self.acq.slice_thickness)
 
+        self.spinBox_sliceThickness.setValue(self.acq.slice_thickness)
         self.comboBox_targetType.currentIndexChanged.connect(self.switch_target_spinbox)
         self.spinBox_targetNumberSlices.setValue(self.acq.number_slices)
+        self.update_target_depth()
         self.doubleSpinBox_targetZDepth.hide()
 
         self.spinBox_sliceCounter.setValue(self.acq.slice_counter)
@@ -2036,6 +2037,13 @@ class AcqSettingsDlg(QDialog):
         base_dir = self.lineEdit_baseDir.text().rstrip(r'\/ ')
         self.label_stackName.setText(base_dir[base_dir.rfind('\\') + 1:])
 
+    def update_target_depth(self):
+        """Calculate current target depth based on target number of slices"""
+        n_slices = self.acq.number_slices - self.acq.slice_counter
+        slice_thickness_microns = self.acq.slice_thickness / 1000
+        target_depth = self.acq.total_z_diff + (n_slices*slice_thickness_microns)
+        self.doubleSpinBox_targetZDepth.setValue(target_depth)
+
     def switch_target_spinbox(self):
         """ When target number of slices is used, a QSpinbox with integer steps is used.
         When target depth is used, a QDoubleSpinbox with fractional steps is used.
@@ -2044,6 +2052,14 @@ class AcqSettingsDlg(QDialog):
         depth_spin_box = self.doubleSpinBox_targetZDepth
         slice_spin_box.setVisible(not slice_spin_box.isVisible())
         depth_spin_box.setVisible(not depth_spin_box.isVisible())
+
+    def calculate_number_slices_from_target_depth(self):
+        z_to_cut_in_nanometer = round(
+            (self.doubleSpinBox_targetZDepth.value() - self.doubleSpinBox_zDiff.value())*1000)
+        # always rounds down to nearest whole slice, as we don't want to exceed the target depth
+        n_slices = math.floor(z_to_cut_in_nanometer/self.acq.slice_thickness)
+
+        return n_slices
 
     def accept(self):
         success = True
@@ -2090,7 +2106,11 @@ class AcqSettingsDlg(QDialog):
             min_slice_thickness = 0
         if min_slice_thickness <= self.spinBox_sliceThickness.value() <= 200:
             self.acq.slice_thickness = self.spinBox_sliceThickness.value()
-        number_slices = self.spinBox_numberSlices.value()
+        number_slices = self.spinBox_targetNumberSlices.value()
+        # 0 index is target number of slices, 1 index is target z depth
+        if self.comboBox_targetType.currentIndex() == 1 and \
+                self.doubleSpinBox_targetZDepth.value() > self.doubleSpinBox_zDiff.value():
+            number_slices = self.calculate_number_slices_from_target_depth()
         self.acq.number_slices = number_slices
         if (self.spinBox_sliceCounter.value() <= number_slices
             or number_slices == 0):

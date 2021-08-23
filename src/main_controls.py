@@ -880,7 +880,7 @@ class MainControls(QMainWindow):
             f'{total_stage_moves/total_duration * 100:.1f}% / '
             f'{total_cutting/total_duration * 100:.1f}%)')
         self.label_totalArea.setText('{0:.1f}'.format(total_area) + ' µm²')
-        self.label_totalZ.setText('{0:.1f}'.format(total_z) + ' µm')
+        self.label_totalZ.setText('{0:.2f}'.format(total_z) + ' µm')
         self.label_totalData.setText('{0:.1f}'.format(total_data) + ' GB')
         days, hours, minutes = utils.get_days_hours_minutes(remaining_time)
         self.label_dateEstimate.setText(
