@@ -19,6 +19,7 @@ import os
 import shutil
 import datetime
 import json
+import math
 
 from time import sleep, time
 from statistics import mean
@@ -77,6 +78,10 @@ class Acquisition:
         self.slice_counter = int(self.cfg['acq']['slice_counter'])
         self.number_slices = int(self.cfg['acq']['number_slices'])
         self.slice_thickness = int(self.cfg['acq']['slice_thickness'])
+        # use_target_z_diff: Whether to use a target depth (true), or a target number of slices (false)
+        self.use_target_z_diff = (
+                self.cfg['acq']['use_target_z_diff'].lower() == 'true')
+        self.target_z_diff = float(self.cfg['acq']['target_z_diff'])
         # total_z_diff: The total Z of sample removed in microns (only cuts
         # during acquisitions are taken into account)
         self.total_z_diff = float(self.cfg['acq']['total_z_diff'])
@@ -160,6 +165,8 @@ class Acquisition:
         self.cfg['acq']['number_slices'] = str(self.number_slices)
         self.cfg['acq']['slice_thickness'] = str(self.slice_thickness)
         self.cfg['acq']['total_z_diff'] = str(self.total_z_diff)
+        self.cfg['acq']['use_target_z_diff'] = str(self.use_target_z_diff)
+        self.cfg['acq']['target_z_diff'] = str(self.target_z_diff)
 
         self.cfg['acq']['interrupted'] = str(self.acq_interrupted)
         self.cfg['acq']['interrupted_at'] = str(self.acq_interrupted_at)
@@ -205,14 +212,19 @@ class Acquisition:
             total_cut_time (float): Total time for cuts with the knife
             date_estimate (str): Date and time of expected completion
         """
-        N = self.number_slices
-        if N == 0:    # 0 slices is a valid setting. It means: image the current
-            N = 1     # surface, but do not cut afterwards.
+        if self.use_target_z_diff:
+            # calculate number of slices based on total Z difference, rounding down to nearest whole slice
+            number_slices = math.floor((self.target_z_diff*1000)/self.slice_thickness)
+        else:
+            number_slices = self.number_slices
+        N = number_slices
+        if N == 0:  # 0 slices is a valid setting. It means: image the current
+            N = 1  # surface, but do not cut afterwards.
         current = self.sem.target_beam_current
         min_dose = max_dose = None
         if self.microtome is not None:
             total_cut_time = (
-                self.number_slices * self.microtome.full_cut_duration)
+                number_slices * self.microtome.full_cut_duration)
         else:
             total_cut_time = 0
         total_grid_area = 0
@@ -343,14 +355,17 @@ class Acquisition:
                 if (max_dose is None) or (dose > max_dose):
                     max_dose = dose
 
-        total_z = (self.number_slices * self.slice_thickness) / 1000
+        total_z = (number_slices * self.slice_thickness) / 1000
         total_data_in_GB = total_data / (10**9)
         total_duration = (
             total_imaging_time + total_stage_move_time + total_cut_time)
 
         # Calculate date and time of completion
         now = datetime.datetime.now()
-        fraction_completed = self.slice_counter / N
+        if self.use_target_z_diff:
+            fraction_completed = self.total_z_diff / total_z
+        else:
+            fraction_completed = self.slice_counter / N
         remaining_time = int(total_duration * (1 - fraction_completed))
         completion_date = now + relativedelta(seconds=remaining_time)
         date_estimate = str(completion_date)[:19].replace(' ', ' at ')
@@ -915,8 +930,14 @@ class Acquisition:
             # and check if stack has been completed.
             self.main_controls_trigger.transmit('SAVE CFG')
             self.main_controls_trigger.transmit('UPDATE PROGRESS')
-            if self.slice_counter == self.number_slices:
-                self.stack_completed = True
+
+            if self.use_target_z_diff:
+                # stop when cutting another slice at the current thickness would exceed the target z depth
+                if (self.total_z_diff + self.slice_thickness) > self.target_z_diff:
+                    self.stack_completed = True
+            else:
+                if self.slice_counter == self.number_slices:
+                    self.stack_completed = True
 
             # Copy log file to mirror disk
             # (Error handling in self.mirror_files())

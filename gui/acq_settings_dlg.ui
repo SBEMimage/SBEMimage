@@ -119,7 +119,7 @@
     <string>Slice thickness in nanometres:</string>
    </property>
   </widget>
-  <widget class="QSpinBox" name="spinBox_targetNumberSlices">
+  <widget class="QSpinBox" name="spinBox_numberSlices">
    <property name="geometry">
     <rect>
      <x>220</x>
@@ -328,7 +328,7 @@
     <string>Set ∆Z (depth already cut, in μm):</string>
    </property>
   </widget>
-  <widget class="QDoubleSpinBox" name="doubleSpinBox_zDiff">
+  <widget class="QDoubleSpinBox" name="doubleSpinBox_totalZDiff">
    <property name="geometry">
     <rect>
      <x>220</x>
@@ -402,7 +402,7 @@
     </property>
    </item>
   </widget>
-  <widget class="QDoubleSpinBox" name="doubleSpinBox_targetZDepth">
+  <widget class="QDoubleSpinBox" name="doubleSpinBox_targetZDiff">
    <property name="geometry">
     <rect>
      <x>220</x>
@@ -421,7 +421,7 @@
     <double>0.000000000000000</double>
    </property>
   </widget>
-  <zorder>doubleSpinBox_targetZDepth</zorder>
+  <zorder>doubleSpinBox_targetZDiff</zorder>
   <zorder>buttonBox</zorder>
   <zorder>label_csn</zorder>
   <zorder>label_bd</zorder>
@@ -429,7 +429,7 @@
   <zorder>pushButton_selectDir</zorder>
   <zorder>line_1</zorder>
   <zorder>label_st</zorder>
-  <zorder>spinBox_targetNumberSlices</zorder>
+  <zorder>spinBox_numberSlices</zorder>
   <zorder>spinBox_sliceCounter</zorder>
   <zorder>spinBox_sliceThickness</zorder>
   <zorder>label_expl0</zorder>
@@ -443,7 +443,7 @@
   <zorder>lineEdit_adminEmail</zorder>
   <zorder>label_3</zorder>
   <zorder>label_csn_2</zorder>
-  <zorder>doubleSpinBox_zDiff</zorder>
+  <zorder>doubleSpinBox_totalZDiff</zorder>
   <zorder>label_st_2</zorder>
   <zorder>label_stackName</zorder>
   <zorder>comboBox_targetType</zorder>
@@ -452,9 +452,9 @@
   <tabstop>lineEdit_baseDir</tabstop>
   <tabstop>pushButton_selectDir</tabstop>
   <tabstop>spinBox_sliceThickness</tabstop>
-  <tabstop>spinBox_targetNumberSlices</tabstop>
+  <tabstop>spinBox_numberSlices</tabstop>
   <tabstop>spinBox_sliceCounter</tabstop>
-  <tabstop>doubleSpinBox_zDiff</tabstop>
+  <tabstop>doubleSpinBox_totalZDiff</tabstop>
   <tabstop>checkBox_EHTOff</tabstop>
   <tabstop>checkBox_sendMetaData</tabstop>
   <tabstop>lineEdit_metaDataServer</tabstop>

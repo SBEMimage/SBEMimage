@@ -1990,15 +1990,10 @@ class AcqSettingsDlg(QDialog):
         self.lineEdit_baseDir.textChanged.connect(self.update_stack_name)
         self.update_stack_name()
         self.new_base_dir = ''
-
         self.spinBox_sliceThickness.setValue(self.acq.slice_thickness)
-        self.comboBox_targetType.currentIndexChanged.connect(self.switch_target_spinbox)
-        self.spinBox_targetNumberSlices.setValue(self.acq.number_slices)
-        self.update_target_depth()
-        self.doubleSpinBox_targetZDepth.hide()
-
+        self.update_target_settings()
         self.spinBox_sliceCounter.setValue(self.acq.slice_counter)
-        self.doubleSpinBox_zDiff.setValue(self.acq.total_z_diff)
+        self.doubleSpinBox_totalZDiff.setValue(self.acq.total_z_diff)
         self.checkBox_sendMetaData.setChecked(self.acq.send_metadata)
         self.update_server_lineedit()
         self.checkBox_sendMetaData.stateChanged.connect(
@@ -2012,7 +2007,7 @@ class AcqSettingsDlg(QDialog):
         # Disable two spinboxes when SEM stage used
         if not use_microtome:
             self.spinBox_sliceThickness.setEnabled(False)
-            self.doubleSpinBox_zDiff.setEnabled(False)
+            self.doubleSpinBox_totalZDiff.setEnabled(False)
 
     def select_directory(self):
         """Let user select the base directory for the stack acquisition.
@@ -2037,29 +2032,68 @@ class AcqSettingsDlg(QDialog):
         base_dir = self.lineEdit_baseDir.text().rstrip(r'\/ ')
         self.label_stackName.setText(base_dir[base_dir.rfind('\\') + 1:])
 
-    def update_target_depth(self):
-        """Calculate current target depth based on target number of slices"""
-        n_slices = self.acq.number_slices - self.acq.slice_counter
-        slice_thickness_microns = self.acq.slice_thickness / 1000
-        target_depth = self.acq.total_z_diff + (n_slices*slice_thickness_microns)
-        self.doubleSpinBox_targetZDepth.setValue(target_depth)
+    def update_target_settings(self):
+        if self.acq.use_target_z_diff:
+            self.comboBox_targetType.setCurrentIndex(1)
+            self.doubleSpinBox_targetZDiff.setValue(self.acq.target_z_diff)
+            self.update_number_slices()
+            self.spinBox_numberSlices.hide()
+        else:
+            self.comboBox_targetType.setCurrentIndex(0)
+            self.spinBox_numberSlices.setValue(self.acq.number_slices)
+            self.update_target_z_diff()
+            self.doubleSpinBox_targetZDiff.hide()
+        self.comboBox_targetType.currentIndexChanged.connect(self.switch_target_spinbox)
+
+    def update_target_z_diff(self):
+        if self.slices_valid(self.acq.slice_counter, self.acq.number_slices):
+            self.doubleSpinBox_targetZDiff.setValue(self.calculate_target_z_diff_from_number_slices())
+        else:
+            # If the slice values are invalid, just set the target z diff to the current total z diff
+            self.doubleSpinBox_targetZDiff.setValue(self.acq.total_z_diff)
+
+    def update_number_slices(self):
+        if self.z_diff_valid(self.acq.target_z_diff, self.acq.total_z_diff):
+            self.spinBox_numberSlices.setValue(self.calculate_number_slices_from_target_z_diff())
+        else:
+            # If Z diff values are invalid, just set the target number of slices to the current slice number
+            self.spinBox_numberSlices.setValue(self.acq.slice_counter)
 
     def switch_target_spinbox(self):
         """ When target number of slices is used, a QSpinbox with integer steps is used.
-        When target depth is used, a QDoubleSpinbox with fractional steps is used.
+        When target z diff is used, a QDoubleSpinbox with fractional steps is used.
         """
-        slice_spin_box = self.spinBox_targetNumberSlices
-        depth_spin_box = self.doubleSpinBox_targetZDepth
+        slice_spin_box = self.spinBox_numberSlices
+        depth_spin_box = self.doubleSpinBox_targetZDiff
         slice_spin_box.setVisible(not slice_spin_box.isVisible())
         depth_spin_box.setVisible(not depth_spin_box.isVisible())
 
-    def calculate_number_slices_from_target_depth(self):
+    def calculate_number_slices_from_target_z_diff(self):
         z_to_cut_in_nanometer = round(
-            (self.doubleSpinBox_targetZDepth.value() - self.doubleSpinBox_zDiff.value())*1000)
+            (self.doubleSpinBox_targetZDiff.value() - self.doubleSpinBox_totalZDiff.value())*1000)
         # always rounds down to nearest whole slice, as we don't want to exceed the target depth
-        n_slices = math.floor(z_to_cut_in_nanometer/self.acq.slice_thickness)
+        n_slices_to_cut = math.floor(z_to_cut_in_nanometer/self.acq.slice_thickness)
+        total_n_slices = n_slices_to_cut + self.spinBox_sliceCounter.value()
 
-        return n_slices
+        return total_n_slices
+
+    def calculate_target_z_diff_from_number_slices(self):
+        # giving number_slices as 0, means just image current surface, so target z is same as total z
+        if self.acq.number_slices == 0:
+            return self.acq.total_z_diff
+        else:
+            n_slices = self.acq.number_slices - self.acq.slice_counter
+            slice_thickness_microns = self.acq.slice_thickness / 1000
+            target_z_diff = self.acq.total_z_diff + (n_slices * slice_thickness_microns)
+
+            return target_z_diff
+
+    def slices_valid(self, slice_counter, number_slices):
+        return slice_counter <= number_slices or number_slices == 0
+
+    def z_diff_valid(self, target_z_diff, total_z_diff):
+        # target must be high enough to allow at least one slice to be taken
+        return target_z_diff >= (total_z_diff + self.acq.slice_thickness/1000)
 
     def accept(self):
         success = True
@@ -2106,16 +2140,27 @@ class AcqSettingsDlg(QDialog):
             min_slice_thickness = 0
         if min_slice_thickness <= self.spinBox_sliceThickness.value() <= 200:
             self.acq.slice_thickness = self.spinBox_sliceThickness.value()
-        number_slices = self.spinBox_targetNumberSlices.value()
+
+        number_slices = self.spinBox_numberSlices.value()
+        target_z_diff = self.doubleSpinBox_targetZDiff.value()
+        total_z_diff = self.doubleSpinBox_totalZDiff.value()
+        slice_counter = self.spinBox_sliceCounter.value()
+
         # 0 index is target number of slices, 1 index is target z depth
-        if self.comboBox_targetType.currentIndex() == 1 and \
-                self.doubleSpinBox_targetZDepth.value() > self.doubleSpinBox_zDiff.value():
-            number_slices = self.calculate_number_slices_from_target_depth()
+        self.acq.use_target_z_diff = self.comboBox_targetType.currentIndex() == 1
+        if not self.acq.use_target_z_diff and self.slices_valid(slice_counter, number_slices):
+            # Keep target z difference in sync, for readability of config file
+            target_z_diff = self.calculate_target_z_diff_from_number_slices()
+            self.acq.slice_counter = slice_counter
+            self.acq.total_z_diff = total_z_diff
+        elif self.acq.use_target_z_diff and self.z_diff_valid(target_z_diff, total_z_diff):
+            # Keep number of slices in sync, for readability of config file
+            number_slices = self.calculate_number_slices_from_target_z_diff()
+            self.acq.slice_counter = slice_counter
+            self.acq.total_z_diff = total_z_diff
         self.acq.number_slices = number_slices
-        if (self.spinBox_sliceCounter.value() <= number_slices
-            or number_slices == 0):
-            self.acq.slice_counter = self.spinBox_sliceCounter.value()
-        self.acq.total_z_diff = self.doubleSpinBox_zDiff.value()
+        self.acq.target_z_diff = target_z_diff
+
         self.acq.eht_off_after_stack = self.checkBox_EHTOff.isChecked()
         self.acq.send_metadata = self.checkBox_sendMetaData.isChecked()
         if self.checkBox_sendMetaData.isChecked():
@@ -2127,16 +2172,23 @@ class AcqSettingsDlg(QDialog):
                     'system configuration file.',
                     QMessageBox.Ok)
             self.acq.metadata_project_name = self.lineEdit_projectName.text()
-        if ((number_slices > 0)
-            and (self.spinBox_sliceCounter.value() > number_slices)):
-            QMessageBox.warning(
-                self, 'Error',
-                'Slice counter must be smaller than or equal to '
-                'target number of slices.', QMessageBox.Ok)
-            success = False
+        if self.acq.use_target_z_diff and not self.z_diff_valid(target_z_diff, total_z_diff):
+                QMessageBox.warning(
+                    self, 'Error',
+                    'Target Z depth must be larger than or equal to ' +
+                    chr(8710) + 'Z + the current slice thickness', QMessageBox.Ok)
+                success = False
+        elif not self.acq.use_target_z_diff and not self.slices_valid(slice_counter, number_slices):
+                QMessageBox.warning(
+                    self, 'Error',
+                    'Slice counter must be smaller than or equal to '
+                    'target number of slices.', QMessageBox.Ok)
+                success = False
         if success:
             self.acq.base_dir = modified_dir
-            if self.acq.number_slices > self.acq.slice_counter:
+            if not self.acq.use_target_z_diff and self.acq.number_slices > self.acq.slice_counter:
+                self.acq.stack_completed = False
+            elif self.acq.use_target_z_diff and self.z_diff_valid(self.acq.target_z_diff, self.acq.total_z_diff):
                 self.acq.stack_completed = False
             super().accept()
 
