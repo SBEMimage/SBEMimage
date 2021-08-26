@@ -2431,6 +2431,63 @@ Wafer Image</string>
         </property>
        </widget>
       </widget>
+      <widget class="QWidget" name="tab_Targeting">
+       <attribute name="title">
+        <string>Targeting</string>
+       </attribute>
+       <widget class="QGroupBox" name="groupBox_n5Conversion">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>10</y>
+          <width>171</width>
+          <height>121</height>
+         </rect>
+        </property>
+        <property name="title">
+         <string>Bdv n5 conversion</string>
+        </property>
+        <widget class="QComboBox" name="comboBox_ovId">
+         <property name="geometry">
+          <rect>
+           <x>80</x>
+           <y>30</y>
+           <width>69</width>
+           <height>22</height>
+          </rect>
+         </property>
+        </widget>
+        <widget class="QLabel" name="label_ovId">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>30</y>
+           <width>101</width>
+           <height>16</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Overview id:</string>
+         </property>
+        </widget>
+        <widget class="QCheckBox" name="checkBox_n5Conversion">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>60</y>
+           <width>141</width>
+           <height>20</height>
+          </rect>
+         </property>
+         <property name="layoutDirection">
+          <enum>Qt::RightToLeft</enum>
+         </property>
+         <property name="text">
+          <string>Convert to n5 on the fly?</string>
+         </property>
+        </widget>
+       </widget>
+      </widget>
       <widget class="QWidget" name="comTests">
        <attribute name="title">
         <string>Tests</string>

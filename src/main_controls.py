@@ -107,6 +107,7 @@ class MainControls(QMainWindow):
         self.multisem_mode = (
             self.cfg['sys']['multisem_mode'].lower() == 'true'
             and self.syscfg['device']['sem'] == 'ZEISS MultiSEM')
+        self.targeting_mode = (self.cfg['sys']['targeting_mode'].lower() == 'true')
         self.use_microtome = (
             self.cfg['sys']['use_microtome'].lower() == 'true')
         self.statusbar_msg = ''
@@ -687,6 +688,11 @@ class MainControls(QMainWindow):
             self.tabWidget.setTabEnabled(4, False)
             self.tabWidget.setTabToolTip(4, 'MultiSEM mode under development')
         #----------------------#
+
+        # -------Targeting-------#
+        if not self.targeting_mode:
+            self.tabWidget.setTabEnabled(5, False)
+        # ------------------#
 
     def activate_magc_mode(self, tabIndex):
         if tabIndex != 3:
@@ -2973,6 +2979,7 @@ class MainControls(QMainWindow):
         self.tabWidget.setTabEnabled(3, False)
         self.tabWidget.setTabEnabled(4, False)
         self.tabWidget.setTabEnabled(5, False)
+        self.tabwidget.setTabEnabled(6, False)
         # Restrict viewport:
         self.viewport.restrict_gui(True)
         # Use current WD/Stig if selected working distance == 0 or None:
@@ -3071,7 +3078,9 @@ class MainControls(QMainWindow):
             self.tabWidget.setTabEnabled(3, True)
         if self.multisem_mode:
             self.tabWidget.setTabEnabled(4, True)
-        self.tabWidget.setTabEnabled(5, True)
+        if self.targeting_mode:
+            self.tabWidget.setTabEnabled(5, True)
+        self.tabWidget.setTabEnabled(6, True)
         # Unrestrict viewport:
         self.viewport.restrict_gui(False)
         self.ft_mode = 0
