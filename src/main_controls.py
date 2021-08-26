@@ -41,6 +41,7 @@ from PyQt5.uic import loadUi
 
 import acq_func
 import utils
+from src.targeting_plugin import TargetingPlugin
 from utils import Error
 from sem_control import SEM
 from sem_control_zeiss import SEM_SmartSEM, SEM_MultiSEM
@@ -108,6 +109,7 @@ class MainControls(QMainWindow):
             self.cfg['sys']['multisem_mode'].lower() == 'true'
             and self.syscfg['device']['sem'] == 'ZEISS MultiSEM')
         self.targeting_mode = (self.cfg['sys']['targeting_mode'].lower() == 'true')
+        self.targeting_plugin = None
         self.use_microtome = (
             self.cfg['sys']['use_microtome'].lower() == 'true')
         self.statusbar_msg = ''
@@ -692,6 +694,8 @@ class MainControls(QMainWindow):
         # -------Targeting-------#
         if not self.targeting_mode:
             self.tabWidget.setTabEnabled(5, False)
+        else:
+            self.targeting_plugin = TargetingPlugin(self)
         # ------------------#
 
     def activate_magc_mode(self, tabIndex):
@@ -1562,6 +1566,8 @@ class MainControls(QMainWindow):
         self.show_current_settings()
         self.show_stack_acq_estimates()
         self.viewport.vp_draw()
+        if self.targeting_mode:
+            self.targeting_plugin.update_ov()
 
     def open_grid_dlg(self, selected_grid):
         dialog = GridSettingsDlg(self.gm, self.sem, selected_grid,

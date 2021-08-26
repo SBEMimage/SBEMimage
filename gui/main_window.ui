@@ -2462,8 +2462,8 @@ Wafer Image</string>
           <rect>
            <x>10</x>
            <y>30</y>
-           <width>101</width>
-           <height>16</height>
+           <width>71</width>
+           <height>21</height>
           </rect>
          </property>
          <property name="text">
