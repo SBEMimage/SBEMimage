@@ -18,25 +18,25 @@ class OnTheFlyOverviewN5Converter:
 
         self.base_dir = acq.base_dir
         self.stack_name = acq.stack_name
-        self.output_dir = self._generate_output_dir()
+        self._output_dir = self._generate_output_dir()
 
         # Z depth to initialise n5 datasets to (there's no performance penalty for initialising to very large z depth,
         # so make sure this is big enough to contain all the z slices you want to acquire)
-        self.initial_z_depth = 100000
-        self.physical_unit = "micron"
+        self._initial_z_depth = 100000
+        self._physical_unit = "micron"
 
         # current n5 id - when settings change (e.g. cutting depth / size of overview etc.), it will be written to a new
         # n5 with id + 1
-        self.current_id = -1
-        self.current_dataset = None
-        self.current_dataset_shape = []
-        self.first_slice_no_of_current_dataset = 0
-
-        # could be read directly from acq
-        self.total_z_depth = 0.0
+        self._current_id = -1
+        self._current_dataset = None
+        self._current_dataset_shape = []
+        self._first_slice_no_of_current_dataset = 0
 
         # current settings: these are settings that if changed, need a new n5 to be created
         # TODO - others to go here? e.g. if current slice counter or z_diff are manually changed?
+        # TODO - current images are placed at (0,0) for xy, in future it would be good to place them at their proper
+        # location via the affine transform. Then people could move their overviews and still have them display
+        # correctly
         self._ov_centre_sx_sy = ovm[ov_index].centre_sx_sy
         self._ov_rotation = ovm[ov_index].rotation
         self._ov_size = ovm[ov_index].frame_size
@@ -46,12 +46,9 @@ class OnTheFlyOverviewN5Converter:
         self._initialise_new_n5()
 
     def write_slice(self, path_to_tiff_slice):
-        if self.current_dataset is not None:
-            # SBEMimage takes an image, then cuts the specified amount,
-            # so we add the image THEN update the slice thickness
+        if self._current_dataset is not None:
             slice_image = imread(path_to_tiff_slice)
             self._add_slice_to_current_dataset(slice_image, self.acq.slice_counter)
-            self.total_z_depth += self._slice_thickness
 
     def update_ov_settings(self):
         settings_changed = False
@@ -80,8 +77,8 @@ class OnTheFlyOverviewN5Converter:
         return os.path.join(self.base_dir, 'overviews', f'ov{str(self.ov_index).zfill(OV_DIGITS)}_n5')
 
     def _generate_n5_path(self):
-        return os.path.join(self.output_dir,
-                            f"{self.stack_name}_ov{str(self.ov_index).zfill(OV_DIGITS)}_{self.current_id}.n5")
+        return os.path.join(self._output_dir,
+                            f"{self.stack_name}_ov{str(self.ov_index).zfill(OV_DIGITS)}_{self._current_id}.n5")
 
     def _generate_affine(self, resolution):
         # scales to resolution and translates by total z depth + 1/2 the z resolution.
@@ -90,24 +87,24 @@ class OnTheFlyOverviewN5Converter:
         # sbem acquisition process.
         affine = [resolution[2], 0.0, 0.0, 0.0,
                   0.0, resolution[1], 0.0, 0.0,
-                  0.0, 0.0, resolution[0], self.total_z_depth + (0.5*resolution[0])]
+                  0.0, 0.0, resolution[0], self.acq.total_z_diff + (0.5*resolution[0])]
         return affine
 
     def _add_slice_to_current_dataset(self, slice_image, slice_counter):
         # xy extent of slice must be the same as the dataset
-        assert(slice_image.shape[0] == self.current_dataset_shape[1])
-        assert(slice_image.shape[1] == self.current_dataset_shape[2])
+        assert(slice_image.shape[0] == self._current_dataset_shape[1])
+        assert(slice_image.shape[1] == self._current_dataset_shape[2])
 
         # add dummy first dimension to slice, so it's 3d
         slice_image = np.expand_dims(slice_image, axis=0)
 
-        start_slice = slice_counter - self.first_slice_no_of_current_dataset
-        self.current_dataset[start_slice:start_slice+1, 0:self.current_dataset_shape[1], 0:self.current_dataset_shape[2]] = slice_image
+        start_slice = slice_counter - self._first_slice_no_of_current_dataset
+        self._current_dataset[start_slice:start_slice + 1, 0:self._current_dataset_shape[1], 0:self._current_dataset_shape[2]] = slice_image
 
     def _initialise_new_n5(self):
-        self.current_id = self.current_id + 1
+        self._current_id = self._current_id + 1
         # TODO - check in overview frame size is it listed xy or yx??
-        self.current_dataset_shape = (self.initial_z_depth, self._ov_size[1], self._ov_size[0])
+        self._current_dataset_shape = (self._initial_z_depth, self._ov_size[1], self._ov_size[0])
 
         n5_path = self._generate_n5_path()
         # resolution in micrometer
@@ -127,10 +124,10 @@ class OnTheFlyOverviewN5Converter:
         # (aim so that total amount of data is around the same as a 64x64x64 chunk)
         # TODO - you get small performance increases by modifying the BdvDataset code to hold on to the file handle and
         # not reopen the n5 file at various steps
-        pybdv.initialize_bdv(n5_path, self.current_dataset_shape, np.uint8,
+        pybdv.initialize_bdv(n5_path, self._current_dataset_shape, np.uint8,
                              downscale_factors=[[2, 2, 2], [2, 2, 2], [2, 2, 2]],
-                             resolution=resolution, unit=self.physical_unit, chunks=(8, 128, 128),
+                             resolution=resolution, unit=self._physical_unit, chunks=(8, 128, 128),
                              affine=self._generate_affine(resolution))
 
-        self.current_dataset = BdvDataset(n5_path, setup_id=0, timepoint=0)
-        self.first_slice_no_of_current_dataset = self.acq.slice_counter
+        self._current_dataset = BdvDataset(n5_path, setup_id=0, timepoint=0)
+        self._first_slice_no_of_current_dataset = self.acq.slice_counter
