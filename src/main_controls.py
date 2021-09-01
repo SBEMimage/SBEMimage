@@ -41,7 +41,7 @@ from PyQt5.uic import loadUi
 
 import acq_func
 import utils
-from src.targeting_plugin import TargetingPlugin
+from src.targeting_plugin.targeting_plugin import TargetingPlugin
 from utils import Error
 from sem_control import SEM
 from sem_control_zeiss import SEM_SmartSEM, SEM_MultiSEM
@@ -1864,6 +1864,8 @@ class MainControls(QMainWindow):
             self.magc_set_section_state_in_table(msg)
         elif 'MSEM GUI' in msg:
             self.msem_update_gui(msg)
+        elif msg.startswith(TargetingPlugin.N5_CONVERSION_MSG):
+            self.targeting_plugin.handle_message(msg)
         elif msg == 'REFRESH OV':
             self.acquire_ov()
         elif msg == 'SHOW CURRENT SETTINGS':
@@ -2020,6 +2022,9 @@ class MainControls(QMainWindow):
 
         if self.syscfg['device']['microtome'] != '6':
             self.restrict_gui_wo_gcib()
+
+        if self.targeting_mode:
+            self.targeting_plugin.restrict_gui(b)
 
     def restrict_focus_tool_gui(self, b):
         b ^= True
@@ -2429,6 +2434,9 @@ class MainControls(QMainWindow):
             # Indicate in GUI that stack is running now
             self.set_status(
                 'Acquisition in progress', 'Acquisition in progress.', True)
+
+            if self.targeting_mode:
+                self.targeting_plugin.update_n5_converter_settings()
 
             # Start the thread running the stack acquisition
             # All source code in stack_acquisition.py
