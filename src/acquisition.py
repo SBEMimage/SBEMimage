@@ -935,7 +935,7 @@ class Acquisition:
 
             if self.use_target_z_diff:
                 # stop when cutting another slice at the current thickness would exceed the target z depth
-                if (self.total_z_diff + self.slice_thickness) > self.target_z_diff:
+                if (self.total_z_diff + (self.slice_thickness/1000)) > self.target_z_diff:
                     self.stack_completed = True
             else:
                 if self.slice_counter == self.number_slices:
