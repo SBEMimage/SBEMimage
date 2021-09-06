@@ -23,7 +23,7 @@ from configparser import ConfigParser
 # deleted from the default configuration files
 CFG_TEMPLATE_FILE = '..\\src\\default_cfg\\default.ini'    # Template of session configuration
 CFG_NUMBER_SECTIONS = 12
-CFG_NUMBER_KEYS = 214
+CFG_NUMBER_KEYS = 216
 
 SYSCFG_TEMPLATE_FILE = '..\\src\\default_cfg\\system.cfg'  # Template of system configuration
 SYSCFG_NUMBER_SECTIONS = 8

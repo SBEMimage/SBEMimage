@@ -848,7 +848,12 @@ class MainControls(QMainWindow):
             str(self.gm[self.grid_index_dropdown].number_active_tiles()))
         # Acquisition parameters
         self.lineEdit_baseDir.setText(self.acq.base_dir)
-        self.label_numberSlices.setText(str(self.acq.number_slices))
+        if self.acq.use_target_z_diff:
+            self.label_t.setText("Target Z depth (μm):")
+            self.label_target.setText(str(self.acq.target_z_diff))
+        else:
+            self.label_t.setText("Target number of slices:")
+            self.label_target.setText(str(self.acq.number_slices))
         if self.use_microtome:
             self.label_sliceThickness.setText(
                 str(self.acq.slice_thickness) + ' nm')
@@ -880,7 +885,7 @@ class MainControls(QMainWindow):
             f'{total_stage_moves/total_duration * 100:.1f}% / '
             f'{total_cutting/total_duration * 100:.1f}%)')
         self.label_totalArea.setText('{0:.1f}'.format(total_area) + ' µm²')
-        self.label_totalZ.setText('{0:.1f}'.format(total_z) + ' µm')
+        self.label_totalZ.setText('{0:.2f}'.format(total_z) + ' µm')
         self.label_totalData.setText('{0:.1f}'.format(total_data) + ' GB')
         days, hours, minutes = utils.get_days_hours_minutes(remaining_time)
         self.label_dateEstimate.setText(
@@ -1684,15 +1689,26 @@ class MainControls(QMainWindow):
 
     def show_stack_progress(self):
         current_slice = self.acq.slice_counter
-        if self.acq.number_slices > 0:
-            self.label_sliceCounter.setText(
-                str(current_slice) + '      (' + chr(8710) + 'Z = '
-                + '{0:.3f}'.format(self.acq.total_z_diff) + ' µm)')
+        total_z_diff = self.acq.total_z_diff
+
+        if self.acq.use_target_z_diff:
+            self.label_cp.setText("Current Z depth:")
+            self.label_currentPosition.setText(
+                '{0:.3f}'.format(total_z_diff) + ' µm' + '      (slice no. = '
+                + str(current_slice) + ")")
             self.progressBar.setValue(
-                current_slice / self.acq.number_slices * 100)
+                total_z_diff / self.acq.target_z_diff * 100)
         else:
-            self.label_sliceCounter.setText(
-                str(current_slice) + "      (no cut after acq.)")
+            self.label_cp.setText("Current slice:")
+            if self.acq.number_slices > 0:
+                self.label_currentPosition.setText(
+                    str(current_slice) + '      (' + chr(8710) + 'Z = '
+                    + '{0:.3f}'.format(self.acq.total_z_diff) + ' µm)')
+                self.progressBar.setValue(
+                    current_slice / self.acq.number_slices * 100)
+            else:
+                self.label_currentPosition.setText(
+                    str(current_slice) + "      (no cut after acq.)")
 
     def show_current_stage_xy(self):
         xy_pos = self.stage.last_known_xy
@@ -2454,7 +2470,7 @@ class MainControls(QMainWindow):
             self.pushButton_resetAcq.setEnabled(False)
             self.pushButton_pauseAcq.setEnabled(False)
             self.pushButton_startAcq.setEnabled(True)
-            self.label_sliceCounter.setText('---')
+            self.label_currentPosition.setText('---')
             self.progressBar.setValue(0)
             self.show_stack_acq_estimates()
             self.pushButton_startAcq.setText('START')

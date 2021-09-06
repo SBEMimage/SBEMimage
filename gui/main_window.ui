@@ -366,7 +366,7 @@
           <string>RESET</string>
          </property>
         </widget>
-        <widget class="QLabel" name="label_ns">
+        <widget class="QLabel" name="label_t">
          <property name="geometry">
           <rect>
            <x>10</x>
@@ -616,12 +616,12 @@
           <string>...</string>
          </property>
         </widget>
-        <widget class="QLabel" name="label_4">
+        <widget class="QLabel" name="label_cp">
          <property name="geometry">
           <rect>
            <x>360</x>
            <y>200</y>
-           <width>71</width>
+           <width>91</width>
            <height>16</height>
           </rect>
          </property>
@@ -629,7 +629,7 @@
           <string>Current slice:</string>
          </property>
         </widget>
-        <widget class="QLabel" name="label_sliceCounter">
+        <widget class="QLabel" name="label_currentPosition">
          <property name="geometry">
           <rect>
            <x>470</x>
@@ -835,7 +835,7 @@
           <string/>
          </property>
         </widget>
-        <widget class="QLabel" name="label_numberSlices">
+        <widget class="QLabel" name="label_target">
          <property name="geometry">
           <rect>
            <x>132</x>
