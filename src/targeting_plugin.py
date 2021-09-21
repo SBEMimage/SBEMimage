@@ -55,8 +55,9 @@ class TargetingPlugin:
 
     def handle_message(self, msg):
         ov_index = int(msg[len(self.N5_CONVERSION_MSG):])
-        if ov_index == self._n5_converter.ov_index and self.is_convert_to_n5_active():
-            self._write_ov_to_n5()
+        if self._n5_converter is not None:
+            if ov_index == self._n5_converter.ov_index and self.is_convert_to_n5_active():
+                self._write_ov_to_n5()
 
     def _write_ov_to_n5(self):
         relative_ov_path = utils.ov_relative_save_path(self._acq.stack_name, self._n5_converter.ov_index,
