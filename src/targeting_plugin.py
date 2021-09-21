@@ -1,5 +1,5 @@
-from src import utils
-from src.targeting_plugin.n5_converter import OnTheFlyOverviewN5Converter
+import utils
+from n5_converter import OnTheFlyOverviewN5Converter
 import os
 
 

@@ -6,9 +6,9 @@ import numpy as np
 import json
 
 # TODO - need to add extra dependencies: pybdv and z5py
-from src import utils
-from src.targeting_plugin.conversion_metadata import ConversionMetadata
-from src.utils import OV_DIGITS
+import utils
+from conversion_metadata import ConversionMetadata
+from utils import OV_DIGITS
 
 
 class OnTheFlyOverviewN5Converter:

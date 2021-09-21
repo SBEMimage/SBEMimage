@@ -28,7 +28,7 @@ from dateutil.relativedelta import relativedelta
 from PyQt5.QtWidgets import QMessageBox
 
 import utils
-from src.targeting_plugin.targeting_plugin import TargetingPlugin
+from targeting_plugin import TargetingPlugin
 from utils import Error
 
 

@@ -41,7 +41,7 @@ from PyQt5.uic import loadUi
 
 import acq_func
 import utils
-from src.targeting_plugin.targeting_plugin import TargetingPlugin
+from targeting_plugin import TargetingPlugin
 from utils import Error
 from sem_control import SEM
 from sem_control_zeiss import SEM_SmartSEM, SEM_MultiSEM
