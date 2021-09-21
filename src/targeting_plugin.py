@@ -9,6 +9,7 @@ class TargetingPlugin:
     def __init__(self, main_controls):
         self._ui = main_controls
         self._acq = main_controls.acq
+        self._ovm = main_controls.ovm
         self._ui.checkBox_n5Conversion.setChecked(False)
         self.update_ov()
         self._n5_converter = None
@@ -42,12 +43,12 @@ class TargetingPlugin:
     def update_n5_converter_settings(self):
         if self.is_convert_to_n5_active():
             if self._n5_converter is None:
-                self._n5_converter = OnTheFlyOverviewN5Converter(self._acq.base_dir, self._acq.stack_name,
+                self._n5_converter = OnTheFlyOverviewN5Converter(self._acq, self._ovm,
                                                                  self.selected_ov())
             elif self._acq.base_dir != self._n5_converter.base_dir or \
                     self._acq.stack_name != self._n5_converter.stack_name or \
                     self.selected_ov() != self._n5_converter.ov_index:
-                self._n5_converter = OnTheFlyOverviewN5Converter(self._acq.base_dir, self._acq.stack_name,
+                self._n5_converter = OnTheFlyOverviewN5Converter(self._acq, self._ovm,
                                                                  self.selected_ov())
             else:
                 self._n5_converter.update_ov_settings()
