@@ -40,16 +40,17 @@ class TargetingPlugin:
         self._ui.checkBox_n5Conversion.setEnabled(b)
 
     def update_n5_converter_settings(self):
-        if self._n5_converter is None:
-            self._n5_converter = OnTheFlyOverviewN5Converter(self._acq.base_dir, self._acq.stack_name,
-                                                             self.selected_ov())
-        elif self._acq.base_dir != self._n5_converter.base_dir or \
-                self._acq.stack_name != self._n5_converter.stack_name or \
-                self.selected_ov() != self._n5_converter.ov_index:
-            self._n5_converter = OnTheFlyOverviewN5Converter(self._acq.base_dir, self._acq.stack_name,
-                                                             self.selected_ov())
-        else:
-            self._n5_converter.update_ov_settings()
+        if self.is_convert_to_n5_active():
+            if self._n5_converter is None:
+                self._n5_converter = OnTheFlyOverviewN5Converter(self._acq.base_dir, self._acq.stack_name,
+                                                                 self.selected_ov())
+            elif self._acq.base_dir != self._n5_converter.base_dir or \
+                    self._acq.stack_name != self._n5_converter.stack_name or \
+                    self.selected_ov() != self._n5_converter.ov_index:
+                self._n5_converter = OnTheFlyOverviewN5Converter(self._acq.base_dir, self._acq.stack_name,
+                                                                 self.selected_ov())
+            else:
+                self._n5_converter.update_ov_settings()
 
     def handle_message(self, msg):
         ov_index = int(msg[len(self.N5_CONVERSION_MSG):])
