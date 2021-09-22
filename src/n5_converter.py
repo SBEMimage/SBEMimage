@@ -76,7 +76,7 @@ class OnTheFlyOverviewN5Converter:
         metadata.add_metadata_for_id(id,
                                      current_dataset_shape,
                                      self.acq.slice_counter,
-                                     self.ovm[self.ov_index].centre_sx_sy,
+                                     self.ovm[self.ov_index].centre_sx_sy.tolist(),
                                      self.ovm[self.ov_index].rotation,
                                      ov_size,
                                      self.ovm[self.ov_index].pixel_size,
