@@ -40,7 +40,7 @@ class OnTheFlyOverviewN5Converter:
         """Update settings for the overview - if relevant settings have changed, it will increase the current id
         and save the new settings to the json"""
         current_metadata = ConversionMetadata()
-        self._add_default_metadata_for_id(current_metadata, self._conversion_metadata.CURRENT_ID)
+        self._add_default_metadata_for_id(current_metadata, self._conversion_metadata.current_id)
 
         if not current_metadata == self._conversion_metadata:
             self._add_default_metadata_for_id(self._conversion_metadata, self._conversion_metadata.current_id + 1)
@@ -138,7 +138,7 @@ class OnTheFlyOverviewN5Converter:
                       self._conversion_metadata.ov_pixel_size/1000]
 
         # If n5 file doesn't exist, create it, otherwise open existing one
-        if not os.path.isfile(n5_path):
+        if not os.path.isdir(n5_path):
             # Have to be careful with downsampling factors vs chunk size. When you write continuously to a
             # BdvDataset, in order to downsample in z it will first read a chunk from the top level dataset that is
             # == to the size that will produce one slice in the smallest downsampling level. i.e. if your factors

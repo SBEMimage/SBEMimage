@@ -19,7 +19,7 @@ class ConversionMetadata:
         self._metadata = {self.CURRENT_ID: 0, self.CURRENT_DATASET_SHAPE: [], self.CONVERTED_FILES: []}
 
     def create_metadata_from_file(self, json_file_path):
-        with open(json_file_path, 'w', encoding='utf-8') as f:
+        with open(json_file_path, 'r', encoding='utf-8') as f:
             self._metadata = json.load(f)
 
     def add_metadata_for_id(self, current_id, current_dataset_shape, first_slice_no_of_current_dataset,
