@@ -6,28 +6,32 @@ class ConversionMetadata:
     # json filename and keys for metadata
     JSON_FILENAME = "conversion_metadata.json"
     CURRENT_ID = "current_id"
-    CURRENT_DATASET_SHAPE = "current_dataset_shape"
-    FIRST_SLICE = "first_slice_no_of_current_dataset"
+    DATASET_SHAPE = "dataset_shape"
+    FIRST_SLICE = "first_slice_no"
+    LAST_SLICE = "last_slice_no"
     CONVERTED_FILES = "converted_files"
     OV_CENTRE_SX_SY = "ov_centre_sx_sy"
+    OV_TOP_LEFT_DX_DY = "ov_top_left_dx_dy"
     OV_ROTATION = "ov_rotation"
     OV_SIZE = "ov_size"
     OV_PIXEL_SIZE = "ov_pixel_size"
     SLICE_THICKNESS = "slice_thickness"
 
     def __init__(self):
-        self._metadata = {self.CURRENT_ID: 0, self.CURRENT_DATASET_SHAPE: [], self.CONVERTED_FILES: []}
+        self._metadata = {self.CURRENT_ID: 0, self.CONVERTED_FILES: []}
 
     def create_metadata_from_file(self, json_file_path):
         with open(json_file_path, 'r', encoding='utf-8') as f:
             self._metadata = json.load(f)
 
-    def add_metadata_for_id(self, current_id, current_dataset_shape, first_slice_no_of_current_dataset,
-                            ov_centre_sx_sy, ov_rotation, ov_size, ov_pixel_size, slice_thickness):
+    def add_metadata_for_id(self, current_id, dataset_shape, first_slice_no,
+                            ov_centre_sx_sy, ov_top_left_dx_dy, ov_rotation, ov_size, ov_pixel_size, slice_thickness):
         self._metadata[self.CURRENT_ID] = current_id
-        self._metadata[self.CURRENT_DATASET_SHAPE] = current_dataset_shape
-        self._metadata[self.FIRST_SLICE] = first_slice_no_of_current_dataset
-        new_id_metadata = {self.OV_CENTRE_SX_SY: ov_centre_sx_sy,
+        new_id_metadata = {self.DATASET_SHAPE: dataset_shape,
+                           self.FIRST_SLICE: first_slice_no,
+                           self.LAST_SLICE: first_slice_no,
+                           self.OV_CENTRE_SX_SY: ov_centre_sx_sy,
+                           self.OV_TOP_LEFT_DX_DY: ov_top_left_dx_dy,
                            self.OV_ROTATION: ov_rotation,
                            self.OV_SIZE: ov_size,
                            self.OV_PIXEL_SIZE: ov_pixel_size,
@@ -63,20 +67,28 @@ class ConversionMetadata:
         self._metadata[self.CURRENT_ID] = value
 
     @property
-    def current_dataset_shape(self):
-        return self._metadata[self.CURRENT_DATASET_SHAPE]
+    def dataset_shape(self):
+        return self._metadata[self.CONVERTED_FILES][self.current_id][self.DATASET_SHAPE]
 
-    @current_dataset_shape.setter
-    def current_dataset_shape(self, value):
-        self._metadata[self.CURRENT_DATASET_SHAPE] = value
+    @dataset_shape.setter
+    def dataset_shape(self, value):
+        self._metadata[self.CONVERTED_FILES][self.current_id][self.DATASET_SHAPE] = value
 
     @property
-    def first_slice_no_of_current_dataset(self):
-        return self._metadata[self.FIRST_SLICE]
+    def first_slice_no(self):
+        return self._metadata[self.CONVERTED_FILES][self.current_id][self.FIRST_SLICE]
 
-    @first_slice_no_of_current_dataset.setter
-    def first_slice_no_of_current_dataset(self, value):
-        self._metadata[self.FIRST_SLICE] = value
+    @first_slice_no.setter
+    def first_slice_no(self, value):
+        self._metadata[self.CONVERTED_FILES][self.current_id][self.FIRST_SLICE] = value
+
+    @property
+    def last_slice_no(self):
+        return self._metadata[self.CONVERTED_FILES][self.current_id][self.LAST_SLICE]
+
+    @last_slice_no.setter
+    def last_slice_no(self, value):
+        self._metadata[self.CONVERTED_FILES][self.current_id][self.LAST_SLICE] = value
 
     @property
     def ov_centre_sx_sy(self):
@@ -85,6 +97,14 @@ class ConversionMetadata:
     @ov_centre_sx_sy.setter
     def ov_centre_sx_sy(self, value):
         self._metadata[self.CONVERTED_FILES][self.current_id][self.OV_CENTRE_SX_SY] = value
+
+    @property
+    def ov_top_left_dx_dy(self):
+        return self._metadata[self.CONVERTED_FILES][self.current_id][self.OV_TOP_LEFT_DX_DY]
+
+    @ov_top_left_dx_dy.setter
+    def ov_top_left_dx_dy(self, value):
+        self._metadata[self.CONVERTED_FILES][self.current_id][self.OV_TOP_LEFT_DX_DY] = value
 
     @property
     def ov_rotation(self):

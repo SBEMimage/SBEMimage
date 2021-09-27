@@ -59,7 +59,7 @@ class OnTheFlyOverviewN5Converter:
 
             # If metadata the same, use saved metadata, otherwise increment id and save new defaults
             if default_metadata == saved_metadata and \
-                    self.acq.slice_counter > saved_metadata.first_slice_no_of_current_dataset:
+                    self.acq.slice_counter > saved_metadata.first_slice_no:
                 self._conversion_metadata = saved_metadata
             else:
                 self._add_default_metadata_for_id(saved_metadata, saved_metadata.current_id + 1)
@@ -77,6 +77,7 @@ class OnTheFlyOverviewN5Converter:
                                      current_dataset_shape,
                                      self.acq.slice_counter,
                                      self.ovm[self.ov_index].centre_sx_sy.tolist(),
+                                     self.ovm[self.ov_index].bounding_box()[0:2],
                                      self.ovm[self.ov_index].rotation,
                                      ov_size,
                                      self.ovm[self.ov_index].pixel_size,
@@ -107,28 +108,33 @@ class OnTheFlyOverviewN5Converter:
     def _generate_metadata_path(self):
         return os.path.join(self._output_dir, ConversionMetadata.JSON_FILENAME)
 
-    def _generate_affine(self, resolution):
-        # scales to resolution and translates by total z depth + 1/2 the z resolution.
+    def _generate_affine(self, resolution, top_left_dx_dy):
+        # scales to resolution and translates by total z depth + 1/2 the z resolution, and then in xy by the
+        # SEM coordinates (dx_dy).
         # The 1/2 z resolution is necessary, as bdv normally centres the first pixel about zero, i.e. the image
         # actually starts from -1/2 the z resolution. We want it to actually start from 0 to more closely mirror the
         # sbem acquisition process.
-        affine = [resolution[2], 0.0, 0.0, 0.0,
-                  0.0, resolution[1], 0.0, 0.0,
+        affine = [resolution[2], 0.0, 0.0, top_left_dx_dy[0],
+                  0.0, resolution[1], 0.0, top_left_dx_dy[1],
                   0.0, 0.0, resolution[0], self.acq.total_z_diff + (0.5*resolution[0])]
         return affine
 
     def _add_slice_to_current_dataset(self, slice_image, slice_counter):
         # xy extent of slice must be the same as the dataset
-        assert(slice_image.shape[0] == self._conversion_metadata.current_dataset_shape[1])
-        assert(slice_image.shape[1] == self._conversion_metadata.current_dataset_shape[2])
+        assert(slice_image.shape[0] == self._conversion_metadata.dataset_shape[1])
+        assert(slice_image.shape[1] == self._conversion_metadata.dataset_shape[2])
 
         # add dummy first dimension to slice, so it's 3d
         slice_image = np.expand_dims(slice_image, axis=0)
 
-        start_slice = slice_counter - self._conversion_metadata.first_slice_no_of_current_dataset
+        start_slice = slice_counter - self._conversion_metadata.first_slice_no
         self._current_dataset[start_slice:start_slice + 1,
-                              0:self._conversion_metadata.current_dataset_shape[1],
-                              0:self._conversion_metadata.current_dataset_shape[2]] = slice_image
+                              0:self._conversion_metadata.dataset_shape[1],
+                              0:self._conversion_metadata.dataset_shape[2]] = slice_image
+
+        # update last slice in metadata
+        self._conversion_metadata.last_slice_no = slice_counter
+        self._conversion_metadata.write_metadata(self._output_dir)
 
     def _initialise_n5(self):
         n5_path = self._generate_n5_path()
@@ -136,6 +142,8 @@ class OnTheFlyOverviewN5Converter:
         resolution = [self._conversion_metadata.slice_thickness/1000,
                       self._conversion_metadata.ov_pixel_size/1000,
                       self._conversion_metadata.ov_pixel_size/1000]
+        # SEM coordinates of top left corner of ov in micrometer
+        top_left_dx_dy = self._conversion_metadata.ov_top_left_dx_dy
 
         # If n5 file doesn't exist, create it, otherwise open existing one
         if not os.path.isdir(n5_path):
@@ -153,10 +161,10 @@ class OnTheFlyOverviewN5Converter:
             # amount of data is around the same as a 64x64x64 chunk)
             # TODO - you get small performance increases by
             #  modifying the BdvDataset code to hold on to the file handle and not reopen the n5 file at various steps
-            pybdv.initialize_bdv(n5_path, self._conversion_metadata.current_dataset_shape, np.uint8,
+            pybdv.initialize_bdv(n5_path, self._conversion_metadata.dataset_shape, np.uint8,
                                  downscale_factors=[[2, 2, 2], [2, 2, 2], [2, 2, 2]],
                                  resolution=resolution, unit=self._physical_unit, chunks=(8, 128, 128),
-                                 affine=self._generate_affine(resolution))
+                                 affine=self._generate_affine(resolution, top_left_dx_dy))
 
         self._current_dataset = BdvDataset(n5_path, setup_id=0, timepoint=0)
 
