@@ -2436,7 +2436,7 @@ class MainControls(QMainWindow):
                 'Acquisition in progress', 'Acquisition in progress.', True)
 
             if self.targeting_mode:
-                self.targeting_plugin.update_n5_converter_settings()
+                self.targeting_plugin.update_targeting_plugin_settings()
 
             # Start the thread running the stack acquisition
             # All source code in stack_acquisition.py
