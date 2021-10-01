@@ -18,11 +18,13 @@ class ConversionMetadata:
     SLICE_THICKNESS = "slice_thickness"
 
     def __init__(self):
-        self._metadata = {self.CURRENT_ID: 0, self.CONVERTED_FILES: []}
+        self._metadata = {self.CURRENT_ID: 0, self.CONVERTED_FILES: {}}
 
     def create_metadata_from_file(self, json_file_path):
         with open(json_file_path, 'r', encoding='utf-8') as f:
             self._metadata = json.load(f)
+        # convert string keys back int integers
+        self._metadata[self.CONVERTED_FILES] = {int(k): v for k, v in self._metadata[self.CONVERTED_FILES].items()}
 
     def add_metadata_for_id(self, current_id, dataset_shape, first_slice_no,
                             ov_centre_sx_sy, ov_top_left_dx_dy, ov_rotation, ov_size, ov_pixel_size, slice_thickness):
@@ -36,7 +38,7 @@ class ConversionMetadata:
                            self.OV_SIZE: ov_size,
                            self.OV_PIXEL_SIZE: ov_pixel_size,
                            self.SLICE_THICKNESS: slice_thickness}
-        self._metadata[self.CONVERTED_FILES].append(new_id_metadata)
+        self._metadata[self.CONVERTED_FILES][self.current_id] = new_id_metadata
 
     def write_metadata(self, output_dir):
         json_file = os.path.join(output_dir, self.JSON_FILENAME)
