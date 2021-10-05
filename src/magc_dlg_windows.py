@@ -144,16 +144,6 @@ class ImportMagCDlg(QDialog):
                 + ' MagC sections have been loaded.'))
         #-----------------------------
 
-        #-----------------------
-        # import wafer overview
-        self.imported.delete_all_images()
-        magc_file_dir = os.path.dirname(magc_file_path)
-
-        import_wafer_dlg = ImportWaferImageDlg(
-            self.acq, self.imported, magc_file_dir,
-            self.main_controls_trigger)
-        #-----------------------
-
         #-----------------------------------------
         # populate the grids and the section_table
         frame_size_selector = self.comboBox_frameSize.currentIndex()
