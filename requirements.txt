@@ -16,6 +16,6 @@ pyyaml
 psutil
 opencv-python
 comtypes
-shapely
+shapely==1.8rc1
 qdarkstyle
 tqdm
