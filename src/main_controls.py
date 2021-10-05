@@ -165,7 +165,7 @@ class MainControls(QMainWindow):
                     QMessageBox.Ok)
                 self.simulation_mode = True
         elif self.syscfg['device']['sem'] == 'Mock SEM':
-            self.sem = SEM_Mock(self.cfg, self.syscfg)        
+            self.sem = SEM_Mock(self.cfg, self.syscfg)
         elif self.syscfg['device']['sem'] == 'Unknown':
             # SBEMimage started with default configuration, no SEM selected yet.
             # Use base class in simulation mode
@@ -213,7 +213,7 @@ class MainControls(QMainWindow):
         utils.show_progress_in_console(30)
 
         # Initialize microtome
-        if (self.use_microtome 
+        if (self.use_microtome
                 and self.syscfg['device']['microtome'] == 'Gatan 3View'):
             # Create object for 3View microtome (control via DigitalMicrograph)
             self.microtome = Microtome_3View(self.cfg, self.syscfg)
@@ -243,11 +243,11 @@ class MainControls(QMainWindow):
                         'CTRL',
                         'Second attempt to initialize '
                         'DigitalMicrograph API successful.')
-        elif (self.use_microtome 
+        elif (self.use_microtome
                 and self.syscfg['device']['microtome'] == 'ConnectomX katana'):
             # Initialize katana microtome
             self.microtome = Microtome_katana(self.cfg, self.syscfg)
-        elif (self.use_microtome 
+        elif (self.use_microtome
                 and self.syscfg['device']['microtome'] == 'GCIB'):
             self.microtome = GCIB(self.cfg, self.syscfg, self.sem)
         elif (self.use_microtome
@@ -257,7 +257,7 @@ class MainControls(QMainWindow):
         elif (self.use_microtome
                 and self.syscfg['device']['microtome'] == 'Mock Microtome'):
             self.microtome = Microtome_Mock(self.cfg, self.syscfg)
-        else: 
+        else:
             # No microtome or unknown device
             # Show warning if use_microtome set to True
             if self.use_microtome:
@@ -396,7 +396,7 @@ class MainControls(QMainWindow):
             for file in os.listdir('..\\cfg'):
                 if file.endswith('.cfg'):
                     cfgfile_counter += 1
-            # Check if presets loaded 
+            # Check if presets loaded
             presets_loaded = (self.syscfg['device']['sem'] != 'Unknown')
 
             if cfgfile_counter == 0 and self.simulation_mode:
@@ -1830,6 +1830,9 @@ class MainControls(QMainWindow):
             self.viewport.vp_draw()
         elif msg == 'DRAW VP NO LABELS':
             self.viewport.vp_draw(suppress_labels=True, suppress_previews=True)
+        elif msg == 'SHOW IMPORTED':
+            self.viewport.checkBox_showImported.setChecked(True)
+            self.viewport.vp_toggle_show_imported()
         elif msg[:12] == 'INCIDENT LOG':
             self.viewport.show_in_incident_log(msg[12:])
         elif msg[:15] == 'GET CURRENT LOG':

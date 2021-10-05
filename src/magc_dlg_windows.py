@@ -304,6 +304,7 @@ class ImportWaferImageDlg(QDialog):
             width, height = wafer_im.size
             wafer_im.pixel_size = 1000
             wafer_im.centre_sx_sy = [width//2, height//2]
+            self.main_controls_trigger.transmit('SHOW IMPORTED')
             self.main_controls_trigger.transmit('DRAW VP')
             utils.log_info(
                 'MagC-CTRL',
