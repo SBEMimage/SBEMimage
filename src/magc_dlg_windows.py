@@ -92,22 +92,20 @@ class ImportMagCDlg(QDialog):
             self.spinBox_cols.setValue(1)
         self.show()
 
-    def _add_to_main_log(self, msg):
-        """Add entry to the log in the main window"""
-        msg = utils.format_log_entry(msg)
-        self.main_controls_trigger.transmit(msg)
-
     def import_metadata(self):
         #-----------------------------
         # read sections from MagC yaml
         magc_file_path = os.path.normpath(
             self.lineEdit_fileName.text())
         if not os.path.isfile(magc_file_path):
-            self._add_to_main_log('MagC file not found')
+            utils.log_info(
+                'MagC-CTRL',
+                'MagC file not found')
             self.accept()
             return
         elif os.path.splitext(magc_file_path)[1] != '.magc':
-            self._add_to_main_log(
+            utils.log_info(
+                'MagC-CTRL',
                 'The file chosen should be in .magc format')
             self.accept()
             return
@@ -132,16 +130,18 @@ class ImportMagCDlg(QDialog):
                 # based on the ROI defined inside a section
                 self.gm.magc_roi_mode = False
             else:
-                self._add_to_main_log(
-                    'There are no custom section locations in the file'
-                    ' you selected. Loading original section locations instead.')
+                utils.log_info(
+                    'MagC-CTRL',
+                    ('There are no custom section locations in the file'
+                        + ' you selected. Loading original section locations instead.'))
 
         n_sections = len(
             [k for k in sections.keys()
             if str(k).isdigit()]) # discard tissueROI-35
-        self._add_to_main_log(
-            str(n_sections)
-            + ' MagC sections have been loaded.')
+        utils.log_info(
+            'MagC-CTRL',
+            (str(n_sections)
+                + ' MagC sections have been loaded.'))
         #-----------------------------
 
         #-----------------------
@@ -280,13 +280,16 @@ class ImportWaferImageDlg(QDialog):
             if ('wafer' in im_name.lower())
                 and (os.path.splitext(im_name)[1] in ['.tif', '.png', '.jpg'])]
         if len(im_names) == 0:
-            self._add_to_main_log('No wafer picture was found. '
-                'Select the wafer image manually.')
+            utils.log_info(
+                'MagC-CTRL',
+                ('No wafer picture was found. '
+                    + 'Select the wafer image manually.'))
         elif len(im_names) > 1:
-            self._add_to_main_log(
-                'There is more than one image available in the folder '
-                'containing the .magc section description file.'
-                'Select the wafer image manually')
+            utils.log_info(
+                'MagC-CTRL',
+                ('There is more than one image available in the folder '
+                    + 'containing the .magc section description file.'
+                    + 'Select the wafer image manually'))
         elif len(im_names) == 1:
             # pre-fill the import dialog
             im_path = os.path.normpath(
@@ -301,23 +304,20 @@ class ImportWaferImageDlg(QDialog):
             pass
 
         if self.imported.number_imported == current_imported_number:
-            self._add_to_main_log(
-                'You have not added a wafer image overview.'
-                'You can still do it by selecting "Import Wafer Image"'
-                'in the MagC tab.')
+            utils.log_info(
+                'MagC-CTRL',
+                ('You have not added a wafer image overview.'
+                    + 'You can still do it by selecting "Import Wafer Image"'
+                    + 'in the MagC tab.'))
         else:
             wafer_im = self.imported[-1]
             width, height = wafer_im.size
             wafer_im.pixel_size = 1000
             wafer_im.centre_sx_sy = [width//2, height//2]
             self.main_controls_trigger.transmit('DRAW VP')
-            self._add_to_main_log(
+            utils.log_info(
+                'MagC-CTRL',
                 'Wafer image succesfully imported.')
-
-    def _add_to_main_log(self, msg):
-        """Add entry to the log in the main window"""
-        msg = utils.format_log_entry(msg)
-        self.main_controls_trigger.transmit(msg)
 
 #------------------------------------------------------------------------------
 
@@ -576,9 +576,10 @@ class WaferCalibrationDlg(QDialog):
             x = float(self.lTable.model().data(item3.index()))
             y = float(self.lTable.model().data(item4.index()))
 
-            self._add_to_main_log(
-                'Landmark: moving to '
-                + str(x) + ',' + str(y))
+            utils.log_info(
+                'MagC-STAGE',
+                ('Landmark: moving to '
+                    + str(x) + ',' + str(y)))
             self.stage.move_to_xy([x,y])
             # xxx move viewport
             # self.cs.set_mv_centre_d(
@@ -597,9 +598,10 @@ class WaferCalibrationDlg(QDialog):
         n_landmarks = len(self.cs.magc_landmarks)
 
         if len(calibratedLandmarkIds) != n_landmarks:
-            self._add_to_main_log(
-                'Cannot validate wafer calibration: all target landmarks '
-                'must first be validated.')
+            utils.log_info(
+                'MagC-CTRL',
+                ('Cannot validate wafer calibration: all target landmarks '
+                    +'must first be validated.'))
         else:
             x_landmarks_source = [
                 self.cs.magc_landmarks[str(i)]['source'][0]
@@ -699,11 +701,6 @@ class WaferCalibrationDlg(QDialog):
     def accept(self):
         super().accept()
 
-    def _add_to_main_log(self, msg):
-        """Add entry to the log in the main window"""
-        msg = utils.format_log_entry(msg)
-        self.main_controls_trigger.transmit(msg)
-
 class ImportZENExperimentDlg(QDialog):
     """Import a ZEN experiment setup."""
 
@@ -726,11 +723,6 @@ class ImportZENExperimentDlg(QDialog):
         self.buttonBox.rejected.connect(self.accept)
         self.show()
 
-    def _add_to_main_log(self, msg):
-        """Add entry to the log in the main window"""
-        msg = utils.format_log_entry(msg)
-        self.main_controls_trigger.transmit(msg)
-
     def import_zen(self):
         #-----------------------------
         # read sections from zen .json experiment file
@@ -738,11 +730,14 @@ class ImportZENExperimentDlg(QDialog):
             self.lineEdit_fileName.text())
 
         if not os.path.isfile(selected_file):
-            self._add_to_main_log('ZEN input file not found')
+            utils.log_info(
+                'MagC-CTRL',
+                'ZEN input file not found')
             self.accept()
             return
         elif os.path.splitext(selected_file)[1] != '.json':
-            self._add_to_main_log(
+            utils.log_info(
+                'MagC-CTRL',
                 'The file chosen should be in .json format')
             self.accept()
             return
