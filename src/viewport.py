@@ -353,11 +353,11 @@ class Viewport(QWidget):
             self.selected_ov = self._vp_ov_mouse_selection(px, py)
             self.selected_imported = (
                 self._vp_imported_img_mouse_selection(px, py))
-            
+
             # Disable self.selected_template for now (causing runtime warnings)
             # TODO (Benjamin / Philipp): look into this
             # self.selected_template = self._vp_template_mouse_selection(px, py)
-            
+
             # Shift pressed in first tab? Toggle active tiles.
             if ((self.tabWidget.currentIndex() == 0)
                and (QApplication.keyboardModifiers() == Qt.ShiftModifier)):
@@ -2893,9 +2893,11 @@ class Viewport(QWidget):
 
             self.vp_draw()
             self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS') # update statistics in GUI
-            self.add_to_log('Properties of grid '
+            utils.log_info(
+                'CTRL',
+                ('Properties of grid '
                 + str(clicked_section_number)
-                + ' have been propagated to all sections')
+                + ' have been propagated to all sections'))
 
     def vp_revert_grid_location_to_file(self):
         clicked_section_number = self.selected_grid
