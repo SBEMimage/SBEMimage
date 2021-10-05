@@ -2868,9 +2868,11 @@ class Viewport(QWidget):
         self.gm.update_source_ROIs_from_grids()
         self.vp_draw()
         self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS') # update statistics in GUI
-        self._add_to_main_log('Properties of grid '
-            + str(clicked_section_number)
-            + ' have been propagated to the selected sections')
+        utils.log_info(
+            'MagC-CTRL',
+            ('Properties of grid '
+                + str(clicked_section_number)
+                + ' have been propagated to the selected sections'))
 
     def vp_propagate_grid_properties_to_all_sections(self):
         # TODO
@@ -2894,10 +2896,10 @@ class Viewport(QWidget):
             self.vp_draw()
             self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS') # update statistics in GUI
             utils.log_info(
-                'CTRL',
+                'MagC-CTRL',
                 ('Properties of grid '
-                + str(clicked_section_number)
-                + ' have been propagated to all sections'))
+                    + str(clicked_section_number)
+                    + ' have been propagated to all sections'))
 
     def vp_revert_grid_location_to_file(self):
         clicked_section_number = self.selected_grid
