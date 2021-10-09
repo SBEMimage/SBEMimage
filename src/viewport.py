@@ -399,7 +399,9 @@ class Viewport(QWidget):
                         # Then enter paint mode until mouse button released.
                         self.tile_paint_mode_active = True
 
-            # Check if Ctrl key is pressed -> Move OV
+            # Check if Ctrl key is pressed
+                # -> Move OV if not magc_mode
+                # -> select grids if magc_mode
             elif ((self.tabWidget.currentIndex() == 0)
                 and (QApplication.keyboardModifiers() == Qt.ControlModifier)
                 and self.vp_current_ov >= -2
@@ -414,6 +416,15 @@ class Viewport(QWidget):
                     # Draw OV
                     self.ov_draw_active = True
                     self.drag_origin = px, py
+
+            #Ctrl pressed: draw selection box for grids in magc_mode
+            elif ((self.tabWidget.currentIndex() == 0)
+                and (QApplication.keyboardModifiers()==Qt.ControlModifier)
+                and not self.busy
+                and self.sem.magc_mode):
+                # Draw OV
+                self.grid_draw_selection_box_active = True
+                self.drag_origin = px, py
 
             # Check if Alt key is pressed -> Move grid
             elif ((self.tabWidget.currentIndex() == 0)
@@ -569,13 +580,12 @@ class Viewport(QWidget):
             else:
                 # Disable paint mode when mouse moved beyond grid edge.
                 self.tile_paint_mode_active = False
-        elif self.grid_draw_active:
-            self.drag_current = px, py
-            self.vp_draw()
-        elif self.ov_draw_active:
-            self.drag_current = px, py
-            self.vp_draw()
-        elif self.template_draw_active:
+        elif any([
+            self.grid_draw_active,
+            self.ov_draw_active,
+            self.template_draw_active,
+            self.grid_draw_selection_box_active]):
+
             self.drag_current = px, py
             self.vp_draw()
 
@@ -659,7 +669,12 @@ class Viewport(QWidget):
                     # Restore centre coordinates
                     self.tm.template.origin_sx_sy = self.stage_pos_backup
 
-            if self.grid_draw_active or self.ov_draw_active or self.template_draw_active:
+            if any([
+                self.grid_draw_active,
+                self.ov_draw_active,
+                self.template_draw_active,
+                self.grid_draw_selection_box_active]):
+
                 x0, y0 = self.cs.convert_mouse_to_v(self.drag_origin)
                 x1, y1 = self.cs.convert_mouse_to_v(self.drag_current)
                 if x0 > x1:
@@ -669,21 +684,22 @@ class Viewport(QWidget):
                 w = x1 - x0
                 h = y1 - y0
 
-            if self.grid_draw_active:
-                if h != 0 and w != 0:
+            if h != 0 and w != 0:
+                if self.grid_draw_active:
                     self.grid_draw_active = False
                     self.gm.draw_grid(x0, y0, w, h)
                     self.main_controls_trigger.transmit('GRID SETTINGS CHANGED')
-            if self.ov_draw_active:
-                if h != 0 and w != 0:
+                if self.ov_draw_active:
                     self.ov_draw_active = False
                     self.ovm.draw_overview(x0, y0, w, h)
                     self.main_controls_trigger.transmit('OV SETTINGS CHANGED')
-            if self.template_draw_active:
-                if h != 0 and w != 0:
+                if self.template_draw_active:
                     self.template_draw_active = False
                     self.tm.draw_template(x0, y0, w, h)
                     self.main_controls_trigger.transmit('TEMPLATE SETTINGS CHANGED')
+                # in magc_mode
+                if self.grid_draw_selection_box_active:
+                    self.grid_draw_selection_box_active = False
 
             if self.tile_paint_mode_active:
                 self.vp_update_after_active_tile_selection()
