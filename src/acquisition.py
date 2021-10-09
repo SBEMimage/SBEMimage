@@ -144,6 +144,8 @@ class Acquisition:
 
         self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
         self.targeting_mode = (self.cfg['sys']['targeting_mode'].lower() == 'true')
+        if self.targeting_mode:
+            self.targeting_plugin = TargetingPlugin(self)
         # Create text file for notes
         notes_file = os.path.join(self.base_dir, self.stack_name + '_notes.txt')
         if not os.path.isfile(notes_file):
@@ -1741,8 +1743,8 @@ class Acquisition:
             self.user_reply = None
 
         if self.targeting_mode and ov_accepted:
-            # TODO - only send if ov index matches that in targeting plugin & convert to n5 active in plugin?
-            self.main_controls_trigger.transmit(TargetingPlugin.N5_CONVERSION_MSG + str(ov_index))
+            if self.targeting_plugin.convert_to_n5 and self.targeting_plugin.selected_ov == ov_index:
+                self.targeting_plugin.write_ov_to_n5()
 
         return relative_ov_save_path, ov_save_path, ov_accepted, rejected_by_user
 

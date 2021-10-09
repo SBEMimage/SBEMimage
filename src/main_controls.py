@@ -41,7 +41,7 @@ from PyQt5.uic import loadUi
 
 import acq_func
 import utils
-from targeting_plugin import TargetingPlugin
+from targeting_plugin_ui import TargetingPluginUi
 from utils import Error
 from sem_control import SEM
 from sem_control_zeiss import SEM_SmartSEM, SEM_MultiSEM
@@ -109,7 +109,7 @@ class MainControls(QMainWindow):
             self.cfg['sys']['multisem_mode'].lower() == 'true'
             and self.syscfg['device']['sem'] == 'ZEISS MultiSEM')
         self.targeting_mode = (self.cfg['sys']['targeting_mode'].lower() == 'true')
-        self.targeting_plugin = None
+        self.targeting_plugin_ui = None
         self.use_microtome = (
             self.cfg['sys']['use_microtome'].lower() == 'true')
         self.statusbar_msg = ''
@@ -695,7 +695,7 @@ class MainControls(QMainWindow):
         if not self.targeting_mode:
             self.tabWidget.setTabEnabled(5, False)
         else:
-            self.targeting_plugin = TargetingPlugin(self)
+            self.targeting_plugin_ui = TargetingPluginUi(self)
         # ------------------#
 
     def activate_magc_mode(self, tabIndex):
@@ -1567,7 +1567,7 @@ class MainControls(QMainWindow):
         self.show_stack_acq_estimates()
         self.viewport.vp_draw()
         if self.targeting_mode:
-            self.targeting_plugin.update_ov()
+            self.targeting_plugin_ui.update_ov()
 
     def open_grid_dlg(self, selected_grid):
         dialog = GridSettingsDlg(self.gm, self.sem, selected_grid,
@@ -1864,8 +1864,6 @@ class MainControls(QMainWindow):
             self.magc_set_section_state_in_table(msg)
         elif 'MSEM GUI' in msg:
             self.msem_update_gui(msg)
-        elif msg.startswith(TargetingPlugin.N5_CONVERSION_MSG):
-            self.targeting_plugin.handle_message(msg)
         elif msg == 'REFRESH OV':
             self.acquire_ov()
         elif msg == 'SHOW CURRENT SETTINGS':
@@ -2024,7 +2022,7 @@ class MainControls(QMainWindow):
             self.restrict_gui_wo_gcib()
 
         if self.targeting_mode:
-            self.targeting_plugin.restrict_gui(b)
+            self.targeting_plugin_ui.restrict_gui(b)
 
     def restrict_focus_tool_gui(self, b):
         b ^= True
@@ -2436,7 +2434,9 @@ class MainControls(QMainWindow):
                 'Acquisition in progress', 'Acquisition in progress.', True)
 
             if self.targeting_mode:
-                self.targeting_plugin.update_targeting_plugin_settings()
+                self.targeting_plugin_ui.save_current_settings()
+                self.acq.targeting_plugin.update_targeting_plugin_settings(
+                    self.targeting_plugin_ui.selected_ov(), self.targeting_plugin_ui.is_convert_to_n5_active())
 
             # Start the thread running the stack acquisition
             # All source code in stack_acquisition.py
