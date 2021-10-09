@@ -684,21 +684,27 @@ class Viewport(QWidget):
                 w = x1 - x0
                 h = y1 - y0
 
-            if h != 0 and w != 0:
-                if self.grid_draw_active:
+            if self.grid_draw_active:
+                if h != 0 and w != 0:
                     self.grid_draw_active = False
                     self.gm.draw_grid(x0, y0, w, h)
                     self.main_controls_trigger.transmit('GRID SETTINGS CHANGED')
-                if self.ov_draw_active:
+
+            if self.ov_draw_active:
+                if h != 0 and w != 0:
                     self.ov_draw_active = False
                     self.ovm.draw_overview(x0, y0, w, h)
                     self.main_controls_trigger.transmit('OV SETTINGS CHANGED')
-                if self.template_draw_active:
+
+            if self.template_draw_active:
+                if h != 0 and w != 0:
                     self.template_draw_active = False
                     self.tm.draw_template(x0, y0, w, h)
                     self.main_controls_trigger.transmit('TEMPLATE SETTINGS CHANGED')
                 # in magc_mode
-                if self.grid_draw_selection_box_active:
+
+            if self.grid_draw_selection_box_active:
+                if h != 0 and w != 0:
                     self.grid_draw_selection_box_active = False
 
             if self.tile_paint_mode_active:
@@ -856,6 +862,9 @@ class Viewport(QWidget):
         self.template_drag_active = False
         self.imported_img_drag_active = False
         self.vp_measure_active = False
+        #---magc---
+        self.grid_draw_selection_box_active = False
+        #----------
 
         # Canvas
         self.vp_canvas = QPixmap(self.cs.vp_width, self.cs.vp_height)

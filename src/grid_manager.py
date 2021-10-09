@@ -143,9 +143,9 @@ class Grid:
         # If not specified, use 5% of the image width, rounded to 10px
         if overlap is None:
             overlap = round(0.05 * self.frame_size[0], -1)
-        
+
         self.overlap = overlap
-        
+
         # Use device-dependent default for dwell time if no dwell time selector specified
         if dwell_time_selector is None:
             dwell_time_selector = self.sem.DWELL_TIME_DEFAULT_INDEX
@@ -153,7 +153,7 @@ class Grid:
         # Dwell time in microseconds (float)
         self.dwell_time = dwell_time
         self.dwell_time_selector = dwell_time_selector
-        
+
         # Pixel size in nm (float)
         self.pixel_size = pixel_size
 
@@ -898,6 +898,16 @@ class Grid:
             if self.__tiles[tile_index].autofocus_active:
                 autofocus_ref_tiles.append(tile_index)
         return autofocus_ref_tiles
+
+    def corner_tiles(self):
+        """Return indices of corner tiles."""
+        rows = self.number_rows()
+        cols = self.number_cols()
+        return [
+            0,
+            cols-1,
+            cols * (rows - 1),
+            cols*rows - 1]
 
     def clear_all_tile_previews(self):
         """Clear all preview images in this grid."""
