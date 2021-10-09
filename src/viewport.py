@@ -717,8 +717,21 @@ class Viewport(QWidget):
                                     + str(self.selected_grid)
                                     + '-toggle')
                             else:
-                                self.main_controls_trigger.transmit(
-                                    'MAGC SET SECTION STATE-99999-deselectall')
+                                # ctrl+click in background: deselect all
+                                # ask for confirmation if more than 10 grids already selected
+                                if len(self.gm.magc_selected_sections)>=10:
+                                    user_reply = QMessageBox.question(
+                                        self, 'Large deselection',
+                                        'Deselect all '
+                                        + str(len(self.gm.magc_selected_sections))
+                                        + ' grids?',
+                                        QMessageBox.Ok | QMessageBox.Cancel)
+                                    if user_reply == QMessageBox.Ok:
+                                        self.main_controls_trigger.transmit(
+                                            'MAGC SET SECTION STATE-99999-deselectall')
+                                else:
+                                    self.main_controls_trigger.transmit(
+                                        'MAGC SET SECTION STATE-99999-deselectall')
                         else:
                             if self.selected_grid is not None:
                                 self.main_controls_trigger.transmit(
