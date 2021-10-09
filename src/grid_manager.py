@@ -909,6 +909,17 @@ class Grid:
             cols * (rows - 1),
             cols*rows - 1]
 
+    def bounding_box(self):
+        """Return bounding box of (rotated) grid."""
+        bounding_boxes_of_corner_tiles = np.array([
+            self.tile_bounding_box(corner_tile_index)
+                for corner_tile_index in self.corner_tiles()])
+        min_x = np.min(bounding_boxes_of_corner_tiles.T[0])
+        max_x = np.max(bounding_boxes_of_corner_tiles.T[1])
+        min_y = np.min(bounding_boxes_of_corner_tiles.T[2])
+        max_y = np.max(bounding_boxes_of_corner_tiles.T[3])
+        return min_x, max_x, min_y, max_y
+
     def clear_all_tile_previews(self):
         """Clear all preview images in this grid."""
         for tile in self.__tiles:
