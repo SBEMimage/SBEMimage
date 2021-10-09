@@ -403,7 +403,8 @@ class Viewport(QWidget):
             elif ((self.tabWidget.currentIndex() == 0)
                 and (QApplication.keyboardModifiers() == Qt.ControlModifier)
                 and self.vp_current_ov >= -2
-                and not self.busy):
+                and not self.busy
+                and not self.sem.magc_mode):
                 if self.selected_ov is not None and self.selected_ov >= 0:
                     self.ov_drag_active = True
                     self.drag_origin = (px, py)
