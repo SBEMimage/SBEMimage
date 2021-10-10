@@ -2489,22 +2489,28 @@ class Viewport(QWidget):
 
             # Also check whether grid label clicked. This selects only the grid
             # and not a specific tile.
-            f = int(self.cs.vp_scale * 8)
-            if f < 12:
-                f = 12
-            # Active and inactive grids have different label widths
-            if self.gm[grid_index].active:
-                width_factor = 5.3
-            else:
-                width_factor = 10.5
-            label_width = int(width_factor * f)
-            label_height = int(4/3 * f)
-            l_y = y + label_height
-            if x >= 0 and l_y >= 0 and selected_grid is None:
-                if x < label_width and l_y < label_height:
-                    selected_grid = grid_index
-                    selected_tile = None
-                    break
+            suppress_labels = ((self.gm.number_grids + self.ovm.number_ov) > 10
+                               and (self.cs.vp_scale < 1.0
+                               or self.fov_drag_active
+                               or self.grid_drag_active))
+
+            if self.show_labels and (not suppress_labels):
+                f = int(self.cs.vp_scale * 8)
+                if f < 12:
+                    f = 12
+                # Active and inactive grids have different label widths
+                if self.gm[grid_index].active:
+                    width_factor = 5.3
+                else:
+                    width_factor = 10.5
+                label_width = int(width_factor * f)
+                label_height = int(4/3 * f)
+                l_y = y + label_height
+                if x >= 0 and l_y >= 0 and selected_grid is None:
+                    if x < label_width and l_y < label_height:
+                        selected_grid = grid_index
+                        selected_tile = None
+                        break
 
         return selected_grid, selected_tile
 
