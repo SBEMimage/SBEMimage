@@ -2467,7 +2467,11 @@ class Viewport(QWidget):
                 # if the current grid is active
                 if all([
                     self.gm[grid_index].active,
-                    0 <= x <= cols * tile_width_v + overlap_v, # grid_width
+                    # we can include + shift_v here and handle
+                    # the following 2 peculiar cases later:
+                    # 1. click at the left of a shifted row
+                    # 2. click at the right of a non-shifted row
+                    0 <= x <= cols * tile_width_v + overlap_v + shift_v, # = grid_width + shift_v
                     0 <= y <= rows * tile_height_v + overlap_v]):
 
                     # with tile_width_p = 10; tile_width_v = 9; overlap = 1
@@ -2475,19 +2479,33 @@ class Viewport(QWidget):
                     # column 1: [0,10]
                     # column 2: [9,19]
                     # column 3: [18,28]
-                    tile_intervals_x = [
-                        [c * tile_width_v,
-                        (c+1) * tile_width_v + overlap_v]
-                        for c in range(cols)]
-                    c = [interval[0] <= x <= interval[1]
-                        for interval in tile_intervals_x].index(True)
-
                     tile_intervals_y = [
                         [r * tile_height_v,
                         (r+1) * tile_height_v + overlap_v]
                         for r in range(rows)]
+
                     r = [interval[0] <= y <= interval[1]
                         for interval in tile_intervals_y].index(True)
+
+                    if shift_v!=0 and r%2==1:
+                        tile_intervals_x = [
+                            [c * tile_width_v + shift_v,
+                            (c+1) * tile_width_v + overlap_v + shift_v]
+                            for c in range(cols)]
+                    else:
+                        tile_intervals_x = [
+                            [c * tile_width_v,
+                            (c+1) * tile_width_v + overlap_v]
+                            for c in range(cols)]
+
+                    try:
+                        c = [interval[0] <= x <= interval[1]
+                            for interval in tile_intervals_x].index(True)
+                    except ValueError:
+                        # the click_x is outside of the intervals
+                        # when click at the left of a shifted row
+                        # or at the right of a non-shifted row
+                        break
 
                     selected_tile = int(c + r * cols)
                     selected_grid = grid_index
