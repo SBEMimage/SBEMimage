@@ -2439,9 +2439,9 @@ class Viewport(QWidget):
             tile_width_p = self.gm[grid_index].tile_width_p()
             tile_height_p = self.gm[grid_index].tile_height_p()
             # Tile width in viewport pixels taking overlap into account
-            tile_width_v = ((tile_width_p - overlap) * pixel_size
+            tile_width_v = ((tile_width_p - overlap/2) * pixel_size
                             / 1000 * self.cs.vp_scale)
-            tile_height_v = ((tile_height_p - overlap) * pixel_size
+            tile_height_v = ((tile_height_p - overlap/2) * pixel_size
                              / 1000 * self.cs.vp_scale)
             # Row shift in viewport pixels
             shift_v = (self.gm[grid_index].row_shift * pixel_size
