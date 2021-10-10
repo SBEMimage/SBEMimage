@@ -2439,10 +2439,11 @@ class Viewport(QWidget):
             tile_width_p = self.gm[grid_index].tile_width_p()
             tile_height_p = self.gm[grid_index].tile_height_p()
             # Tile width in viewport pixels taking overlap into account
-            tile_width_v = ((tile_width_p - overlap/2) * pixel_size
+            tile_width_v = ((tile_width_p - overlap) * pixel_size
                             / 1000 * self.cs.vp_scale)
-            tile_height_v = ((tile_height_p - overlap/2) * pixel_size
+            tile_height_v = ((tile_height_p - overlap) * pixel_size
                              / 1000 * self.cs.vp_scale)
+            overlap_v = overlap * pixel_size / 1000 * self.cs.vp_scale
             # Row shift in viewport pixels
             shift_v = (self.gm[grid_index].row_shift * pixel_size
                        / 1000 * self.cs.vp_scale)
@@ -2464,19 +2465,34 @@ class Viewport(QWidget):
             if not 'multisem' in self.sem.device_name.lower():
                 # Check if mouse click position is within current grid's tile area
                 # if the current grid is active
-                if self.gm[grid_index].active and x >= 0 and y >= 0:
-                    j = y // tile_height_v
-                    if j % 2 == 0:
-                        i = x // tile_width_v
-                    elif x > shift_v:
-                        # Subtract shift for odd rows
-                        i = (x - shift_v) // tile_width_v
-                    else:
-                        i = cols
-                    if (i < cols) and (j < rows):
-                        selected_tile = int(i + j * cols)
-                        selected_grid = grid_index
-                        break
+                if all([
+                    self.gm[grid_index].active,
+                    0 <= x <= cols * tile_width_v + overlap_v, # grid_width
+                    0 <= y <= rows * tile_height_v + overlap_v]):
+
+                    # with tile_width_p = 10; tile_width_v = 9; overlap = 1
+                    # Intervals of x coordinates for each column
+                    # column 1: [0,10]
+                    # column 2: [9,19]
+                    # column 3: [18,28]
+                    tile_intervals_x = [
+                        [c * tile_width_v,
+                        (c+1) * tile_width_v + overlap_v]
+                        for c in range(cols)]
+                    c = [interval[0] <= x <= interval[1]
+                        for interval in tile_intervals_x].index(True)
+
+                    tile_intervals_y = [
+                        [r * tile_height_v,
+                        (r+1) * tile_height_v + overlap_v]
+                        for r in range(rows)]
+                    r = [interval[0] <= y <= interval[1]
+                        for interval in tile_intervals_y].index(True)
+
+                    selected_tile = int(c + r * cols)
+                    selected_grid = grid_index
+                    break
+
             else: # Check if mouse click position is within current ROI.
                 polyroi_s = self.gm[grid_index].magc_polyroi_points
                 if len(polyroi_s) > 2:
