@@ -2044,7 +2044,7 @@ class Viewport(QWidget):
         self.vp_qp.resetTransform()
 
         # ---- Autofocus points in MagC mode ---- #
-        if self.gm.magc_mode:
+        if self.sem.magc_mode:
             focus_point_brush = QBrush(QColor(Qt.red), Qt.SolidPattern)
             self.vp_qp.setBrush(focus_point_brush)
             for autofocus_point in self.gm[grid_index].magc_autofocus_points:
