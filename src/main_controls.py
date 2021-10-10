@@ -1196,7 +1196,7 @@ class MainControls(QMainWindow):
         rowsToSelect = set(range(model.rowCount())) - set(selectedRows)
         self.magc_select_rows(rowsToSelect)
 
-    def magc_toggle_selection(self, section_number):
+    def magc_toggle_selection(self, section_numbers):
         # ctrl+click in viewport: select or deselect clicked
         # section without changing existing selected sections
         selectedRows = [
@@ -1204,10 +1204,17 @@ class MainControls(QMainWindow):
                 in self.tableView_magc_sections
                     .selectedIndexes()]
         rowsToSelect = set(selectedRows)
-        if section_number in selectedRows:
-            rowsToSelect.remove(section_number)
-        else:
-            rowsToSelect.add(section_number)
+
+        # input is a single int or a list of int
+        if isinstance(section_numbers, int):
+            section_numbers = [section_numbers]
+
+        for section_number in section_numbers:
+            if section_number in selectedRows:
+                rowsToSelect.remove(section_number)
+            else:
+                rowsToSelect.add(section_number)
+
         rowsToSelect = list(rowsToSelect)
         self.magc_select_rows(rowsToSelect)
 
@@ -1311,9 +1318,17 @@ class MainControls(QMainWindow):
 
     def magc_set_section_state_in_table(self, msg):
         model = self.tableView_magc_sections.model()
-        section_number = int(msg.split('-')[-2])
+        # number can be a single int or a list 1,2,3
+        if ',' in msg:
+            section_number = list(map(
+                int,
+                msg.split('-')[-2].split(',') ))
+            index = model.index(section_number[0], 1)
+        else:
+            section_number = int(msg.split('-')[-2])
+            index = model.index(section_number, 1)
+
         state = msg.split('-')[-1]
-        index = model.index(section_number, 1)
         if 'acquir' in state:
             if state == 'acquiring':
                 state_color = QColor(Qt.yellow)

@@ -338,12 +338,6 @@ class Viewport(QWidget):
         mouse_pos_within_plot_area = (
             px in range(445, 940) and py in range(22, 850))
 
-        # --- MagC --- #
-        self.control_down_at_mouse_press = (
-            QApplication.keyboardModifiers() == Qt.ControlModifier)
-        # keep in memory the origin when button pressed
-        self.drag_origin_at_press_event = px, py
-        #--------------#
         if ((event.button() == Qt.LeftButton)
             and (self.tabWidget.currentIndex() < 2)
             and mouse_pos_within_viewer):
@@ -399,9 +393,7 @@ class Viewport(QWidget):
                         # Then enter paint mode until mouse button released.
                         self.tile_paint_mode_active = True
 
-            # Check if Ctrl key is pressed
-                # -> Move OV if not magc_mode
-                # -> select grids if magc_mode
+            # Check if Ctrl key is pressed -> Move OV
             elif ((self.tabWidget.currentIndex() == 0)
                 and (QApplication.keyboardModifiers() == Qt.ControlModifier)
                 and self.vp_current_ov >= -2
@@ -417,14 +409,19 @@ class Viewport(QWidget):
                     self.ov_draw_active = True
                     self.drag_origin = px, py
 
-            #Ctrl pressed: draw selection box for grids in magc_mode
+            #Ctrl pressed in magc_mode: select grid or draw selection box for grids
             elif ((self.tabWidget.currentIndex() == 0)
                 and (QApplication.keyboardModifiers()==Qt.ControlModifier)
                 and not self.busy
                 and self.sem.magc_mode):
-                # Draw OV
-                self.grid_draw_selection_box_active = True
+                # Select grid or draw selection box for grids
+                self.grid_selection_or_draw_selection_box_active = True
                 self.drag_origin = px, py
+                # it is crucial to update drag_current
+                # otherwise when doing a simple click without dragging
+                # the drag_current value is taken from the last time
+                # a drag was performed
+                self.drag_current = self.drag_origin
 
             # Check if Alt key is pressed -> Move grid
             elif ((self.tabWidget.currentIndex() == 0)
@@ -584,7 +581,12 @@ class Viewport(QWidget):
             self.grid_draw_active,
             self.ov_draw_active,
             self.template_draw_active,
-            self.grid_draw_selection_box_active]):
+            self.grid_selection_or_draw_selection_box_active]):
+
+            # if ctrl is not pressed down any more during drag
+            # then stop the selection box drawing
+            if QApplication.keyboardModifiers()!=Qt.ControlModifier:
+                self.grid_selection_or_draw_selection_box_active = False
 
             self.drag_current = px, py
             self.vp_draw()
@@ -673,7 +675,7 @@ class Viewport(QWidget):
                 self.grid_draw_active,
                 self.ov_draw_active,
                 self.template_draw_active,
-                self.grid_draw_selection_box_active]):
+                self.grid_selection_or_draw_selection_box_active]):
 
                 x0, y0 = self.cs.convert_mouse_to_v(self.drag_origin)
                 x1, y1 = self.cs.convert_mouse_to_v(self.drag_current)
@@ -701,11 +703,71 @@ class Viewport(QWidget):
                     self.template_draw_active = False
                     self.tm.draw_template(x0, y0, w, h)
                     self.main_controls_trigger.transmit('TEMPLATE SETTINGS CHANGED')
-                # in magc_mode
 
-            if self.grid_draw_selection_box_active:
-                if h != 0 and w != 0:
-                    self.grid_draw_selection_box_active = False
+            # ----magc_mode----
+            if self.grid_selection_or_draw_selection_box_active:
+
+                self.grid_selection_or_draw_selection_box_active = False
+
+                # checking whether no other action than
+                # simple section click was performed
+                if not any([
+                    self.grid_drag_active,
+                    self.ov_drag_active,
+                    self.tile_paint_mode_active,
+                    self.imported_img_drag_active]):
+
+                    if h != 0 and w != 0:
+                        #find grids in the drawn box
+                        contained_grid_indexes = []
+                        for grid_index in range(self.gm.number_grids):
+                            grid_bb = self.gm[grid_index].bounding_box()
+                            if all([
+                                grid_bb[0] > x0,
+                                grid_bb[1] < x0 + w,
+                                grid_bb[2] > y0,
+                                grid_bb[3] < y0 + h]):
+
+                                contained_grid_indexes.append(grid_index)
+                        if len(contained_grid_indexes)>0:
+                            self.main_controls_trigger.transmit(
+                                'MAGC SET SECTION STATE-'
+                                + ','.join(
+                                    map(
+                                        str,
+                                        contained_grid_indexes))
+                                + '-toggle')
+
+                    else:
+                        if self.selected_grid is None:
+                            # ctrl+click in background: deselect all
+                            # ask for confirmation if more than 10 grids already selected
+                            if len(self.gm.magc_selected_sections)>=10:
+                                user_reply = QMessageBox.question(
+                                    self, 'Large deselection',
+                                    'Deselect all '
+                                    + str(len(self.gm.magc_selected_sections))
+                                    + ' grids?',
+                                    QMessageBox.Ok | QMessageBox.Cancel)
+                                if user_reply == QMessageBox.Ok:
+                                    self.main_controls_trigger.transmit(
+                                        'MAGC SET SECTION STATE-99999-deselectall')
+                            else:
+                                self.main_controls_trigger.transmit(
+                                    'MAGC SET SECTION STATE-99999-deselectall')
+                        else:
+                            self.main_controls_trigger.transmit(
+                                'MAGC SET SECTION STATE-'
+                                + str(self.selected_grid)
+                                + '-toggle')
+                    # else:
+                        # if self.selected_grid is not None:
+                            # self.main_controls_trigger.transmit(
+                                # 'MAGC SET SECTION STATE-'
+                                # + str(self.selected_grid)
+                                # + '-select')
+
+
 
             if self.tile_paint_mode_active:
                 self.vp_update_after_active_tile_selection()
@@ -719,47 +781,6 @@ class Viewport(QWidget):
                     # Restore centre coordinates
                     self.imported[self.selected_imported].centre_sx_sy = (
                         self.stage_pos_backup)
-
-            if self.gm.magc_mode:
-                # checking whether no other action than
-                # simple section click was performed
-                if not any([
-                    self.grid_drag_active,
-                    self.ov_drag_active,
-                    self.tile_paint_mode_active,
-                    self.imported_img_drag_active]):
-                    p = event.pos()
-                    px = p.x() - utils.VP_MARGIN_X
-                    py = p.y() - utils.VP_MARGIN_Y
-                    if self.drag_origin_at_press_event == (px, py):
-                        if self.control_down_at_mouse_press:
-                            if self.selected_grid is not None:
-                                self.main_controls_trigger.transmit(
-                                    'MAGC SET SECTION STATE-'
-                                    + str(self.selected_grid)
-                                    + '-toggle')
-                            else:
-                                # ctrl+click in background: deselect all
-                                # ask for confirmation if more than 10 grids already selected
-                                if len(self.gm.magc_selected_sections)>=10:
-                                    user_reply = QMessageBox.question(
-                                        self, 'Large deselection',
-                                        'Deselect all '
-                                        + str(len(self.gm.magc_selected_sections))
-                                        + ' grids?',
-                                        QMessageBox.Ok | QMessageBox.Cancel)
-                                    if user_reply == QMessageBox.Ok:
-                                        self.main_controls_trigger.transmit(
-                                            'MAGC SET SECTION STATE-99999-deselectall')
-                                else:
-                                    self.main_controls_trigger.transmit(
-                                        'MAGC SET SECTION STATE-99999-deselectall')
-                        else:
-                            if self.selected_grid is not None:
-                                self.main_controls_trigger.transmit(
-                                    'MAGC SET SECTION STATE-'
-                                    + str(self.selected_grid)
-                                    + '-select')
 
             self.fov_drag_active = False
             self.grid_drag_active = False
@@ -863,7 +884,7 @@ class Viewport(QWidget):
         self.imported_img_drag_active = False
         self.vp_measure_active = False
         #---magc---
-        self.grid_draw_selection_box_active = False
+        self.grid_selection_or_draw_selection_box_active = False
         #----------
 
         # Canvas
@@ -1422,6 +1443,14 @@ class Viewport(QWidget):
         if self.template_draw_active:
             self._draw_rectangle(self.vp_qp, self.drag_origin, self.drag_current,
                                  utils.COLOUR_SELECTOR[8], line_style=Qt.DashLine)
+
+        # --- in magc_mode ---
+        if self.grid_selection_or_draw_selection_box_active:
+            self._draw_rectangle(self.vp_qp, self.drag_origin, self.drag_current,
+                                 utils.COLOUR_SELECTOR[0], line_style=Qt.DashLine)
+        # ------
+
+
         if self.vp_measure_active:
             self._draw_measure_labels(self.vp_qp)
         # Show help panel
