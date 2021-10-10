@@ -408,6 +408,7 @@ class Viewport(QWidget):
                     # Draw OV
                     self.ov_draw_active = True
                     self.drag_origin = px, py
+                    self.drag_current = self.drag_origin
 
             #Ctrl pressed in magc_mode: select grid or draw selection box for grids
             elif ((self.tabWidget.currentIndex() == 0)
@@ -431,6 +432,7 @@ class Viewport(QWidget):
                 if self.selected_grid is not None and self.selected_grid >= 0:
                     self.grid_drag_active = True
                     self.drag_origin = px, py
+                    self.drag_current = self.drag_origin
                     # Save coordinates in case user wants to undo
                     self.stage_pos_backup = (
                         self.gm[self.selected_grid].origin_sx_sy)
@@ -438,6 +440,7 @@ class Viewport(QWidget):
                     # Draw grid
                     self.grid_draw_active = True
                     self.drag_origin = px, py
+                    self.drag_current = self.drag_origin
 
             # Check if ctrl+shift key is pressed -> Move template
             elif ((self.tabWidget.currentIndex() == 0)
@@ -446,12 +449,14 @@ class Viewport(QWidget):
                 if self.selected_template:
                     self.template_drag_active = True
                     self.drag_origin = px, py
+                    self.drag_current = self.drag_origin
                     # Save coordinates in case user wants to undo
                     self.stage_pos_backup = self.tm.template.origin_sx_sy
                 else:
                     # Draw template
                     self.template_draw_active = True
                     self.drag_origin = px, py
+                    self.drag_current = self.drag_origin
 
             # Check if Ctrl + Alt keys are pressed -> Move imported image
             elif ((self.tabWidget.currentIndex() == 0)
@@ -460,6 +465,7 @@ class Viewport(QWidget):
                 if self.selected_imported is not None:
                     self.imported_img_drag_active = True
                     self.drag_origin = px, py
+                    self.drag_current = self.drag_origin
                     # Save coordinates in case user wants to undo
                     self.stage_pos_backup = (
                         self.imported[self.selected_imported].centre_sx_sy)
@@ -583,8 +589,17 @@ class Viewport(QWidget):
             self.template_draw_active,
             self.grid_selection_or_draw_selection_box_active]):
 
-            # if ctrl is not pressed down any more during drag
-            # then stop the selection box drawing
+            # if the modifier key is not held down any more during the operation
+            # then stop the operation
+            if QApplication.keyboardModifiers()!=Qt.AltModifier:
+                self.grid_draw_active = False
+
+            if QApplication.keyboardModifiers()!=Qt.ControlModifier:
+                self.ov_draw_active = False
+
+            if not (QApplication.keyboardModifiers()==(Qt.ControlModifier | Qt.ShiftModifier)):
+                self.template_draw_active = False
+
             if QApplication.keyboardModifiers()!=Qt.ControlModifier:
                 self.grid_selection_or_draw_selection_box_active = False
 
