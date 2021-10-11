@@ -1525,6 +1525,25 @@ class Acquisition:
                     # Mirror the acquired overview
                     if self.use_mirror_drive:
                         self.mirror_files([ov_save_path])
+
+                    utils.log_info(
+                        'CTRL',
+                        f'Targeting mode is {self.targeting_mode}')
+                    utils.log_info(
+                        'CTRL',
+                        f'Convert to n5 is {self.targeting_plugin.convert_to_n5}')
+                    utils.log_info(
+                        'CTRL',
+                        f'Selected ov is {self.targeting_plugin.selected_ov}')
+                    if self.targeting_mode:
+                        if self.targeting_plugin.convert_to_n5 and self.targeting_plugin.selected_ov == ov_index:
+                            utils.log_info(
+                                'CTRL',
+                                f'Starting conversion of OV {ov_index} to n5')
+                            self.targeting_plugin.write_ov_to_n5()
+                            utils.log_info(
+                                'CTRL',
+                                f'Finished conversion of OV {ov_index} to n5')
                 if sweep_counter > 0:
                     self.add_to_incident_log(
                         'Debris, ' + str(sweep_counter) + ' sweep(s)')
@@ -1741,25 +1760,6 @@ class Acquisition:
             else:
                 rejected_by_user = True
             self.user_reply = None
-
-        utils.log_info(
-            'CTRL',
-            f'Targeting mode is {self.targeting_mode}')
-        utils.log_info(
-            'CTRL',
-            f'Convert to n5 is {self.targeting_plugin.convert_to_n5}')
-        utils.log_info(
-            'CTRL',
-            f'Selected ov is {self.targeting_plugin.selected_ov}')
-        if self.targeting_mode and ov_accepted:
-            if self.targeting_plugin.convert_to_n5 and self.targeting_plugin.selected_ov == ov_index:
-                utils.log_info(
-                    'CTRL',
-                    f'Starting conversion of OV {ov_index} to n5')
-                self.targeting_plugin.write_ov_to_n5()
-                utils.log_info(
-                    'CTRL',
-                    f'Finished conversion of OV {ov_index} to n5')
 
         return relative_ov_save_path, ov_save_path, ov_accepted, rejected_by_user
 
