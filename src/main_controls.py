@@ -2435,6 +2435,8 @@ class MainControls(QMainWindow):
 
             if self.targeting_mode:
                 self.targeting_plugin_ui.save_current_settings()
+                utils.log_info('CTRL', f'Selected OV from ui is {self.targeting_plugin_ui.selected_ov()}')
+                utils.log_info('CTRL', f'N5 conversion active is {self.targeting_plugin_ui.is_convert_to_n5_active()}')
                 self.acq.targeting_plugin.update_targeting_plugin_settings(
                     self.targeting_plugin_ui.selected_ov(), self.targeting_plugin_ui.is_convert_to_n5_active())
 
