@@ -1006,6 +1006,12 @@ class StageCalibrationDlg(QDialog):
         self.pushButton_measureMotorSpeeds.clicked.connect(
             self.measure_motor_speeds)
 
+        # For now, disable motor speed section unless Gatan 3View is used
+        if self.stage.device_name() != "Gatan 3View":
+            self.doubleSpinBox_motorSpeedX.setEnabled(False)
+            self.doubleSpinBox_motorSpeedY.setEnabled(False)
+            self.pushButton_measureMotorSpeeds.setEnabled(False)
+
     def measure_motor_speeds(self):
         """Run the measurement routine in a thread."""
         self.busy = True  # This prevents user from closing the dialog window
@@ -1297,15 +1303,17 @@ class StageCalibrationDlg(QDialog):
             # Save and apply new stage calibration and motor speeds
             self.cs.save_stage_calibration(self.sem.target_eht, stage_params)
             self.cs.apply_stage_calibration()
-            success = self.stage.set_motor_speeds(
-                self.doubleSpinBox_motorSpeedX.value(),
-                self.doubleSpinBox_motorSpeedY.value())
 
-            if not success:
-                QMessageBox.warning(
-                    self, 'Error updating motor speeds',
-                    'Motor speeds could not be updated.',
-                    QMessageBox.Ok)
+            if self.stage.device_name() == "Gatan 3View":
+                success = self.stage.set_motor_speeds(
+                    self.doubleSpinBox_motorSpeedX.value(),
+                    self.doubleSpinBox_motorSpeedY.value())
+                if not success:
+                    QMessageBox.warning(
+                        self, 'Error updating motor speeds',
+                        'Motor speeds could not be updated.',
+                        QMessageBox.Ok)
+
             super().accept()
 
     def reject(self):
