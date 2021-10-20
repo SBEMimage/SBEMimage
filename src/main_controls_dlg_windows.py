@@ -802,8 +802,13 @@ class KatanaSettingsDlg(QDialog):
         self.show()
 
         # Set up COM port selector
-        self.comboBox_portSelector.addItems(utils.get_serial_ports())
-        self.comboBox_portSelector.setCurrentIndex(0)
+        available_ports = utils.get_serial_ports()
+        self.comboBox_portSelector.addItems(available_ports)
+        if self.microtome.selected_port in available_ports:
+            self.comboBox_portSelector.setCurrentIndex(
+                available_ports.index(self.microtome.selected_port))
+        else:
+            self.comboBox_portSelector.setCurrentIndex(0)
         self.comboBox_portSelector.currentIndexChanged.connect(
             self.reconnect)
 
@@ -853,6 +858,7 @@ class KatanaSettingsDlg(QDialog):
             self.microtome.retract_clearance / 1000)
 
     def accept(self):
+        new_com_port = self.comboBox_portSelector.currentText() 
         new_cut_speed = self.spinBox_knifeCutSpeed.value()
         new_fast_speed = self.spinBox_knifeFastSpeed.value()
         new_cut_start = self.spinBox_cutWindowStart.value()
@@ -864,6 +870,7 @@ class KatanaSettingsDlg(QDialog):
             self.doubleSpinBox_retractClearance.value() * 1000)
         # End position of cut window must be smaller than start position:
         if new_cut_end < new_cut_start:
+            self.microtome.selected_port = new_com_port
             self.microtome.knife_cut_speed = new_cut_speed
             self.microtome.knife_fast_speed = new_fast_speed
             self.microtome.cut_window_start = new_cut_start
