@@ -204,15 +204,15 @@ class StubOverview(Grid):
 
         # Set the centre coordinates, which will update the origin.
         self.centre_sx_sy = centre_sx_sy
-        # Image is loaded when file path is set/changed.
+        # QPixmaps of current stub OV (original and downsampled)
+        self.pixmaps_ = {1: None, 2: None, 4: None, 8: None, 16: None}
+        # QPixmaps are loaded when file path is set/changed.
         self.vp_file_path = vp_file_path
 
     def image(self, mag=1):
-        if mag == 1:
-            vp_fname_mag = self._vp_file_path
-        else:
-            vp_fname_mag = self._vp_file_path[:-4] + f'_mag{mag}.png'
-        return QPixmap(vp_fname_mag)
+        if mag in [1, 2, 4, 8, 16]:
+            return self.pixmaps_[mag]
+        return None
 
     @property
     def vp_file_path(self):
@@ -220,30 +220,20 @@ class StubOverview(Grid):
 
     @vp_file_path.setter
     def vp_file_path(self, file_path):
-        import imageio
-        import scipy.ndimage
         self._vp_file_path = file_path
-        # Load image as QPixmap
-        if os.path.isfile(self._vp_file_path):
-            try:
-                # TODO: move to original stub OV acquisition
-                # generate down sampled versions of stub OV; check if already existent
-                img_temp = None  # not sure how to use QPixmap with scipy -> load numpy array
-                for mag in [2, 4, 8, 16]:
-                    vp_fname_mag = self._vp_file_path[:-4] + f'_mag{mag}.png'
-                    if not os.path.isfile(vp_fname_mag):
-                        if img_temp is None:
-                            img_temp = imageio.imread(self._vp_file_path)
-                        img_mag = scipy.ndimage.zoom(img_temp, 1 / mag, order=3)
-                        imageio.imsave(vp_fname_mag, img_mag)
-                        del img_mag
-                del img_temp
-            except Exception as e:
-                print('EXCEPTION:', str(e))
-                self.image = None
+        # Load images as QPixmaps:
+        # Full resolution  
+        if os.path.isfile(file_path):
+            self.pixmaps_[1] = QPixmap(file_path)
         else:
-            self.image = None
-
+            self.pixmaps_[1] = None
+        # Downsampled 
+        for mag in [2, 4, 8, 16]:
+            vp_file_path_mag = file_path[:-4] + f'_mag{mag}.png'
+            if os.path.isfile(vp_file_path_mag): 
+                self.pixmaps_[mag] = QPixmap(vp_file_path_mag)
+            else:
+                self.pixmaps_[mag] = None
 
 class OverviewManager:
     def __init__(self, config, sem, coordinate_system):
