@@ -994,7 +994,9 @@ class Viewport(QWidget):
             self.selected_ov = self._vp_ov_mouse_selection(px, py)
             self.selected_imported = (
                 self._vp_imported_img_mouse_selection(px, py))
-            self.selected_template = self._vp_template_mouse_selection(px, py)
+            # Disable self.selected_template for now (causing runtime warnings)
+            # TODO (Benjamin / Philipp): look into this
+            # self.selected_template = self._vp_template_mouse_selection(px, py)
             sx, sy = self.cs.convert_mouse_to_s((px, py))
             dx, dy = self.cs.convert_s_to_d((sx, sy))
             current_pos_str = ('Move stage to X: {0:.3f}, '.format(sx)
@@ -1093,9 +1095,9 @@ class Viewport(QWidget):
             action_stub = menu.addAction('Acquire stub OV at this position')
             action_stub.triggered.connect(self._vp_set_stub_ov_centre)
 
-            menu.addSeparator()
-            action_templateMatching = menu.addAction('Run Template Matching')
-            action_templateMatching.triggered.connect(self._vp_place_grids_template_matching)
+            # menu.addSeparator()
+            # action_templateMatching = menu.addAction('Run Template Matching')
+            # action_templateMatching.triggered.connect(self._vp_place_grids_template_matching)
 
             menu.addSeparator()
             action_import = menu.addAction('Import and place image')
@@ -1321,7 +1323,7 @@ class Viewport(QWidget):
         # First, show stub OV if option selected and stub OV image exists:
         if self.show_stub_ov and self.ovm['stub'].image is not None:
             self._vp_place_stub_overview()
-            self._place_template()
+            # self._place_template()
         # For MagC mode: show imported images before drawing grids
         # TODO: Think about more general solution to organize display layers.
         if (self.show_imported and self.imported.number_imported > 0
@@ -1536,7 +1538,10 @@ class Viewport(QWidget):
         visible, crop_area, vx_cropped, vy_cropped = self._vp_visible_area(
             vx, vy, width_px, height_px, resize_ratio)
         if visible:
-            cropped_img = self.ovm['stub'].image(mag=mag_level).copy(crop_area)
+            img = self.ovm['stub'].image(mag=mag_level)
+            if img is None:
+                return
+            cropped_img = img.copy(crop_area)
             v_width = cropped_img.size().width()
             cropped_resized_img = cropped_img.scaledToWidth(
                 v_width * resize_ratio)
