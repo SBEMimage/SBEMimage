@@ -27,6 +27,7 @@ from PyQt5.QtWidgets import QApplication, QDialog, QMessageBox, QFileDialog, \
 
 import utils
 import acq_func
+import magc_utils
 
 
 # ------------------------------------------------------------------------------
@@ -333,7 +334,7 @@ class GridRotationDlg(QDialog):
         # Calculate new grid map with new rotation angle
         self.gm[self.selected_grid].update_tile_positions()
         if self.magc_mode:
-            self.gm.update_source_ROIs_from_grids()
+            magc_utils.write_magc(self.gm)
         # Restore default behaviour for updating tile positions
         self.gm[self.selected_grid].auto_update_tile_positions = True
         super().accept()

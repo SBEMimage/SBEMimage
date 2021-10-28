@@ -82,7 +82,7 @@ from main_controls_dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
 
 from magc_dlg_windows import ImportMagCDlg, ImportWaferImageDlg, \
                           WaferCalibrationDlg, ImportZENExperimentDlg
-
+import magc_utils
 
 class MainControls(QMainWindow):
 
@@ -956,12 +956,13 @@ class MainControls(QMainWindow):
         self.pushButton_saveNotes.setText('Saved')
         self.pushButton_saveNotes.setEnabled(False)
 
-# ----------------------------- MagC tab ---------------------------------------
+    # ----------------------------- MagC tab ---------------------------------------
 
     def initialize_magc_gui(self):
-        self.gm.magc_selected_sections = []
-        self.gm.magc_checked_sections = []
-        self.cs.magc_wafer_calibrated = False
+        # self.gm.magc['selected_sections'] = []
+        # self.gm.magc['checked_sections']= []
+        # self.gm.magc['calibrated'] = False
+        self.gm.magc = magc_utils.create_empty_magc()
         self.actionImportMagCMetadata.triggered.connect(
             self.magc_open_import_dlg)
 
@@ -1007,11 +1008,11 @@ class MainControls(QMainWindow):
             self.magc_select_string_sections)
         self.pushButton_magc_importWaferImage.clicked.connect(
             self.magc_open_import_wafer_image)
-        if self.gm.magc_sections_path == '':
+        if not self.gm.magc['path']:
             self.pushButton_magc_importWaferImage.setEnabled(False)
         self.pushButton_magc_addSection.clicked.connect(
             self.magc_add_section)
-        if not self.cs.magc_wafer_calibrated:
+        if not self.gm.magc['calibrated']:
             self.pushButton_magc_addSection.setEnabled(False)
         self.pushButton_magc_deleteLastSection.clicked.connect(
             self.magc_delete_last_section)
@@ -1065,7 +1066,7 @@ class MainControls(QMainWindow):
 
         output_regions = []
         polyrois = [
-            self.gm[id].magc_polyroi_points
+            self.gm.magc_polyroi_points(id)
             for id in range(self.gm.number_grids)]
         if [] in polyrois:
             self.add_to_log(
@@ -1074,7 +1075,7 @@ class MainControls(QMainWindow):
                     [str(i) for i,p in enumerate(polyrois) if p == []]))
             return
         all_focus_points = [
-            self.gm[id].magc_autofocus_points
+            self.gm.magc_autofocus_points(id)
             for id in range(self.gm.number_grids)]
 
         for id, (polyroi, focus_points) \
@@ -1107,7 +1108,7 @@ class MainControls(QMainWindow):
                 .find('CenterPosition')
                 .text) = ','.join(
                     map(str,
-                        utils.barycenter(polyroi)))
+                        magc_utils.barycenter(polyroi)))
 
             # set autofocus points
             focus_points_elements = output_region.find('SupportPoints')
@@ -1230,24 +1231,26 @@ class MainControls(QMainWindow):
     def magc_select_string_sections(self):
         userString = self.textEdit_magc_stringSections.toPlainText()
         indexes = utils.get_indexes_from_user_string(userString)
-        if indexes:
+        if indexes is not None:
             self.magc_select_rows(indexes)
             (self.tableView_magc_sections
                 .verticalScrollBar()
                 .setValue(indexes[0]))
             utils.log_info(
-                'Custom section string selection: '
-                + userString)
+                'MagC-CTRL',
+                f'Custom section string selection: {userString}')
         else:
             utils.log_error(
-                'Something wrong in your input. Use 2,5,3 or 2-30 or 2-30-5')
+                'MagC-CTRL',
+                'Something wrong in the input. Use 2,5,3 or 2-30 or 2-30-5')
 
     def magc_set_check_rows(self, rows, check_state):
         model = self.tableView_magc_sections.model()
         model.blockSignals(True) # prevent slowness
         for row in rows:
             item = model.item(row, 0)
-            item.setCheckState(check_state)
+            if item is not None:
+                item.setCheckState(check_state)
         model.blockSignals(False)
         self.tableView_magc_sections.setFocus()
 
@@ -1259,9 +1262,10 @@ class MainControls(QMainWindow):
         selection = QItemSelection()
         for row in rows:
             index = model.index(row, 0)
-            selection.merge(
-                QItemSelection(index, index),
-                QItemSelectionModel.Select)
+            if index.isValid():
+                selection.merge(
+                    QItemSelection(index, index),
+                    QItemSelectionModel.Select)
         selectionModel.select(selection, QItemSelectionModel.Select)
         tableView.setFocus()
 
@@ -1277,7 +1281,7 @@ class MainControls(QMainWindow):
             self.gm[row].display_colour = 1
         self.viewport.vp_draw()
         # update config
-        self.gm.magc_selected_sections = [
+        self.gm.magc['selected_sections'] = [
             id.row() for id
                 in self.tableView_magc_sections
                     .selectedIndexes()]
@@ -1289,7 +1293,7 @@ class MainControls(QMainWindow):
             item = model.item(r, 0)
             if item.checkState() == Qt.Checked:
                 checkedSections.append(r)
-        self.gm.magc_checked_sections = checkedSections
+        self.gm.magc['checked_sections'] = checkedSections
 
     def magc_double_clicked_section(self, doubleClickedIndex):
         row = doubleClickedIndex.row()
@@ -1301,9 +1305,10 @@ class MainControls(QMainWindow):
         self.cs.vp_centre_dx_dy = self.gm[row].centre_dx_dy
         self.viewport.vp_draw()
 
-        if self.cs.magc_wafer_calibrated:
-            self.add_to_log('Section ' + str(sectionKey)
-                            + ' has been double-clicked. Moving to section...')
+        if self.gm.magc['calibrated']:
+            utils.log_info(
+                'MagC-CTRL',
+                f'Section {sectionKey} has been double-clicked. Moving to section...')
             # set scan rotation
             theta = self.gm[row].rotation
             self.sem.set_scan_rotation(theta)
@@ -1312,17 +1317,18 @@ class MainControls(QMainWindow):
             self.stage.move_to_xy(grid_center_s)
         else:
             utils.log_warning(
-                'Section ' + str(sectionKey)
-                + ' has been double-clicked. Wafer is not '
-                + 'calibrated, therefore no stage movement.')
+                'MagC-CTRL',
+                (f'Section {sectionKey}'
+                ' has been double-clicked. Wafer is not'
+                ' calibrated, therefore no stage movement.'))
 
     def magc_set_section_state_in_table(self, msg):
         model = self.tableView_magc_sections.model()
         # number can be a single int or a list 1,2,3
         if ',' in msg:
-            section_number = list(map(
-                int,
-                msg.split('-')[-2].split(',') ))
+            section_number = [
+                int(x)
+                for x in msg.split('-')[-2].split(',')]
             index = model.index(section_number[0], 1)
         else:
             section_number = int(msg.split('-')[-2])
@@ -1348,7 +1354,7 @@ class MainControls(QMainWindow):
                 QAbstractItemView.PositionAtCenter)
         if state == 'toggle':
             self.magc_toggle_selection(section_number)
-            if section_number in self.gm.magc_selected_sections:
+            if section_number in self.gm.magc['selected_sections']:
                 self.tableView_magc_sections.scrollTo(
                     index,
                     QAbstractItemView.PositionAtCenter)
@@ -1358,19 +1364,16 @@ class MainControls(QMainWindow):
     def magc_reset(self):
         model = self.tableView_magc_sections.model()
         model.removeRows(0, model.rowCount(), QModelIndex())
-        self.gm.magc_sections_path = ''
-        self.cs.magc_wafer_calibrated = False
+        self.gm.magc = magc_utils.create_empty_magc()
         self.magc_trigger_wafer_uncalibrated()
         # the trigger shows only that the wafer is not calibrated
         # but the reset is stronger: it means that the wafer
         # is not calibratable, therefore setting gray color
         self.pushButton_magc_waferCalibration.setStyleSheet(
             'background-color: lightgray')
-        self.gm.magc_selected_sections = []
-        self.gm.magc_checked_sections = []
         self.gm.delete_all_grids_above_index(0)
-        self.gm[0].magc_delete_autofocus_points()
-        self.gm[0].magc_delete_polyroi()
+        self.gm.magc_delete_autofocus_points(0)
+        # self.gm[0].magc_delete_polyroi()
         self.viewport.update_grids()
         # unenable wafer image import
         self.pushButton_magc_importWaferImage.setEnabled(False)
@@ -1400,7 +1403,7 @@ class MainControls(QMainWindow):
             self.try_to_create_directory(target_dir)
         import_wafer_dlg = ImportWaferImageDlg(
             self.acq, self.imported,
-            os.path.dirname(self.gm.magc_sections_path),
+            os.path.dirname(self.gm.magc['path']),
             self.trigger)
 
     def magc_add_section(self):
@@ -1436,11 +1439,11 @@ class MainControls(QMainWindow):
         if lastSectionNumber > 0:
             model.removeRow(lastSectionNumber)
             # unselect and uncheck section
-            if lastSectionNumber in self.gm.magc_selected_sections:
-                self.gm.magc_selected_sections.remove(lastSectionNumber)
+            if lastSectionNumber in self.gm.magc['selected_sections']:
+                self.gm.magc['selected_sections'].remove(lastSectionNumber)
 
-            if lastSectionNumber in self.gm.magc_checked_sections:
-                self.gm.magc_checked_sections.remove(lastSectionNumber)
+            if lastSectionNumber in self.gm.magc['checked_sections']:
+                self.gm.magc['checked_sections'].remove(lastSectionNumber)
 
             # remove grid
             self.gm.delete_grid()
@@ -1459,10 +1462,10 @@ class MainControls(QMainWindow):
                                      self.gm, self.imported, self.trigger)
         if dialog.exec_():
             pass
-# --------------------------- End of MagC tab ----------------------------------
+    # --------------------------- End of MagC tab ----------------------------------
 
 
-# =============== Below: all methods that open dialog windows ==================
+    # =============== Below: all methods that open dialog windows ==================
 
     def open_mag_calibration_dlg(self):
         dialog = MagCalibrationDlg(self.sem)
@@ -1700,7 +1703,7 @@ class MainControls(QMainWindow):
         dialog = AboutBox(self.VERSION)
         dialog.exec_()
 
-# ============ Below: stack progress update and signal processing ==============
+    # ============ Below: stack progress update and signal processing ==============
 
     def show_stack_progress(self):
         current_slice = self.acq.slice_counter
@@ -1858,6 +1861,8 @@ class MainControls(QMainWindow):
                                 + str(e))
         elif msg == 'MAGC WAFER CALIBRATED':
             self.magc_trigger_wafer_uncalibrated()
+        elif msg == 'MAGC RESET':
+            self.magc_reset()
         elif msg == 'MAGC WAFER NOT CALIBRATED':
             self.magc_trigger_wafer_uncalibrated()
         elif msg == 'MAGC ENABLE CALIBRATION':
@@ -2093,7 +2098,7 @@ class MainControls(QMainWindow):
         with open(filename, 'w') as f:
             f.write(self.textarea_log.toPlainText())
 
-# ====================== Below: Manual SBEM commands ===========================
+    # ====================== Below: Manual SBEM commands ===========================
 
     def manual_sweep(self):
         user_reply = QMessageBox.question(
@@ -2136,7 +2141,7 @@ class MainControls(QMainWindow):
             utils.log_info(
                 'CTRL', 'Saved screenshot of current Viewport to base directory.')
 
-# ======================= Test functions in third tab ==========================
+    # ======================= Test functions in third tab ==========================
 
     def test_get_mag(self):
         mag = self.sem.get_mag()
@@ -2363,7 +2368,7 @@ class MainControls(QMainWindow):
         # Used for custom tests...
         pass
 
-# ==============================================================================
+    # ==============================================================================
 
     def initialize_plasma_cleaner(self):
         if not self.plc_initialized:
@@ -2711,7 +2716,7 @@ class MainControls(QMainWindow):
                 QMessageBox.Ok)
             event.ignore()
 
-# ===================== Below: Focus Tool (ft) functions =======================
+    # ===================== Below: Focus Tool (ft) functions =======================
 
     def ft_initialize(self):
         """Initialize the Focus Tool's control variables and GUI elements."""
@@ -2764,7 +2769,7 @@ class MainControls(QMainWindow):
         # Default pixel size is 6 nm.
         self.spinBox_ftPixelSize.setValue(6)
         # Default dwell time is dwell time selector 4
-        self.comboBox_dwellTime.addItems(map(str, self.sem.DWELL_TIME))
+        self.comboBox_dwellTime.addItems([str(x) for x in self.sem.DWELL_TIME])
         self.comboBox_dwellTime.setCurrentIndex(4)
         # Selectors
         self.ft_update_grid_selector()
@@ -3389,3 +3394,4 @@ class MainControls(QMainWindow):
                 self.ft_move_up()
             elif event.angleDelta().y() < 0:
                 self.ft_move_down()
+

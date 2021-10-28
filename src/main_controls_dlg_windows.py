@@ -48,6 +48,8 @@ import utils
 from utils import Error
 import acq_func
 
+import magc_utils
+
 
 class UpdateQThread(QThread):
     """Helper for updating QDialogs using QThread"""
@@ -75,7 +77,7 @@ class ConfigDlg(QDialog):
     presets) is shown as "Default Configuration".
     When "Default Configuration" is selected, clicking on "SEM/Microtome setup"
     opens a secondary dialog window, in which the user can select device presets
-    for different SEM and microtome models including mocks.     
+    for different SEM and microtome models including mocks.
     """
 
     def __init__(self, VERSION):
@@ -156,7 +158,7 @@ class ConfigDlg(QDialog):
             self.pushButton_deviceSelection.setEnabled(True)
         else:
             self.pushButton_deviceSelection.setEnabled(False)
-        
+
     def open_device_selection_dlg(self):
         dialog = DeviceSelectionDlg(self.load_presets_enabled,
                                     self.device_presets_selection)
@@ -204,7 +206,7 @@ class DeviceSelectionDlg(QDialog):
         sem_list = ['None'] + json.loads(syscfg['device']['sem_recognized'])
         microtome_list = (
             ['None'] + json.loads(syscfg['device']['microtome_recognized']))
-        
+
         # Populate comboboxes with names of supported devices
         self.comboBox_SEMs.addItems(sem_list)
         self.comboBox_microtomes.addItems(microtome_list)
@@ -270,7 +272,7 @@ class SaveConfigDlg(QDialog):
                 'on default.ini. Please also choose a name for your '
                 'system configuration in this dialog.\n\n'
                 'To create additional session configuration files (after creating '
-                'this new one), please load an existing .ini file and save it ' 
+                'this new one), please load an existing .ini file and save it '
                 'under a new name.',
                 QMessageBox.Ok)
             self.lineEdit_syscfgFileName.setEnabled(True)
@@ -1843,7 +1845,7 @@ class GridSettingsDlg(QDialog):
         self.gm[self.current_grid].auto_update_tile_positions = True
         if self.magc_mode:
             self.gm[self.current_grid].centre_sx_sy = prev_grid_centre
-            self.gm.update_source_ROIs_from_grids()
+            magc_utils.write_magc(self.gm)
         # Restore default behaviour for updating tile positions
         if error_msg:
             QMessageBox.warning(self, 'Error', error_msg, QMessageBox.Ok)
