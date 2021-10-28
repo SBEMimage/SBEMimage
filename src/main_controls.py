@@ -2995,7 +2995,7 @@ class MainControls(QMainWindow):
         self.tabWidget.setTabEnabled(3, False)
         self.tabWidget.setTabEnabled(4, False)
         self.tabWidget.setTabEnabled(5, False)
-        self.tabwidget.setTabEnabled(6, False)
+        self.tabWidget.setTabEnabled(6, False)
         # Restrict viewport:
         self.viewport.restrict_gui(True)
         # Use current WD/Stig if selected working distance == 0 or None:
