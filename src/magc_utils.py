@@ -95,7 +95,7 @@ def read_magc(magc_path):
     magc['path'] = magc_path
 
     with open(magc_path, 'r') as configfile:
-        config.readfp(configfile)
+        config.read_file(configfile)
 
     for header in config.sections():
         if header.startswith('sections.'):
