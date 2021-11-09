@@ -1165,7 +1165,6 @@ class Acquisition:
                                  + str(self.slice_thickness)
                                  + ' nm cutting thickness).')
             # Do the full cut cycle (near, cut, retract, clear)
-            print('ssearle debug - do full cut')
             self.microtome.do_full_cut()
             # Process tiles for heuristic autofocus during cut
             if self.heuristic_af_queue:
@@ -1193,7 +1192,6 @@ class Acquisition:
                     self.add_to_main_log(
                         'GCIB: Omitting post-cut sleep.')
             cut_cycle_delay = self.microtome.check_cut_cycle_status()
-            print('ssearle debug - cut_cycle_delay = ' + str(cut_cycle_delay))
             if cut_cycle_delay is not None and cut_cycle_delay > 0:
                 utils.log_error(
                     'KNIFE',
