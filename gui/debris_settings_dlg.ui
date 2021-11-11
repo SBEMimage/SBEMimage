@@ -218,7 +218,10 @@
      </rect>
     </property>
     <property name="maximum">
-     <double>9.990000000000000</double>
+     <double>999.990000000000009</double>
+    </property>
+    <property name="value">
+     <double>0.000000000000000</double>
     </property>
    </widget>
    <widget class="QDoubleSpinBox" name="doubleSpinBox_diffSD">
@@ -231,10 +234,13 @@
      </rect>
     </property>
     <property name="maximum">
-     <double>9.990000000000000</double>
+     <double>999.990000000000009</double>
     </property>
     <property name="singleStep">
      <double>0.100000000000000</double>
+    </property>
+    <property name="value">
+     <double>0.000000000000000</double>
     </property>
    </widget>
    <widget class="QLabel" name="label_10">
