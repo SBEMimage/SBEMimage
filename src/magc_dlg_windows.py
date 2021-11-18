@@ -84,7 +84,7 @@ class ImportMagCDlg(QDialog):
         store_res_list = [
             '%d × %d' % (res[0], res[1]) for res in self.sem.STORE_RES]
         self.comboBox_frameSize.addItems(store_res_list)
-        self.comboBox_frameSize.setCurrentIndex(5)
+        self.comboBox_frameSize.setCurrentIndex(3)
         if 'multisem' in self.sem.device_name.lower():
             self.comboBox_frameSize.setEnabled(False)
             self.comboBox_frameSize.setCurrentIndex(0)
