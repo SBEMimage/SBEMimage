@@ -2081,74 +2081,6 @@ Green: acquired</string>
          <string>Select checked</string>
         </property>
        </widget>
-       <widget class="QLabel" name="collectomeLogo">
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>450</y>
-          <width>141</width>
-          <height>41</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string/>
-        </property>
-        <property name="scaledContents">
-         <bool>true</bool>
-        </property>
-       </widget>
-       <widget class="QLabel" name="label_12">
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>450</y>
-          <width>141</width>
-          <height>41</height>
-         </rect>
-        </property>
-        <property name="font">
-         <font>
-          <pointsize>20</pointsize>
-          <weight>50</weight>
-          <bold>false</bold>
-          <underline>false</underline>
-          <kerning>true</kerning>
-         </font>
-        </property>
-        <property name="text">
-         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;a href=&quot;https://www.collectome.com&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:transparent;&quot;&gt;AAAAAAAAAAAAAAA&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-        </property>
-        <property name="textFormat">
-         <enum>Qt::AutoText</enum>
-        </property>
-        <property name="margin">
-         <number>0</number>
-        </property>
-        <property name="openExternalLinks">
-         <bool>true</bool>
-        </property>
-        <property name="textInteractionFlags">
-         <set>Qt::LinksAccessibleByKeyboard|Qt::LinksAccessibleByMouse</set>
-        </property>
-       </widget>
-       <widget class="QLabel" name="label_11">
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>430</y>
-          <width>151</width>
-          <height>14</height>
-         </rect>
-        </property>
-        <property name="font">
-         <font>
-          <pointsize>5</pointsize>
-         </font>
-        </property>
-        <property name="text">
-         <string>MagC module developed by</string>
-        </property>
-       </widget>
        <widget class="Line" name="line_2">
         <property name="geometry">
          <rect>
@@ -2280,26 +2212,6 @@ Wafer Image</string>
          <string>Wafer calibration</string>
         </property>
        </widget>
-       <zorder>collectomeLogo</zorder>
-       <zorder>tableView_magc_sections</zorder>
-       <zorder>textEdit_magc_stringSections</zorder>
-       <zorder>pushButton_magc_okStringSections</zorder>
-       <zorder>pushButton_magc_checkSelected</zorder>
-       <zorder>pushButton_magc_uncheckSelected</zorder>
-       <zorder>pushButton_magc_invertSelection</zorder>
-       <zorder>pushButton_magc_selectAll</zorder>
-       <zorder>pushButton_magc_deselectAll</zorder>
-       <zorder>pushButton_magc_selectChecked</zorder>
-       <zorder>label_12</zorder>
-       <zorder>label_11</zorder>
-       <zorder>line_2</zorder>
-       <zorder>pushButton_magc_importMagc</zorder>
-       <zorder>pushButton_magc_importWaferImage</zorder>
-       <zorder>pushButton_magc_resetMagc</zorder>
-       <zorder>pushButton_magc_addSection</zorder>
-       <zorder>pushButton_magc_deleteLastSection</zorder>
-       <zorder>line_3</zorder>
-       <zorder>pushButton_magc_waferCalibration</zorder>
       </widget>
       <widget class="QWidget" name="multisemTab">
        <attribute name="title">

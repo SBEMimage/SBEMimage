@@ -983,11 +983,6 @@ class MainControls(QMainWindow):
         self.tableView_magc_sections.doubleClicked.connect(
             self.magc_double_clicked_section)
 
-        # set logo
-        self.collectomeLogo.setScaledContents(True)
-        self.collectomeLogo.setPixmap(
-            QPixmap(os.path.join('..','magc','img','collectome_logo.png')))
-
         # initialize other MagC GUI items
         self.pushButton_magc_importMagc.clicked.connect(
             self.magc_open_import_dlg)
