@@ -959,9 +959,6 @@ class MainControls(QMainWindow):
     # ----------------------------- MagC tab ---------------------------------------
 
     def initialize_magc_gui(self):
-        # self.gm.magc['selected_sections'] = []
-        # self.gm.magc['checked_sections']= []
-        # self.gm.magc['calibrated'] = False
         self.gm.magc = magc_utils.create_empty_magc()
         self.actionImportMagCMetadata.triggered.connect(
             self.magc_open_import_dlg)
