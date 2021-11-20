@@ -1430,7 +1430,7 @@ class MainControls(QMainWindow):
         # remove section from list
         model = self.tableView_magc_sections.model()
         lastSectionNumber = model.rowCount()-1
-        if lastSectionNumber > 0:
+        if lastSectionNumber > 1:
             model.removeRow(lastSectionNumber)
             # unselect and uncheck section
             if lastSectionNumber in self.gm.magc['selected_sections']:
@@ -1442,6 +1442,8 @@ class MainControls(QMainWindow):
             # remove grid
             self.gm.delete_grid()
             self.update_from_grid_dlg()
+        else:
+            self.magc_reset()
 
     def magc_open_import_dlg(self):
         gui_items = {'section_table': self.tableView_magc_sections,}
