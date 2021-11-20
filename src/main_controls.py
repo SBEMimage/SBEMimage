@@ -1010,7 +1010,7 @@ class MainControls(QMainWindow):
             self.magc_delete_last_section)
 
         self.pushButton_magc_waferCalibration.setStyleSheet(
-            'background-color: lightgray')
+            'background-color: yellow')
         self.pushButton_magc_waferCalibration.setEnabled(False)
 
         # deactivate some core SBEMimage functions
@@ -1356,13 +1356,9 @@ class MainControls(QMainWindow):
     def magc_reset(self):
         model = self.tableView_magc_sections.model()
         model.removeRows(0, model.rowCount(), QModelIndex())
-        self.gm.magc = magc_utils.create_empty_magc()
         self.magc_trigger_wafer_uncalibrated()
-        # the trigger shows only that the wafer is not calibrated
-        # but the reset is stronger: it means that the wafer
-        # is not calibratable, therefore setting gray color
-        self.pushButton_magc_waferCalibration.setStyleSheet(
-            'background-color: lightgray')
+        self.magc_trigger_wafer_uncalibratable()
+        self.gm.magc = magc_utils.create_empty_magc()
         self.gm.delete_all_grids_above_index(0)
         self.gm.magc_delete_autofocus_points(0)
         # self.gm[0].magc_delete_polyroi()
@@ -1379,13 +1375,19 @@ class MainControls(QMainWindow):
         self.pushButton_msem_transferToZen.setEnabled(True)
 
     def magc_trigger_wafer_uncalibrated(self):
-        # unenable wafer calibration button
-        self.pushButton_magc_waferCalibration.setEnabled(False)
         # change wafer flag
         (self.pushButton_magc_waferCalibration
             .setStyleSheet('background-color: yellow'))
         # inactivate msem transfer to ZEN
         self.pushButton_msem_transferToZen.setEnabled(False)
+
+    def magc_trigger_wafer_calibratable(self):
+        # the wafer can be calibrated
+        self.pushButton_magc_waferCalibration.setEnabled(True)
+
+    def magc_trigger_wafer_uncalibratable(self):
+        # the wafer cannot be calibrated
+        self.pushButton_magc_waferCalibration.setEnabled(False)
 
     def magc_open_import_wafer_image(self):
         target_dir = os.path.join(
@@ -1851,16 +1853,16 @@ class MainControls(QMainWindow):
             except Exception as e:
                 utils.log_error('CTRL', 'Could not write current log to disk: '
                                 + str(e))
-        elif msg == 'MAGC WAFER CALIBRATED':
-            self.magc_trigger_wafer_uncalibrated()
         elif msg == 'MAGC RESET':
             self.magc_reset()
+        elif msg == 'MAGC WAFER CALIBRATED':
+            self.magc_trigger_wafer_uncalibrated()
         elif msg == 'MAGC WAFER NOT CALIBRATED':
             self.magc_trigger_wafer_uncalibrated()
         elif msg == 'MAGC ENABLE CALIBRATION':
-            self.pushButton_magc_waferCalibration.setEnabled(True)
+            self.magc_trigger_wafer_calibratable()
         elif msg == 'MAGC UNENABLE CALIBRATION':
-            self.pushButton_magc_waferCalibration.setEnabled(False)
+            self.magc_trigger_wafer_uncalibratable()
         elif msg == 'MAGC ENABLE WAFER IMAGE IMPORT':
             self.pushButton_magc_importWaferImage.setEnabled(True)
         elif 'MAGC SET SECTION STATE' in msg:
