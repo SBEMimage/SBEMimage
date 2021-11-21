@@ -3945,8 +3945,9 @@ class Viewport(QWidget):
     def m_draw_histogram(self):
         selected_file = ''
         slice_number = None
+        canvas = self.histogram_canvas_template.copy()
+
         if self.m_from_stack:
-            success = False
             path = None
             if self.m_current_ov >= 0:
                 path = os.path.join(
@@ -3975,7 +3976,7 @@ class Viewport(QWidget):
                                 break
 
         else:
-            # Use current image in SmartSEM
+            # Use current image from SEM 
             selected_file = os.path.join(
                 self.acq.base_dir, 'workspace', 'current_frame.tif')
             self.sem.save_frame(selected_file)
@@ -3984,10 +3985,7 @@ class Viewport(QWidget):
 
         if os.path.isfile(selected_file):
             img = np.array(Image.open(selected_file))
-            success = True
-
-        canvas = self.histogram_canvas_template.copy()
-        if success:
+    
             # calculate mean and SD:
             mean = np.mean(img)
             stddev = np.std(img)
