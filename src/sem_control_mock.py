@@ -20,6 +20,7 @@ from skimage import io
 
 from sem_control import SEM
 from utils import Error
+import os
 
 
 class SEM_Mock(SEM):
@@ -37,6 +38,8 @@ class SEM_Mock(SEM):
         self.last_known_x = 0
         self.last_known_y = 0
         self.last_known_z = 0
+        self.mock_type = "noise"
+        self.previous_acq_dir = None
 
     def turn_eht_on(self):
         self.eht_on = True
@@ -184,15 +187,57 @@ class SEM_Mock(SEM):
     def set_scan_rotation(self, angle):
         return True
 
-    def acquire_frame(self, save_path_filename, extra_delay=0):
-        width = self.STORE_RES[self.frame_size_selector][0]
-        height = self.STORE_RES[self.frame_size_selector][1]
-        # Create empty image with random grey values
+    def _generate_random_image(self, width, height):
+        """Create empty image with random grey values"""
         # TODO: Add location-dependent patterns
         mock_image = np.zeros((height, width), dtype=np.uint8)
         for row in range(height):
             for col in range(width):
                 mock_image[row, col] = random.randint(0, 255)
+        return mock_image
+
+    def _grab_image_from_previous_acq_dir(self, save_path_filename, width, height):
+        """Grab image with matching overview id / grid id and slice number from previous acquisition. If dimensions
+        don't match then generate a random noise image."""
+
+        if not save_path_filename.endswith(".tif"):
+            return self._generate_random_image(width, height)
+
+        save_path = os.path.normpath(save_path_filename)
+        save_path = save_path.split(os.sep)
+        mock_path = os.path.normpath(self.previous_acq_dir)
+        mock_path = mock_path.split(os.sep)
+
+        slice_no = save_path[-1].split("_")[-1]
+        mock_stack_name = mock_path[-1]
+
+        if save_path[-2].startswith("ov"):
+            # path for overviews
+            overview_id = save_path[-2]
+            mock_image_name = "_".join([mock_stack_name, overview_id, slice_no])
+            mock_image_path = os.path.join(self.previous_acq_dir, "overviews", overview_id, mock_image_name)
+        else:
+            # path for tiles
+            grid_id = save_path[-3]
+            tile_id = save_path[-2]
+            mock_image_name = "_".join([mock_stack_name, grid_id, tile_id, slice_no])
+            mock_image_path = os.path.join(self.previous_acq_dir, "tiles", grid_id, tile_id, mock_image_name)
+
+        if os.path.isfile(mock_image_path):
+            mock_image = io.imread(mock_image_path)
+            if mock_image.shape == (height, width):
+                return mock_image
+
+        return self._generate_random_image(width, height)
+
+    def acquire_frame(self, save_path_filename, extra_delay=0):
+        width = self.STORE_RES[self.frame_size_selector][0]
+        height = self.STORE_RES[self.frame_size_selector][1]
+
+        if self.mock_type == "noise":
+            mock_image = self._generate_random_image(width, height)
+        else:
+            mock_image = self._grab_image_from_previous_acq_dir(save_path_filename, width, height)
 
         sleep(self.current_cycle_time + self.additional_cycle_time)
         io.imsave(save_path_filename, mock_image,

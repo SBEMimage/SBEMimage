@@ -45,6 +45,7 @@ from PyQt5.QtWidgets import QApplication, QDialog, QMessageBox, \
                             QFileDialog, QLineEdit, QDialogButtonBox
 
 import utils
+from sem_control_mock import SEM_Mock
 from utils import Error
 import acq_func
 
@@ -1992,7 +1993,11 @@ class AcqSettingsDlg(QDialog):
         super().__init__()
         self.acq = acquisition
         self.notifications = notifications
-        loadUi('..\\gui\\acq_settings_dlg.ui', self)
+        if not isinstance(self.acq.sem, SEM_Mock):
+            loadUi('..\\gui\\acq_settings_dlg.ui', self)
+        else:
+            loadUi('..\\gui\\acq_settings_dlg_mock.ui', self)
+            self.update_mock_settings()
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
@@ -2039,6 +2044,14 @@ class AcqSettingsDlg(QDialog):
                 start_path,
                 QFileDialog.ShowDirsOnly)).replace('/', '\\'))
 
+    def select_mock_directory(self):
+        """Let user select a previous acquisition directory to use for mock SEM images."""
+        self.lineEdit_mockDir.setText(
+            str(QFileDialog.getExistingDirectory(
+                self, 'Select Directory',
+                'C:\\',
+                QFileDialog.ShowDirsOnly)).replace('/', '\\'))
+
     def update_server_lineedit(self):
         self.lineEdit_projectName.setEnabled(
             self.checkBox_sendMetaData.isChecked())
@@ -2059,6 +2072,17 @@ class AcqSettingsDlg(QDialog):
             self.update_target_z_diff()
             self.doubleSpinBox_targetZDiff.hide()
         self.comboBox_targetType.currentIndexChanged.connect(self.switch_target_spinbox)
+
+    def update_mock_settings(self):
+        self.pushButton_selectMockDir.clicked.connect(self.select_mock_directory)
+        self.pushButton_selectMockDir.setIcon(QIcon('..\\img\\selectdir.png'))
+        self.pushButton_selectMockDir.setIconSize(QSize(16, 16))
+        if self.acq.sem.previous_acq_dir is not None:
+            self.lineEdit_mockDir.setText(self.acq.sem.previous_acq_dir)
+        if self.acq.sem.mock_type == "noise":
+            self.comboBox_mockType.setCurrentIndex(0)
+        else:
+            self.comboBox_mockType.setCurrentIndex(1)
 
     def update_target_z_diff(self):
         if self.slices_valid(self.acq.slice_counter, self.acq.number_slices):
@@ -2150,6 +2174,21 @@ class AcqSettingsDlg(QDialog):
                     'The selected base directory is invalid or '
                     'inaccessible: ' + str(e),
                     QMessageBox.Ok)
+        if isinstance(self.acq.sem, SEM_Mock):
+            if self.comboBox_mockType.currentIndex() == 0:
+                self.acq.sem.mock_type = "noise"
+            else:
+                self.acq.sem.mock_type = "previous_acquisition"
+                mock_dir = self.lineEdit_mockDir.text()
+                if os.path.exists(mock_dir) and os.path.isdir(mock_dir):
+                    self.acq.sem.previous_acq_dir = mock_dir
+                else:
+                    success = False
+                    QMessageBox.warning(
+                        self, 'Error',
+                        'The selected mock path does not exist, or is not a directory.',
+                        QMessageBox.Ok)
+
         min_slice_thickness = 5
         if self.acq.syscfg['device']['microtome'] == '6':
             min_slice_thickness = 0
