@@ -368,11 +368,11 @@ class WaferCalibrationDlg(QDialog):
 
         # initialize the landmarkTableModel (QTableView)
         landmark_model = QStandardItemModel(0, 0)
-        landmark_model.setHorizontalHeaderItem(0, QStandardItem(''))
-        landmark_model.setHorizontalHeaderItem(1, QStandardItem('Source x'))
-        landmark_model.setHorizontalHeaderItem(2, QStandardItem('Source y'))
-        landmark_model.setHorizontalHeaderItem(3, QStandardItem('Target x'))
-        landmark_model.setHorizontalHeaderItem(4, QStandardItem('Target y'))
+        landmark_model.setHorizontalHeaderItem(0, QStandardItem(' Landmark '))
+        landmark_model.setHorizontalHeaderItem(1, QStandardItem(' Source X '))
+        landmark_model.setHorizontalHeaderItem(2, QStandardItem(' Source Y '))
+        landmark_model.setHorizontalHeaderItem(3, QStandardItem('Target X'))
+        landmark_model.setHorizontalHeaderItem(4, QStandardItem('Target Y'))
         landmark_model.setHorizontalHeaderItem(5, QStandardItem('Set'))
         landmark_model.setHorizontalHeaderItem(6, QStandardItem('Move'))
         landmark_model.setHorizontalHeaderItem(7, QStandardItem('Clear'))
@@ -400,11 +400,11 @@ class WaferCalibrationDlg(QDialog):
             # or inferred when enough (>=2) other target landmarks
             # have been defined
 
-            item0 = QStandardItem(str(key))
-            item1 = QStandardItem(str(
-                self.gm.magc['landmarksEM']['source'][key][0]))
-            item2 = QStandardItem(str(
-                self.gm.magc['landmarksEM']['source'][key][1]))
+            item0 = QStandardItem(f'{key}')
+            item1 = QStandardItem(
+                f'{self.gm.magc["landmarksEM"]["source"][key][0]:.3f}')
+            item2 = QStandardItem(
+                f'{self.gm.magc["landmarksEM"]["source"][key][1]:.3f}')
 
             item5 = QPushButton('Set')
             item5.setFixedSize(QSize(50, 40))
@@ -425,12 +425,12 @@ class WaferCalibrationDlg(QDialog):
             if key in self.gm.magc['landmarksEM']['target']:
                 item0.setBackground(GREEN)
 
-                item3 = QStandardItem(str(
-                    self.gm.magc['landmarksEM']['target'][key][0]))
+                item3 = QStandardItem(
+                    f'{self.gm.magc["landmarksEM"]["target"][key][0]:.3f}')
                 item3.setBackground(GREEN)
 
-                item4 = QStandardItem(str(
-                    self.gm.magc['landmarksEM']['target'][key][1]))
+                item4 = QStandardItem(
+                    f'{self.gm.magc["landmarksEM"]["target"][key][1]:.3f}')
                 item4.setBackground(GREEN)
             else:
                 item0.setBackground(GRAY)
@@ -491,17 +491,27 @@ class WaferCalibrationDlg(QDialog):
             item0.setBackground(GREEN)
 
             item3 = self.lTable.model().item(row, 3)
-            item3.setData(str(x), Qt.DisplayRole)
+            item3.setData(
+                f'{x:.3f}',
+                Qt.DisplayRole)
             item3.setBackground(GREEN)
 
             item4 = self.lTable.model().item(row, 4)
-            item4.setData(str(y), Qt.DisplayRole)
+            item4.setData(
+                f'{y:.3f}',
+                Qt.DisplayRole)
             item4.setBackground(GREEN)
 
-            item6 = self.lTable.indexWidget(landmark_model.index(row, 6))
+            item6 = self.lTable.indexWidget(
+                        landmark_model.index(
+                            row,
+                            6))
             item6.setEnabled(True)
 
-            item7 = self.lTable.indexWidget(landmark_model.index(row, 7))
+            item7 = self.lTable.indexWidget(
+                        landmark_model.index(
+                            row,
+                            7))
             item7.setEnabled(True)
 
             # update landmarks
@@ -578,23 +588,37 @@ class WaferCalibrationDlg(QDialog):
                         # [str(noncalibratedLandmarkId)]['target']) = [x,y]
                     self.gm.magc['landmarksEM']['target'][noncalibratedLandmarkId] = [x,y]
 
-                    item0 = self.lTable.model().item(noncalibratedLandmarkId, 0)
+                    item0 = self.lTable.model().item(
+                        noncalibratedLandmarkId,
+                        0)
                     item0.setBackground(YELLOW)
 
-                    item3 = self.lTable.model().item(noncalibratedLandmarkId, 3)
-                    item3.setData(str(x), Qt.DisplayRole)
+                    item3 = self.lTable.model().item(
+                        noncalibratedLandmarkId,
+                        3)
+                    item3.setData(
+                        f'{x:.3f}',
+                        Qt.DisplayRole)
                     item3.setBackground(YELLOW)
 
-                    item4 = self.lTable.model().item(noncalibratedLandmarkId, 4)
-                    item4.setData(str(y), Qt.DisplayRole)
+                    item4 = self.lTable.model().item(
+                        noncalibratedLandmarkId,
+                        4)
+                    item4.setData(
+                        f'{y:.3f}',
+                        Qt.DisplayRole)
                     item4.setBackground(YELLOW)
 
-                    item6 = self.lTable.indexWidget(landmark_model.index(
-                        noncalibratedLandmarkId, 6))
+                    item6 = self.lTable.indexWidget(
+                                landmark_model.index(
+                                    noncalibratedLandmarkId,
+                                    6))
                     item6.setEnabled(True)
 
-                    item7 = self.lTable.indexWidget(landmark_model.index(
-                        noncalibratedLandmarkId, 7))
+                    item7 = self.lTable.indexWidget(
+                                landmark_model.index(
+                                    noncalibratedLandmarkId,
+                                    7))
                     item7.setEnabled(True)
 
         return callback_set_landmark
