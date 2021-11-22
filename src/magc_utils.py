@@ -290,7 +290,7 @@ def points_to_flat_string(points):
 def affineT(x_in, y_in, x_out, y_out):
     X = np.array([[x, y, 1] for (x,y) in zip(x_in, y_in)])
     Y = np.array([[x, y, 1] for (x,y) in zip(x_out, y_out)])
-    aff, res, rank, s = np.linalg.lstsq(X, Y)
+    aff, res, rank, s = np.linalg.lstsq(X, Y, rcond=None)
     return aff
 
 def applyAffineT(x_in, y_in, aff):
@@ -325,7 +325,7 @@ def rigidT(x_in,y_in,x_out,y_out):
     A = np.matrix( A_data )
     b = np.matrix( b_data ).T
     # Solve
-    c = np.linalg.lstsq(A, b)[0].T
+    c = np.linalg.lstsq(A, b, rcond=None)[0].T
     c = np.array(c)[0]
 
     displacements = []

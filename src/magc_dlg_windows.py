@@ -523,9 +523,7 @@ class WaferCalibrationDlg(QDialog):
             calibratedLandmarkIds = [
                 id for id
                 in self.gm.magc['landmarksEM']['source']
-                if (self.lTable.model().item(id, 0).isValid()
-                    and
-                    self.lTable.model().item(id, 0).background().color()==GREEN)]
+                if self.lTable.model().item(id, 0).background().color()==GREEN]
 
                 # the green color shows that the landmark has been
                 # manually calibrated by the user
@@ -645,9 +643,7 @@ class WaferCalibrationDlg(QDialog):
         calibratedLandmarkIds = [
             id for id
             in self.gm.magc['landmarksEM']['source']
-            if (self.lTable.model().item(id, 0).isValid()
-                and
-                self.lTable.model().item(id, 0).background().color()==GREEN)]
+            if self.lTable.model().item(id, 0).background().color()==GREEN]
 
         n_landmarks = len(self.gm.magc['landmarksEM']['source'])
 
