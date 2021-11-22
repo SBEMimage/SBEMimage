@@ -247,9 +247,11 @@ class ImportMagCDlg(QDialog):
         #------------------------------
 
         # enable wafer configuration buttons
-        self.main_controls_trigger.transmit('MAGC ENABLE CALIBRATION')
         self.main_controls_trigger.transmit('MAGC WAFER NOT CALIBRATED')
         self.main_controls_trigger.transmit('MAGC ENABLE WAFER IMAGE IMPORT')
+        
+        if len(magc['landmarksEM']['source']) > 2:
+            self.main_controls_trigger.transmit('MAGC ENABLE CALIBRATION')
 
         self.main_controls_trigger.transmit('DRAW VP')
         self.accept()
@@ -389,12 +391,13 @@ class WaferCalibrationDlg(QDialog):
 
         landmark_model = self.lTable.model()
 
-        for id,key in enumerate(sorted(
-            self.gm.magc['landmarksEM']['source'])):
+        for id_lmk,key in enumerate(
+                        sorted(
+                            self.gm.magc['landmarksEM']['source'])):
 
             # the target key does not exist until it is either
             # manually defined
-            # or inferred when enough (2) other target landmarks
+            # or inferred when enough (>=2) other target landmarks
             # have been defined
 
             item0 = QStandardItem(str(key))
@@ -405,11 +408,11 @@ class WaferCalibrationDlg(QDialog):
 
             item5 = QPushButton('Set')
             item5.setFixedSize(QSize(50, 40))
-            item5.clicked.connect(self.set_landmark(id))
+            item5.clicked.connect(self.set_landmark(id_lmk))
 
             item6 = QPushButton('Go to')
             item6.setFixedSize(QSize(60, 40))
-            item6.clicked.connect(self.goto_landmark(id))
+            item6.clicked.connect(self.goto_landmark(id_lmk))
 
             if self.cfg['sys']['simulation_mode'] == 'True':
                 item5.setEnabled(False)
@@ -417,7 +420,7 @@ class WaferCalibrationDlg(QDialog):
 
             item7 = QPushButton('Clear')
             item7.setFixedSize(QSize(60, 40))
-            item7.clicked.connect(self.clear_landmark(id))
+            item7.clicked.connect(self.clear_landmark(id_lmk))
 
             if key in self.gm.magc['landmarksEM']['target']:
                 item0.setBackground(GREEN)
@@ -445,9 +448,9 @@ class WaferCalibrationDlg(QDialog):
             item4.setCheckable(False)
 
             landmark_model.appendRow([item0, item1, item2, item3, item4])
-            self.lTable.setIndexWidget(landmark_model.index(id, 5), item5)
-            self.lTable.setIndexWidget(landmark_model.index(id, 6), item6)
-            self.lTable.setIndexWidget(landmark_model.index(id, 7), item7)
+            self.lTable.setIndexWidget(landmark_model.index(id_lmk, 5), item5)
+            self.lTable.setIndexWidget(landmark_model.index(id_lmk, 6), item6)
+            self.lTable.setIndexWidget(landmark_model.index(id_lmk, 7), item7)
 
     def clear_landmark(self, row):
         def callback_clear_landmark():
