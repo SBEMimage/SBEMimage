@@ -19,3 +19,4 @@ comtypes
 shapely>=1.8a1
 qdarkstyle
 tqdm
+statsmodels

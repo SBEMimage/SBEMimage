@@ -1,9 +1,13 @@
 import os
 import utils
 import io
-import numpy as np
 import configparser
+import numpy as np
+
 from itertools import takewhile
+
+import statsmodels.api as smapi
+
 from shapely.geometry import Polygon
 from shapely.geometry import Point
 
@@ -416,3 +420,88 @@ def barycenter(points):
     x = round(xSum/float(i+1))
     y = round(ySum/float(i+1))
     return x,y
+
+
+# Interpolative plane functions
+
+def pad_left(a,v):
+    return np.pad(
+            a,
+            (
+                (0,0),
+                (1,0),
+            ),
+            constant_values=v,
+        )
+
+def focus_points_from_focused_points(focused_points, points_to_focus):
+    """
+    Input:
+        focused_points = [
+                [x,y,z],
+                ...
+                [x,y,z],
+            ]
+        points_to_focus = [
+                [x,y,z], # z not taken into account
+                ...
+                [x,y,z],
+            ]
+        or
+        points_to_focus = [
+                [x,y],
+                ...
+                [x,y],
+            ]
+    Output:
+        None if too many outliers or newly_focused_points,
+        index of the outliers
+    """
+
+    points_to_focus = points_to_focus[:, :2]
+
+    # first fit
+    ols = smapi.OLS(
+        focused_points[:, 2], # z
+        pad_left(
+            focused_points[:, :2], # x,y
+            1)
+        )
+    regression = ols.fit()
+
+    # find outliers
+    id_outliers = np.where(
+        regression.outlier_test()[:, 2] < 0.5)
+
+    if len(focused_points)-len(id_outliers) < 3:
+        # failure: too many outliers
+        newly_focused_points = None
+
+    else:
+        if len(id_outliers)>0:
+            # compute the fit again without outliers
+            ols = smapi.OLS(
+                np.delete(
+                    focused_points[:, 2],
+                    id_outliers,
+                    axis=0),
+                pad_left(
+                    np.delete(
+                        focused_points[:, :2],
+                        id_outliers,
+                        axis=0),
+                    1)
+                )
+            regression = ols.fit()
+
+        newly_focused_points = np.insert(
+                points_to_focus,  # x,y
+                2,                # insert column z
+                regression.predict(
+                    pad_left(
+                        points_to_focus,
+                        1,
+                    )),
+                axis=1)
+
+    return newly_focused_points, id_outliers

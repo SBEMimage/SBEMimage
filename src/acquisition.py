@@ -567,7 +567,7 @@ class Acquisition:
         if self.use_mirror_drive:
             self.mirror_files([notes_file])
 
-# ====================== STACK ACQUISITION THREAD run() ========================
+    # ====================== STACK ACQUISITION THREAD run() ========================
 
     def run(self):
         # override exception catching to reset GUI on error
@@ -1944,8 +1944,8 @@ class Acquisition:
                 self.main_controls_trigger.transmit('DRAW VP')
                 self.main_controls_trigger.transmit(
                     'MAGC SET SECTION STATE GUI-'
-                    + str(grid_index)
-                    + '-acquiring')
+                    f'{grid_index}'
+                    '-acquiring')
 
             if self.acq_interrupted:
                 # Remove tiles that are no longer active from
@@ -2154,8 +2154,8 @@ class Acquisition:
                     self.main_controls_trigger.transmit('DRAW VP')
                     self.main_controls_trigger.transmit(
                         'MAGC SET SECTION STATE GUI-'
-                        + str(grid_index)
-                        + '-acquired')
+                        f'{grid_index}'
+                        '-acquired')
 
     def acquire_tile(self, grid_index, tile_index,
                      adjust_wd_stig=False, adjust_acq_settings=False):
