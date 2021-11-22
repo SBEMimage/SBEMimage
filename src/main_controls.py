@@ -1858,7 +1858,7 @@ class MainControls(QMainWindow):
         elif msg == 'MAGC RESET':
             self.magc_reset()
         elif msg == 'MAGC WAFER CALIBRATED':
-            self.magc_trigger_wafer_uncalibrated()
+            self.magc_trigger_wafer_calibrated()
         elif msg == 'MAGC WAFER NOT CALIBRATED':
             self.magc_trigger_wafer_uncalibrated()
         elif msg == 'MAGC ENABLE CALIBRATION':

@@ -710,7 +710,7 @@ class WaferCalibrationDlg(QDialog):
             utils.log_info(
                 'MagC-DEBUG',
                 f'self.gm.number_grids: {self.gm.number_grids}')
-            for grid_number in range(self.gm.get_number_grids):
+            for grid_number in range(self.gm.number_grids):
 
                 self.gm[grid_number].rotation = angles_target[grid_number]
 
@@ -722,28 +722,29 @@ class WaferCalibrationDlg(QDialog):
             self.main_controls_trigger.transmit('DRAW VP')
 
             # update wafer picture
-            waferTransformAngle = -magc_utils.getAffineRotation(
-                self.gm.magc['transform'])
-            waferTransformScaling = magc_utils.getAffineScaling(
-                self.gm.magc['transform'])
+            if self.imported[0] is not None:
+                waferTransformAngle = -magc_utils.getAffineRotation(
+                    self.gm.magc['transform'])
+                waferTransformScaling = magc_utils.getAffineScaling(
+                    self.gm.magc['transform'])
 
-            im_center_target_s = magc_utils.applyAffineT(
-                [self.imported[0].centre_sx_sy[0]],
-                [self.imported[0].centre_sx_sy[1]],
-                self.gm.magc['transform'])
+                im_center_target_s = magc_utils.applyAffineT(
+                    [self.imported[0].centre_sx_sy[0]],
+                    [self.imported[0].centre_sx_sy[1]],
+                    self.gm.magc['transform'])
 
-            im_center_target_s = [float(a[0]) for a in im_center_target_s]
+                im_center_target_s = [float(a[0]) for a in im_center_target_s]
 
-            # im_center_source_v = self.cs.convert_to_v(im_center_source_s)
-            # im_center_target_v = magc_utils.applyRigidT(
-                # [im_center_source_v[0]],
-                # [im_center_source_v[1]],
-                # waferTransform_v)
+                # im_center_source_v = self.cs.convert_to_v(im_center_source_s)
+                # im_center_target_v = magc_utils.applyRigidT(
+                    # [im_center_source_v[0]],
+                    # [im_center_source_v[1]],
+                    # waferTransform_v)
 
-            self.imported[0].rotation = waferTransformAngle % 360
-            self.imported[0].pixel_size = 1000 * waferTransformScaling
+                self.imported[0].rotation = waferTransformAngle % 360
+                self.imported[0].pixel_size = 1000 * waferTransformScaling
 
-            self.imported[0].centre_sx_sy = im_center_target_s
+                self.imported[0].centre_sx_sy = im_center_target_s
 
             # update drawn image
             self.main_controls_trigger.transmit('DRAW VP')
