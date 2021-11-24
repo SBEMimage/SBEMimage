@@ -4,12 +4,15 @@ import io
 import configparser
 import numpy as np
 
-from itertools import takewhile
+import itertools
 
 import statsmodels.api as smapi
 
 from shapely.geometry import Polygon
 from shapely.geometry import Point
+
+from scipy.spatial import ConvexHull
+from scipy.spatial.distance import cdist
 
 ###############################
 # format of the magc dictionary
@@ -221,7 +224,7 @@ def write_magc(gm):
     with open(gm.magc['path'], 'r') as f:
         lines = f.readlines()
 
-    sbemimage_line_index = len(list(takewhile(
+    sbemimage_line_index = len(list(itertools.takewhile(
             lambda x: not 'sbemimage_sections' in x,
             lines)))
 
@@ -347,7 +350,9 @@ def getRigidRotation(coefs):
 
 def getRigidScaling(coefs):
     return coefs[1]
-# -------------- End of functions for geometric transforms --------------
+
+#####################
+#####################
 
 def is_convex_polygon(polygon):
     """Source: https://stackoverflow.com/a/45372025/10832217
@@ -421,9 +426,8 @@ def barycenter(points):
     y = round(ySum/float(i+1))
     return x,y
 
-
-# Interpolative plane functions
-
+####################################################
+# Plane interpolation functions with outlier removal
 def pad_left(a,v):
     return np.pad(
             a,
@@ -505,3 +509,60 @@ def focus_points_from_focused_points(focused_points, points_to_focus):
                 axis=1)
 
     return newly_focused_points, id_outliers
+####################################################
+####################################################
+
+#######################################################
+# functions to select focus points for entire substrate
+def polygon_area(points):
+    """
+    from https://stackoverflow.com/a/30408825/10832217
+    Points must be ordered (clockwise or counterc)
+    """
+    points = np.array(points)
+    return 0.5*np.abs(
+            np.dot(
+                points[:,0],
+                np.roll(points[:,1],1))
+            -np.dot(
+                points[:,1],
+                np.roll(points[:,0],1)
+        ))
+
+def get_substrate_focus_points(focus_points, n_substrate_focus_points):
+    """
+    input: set of focus points, typically all focus points of all grids on substrate
+    outupt:
+        n-1 points from the convex hull that maximize area of their polygon
+        1 additional point close to the barycenter of all focus points
+    These substrate focus points can be used to compute a first focus plane
+    for the entire substrate
+    """
+
+    if len(focus_points) < n_substrate_focus_points:
+        return None
+
+    hull_points = focus_points[
+                    ConvexHull(focus_points).vertices]
+    if len(hull_points) < n_substrate_focus_points-1:
+        return None
+
+    substrate_focus_points = max(
+        itertools.combinations(
+            hull_points,
+            n_substrate_focus_points-1),
+        key=polygon_area)
+
+    focus_center_point = focus_points[np.argmin(
+                            cdist(
+                                [np.mean(
+                                    focus_points,
+                                    axis=0)],
+                                focus_points
+                            ))]
+    return np.append(
+            substrate_focus_points,
+            [focus_center_point],
+            axis=0)
+#######################################################
+#######################################################

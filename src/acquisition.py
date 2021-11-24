@@ -1867,10 +1867,10 @@ class Acquisition:
                     elif (self.magc_mode
                           and grid_index not in self.gm.magc['checked_sections']):
                         utils.log_info(
-                            'CTRL',
+                            'MagC-CTRL',
                             f'Grid {grid_index} not checked. Skipping.')
                         self.add_to_main_log(
-                            f'CTRL: Grid {grid_index} not checked. Skipping.')
+                            f'MagC-CTRL: Grid {grid_index} not checked. Skipping.')
                     else:
                         # Do autofocus on non-active tiles before grid acq
                         if (self.use_autofocus
