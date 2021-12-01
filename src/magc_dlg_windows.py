@@ -769,9 +769,10 @@ class WaferCalibrationDlg(QDialog):
                     # [im_center_source_v[1]],
                     # waferTransform_v)
 
-                self.imported[0].rotation = (0 + waferTransformAngle) % 360
+                self.imported[0].rotation = (0 - waferTransformAngle) % 360
                 self.imported[0].pixel_size = 1000 * waferTransformScaling
                 self.imported[0].centre_sx_sy = im_center_target_s
+                self.imported[0].flip_x()
 
             # update drawn image
             self.main_controls_trigger.transmit('DRAW VP')
