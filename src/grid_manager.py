@@ -1287,7 +1287,11 @@ class GridManager:
                 transformed_point_y) = magc_utils.applyAffineT(
                     [transformed_point[0]],
                     [transformed_point[1]],
-                    self.magc['transform'])
+                    self.magc['transform'],
+                    flip_x=self.sem.device_name.lower() in [
+                            'zeiss merlin',
+                            'zeiss sigma',
+                    ])
                 transformed_point = (
                     transformed_point_x[0],
                     transformed_point_y[0])
@@ -1313,7 +1317,11 @@ class GridManager:
             transformed_points_y ) = magc_utils.applyAffineT(
                 [input_point[0] for input_point in input_points],
                 [input_point[1] for input_point in input_points],
-                magc_utils.invertAffineT(self.magc['transform']))
+                magc_utils.invertAffineT(self.magc['transform'],
+                flip_x=self.sem.device_name.lower() in [
+                        'zeiss merlin',
+                        'zeiss sigma',
+                ]))
             input_points = [
                 (transformed_point_x, transformed_point_y)
                 for transformed_point_x, transformed_point_y
@@ -1387,7 +1395,11 @@ class GridManager:
             result = magc_utils.applyAffineT(
                 [sourceGridCenter[0]],
                 [sourceGridCenter[1]],
-                waferTransformInverse)
+                waferTransformInverse,
+                flip_x=self.sem.device_name.lower() in [
+                        'zeiss merlin',
+                        'zeiss sigma',
+                ])
             sourceGridCenter = [result[0][0], result[1][0]]
 
         sourceSectionGrid = sourceGridCenter - sourceSectionCenter
@@ -1435,7 +1447,11 @@ class GridManager:
             result = magc_utils.applyAffineT(
                 [targetGridCenter[0]],
                 [targetGridCenter[1]],
-                self.magc['transform'])
+                self.magc['transform'],
+                flip_x=self.sem.device_name.lower() in [
+                        'zeiss merlin',
+                        'zeiss sigma',
+                ])
             targetGridCenter = [result[0][0], result[1][0]]
 
         self.__grids[t].centre_sx_sy = targetGridCenter

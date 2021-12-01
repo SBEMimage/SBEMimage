@@ -3019,7 +3019,11 @@ class Viewport(QWidget):
             result = magc_utils.applyAffineT(
                 [source_location[0]],
                 [source_location[1]],
-                self.gm.magc['transform'])
+                self.gm.magc['transform'],
+                flip_x=self.sem.device_name.lower() in [
+                        'zeiss merlin',
+                        'zeiss sigma',
+                    ])
             target_location = [result[0][0], result[1][0]]
             self.gm[clicked_section_number].centre_sx_sy = target_location
 

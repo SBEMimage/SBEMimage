@@ -290,16 +290,34 @@ def points_to_flat_string(points):
 
 #####################
 # geometric functions
-def affineT(x_in, y_in, x_out, y_out):
+def affineT(
+    x_in,
+    y_in,
+    x_out,
+    y_out,
+    flip_x=False):
+
+    x_in = -x_in if flip_x else x_in
+
     X = np.array([[x, y, 1] for (x,y) in zip(x_in, y_in)])
     Y = np.array([[x, y, 1] for (x,y) in zip(x_out, y_out)])
     aff, res, rank, s = np.linalg.lstsq(X, Y, rcond=None)
     return aff
 
-def applyAffineT(x_in, y_in, aff):
+def applyAffineT(
+    x_in,
+    y_in,
+    aff,
+    flip_x=False):
+
+    x_in = -x_in if flip_x else x_in
+
     input = np.array([ [x, y, 1] for (x,y) in zip(x_in, y_in)])
     output = np.dot(input, aff)
     x_out, y_out = output.T[0:2]
+
+    x_out = -x_out if flip_x else x_out
+
     return x_out, y_out
 
 def invertAffineT(aff):
@@ -314,7 +332,15 @@ def getAffineScaling(aff):
                / np.linalg.norm([1000,1000]))
     return scaling
 
-def rigidT(x_in,y_in,x_out,y_out):
+def rigidT(
+    x_in,
+    y_in,
+    x_out,
+    y_out,
+    flip_x=False):
+
+    x_in = -x_in if flip_x else x_in
+
     A_data = []
     for i in range(len(x_in)):
         A_data.append( [-y_in[i], x_in[i], 1, 0])
@@ -339,10 +365,19 @@ def rigidT(x_in,y_in,x_out,y_out):
 
     return c, np.mean(displacements)
 
-def applyRigidT(x,y,coefs):
+def applyRigidT(
+    x,y,
+    coefs,
+    flip_x=False):
+
+    x = -x if flip_x else x
+
     x,y = map(lambda x: np.array(x),[x,y])
     x_out = coefs[1]*x - coefs[0]*y + coefs[2]
     y_out = coefs[1]*y + coefs[0]*x + coefs[3]
+
+    x_out = -x_out if flip_x else x_out
+
     return x_out,y_out
 
 def getRigidRotation(coefs):

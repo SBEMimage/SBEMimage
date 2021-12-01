@@ -249,7 +249,7 @@ class ImportMagCDlg(QDialog):
         # enable wafer configuration buttons
         self.main_controls_trigger.transmit('MAGC WAFER NOT CALIBRATED')
         self.main_controls_trigger.transmit('MAGC ENABLE WAFER IMAGE IMPORT')
-        
+
         if len(magc['landmarksEM']['source']) > 2:
             self.main_controls_trigger.transmit('MAGC ENABLE CALIBRATION')
 
@@ -564,16 +564,33 @@ class WaferCalibrationDlg(QDialog):
                     [self.gm.magc['landmarksEM']['target'][i][1]
                      for i in calibratedLandmarkIds])
 
-                self.gm.magc['transform'] = magc_utils.rigidT(
-                    x_landmarks_source_partial, y_landmarks_source_partial,
-                    x_landmarks_target_partial, y_landmarks_target_partial)[0]
+                flip_x = self.gm.sem.device_name.lower() in [
+                        'zeiss merlin',
+                        'zeiss sigma',
+                        ]
+
+                if len(calibratedLandmarkIds) < 3:
+                    get_transform = magc_utils.rigidT
+                    apply_transform = magc_utils.applyRigidT
+                else:
+                    get_transform = magc_utils.affineT
+                    apply_transform = magc_utils.applyAffineT
+
+                self.gm.magc['transform'] = get_transform(
+                    x_landmarks_source_partial,
+                    y_landmarks_source_partial,
+                    x_landmarks_target_partial,
+                    y_landmarks_target_partial,
+                    flip_x=flip_x)[0]
 
                 # compute all targetLandmarks
                 x_target_updated_landmarks, y_target_updated_landmarks = (
-                    magc_utils.applyRigidT(
+                    apply_transform(
                         x_landmarks_source,
                         y_landmarks_source,
-                        self.gm.magc['transform']))
+                        self.gm.magc['transform'],
+                        flip_x=flip_x,
+                        ))
 
                 # x_target_updated_landmarks = -x_target_updated_landmarks
                 # x axis flipping on Merlin?
@@ -673,9 +690,18 @@ class WaferCalibrationDlg(QDialog):
                   'y_landmarks_target ' + str((x_landmarks_source, y_landmarks_source,
                   x_landmarks_target, y_landmarks_target))))
 
+            flip_x = self.gm.sem.device_name.lower() in [
+                    'zeiss merlin',
+                    'zeiss sigma',
+                    ]
+
             self.gm.magc['transform'] = magc_utils.affineT(
-                x_landmarks_source, y_landmarks_source,
-                x_landmarks_target, y_landmarks_target)
+                x_landmarks_source,
+                y_landmarks_source,
+                x_landmarks_target,
+                y_landmarks_target
+                flip_x=flip_x
+                )
 
             utils.log_info(
                 'MagC-DEBUG',
@@ -698,7 +724,8 @@ class WaferCalibrationDlg(QDialog):
             x_target, y_target = magc_utils.applyAffineT(
                 x_source,
                 y_source,
-                self.gm.magc['transform'])
+                self.gm.magc['transform'],
+                flip_x=flip_x)
 
             transformAngle = -magc_utils.getAffineRotation(
                 self.gm.magc['transform'])
@@ -711,13 +738,13 @@ class WaferCalibrationDlg(QDialog):
                 'MagC-DEBUG',
                 f'self.gm.number_grids: {self.gm.number_grids}')
             for grid_number in range(self.gm.number_grids):
-
+                self.gm[grid_number].auto_update_tile_positions = False
                 self.gm[grid_number].rotation = angles_target[grid_number]
-
+                self.gm[grid_number].update_tile_positions()
+                self.gm[grid_number].auto_update_tile_positions = True
                 self.gm[grid_number].centre_sx_sy = [
                     x_target[grid_number],
                     y_target[grid_number]]
-                self.gm[grid_number].update_tile_positions()
 
             self.main_controls_trigger.transmit('DRAW VP')
 
@@ -731,7 +758,8 @@ class WaferCalibrationDlg(QDialog):
                 im_center_target_s = magc_utils.applyAffineT(
                     [self.imported[0].centre_sx_sy[0]],
                     [self.imported[0].centre_sx_sy[1]],
-                    self.gm.magc['transform'])
+                    self.gm.magc['transform'],
+                    flip_x=flip_x)
 
                 im_center_target_s = [float(a[0]) for a in im_center_target_s]
 
@@ -743,7 +771,6 @@ class WaferCalibrationDlg(QDialog):
 
                 self.imported[0].rotation = waferTransformAngle % 360
                 self.imported[0].pixel_size = 1000 * waferTransformScaling
-
                 self.imported[0].centre_sx_sy = im_center_target_s
 
             # update drawn image
