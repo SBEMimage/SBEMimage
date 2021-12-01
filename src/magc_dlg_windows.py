@@ -581,7 +581,7 @@ class WaferCalibrationDlg(QDialog):
                     y_landmarks_source_partial,
                     x_landmarks_target_partial,
                     y_landmarks_target_partial,
-                    flip_x=flip_x)[0]
+                    flip_x=flip_x)
 
                 # compute all targetLandmarks
                 x_target_updated_landmarks, y_target_updated_landmarks = (
@@ -699,8 +699,8 @@ class WaferCalibrationDlg(QDialog):
                 x_landmarks_source,
                 y_landmarks_source,
                 x_landmarks_target,
-                y_landmarks_target
-                flip_x=flip_x
+                y_landmarks_target,
+                flip_x=flip_x,
                 )
 
             utils.log_info(
@@ -730,7 +730,7 @@ class WaferCalibrationDlg(QDialog):
             transformAngle = -magc_utils.getAffineRotation(
                 self.gm.magc['transform'])
             angles_target = [
-                (180 - self.gm.magc['sections'][k]['angle'] + transformAngle) % 360
+                (0 - self.gm.magc['sections'][k]['angle'] + transformAngle) % 360
                 for k in sorted(self.gm.magc['sections'])]
 
             # update grids
@@ -769,7 +769,7 @@ class WaferCalibrationDlg(QDialog):
                     # [im_center_source_v[1]],
                     # waferTransform_v)
 
-                self.imported[0].rotation = waferTransformAngle % 360
+                self.imported[0].rotation = (0 + waferTransformAngle) % 360
                 self.imported[0].pixel_size = 1000 * waferTransformScaling
                 self.imported[0].centre_sx_sy = im_center_target_s
 

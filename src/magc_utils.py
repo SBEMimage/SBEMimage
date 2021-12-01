@@ -297,6 +297,7 @@ def affineT(
     y_out,
     flip_x=False):
 
+    x_in = np.array(x_in)
     x_in = -x_in if flip_x else x_in
 
     X = np.array([[x, y, 1] for (x,y) in zip(x_in, y_in)])
@@ -310,13 +311,14 @@ def applyAffineT(
     aff,
     flip_x=False):
 
+    x_in = np.array(x_in)
     x_in = -x_in if flip_x else x_in
 
     input = np.array([ [x, y, 1] for (x,y) in zip(x_in, y_in)])
     output = np.dot(input, aff)
     x_out, y_out = output.T[0:2]
 
-    x_out = -x_out if flip_x else x_out
+    # x_out = -x_out if flip_x else x_out
 
     return x_out, y_out
 
@@ -363,20 +365,22 @@ def rigidT(
         np.square((c[1]*x_in[i] - c[0]*y_in[i] + c[2] - x_out[i]) +
         np.square(c[1]*y_in[i] + c[0]*x_in[i] + c[3] - y_out[i]))))
 
-    return c, np.mean(displacements)
+    # return c, np.mean(displacements)
+    return c
 
 def applyRigidT(
     x,y,
     coefs,
     flip_x=False):
 
+    x,y = map(lambda x: np.array(x),[x,y])
+
     x = -x if flip_x else x
 
-    x,y = map(lambda x: np.array(x),[x,y])
     x_out = coefs[1]*x - coefs[0]*y + coefs[2]
     y_out = coefs[1]*y + coefs[0]*x + coefs[3]
 
-    x_out = -x_out if flip_x else x_out
+    # x_out = -x_out if flip_x else x_out
 
     return x_out,y_out
 

@@ -3024,13 +3024,16 @@ class Viewport(QWidget):
                         'zeiss merlin',
                         'zeiss sigma',
                     ])
-            target_location = [result[0][0], result[1][0]]
-            self.gm[clicked_section_number].centre_sx_sy = target_location
 
             transformAngle = -magc_utils.getAffineRotation(
                 self.gm.magc['transform'])
             target_angle = (0 - source_angle + transformAngle) % 360
             self.gm[clicked_section_number].rotation = target_angle
+            self.gm[clicked_section_number].update_tile_positions()
+
+            # set the center last
+            target_location = [result[0][0], result[1][0]]
+            self.gm[clicked_section_number].centre_sx_sy = target_location
 
         self.vp_draw()
         magc_utils.write_magc(self.gm)
