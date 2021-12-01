@@ -1383,8 +1383,12 @@ class GridManager:
         targetSectionAngle = self.magc['sections'][t]['angle'] % 360
 
         sourceGridRotation = self.__grids[s].rotation
-
         sourceGridCenter = np.array(self.__grids[s].centre_sx_sy)
+
+        flip_x = self.sem.device_name.lower() in [
+                        'zeiss merlin',
+                        'zeiss sigma',
+                    ]
 
         if self.magc['calibrated']:
             # transform back the grid coordinates in non-transformed coordinates
@@ -1396,11 +1400,11 @@ class GridManager:
                 [sourceGridCenter[0]],
                 [sourceGridCenter[1]],
                 waferTransformInverse,
-                flip_x=self.sem.device_name.lower() in [
-                        'zeiss merlin',
-                        'zeiss sigma',
-                ])
-            sourceGridCenter = [result[0][0], result[1][0]]
+                flip_x=False)
+
+            sourceGridCenter = [
+                -result[0][0] if flip_x else result[0][0],
+                result[1][0]]
 
         sourceSectionGrid = sourceGridCenter - sourceSectionCenter
         sourceSectionGridDistance = np.linalg.norm(sourceSectionGrid)
@@ -1454,8 +1458,8 @@ class GridManager:
                 ])
             targetGridCenter = [result[0][0], result[1][0]]
 
-        self.__grids[t].centre_sx_sy = targetGridCenter
         self.__grids[t].update_tile_positions()
+        self.__grids[t].centre_sx_sy = targetGridCenter
 
 
 # ------------------------- End of MagC functions ------------------------------
