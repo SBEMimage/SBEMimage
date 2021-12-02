@@ -1302,11 +1302,15 @@ class MainControls(QMainWindow):
                 'MagC-CTRL',
                 f'Section {sectionKey} has been double-clicked. Moving to section...')
             # set scan rotation
-            theta = self.gm[row].rotation
-            self.sem.set_scan_rotation(theta)
+            self.sem.set_scan_rotation(
+                (180 - self.gm[row].rotation) % 360
+                )
             # set stage
             grid_center_s = self.gm[row].centre_sx_sy
             self.stage.move_to_xy(grid_center_s)
+            utils.log_info(
+                'MagC-CTRL',
+                f'Moved to section {sectionKey}.')
         else:
             utils.log_warning(
                 'MagC-CTRL',

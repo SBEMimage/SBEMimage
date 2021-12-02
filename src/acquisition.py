@@ -1968,6 +1968,14 @@ class Acquisition:
             # device-specific. Look into that!
             if not self.magc_mode:
                 theta = 360 - theta
+            else:
+                theta = (180 - theta) % 360
+                # workaround to make sure that the set_scan_rotation
+                # command is issued below. I would suggest changing
+                # the check below to if theta >= 0: but it might not 
+                # be OK for non-magc applications
+                if theta == 0:
+                    theta = 0.01
             if theta > 0:
                 # Enable scan rotation
                 self.sem.set_scan_rotation(theta)
