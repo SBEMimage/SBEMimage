@@ -719,24 +719,24 @@ class WaferCalibrationDlg(QDialog):
                 # use the ROI
             # else:
                 # use the section
-            x_source = np.array(
-                [self.gm.magc['rois'][k]['center'][0]
-                    for k in sorted(self.gm.magc['sections'])
+            x_source = np.array([
+                self.gm.magc['rois'][k]['center'][0]
                     if k in self.gm.magc['rois']
                     else self.gm.magc['sections'][k]['center'][0]
-                    ])
-            y_source = np.array(
-                [self.gm.magc['rois'][k]['center'][1]
                     for k in sorted(self.gm.magc['sections'])
+                    ])
+            y_source = np.array([
+                self.gm.magc['rois'][k]['center'][1]
                     if k in self.gm.magc['rois']
                     else self.gm.magc['sections'][k]['center'][1]
+                    for k in sorted(self.gm.magc['sections'])
                     ])
 
             angles_source = np.array([
                 self.gm.magc['rois'][k]['angle']
-                    for k in sorted(self.gm.magc['sections'])
                     if k in self.gm.magc['rois']
                     else self.gm.magc['sections'][k]['angle']
+                    for k in sorted(self.gm.magc['sections'])
                     ])
 
             x_target, y_target = magc_utils.applyAffineT(

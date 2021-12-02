@@ -3013,6 +3013,10 @@ class Viewport(QWidget):
             source_location = self.gm.magc['sections'][clicked_section_number]['center']
             source_angle = self.gm.magc['sections'][clicked_section_number]['angle']
 
+        flip_x = self.sem.device_name.lower() in [
+                    'zeiss merlin',
+                    'zeiss sigma',
+                    ]
         # source_location is in LM image pixel coordinates
         if not self.gm.magc['calibrated']:
             (self.gm[clicked_section_number]
@@ -3025,11 +3029,7 @@ class Viewport(QWidget):
                 [source_location[0]],
                 [source_location[1]],
                 self.gm.magc['transform'],
-                flip_x=False)
-            flip_x = self.sem.device_name.lower() in [
-                        'zeiss merlin',
-                        'zeiss sigma',
-                        ]
+                flip_x=flip_x)
 
             transformAngle = -magc_utils.getAffineRotation(
                 self.gm.magc['transform'])
@@ -3039,7 +3039,7 @@ class Viewport(QWidget):
 
             # set the center last
             target_location = [
-                -result[0][0] if flip_x else result[0][0],
+                result[0][0],
                 result[1][0]]
             self.gm[clicked_section_number].centre_sx_sy = target_location
 

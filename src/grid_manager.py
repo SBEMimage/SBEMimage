@@ -1376,14 +1376,22 @@ class GridManager:
         if s==t:
             return
 
-        sourceSectionCenter = np.array(self.magc['sections'][s]['center'])
-        targetSectionCenter = np.array(self.magc['sections'][t]['center'])
+        try:
+            sourceSectionCenter = np.array(self.magc['rois'][s]['center'])
+            sourceSectionAngle = self.magc['rois'][s]['angle'] % 360
+        except KeyError:
+            sourceSectionCenter = np.array(self.magc['sections'][s]['center'])
+            sourceSectionAngle = self.magc['sections'][s]['angle'] % 360
 
-        sourceSectionAngle = self.magc['sections'][s]['angle'] % 360
-        targetSectionAngle = self.magc['sections'][t]['angle'] % 360
+        try:
+            targetSectionCenter = np.array(self.magc['rois'][t]['center'])
+            targetSectionAngle = self.magc['rois'][t]['angle'] % 360
+        except KeyError:
+            targetSectionCenter = np.array(self.magc['sections'][t]['center'])
+            targetSectionAngle = self.magc['sections'][t]['angle'] % 360
 
-        sourceGridRotation = self.__grids[s].rotation
         sourceGridCenter = np.array(self.__grids[s].centre_sx_sy)
+        sourceGridRotation = self.__grids[s].rotation
 
         flip_x = self.sem.device_name.lower() in [
                         'zeiss merlin',
@@ -1441,7 +1449,7 @@ class GridManager:
         targetGridCenterComplex = (
             np.dot(targetSectionCenter, [1, 1j])
             + sourceSectionGridDistance
-            * np.exp(1j * np.radians(targetSectionGridAngle)))
+                * np.exp(1j * np.radians(targetSectionGridAngle)))
         targetGridCenter = (
             np.real(targetGridCenterComplex),
             np.imag(targetGridCenterComplex))
