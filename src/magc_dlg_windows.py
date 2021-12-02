@@ -714,12 +714,30 @@ class WaferCalibrationDlg(QDialog):
                 'MagC-DEBUG',
                 f'n_sections {n_sections}')
 
+            # ROI has priority over section:
+            # if a ROI is defined:
+                # use the ROI
+            # else:
+                # use the section
             x_source = np.array(
-                [self.gm.magc['sections'][k]['center'][0]
-                    for k in sorted(self.gm.magc['sections'])])
+                [self.gm.magc['rois'][k]['center'][0]
+                    for k in sorted(self.gm.magc['sections'])
+                    if k in self.gm.magc['rois']
+                    else self.gm.magc['sections'][k]['center'][0]
+                    ])
             y_source = np.array(
-                [self.gm.magc['sections'][k]['center'][1]
-                    for k in sorted(self.gm.magc['sections'])])
+                [self.gm.magc['rois'][k]['center'][1]
+                    for k in sorted(self.gm.magc['sections'])
+                    if k in self.gm.magc['rois']
+                    else self.gm.magc['sections'][k]['center'][1]
+                    ])
+
+            angles_source = np.array([
+                self.gm.magc['rois'][k]['angle']
+                    for k in sorted(self.gm.magc['sections'])
+                    if k in self.gm.magc['rois']
+                    else self.gm.magc['sections'][k]['angle']
+                    ])
 
             x_target, y_target = magc_utils.applyAffineT(
                 x_source,
@@ -729,9 +747,7 @@ class WaferCalibrationDlg(QDialog):
 
             transformAngle = -magc_utils.getAffineRotation(
                 self.gm.magc['transform'])
-            angles_target = [
-                (0 - self.gm.magc['sections'][k]['angle'] + transformAngle) % 360
-                for k in sorted(self.gm.magc['sections'])]
+            angles_target = (-angles_source + transformAngle) % 360
 
             # update grids
             utils.log_info(

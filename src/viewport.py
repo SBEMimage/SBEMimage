@@ -3001,6 +3001,11 @@ class Viewport(QWidget):
     def magc_vp_revert_grid_to_file(self):
         clicked_section_number = self.selected_grid
 
+        # ROI has priority over section:
+        # if a ROI is defined:
+            # use the ROI
+        # else:
+            # use the section
         try:
             source_location = self.gm.magc['rois'][clicked_section_number]['center']
             source_angle = self.gm.magc['rois'][clicked_section_number]['angle']
@@ -3020,10 +3025,11 @@ class Viewport(QWidget):
                 [source_location[0]],
                 [source_location[1]],
                 self.gm.magc['transform'],
-                flip_x=self.sem.device_name.lower() in [
+                flip_x=False)
+            flip_x = self.sem.device_name.lower() in [
                         'zeiss merlin',
                         'zeiss sigma',
-                    ])
+                        ]
 
             transformAngle = -magc_utils.getAffineRotation(
                 self.gm.magc['transform'])
@@ -3032,7 +3038,9 @@ class Viewport(QWidget):
             self.gm[clicked_section_number].update_tile_positions()
 
             # set the center last
-            target_location = [result[0][0], result[1][0]]
+            target_location = [
+                -result[0][0] if flip_x else result[0][0],
+                result[1][0]]
             self.gm[clicked_section_number].centre_sx_sy = target_location
 
         self.vp_draw()
