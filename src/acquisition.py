@@ -1948,6 +1948,9 @@ class Acquisition:
                     'MAGC SET SECTION STATE GUI-'
                     f'{grid_index}'
                     '-acquiring')
+                    
+                # set magnification
+                self.sem.set_pixel_size(self.gm[grid_index].pixel_size)
 
             if self.acq_interrupted:
                 # Remove tiles that are no longer active from
