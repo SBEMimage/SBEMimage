@@ -965,7 +965,7 @@ class MainControls(QMainWindow):
 
         # initialize the section_table (QTableView)
         model = QStandardItemModel(0, 0)
-        model.setHorizontalHeaderItem(0, QStandardItem('Section'))
+        model.setHorizontalHeaderItem(0, QStandardItem(' Section '))
         model.setHorizontalHeaderItem(1, QStandardItem('State'))
         self.tableView_magc_sections.setModel(model)
         (self.tableView_magc_sections.selectionModel()
@@ -979,6 +979,10 @@ class MainControls(QMainWindow):
 
         self.tableView_magc_sections.doubleClicked.connect(
             self.magc_double_clicked_section)
+
+        # checking a section (can be different from change selection)
+        self.tableView_magc_sections.clicked.connect(
+            self.magc_clicked_section)
 
         # initialize other MagC GUI items
         self.pushButton_magc_importMagc.clicked.connect(
@@ -1286,6 +1290,9 @@ class MainControls(QMainWindow):
             if item.checkState() == Qt.Checked:
                 checkedSections.append(r)
         self.gm.magc['checked_sections'] = checkedSections
+
+    def magc_clicked_section(self, clickedIndex):
+        self.magc_update_checked_sections_to_config()
 
     def magc_double_clicked_section(self, doubleClickedIndex):
         row = doubleClickedIndex.row()

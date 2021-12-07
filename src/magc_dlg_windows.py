@@ -649,10 +649,10 @@ class WaferCalibrationDlg(QDialog):
                 'MagC-STAGE',
                 f'Landmark: moving stage to ({x},{y})')
             self.stage.move_to_xy([x,y])
-            # xxx move viewport
-            # self.cs.set_mv_centre_d(
-            #     self.cs.get_grid_origin_d(grid_number=row))
-            # self.main_controls_trigger.transmit('DRAW VP')
+            
+            # move viewport to landmark
+            self.cs.vp_centre_dx_dy = self.cs.convert_s_to_d([x,y])
+            self.main_controls_trigger.transmit('DRAW VP')
 
         return callback_goto_landmark
 

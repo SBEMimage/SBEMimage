@@ -1865,12 +1865,15 @@ class Acquisition:
                             f'CTRL: Grid {grid_index} already acquired. '
                             f'Skipping.')
                     elif (self.magc_mode
-                          and grid_index not in self.gm.magc['checked_sections']):
-                        utils.log_info(
-                            'MagC-CTRL',
-                            f'Grid {grid_index} not checked. Skipping.')
-                        self.add_to_main_log(
-                            f'MagC-CTRL: Grid {grid_index} not checked. Skipping.')
+                        and grid_index not in self.gm.magc['checked_sections']):
+                            utils.log_info(
+                                'MagC-CTRL',
+                                f'Grid {grid_index} not checked. Skipping.')
+                            self.add_to_main_log(
+                                f'MagC-CTRL: Grid {grid_index} not checked. Skipping.')
+                    elif (self.magc_mode
+                        and grid_index==self.gm.number_grids-1):
+                            self.stack_completed = True
                     else:
                         # Do autofocus on non-active tiles before grid acq
                         if (self.use_autofocus
@@ -1939,8 +1942,7 @@ class Acquisition:
 
             if self.magc_mode:
                 # In MagC mode: Track grid being acquired in Viewport
-                grid_centre_d = self.gm[grid_index].centre_dx_dy
-                self.cs.set_vp_centre_d(grid_centre_d)
+                self.cs.vp_centre_dx_dy = self.gm[grid_index].centre_dx_dy
                 self.main_controls_trigger.transmit('DRAW VP')
                 self.main_controls_trigger.transmit(
                     'MAGC SET SECTION STATE GUI-'
