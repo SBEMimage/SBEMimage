@@ -325,7 +325,7 @@ class ImportWaferImageDlg(QDialog):
         if self.imported.number_imported == current_imported_number:
             utils.log_info(
                 'MagC-CTRL',
-                ('You have not added a wafer image overview.'
+                ('No wafer image overview was added.'
                     + 'You can still do it by selecting "Import Wafer Image"'
                     + 'in the MagC tab.'))
         else:
@@ -800,7 +800,7 @@ class WaferCalibrationDlg(QDialog):
             self.accept()
 
     def accept(self):
-        super().accept()
+        super(WaferCalibrationDlg, self).accept()
 
 class ImportZENExperimentDlg(QDialog):
     """Import a ZEN experiment setup."""
