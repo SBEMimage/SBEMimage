@@ -1853,9 +1853,12 @@ class Acquisition:
                         self.autofocus_stig_current_slice[0],
                         (grid_index % self.autofocus.autostig_delay == 0))
 
-                if (num_active_tiles > 0
-                        and not self.pause_state == 1
-                        and self.error_state == Error.none):
+                if all([
+                    num_active_tiles > 0,
+                    self.pause_state != 1,
+                    self.error_state == Error.none,
+                    ]):
+
                     if grid_index in self.grids_acquired:
                         utils.log_info(
                             'CTRL',
@@ -1864,24 +1867,29 @@ class Acquisition:
                         self.add_to_main_log(
                             f'CTRL: Grid {grid_index} already acquired. '
                             f'Skipping.')
-                    elif (self.magc_mode
-                        and grid_index not in self.gm.magc['checked_sections']):
+                    elif all([
+                        self.magc_mode,
+                        grid_index not in self.gm.magc['checked_sections'],
+                        ]):
                             utils.log_info(
                                 'MagC-CTRL',
                                 f'Grid {grid_index} not checked. Skipping.')
                             self.add_to_main_log(
                                 f'MagC-CTRL: Grid {grid_index} not checked. Skipping.')
-                    elif (self.magc_mode
-                        and grid_index==self.gm.number_grids-1):
+                    elif all([
+                        self.magc_mode,
+                        grid_index==self.gm.number_grids-1,
+                        ]):
                             self.stack_completed = True
                     else:
                         # Do autofocus on non-active tiles before grid acq
-                        if (self.use_autofocus
-                            and self.autofocus.method in [0, 3]  # zeiss or mapfost
-                            and (self.autofocus_stig_current_slice[0]
-                            or self.autofocus_stig_current_slice[1])
-                            and not self.autofocus.tracking_mode == 3  # in that case these tiles have been visited already
-                        ):
+                        if all([
+                            self.use_autofocus,
+                            self.autofocus.method in [0, 3],  # zeiss or mapfost
+                            (self.autofocus_stig_current_slice[0]
+                                or self.autofocus_stig_current_slice[1]),
+                            not self.autofocus.tracking_mode == 3,  # in that case these tiles have been visited already
+                        ]):
                             self.do_autofocus_before_grid_acq(grid_index)
                         # Adjust working distances and stigmation parameters
                         # for this grid with autofocus corrections
@@ -1899,9 +1907,11 @@ class Acquisition:
 
         # Reset the interruption point (from the previous run) if the affected
         # grid was acquired
-        if (self.pause_state != 1
-                and self.acq_interrupted
-                and self.acq_interrupted_at[0] in self.grids_acquired):
+        if all([
+            self.pause_state != 1,
+            self.acq_interrupted,
+            self.acq_interrupted_at[0] in self.grids_acquired,
+            ]):
             self.interrupted_at = []
             self.acq_interrupted = False
 
@@ -1948,7 +1958,7 @@ class Acquisition:
                     'MAGC SET SECTION STATE GUI-'
                     f'{grid_index}'
                     '-acquiring')
-                    
+
                 # set magnification
                 self.sem.set_pixel_size(self.gm[grid_index].pixel_size)
 
@@ -1977,7 +1987,7 @@ class Acquisition:
                 theta = (180 - theta) % 360
                 # workaround to make sure that the set_scan_rotation
                 # command is issued below. I would suggest changing
-                # the check below to if theta >= 0: but it might not 
+                # the check below to if theta >= 0: but it might not
                 # be OK for non-magc applications
                 if theta == 0:
                     theta = 0.01
@@ -1993,7 +2003,11 @@ class Acquisition:
                 tile_id = str(grid_index) + '.' + str(tile_index)
 
                 # Acquire the current tile
-                while not (tile_accepted or tile_skipped) and fail_counter < 2:
+                while all([
+                    not tile_accepted,
+                    not tile_skipped,
+                    fail_counter < 2,
+                    ]):
 
                     (tile_img, relative_save_path, save_path,
                      tile_accepted, tile_skipped, tile_selected,
@@ -2003,8 +2017,16 @@ class Acquisition:
                     if not tile_skipped:
                         adjust_acq_settings = False
 
-                    if (self.error_state in [Error.grab_image, Error.grab_incomplete, Error.frame_frozen, Error.image_load]
-                            and not rejected_by_user):
+                    if all([
+                        self.error_state in [
+                            Error.grab_image,
+                            Error.grab_incomplete,
+                            Error.frame_frozen,
+                            Error.image_load,
+                            ],
+                        not rejected_by_user,
+                        ]):
+
                         self.save_rejected_tile(save_path, grid_index,
                                                 tile_index, fail_counter)
                         # Try again
@@ -2039,7 +2061,11 @@ class Acquisition:
                         break
                 # End of tile aquisition while loop
 
-                if tile_accepted and tile_selected and not tile_skipped:
+                if all([
+                    tile_accepted,
+                    tile_selected,
+                    not tile_skipped,
+                    ]):
                     # Write tile's name and position into imagelist
                     self.register_accepted_tile(relative_save_path,
                                                 grid_index, tile_index)
@@ -2072,17 +2098,23 @@ class Acquisition:
 
                     # If heuristic autofocus is enabled and tile is selected as
                     # a reference tile, prepare tile for processing:
-                    if (self.use_autofocus and self.autofocus.method == 1
-                        and self.gm[grid_index][tile_index].autofocus_active):
+                    if all([
+                        self.use_autofocus,
+                        self.autofocus.method==1,
+                        self.gm[grid_index][tile_index].autofocus_active,
+                        ]):
+
                         tile_key = str(grid_index) + '.' + str(tile_index)
                         self.autofocus.prepare_tile_for_heuristic_af(
                             tile_img, tile_key)
                         self.heuristic_af_queue.append(tile_key)
                         del tile_img
 
-                elif (not tile_selected
-                      and not tile_skipped
-                      and self.error_state == Error.none):
+                elif all([
+                    not tile_selected,
+                    not tile_skipped,
+                    self.error_state == Error.none,
+                    ]):
                     utils.log_info(
                         'CTRL',
                         f'Tile {tile_id} was discarded by image '
@@ -2199,9 +2231,12 @@ class Acquisition:
 
         # Skip the tile if it is in the interrupted grid and already listed
         # as acquired.
-        if (self.acq_interrupted
-                and self.acq_interrupted_at[0] == grid_index
-                and tile_index in self.tiles_acquired):
+        if all([
+            self.acq_interrupted,
+            self.acq_interrupted_at[0] == grid_index,
+            tile_index in self.tiles_acquired,
+            ]):
+
             tile_skipped = True
             utils.log_info(
                 'CTRL',
@@ -2220,9 +2255,11 @@ class Acquisition:
                                   + self.stig_x_delta)
                     new_stig_y = (self.gm[grid_index][tile_index].stig_xy[1]
                                   + self.stig_y_delta)
-                    if ((new_wd != self.tile_wd)
-                        or (new_stig_x != self.tile_stig_x)
-                        or (new_stig_y != self.tile_stig_y)):
+                    if any([
+                        new_wd != self.tile_wd,
+                        new_stig_x != self.tile_stig_x,
+                        new_stig_y != self.tile_stig_y,
+                        ]):
                         # Adjust and show new parameters in the main log
                         self.sem.set_wd(new_wd)
                         self.sem.set_stig_xy(new_stig_x, new_stig_y)
@@ -2294,17 +2331,24 @@ class Acquisition:
                     'CTRL: Tile %s: Image file already exists!' %tile_id)
 
         # Proceed if no error has ocurred and tile not skipped:
-        if self.error_state == Error.none and not tile_skipped:
+        if all([
+            self.error_state == Error.none,
+            not tile_skipped,
+            ]):
 
             # Show updated XY stage coordinates in Main Controls GUI
             self.main_controls_trigger.transmit('UPDATE XY')
 
             # Call autofocus routine (method 0, SmartSEM) on current tile
             # if enabled and tile selected on this slice
-            if (self.use_autofocus and self.autofocus.method in [0, 3]
-                    and self.gm[grid_index][tile_index].autofocus_active
-                    and (self.autofocus_stig_current_slice[0] or
-                         self.autofocus_stig_current_slice[1])):
+            if all([
+                self.use_autofocus,
+                self.autofocus.method in [0, 3],
+                self.gm[grid_index][tile_index].autofocus_active,
+                (self.autofocus_stig_current_slice[0]
+                    or self.autofocus_stig_current_slice[1]),
+                ]):
+
                 do_move = False  # already at tile stage position
                 self.do_autofocus(*self.autofocus_stig_current_slice,
                                   do_move, grid_index, tile_index)
@@ -2312,7 +2356,10 @@ class Acquisition:
                 # They must be restored to the settings for the current grid.
                 adjust_acq_settings = True
                 # For tracking mode 0: Adjust wd/stig of other tiles
-                if self.error_state == Error.none and self.autofocus.tracking_mode == 0:
+                if all([
+                    self.error_state == Error.none,
+                    self.autofocus.tracking_mode == 0,
+                    ]):
                     self.autofocus.approximate_wd_stig_in_grid(grid_index)
                     self.main_controls_trigger.transmit('DRAW VP')
 
@@ -2330,13 +2377,17 @@ class Acquisition:
                 # undo the change.
                 self.lock_mag()
 
-            # Check mag if locked
-            if self.mag_locked and not self.error_state in [Error.autofocus_smartsem, Error.autofocus_heuristic, Error.wd_stig_difference]:
-                self.check_locked_mag()
-            # Check focus if locked
-            if (self.wd_stig_locked
-                    and not self.error_state in [Error.autofocus_smartsem, Error.autofocus_heuristic, Error.wd_stig_difference]):
-                self.check_locked_wd_stig()
+            if not self.error_state in [
+                    Error.autofocus_smartsem,
+                    Error.autofocus_heuristic,
+                    Error.wd_stig_difference,
+                ]:
+                # Check mag if locked
+                if self.mag_locked:
+                    self.check_locked_mag()
+                # Check focus if locked
+                if self.wd_stig_locked:
+                    self.check_locked_wd_stig()
 
             # After all preliminary checks complete, now acquire the frame!
             # (Even if error has been detected. May be helpful.)
@@ -2425,7 +2476,11 @@ class Acquisition:
                     # New preview available, show it (if tile previews active)
                     self.main_controls_trigger.transmit('DRAW VP')
 
-                    if self.error_state in [Error.autofocus_smartsem, Error.autofocus_heuristic, Error.wd_stig_difference]:
+                    if self.error_state in [
+                            Error.autofocus_smartsem,
+                            Error.autofocus_heuristic,
+                            Error.wd_stig_difference,
+                        ]:
                         # Don't accept tile if autofocus error has ocurred
                         tile_accepted = False
                     else:
@@ -2463,8 +2518,10 @@ class Acquisition:
                                 self.add_to_main_log(
                                     'CTRL: Tile outside of permitted mean/SD '
                                     'range!')
-                            elif (slice_by_slice_test_passed is not None
-                                  and not slice_by_slice_test_passed):
+                            elif all([
+                                slice_by_slice_test_passed is not None,
+                                not slice_by_slice_test_passed,
+                                ]):
                                 tile_accepted = False
                                 self.error_state = Error.tile_image_compare
                                 utils.log_error(
@@ -2492,7 +2549,14 @@ class Acquisition:
                 self.error_state = Error.grab_image
 
         # Check for "Ask User" override
-        if self.ask_user_mode and self.error_state in [Error.grab_incomplete, Error.frame_frozen, Error.tile_image_range, Error.tile_image_compare]:
+        if all([
+            self.ask_user_mode,
+            self.error_state in [
+                Error.grab_incomplete,
+                Error.frame_frozen,
+                Error.tile_image_range,
+                Error.tile_image_compare],
+            ]):
             self.main_controls_trigger.transmit('ASK IMAGE ERROR OVERRIDE')
             while self.user_reply is None:
                 sleep(0.1)
