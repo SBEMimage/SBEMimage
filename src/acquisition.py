@@ -1907,11 +1907,9 @@ class Acquisition:
 
         # Reset the interruption point (from the previous run) if the affected
         # grid was acquired
-        if all([
-            self.pause_state != 1,
-            self.acq_interrupted,
-            self.acq_interrupted_at[0] in self.grids_acquired,
-            ]):
+        if (self.pause_state != 1
+            and self.acq_interrupted
+            and self.acq_interrupted_at[0] in self.grids_acquired):
             self.interrupted_at = []
             self.acq_interrupted = False
 
@@ -2231,11 +2229,9 @@ class Acquisition:
 
         # Skip the tile if it is in the interrupted grid and already listed
         # as acquired.
-        if all([
-            self.acq_interrupted,
-            self.acq_interrupted_at[0] == grid_index,
-            tile_index in self.tiles_acquired,
-            ]):
+        if (self.acq_interrupted
+            and self.acq_interrupted_at[0] == grid_index
+            and tile_index in self.tiles_acquired):
 
             tile_skipped = True
             utils.log_info(
