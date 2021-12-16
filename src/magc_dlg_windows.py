@@ -250,6 +250,9 @@ class ImportMagCDlg(QDialog):
         self.main_controls_trigger.transmit('MAGC WAFER NOT CALIBRATED')
         self.main_controls_trigger.transmit('MAGC ENABLE WAFER IMAGE IMPORT')
 
+        # activate stage show
+        self.main_controls_trigger.transmit('ACTIVATE SHOW STAGE')
+
         if len(magc['landmarksEM']['source']) > 2:
             self.main_controls_trigger.transmit('MAGC ENABLE CALIBRATION')
 
@@ -649,7 +652,7 @@ class WaferCalibrationDlg(QDialog):
                 'MagC-STAGE',
                 f'Landmark: moving stage to ({x},{y})')
             self.stage.move_to_xy([x,y])
-            
+
             # move viewport to landmark
             self.cs.vp_centre_dx_dy = self.cs.convert_s_to_d([x,y])
             self.main_controls_trigger.transmit('DRAW VP')
@@ -761,6 +764,12 @@ class WaferCalibrationDlg(QDialog):
                 self.gm[grid_number].centre_sx_sy = [
                     x_target[grid_number],
                     y_target[grid_number]]
+
+                for id_tile, tile in enumerate(self.gm[grid_number]):
+                    utils.log_info(
+                        'MagC-DEBUG',
+                        f'{id_tile}: {tile.sx_sy}')
+
 
             self.main_controls_trigger.transmit('DRAW VP')
 

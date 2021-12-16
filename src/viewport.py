@@ -317,7 +317,7 @@ class Viewport(QWidget):
         else:
             event.accept()
 
-# ======================= Below: event-handling methods ========================
+    # ======================= Below: event-handling methods ========================
 
     def setMouseTracking(self, flag):
         """Recursively activate or deactive mouse tracking in a widget."""
@@ -845,7 +845,7 @@ class Viewport(QWidget):
         self.vp_draw()
         self.sv_draw()
 
-# ====================== Below: Viewport (vp) methods ==========================
+    # ====================== Below: Viewport (vp) methods ==========================
 
     def _vp_initialize(self):
         # self.vp_current_grid and self.vp_current_ov store the grid(s) and
@@ -3050,7 +3050,7 @@ class Viewport(QWidget):
     # -------------------- End of MagC methods in Viewport ---------------------
 
 
-# ================= Below: Slice-by-Slice Viewer (sv) methods ==================
+    # ================= Below: Slice-by-Slice Viewer (sv) methods ==================
 
     def _sv_initialize(self):
         self.slice_view_images = []
@@ -3586,7 +3586,7 @@ class Viewport(QWidget):
             action1.triggered.connect(self.sv_reset_view)
             menu.exec_(self.mapToGlobal(p))
 
-# ================ Below: Monitoring tab (m) functions =================
+    # ================ Below: Monitoring tab (m) functions =================
 
     def _m_initialize(self):
         # Currently selected grid/tile/OV in the drop-down lists

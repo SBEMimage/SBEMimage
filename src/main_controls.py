@@ -1023,6 +1023,10 @@ class MainControls(QMainWindow):
         self.actionDebrisDetectionSettings.setEnabled(False)
         self.actionAskUserModeSettings.setEnabled(False)
 
+        # activate show stage position
+        self.viewport.show_stage_pos = True
+        self.viewport.vp_activate_checkbox_show_stage_pos()
+
         # multisem
         self.pushButton_msem_loadZen.clicked.connect(
             self.msem_import_zen_experiment)
@@ -1880,6 +1884,9 @@ class MainControls(QMainWindow):
             self.pushButton_magc_importWaferImage.setEnabled(True)
         elif 'MAGC SET SECTION STATE' in msg:
             self.magc_set_section_state_in_table(msg)
+        elif 'ACTIVATE SHOW STAGE' in msg:
+            self.viewport.show_stage_pos = True
+            self.viewport.vp_activate_checkbox_show_stage_pos()
         elif 'MSEM GUI' in msg:
             self.msem_update_gui(msg)
         elif msg == 'REFRESH OV':
