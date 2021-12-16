@@ -750,7 +750,7 @@ class WaferCalibrationDlg(QDialog):
 
             transformAngle = -magc_utils.getAffineRotation(
                 self.gm.magc['transform'])
-            angles_target = (-angles_source + transformAngle) % 360
+            angles_target = (angles_source + transformAngle) % 360
 
             # update grids
             utils.log_info(
@@ -764,12 +764,6 @@ class WaferCalibrationDlg(QDialog):
                 self.gm[grid_number].centre_sx_sy = [
                     x_target[grid_number],
                     y_target[grid_number]]
-
-                for id_tile, tile in enumerate(self.gm[grid_number]):
-                    utils.log_info(
-                        'MagC-DEBUG',
-                        f'{id_tile}: {tile.sx_sy}')
-
 
             self.main_controls_trigger.transmit('DRAW VP')
 

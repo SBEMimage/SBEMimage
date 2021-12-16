@@ -1023,10 +1023,6 @@ class MainControls(QMainWindow):
         self.actionDebrisDetectionSettings.setEnabled(False)
         self.actionAskUserModeSettings.setEnabled(False)
 
-        # activate show stage position
-        self.viewport.show_stage_pos = True
-        self.viewport.vp_activate_checkbox_show_stage_pos()
-
         # multisem
         self.pushButton_msem_loadZen.clicked.connect(
             self.msem_import_zen_experiment)
@@ -1312,16 +1308,18 @@ class MainControls(QMainWindow):
             utils.log_info(
                 'MagC-CTRL',
                 f'Section {sectionKey} has been double-clicked. Moving to section...')
+
             # set scan rotation
-            self.sem.set_scan_rotation(
-                (180 - self.gm[row].rotation) % 360
-                )
+            self.sem.set_scan_rotation(self.gm[row].rotation % 360)
+
             # set stage
             grid_center_s = self.gm[row].centre_sx_sy
             self.stage.move_to_xy(grid_center_s)
             utils.log_info(
                 'MagC-CTRL',
                 f'Moved to section {sectionKey}.')
+            # to update the stage position cursor
+            self.viewport.vp_draw()
         else:
             utils.log_warning(
                 'MagC-CTRL',

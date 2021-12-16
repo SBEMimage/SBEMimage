@@ -1998,7 +1998,7 @@ class Acquisition:
             if not self.magc_mode:
                 theta = 360 - theta
             else:
-                theta = (180 - theta) % 360
+                theta = theta % 360
                 # workaround to make sure that the set_scan_rotation
                 # command is issued below. I would suggest changing
                 # the check below to if theta >= 0: but it might not
