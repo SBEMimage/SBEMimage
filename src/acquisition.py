@@ -1867,6 +1867,11 @@ class Acquisition:
                         self.add_to_main_log(
                             f'CTRL: Grid {grid_index} already acquired. '
                             f'Skipping.')
+                    # elif all([
+                        # self.magc_mode,
+                        # grid_index==self.gm.number_grids,
+                        # ]):
+                            # self.stack_completed = True
                     elif all([
                         self.magc_mode,
                         grid_index not in self.gm.magc['checked_sections'],
@@ -1876,11 +1881,11 @@ class Acquisition:
                                 f'Grid {grid_index} not checked. Skipping.')
                             self.add_to_main_log(
                                 f'MagC-CTRL: Grid {grid_index} not checked. Skipping.')
-                    elif all([
-                        self.magc_mode,
-                        grid_index==self.gm.number_grids-1,
-                        ]):
-                            self.stack_completed = True
+                            # there are two termination checkpoints in magc
+                            # 1. here, when a grid is unchecked
+                            # 2. after grid acquisition
+                            if grid_index==self.gm.number_grids-1:
+                                self.stack_completed = True
                     else:
                         # Do autofocus on non-active tiles before grid acq
                         if all([
@@ -1898,6 +1903,13 @@ class Acquisition:
                         # image inspection and error handling, and with
                         # autofocus on reference tiles)
                         self.acquire_grid(grid_index)
+                        
+                        if all([
+                            self.magc_mode,
+                            grid_index==self.gm.number_grids-1,
+                            ]):
+                                self.stack_completed = True
+                        
             else:
                 utils.log_info(
                     'CTRL',
@@ -1907,11 +1919,9 @@ class Acquisition:
 
         # Reset the interruption point (from the previous run) if the affected
         # grid was acquired
-        if all([
-            self.pause_state != 1,
-            self.acq_interrupted,
-            self.acq_interrupted_at[0] in self.grids_acquired,
-            ]):
+        if (self.pause_state != 1
+            and self.acq_interrupted
+            and self.acq_interrupted_at[0] in self.grids_acquired):
             self.interrupted_at = []
             self.acq_interrupted = False
 
@@ -1959,8 +1969,12 @@ class Acquisition:
                     f'{grid_index}'
                     '-acquiring')
 
-                # set magnification
-                self.sem.set_pixel_size(self.gm[grid_index].pixel_size)
+                # the acq parameters stay the same across grids in magc
+                # todo: why is the very first tile acquisition failing?
+                # if this is solved, then this can be removed and 
+                # custom grid settings can be used for each grid
+                if grid_index !=0:
+                    adjust_acq_settings = False
 
             if self.acq_interrupted:
                 # Remove tiles that are no longer active from
@@ -2194,8 +2208,7 @@ class Acquisition:
                 self.tiles_acquired = []
 
                 if self.magc_mode:
-                    grid_centre_d = self.gm[grid_index].centre_dx_dy
-                    self.cs.set_vp_centre_d(grid_centre_d)
+                    self.cs.vp_centre_dx_dy = self.gm[grid_index].centre_dx_dy
                     self.main_controls_trigger.transmit('DRAW VP')
                     self.main_controls_trigger.transmit(
                         'MAGC SET SECTION STATE GUI-'
@@ -2231,11 +2244,9 @@ class Acquisition:
 
         # Skip the tile if it is in the interrupted grid and already listed
         # as acquired.
-        if all([
-            self.acq_interrupted,
-            self.acq_interrupted_at[0] == grid_index,
-            tile_index in self.tiles_acquired,
-            ]):
+        if (self.acq_interrupted
+            and self.acq_interrupted_at[0] == grid_index
+            and tile_index in self.tiles_acquired):
 
             tile_skipped = True
             utils.log_info(

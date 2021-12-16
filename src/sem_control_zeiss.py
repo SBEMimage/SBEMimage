@@ -445,7 +445,18 @@ class SEM_SmartSEM(SEM):
         additional waiting period after the cycle time (extra_delay, in seconds)
         may be necessary. The delay specified in syscfg (self.DEFAULT_DELAY)
         is added by default for cycle times > 0.5 s."""
+
         self.sem_execute('CMD_UNFREEZE_ALL')
+        
+        if all([
+            self.magc_mode,
+            self.device_name.lower() in [
+                'zeiss merlin',
+                'zeiss sigma',
+                ]
+            ]):
+            sleep(0.5)
+
         self.sem_execute('CMD_FREEZE_ALL') # Assume 'freeze on end of frame'
 
         self.additional_cycle_time = extra_delay
@@ -453,6 +464,7 @@ class SEM_SmartSEM(SEM):
             self.additional_cycle_time += self.DEFAULT_DELAY
 
         sleep(self.current_cycle_time + self.additional_cycle_time)
+
         # This sleep interval could be used to carry out other operations in
         # parallel while waiting for the new image.
         # Wait longer if necessary before grabbing image
@@ -469,7 +481,7 @@ class SEM_SmartSEM(SEM):
             self.error_info = (
                 f'sem.acquire_frame: command failed (ret_val: {ret_val})')
             return False
-
+            
     def save_frame(self, save_path_filename):
         """Save the frame currently displayed in SmartSEM."""
         ret_val = self.sem_api.Grab(0, 0, 1024, 768, 0,
