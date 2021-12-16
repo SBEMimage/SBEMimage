@@ -40,6 +40,9 @@ class Stage:
     def __str__(self):
         return str(self._stage)
 
+    def device_name(self):
+        return self._stage.device_name
+
     def get_x(self):
         return self._stage.get_stage_x()
 
@@ -131,7 +134,7 @@ class Stage:
     def set_motor_speeds(self, motor_speed_x, motor_speed_y):
         if self.use_microtome and self.use_microtome_xy and not self.microtome.device_name == 'GCIB':
             return self._stage.set_motor_speeds(motor_speed_x, motor_speed_y)
-        elif self.microtome.device_name == 'GCIB':
+        elif self.microtome is not None and self.microtome.device_name == 'GCIB':
             return True
         else:
             # motor speeds can currently not be set for SEM stage
@@ -140,7 +143,7 @@ class Stage:
     def update_motor_speed(self):
         if self.use_microtome and self.use_microtome_xy and self.microtome.device_name == 'Gatan 3View':
             return self._stage.update_motor_speeds_in_dm_script()
-        elif self.microtome.device_name in ['ConnectomX katana', 'GCIB']:
+        elif self.microtome is not None and self.microtome.device_name in ['ConnectomX katana', 'GCIB']:
             return True
         else:
             # Speeds can currently not be updated for SEM stage

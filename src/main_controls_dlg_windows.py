@@ -45,6 +45,7 @@ from PyQt5.QtWidgets import QApplication, QDialog, QMessageBox, \
                             QFileDialog, QLineEdit, QDialogButtonBox
 
 import utils
+from sem_control_mock import SEM_Mock
 from utils import Error
 import acq_func
 
@@ -802,8 +803,13 @@ class KatanaSettingsDlg(QDialog):
         self.show()
 
         # Set up COM port selector
-        self.comboBox_portSelector.addItems(utils.get_serial_ports())
-        self.comboBox_portSelector.setCurrentIndex(0)
+        available_ports = utils.get_serial_ports()
+        self.comboBox_portSelector.addItems(available_ports)
+        if self.microtome.selected_port in available_ports:
+            self.comboBox_portSelector.setCurrentIndex(
+                available_ports.index(self.microtome.selected_port))
+        else:
+            self.comboBox_portSelector.setCurrentIndex(0)
         self.comboBox_portSelector.currentIndexChanged.connect(
             self.reconnect)
 
@@ -853,6 +859,7 @@ class KatanaSettingsDlg(QDialog):
             self.microtome.retract_clearance / 1000)
 
     def accept(self):
+        new_com_port = self.comboBox_portSelector.currentText() 
         new_cut_speed = self.spinBox_knifeCutSpeed.value()
         new_fast_speed = self.spinBox_knifeFastSpeed.value()
         new_cut_start = self.spinBox_cutWindowStart.value()
@@ -864,6 +871,7 @@ class KatanaSettingsDlg(QDialog):
             self.doubleSpinBox_retractClearance.value() * 1000)
         # End position of cut window must be smaller than start position:
         if new_cut_end < new_cut_start:
+            self.microtome.selected_port = new_com_port
             self.microtome.knife_cut_speed = new_cut_speed
             self.microtome.knife_fast_speed = new_fast_speed
             self.microtome.cut_window_start = new_cut_start
@@ -998,6 +1006,12 @@ class StageCalibrationDlg(QDialog):
             self.calculate_calibration_parameters_from_user_input)
         self.pushButton_measureMotorSpeeds.clicked.connect(
             self.measure_motor_speeds)
+
+        # For now, disable motor speed section unless Gatan 3View is used
+        if self.stage.device_name() != "Gatan 3View":
+            self.doubleSpinBox_motorSpeedX.setEnabled(False)
+            self.doubleSpinBox_motorSpeedY.setEnabled(False)
+            self.pushButton_measureMotorSpeeds.setEnabled(False)
 
     def measure_motor_speeds(self):
         """Run the measurement routine in a thread."""
@@ -1290,15 +1304,17 @@ class StageCalibrationDlg(QDialog):
             # Save and apply new stage calibration and motor speeds
             self.cs.save_stage_calibration(self.sem.target_eht, stage_params)
             self.cs.apply_stage_calibration()
-            success = self.stage.set_motor_speeds(
-                self.doubleSpinBox_motorSpeedX.value(),
-                self.doubleSpinBox_motorSpeedY.value())
 
-            if not success:
-                QMessageBox.warning(
-                    self, 'Error updating motor speeds',
-                    'Motor speeds could not be updated.',
-                    QMessageBox.Ok)
+            if self.stage.device_name() == "Gatan 3View":
+                success = self.stage.set_motor_speeds(
+                    self.doubleSpinBox_motorSpeedX.value(),
+                    self.doubleSpinBox_motorSpeedY.value())
+                if not success:
+                    QMessageBox.warning(
+                        self, 'Error updating motor speeds',
+                        'Motor speeds could not be updated.',
+                        QMessageBox.Ok)
+
             super().accept()
 
     def reject(self):
@@ -1977,7 +1993,11 @@ class AcqSettingsDlg(QDialog):
         super().__init__()
         self.acq = acquisition
         self.notifications = notifications
-        loadUi('..\\gui\\acq_settings_dlg.ui', self)
+        if not isinstance(self.acq.sem, SEM_Mock):
+            loadUi('..\\gui\\acq_settings_dlg.ui', self)
+        else:
+            loadUi('..\\gui\\acq_settings_dlg_mock.ui', self)
+            self.update_mock_settings()
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
@@ -2024,6 +2044,14 @@ class AcqSettingsDlg(QDialog):
                 start_path,
                 QFileDialog.ShowDirsOnly)).replace('/', '\\'))
 
+    def select_mock_directory(self):
+        """Let user select a previous acquisition directory to use for mock SEM images."""
+        self.lineEdit_mockDir.setText(
+            str(QFileDialog.getExistingDirectory(
+                self, 'Select Directory',
+                'C:\\',
+                QFileDialog.ShowDirsOnly)).replace('/', '\\'))
+
     def update_server_lineedit(self):
         self.lineEdit_projectName.setEnabled(
             self.checkBox_sendMetaData.isChecked())
@@ -2044,6 +2072,17 @@ class AcqSettingsDlg(QDialog):
             self.update_target_z_diff()
             self.doubleSpinBox_targetZDiff.hide()
         self.comboBox_targetType.currentIndexChanged.connect(self.switch_target_spinbox)
+
+    def update_mock_settings(self):
+        self.pushButton_selectMockDir.clicked.connect(self.select_mock_directory)
+        self.pushButton_selectMockDir.setIcon(QIcon('..\\img\\selectdir.png'))
+        self.pushButton_selectMockDir.setIconSize(QSize(16, 16))
+        if self.acq.sem.previous_acq_dir is not None:
+            self.lineEdit_mockDir.setText(self.acq.sem.previous_acq_dir)
+        if self.acq.sem.mock_type == "noise":
+            self.comboBox_mockType.setCurrentIndex(0)
+        else:
+            self.comboBox_mockType.setCurrentIndex(1)
 
     def update_target_z_diff(self):
         if self.slices_valid(self.acq.slice_counter, self.acq.number_slices):
@@ -2135,6 +2174,21 @@ class AcqSettingsDlg(QDialog):
                     'The selected base directory is invalid or '
                     'inaccessible: ' + str(e),
                     QMessageBox.Ok)
+        if isinstance(self.acq.sem, SEM_Mock):
+            if self.comboBox_mockType.currentIndex() == 0:
+                self.acq.sem.mock_type = "noise"
+            else:
+                self.acq.sem.mock_type = "previous_acquisition"
+                mock_dir = self.lineEdit_mockDir.text()
+                if os.path.exists(mock_dir) and os.path.isdir(mock_dir):
+                    self.acq.sem.previous_acq_dir = mock_dir
+                else:
+                    success = False
+                    QMessageBox.warning(
+                        self, 'Error',
+                        'The selected mock path does not exist, or is not a directory.',
+                        QMessageBox.Ok)
+
         min_slice_thickness = 5
         if self.acq.syscfg['device']['microtome'] == '6':
             min_slice_thickness = 0

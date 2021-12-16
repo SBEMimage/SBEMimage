@@ -1,0 +1,585 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>acqSettings</class>
+ <widget class="QDialog" name="acqSettings">
+  <property name="windowModality">
+   <enum>Qt::ApplicationModal</enum>
+  </property>
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>301</width>
+    <height>593</height>
+   </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="windowTitle">
+   <string>Acquisition Settings</string>
+  </property>
+  <property name="layoutDirection">
+   <enum>Qt::RightToLeft</enum>
+  </property>
+  <widget class="QDialogButtonBox" name="buttonBox">
+   <property name="geometry">
+    <rect>
+     <x>90</x>
+     <y>556</y>
+     <width>201</width>
+     <height>32</height>
+    </rect>
+   </property>
+   <property name="layoutDirection">
+    <enum>Qt::LeftToRight</enum>
+   </property>
+   <property name="orientation">
+    <enum>Qt::Horizontal</enum>
+   </property>
+   <property name="standardButtons">
+    <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_csn">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>310</y>
+     <width>131</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Set current slice number:</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_bd">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>10</y>
+     <width>81</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Base directory:</string>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="lineEdit_baseDir">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>30</y>
+     <width>241</width>
+     <height>23</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButton_selectDir">
+   <property name="geometry">
+    <rect>
+     <x>260</x>
+     <y>30</y>
+     <width>30</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+  </widget>
+  <widget class="Line" name="line_1">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>406</y>
+     <width>281</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="orientation">
+    <enum>Qt::Horizontal</enum>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_st">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>200</y>
+     <width>161</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Slice thickness in nanometres:</string>
+   </property>
+  </widget>
+  <widget class="QSpinBox" name="spinBox_numberSlices">
+   <property name="geometry">
+    <rect>
+     <x>220</x>
+     <y>230</y>
+     <width>71</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="maximum">
+    <number>99999</number>
+   </property>
+   <property name="singleStep">
+    <number>100</number>
+   </property>
+   <property name="value">
+    <number>1000</number>
+   </property>
+  </widget>
+  <widget class="QSpinBox" name="spinBox_sliceThickness">
+   <property name="geometry">
+    <rect>
+     <x>220</x>
+     <y>200</y>
+     <width>71</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="minimum">
+    <number>0</number>
+   </property>
+   <property name="maximum">
+    <number>200</number>
+   </property>
+   <property name="singleStep">
+    <number>5</number>
+   </property>
+   <property name="value">
+    <number>50</number>
+   </property>
+  </widget>
+  <widget class="QSpinBox" name="spinBox_sliceCounter">
+   <property name="geometry">
+    <rect>
+     <x>220</x>
+     <y>310</y>
+     <width>71</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="maximum">
+    <number>99999</number>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_expl0">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>260</y>
+     <width>291</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Set target number of slices to '0' to image the current</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_expl0_2">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>280</y>
+     <width>251</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>sample surface once with no subsequent cut.</string>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="checkBox_sendMetaData">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>426</y>
+     <width>251</width>
+     <height>17</height>
+    </rect>
+   </property>
+   <property name="layoutDirection">
+    <enum>Qt::LeftToRight</enum>
+   </property>
+   <property name="text">
+    <string>Send meta data to remote server during acq.:</string>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="lineEdit_metaDataServer">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>80</x>
+     <y>456</y>
+     <width>211</width>
+     <height>23</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="checkBox_EHTOff">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>376</y>
+     <width>251</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="layoutDirection">
+    <enum>Qt::LeftToRight</enum>
+   </property>
+   <property name="text">
+    <string>Turn off EHT when stack finished</string>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="tristate">
+    <bool>false</bool>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="lineEdit_projectName">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>80</x>
+     <y>516</y>
+     <width>211</width>
+     <height>23</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>520</y>
+     <width>71</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Project name:</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_2">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>460</y>
+     <width>71</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>URL:</string>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="lineEdit_adminEmail">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>80</x>
+     <y>486</y>
+     <width>211</width>
+     <height>23</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_3">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>490</y>
+     <width>71</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Admin e-mail:</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_csn_2">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>340</y>
+     <width>171</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Set ∆Z (depth already cut, in μm):</string>
+   </property>
+  </widget>
+  <widget class="QDoubleSpinBox" name="doubleSpinBox_totalZDiff">
+   <property name="geometry">
+    <rect>
+     <x>220</x>
+     <y>340</y>
+     <width>71</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="decimals">
+    <number>3</number>
+   </property>
+   <property name="maximum">
+    <double>999.999000000000024</double>
+   </property>
+   <property name="value">
+    <double>0.000000000000000</double>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_st_2">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>60</y>
+     <width>61</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Stack name:</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_stackName">
+   <property name="geometry">
+    <rect>
+     <x>80</x>
+     <y>60</y>
+     <width>211</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <weight>75</weight>
+     <bold>true</bold>
+    </font>
+   </property>
+   <property name="text">
+    <string>MyStackName</string>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="comboBox_targetType">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>230</y>
+     <width>141</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="layoutDirection">
+    <enum>Qt::LeftToRight</enum>
+   </property>
+   <item>
+    <property name="text">
+     <string>Target number of slices:</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>Target depth (μm):</string>
+    </property>
+   </item>
+  </widget>
+  <widget class="QDoubleSpinBox" name="doubleSpinBox_targetZDiff">
+   <property name="geometry">
+    <rect>
+     <x>220</x>
+     <y>230</y>
+     <width>71</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="decimals">
+    <number>3</number>
+   </property>
+   <property name="maximum">
+    <double>999.999000000000024</double>
+   </property>
+   <property name="value">
+    <double>0.000000000000000</double>
+   </property>
+  </widget>
+  <widget class="QGroupBox" name="groupBox_mockSettings">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>90</y>
+     <width>281</width>
+     <height>101</height>
+    </rect>
+   </property>
+   <property name="layoutDirection">
+    <enum>Qt::LeftToRight</enum>
+   </property>
+   <property name="title">
+    <string>Mock SEM Settings</string>
+   </property>
+   <widget class="QComboBox" name="comboBox_mockType">
+    <property name="geometry">
+     <rect>
+      <x>110</x>
+      <y>20</y>
+      <width>161</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <item>
+     <property name="text">
+      <string>Random Noise</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>Previous Acquisition</string>
+     </property>
+    </item>
+   </widget>
+   <widget class="QLabel" name="label_mockType">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>20</y>
+      <width>121</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Mock Image Type:</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_mockDirectory">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>50</y>
+      <width>151</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Previous acquisition directory:</string>
+    </property>
+   </widget>
+   <widget class="QLineEdit" name="lineEdit_mockDir">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>70</y>
+      <width>221</width>
+      <height>20</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_selectMockDir">
+    <property name="geometry">
+     <rect>
+      <x>240</x>
+      <y>70</y>
+      <width>31</width>
+      <height>23</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+  </widget>
+  <zorder>doubleSpinBox_targetZDiff</zorder>
+  <zorder>buttonBox</zorder>
+  <zorder>label_csn</zorder>
+  <zorder>label_bd</zorder>
+  <zorder>lineEdit_baseDir</zorder>
+  <zorder>pushButton_selectDir</zorder>
+  <zorder>line_1</zorder>
+  <zorder>label_st</zorder>
+  <zorder>spinBox_numberSlices</zorder>
+  <zorder>spinBox_sliceCounter</zorder>
+  <zorder>spinBox_sliceThickness</zorder>
+  <zorder>label_expl0</zorder>
+  <zorder>label_expl0_2</zorder>
+  <zorder>checkBox_sendMetaData</zorder>
+  <zorder>lineEdit_metaDataServer</zorder>
+  <zorder>checkBox_EHTOff</zorder>
+  <zorder>lineEdit_projectName</zorder>
+  <zorder>label</zorder>
+  <zorder>label_2</zorder>
+  <zorder>lineEdit_adminEmail</zorder>
+  <zorder>label_3</zorder>
+  <zorder>label_csn_2</zorder>
+  <zorder>doubleSpinBox_totalZDiff</zorder>
+  <zorder>label_st_2</zorder>
+  <zorder>label_stackName</zorder>
+  <zorder>comboBox_targetType</zorder>
+  <zorder>groupBox_mockSettings</zorder>
+ </widget>
+ <tabstops>
+  <tabstop>lineEdit_baseDir</tabstop>
+  <tabstop>pushButton_selectDir</tabstop>
+  <tabstop>spinBox_sliceThickness</tabstop>
+  <tabstop>spinBox_numberSlices</tabstop>
+  <tabstop>spinBox_sliceCounter</tabstop>
+  <tabstop>doubleSpinBox_totalZDiff</tabstop>
+  <tabstop>checkBox_EHTOff</tabstop>
+  <tabstop>checkBox_sendMetaData</tabstop>
+  <tabstop>lineEdit_metaDataServer</tabstop>
+  <tabstop>lineEdit_adminEmail</tabstop>
+  <tabstop>lineEdit_projectName</tabstop>
+ </tabstops>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>accepted()</signal>
+   <receiver>acqSettings</receiver>
+   <slot>accept()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>248</x>
+     <y>254</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>157</x>
+     <y>274</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>rejected()</signal>
+   <receiver>acqSettings</receiver>
+   <slot>reject()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>316</x>
+     <y>260</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>286</x>
+     <y>274</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>
