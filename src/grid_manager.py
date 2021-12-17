@@ -1317,11 +1317,11 @@ class GridManager:
             transformed_points_y ) = magc_utils.applyAffineT(
                 [input_point[0] for input_point in input_points],
                 [input_point[1] for input_point in input_points],
-                magc_utils.invertAffineT(self.magc['transform'],
+                magc_utils.invertAffineT(self.magc['transform']),
                 flip_x=self.sem.device_name.lower() in [
                         'zeiss merlin',
                         'zeiss sigma',
-                ]))
+                ])
             input_points = [
                 (transformed_point_x, transformed_point_y)
                 for transformed_point_x, transformed_point_y
