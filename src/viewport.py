@@ -958,11 +958,11 @@ class Viewport(QWidget):
         self.checkBox_showStagePos.setChecked(self.show_stage_pos)
         self.checkBox_showStagePos.stateChanged.connect(
             self.vp_toggle_show_stage_pos)
-            
+
         if self.sem.magc_mode:
             self.pushButton_refreshOVs.setEnabled(False)
             self.pushButton_acquireStubOV.setEnabled(False)
-            
+
 
     def vp_update_grid_selector(self):
         if self.vp_current_grid >= self.gm.number_grids:
@@ -3038,7 +3038,7 @@ class Viewport(QWidget):
 
             transformAngle = -magc_utils.getAffineRotation(
                 self.gm.magc['transform'])
-            target_angle = (0 - source_angle + transformAngle) % 360
+            target_angle = (source_angle + transformAngle) % 360
             self.gm[clicked_section_number].rotation = target_angle
             self.gm[clicked_section_number].update_tile_positions()
 
