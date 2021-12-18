@@ -1256,7 +1256,7 @@ class GridManager:
     def magc_autofocus_points(self, grid_index):
         """The magc_autofocus_points_source are in non-rotated grid coordinates
         without wafer transform.
-        This getter calculates the af_points according to current
+        This function calculates the af_points according to current
         grid location and rotation in stage coordinates"""
 
         return self.magc_convert_to_current_grid(
@@ -1318,10 +1318,9 @@ class GridManager:
                 [input_point[0] for input_point in input_points],
                 [input_point[1] for input_point in input_points],
                 magc_utils.invertAffineT(self.magc['transform']),
-                flip_x=self.sem.device_name.lower() in [
-                        'zeiss merlin',
-                        'zeiss sigma',
-                ])
+                flip_x=False,
+                )
+
             input_points = [
                 (transformed_point_x, transformed_point_y)
                 for transformed_point_x, transformed_point_y
@@ -1346,7 +1345,7 @@ class GridManager:
     def magc_add_autofocus_point(self, grid_index, input_af_point):
         """input_af_point is in stage coordinates of
         the translated, rotated grid.
-        This function takes care of transforming the input af_point to
+        This function transforms input_af_point to
         the coordinates relative to a non-translated, non-rotated grid
         in source pixel coordinates (LM wafer image)"""
 

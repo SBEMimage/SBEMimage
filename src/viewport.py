@@ -1229,8 +1229,7 @@ class Viewport(QWidget):
             if (self.sem.magc_mode
                 and len(self.gm.magc['selected_sections']) == 1):
 
-                if (self.gm.magc_autofocus_points(
-                        magc_selected_section)!=[]):
+                if self.gm.magc_autofocus_points(magc_selected_section) != []:
 
                     action_removeAutofocusPoint = menu.addAction(
                         'MagC | Remove last autofocus point of grid '
@@ -1926,8 +1925,8 @@ class Viewport(QWidget):
         if not suppress_labels:
             suppress_labels = ((self.gm.number_grids + self.ovm.number_ov) > 10
                                and (self.cs.vp_scale < 1.0
-                               or self.fov_drag_active
-                               or self.grid_drag_active))
+                                   or self.fov_drag_active
+                                   or self.grid_drag_active))
 
         if ((tile_width_v * cols > 2 or tile_height_v * rows > 2)
             and not 'multisem' in self.sem.device_name.lower()):
@@ -2039,8 +2038,9 @@ class Viewport(QWidget):
 
         # ---- Autofocus points in MagC mode ---- #
         if self.sem.magc_mode:
-            focus_point_brush = QBrush(QColor(Qt.red), Qt.SolidPattern)
-            self.vp_qp.setBrush(focus_point_brush)
+            self.vp_qp.setBrush(QBrush(
+                QColor(Qt.red),
+                Qt.SolidPattern))
             for autofocus_point in self.gm.magc_autofocus_points(grid_index):
                 autofocus_point_v = self.cs.convert_d_to_v(autofocus_point)
                 diameter = 2 * self.cs.vp_scale
