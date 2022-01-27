@@ -1515,8 +1515,11 @@ class Viewport(QWidget):
         """Draw red bullseye indicator at last known stage position.
         QPainter object self.vp_qp must be active when caling this method.
         """
-        vx, vy = self.cs.convert_d_to_v(
-            self.cs.convert_s_to_d(self.stage.last_known_xy))
+        try:
+            vx, vy = self.cs.convert_d_to_v(
+                self.cs.convert_s_to_d(self.stage.last_known_xy))
+        except TypeError: # last_known_xy not defined (e.g. simulation mode)            
+            return
         size = int(self.cs.vp_scale * 5)
         if size < 10:
             size = 10
