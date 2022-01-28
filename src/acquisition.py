@@ -1904,11 +1904,6 @@ class Acquisition:
                         # autofocus on reference tiles)
                         self.acquire_grid(grid_index)
                         
-                        if all([
-                            self.magc_mode,
-                            grid_index==self.gm.number_grids-1,
-                            ]):
-                                self.stack_completed = True
                         
             else:
                 utils.log_info(
@@ -1916,6 +1911,12 @@ class Acquisition:
                     f'Skip grid {grid_index} (intervallic acquisition)')
                 self.add_to_main_log(
                     'CTRL: Skip grid %d (intervallic acquisition)' % grid_index)
+
+            if (self.magc_mode
+                and len(self.grids_acquired) == len(
+                    self.gm.magc['checked_sections'])
+            ):
+                self.stack_completed = True
 
         # Reset the interruption point (from the previous run) if the affected
         # grid was acquired
@@ -1966,8 +1967,7 @@ class Acquisition:
                 self.main_controls_trigger.transmit('DRAW VP')
                 self.main_controls_trigger.transmit(
                     'MAGC SET SECTION STATE GUI-'
-                    f'{grid_index}'
-                    '-acquiring')
+                    f'{grid_index}-acquiring')
 
                 # the acq parameters stay the same across grids in magc
                 # todo: why is the very first tile acquisition failing?
@@ -2902,10 +2902,7 @@ class Acquisition:
             avg_grid_stig_x, avg_grid_stig_y = (
                 self.gm[grid_index].average_stig_xy_of_autofocus_ref_tiles())
 
-            if (avg_grid_wd is not None
-                    and avg_grid_stig_x is not None
-                    and avg_grid_stig_y is not None):
-
+            if not None in [avg_grid_wd, avg_grid_stig_x , avg_grid_stig_y]:
                 # Apply corrections. At the moment, all reference tiles are
                 # checked individually if the difference in wd/stig from
                 # the autofocus correction is within the permissable limit,
