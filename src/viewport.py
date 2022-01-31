@@ -1229,7 +1229,7 @@ class Viewport(QWidget):
             if (self.sem.magc_mode
                 and len(self.gm.magc['selected_sections']) == 1):
 
-                if self.gm.magc_autofocus_points(magc_selected_section) != []:
+                if self.gm.magc_autofocus_points(magc_selected_section):
 
                     action_removeAutofocusPoint = menu.addAction(
                         'MagC | Remove last autofocus point of grid '

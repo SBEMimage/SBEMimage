@@ -1966,15 +1966,16 @@ class Acquisition:
                 self.cs.vp_centre_dx_dy = self.gm[grid_index].centre_dx_dy
                 self.main_controls_trigger.transmit('DRAW VP')
                 self.main_controls_trigger.transmit(
-                    'MAGC SET SECTION STATE GUI-'
-                    f'{grid_index}-acquiring')
+                    f'MAGC SET SECTION STATE GUI-{grid_index}-acquiring'
+                )
 
-                # the acq parameters stay the same across grids in magc
-                # todo: why is the very first tile acquisition failing?
-                # if this is solved, then this can be removed and 
-                # custom grid settings can be used for each grid
-                if grid_index !=0:
-                    adjust_acq_settings = False
+                # # the acq parameters stay the same across grids in magc
+                # # TODO: why is the very first tile acquisition failing?
+                # # if this is solved, then this can be removed and 
+                # # custom grid settings can be used for each grid
+                # # TODO: to remove?
+                # if grid_index !=0:
+                #     adjust_acq_settings = False
 
             if self.acq_interrupted:
                 # Remove tiles that are no longer active from
@@ -1987,8 +1988,8 @@ class Acquisition:
             # Set WD and stig settings for the current grid
             # and lock the settings unless individual adjustment is required
             if not adjust_wd_stig:
-                # MagC: WD/stig is kept at the current values from grid to grid
                 if not self.magc_mode:
+                    # WD/stig is set elsewhere for magc
                     self.set_default_wd_stig()
                 self.lock_wd_stig()
 
@@ -2000,7 +2001,7 @@ class Acquisition:
             else:
                 theta = theta % 360
                 # workaround to make sure that the set_scan_rotation
-                # command is issued below. I would suggest changing
+                # command is issued below. TT would suggest changing
                 # the check below to if theta >= 0: but it might not
                 # be OK for non-magc applications
                 if theta == 0:
@@ -2712,6 +2713,62 @@ class Acquisition:
         # Back to previous store resolution:
         self.sem.set_frame_size(target_store_res)
 
+    def do_autofocus_position(self, position, grid_index, id_focus):
+        """Run SmartSEM autofocus at given position"""
+        do_focus, do_stig = self.autofocus_stig_current_slice
+        move_msg = (
+            "STAGE-MagC",
+            f"Moving to {position} for AFAS of grid {grid_index} at focus point {id_focus}",
+        )
+        self.double_log(move_msg)
+        self.stage.move_to_xy(position)
+        if self.stage.error_state != Error.none:
+            self.stage.reset_error_state()
+            self.double_log('STAGE', 'Problem with XY move. Trying again.')
+            self.add_to_incident_log('WARNING (Problem with XY stage move)')
+            sleep(2)
+            # Try to move to tile position again
+            self.double_log(move_msg)
+            self.stage.move_to_xy(position)
+            # Check again if there is an error
+            self.error_state = self.stage.error_state
+            self.stage.reset_error_state()
+            # If yes, pause stack
+            if self.error_state != Error.none:
+                self.double_log("STAGE-MagC", "XY move for autofocus failed.")
+
+        if self.error_state != Error.none:
+            return None
+        self.main_controls_trigger.transmit('DRAW VP') # show that the stage moved
+        if do_focus and do_stig:
+            af_type = '(focus+stig)'
+        elif do_focus:
+            af_type = '(focus only)'
+        elif do_stig:
+            af_type = '(stig only)'
+
+        if self.autofocus.method == 0:
+            self.double_log(
+                'SEM-MagC',
+                f'Running SmartSEM AF procedure {af_type} for grid {grid_index}'
+            )
+            autofocus_msg = 'SEM', self.autofocus.run_zeiss_af(do_focus, do_stig)
+
+        self.double_log(*autofocus_msg)
+        if 'ERROR' in autofocus_msg[1]:
+            self.error_state = Error.autofocus_smartsem
+            return None
+        else:
+            wd = self.sem.get_wd()
+            sx, sy = list(self.sem.get_stig_xy())
+            self.double_log(
+                "SEM",
+                f"Result of {af_type}: \nWD: {wd*1000:.4f}\n StigX: {sx}\nStigY: {sy}"
+            )
+            # Show updated WD label(s) in Viewport
+            self.main_controls_trigger.transmit('DRAW VP')
+            return wd, sx, sy
+
     def do_autofocus(self, do_focus, do_stig, do_move, grid_index, tile_index):
         """Run SmartSEM autofocus at current stage position if do_move == False,
         otherwise move to grid_index.tile_index position beforehand.
@@ -2825,10 +2882,17 @@ class Acquisition:
             # Show updated WD label(s) in Viewport
             self.main_controls_trigger.transmit('DRAW VP')
 
+    def double_log(self, header, msg):
+        utils.log_info(header, msg)
+        self.add_to_main_log(f'{header}: {msg}')
+        
+
     def do_autofocus_before_grid_acq(self, grid_index):
         """If non-active tiles are selected for the SmartSEM autofocus, call the
         autofocus on them one by one before the grid acquisition starts.
         """
+        if self.gm.magc_mode:
+            return self.magc_do_autofocus_before_grid_acq(grid_index)
         autofocus_ref_tiles = self.gm[grid_index].autofocus_ref_tiles()
         active_tiles = self.gm[grid_index].active_tiles
         # Perform Zeiss autofocus for non-active autofocus tiles
@@ -2844,6 +2908,48 @@ class Acquisition:
                         self.pause_acquisition(1)
                     self.set_interruption_point(grid_index, tile_index)
                     break
+
+
+    def magc_do_autofocus_before_grid_acq(self, grid_index):
+        """
+        Perform AF/AS at focus positions for the grid
+        Adds AFAS_Results to the grid
+        AFAS_results: list[
+            [xy, (wd, sx, sy)]
+        ]
+        """
+        focus_positions = self.gm.magc_autofocus_points(grid_index)
+        AFAS_results = [] # results for each focus point
+        for id_focus, focus_position in enumerate(focus_positions):
+            if id_focus !=0:
+                # if autostig for this grid, then must be done in the first
+                # focus point
+                self.autofocus_stig_current_slice = (
+                    self.autofocus_stig_current_slice[0], False)
+            operation_str = (
+                    self.autofocus_stig_current_slice[0] * "Autostig "
+                    + self.autofocus_stig_current_slice[1] * "Autofocus"
+            )
+            self.double_log(
+                "MagC-CTRL",
+                f"Performing {operation_str} in autofocus point #{id_focus} in grid {grid_index}")
+            AFAS_results.append([
+                focus_position,
+                self.do_autofocus_position(focus_position, grid_index, id_focus)
+            ])
+            if self.error_state != Error.none or self.pause_state == 1:
+                # Immediately pause and save interruption info
+                if not self.acq_paused:
+                    self.pause_acquisition(1)
+                self.set_interruption_point(grid_index, tile_index)
+                break
+        AFAS_results = [
+            result 
+            for result in self.AFAS_results
+            if result[1]
+        ]
+        if AFAS_results:
+            self.gm[grid_index].AFAS_results = AFAS_results 
 
     def do_heuristic_autofocus(self, tile_key):
         utils.log_info('CTRL',
@@ -2875,9 +2981,12 @@ class Acquisition:
             self.add_to_main_log(
                 'CTRL: No estimates computed (need one additional slice) ')
 
+
     def do_autofocus_adjustments(self, grid_index):
         # Apply average WD/STIG from reference tiles
         # if tracking mode "Average" is selected.
+        if self.gm.magc_mode:
+            self.magc_do_autofocus_adjustments(self, grid_index)
         if self.use_autofocus and self.autofocus.tracking_mode == 2:
             if self.autofocus.method == 0:
                 utils.log_info(
@@ -2927,6 +3036,19 @@ class Acquisition:
 
         # If focus gradient active, adjust focus for grid(s):
         # TODO
+
+
+    def magc_do_autofocus_adjustments(self, grid_index):
+        """Apply focus gradient on grid based on AFAS performed on the focus points"""
+        if not hasattr(self.gm[grid_index], "AFAS_results"):
+            self.double_log(
+                "MagC-CTRL",
+                f"No grid autofocus adjustment for grid {grid_index}"
+            )
+            return
+        self.double_log("MagC-CTRL", "Applying WD/STIG to the grid")
+        self.gm[grid_index].set_wd_stig_from_calibrated_points()
+
 
     def lock_wd_stig(self):
         self.locked_wd = self.sem.get_wd()

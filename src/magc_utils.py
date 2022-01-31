@@ -1,4 +1,5 @@
 import os
+
 import utils
 import io
 import configparser
@@ -14,6 +15,8 @@ from shapely.geometry import Point
 from scipy.spatial import ConvexHull
 from scipy.spatial.distance import cdist
 
+import warnings
+warnings.filterwarnings("ignore")
 ###############################
 # format of the magc dictionary
 ###############################
@@ -477,8 +480,24 @@ def pad_left(a,v):
             constant_values=v,
         )
 
-def focus_points_from_focused_points(focused_points, points_to_focus):
+def get_regression(a):
+    ols = smapi.OLS(
+        a[:, 2], # z
+        pad_left(a[:, :2], 1),
+    )
+    return ols.fit()
+
+def predict(regression, to_predict):
+    return regression.predict(
+        pad_left(to_predict, 1)
+    )
+
+
+def focus_points_from_focused_points(focused_points, points_to_focus, verbose=False):
     """
+    Tries to focus points based on some focused_points with a linear interpolation.
+    Also works when len(focused_points) = 1,2
+    Removes outliers automatically with a bonferoni test.
     Input:
         focused_points = [
                 [x,y,z],
@@ -500,56 +519,77 @@ def focus_points_from_focused_points(focused_points, points_to_focus):
         None if too many outliers or newly_focused_points,
         index of the outliers
     """
-
-    points_to_focus = points_to_focus[:, :2]
-
-    # first fit
-    ols = smapi.OLS(
-        focused_points[:, 2], # z
-        pad_left(
-            focused_points[:, :2], # x,y
-            1)
+    points_to_focus = np.array(
+        points_to_focus[:, :2],
+        dtype=float, # needed
+    )
+    focused_points = np.array(focused_points, dtype=float)
+    if len(focused_points) == 1:
+        return np.insert(
+            points_to_focus,
+            2,
+            focused_points[0][2],
+            axis=1,
         )
-    regression = ols.fit()
-
+    # first fit
+    regression = get_regression(focused_points)
+    if verbose:
+        print(regression.summary())
     # find outliers
     id_outliers = np.where(
-        regression.outlier_test()[:, 2] < 0.5)
+        regression.outlier_test()[:, 2] < 0.5
+    )[0]
 
-    if len(focused_points)-len(id_outliers) < 3:
-        # failure: too many outliers
-        newly_focused_points = None
+    if len(id_outliers) > 0:
+        # compute the fit again without outliers
+        focused_points_without_outliers = np.delete(
+            focused_points,
+            id_outliers,
+            axis=0,
+        )
+        if len(focused_points) == 1:
+            print("ERROR: This case should not happen")
+            return np.insert(
+                points_to_focus,
+                2,
+                focused_points_without_outliers[0][2],
+                axis=1,
+            )
+        regression = get_regression(focused_points_without_outliers)
+        if verbose:
+            print(regression.summary())
 
-    else:
-        if len(id_outliers)>0:
-            # compute the fit again without outliers
-            ols = smapi.OLS(
-                np.delete(
-                    focused_points[:, 2],
-                    id_outliers,
-                    axis=0),
-                pad_left(
-                    np.delete(
-                        focused_points[:, :2],
-                        id_outliers,
-                        axis=0),
-                    1)
-                )
-            regression = ols.fit()
-
-        newly_focused_points = np.insert(
-                points_to_focus,  # x,y
-                2,                # insert column z
-                regression.predict(
-                    pad_left(
-                        points_to_focus,
-                        1,
-                    )),
-                axis=1)
-
+    prediction = predict(regression, points_to_focus)
+    newly_focused_points = np.insert(
+        points_to_focus,  # x,y
+        2,                # insert column z
+        prediction,
+        axis=1,
+    )
     return newly_focused_points, id_outliers
 ####################################################
+# # Test of focus_points_from_focused_points
+# x = np.array([0,  0, 10, 10,])
+# y = np.array([0, 20, 50, 11,])
+# z = 3*x + 5*y + 8 + np.random.normal(0, 5,len(x))
+# input = np.stack((x,y,z), axis=1)
+# input = np.vstack(
+#     [
+#         input,
+#         [10,10,70],
+#     ],
+# )
+# print(f"{input=}")
+# a = focus_points_from_focused_points(
+#     input[:5],
+#     input.T[:2].T,
+#     # verbose=True,
+# )
+# print(f"{a=}")
+# print(f"{a[1]=}")
+# print(f"{len(a[1])=}")
 ####################################################
+
 
 #######################################################
 # functions to select focus points for entire substrate

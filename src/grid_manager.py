@@ -598,6 +598,67 @@ class Grid:
         else:
             return None
 
+    def set_wd_stig_from_calibrated_points(self):
+        """
+        Interpolate the wd,stig values of the calibratd points
+        and apply them to all tiles in the grid
+        """
+        if not hasattr(self, "AFAS_results"):
+            # no focus points were defined for that grid
+            # or the autofocus/stig failed
+            return
+        wd_calibrated_points = np.array([
+            [
+                r[0][0],
+                r[0][1],
+                r[1][0],
+            ]
+            for r in self.AFAS_results
+        ])
+        stigx_calibrated_points = np.array([
+            [
+                r[0][0],
+                r[0][1],
+                r[1][1],
+            ]
+            for r in self.AFAS_results
+        ])
+        stigy_calibrated_points = np.array([
+            [
+                r[0][0],
+                r[0][1],
+                r[1][2],
+            ]
+            for r in self.AFAS_results
+        ])
+        xy_tiles = [tile.sx_sy for tile in self.__tiles]
+        wd_tiles, wd_outliers = magc_utils.focus_points_from_focused_points(
+            wd_calibrated_points,
+            xy_tiles,
+        )
+        if len(wd_outliers)>0:
+            utils.log_warning(f"There are autofocus outliers: {wd_outliers}")
+        stigx_tiles, stigx_outliers = magc_utils.focus_points_from_focused_points(
+            stigx_calibrated_points,
+            xy_tiles,
+        )
+        if len(stigx_outliers)>0:
+            utils.log_warning(f"There are autostig_x outliers: {stigx_outliers}")
+        stigy_tiles, stigy_outliers = magc_utils.focus_points_from_focused_points(
+            stigy_calibrated_points,
+            xy_tiles,
+        ) 
+        if len(stigy_outliers)>0:
+            utils.log_warning(f"There are autostig_y outliers: {stigy_outliers}")
+
+        for tile, wd, stigx, stigy in zip(
+            self.__tiles, wd_tiles, stigx_tiles, stigy_tiles
+        ):
+            tile.wd = wd
+            tile.sx_sy = stigx, stigy
+
+
+
     def set_stig_xy_for_all_tiles(self, stig_xy):
         """Set the same stigmation parameters for all tiles in the grid."""
         for tile in self.__tiles:
