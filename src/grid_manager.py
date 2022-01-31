@@ -600,8 +600,9 @@ class Grid:
 
     def set_wd_stig_from_calibrated_points(self):
         """
-        Interpolate the wd,stig values of the calibratd points
+        Interpolates the wd,stig values of the calibrated points
         and apply them to all tiles in the grid
+        Used in magc_mode.
         """
         if not hasattr(self, "AFAS_results"):
             # no focus points were defined for that grid
@@ -655,7 +656,7 @@ class Grid:
             self.__tiles, wd_tiles, stigx_tiles, stigy_tiles
         ):
             tile.wd = wd
-            tile.sx_sy = stigx, stigy
+            tile.stig_xy = stigx, stigy
 
 
 

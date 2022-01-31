@@ -1963,6 +1963,12 @@ class Acquisition:
             % grid_index)
 
         if self.magc_mode:
+            # WD/stig is set elsewhere for magc
+            # 1. interpolative focus computed before grid acquisition
+            # 2. or kept the same from the previous grid if current grid
+            # does not have focus points
+            adjust_wd_stig = False
+
             # In MagC mode: Track grid being acquired in Viewport
             self.cs.vp_centre_dx_dy = self.gm[grid_index].centre_dx_dy
             self.main_controls_trigger.transmit('DRAW VP')
@@ -1990,9 +1996,8 @@ class Acquisition:
         # and lock the settings unless individual adjustment is required
         if not adjust_wd_stig:
             if not self.magc_mode:
-                # WD/stig is set elsewhere for magc
                 self.set_default_wd_stig()
-            self.lock_wd_stig()
+                self.lock_wd_stig()
 
         theta = self.gm[grid_index].rotation
         # TODO: Whether theta or (360 - theta) must be used here may be
@@ -2261,7 +2266,7 @@ class Acquisition:
             if not os.path.isfile(save_path) or retake_img:
                 # If current tile has different focus settings from previous
                 # tile, adjust working distance and stigmation for this tile
-                if adjust_wd_stig and not self.magc_mode:
+                if adjust_wd_stig:
                     new_wd = (self.gm[grid_index][tile_index].wd
                               + self.wd_delta)
                     new_stig_x = (self.gm[grid_index][tile_index].stig_xy[0]
@@ -2342,6 +2347,12 @@ class Acquisition:
                     f'Tile {tile_id}: Image file already exists!')
                 self.add_to_main_log(
                     'CTRL: Tile %s: Image file already exists!' %tile_id)
+            
+            if self.magc_mode:
+                # set wd,stig calculated at the beginning of the grid
+                self.sem.set_wd(self.gm[grid_index][tile_index].wd)
+                self.sem.set_stig_xy(*self.gm[grid_index][tile_index].stig_xy)
+
 
         # Proceed if no error has ocurred and tile not skipped:
         if all([
@@ -2360,7 +2371,8 @@ class Acquisition:
                 self.gm[grid_index][tile_index].autofocus_active,
                 (self.autofocus_stig_current_slice[0]
                     or self.autofocus_stig_current_slice[1]),
-                ]):
+                not self.magc_mode,
+            ]):
 
                 do_move = False  # already at tile stage position
                 self.do_autofocus(*self.autofocus_stig_current_slice,
@@ -2372,7 +2384,7 @@ class Acquisition:
                 if all([
                     self.error_state == Error.none,
                     self.autofocus.tracking_mode == 0,
-                    ]):
+                ]):
                     self.autofocus.approximate_wd_stig_in_grid(grid_index)
                     self.main_controls_trigger.transmit('DRAW VP')
 
@@ -2391,10 +2403,10 @@ class Acquisition:
                 self.lock_mag()
 
             if not self.error_state in [
-                    Error.autofocus_smartsem,
-                    Error.autofocus_heuristic,
-                    Error.wd_stig_difference,
-                ]:
+                Error.autofocus_smartsem,
+                Error.autofocus_heuristic,
+                Error.wd_stig_difference,
+            ]:
                 # Check mag if locked
                 if self.mag_locked:
                     self.check_locked_mag()
@@ -2490,10 +2502,10 @@ class Acquisition:
                     self.main_controls_trigger.transmit('DRAW VP')
 
                     if self.error_state in [
-                            Error.autofocus_smartsem,
-                            Error.autofocus_heuristic,
-                            Error.wd_stig_difference,
-                        ]:
+                        Error.autofocus_smartsem,
+                        Error.autofocus_heuristic,
+                        Error.wd_stig_difference,
+                    ]:
                         # Don't accept tile if autofocus error has ocurred
                         tile_accepted = False
                     else:
@@ -2534,7 +2546,7 @@ class Acquisition:
                             elif all([
                                 slice_by_slice_test_passed is not None,
                                 not slice_by_slice_test_passed,
-                                ]):
+                            ]):
                                 tile_accepted = False
                                 self.error_state = Error.tile_image_compare
                                 utils.log_error(
@@ -2569,7 +2581,7 @@ class Acquisition:
                 Error.frame_frozen,
                 Error.tile_image_range,
                 Error.tile_image_compare],
-            ]):
+        ]):
             self.main_controls_trigger.transmit('ASK IMAGE ERROR OVERRIDE')
             while self.user_reply is None:
                 sleep(0.1)
@@ -2892,7 +2904,7 @@ class Acquisition:
         """If non-active tiles are selected for the SmartSEM autofocus, call the
         autofocus on them one by one before the grid acquisition starts.
         """
-        if self.gm.magc_mode:
+        if self.magc_mode:
             return self.magc_do_autofocus_before_grid_acq(grid_index)
         autofocus_ref_tiles = self.gm[grid_index].autofocus_ref_tiles()
         active_tiles = self.gm[grid_index].active_tiles
@@ -2986,7 +2998,7 @@ class Acquisition:
     def do_autofocus_adjustments(self, grid_index):
         # Apply average WD/STIG from reference tiles
         # if tracking mode "Average" is selected.
-        if self.gm.magc_mode:
+        if self.magc_mode:
             self.magc_do_autofocus_adjustments(self, grid_index)
         if self.use_autofocus and self.autofocus.tracking_mode == 2:
             if self.autofocus.method == 0:
