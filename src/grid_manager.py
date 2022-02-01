@@ -1326,19 +1326,16 @@ class GridManager:
             self.__grids[grid_index].magc_autofocus_points_source)
 
     def magc_convert_to_current_grid(self, grid_index, input_points):
-        grid = self.__grids[grid_index]
         if input_points == []:
             return []
-
+        grid = self.__grids[grid_index]
         transformed_points = []
-
+        scale_factor = (
+            magc_utils.getAffineScaling(self.magc['transform'])
+            if self.magc["calibrated"]
+            else 1
+        )
         grid_center_c = np.dot(grid.centre_sx_sy, [1,1j])
-        
-        if self.magc['calibrated']:
-            scale_factor = magc_utils.getAffineScaling(self.magc['transform'])
-        else:
-            scale_factor = 1
-        
         for point in input_points:
             point_c = np.dot(point, [1,1j])
             transformed_point_c = (
@@ -1349,69 +1346,52 @@ class GridManager:
                     * np.exp(1j * np.radians(grid.rotation))
                 )
             )
-
-            transformed_point = (
+            transformed_points.append([
                 np.real(transformed_point_c),
-                np.imag(transformed_point_c))
-
-            # if self.magc['calibrated']:
-                # (transformed_point_x,
-                # transformed_point_y) = magc_utils.applyAffineT(
-                    # [transformed_point[0]],
-                    # [transformed_point[1]],
-                    # self.magc['transform'],
-                    # flip_x=self.sem.device_name.lower() in [
-                            # 'zeiss merlin',
-                            # 'zeiss sigma',
-                    # ])
-                # transformed_point = (
-                    # transformed_point_x[0],
-                    # transformed_point_y[0])
-
-            transformed_points.append(
-                transformed_point)
-
+                np.imag(transformed_point_c),
+            ])
         return transformed_points
 
     def magc_convert_to_source(self, grid_index, input_points):
         grid = self.__grids[grid_index]
         transformed_points = []
 
+        scale_factor = (
+            1 / float(magc_utils.getAffineScaling(self.magc['transform']))
+            if self.magc["calibrated"]
+            else 1
+        )
         # _c indicates complex number
         grid_center_c = np.dot(
             grid.centre_sx_sy,
-            [1,1j])
+            [1, 1j],
+        )
+        # # updating input_points if wafer_calibrated
+        # # overwriting same variable
+        # if self.magc['calibrated']:
+        #     (transformed_points_x,
+        #     transformed_points_y ) = magc_utils.applyAffineT(
+        #         [input_point[0] for input_point in input_points],
+        #         [input_point[1] for input_point in input_points],
+        #         magc_utils.invertAffineT(self.magc['transform']),
+        #         flip_x=False,
+        #         )
 
-        # updating input_points if wafer_calibrated
-        # overwriting same variable
-        if self.magc['calibrated']:
-            (transformed_points_x,
-            transformed_points_y ) = magc_utils.applyAffineT(
-                [input_point[0] for input_point in input_points],
-                [input_point[1] for input_point in input_points],
-                magc_utils.invertAffineT(self.magc['transform']),
-                flip_x=False,
-                )
-
-            input_points = [
-                (transformed_point_x, transformed_point_y)
-                for transformed_point_x, transformed_point_y
-                in zip(transformed_points_x, transformed_points_y)]
-
+        #     input_points = [
+        #         (transformed_point_x, transformed_point_y)
+        #         for transformed_point_x, transformed_point_y
+        #         in zip(transformed_points_x, transformed_points_y)]
         for point in input_points:
-            point_c = np.dot(
-                point,
-                [1,1j])
-
+            point_c = np.dot(point, [1,1j])
             transformed_point_c = (
                 (point_c - grid_center_c)
-                * np.exp(1j * np.radians(-grid.rotation)))
-
-            transformed_point = (
+                * np.exp(1j * np.radians(-grid.rotation))
+                * scale_factor
+            )
+            transformed_points.append([
                 np.real(transformed_point_c),
-                np.imag(transformed_point_c))
-
-            transformed_points.append(transformed_point)
+                np.imag(transformed_point_c),
+            ])
         return transformed_points
 
     def magc_add_autofocus_point(self, grid_index, input_af_point):
