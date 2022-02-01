@@ -522,11 +522,11 @@ def focus_points_from_focused_points(focused_points, points_to_focus, verbose=Fa
         None if too many outliers or newly_focused_points,
         index of the outliers
     """
-    points_to_focus = np.array(
-        points_to_focus[:, :2],
-        dtype=float, # needed
-    )
+    points_to_focus = np.array(points_to_focus, dtype=float)
+    points_to_focus = points_to_focus[:, :2]
+
     focused_points = np.array(focused_points, dtype=float)
+
     if len(focused_points) == 1:
         return np.insert(
             points_to_focus,

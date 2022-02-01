@@ -655,8 +655,8 @@ class Grid:
         for tile, wd, stigx, stigy in zip(
             self.__tiles, wd_tiles, stigx_tiles, stigy_tiles
         ):
-            tile.wd = wd
-            tile.stig_xy = stigx, stigy
+            tile.wd = wd[2]
+            tile.stig_xy = stigx[2], stigy[2]
 
 
 
