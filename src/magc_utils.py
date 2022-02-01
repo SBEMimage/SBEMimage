@@ -51,7 +51,7 @@ warnings.filterwarnings("ignore")
         # .   'polygon': [[x1,y1],...,[xn,yn]]
         # :
         # n
-    # 'landmarksEM'
+    # 'landmarks'
         # 'source'
             # 1: [x,y]
             # .
@@ -85,7 +85,7 @@ def create_empty_magc():
         'rois': {},
         'magnets': {},
         'focus': {},
-        'landmarksEM': {
+        'landmarks': {
             'source': {},
             'target': {}
             },
@@ -162,9 +162,9 @@ def read_magc(magc_path):
                         for x,y in zip(vals[::2], vals[1::2])]
                     magc['focus'][focus_id]['polygon'] = focus_points
 
-        elif header.startswith('landmarksEM.'):
+        elif header.startswith('landmarks.'):
             landmark_id = int(header.split('.')[1])
-            magc['landmarksEM']['source'][landmark_id] = [float(x) for x in config.get(header, 'location').split(',')]
+            magc['landmarks']['source'][landmark_id] = [float(x) for x in config.get(header, 'location').split(',')]
 
         elif header == 'serialorder':
             value = config.get('serialorder', 'serialorder')
@@ -333,8 +333,11 @@ def getAffineRotation(aff):
 
 def getAffineScaling(aff):
     x_out, y_out = applyAffineT([0,1000], [0,1000], aff)
-    scaling = (np.linalg.norm([x_out[1]-x_out[0], y_out[1]-y_out[0]])
-               / np.linalg.norm([1000,1000]))
+    scaling = np.linalg.norm(
+        [
+            x_out[1]-x_out[0],
+            y_out[1]-y_out[0],
+        ]) / np.linalg.norm([1000,1000])
     return scaling
 
 def rigidT(

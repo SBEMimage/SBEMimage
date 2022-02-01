@@ -2733,7 +2733,7 @@ class Acquisition:
             "STAGE-MagC",
             f"Moving to {position} for AFAS of grid {grid_index} at focus point {id_focus}",
         )
-        self.double_log(move_msg)
+        self.double_log(*move_msg)
         self.stage.move_to_xy(position)
         if self.stage.error_state != Error.none:
             self.stage.reset_error_state()
@@ -2741,7 +2741,7 @@ class Acquisition:
             self.add_to_incident_log('WARNING (Problem with XY stage move)')
             sleep(2)
             # Try to move to tile position again
-            self.double_log(move_msg)
+            self.double_log(*move_msg)
             self.stage.move_to_xy(position)
             # Check again if there is an error
             self.error_state = self.stage.error_state
@@ -2776,7 +2776,7 @@ class Acquisition:
             sx, sy = list(self.sem.get_stig_xy())
             self.double_log(
                 "SEM",
-                f"Result of {af_type}: \nWD: {wd*1000:.4f}\n StigX: {sx}\nStigY: {sy}"
+                f"Result of {af_type.lstrip('(').rstrip(')')}: \nWD: {wd*1000:.4f}\n StigX: {sx}\nStigY: {sy}",
             )
             # Show updated WD label(s) in Viewport
             self.main_controls_trigger.transmit('DRAW VP')
@@ -2904,7 +2904,9 @@ class Acquisition:
         """If non-active tiles are selected for the SmartSEM autofocus, call the
         autofocus on them one by one before the grid acquisition starts.
         """
+        self.double_log("MagC-Debug", "entering do_autofocus_before_grid_acq")
         if self.magc_mode:
+            self.double_log("MagC-Debug", "calling magc_do_autofocus_before_grid_acq")
             return self.magc_do_autofocus_before_grid_acq(grid_index)
         autofocus_ref_tiles = self.gm[grid_index].autofocus_ref_tiles()
         active_tiles = self.gm[grid_index].active_tiles
@@ -2958,10 +2960,11 @@ class Acquisition:
                 break
         AFAS_results = [
             result 
-            for result in self.AFAS_results
+            for result in AFAS_results
             if result[1]
         ]
         if AFAS_results:
+            self.double_log("MagC-Debug", "There are AFAS results: \n {}".format(AFAS_results))
             self.gm[grid_index].AFAS_results = AFAS_results 
 
     def do_heuristic_autofocus(self, tile_key):
@@ -2999,7 +3002,7 @@ class Acquisition:
         # Apply average WD/STIG from reference tiles
         # if tracking mode "Average" is selected.
         if self.magc_mode:
-            self.magc_do_autofocus_adjustments(self, grid_index)
+            self.magc_do_autofocus_adjustments(grid_index)
         if self.use_autofocus and self.autofocus.tracking_mode == 2:
             if self.autofocus.method == 0:
                 utils.log_info(

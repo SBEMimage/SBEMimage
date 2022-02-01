@@ -253,7 +253,7 @@ class ImportMagCDlg(QDialog):
         # activate stage show
         self.main_controls_trigger.transmit('ACTIVATE SHOW STAGE')
 
-        if len(magc['landmarksEM']['source']) > 2:
+        if len(magc['landmarks']['source']) > 2:
             self.main_controls_trigger.transmit('MAGC ENABLE CALIBRATION')
 
         self.main_controls_trigger.transmit('DRAW VP')
@@ -396,7 +396,7 @@ class WaferCalibrationDlg(QDialog):
 
         for id_lmk,key in enumerate(
                         sorted(
-                            self.gm.magc['landmarksEM']['source'])):
+                            self.gm.magc['landmarks']['source'])):
 
             # the target key does not exist until it is either
             # manually defined
@@ -405,9 +405,9 @@ class WaferCalibrationDlg(QDialog):
 
             item0 = QStandardItem(f'{key}')
             item1 = QStandardItem(
-                f'{self.gm.magc["landmarksEM"]["source"][key][0]:.3f}')
+                f'{self.gm.magc["landmarks"]["source"][key][0]:.3f}')
             item2 = QStandardItem(
-                f'{self.gm.magc["landmarksEM"]["source"][key][1]:.3f}')
+                f'{self.gm.magc["landmarks"]["source"][key][1]:.3f}')
 
             item5 = QPushButton('Set')
             item5.setFixedSize(QSize(50, 40))
@@ -425,15 +425,15 @@ class WaferCalibrationDlg(QDialog):
             item7.setFixedSize(QSize(60, 40))
             item7.clicked.connect(self.clear_landmark(id_lmk))
 
-            if key in self.gm.magc['landmarksEM']['target']:
+            if key in self.gm.magc['landmarks']['target']:
                 item0.setBackground(GREEN)
 
                 item3 = QStandardItem(
-                    f'{self.gm.magc["landmarksEM"]["target"][key][0]:.3f}')
+                    f'{self.gm.magc["landmarks"]["target"][key][0]:.3f}')
                 item3.setBackground(GREEN)
 
                 item4 = QStandardItem(
-                    f'{self.gm.magc["landmarksEM"]["target"][key][1]:.3f}')
+                    f'{self.gm.magc["landmarks"]["target"][key][1]:.3f}')
                 item4.setBackground(GREEN)
             else:
                 item0.setBackground(GRAY)
@@ -467,7 +467,7 @@ class WaferCalibrationDlg(QDialog):
             item4.setData('', Qt.DisplayRole)
             item4.setBackground(GRAY)
 
-            del self.gm.magc['landmarksEM']['target'][row]
+            del self.gm.magc['landmarks']['target'][row]
 
             # update table
             item0 = self.lTable.model().item(row, 0)
@@ -518,14 +518,14 @@ class WaferCalibrationDlg(QDialog):
             item7.setEnabled(True)
 
             # update landmarks
-            self.gm.magc['landmarksEM']['target'][row] = [x,y]
+            self.gm.magc['landmarks']['target'][row] = [x,y]
 
             # compute transform and update landmarks
-            n_landmarks = len(self.gm.magc['landmarksEM']['source'])
+            n_landmarks = len(self.gm.magc['landmarks']['source'])
 
             calibratedLandmarkIds = [
                 id for id
-                in self.gm.magc['landmarksEM']['source']
+                in self.gm.magc['landmarks']['source']
                 if self.lTable.model().item(id, 0).background().color()==GREEN]
 
                 # the green color shows that the landmark has been
@@ -545,26 +545,26 @@ class WaferCalibrationDlg(QDialog):
                 # (minimum 2)
 
                 x_landmarks_source = np.array([
-                    self.gm.magc['landmarksEM']['source'][i][0]
+                    self.gm.magc['landmarks']['source'][i][0]
                     for i in range(n_landmarks)])
                 y_landmarks_source = np.array([
-                    self.gm.magc['landmarksEM']['source'][i][1]
+                    self.gm.magc['landmarks']['source'][i][1]
                     for i in range(n_landmarks)])
 
                 # taking only the source landmarks for which there is a
                 # corresponding target landmark
                 x_landmarks_source_partial = np.array(
-                    [self.gm.magc['landmarksEM']['source'][i][0]
+                    [self.gm.magc['landmarks']['source'][i][0]
                      for i in calibratedLandmarkIds])
                 y_landmarks_source_partial = np.array(
-                    [self.gm.magc['landmarksEM']['source'][i][1]
+                    [self.gm.magc['landmarks']['source'][i][1]
                      for i in calibratedLandmarkIds])
 
                 x_landmarks_target_partial = np.array(
-                    [self.gm.magc['landmarksEM']['target'][i][0]
+                    [self.gm.magc['landmarks']['target'][i][0]
                      for i in calibratedLandmarkIds])
                 y_landmarks_target_partial = np.array(
-                    [self.gm.magc['landmarksEM']['target'][i][1]
+                    [self.gm.magc['landmarks']['target'][i][1]
                      for i in calibratedLandmarkIds])
 
                 flip_x = self.gm.sem.device_name.lower() in [
@@ -604,7 +604,7 @@ class WaferCalibrationDlg(QDialog):
                     y = y_target_updated_landmarks[noncalibratedLandmarkId]
                     # (self.cs.magc_landmarks
                         # [str(noncalibratedLandmarkId)]['target']) = [x,y]
-                    self.gm.magc['landmarksEM']['target'][noncalibratedLandmarkId] = [x,y]
+                    self.gm.magc['landmarks']['target'][noncalibratedLandmarkId] = [x,y]
 
                     item0 = self.lTable.model().item(
                         noncalibratedLandmarkId,
@@ -662,10 +662,10 @@ class WaferCalibrationDlg(QDialog):
     def validate_calibration(self):
         calibratedLandmarkIds = [
             id for id
-            in self.gm.magc['landmarksEM']['source']
+            in self.gm.magc['landmarks']['source']
             if self.lTable.model().item(id, 0).background().color()==GREEN]
 
-        n_landmarks = len(self.gm.magc['landmarksEM']['source'])
+        n_landmarks = len(self.gm.magc['landmarks']['source'])
 
         if len(calibratedLandmarkIds) != n_landmarks:
             utils.log_info(
@@ -674,17 +674,17 @@ class WaferCalibrationDlg(QDialog):
                     +'must first be validated.'))
         else:
             x_landmarks_source = [
-                self.gm.magc['landmarksEM']['source'][i][0]
+                self.gm.magc['landmarks']['source'][i][0]
                 for i in range(n_landmarks)]
             y_landmarks_source = [
-                self.gm.magc['landmarksEM']['source'][i][1]
+                self.gm.magc['landmarks']['source'][i][1]
                 for i in range(n_landmarks)]
 
             x_landmarks_target = [
-                self.gm.magc['landmarksEM']['target'][i][0]
+                self.gm.magc['landmarks']['target'][i][0]
                 for i in range(n_landmarks)]
             y_landmarks_target = [
-                self.gm.magc['landmarksEM']['target'][i][1]
+                self.gm.magc['landmarks']['target'][i][1]
                 for i in range(n_landmarks)]
 
             utils.log_info(

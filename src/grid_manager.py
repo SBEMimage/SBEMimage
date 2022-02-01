@@ -1333,30 +1333,40 @@ class GridManager:
         transformed_points = []
 
         grid_center_c = np.dot(grid.centre_sx_sy, [1,1j])
+        
+        if self.magc['calibrated']:
+            scale_factor = magc_utils.getAffineScaling(self.magc['transform'])
+        else:
+            scale_factor = 1
+        
         for point in input_points:
             point_c = np.dot(point, [1,1j])
             transformed_point_c = (
                 grid_center_c
-                + point_c
-                    * np.exp(1j * np.radians(grid.rotation)))
+                + (
+                    point_c
+                    * scale_factor
+                    * np.exp(1j * np.radians(grid.rotation))
+                )
+            )
 
             transformed_point = (
                 np.real(transformed_point_c),
                 np.imag(transformed_point_c))
 
-            if self.magc['calibrated']:
-                (transformed_point_x,
-                transformed_point_y) = magc_utils.applyAffineT(
-                    [transformed_point[0]],
-                    [transformed_point[1]],
-                    self.magc['transform'],
-                    flip_x=self.sem.device_name.lower() in [
-                            'zeiss merlin',
-                            'zeiss sigma',
-                    ])
-                transformed_point = (
-                    transformed_point_x[0],
-                    transformed_point_y[0])
+            # if self.magc['calibrated']:
+                # (transformed_point_x,
+                # transformed_point_y) = magc_utils.applyAffineT(
+                    # [transformed_point[0]],
+                    # [transformed_point[1]],
+                    # self.magc['transform'],
+                    # flip_x=self.sem.device_name.lower() in [
+                            # 'zeiss merlin',
+                            # 'zeiss sigma',
+                    # ])
+                # transformed_point = (
+                    # transformed_point_x[0],
+                    # transformed_point_y[0])
 
             transformed_points.append(
                 transformed_point)
