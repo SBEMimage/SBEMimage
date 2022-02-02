@@ -340,6 +340,11 @@ class Viewport(QWidget):
         mouse_pos_within_plot_area = (
             px in range(445, 940) and py in range(22, 850))
 
+        if self.sem.magc_mode and not self.sem.simulation_mode:
+            # update stage position indicator at any click in VP
+            self.stage.get_xy()
+            self.vp_draw()
+
         if ((event.button() == Qt.LeftButton)
             and (self.tabWidget.currentIndex() < 2)
             and mouse_pos_within_viewer):
