@@ -151,8 +151,9 @@ class Viewport(QWidget):
         when an acquisition is running."""
         self.busy = b
         b ^= True
-        self.pushButton_refreshOVs.setEnabled(b)
-        self.pushButton_acquireStubOV.setEnabled(b)
+        if not self.sem.magc_mode:
+            self.pushButton_refreshOVs.setEnabled(b)
+            self.pushButton_acquireStubOV.setEnabled(b)
         if not b:
             self.radioButton_fromStack.setChecked(not b)
         self.radioButton_fromSEM.setEnabled(b)

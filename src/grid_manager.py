@@ -1353,6 +1353,11 @@ class GridManager:
         return transformed_points
 
     def magc_convert_to_source(self, grid_index, input_points):
+        """
+        Converts coordinates of points back to non-rotated, non-wafer-transformed cooordinates
+        If the wafer is calibrated (i.e. self.magc['transform'] has been applied),
+        then the distance to the center of the grid must be scaled according to the transform
+        """
         grid = self.__grids[grid_index]
         transformed_points = []
 
@@ -1366,21 +1371,6 @@ class GridManager:
             grid.centre_sx_sy,
             [1, 1j],
         )
-        # # updating input_points if wafer_calibrated
-        # # overwriting same variable
-        # if self.magc['calibrated']:
-        #     (transformed_points_x,
-        #     transformed_points_y ) = magc_utils.applyAffineT(
-        #         [input_point[0] for input_point in input_points],
-        #         [input_point[1] for input_point in input_points],
-        #         magc_utils.invertAffineT(self.magc['transform']),
-        #         flip_x=False,
-        #         )
-
-        #     input_points = [
-        #         (transformed_point_x, transformed_point_y)
-        #         for transformed_point_x, transformed_point_y
-        #         in zip(transformed_points_x, transformed_points_y)]
         for point in input_points:
             point_c = np.dot(point, [1,1j])
             transformed_point_c = (
