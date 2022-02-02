@@ -968,8 +968,7 @@ class Viewport(QWidget):
         if self.sem.magc_mode:
             self.pushButton_refreshOVs.setEnabled(False)
             self.pushButton_acquireStubOV.setEnabled(False)
-            self.checkBox_useAutofocus.setEnabled(True)
-
+            
 
     def vp_update_grid_selector(self):
         if self.vp_current_grid >= self.gm.number_grids:

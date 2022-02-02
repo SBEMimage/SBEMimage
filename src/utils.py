@@ -119,6 +119,7 @@ class Error(Enum):
     fcc = 315
     aperture_size = 316
     high_current = 317
+    mode_normal = 318
 
     # I/O error
     primary_drive = 401

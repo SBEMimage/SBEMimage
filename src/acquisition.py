@@ -826,6 +826,9 @@ class Acquisition:
                 self.acq_interrupted = False
                 self.interrupted_at = []
                 self.tiles_acquired = []
+                
+            if self.sem.magc_mode:
+                self.sem.set_mode_normal()
 
         # ========================= ACQUISITION LOOP ===========================
 

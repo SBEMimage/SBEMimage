@@ -1017,12 +1017,13 @@ class MainControls(QMainWindow):
             'background-color: yellow')
         self.pushButton_magc_waferCalibration.setEnabled(False)
 
-        # deactivate some core SBEMimage functions
+        # deactivate/activate some core SBEMimage functions
         self.pushButton_microtomeSettings.setEnabled(False)
         self.actionMicrotomeSettings.setEnabled(False)
         self.actionDebrisDetectionSettings.setEnabled(False)
         self.actionAskUserModeSettings.setEnabled(False)
-
+        self.checkBox_useAutofocus.setEnabled(True)
+        
         # multisem
         self.pushButton_msem_loadZen.clicked.connect(
             self.msem_import_zen_experiment)

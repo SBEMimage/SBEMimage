@@ -245,6 +245,17 @@ class SEM_SmartSEM(SEM):
                 f'sem.set_fcc_level: command failed (ret_val: {ret_val})')
             return False
 
+    def set_mode_normal(self):
+        """Sets mode NORMAL (not split, not reduced, not emission)"""
+        ret_val = self.sem_execute('CMD_MODE_NORMAL')
+        if ret_val == 0:
+            return True
+        else:
+            self.error_state = Error.mode_normal
+            self.error_info = (
+                f'sem.mode_normal: command failed (ret_val: {ret_val})')
+            return False
+
     def get_beam_current(self):
         """Read beam current (in pA) from SmartSEM."""
         return int(round(self.sem_get('AP_IPROBE') * 10**12))
