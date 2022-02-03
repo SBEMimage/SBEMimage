@@ -535,9 +535,6 @@ class WaferCalibrationDlg(QDialog):
                 # here we are using only the manually calibrated landmarks
             noncalibratedLandmarkIds = (
                 set(range(n_landmarks)) - set(calibratedLandmarkIds))
-            utils.log_info(
-                'MagC-DEBUG',
-                f'calibratedLandmarkIds {calibratedLandmarkIds}')
 
             if len(calibratedLandmarkIds) > 1: # at least 2 landmarks needed
                 # calculating the wafer transform from source to target.
@@ -687,11 +684,6 @@ class WaferCalibrationDlg(QDialog):
                 self.gm.magc['landmarks']['target'][i][1]
                 for i in range(n_landmarks)]
 
-            utils.log_info(
-                'MagC-DEBUG',
-                ('x_landmarks_source, y_landmarks_source, x_landmarks_target, '
-                  'y_landmarks_target ' + str((x_landmarks_source, y_landmarks_source,
-                  x_landmarks_target, y_landmarks_target))))
 
             flip_x = self.gm.sem.device_name.lower() in [
                     'zeiss merlin',
@@ -706,16 +698,9 @@ class WaferCalibrationDlg(QDialog):
                 flip_x=flip_x,
                 )
 
-            utils.log_info(
-                'MagC-DEBUG',
-                f'waferTransform {self.gm.magc["transform"]}')
-
             # compute new grid locations
             # (always transform from reference source)
             n_sections = len(self.gm.magc['sections'])
-            utils.log_info(
-                'MagC-DEBUG',
-                f'n_sections {n_sections}')
 
             # ROI has priority over section:
             # if a ROI is defined:
@@ -753,9 +738,6 @@ class WaferCalibrationDlg(QDialog):
             angles_target = (angles_source + transformAngle) % 360
 
             # update grids
-            utils.log_info(
-                'MagC-DEBUG',
-                f'self.gm.number_grids: {self.gm.number_grids}')
             for grid_number in range(self.gm.number_grids):
                 self.gm[grid_number].auto_update_tile_positions = False
                 self.gm[grid_number].rotation = angles_target[grid_number]

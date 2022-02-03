@@ -826,7 +826,7 @@ class Acquisition:
                 self.acq_interrupted = False
                 self.interrupted_at = []
                 self.tiles_acquired = []
-                
+
             if self.sem.magc_mode:
                 self.sem.set_mode_normal()
 
@@ -1906,8 +1906,8 @@ class Acquisition:
                         # image inspection and error handling, and with
                         # autofocus on reference tiles)
                         self.acquire_grid(grid_index)
-                        
-                        
+
+
             else:
                 utils.log_info(
                     'CTRL',
@@ -1981,7 +1981,7 @@ class Acquisition:
 
             # # the acq parameters stay the same across grids in magc
             # # TODO: why is the very first tile acquisition failing?
-            # # if this is solved, then this can be removed and 
+            # # if this is solved, then this can be removed and
             # # custom grid settings can be used for each grid
             # # TODO: to remove?
             # if grid_index !=0:
@@ -2350,7 +2350,7 @@ class Acquisition:
                     f'Tile {tile_id}: Image file already exists!')
                 self.add_to_main_log(
                     'CTRL: Tile %s: Image file already exists!' %tile_id)
-            
+
             if self.magc_mode:
                 # set wd,stig calculated at the beginning of the grid
                 self.sem.set_wd(self.gm[grid_index][tile_index].wd)
@@ -2901,15 +2901,13 @@ class Acquisition:
     def double_log(self, header, msg):
         utils.log_info(header, msg)
         self.add_to_main_log(f'{header}: {msg}')
-        
+
 
     def do_autofocus_before_grid_acq(self, grid_index):
         """If non-active tiles are selected for the SmartSEM autofocus, call the
         autofocus on them one by one before the grid acquisition starts.
         """
-        self.double_log("MagC-Debug", "entering do_autofocus_before_grid_acq")
         if self.magc_mode:
-            self.double_log("MagC-Debug", "calling magc_do_autofocus_before_grid_acq")
             return self.magc_do_autofocus_before_grid_acq(grid_index)
         autofocus_ref_tiles = self.gm[grid_index].autofocus_ref_tiles()
         active_tiles = self.gm[grid_index].active_tiles
@@ -2962,13 +2960,12 @@ class Acquisition:
                 self.set_interruption_point(grid_index, tile_index)
                 break
         AFAS_results = [
-            result 
+            result
             for result in AFAS_results
             if result[1]
         ]
         if AFAS_results:
-            self.double_log("MagC-Debug", "There are AFAS results: \n {}".format(AFAS_results))
-            self.gm[grid_index].AFAS_results = AFAS_results 
+            self.gm[grid_index].AFAS_results = AFAS_results
 
     def do_heuristic_autofocus(self, tile_key):
         utils.log_info('CTRL',
