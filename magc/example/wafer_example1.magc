@@ -9536,19 +9536,19 @@ location = 2395.229,1350.015
 template = 0
 location = 2350.853,1224.743
 
-[landmarksEM]
+[landmarks]
 number = 4
 
-[landmarksEM.0000]
+[landmarks.0000]
 location = 1128.25,2709.5
 
-[landmarksEM.0001]
+[landmarks.0001]
 location = 2708.417,1013.833
 
-[landmarksEM.0002]
+[landmarks.0002]
 location = 4299.0,2747.167
 
-[landmarksEM.0003]
+[landmarks.0003]
 location = 2337.0,4050.75
 
 [serialorder]

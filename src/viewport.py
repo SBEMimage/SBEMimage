@@ -968,7 +968,7 @@ class Viewport(QWidget):
         if self.sem.magc_mode:
             self.pushButton_refreshOVs.setEnabled(False)
             self.pushButton_acquireStubOV.setEnabled(False)
-            
+
 
     def vp_update_grid_selector(self):
         if self.vp_current_grid >= self.gm.number_grids:
@@ -1458,13 +1458,60 @@ class Viewport(QWidget):
             self._draw_rectangle(self.vp_qp, self.drag_origin, self.drag_current,
                                  utils.COLOUR_SELECTOR[8], line_style=Qt.DashLine)
 
-        # --- in magc_mode ---
+        # --- magc_mode ---
         if self.grid_selection_or_draw_selection_box_active:
             self._draw_rectangle(self.vp_qp, self.drag_origin, self.drag_current,
                                  utils.COLOUR_SELECTOR[0], line_style=Qt.DashLine)
+        # magc landmarks
+        if self.sem.magc_mode:
+            self.vp_qp.setBrush(QBrush(
+                QColor(255,255,255,100),
+                Qt.SolidPattern,
+            ))
+            for landmark_id, landmark in enumerate(self.gm.magc_landmarks()):
+                landmark_v = self.cs.convert_d_to_v(landmark)
+                # draw cross
+                cross_length = 100 * self.cs.vp_scale
+                self.vp_qp.setPen(QColor(Qt.yellow))
+                self.vp_qp.drawLine(
+                    landmark_v[0] - cross_length,
+                    landmark_v[1],
+                    landmark_v[0] + cross_length,
+                    landmark_v[1],
+                )
+                self.vp_qp.drawLine(
+                    landmark_v[0],
+                    landmark_v[1] - cross_length,
+                    landmark_v[0],
+                    landmark_v[1] + cross_length,
+                )
+                # draw landmark label
+                font = QFont()
+                fontsize = int(self.cs.vp_scale * 8)
+                fontsize = max(fontsize, 10)
+                font.setPixelSize(fontsize)
+                self.vp_qp.setFont(font)
+                landmark_rect = QRect(
+                    landmark_v[0] - 50 * self.cs.vp_scale,
+                    landmark_v[1] - 12 * self.cs.vp_scale,
+                    int(6 * fontsize),
+                    int(4/3 * fontsize),
+                )
+                self.vp_qp.setPen(QColor(255,255,255,100))
+                self.vp_qp.drawRect(landmark_rect)
+                self.vp_qp.setPen(QColor(Qt.black))
+                self.vp_qp.drawText(
+                    landmark_rect,
+                    Qt.AlignVCenter | Qt.AlignHCenter,
+                    f"landmark {landmark_id}",
+                )
+
+
+
+        #-----------------------------------------#
+
+
         # ------
-
-
         if self.vp_measure_active:
             self._draw_measure_labels(self.vp_qp)
         # Show help panel
@@ -1524,7 +1571,7 @@ class Viewport(QWidget):
         try:
             vx, vy = self.cs.convert_d_to_v(
                 self.cs.convert_s_to_d(self.stage.last_known_xy))
-        except TypeError: # last_known_xy not defined (e.g. simulation mode)            
+        except TypeError: # last_known_xy not defined (e.g. simulation mode)
             return
         size = int(self.cs.vp_scale * 5)
         if size < 10:

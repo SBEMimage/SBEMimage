@@ -648,7 +648,7 @@ class Grid:
         stigy_tiles, stigy_outliers = magc_utils.focus_points_from_focused_points(
             stigy_calibrated_points,
             xy_tiles,
-        ) 
+        )
         if len(stigy_outliers)>0:
             utils.log_warning(f"There are autostig_y outliers: {stigy_outliers}")
 
@@ -1315,6 +1315,22 @@ class GridManager:
                     # # # grid.magc_polyroi_points_source[1:]
                     # # # + grid.magc_polyroi_points_source[:1])
 
+    def magc_landmarks(self):
+        if self.magc['calibrated']:
+            transformed_landmarks = magc_utils.applyAffineT(
+                [landmark[0] for landmark in self.magc['landmarks']['source'].values()],
+                [landmark[1] for landmark in self.magc['landmarks']['source'].values()],
+                self.magc['transform'],
+                # flip_x=False,
+                flip_x= self.sem.device_name.lower() in [
+                        'zeiss merlin',
+                        'zeiss sigma',
+                ],
+            )
+            return [[x,y] for x,y in zip(transformed_landmarks)]
+        else:
+            return self.magc['landmarks']['source'].values()
+
     def magc_autofocus_points(self, grid_index):
         """The magc_autofocus_points_source are in non-rotated grid coordinates
         without wafer transform.
@@ -1434,32 +1450,33 @@ class GridManager:
         sourceGridCenter = np.array(self.__grids[s].centre_sx_sy)
         sourceGridRotation = self.__grids[s].rotation
 
-        flip_x = self.sem.device_name.lower() in [
-                        'zeiss merlin',
-                        'zeiss sigma',
-                    ]
+        # flip_x = self.sem.device_name.lower() in [
+                        # 'zeiss merlin',
+                        # 'zeiss sigma',
+                    # ]
 
-        if self.magc['calibrated']:
-            # transform back the grid coordinates in non-transformed coordinates
-            # inefficient but ok for now:
+        # if self.magc['calibrated']:
+            # # transform back the grid coordinates in non-transformed coordinates
+            # # inefficient but ok for now:
 
-            waferTransformInverse = magc_utils.invertAffineT(self.magc['transform'])
+            # waferTransformInverse = magc_utils.invertAffineT(self.magc['transform'])
 
-            result = magc_utils.applyAffineT(
-                [sourceGridCenter[0]],
-                [sourceGridCenter[1]],
-                waferTransformInverse,
-                flip_x=False)
+            # result = magc_utils.applyAffineT(
+                # [sourceGridCenter[0]],
+                # [sourceGridCenter[1]],
+                # waferTransformInverse,
+                # flip_x=False)
 
-            sourceGridCenter = [
-                -result[0][0] if flip_x else result[0][0],
-                result[1][0]]
+            # sourceGridCenter = [
+                # -result[0][0] if flip_x else result[0][0],
+                # result[1][0]]
 
         sourceSectionGrid = sourceGridCenter - sourceSectionCenter
         sourceSectionGridDistance = np.linalg.norm(sourceSectionGrid)
         sourceSectionGridAngle = np.angle(
             np.dot(sourceSectionGrid, [1, 1j]), deg=True)
 
+        # set all parameters in target grid
         target_grid_rotation = (((180-targetSectionAngle + sourceGridRotation -
                                 (180-sourceSectionAngle))) % 360)
         self.__grids[t].rotation = target_grid_rotation
@@ -1495,17 +1512,17 @@ class GridManager:
             np.real(targetGridCenterComplex),
             np.imag(targetGridCenterComplex))
 
-        if self.magc['calibrated']:
-            # transform the grid coordinates to wafer coordinates
-            result = magc_utils.applyAffineT(
-                [targetGridCenter[0]],
-                [targetGridCenter[1]],
-                self.magc['transform'],
-                flip_x=self.sem.device_name.lower() in [
-                        'zeiss merlin',
-                        'zeiss sigma',
-                ])
-            targetGridCenter = [result[0][0], result[1][0]]
+        # if self.magc['calibrated']:
+            # # transform the grid coordinates to wafer coordinates
+            # result = magc_utils.applyAffineT(
+                # [targetGridCenter[0]],
+                # [targetGridCenter[1]],
+                # self.magc['transform'],
+                # flip_x=self.sem.device_name.lower() in [
+                        # 'zeiss merlin',
+                        # 'zeiss sigma',
+                # ])
+            # targetGridCenter = [result[0][0], result[1][0]]
 
         self.__grids[t].update_tile_positions()
         self.__grids[t].centre_sx_sy = targetGridCenter
