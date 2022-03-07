@@ -37,29 +37,12 @@ class Microtome_katana(Microtome):
         self.current_osc_freq = None
         self.current_osc_amp = None
         self.cut_completed = False 
+        # COM port
+        self.com_port = serial.Serial()
         # Connection status:
         self.connected = False
         # Try to connect with current selected port
         self.connect()
-        if self.connected:
-            # only for backwards compatibility with old controllers
-            # (the MCU no longer resets upon comms initialisation)
-            sleep(1)
-            # initial comm is lost when on arduino usb port. (ditto)
-            self._send_command(' ')
-            # clear any incoming data from the serial buffer
-            self.com_port.flushInput()
-            # need to delay after opening port before sending anything.
-            # 0.2s fails. 0.25s seems to be always OK. Suggest >0.3s for
-            # reliability.
-            sleep(0.3)
-            # if this software is the first to interact with the hardware
-            # after power-on, then the motor parameters need to be set
-            # (no harm to do anyway)
-            self.initialise_motor()
-            # get the initial Z position from the encoder
-            self.last_known_z = self.get_stage_z()
-            print('Starting Z position: ' + str(self.last_known_z) + 'µm')
 
     def save_to_cfg(self):
         super().save_to_cfg()
@@ -71,9 +54,17 @@ class Microtome_katana(Microtome):
             self.retract_clearance)
 
     def connect(self):
-        # Open COM port
+        """
+        Attempt to connect to specified COM port (self.selected_port).
+        If port is open, perform backwards compatibility sequence,
+        handshake ('K?' command), and initialize motor.
+        """
+        if self.com_port.isOpen():
+            self.com_port.close() 
+            self.connected = False
+
+        # Open COM port specified by self.selected_port
         if not self.simulation_mode:
-            self.com_port = serial.Serial()
             self.com_port.port = self.selected_port
             self.com_port.baudrate = 115200
             self.com_port.bytesize = 8
@@ -83,11 +74,38 @@ class Microtome_katana(Microtome):
             self.com_port.timeout = 0.5
             try:
                 self.com_port.open()
-                self.connected = True
                 # print('Connection to katana successful.')
             except Exception as e:
                 print('Connection to katana failed: ' + repr(e))
-
+        if self.com_port.isOpen():
+            # only for backwards compatibility with old controllers
+            # (the MCU no longer resets upon comms initialisation)
+            sleep(1)
+            # initial comm is lost when on arduino usb port. (ditto)
+            self._send_command(' ')
+            # clear any incoming data from the serial buffer
+            self.com_port.flushInput()
+            # need to delay after opening port before sending anything.
+            # 0.2s fails. 0.25s seems to be always OK. Suggest >0.3s for
+            # reliability.
+            sleep(0.3)
+            # Perform handshake and initialize motors
+            self._send_command('K?')
+            response = self._read_response()
+            if response[:3] == 'K?:':
+                self.connected = True
+                print(response)
+                # if this software is the first to interact with the hardware
+                # after power-on, then the motor parameters need to be set
+                # (no harm to do anyway)
+                self.initialise_motor()
+                # get the initial Z position from the encoder
+                self.last_known_z = self.get_stage_z()
+                print('Starting Z position: ' + str(self.last_known_z) + 'µm')
+            else:
+                self.connected = False
+                print('Handshake with katana failed.')
+        
     def initialise_motor(self):
          self._send_command('XM2')
          self._send_command('XY13,1')

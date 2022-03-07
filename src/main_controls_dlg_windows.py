@@ -811,13 +811,16 @@ class KatanaSettingsDlg(QDialog):
         else:
             self.comboBox_portSelector.setCurrentIndex(0)
         self.comboBox_portSelector.currentIndexChanged.connect(
-            self.reconnect)
+            self.connect_to_new_com_port)
 
         self.display_connection_status()
         self.display_current_settings()
 
-    def reconnect(self):
-        pass
+    def connect_to_new_com_port(self):
+        """Attempt connection to new port."""
+        self.microtome.selected_port = self.comboBox_portSelector.currentText()
+        self.microtome.connect()
+        self.display_connection_status()
 
     def display_connection_status(self):
         # Show message in dialog whether or not katana is connected.
