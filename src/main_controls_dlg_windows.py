@@ -2945,16 +2945,19 @@ class RunAutofocusDlg(QDialog):
         self.comboBox_mode.setCurrentIndex(0)
 
         self.pushButton_run.clicked.connect(self.run_autofocus)
+        self.pushButton_calibrate.clicked.connect(self.calibrate_af)
 
     def run_autofocus(self):
+        self.busy = True
+        self.pushButton_run.setText('Busy... please wait')
+        self.pushButton_run.setEnabled(False)
         method = self.comboBox_method.currentIndex()
         mode = self.comboBox_mode.currentIndex()
+        self.large_aberr = self.radioButton_large_aberr.isChecked()
         if method == 1:
-            # MAPFoSt disabled for now
-            QMessageBox.information(
-                self, 'MAPFoSt',
-                'MAPFoSt Autofocus not available yet.',
-                QMessageBox.Ok)
+            self.aberr_mode_bools = [mode<2, mode==0 or mode==2, mode==0 or mode==2]
+            utils.run_log_thread(self.call_mapfost_af_routine)
+
         elif method == 0:
             if mode == 0:
                 self.use_autofocus = True
@@ -2965,13 +2968,13 @@ class RunAutofocusDlg(QDialog):
             else:
                 self.use_autofocus = False
                 self.use_autostig = True
-
-            self.pushButton_run.setText('Busy... please wait')
-            self.pushButton_run.setEnabled(False)
             utils.run_log_thread(self.call_zeiss_af_routine)
 
+    def call_mapfost_af_routine(self):
+        self.zeiss_af_msg = self.autofocus.run_mapfost_af(self.aberr_mode_bools, self.large_aberr)
+        self.finish_trigger.signal.emit()
+
     def call_zeiss_af_routine(self):
-        self.busy = True
         self.zeiss_af_msg = self.autofocus.run_zeiss_af(
             self.use_autofocus, self.use_autostig)
         self.finish_trigger.signal.emit()
@@ -2996,6 +2999,47 @@ class RunAutofocusDlg(QDialog):
                 QMessageBox.Ok)
             utils.log_info('SEM', self.zeiss_af_msg)
             self.accept()
+
+
+    def calibrate_af(self):
+        method = self.comboBox_method.currentIndex()
+        if method == 0 :
+            QMessageBox.information(
+                self, 'SmartSEM AF',
+                'calibration not available',
+                QMessageBox.Ok)
+        elif method ==1:
+            self.pushButton_calibrate.setText('Busy... please wait')
+            self.pushButton_calibrate.setEnabled(False)
+            self.busy = True
+            QMessageBox.question(
+                self, 'Defocus calibration.','Defocus calibration \n Please make sure the SEM is well focused. \n Click OK to proceed.',
+                QMessageBox.Ok)
+            msg = self.autofocus.calibrate_mapfost_af(calib_mode="defocus")
+
+            user_reply = QMessageBox.question(
+                self, 'Defocus calibration','Probe convergence angle is ' + str(msg) + "\n" + "Please update the ini file." + "\n" +
+                                            "Click Ok to proceed with Astig calibration"
+                , QMessageBox.Ok| QMessageBox.Cancel)
+
+            utils.log_info('SEM ', 'The probe convergence angle is ' + str(msg))
+            self.accept()
+
+            if user_reply == QMessageBox.Ok:
+                user_reply = QMessageBox.question(
+                    self, 'Astig calibration.',' Astig Calibration \n Please make sure the SEM is well focused. \n Click OK to proceed.',
+                    QMessageBox.Ok | QMessageBox.Cancel)
+                if user_reply == QMessageBox.Ok:
+                    msg = self.autofocus.calibrate_mapfost_af(calib_mode="astig")
+                    QMessageBox.question(
+                        self, 'Astig calibration.', 'The astig rotation (deg) is ' + str(msg[0]) + "\n" +
+                                                    'The astig scaling is ' + str(msg[1]) +
+                                                    " \n Calibration complete. Please update the ini file", QMessageBox.Ok)
+                    utils.log_info('SEM' , "Astig Rotation and Scaling : " + str(msg))
+                self.accept()
+                self.zeiss_af_msg = "Calibration complete. Please update the ini file"
+                self.new_wd_stig = self.sem.get_wd(), *self.sem.get_stig_xy()
+                self.finish_trigger.signal.emit()
 
     def reject(self):
         if not self.busy:

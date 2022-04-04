@@ -15,3 +15,4 @@ imageio
 pyyaml
 psutil
 opencv-python
+mapfost
