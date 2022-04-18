@@ -76,7 +76,7 @@ class ConfigDlg(QDialog):
     presets) is shown as "Default Configuration".
     When "Default Configuration" is selected, clicking on "SEM/Microtome setup"
     opens a secondary dialog window, in which the user can select device presets
-    for different SEM and microtome models including mocks.     
+    for different SEM and microtome models including mocks.
     """
 
     def __init__(self, VERSION):
@@ -157,7 +157,7 @@ class ConfigDlg(QDialog):
             self.pushButton_deviceSelection.setEnabled(True)
         else:
             self.pushButton_deviceSelection.setEnabled(False)
-        
+
     def open_device_selection_dlg(self):
         dialog = DeviceSelectionDlg(self.load_presets_enabled,
                                     self.device_presets_selection)
@@ -205,7 +205,7 @@ class DeviceSelectionDlg(QDialog):
         sem_list = ['None'] + json.loads(syscfg['device']['sem_recognized'])
         microtome_list = (
             ['None'] + json.loads(syscfg['device']['microtome_recognized']))
-        
+
         # Populate comboboxes with names of supported devices
         self.comboBox_SEMs.addItems(sem_list)
         self.comboBox_microtomes.addItems(microtome_list)
@@ -862,7 +862,7 @@ class KatanaSettingsDlg(QDialog):
             self.microtome.retract_clearance / 1000)
 
     def accept(self):
-        new_com_port = self.comboBox_portSelector.currentText() 
+        new_com_port = self.comboBox_portSelector.currentText()
         new_cut_speed = self.spinBox_knifeCutSpeed.value()
         new_fast_speed = self.spinBox_knifeFastSpeed.value()
         new_cut_start = self.spinBox_cutWindowStart.value()
@@ -3185,21 +3185,19 @@ class RunAutofocusDlg(QDialog):
         self.comboBox_mode.setCurrentIndex(0)
 
         self.pushButton_run.clicked.connect(self.run_autofocus)
+        self.pushButton_calibrate.clicked.connect(self.calibrate_af)
 
     def run_autofocus(self):
+        self.busy = True
+        self.pushButton_run.setText('Busy... please wait')
+        self.pushButton_run.setEnabled(False)
         method = self.comboBox_method.currentIndex()
         mode = self.comboBox_mode.currentIndex()
+        self.large_aberr = self.radioButton_large_aberr.isChecked()
         if method == 1:
-            if mode != 0:
-                utils.run_log_thread(f'MAPFoSt always corrects focus and stigmation.')
-            try:
-                utils.run_log_thread(self.call_mapfost_af_routine)
-            except ImportError:
-                # MAPFoSt disabled for now
-                QMessageBox.information(
-                    self, 'MAPFoSt',
-                    'MAPFoSt Autofocus not available yet.',
-                    QMessageBox.Ok)
+            self.aberr_mode_bools = [mode<2, mode==0 or mode==2, mode==0 or mode==2]
+            utils.run_log_thread(self.call_mapfost_af_routine)
+
         elif method == 0:
             if mode == 0:
                 self.use_autofocus = True
@@ -3210,22 +3208,15 @@ class RunAutofocusDlg(QDialog):
             else:
                 self.use_autofocus = False
                 self.use_autostig = True
-
-            self.pushButton_run.setText('Busy... please wait')
-            self.pushButton_run.setEnabled(False)
             utils.run_log_thread(self.call_zeiss_af_routine)
 
-    def call_zeiss_af_routine(self):
-        self.busy = True
-        self.af_msg = self.autofocus.run_zeiss_af(
-            self.use_autofocus, self.use_autostig)
+    def call_mapfost_af_routine(self):
+        self.zeiss_af_msg = self.autofocus.run_mapfost_af(self.aberr_mode_bools, self.large_aberr)
         self.finish_trigger.signal.emit()
 
-    def call_mapfost_af_routine(self):
-        self.busy = True
-        af_kwargs = dict(defocus_arr=self.autofocus.mapfost_defocus_trials, rot=self.autofocus.rot_angle_mafpsot,
-                         scale=self.autofocus.scale_factor_mapfost, na=self.autofocus.na_mapfost)
-        self.af_msg = self.autofocus.run_mapfost_af(**af_kwargs)
+    def call_zeiss_af_routine(self):
+        self.zeiss_af_msg = self.autofocus.run_zeiss_af(
+            self.use_autofocus, self.use_autostig)
         self.finish_trigger.signal.emit()
 
     def autofocus_completed(self):
@@ -3248,6 +3239,47 @@ class RunAutofocusDlg(QDialog):
                 QMessageBox.Ok)
             utils.log_info('SEM', self.af_msg)
             self.accept()
+
+
+    def calibrate_af(self):
+        method = self.comboBox_method.currentIndex()
+        if method == 0 :
+            QMessageBox.information(
+                self, 'SmartSEM AF',
+                'calibration not available',
+                QMessageBox.Ok)
+        elif method ==1:
+            self.pushButton_calibrate.setText('Busy... please wait')
+            self.pushButton_calibrate.setEnabled(False)
+            self.busy = True
+            QMessageBox.question(
+                self, 'Defocus calibration.','Defocus calibration \n Please make sure the SEM is well focused. \n Click OK to proceed.',
+                QMessageBox.Ok)
+            msg = self.autofocus.calibrate_mapfost_af(calib_mode="defocus")
+
+            user_reply = QMessageBox.question(
+                self, 'Defocus calibration','Probe convergence angle is ' + str(msg) + "\n" + "Please update the ini file." + "\n" +
+                                            "Click Ok to proceed with Astig calibration"
+                , QMessageBox.Ok| QMessageBox.Cancel)
+
+            utils.log_info('SEM ', 'The probe convergence angle is ' + str(msg))
+            self.accept()
+
+            if user_reply == QMessageBox.Ok:
+                user_reply = QMessageBox.question(
+                    self, 'Astig calibration.',' Astig Calibration \n Please make sure the SEM is well focused. \n Click OK to proceed.',
+                    QMessageBox.Ok | QMessageBox.Cancel)
+                if user_reply == QMessageBox.Ok:
+                    msg = self.autofocus.calibrate_mapfost_af(calib_mode="astig")
+                    QMessageBox.question(
+                        self, 'Astig calibration.', 'The astig rotation (deg) is ' + str(msg[0]) + "\n" +
+                                                    'The astig scaling is ' + str(msg[1]) +
+                                                    " \n Calibration complete. Please update the ini file", QMessageBox.Ok)
+                    utils.log_info('SEM' , "Astig Rotation and Scaling : " + str(msg))
+                self.accept()
+                self.zeiss_af_msg = "Calibration complete. Please update the ini file"
+                self.new_wd_stig = self.sem.get_wd(), *self.sem.get_stig_xy()
+                self.finish_trigger.signal.emit()
 
     def reject(self):
         if not self.busy:

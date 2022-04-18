@@ -23,7 +23,7 @@ from configparser import ConfigParser
 # deleted from the default configuration files
 CFG_TEMPLATE_FILE = '..\\src\\default_cfg\\default.ini'    # Template of session configuration
 CFG_NUMBER_SECTIONS = 12
-CFG_NUMBER_KEYS = 216
+CFG_NUMBER_KEYS = 223
 
 SYSCFG_TEMPLATE_FILE = '..\\src\\default_cfg\\system.cfg'  # Template of system configuration
 SYSCFG_NUMBER_SECTIONS = 8
@@ -35,10 +35,10 @@ DEVICE_PRESETS_FILE = '..\\src\\default_cfg\\device_presets.cfg'
 # Backward compatibility for older system config files
 LEGACY_DEVICE_NUMBERS = {0: 'Gatan 3View',
                          1: 'ZEISS Merlin',
-                         2: 'ZEISS Sigma', 
-                         3: 'ZEISS GeminiSEM', 
+                         2: 'ZEISS Sigma',
+                         3: 'ZEISS GeminiSEM',
                          4: 'ZEISS Ultra Plus',
-                         5: 'ConnectomX katana', 
+                         5: 'ConnectomX katana',
                          6: 'GCIB'}
 
 
@@ -109,7 +109,7 @@ def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):
                         if key in ['sem', 'microtome']:
                             device = current_syscfg[section][key]
                             if len(device) == 1:
-                                try:                            
+                                try:
                                     syscfg_template[section][key] = (
                                         LEGACY_DEVICE_NUMBERS[int(device)])
                                 except (ValueError, KeyError):
@@ -187,9 +187,9 @@ def update_key_names(cfg, syscfg):
 
 
 def load_device_presets(syscfg, selected_sem, selected_microtome):
-    """Load presets for selected SEM/microtome from the file 
+    """Load presets for selected SEM/microtome from the file
     DEVICE_PRESETS_FILE into the system configuration (syscfg).
-    Return (True, '') if successful, otherwise (False, exception_str). 
+    Return (True, '') if successful, otherwise (False, exception_str).
     """
     if selected_sem is None and selected_microtome is None:
         return False, ''
@@ -202,8 +202,8 @@ def load_device_presets(syscfg, selected_sem, selected_microtome):
         return False, str(e)
 
     # Note: Load microtome presets first because in case of a Sigma-3View
-    # combination, different values for the 3View stage calibration are 
-    # loaded from the SEM presets. 
+    # combination, different values for the 3View stage calibration are
+    # loaded from the SEM presets.
 
     if selected_microtome:
         # Load microtome presets and write them into system configuration

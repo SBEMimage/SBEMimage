@@ -22,10 +22,7 @@ from statistics import mean
 import utils
 from time import sleep, time
 from scipy.signal import correlate2d, fftconvolve
-try:
-    from mapfost import autofoc_mapfost
-except ImportError:
-    autofoc_mapfost = None
+import autofocus_mapfost
 
 
 class Autofocus():
@@ -51,11 +48,6 @@ class Autofocus():
             self.cfg['autofocus']['heuristic_calibration'])
         self.rot_angle, self.scale_factor = json.loads(
             self.cfg['autofocus']['heuristic_rot_scale'])
-        self.mapfost_defocus_trials = json.loads(
-            self.cfg['autofocus']['mapfost_defocus_trials'])
-        self.rot_angle_mafpsot, *self.scale_factor_mapfost, self.na_mapfost = json.loads(
-            self.cfg['autofocus']['mapfost_rot_scalex_scaley_na'])
-        self.dwell_time_mapfost = float(self.cfg['autofocus']['mapfost_dwell_time'])
         self.ACORR_WIDTH = 64
         self.fi_mask = np.empty((self.ACORR_WIDTH, self.ACORR_WIDTH))
         self.fo_mask = np.empty((self.ACORR_WIDTH, self.ACORR_WIDTH))
@@ -75,6 +67,20 @@ class Autofocus():
         if self.magc_mode:
             self.method = 0         # SmartSEM autofocus
             self.tracking_mode = 0  # Track selected, approx. others
+
+
+        self.MAPFOST_PATCH_SIZE = [768, 768]
+        self.MAPFOST_FRAME_RESOLUTION = 2
+        self.mapfost_wd_pert = float(self.cfg['autofocus']['mapfost_wd_perturbations'])
+        self.mapfost_dwell_time = float(self.cfg['autofocus']['mapfost_dwell_time'])
+        self.mapfost_max_iters = int(self.cfg['autofocus']['mapfost_maximum_iterations'])
+        self.mapfost_conv_thresh = float(self.cfg['autofocus']['mapfost_convergence_threshold_um'])
+
+        # Mapfost Calibration Parameters
+        self.mapfost_probe_conv = float(self.cfg['autofocus']['mapfost_probe_convergence_angle'])
+        self.mapfost_stig_rot = float(self.cfg['autofocus']['mapfost_astig_rotation_deg'])
+        self.mapfost_stig_scale = json.loads(self.cfg['autofocus']['mapfost_astig_scaling'])
+
 
     def save_to_cfg(self):
         """Save current autofocus settings to ConfigParser object. Note that
@@ -177,25 +183,51 @@ class Autofocus():
             msg = 'ERROR during ' + msg + '.'
         return msg
 
-    def run_mapfost_af(self, **kwargs) -> str:
+    def run_mapfost_af(self, aberr_mode_bools, large_aberrations=0) -> str:
         """
-        Run mapfost (cf. Binding et al. 2013) implementation by Rangoli Saxena, 2020.
+        MAPFoSt (cf. Binding et al. 2013)
+        implementation by Rangoli Saxena, 2020.
 
         Returns:
 
         """
-        if autofoc_mapfost is None:
-            return 'ERROR during MAPFoSt - Could not import "mapfost" package.'
-        # use 2k image size (frame size selector: 2 for Merlin, PS), frame size selector 0 -> 1k image
-        # works for 8 nm pixel size
-        self.sem.apply_frame_settings(2, self.pixel_size, self.dwell_time_mapfost)
-        sleep(0.2)
         try:
-            corrections = autofoc_mapfost(ps=self.pixel_size / 1e3, sem_api=self.sem.sem_api, **kwargs)
-            msg = f'Completed MAPFoSt AF (corrections: {corrections})'
-        except ValueError as e:
-            msg = f'ValueError ({str(e)}) during MAPFoSt AF.'
+            self.sem.apply_frame_settings(self.MAPFOST_FRAME_RESOLUTION, self.pixel_size, self.mapfost_dwell_time)
+            mapfost_params = {'num_aperture': self.mapfost_probe_conv,
+                              'stig_rot_deg': self.mapfost_stig_rot,
+                              'stig_scale': self.mapfost_stig_scale,
+                              'crop_size': self.MAPFOST_PATCH_SIZE}
+            corrections = autofocus_mapfost.run(self.sem.sem_api, working_distance_perturbations=[self.mapfost_wd_pert],
+                                                mapfost_params=mapfost_params, max_iters = self.mapfost_max_iters,
+                                                convergence_threshold = self.mapfost_conv_thresh,
+                                                aberr_mode_bools=aberr_mode_bools, large_aberrations=large_aberrations)
+            msg = 'Completed MAPFoSt AF. \n List of corrections : \n' + str(corrections)
+        except Exception as e:
+            msg = f'CTRL: Exception ({str(e)}) during MAPFoSt AF.'
         return msg
+
+
+    def calibrate_mapfost_af(self, calib_mode) -> str:
+        """
+        MAPFoSt calibration
+        by Rangoli Saxena, 2020.
+        Still in development. In case of issues, please raise them on github to help make this better.
+        Returns: mapfost calibration parameters
+
+        """
+        try:
+            self.sem.apply_frame_settings(self.MAPFOST_FRAME_RESOLUTION, self.pixel_size, self.mapfost_dwell_time)
+            mapfost_params = {'num_aperture': self.mapfost_probe_conv,
+                              'stig_rot_deg': 0,
+                              'stig_scale': [1.,1.],
+                              'crop_size': self.MAPFOST_PATCH_SIZE}
+            calib_param = autofocus_mapfost.calibrate(self.sem.sem_api, mapfost_params=mapfost_params,
+                                                      calib_mode=calib_mode)
+            msg = calib_param
+        except Exception as e:
+            msg = f'CTRL: Exception ({str(e)}) during MAPFoSt AF.'
+        return msg
+
 
     # ================ Below: methods for heuristic autofocus ==================
 
