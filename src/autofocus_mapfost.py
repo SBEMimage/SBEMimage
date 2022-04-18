@@ -230,7 +230,7 @@ def process_ims_and_est_aberr(aberr_perturbations, test_imarrs, mapfost_params={
 
 def run(sem_api, working_distance_perturbations, exps_dir=None, mapfost_params={},
         induce_aberration_vec=[0,0,0], max_iters=7, convergence_threshold = 0.2,
-        aberr_mode_bools = [1,1,1],large_aberrations=0):
+        aberr_mode_bools = [1,1,1],large_aberrations=0, max_wd_stigx_stigy=None):
 
     exps_dir = [exps_dir, tempfile.gettempdir()][exps_dir is None]
 
@@ -240,7 +240,7 @@ def run(sem_api, working_distance_perturbations, exps_dir=None, mapfost_params={
     while np.linalg.norm(aberr_estimation) > convergence_threshold and iter < max_iters:
         iter+=1
         if large_aberrations:
-            if iter < 4:
+            if iter < 3:
                 mapfost_params['radial_aperture'] = 0.1
                 working_distance_perturbations = [20]
             else:
@@ -268,6 +268,12 @@ def run(sem_api, working_distance_perturbations, exps_dir=None, mapfost_params={
             if aberr_estimation is not None:
                 try:
                     af.final_res = np.multiply(aberr_estimation,aberr_mode_bools)
+                    print("max_wd_stigx_stigy", max_wd_stigx_stigy)
+                    if max_wd_stigx_stigy is not None:
+                        clipped_res = [np.clip(-1*max_wd_stigx_stigy[ii],
+                                                  max_wd_stigx_stigy[ii],
+                                                  af.final_res[ii]) for ii in range(3)]
+                        af.final_res = clipped_res
                     aberr_estimation = af.final_res
                 except Exception as e:
                     print("Could not multiply aberr_mode_bools (#1) on aberr est(#2) ",aberr_mode_bools, aberr_estimation)

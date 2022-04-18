@@ -3041,6 +3041,8 @@ class AutofocusSettingsDlg(QDialog):
         self.spinBox_interval.setValue(self.autofocus.interval)
         self.spinBox_autostigDelay.setValue(self.autofocus.autostig_delay)
         self.doubleSpinBox_pixelSize.setValue(self.autofocus.pixel_size)
+        if self.autofocus.large_aberrations:
+            self.radioButton_mapfost_largeaberr.setChecked(True)
         # For heuristic autofocus:
         self.doubleSpinBox_wdDiff.setValue(
             self.autofocus.wd_delta * 1000000)
@@ -3056,6 +3058,7 @@ class AutofocusSettingsDlg(QDialog):
             self.autofocus.heuristic_calibration[2])
         self.doubleSpinBox_stigRot.setValue(self.autofocus.rot_angle)
         self.doubleSpinBox_stigScale.setValue(self.autofocus.scale_factor)
+
         # Disable some settings if MagC mode is active
         if magc_mode:
             self.radioButton_useHeuristic.setEnabled(False)
@@ -3143,12 +3146,14 @@ class AutofocusSettingsDlg(QDialog):
         self.autofocus.wd_delta = self.doubleSpinBox_wdDiff.value() / 1000000
         self.autofocus.stig_x_delta = self.doubleSpinBox_stigXDiff.value()
         self.autofocus.stig_y_delta = self.doubleSpinBox_stigYDiff.value()
+
         self.autofocus.heuristic_calibration = [
             self.doubleSpinBox_focusCalib.value(),
             self.doubleSpinBox_stigXCalib.value(),
             self.doubleSpinBox_stigYCalib.value()]
         self.autofocus.rot_angle = self.doubleSpinBox_stigRot.value()
         self.autofocus.scale_factor = self.doubleSpinBox_stigScale.value()
+        self.autofocus.large_aberrations = self.radioButton_mapfost_largeaberr.isChecked()
         if not error_str:
             super().accept()
         else:
@@ -3211,11 +3216,11 @@ class RunAutofocusDlg(QDialog):
             utils.run_log_thread(self.call_zeiss_af_routine)
 
     def call_mapfost_af_routine(self):
-        self.zeiss_af_msg = self.autofocus.run_mapfost_af(self.aberr_mode_bools, self.large_aberr)
+        self.af_msg = self.autofocus.run_mapfost_af(self.aberr_mode_bools, self.large_aberr)
         self.finish_trigger.signal.emit()
 
     def call_zeiss_af_routine(self):
-        self.zeiss_af_msg = self.autofocus.run_zeiss_af(
+        self.af_msg = self.autofocus.run_zeiss_af(
             self.use_autofocus, self.use_autostig)
         self.finish_trigger.signal.emit()
 
@@ -3277,7 +3282,7 @@ class RunAutofocusDlg(QDialog):
                                                     " \n Calibration complete. Please update the ini file", QMessageBox.Ok)
                     utils.log_info('SEM' , "Astig Rotation and Scaling : " + str(msg))
                 self.accept()
-                self.zeiss_af_msg = "Calibration complete. Please update the ini file"
+                self.af_msg = "Calibration complete. Please update the ini file"
                 self.new_wd_stig = self.sem.get_wd(), *self.sem.get_stig_xy()
                 self.finish_trigger.signal.emit()
 

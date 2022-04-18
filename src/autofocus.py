@@ -183,16 +183,17 @@ class Autofocus():
             msg = 'ERROR during ' + msg + '.'
         return msg
 
-    def run_mapfost_af(self, aberr_mode_bools, large_aberrations=0) -> str:
+    def run_mapfost_af(self, aberr_mode_bools=[1,1,1], large_aberrations=0, pixel_size=None, max_wd_stigx_stigy= None) -> str:
         """
         MAPFoSt (cf. Binding et al. 2013)
         implementation by Rangoli Saxena, 2020.
-
         Returns:
 
         """
         try:
-            self.sem.apply_frame_settings(self.MAPFOST_FRAME_RESOLUTION, self.pixel_size, self.mapfost_dwell_time)
+            if pixel_size is None:
+                pixel_size = self.pixel_size
+            self.sem.apply_frame_settings(self.MAPFOST_FRAME_RESOLUTION, pixel_size , self.mapfost_dwell_time)
             mapfost_params = {'num_aperture': self.mapfost_probe_conv,
                               'stig_rot_deg': self.mapfost_stig_rot,
                               'stig_scale': self.mapfost_stig_scale,
@@ -200,7 +201,8 @@ class Autofocus():
             corrections = autofocus_mapfost.run(self.sem.sem_api, working_distance_perturbations=[self.mapfost_wd_pert],
                                                 mapfost_params=mapfost_params, max_iters = self.mapfost_max_iters,
                                                 convergence_threshold = self.mapfost_conv_thresh,
-                                                aberr_mode_bools=aberr_mode_bools, large_aberrations=large_aberrations)
+                                                aberr_mode_bools=aberr_mode_bools, large_aberrations=large_aberrations,
+                                                max_wd_stigx_stigy=max_wd_stigx_stigy)
             msg = 'Completed MAPFoSt AF. \n List of corrections : \n' + str(corrections)
         except Exception as e:
             msg = f'CTRL: Exception ({str(e)}) during MAPFoSt AF.'
@@ -210,7 +212,7 @@ class Autofocus():
     def calibrate_mapfost_af(self, calib_mode) -> str:
         """
         MAPFoSt calibration
-        by Rangoli Saxena, 2020.
+        Rangoli Saxena, 2020.
         Still in development. In case of issues, please raise them on github to help make this better.
         Returns: mapfost calibration parameters
 

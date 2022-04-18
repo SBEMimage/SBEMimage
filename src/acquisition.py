@@ -2699,21 +2699,19 @@ class Acquisition:
                   f'{tile_wd*1000:.4f}, {tile_stig_x:.4f}, {tile_stig_y:.4f}'
             utils.log_info('SEM', msg)
             self.add_to_main_log(f'SEM: {msg}')
-            # needed here because first slice required additional AF trials when using GCIB
-            af_kwargs = dict(defocus_arr=self.autofocus.mapfost_defocus_trials, rot=self.autofocus.rot_angle_mafpsot,
-                             scale=self.autofocus.scale_factor_mapfost, na=self.autofocus.na_mapfost,
-                             log_func=self.add_to_main_log)
-            if self.slice_counter == 1 and self.microtome.device_name == 'GCIB':
-                af_kwargs['defocus_arr'] = [8, 8] + af_kwargs['defocus_arr']
-                msg = f'Added additional [8, 8] µm defocus trials to MAPoSt AF procedure for tile ' \
-                      f'{grid_index}.{tile_index}'
-                utils.log_info('SEM', msg)
-                self.add_to_main_log(f'SEM: {msg}')
-            autofocus_msg = 'SEM', self.autofocus.run_mapfost_af(**af_kwargs)
+            autofocus_msg = self.autofocus.run_mapfost_af(aberr_mode_bools=[1, do_stig, do_stig],
+                                                          pixel_size=self.autofocus.pixel_size,
+                                                          large_aberrations=self.autofocus.large_aberrations,
+                                                          max_wd_stigx_stigy = [self.autofocus.max_wd_diff*10**6,
+                                                                                self.autofocus.max_stig_x_diff,
+                                                                                self.autofocus.max_stig_y_diff])
         else:
             self.error_state = Error.autofocus_smartsem  # TODO: check if that code makes sense here
             return
-        utils.log_info(*autofocus_msg)
+        if self.autofocus.method != 3:
+            utils.log_info(*autofocus_msg)
+        else:
+            utils.log_info(autofocus_msg)
         self.add_to_main_log(autofocus_msg[0] + ': ' + autofocus_msg[1])
         if 'ERROR' in autofocus_msg[1]:
             self.error_state = Error.autofocus_smartsem
