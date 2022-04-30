@@ -36,6 +36,3 @@ extra_wheels/
 pkgs/
 Python/
 uninstall.exe
-
-# DM calibration files
-dm/SE_Calibrate@1.5kV_200pA_7mm.dm3
