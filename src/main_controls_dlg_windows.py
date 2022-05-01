@@ -981,6 +981,15 @@ class StageCalibrationDlg(QDialog):
         self.calc_exception = None
         self.busy = False
 
+        # Choose frame_size_selector depending on device: 
+        # About 2k x 2k is a good default choice
+        if self.sem.device_name.startswith("TESCAN"):
+            self.frame_size_selector = 5
+        elif sem.device_name.startswith("ZEISS"):
+            self.frame_size_selector = 2
+        else:  # Mock SEM
+            self.frame_size_selector = 1 
+
         loadUi('..\\gui\\stage_calibration_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -1009,12 +1018,25 @@ class StageCalibrationDlg(QDialog):
             self.calculate_calibration_parameters_from_user_input)
         self.pushButton_measureMotorSpeeds.clicked.connect(
             self.measure_motor_speeds)
-
+        # Show current calibration image size and update whenever pixel size
+        # is changed by user
+        self.show_calibration_image_size()
+        self.spinBox_pixelsize.valueChanged.connect(self.show_calibration_image_size)
+         
         # For now, disable motor speed section unless Gatan 3View is used
         if self.stage.device_name() != "Gatan 3View":
             self.doubleSpinBox_motorSpeedX.setEnabled(False)
             self.doubleSpinBox_motorSpeedY.setEnabled(False)
             self.pushButton_measureMotorSpeeds.setEnabled(False)
+
+    def show_calibration_image_size(self):
+        """Calculate and display the size of the calibration images."""
+        pixel_size = self.spinBox_pixelsize.value()
+        resolution = self.sem.STORE_RES[self.frame_size_selector]
+        # Show width and height in micrometres
+        width = resolution[0] * pixel_size / 1000
+        height = resolution[1] * pixel_size / 1000
+        self.label_imageSize.setText(f'{width:.1f} × {height:.1f}')
 
     def measure_motor_speeds(self):
         """Run the measurement routine in a thread."""
@@ -1115,14 +1137,9 @@ class StageCalibrationDlg(QDialog):
         shift = self.spinBox_shift.value()
         pixel_size = self.spinBox_pixelsize.value()
         dwell_time = self.sem.DWELL_TIME[self.comboBox_dwellTime.currentIndex()]
-        # Use frame size 4 if available, otherwise 3
-        if len(self.sem.STORE_RES) > 4:
-            frame_size_selector = 4
-        else:
-            frame_size_selector = 3
 
         self.sem.apply_frame_settings(
-            frame_size_selector, pixel_size, dwell_time)
+            self.frame_size_selector, pixel_size, dwell_time)
 
         start_x, start_y = self.stage.get_xy()
         # Acquire first image at starting position
