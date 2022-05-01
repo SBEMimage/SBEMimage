@@ -37,6 +37,7 @@ from skimage.feature import register_translation
 import numpy as np
 from imreg_dft import translation
 from zipfile import ZipFile
+from typing import Tuple
 
 from PyQt5.uic import loadUi
 from PyQt5.QtCore import Qt, QObject, QSize, pyqtSignal, QThread
@@ -1029,14 +1030,29 @@ class StageCalibrationDlg(QDialog):
             self.doubleSpinBox_motorSpeedY.setEnabled(False)
             self.pushButton_measureMotorSpeeds.setEnabled(False)
 
-    def show_calibration_image_size(self):
-        """Calculate and display the size of the calibration images."""
+    def calibration_image_size(self) -> Tuple[float, float]:
+        """Return the current size [width, height] of the calibration 
+        images in micrometres.
+        """
         pixel_size = self.spinBox_pixelsize.value()
         resolution = self.sem.STORE_RES[self.frame_size_selector]
-        # Show width and height in micrometres
         width = resolution[0] * pixel_size / 1000
         height = resolution[1] * pixel_size / 1000
+        return width, height
+
+    def show_calibration_image_size(self):
+        """Calculate and display the size of the calibration images."""
+        width, height = self.calibration_image_size()
         self.label_imageSize.setText(f'{width:.1f} × {height:.1f}')
+
+    def stage_moves_within_image_size(self) -> bool:
+        """Check whether the specified X/Y move distances are within the
+        calibration image size (with a minimum of 10% overlap expected).
+        """
+        width, height = self.calibration_image_size()
+        move_distance = self.spinBox_shift.value()
+        return ((width - move_distance >= 0.1 * width) and 
+                (height - move_distance >= 0.1 * height))
 
     def measure_motor_speeds(self):
         """Run the measurement routine in a thread."""
@@ -1108,6 +1124,15 @@ class StageCalibrationDlg(QDialog):
                 self, 'EHT off', 'EHT / high voltage is off. Please turn '
                 'it on before starting the calibration.', QMessageBox.Ok)
             return
+
+        if not self.stage_moves_within_image_size():
+            QMessageBox.warning(
+                self, 'X/Y move distance too large', 
+                'Ensure that the specified distance for X/Y moves '
+                'is smaller than the width and height of the calibration '
+                'images, so that at least 10% overlap is achieved.', QMessageBox.Ok)
+            return
+
         reply = QMessageBox.information(
             self, 'Start calibration procedure',
             'This will acquire three images and save them in the current base '
