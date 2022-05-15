@@ -33,7 +33,7 @@ from math import atan, atan2, sqrt
 from statistics import mean
 from PIL import Image
 from skimage.io import imread
-from skimage.feature import register_translation
+from skimage.registration import phase_cross_correlation
 import numpy as np
 from imreg_dft import translation
 from zipfile import ZipFile
@@ -1199,9 +1199,9 @@ class StageCalibrationDlg(QDialog):
                     start_img, shift_x_img, filter_pcorr=3)['tvec'][::-1]
                 y_shift = translation(
                     start_img, shift_y_img, filter_pcorr=3)['tvec'][::-1]
-            else:  # use skimage.register_translation
-                x_shift = register_translation(start_img, shift_x_img)[0][::-1]
-                y_shift = register_translation(start_img, shift_y_img)[0][::-1]
+            else:  # use skimage.phase_cross_correlation
+                x_shift = phase_cross_correlation(start_img, shift_x_img)[0][::-1]
+                y_shift = phase_cross_correlation(start_img, shift_y_img)[0][::-1]
             x_shift = x_shift.astype(np.int)
             y_shift = y_shift.astype(np.int)
             self.x_shift_vector = [x_shift[0], x_shift[1]]
