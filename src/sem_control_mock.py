@@ -122,13 +122,22 @@ class SEM_Mock(SEM):
         return True
 
     def get_aperture_size(self):
-        raise NotImplementedError
+        return 30  # micrometres
 
     def set_aperture_size(self, aperture_size_index):
         raise NotImplementedError
 
     def apply_beam_settings(self):
         pass
+
+    def get_detector_list(self):
+        return ['Mock BSD', 'Mock ET']
+
+    def get_detector(self):
+        raise NotImplementedError
+
+    def set_detector(self, detector_name):
+        raise NotImplementedError
 
     def apply_grab_settings(self):
         self.apply_frame_settings(

@@ -329,8 +329,9 @@ class SaveConfigDlg(QDialog):
 # ------------------------------------------------------------------------------
 
 class SEMSettingsDlg(QDialog):
-    """SEM beam settings dialog window to adjust target EHT and target beam
-    current. The current actual beam settings and the current working distance
+    """SEM settings dialog window to adjust target EHT and target beam
+    current, aperture size, high current option, and detector selection.
+    The current actual beam settings and the current working distance
     and stigmation parameters are displayed.
     """
     def __init__(self, sem):
@@ -366,6 +367,11 @@ class SEMSettingsDlg(QDialog):
             '{0:.6f}'.format(sem.get_wd() * 1000))
         self.lineEdit_currentStigX.setText('{0:.6f}'.format(sem.get_stig_x()))
         self.lineEdit_currentStigY.setText('{0:.6f}'.format(sem.get_stig_y()))
+        # Show available detectors
+        try:
+            self.comboBox_detector.addItems(self.sem.get_detector_list())
+        except NotImplementedError:
+            self.comboBox_detector.setEnabled(False)
 
     def accept(self):
         self.target_eht = self.doubleSpinBox_EHT.value()
