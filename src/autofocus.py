@@ -68,7 +68,6 @@ class Autofocus():
             self.method = 0         # SmartSEM autofocus
             self.tracking_mode = 0  # Track selected, approx. others
 
-
         self.MAPFOST_PATCH_SIZE = [768, 768]
         self.MAPFOST_FRAME_RESOLUTION = 2
         self.mapfost_wd_pert = float(self.cfg['autofocus']['mapfost_wd_perturbations'])
@@ -81,6 +80,7 @@ class Autofocus():
         self.mapfost_stig_rot = float(self.cfg['autofocus']['mapfost_astig_rotation_deg'])
         self.mapfost_stig_scale = json.loads(self.cfg['autofocus']['mapfost_astig_scaling'])
 
+        self.large_aberrations = False
 
     def save_to_cfg(self):
         """Save current autofocus settings to ConfigParser object. Note that
