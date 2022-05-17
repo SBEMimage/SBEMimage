@@ -13,6 +13,7 @@ that are actually required in SBEMimage have been implemented."""
 
 import json
 from collections import deque
+from typing import List
 
 from utils import Error
 
@@ -286,7 +287,6 @@ class SEM:
         """Set the VP target pressure."""
         raise NotImplementedError
 
-
     def has_fcc(self):
         """Return True if FCC is fitted."""
         raise NotImplementedError
@@ -314,7 +314,6 @@ class SEM:
     def set_fcc_level(self, target_fcc_level):
         """Set the FCC to this target value."""
         raise NotImplementedError
-
 
     def get_beam_current(self):
         """Read beam current (in pA) from SmartSEM."""
@@ -349,6 +348,18 @@ class SEM:
         """Set the SEM to the current target EHT voltage and beam current."""
         raise NotImplementedError
 
+    def get_detector_list(self) -> List[str]:
+        """Return a list of all available detectors."""
+        raise NotImplementedError
+
+    def get_detector(self) -> str:
+        """Return the currently selected detector."""
+        raise NotImplementedError
+
+    def set_detector(self, detector_name: str) -> None:
+        """Select the detector specified by 'detector_name'."""
+        raise NotImplementedError
+ 
     def apply_grab_settings(self):
         """Set the SEM to the current grab settings (stored in
         self.grab_dwell_time, self.grab_pixel_size, and
