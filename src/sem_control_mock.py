@@ -40,6 +40,9 @@ class SEM_Mock(SEM):
         self.last_known_z = 0
         self.mock_type = "noise"
         self.previous_acq_dir = None
+        self.detector = ''
+        # Select default detector
+        self.set_detector(self.syscfg['sem']['default_detector'])
 
     def turn_eht_on(self):
         self.eht_on = True
@@ -125,19 +128,20 @@ class SEM_Mock(SEM):
         return 30  # micrometres
 
     def set_aperture_size(self, aperture_size_index):
-        raise NotImplementedError
+        pass
 
     def apply_beam_settings(self):
         pass
 
     def get_detector_list(self):
-        return ['Mock BSD', 'Mock ET']
+        return ['Mock BSD', 'Mock ET', 'Mock XYZ']
 
     def get_detector(self):
-        raise NotImplementedError
+        return self.detector
 
     def set_detector(self, detector_name):
-        raise NotImplementedError
+        if detector_name in self.get_detector_list():
+            self.detector = detector_name
 
     def apply_grab_settings(self):
         self.apply_frame_settings(

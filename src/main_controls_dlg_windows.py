@@ -367,9 +367,14 @@ class SEMSettingsDlg(QDialog):
             '{0:.6f}'.format(sem.get_wd() * 1000))
         self.lineEdit_currentStigX.setText('{0:.6f}'.format(sem.get_stig_x()))
         self.lineEdit_currentStigY.setText('{0:.6f}'.format(sem.get_stig_y()))
-        # Show available detectors
+        # Show available detectors and set current detector
         try:
-            self.comboBox_detector.addItems(self.sem.get_detector_list())
+            available_detectors = self.sem.get_detector_list()
+            current_detector = self.sem.get_detector()
+            self.comboBox_detector.addItems(available_detectors)
+            if current_detector in available_detectors: 
+                self.comboBox_detector.setCurrentIndex(
+                    available_detectors.index(current_detector))
         except NotImplementedError:
             self.comboBox_detector.setEnabled(False)
 
@@ -389,6 +394,10 @@ class SEMSettingsDlg(QDialog):
         self.target_high_current = self.checkBox_highCurrent.isChecked()
         if self.target_high_current != self.actual_high_current:
             self.sem.set_high_current(self.target_high_current)
+
+        selected_detector = self.comboBox_detector.currentText()
+        if selected_detector:
+            self.sem.set_detector(selected_detector)
 
         super().accept()
 
