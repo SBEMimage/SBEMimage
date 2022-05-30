@@ -4110,12 +4110,12 @@ class FTSetParamsDlg(QDialog):
 class FTMoveDlg(QDialog):
     """Move the stage to the selected tile or OV position."""
 
-    def __init__(self, microtome, coordinate_system, grid_manager,
+    def __init__(self, stage, grid_manager, ov_manager,
                  grid_index, tile_index, ov_index):
         super().__init__()
-        self.microtome = microtome
-        self.cs = coordinate_system
+        self.stage = stage
         self.gm = grid_manager
+        self.ovm = ov_manager
         self.ov_index = ov_index
         self.grid_index = grid_index
         self.tile_index = tile_index
@@ -4147,10 +4147,10 @@ class FTMoveDlg(QDialog):
         elif self.tile_index >= 0:
             stage_x, stage_y = self.gm[self.grid_index][self.tile_index].sx_sy
         # Now move the stage
-        self.microtome.move_stage_to_xy((stage_x, stage_y))
-        if self.microtome.error_state != Error.none:
+        self.stage.move_to_xy((stage_x, stage_y))
+        if self.stage.error_state != Error.none:
             self.error = True
-            self.microtome.reset_error_state()
+            self.stage.reset_error_state()
         # Signal that move complete
         self.finish_trigger.signal.emit()
 
