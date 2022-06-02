@@ -846,6 +846,13 @@ class Viewport(QWidget):
         self.pushButton_measureViewport.setIconSize(QSize(16, 16))
         self.pushButton_measureViewport.setToolTip(
             'Measure with right mouse clicks')
+        self.pushButton_updateStagePos.setIcon(
+            QIcon('..\\img\\stage_pos.png'))
+        self.pushButton_updateStagePos.setIconSize(QSize(16, 16))
+        self.pushButton_measureViewport.setToolTip(
+            'Update stage position')
+        self.pushButton_updateStagePos.clicked.connect(
+            self._vp_update_stage_position)   
         self.pushButton_helpViewport.clicked.connect(self.vp_toggle_help_panel)
         self.pushButton_helpSliceViewer.clicked.connect(self.vp_toggle_help_panel)
         # Slider for zoom
@@ -1452,6 +1459,17 @@ class Viewport(QWidget):
         self.vp_qp.drawEllipse(QPoint(vx, vy), int(size/2), int(size/2))
         self.vp_qp.drawLine(vx - 1.25 * size, vy, vx + 1.25 * size, vy)
         self.vp_qp.drawLine(vx, vy - 1.25 * size, vx, vy + 1.25 * size)
+
+    def _vp_update_stage_position(self):
+        """Read the current stage position and show the stage position indicator.
+        """
+        # Calling stage.get_xy() updates the last known XY stage position
+        self.stage.get_xy()
+        # Set "Show stage position" option as selected and redraw new 
+        # view centred on updated stage position
+        self.vp_activate_checkbox_show_stage_pos()
+        self.cs.vp_centre_dx_dy = self.cs.convert_s_to_d(self.stage.last_known_xy)
+        self.vp_draw()
 
     def _vp_visible_area(self, vx, vy, w_px, h_px, resize_ratio):
         """Determine if an object at position vx, vy (Viewport coordinates) and
