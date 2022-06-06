@@ -1795,7 +1795,7 @@ class Acquisition:
         # grid acquisition depending on whether MagC mode is active, and
         # on the slice number and current autofocus settings.
         # Perform mapfost also prior to first removal.
-        if self.magc_mode or (self.use_autofocus and self.autofocus.method == 3):
+        if self.magc_mode:
             self.autofocus_stig_current_slice = True, True
         else:
             self.autofocus_stig_current_slice = (
