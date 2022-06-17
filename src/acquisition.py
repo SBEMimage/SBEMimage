@@ -2701,7 +2701,7 @@ class Acquisition:
             self.add_to_main_log(f'SEM: {msg}')
             autofocus_msg = self.autofocus.run_mapfost_af(aberr_mode_bools=[1, do_stig, do_stig],
                                                           pixel_size=self.autofocus.pixel_size,
-                                                          large_aberrations=self.autofocus.large_aberrations,
+                                                          large_aberrations=self.autofocus.mapfost_large_aberrations,
                                                           max_wd_stigx_stigy = [self.autofocus.max_wd_diff*10**6,
                                                                                 self.autofocus.max_stig_x_diff,
                                                                                 self.autofocus.max_stig_y_diff])
