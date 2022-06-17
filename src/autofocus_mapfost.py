@@ -171,6 +171,10 @@ class RunAutoFoc:
             self.acquire_frame(self.result_path + "//result.tif")
         return final_aberr_params
 
+    def freeze_frame(self, waitTillComplete=0):
+        self.sem_api.Execute('CMD_FREEZE_ALL')
+        if waitTillComplete:
+            time.sleep(self.predict_refresh_time())
 
 def est_aberr_proc(perturbed_ims, aberr_perturbations, crop_ref, mapfost_params):
     mapfost_params['crop_ref'] = crop_ref
@@ -314,8 +318,8 @@ def calibrate(sem_api, mapfost_params={},
         calib_params = get_caliberation_for_mapfost_routine(cp_induce_aberr, aberr_perturbation_defocus,
                                                             perturbed_ims, mapfost_params,calib_mode=calib_mode)
         af.induce_aberration(np.multiply(cp_induce_aberr,-1))
-
-        return calib_params
+    af.freeze_frame(waitTillComplete=1)
+    return calib_params
 
 def get_calibrated_probe_convergence_angle(target_defocus, estimated_defocus, mapfost_params):
     prior_probe_convergence_angle = mapfost_params['num_aperture']
