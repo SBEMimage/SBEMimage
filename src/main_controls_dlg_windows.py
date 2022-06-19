@@ -3098,7 +3098,7 @@ class AutofocusSettingsDlg(QDialog):
         self.spinBox_interval.setValue(self.autofocus.interval)
         self.spinBox_autostigDelay.setValue(self.autofocus.autostig_delay)
         self.doubleSpinBox_pixelSize.setValue(self.autofocus.pixel_size)
-        if self.autofocus.large_aberrations:
+        if self.autofocus.mapfost_large_aberrations:
             self.radioButton_mapfost_largeaberr.setChecked(True)
         # For heuristic autofocus:
         self.doubleSpinBox_wdDiff.setValue(
@@ -3210,7 +3210,7 @@ class AutofocusSettingsDlg(QDialog):
             self.doubleSpinBox_stigYCalib.value()]
         self.autofocus.rot_angle = self.doubleSpinBox_stigRot.value()
         self.autofocus.scale_factor = self.doubleSpinBox_stigScale.value()
-        self.autofocus.large_aberrations = self.radioButton_mapfost_largeaberr.isChecked()
+        self.autofocus.mapfost_large_aberrations = self.radioButton_mapfost_largeaberr.isChecked()
         if not error_str:
             super().accept()
         else:
