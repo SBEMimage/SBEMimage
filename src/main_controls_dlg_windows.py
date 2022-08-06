@@ -1669,9 +1669,12 @@ class GridSettingsDlg(QDialog):
             self.show_frame_size_and_dose)
         self.doubleSpinBox_pixelSize.valueChanged.connect(
             self.show_frame_size_and_dose)
-        # Adaptive focus tool button:
+        # Focus gradient feature, disabled for TESCAN SEMs
         self.toolButton_focusGradient.clicked.connect(
             self.open_focus_gradient_dlg)
+        if sem.device_name.startswith("TESCAN"):
+            self.checkBox_focusGradient.setEnabled(False)
+            self.toolButton_focusGradient.setEnabled(False)
         # Button to load current SEM imaging parameters. 
         # For now, only enabled for ZEISS SEMs.
         self.pushButton_getFromSEM.clicked.connect(self.get_settings_from_sem)
@@ -1707,6 +1710,7 @@ class GridSettingsDlg(QDialog):
     def update_active_status(self):
         # If current grid is inactive, disable GUI elements
         b = self.radioButton_active.isChecked()
+        tescan_sem = self.sem.device_name.startswith("TESCAN")
         self.spinBox_rows.setEnabled(b)
         self.spinBox_cols.setEnabled(b)
         self.spinBox_overlap.setEnabled(b)
@@ -1715,8 +1719,8 @@ class GridSettingsDlg(QDialog):
         self.comboBox_tileSize.setEnabled(b)
         self.comboBox_dwellTime.setEnabled(b)
         self.doubleSpinBox_pixelSize.setEnabled(b)
-        self.checkBox_focusGradient.setEnabled(b)
-        self.toolButton_focusGradient.setEnabled(b)
+        self.checkBox_focusGradient.setEnabled(b and not tescan_sem)
+        self.toolButton_focusGradient.setEnabled(b and not tescan_sem)
         self.pushButton_resetFocusParams.setEnabled(b)
         self.spinBox_acqInterval.setEnabled(b)
         self.spinBox_acqIntervalOffset.setEnabled(b)
