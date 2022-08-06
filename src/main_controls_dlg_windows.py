@@ -1672,8 +1672,11 @@ class GridSettingsDlg(QDialog):
         # Adaptive focus tool button:
         self.toolButton_focusGradient.clicked.connect(
             self.open_focus_gradient_dlg)
-        # Button to load current SEM imaging parameters
+        # Button to load current SEM imaging parameters. 
+        # For now, only enabled for ZEISS SEMs.
         self.pushButton_getFromSEM.clicked.connect(self.get_settings_from_sem)
+        self.pushButton_getFromSEM.setEnabled(
+            self.sem.device_name.startswith("ZEISS"))
         # Buttons to reset tile previews and wd/stig parameters
         self.pushButton_resetTilePreviews.clicked.connect(
             self.reset_tile_previews)
@@ -3899,7 +3902,11 @@ class GrabFrameDlg(QDialog):
         self.comboBox_dwellTime.addItems(map(str, self.sem.DWELL_TIME))
         self.comboBox_dwellTime.setCurrentIndex(
             self.sem.DWELL_TIME.index(self.sem.grab_dwell_time))
+        # Button to load current SEM imaging parameters. 
+        # For now, only enabled for ZEISS SEMs.
         self.pushButton_getFromSEM.clicked.connect(self.get_settings_from_sem)
+        self.pushButton_getFromSEM.setEnabled(
+            self.sem.device_name.startswith("ZEISS"))
         self.pushButton_scan.clicked.connect(self.scan_frame)
         self.pushButton_save.clicked.connect(self.save_frame)
 
