@@ -12,11 +12,14 @@
 import time
 
 from sem_control import SEM
-from tescansharksem.sem import Sem as SharkSEM
 from PIL import Image
 from typing import Optional, List
 import re
 
+try:
+    from tescansharksem.sem import Sem as SharkSEM
+except:
+    pass
 
 __copyright__ = "Copyright (C) 2022 TESCAN Brno, s.r.o."
 __author__ = "TESCAN Brno, s.r.o."
@@ -27,7 +30,10 @@ class SEM_SharkSEM(SEM):
     SharkSEM remote control API.
     """
 
-    sem_api: SharkSEM
+    try:
+        sem_api: SharkSEM
+    except:
+        pass
     dwell_time_ns: Optional[int] = None     # ns
     CHANNEL = 0                             # channel is constant now, should not be edited!
     DEFAULT_DETECTOR = 'LE BSE'             # default detector is constant now, should not be edited!
