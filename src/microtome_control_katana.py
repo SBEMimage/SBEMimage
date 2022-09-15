@@ -149,7 +149,7 @@ class Microtome_katana(Microtome):
             # there is no error check, so it should only be used for display
             # purposes. (it is very fast though, so you can use it in a loop
             # to update the GUI)
-            self._read_realtime_data()
+            # self._read_realtime_data()
             print("Knife status: "
                   + knife_status
                   + ", \tKnife pos: "
@@ -285,15 +285,9 @@ class Microtome_katana(Microtome):
         """Perform a full cut cycle under the assumption that knife is
            already neared."""
         print('def do_full_approach_cut(self)')
-        self._wait_until_knife_stopped()
-        print('Moving to cutting position '
-              + str(self.cut_window_start) + ' ...')
-        self._send_command('KMS' + str(self.knife_fast_speed))
-        # send required speed. The reason I'm setting it every time before
-        # moving is that I'm using two different speeds
-        # (knifeFastSpeed & knifeCutSpeed)
-        self._send_command('KKM' + str(self.cut_window_start))   # send required position
 
+        # before coming here, the knife should already be at the start of the cutting window
+        
         # Turn oscillator on
         self._wait_until_knife_stopped()
         if self.use_oscillation:
@@ -302,14 +296,29 @@ class Microtome_katana(Microtome):
             self._send_command('KOA' + str(self.oscillation_amplitude))
 
         # Cut sample
+        self._wait_until_knife_stopped()
         print('Cutting sample...')
         # self._send_command('KMS' + str(self.knife_cut_speed)) # For now, keep fast speed for approach cutting. Can add setting later
-        self._send_command('KKM' + str(self.cut_window_end))
+        self._send_command('KKM' + str(0))
+
+
+        # Return to cutting window start
+        self._wait_until_knife_stopped()
+        print('Moving to cutting position '
+              + str(self.cut_window_start) + ' ...')
+        self._send_command('KMS' + str(self.knife_fast_speed))
+        # send required speed. The reason I'm setting it every time before
+        # moving is that I'm using two different speeds
+        # (knifeFastSpeed & knifeCutSpeed)
+        self._send_command('KKM' + str(self.cut_window_start))   # send required position
+        ###self._send_command('KKM' + str(1000))   # send required position
+
 
         # Turn oscillator off
         self._wait_until_knife_stopped()
         if self.use_oscillation:
             self._send_command('KOA0')
+            
 
     def do_sweep(self, z_position):
         """Perform a sweep by cutting slightly above the surface."""
@@ -368,7 +377,7 @@ class Microtome_katana(Microtome):
         response = response.rstrip()
         while self._reached_target() != 1:
         # _reached_target() returns 1 when stage is at target position
-            self._read_realtime_data()
+            #self._read_realtime_data()
             print('stage pos: ' + str(self.encoder_position))
             sleep(0.05)
         print('stage finished moving')
@@ -382,8 +391,8 @@ class Microtome_katana(Microtome):
 
     def clear_knife(self):
         print('def clear_knife(self)')
-        print('ssearle - clearing knife (KKM4000)')
-        self._send_command('KKM4000')
+        print('ssearle - clearing knife (KKM5256)')
+        self._send_command('KKM5256')
         pass
 
     def get_clear_position(self):
