@@ -33,10 +33,11 @@ from math import atan, atan2, sqrt
 from statistics import mean
 from PIL import Image
 from skimage.io import imread
-from skimage.feature import register_translation
+from skimage.registration import phase_cross_correlation
 import numpy as np
 from imreg_dft import translation
 from zipfile import ZipFile
+from typing import Tuple
 
 from PyQt5.uic import loadUi
 from PyQt5.QtCore import Qt, QObject, QSize, pyqtSignal, QThread
@@ -45,6 +46,7 @@ from PyQt5.QtWidgets import QApplication, QDialog, QMessageBox, \
                             QFileDialog, QLineEdit, QDialogButtonBox
 
 import utils
+from sem_control_mock import SEM_Mock
 from utils import Error
 import acq_func
 
@@ -329,8 +331,9 @@ class SaveConfigDlg(QDialog):
 # ------------------------------------------------------------------------------
 
 class SEMSettingsDlg(QDialog):
-    """SEM beam settings dialog window to adjust target EHT and target beam
-    current. The current actual beam settings and the current working distance
+    """SEM settings dialog window to adjust target EHT and target beam
+    current, aperture size, high current option, and detector selection.
+    The current actual beam settings and the current working distance
     and stigmation parameters are displayed.
     """
     def __init__(self, sem):
@@ -366,6 +369,16 @@ class SEMSettingsDlg(QDialog):
             '{0:.6f}'.format(sem.get_wd() * 1000))
         self.lineEdit_currentStigX.setText('{0:.6f}'.format(sem.get_stig_x()))
         self.lineEdit_currentStigY.setText('{0:.6f}'.format(sem.get_stig_y()))
+        # Show available detectors and set current detector
+        try:
+            available_detectors = self.sem.get_detector_list()
+            current_detector = self.sem.get_detector()
+            self.comboBox_detector.addItems(available_detectors)
+            if current_detector in available_detectors: 
+                self.comboBox_detector.setCurrentIndex(
+                    available_detectors.index(current_detector))
+        except NotImplementedError:
+            self.comboBox_detector.setEnabled(False)
 
     def accept(self):
         self.target_eht = self.doubleSpinBox_EHT.value()
@@ -383,6 +396,10 @@ class SEMSettingsDlg(QDialog):
         self.target_high_current = self.checkBox_highCurrent.isChecked()
         if self.target_high_current != self.actual_high_current:
             self.sem.set_high_current(self.target_high_current)
+
+        selected_detector = self.comboBox_detector.currentText()
+        if selected_detector:
+            self.sem.set_detector(selected_detector)
 
         super().accept()
 
@@ -804,16 +821,24 @@ class KatanaSettingsDlg(QDialog):
         self.show()
 
         # Set up COM port selector
-        self.comboBox_portSelector.addItems(utils.get_serial_ports())
-        self.comboBox_portSelector.setCurrentIndex(0)
+        available_ports = utils.get_serial_ports()
+        self.comboBox_portSelector.addItems(available_ports)
+        if self.microtome.selected_port in available_ports:
+            self.comboBox_portSelector.setCurrentIndex(
+                available_ports.index(self.microtome.selected_port))
+        else:
+            self.comboBox_portSelector.setCurrentIndex(0)
         self.comboBox_portSelector.currentIndexChanged.connect(
-            self.reconnect)
+            self.connect_to_new_com_port)
 
         self.display_connection_status()
         self.display_current_settings()
 
-    def reconnect(self):
-        pass
+    def connect_to_new_com_port(self):
+        """Attempt connection to new port."""
+        self.microtome.selected_port = self.comboBox_portSelector.currentText()
+        self.microtome.connect()
+        self.display_connection_status()
 
     def display_connection_status(self):
         # Show message in dialog whether or not katana is connected.
@@ -855,6 +880,7 @@ class KatanaSettingsDlg(QDialog):
             self.microtome.retract_clearance / 1000)
 
     def accept(self):
+        new_com_port = self.comboBox_portSelector.currentText()
         new_cut_speed = self.spinBox_knifeCutSpeed.value()
         new_fast_speed = self.spinBox_knifeFastSpeed.value()
         new_cut_start = self.spinBox_cutWindowStart.value()
@@ -866,6 +892,7 @@ class KatanaSettingsDlg(QDialog):
             self.doubleSpinBox_retractClearance.value() * 1000)
         # End position of cut window must be smaller than start position:
         if new_cut_end < new_cut_start:
+            self.microtome.selected_port = new_com_port
             self.microtome.knife_cut_speed = new_cut_speed
             self.microtome.knife_fast_speed = new_fast_speed
             self.microtome.cut_window_start = new_cut_start
@@ -972,6 +999,15 @@ class StageCalibrationDlg(QDialog):
         self.calc_exception = None
         self.busy = False
 
+        # Choose frame_size_selector depending on device: 
+        # About 2k x 2k is a good default choice
+        if self.sem.device_name.startswith("TESCAN"):
+            self.frame_size_selector = 5
+        elif sem.device_name.startswith("ZEISS"):
+            self.frame_size_selector = 2
+        else:  # Mock SEM
+            self.frame_size_selector = 1 
+
         loadUi('..\\gui\\stage_calibration_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
@@ -1000,6 +1036,40 @@ class StageCalibrationDlg(QDialog):
             self.calculate_calibration_parameters_from_user_input)
         self.pushButton_measureMotorSpeeds.clicked.connect(
             self.measure_motor_speeds)
+        # Show current calibration image size and update whenever pixel size
+        # is changed by user
+        self.show_calibration_image_size()
+        self.spinBox_pixelsize.valueChanged.connect(self.show_calibration_image_size)
+         
+        # For now, disable motor speed section unless Gatan 3View is used
+        if self.stage.device_name() != "Gatan 3View":
+            self.doubleSpinBox_motorSpeedX.setEnabled(False)
+            self.doubleSpinBox_motorSpeedY.setEnabled(False)
+            self.pushButton_measureMotorSpeeds.setEnabled(False)
+
+    def calibration_image_size(self) -> Tuple[float, float]:
+        """Return the current size [width, height] of the calibration 
+        images in micrometres.
+        """
+        pixel_size = self.spinBox_pixelsize.value()
+        resolution = self.sem.STORE_RES[self.frame_size_selector]
+        width = resolution[0] * pixel_size / 1000
+        height = resolution[1] * pixel_size / 1000
+        return width, height
+
+    def show_calibration_image_size(self):
+        """Calculate and display the size of the calibration images."""
+        width, height = self.calibration_image_size()
+        self.label_imageSize.setText(f'{width:.1f} × {height:.1f}')
+
+    def stage_moves_within_image_size(self) -> bool:
+        """Check whether the specified X/Y move distances are within the
+        calibration image size (with a minimum of 10% overlap expected).
+        """
+        width, height = self.calibration_image_size()
+        move_distance = self.spinBox_shift.value()
+        return ((width - move_distance >= 0.1 * width) and 
+                (height - move_distance >= 0.1 * height))
 
     def measure_motor_speeds(self):
         """Run the measurement routine in a thread."""
@@ -1071,6 +1141,15 @@ class StageCalibrationDlg(QDialog):
                 self, 'EHT off', 'EHT / high voltage is off. Please turn '
                 'it on before starting the calibration.', QMessageBox.Ok)
             return
+
+        if not self.stage_moves_within_image_size():
+            QMessageBox.warning(
+                self, 'X/Y move distance too large', 
+                'Ensure that the specified distance for X/Y moves '
+                'is smaller than the width and height of the calibration '
+                'images, so that at least 10% overlap is achieved.', QMessageBox.Ok)
+            return
+
         reply = QMessageBox.information(
             self, 'Start calibration procedure',
             'This will acquire three images and save them in the current base '
@@ -1100,14 +1179,9 @@ class StageCalibrationDlg(QDialog):
         shift = self.spinBox_shift.value()
         pixel_size = self.spinBox_pixelsize.value()
         dwell_time = self.sem.DWELL_TIME[self.comboBox_dwellTime.currentIndex()]
-        # Use frame size 4 if available, otherwise 3
-        if len(self.sem.STORE_RES) > 4:
-            frame_size_selector = 4
-        else:
-            frame_size_selector = 3
 
         self.sem.apply_frame_settings(
-            frame_size_selector, pixel_size, dwell_time)
+            self.frame_size_selector, pixel_size, dwell_time)
 
         start_x, start_y = self.stage.get_xy()
         # Acquire first image at starting position
@@ -1142,9 +1216,9 @@ class StageCalibrationDlg(QDialog):
                     start_img, shift_x_img, filter_pcorr=3)['tvec'][::-1]
                 y_shift = translation(
                     start_img, shift_y_img, filter_pcorr=3)['tvec'][::-1]
-            else:  # use skimage.register_translation
-                x_shift = register_translation(start_img, shift_x_img)[0][::-1]
-                y_shift = register_translation(start_img, shift_y_img)[0][::-1]
+            else:  # use skimage.phase_cross_correlation
+                x_shift = phase_cross_correlation(start_img, shift_x_img)[0][::-1]
+                y_shift = phase_cross_correlation(start_img, shift_y_img)[0][::-1]
             x_shift = x_shift.astype(np.int)
             y_shift = y_shift.astype(np.int)
             self.x_shift_vector = [x_shift[0], x_shift[1]]
@@ -1292,15 +1366,17 @@ class StageCalibrationDlg(QDialog):
             # Save and apply new stage calibration and motor speeds
             self.cs.save_stage_calibration(self.sem.target_eht, stage_params)
             self.cs.apply_stage_calibration()
-            success = self.stage.set_motor_speeds(
-                self.doubleSpinBox_motorSpeedX.value(),
-                self.doubleSpinBox_motorSpeedY.value())
 
-            if not success:
-                QMessageBox.warning(
-                    self, 'Error updating motor speeds',
-                    'Motor speeds could not be updated.',
-                    QMessageBox.Ok)
+            if self.stage.device_name() == "Gatan 3View":
+                success = self.stage.set_motor_speeds(
+                    self.doubleSpinBox_motorSpeedX.value(),
+                    self.doubleSpinBox_motorSpeedY.value())
+                if not success:
+                    QMessageBox.warning(
+                        self, 'Error updating motor speeds',
+                        'Motor speeds could not be updated.',
+                        QMessageBox.Ok)
+
             super().accept()
 
     def reject(self):
@@ -1595,11 +1671,17 @@ class GridSettingsDlg(QDialog):
             self.show_frame_size_and_dose)
         self.doubleSpinBox_pixelSize.valueChanged.connect(
             self.show_frame_size_and_dose)
-        # Adaptive focus tool button:
+        # Focus gradient feature, disabled for TESCAN SEMs
         self.toolButton_focusGradient.clicked.connect(
             self.open_focus_gradient_dlg)
-        # Button to load current SEM imaging parameters
+        if sem.device_name.startswith("TESCAN"):
+            self.checkBox_focusGradient.setEnabled(False)
+            self.toolButton_focusGradient.setEnabled(False)
+        # Button to load current SEM imaging parameters. 
+        # For now, only enabled for ZEISS SEMs.
         self.pushButton_getFromSEM.clicked.connect(self.get_settings_from_sem)
+        self.pushButton_getFromSEM.setEnabled(
+            self.sem.device_name.startswith("ZEISS"))
         # Buttons to reset tile previews and wd/stig parameters
         self.pushButton_resetTilePreviews.clicked.connect(
             self.reset_tile_previews)
@@ -1630,6 +1712,7 @@ class GridSettingsDlg(QDialog):
     def update_active_status(self):
         # If current grid is inactive, disable GUI elements
         b = self.radioButton_active.isChecked()
+        tescan_sem = self.sem.device_name.startswith("TESCAN")
         self.spinBox_rows.setEnabled(b)
         self.spinBox_cols.setEnabled(b)
         self.spinBox_overlap.setEnabled(b)
@@ -1638,8 +1721,8 @@ class GridSettingsDlg(QDialog):
         self.comboBox_tileSize.setEnabled(b)
         self.comboBox_dwellTime.setEnabled(b)
         self.doubleSpinBox_pixelSize.setEnabled(b)
-        self.checkBox_focusGradient.setEnabled(b)
-        self.toolButton_focusGradient.setEnabled(b)
+        self.checkBox_focusGradient.setEnabled(b and not tescan_sem)
+        self.toolButton_focusGradient.setEnabled(b and not tescan_sem)
         self.pushButton_resetFocusParams.setEnabled(b)
         self.spinBox_acqInterval.setEnabled(b)
         self.spinBox_acqIntervalOffset.setEnabled(b)
@@ -1814,12 +1897,6 @@ class GridSettingsDlg(QDialog):
         else:
             error_msg = ('Overlap outside of allowed '
                          'range (-30% .. 30% frame width).')
-        # Get current centre of grid:
-        centre_dx, centre_dy = self.gm[self.current_grid].centre_dx_dy
-        # Set new angle
-        self.gm[self.current_grid].rotation = (
-            self.doubleSpinBox_rotation.value())
-        self.gm[self.current_grid].rotate_around_grid_centre(centre_dx, centre_dy)
         if 0 <= input_shift <= tile_width_p:
             self.gm[self.current_grid].row_shift = input_shift
         else:
@@ -1840,9 +1917,21 @@ class GridSettingsDlg(QDialog):
             self.spinBox_acqInterval.value())
         self.gm[self.current_grid].acq_interval_offset = (
             self.spinBox_acqIntervalOffset.value())
-        # Finally, recalculate tile positions
+        # Recalculate tile positions after all parameter updates, except rotation (see below)
         self.gm[self.current_grid].update_tile_positions()
+        
+        # Now apply rotation if the rotation angle was changed.
+        new_rotation = self.doubleSpinBox_rotation.value()
+        if new_rotation != self.gm[self.current_grid].rotation:
+          # Get current centre of grid
+          centre_dx, centre_dy = self.gm[self.current_grid].centre_dx_dy
+          # Set new angle, perform rotation to get new grid origin, and update tile positions
+          self.gm[self.current_grid].rotation = new_rotation
+          self.gm[self.current_grid].rotate_around_grid_centre(centre_dx, centre_dy)
+          self.gm[self.current_grid].update_tile_positions()
+
         self.gm[self.current_grid].auto_update_tile_positions = True
+
         if self.magc_mode:
             self.gm[self.current_grid].centre_sx_sy = prev_grid_centre
             magc_utils.write_magc(self.gm)
@@ -1979,7 +2068,11 @@ class AcqSettingsDlg(QDialog):
         super().__init__()
         self.acq = acquisition
         self.notifications = notifications
-        loadUi('..\\gui\\acq_settings_dlg.ui', self)
+        if not isinstance(self.acq.sem, SEM_Mock):
+            loadUi('..\\gui\\acq_settings_dlg.ui', self)
+        else:
+            loadUi('..\\gui\\acq_settings_dlg_mock.ui', self)
+            self.update_mock_settings()
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
@@ -2026,6 +2119,14 @@ class AcqSettingsDlg(QDialog):
                 start_path,
                 QFileDialog.ShowDirsOnly)).replace('/', '\\'))
 
+    def select_mock_directory(self):
+        """Let user select a previous acquisition directory to use for mock SEM images."""
+        self.lineEdit_mockDir.setText(
+            str(QFileDialog.getExistingDirectory(
+                self, 'Select Directory',
+                'C:\\',
+                QFileDialog.ShowDirsOnly)).replace('/', '\\'))
+
     def update_server_lineedit(self):
         self.lineEdit_projectName.setEnabled(
             self.checkBox_sendMetaData.isChecked())
@@ -2046,6 +2147,17 @@ class AcqSettingsDlg(QDialog):
             self.update_target_z_diff()
             self.doubleSpinBox_targetZDiff.hide()
         self.comboBox_targetType.currentIndexChanged.connect(self.switch_target_spinbox)
+
+    def update_mock_settings(self):
+        self.pushButton_selectMockDir.clicked.connect(self.select_mock_directory)
+        self.pushButton_selectMockDir.setIcon(QIcon('..\\img\\selectdir.png'))
+        self.pushButton_selectMockDir.setIconSize(QSize(16, 16))
+        if self.acq.sem.previous_acq_dir is not None:
+            self.lineEdit_mockDir.setText(self.acq.sem.previous_acq_dir)
+        if self.acq.sem.mock_type == "noise":
+            self.comboBox_mockType.setCurrentIndex(0)
+        else:
+            self.comboBox_mockType.setCurrentIndex(1)
 
     def update_target_z_diff(self):
         if self.slices_valid(self.acq.slice_counter, self.acq.number_slices):
@@ -2137,6 +2249,21 @@ class AcqSettingsDlg(QDialog):
                     'The selected base directory is invalid or '
                     'inaccessible: ' + str(e),
                     QMessageBox.Ok)
+        if isinstance(self.acq.sem, SEM_Mock):
+            if self.comboBox_mockType.currentIndex() == 0:
+                self.acq.sem.mock_type = "noise"
+            else:
+                self.acq.sem.mock_type = "previous_acquisition"
+                mock_dir = self.lineEdit_mockDir.text()
+                if os.path.exists(mock_dir) and os.path.isdir(mock_dir):
+                    self.acq.sem.previous_acq_dir = mock_dir
+                else:
+                    success = False
+                    QMessageBox.warning(
+                        self, 'Error',
+                        'The selected mock path does not exist, or is not a directory.',
+                        QMessageBox.Ok)
+
         min_slice_thickness = 5
         if self.acq.syscfg['device']['microtome'] == '6':
             min_slice_thickness = 0
@@ -2986,6 +3113,8 @@ class AutofocusSettingsDlg(QDialog):
         self.spinBox_interval.setValue(self.autofocus.interval)
         self.spinBox_autostigDelay.setValue(self.autofocus.autostig_delay)
         self.doubleSpinBox_pixelSize.setValue(self.autofocus.pixel_size)
+        if self.autofocus.mapfost_large_aberrations:
+            self.radioButton_mapfost_largeaberr.setChecked(True)
         # For heuristic autofocus:
         self.doubleSpinBox_wdDiff.setValue(
             self.autofocus.wd_delta * 1000000)
@@ -3001,6 +3130,7 @@ class AutofocusSettingsDlg(QDialog):
             self.autofocus.heuristic_calibration[2])
         self.doubleSpinBox_stigRot.setValue(self.autofocus.rot_angle)
         self.doubleSpinBox_stigScale.setValue(self.autofocus.scale_factor)
+
         # Disable some settings if MagC mode is active
         if magc_mode:
             self.radioButton_useHeuristic.setEnabled(False)
@@ -3088,12 +3218,14 @@ class AutofocusSettingsDlg(QDialog):
         self.autofocus.wd_delta = self.doubleSpinBox_wdDiff.value() / 1000000
         self.autofocus.stig_x_delta = self.doubleSpinBox_stigXDiff.value()
         self.autofocus.stig_y_delta = self.doubleSpinBox_stigYDiff.value()
+
         self.autofocus.heuristic_calibration = [
             self.doubleSpinBox_focusCalib.value(),
             self.doubleSpinBox_stigXCalib.value(),
             self.doubleSpinBox_stigYCalib.value()]
         self.autofocus.rot_angle = self.doubleSpinBox_stigRot.value()
         self.autofocus.scale_factor = self.doubleSpinBox_stigScale.value()
+        self.autofocus.mapfost_large_aberrations = self.radioButton_mapfost_largeaberr.isChecked()
         if not error_str:
             super().accept()
         else:
@@ -3130,21 +3262,19 @@ class RunAutofocusDlg(QDialog):
         self.comboBox_mode.setCurrentIndex(0)
 
         self.pushButton_run.clicked.connect(self.run_autofocus)
+        self.pushButton_calibrate.clicked.connect(self.calibrate_af)
 
     def run_autofocus(self):
+        self.busy = True
+        self.pushButton_run.setText('Busy... please wait')
+        self.pushButton_run.setEnabled(False)
         method = self.comboBox_method.currentIndex()
         mode = self.comboBox_mode.currentIndex()
+        self.large_aberr = self.radioButton_large_aberr.isChecked()
         if method == 1:
-            if mode != 0:
-                utils.run_log_thread(f'MAPFoSt always corrects focus and stigmation.')
-            try:
-                utils.run_log_thread(self.call_mapfost_af_routine)
-            except ImportError:
-                # MAPFoSt disabled for now
-                QMessageBox.information(
-                    self, 'MAPFoSt',
-                    'MAPFoSt Autofocus not available yet.',
-                    QMessageBox.Ok)
+            self.aberr_mode_bools = [mode<2, mode==0 or mode==2, mode==0 or mode==2]
+            utils.run_log_thread(self.call_mapfost_af_routine)
+
         elif method == 0:
             if mode == 0:
                 self.use_autofocus = True
@@ -3155,22 +3285,15 @@ class RunAutofocusDlg(QDialog):
             else:
                 self.use_autofocus = False
                 self.use_autostig = True
-
-            self.pushButton_run.setText('Busy... please wait')
-            self.pushButton_run.setEnabled(False)
             utils.run_log_thread(self.call_zeiss_af_routine)
 
-    def call_zeiss_af_routine(self):
-        self.busy = True
-        self.af_msg = self.autofocus.run_zeiss_af(
-            self.use_autofocus, self.use_autostig)
+    def call_mapfost_af_routine(self):
+        self.af_msg = self.autofocus.run_mapfost_af(self.aberr_mode_bools, self.large_aberr)
         self.finish_trigger.signal.emit()
 
-    def call_mapfost_af_routine(self):
-        self.busy = True
-        af_kwargs = dict(defocus_arr=self.autofocus.mapfost_defocus_trials, rot=self.autofocus.rot_angle_mafpsot,
-                         scale=self.autofocus.scale_factor_mapfost, na=self.autofocus.na_mapfost)
-        self.af_msg = self.autofocus.run_mapfost_af(**af_kwargs)
+    def call_zeiss_af_routine(self):
+        self.af_msg = self.autofocus.run_zeiss_af(
+            self.use_autofocus, self.use_autostig)
         self.finish_trigger.signal.emit()
 
     def autofocus_completed(self):
@@ -3193,6 +3316,47 @@ class RunAutofocusDlg(QDialog):
                 QMessageBox.Ok)
             utils.log_info('SEM', self.af_msg)
             self.accept()
+
+
+    def calibrate_af(self):
+        method = self.comboBox_method.currentIndex()
+        if method == 0 :
+            QMessageBox.information(
+                self, 'SmartSEM AF',
+                'calibration not available',
+                QMessageBox.Ok)
+        elif method ==1:
+            self.pushButton_calibrate.setText('Busy... please wait')
+            self.pushButton_calibrate.setEnabled(False)
+            self.busy = True
+            QMessageBox.question(
+                self, 'Defocus calibration.','Defocus calibration \n Please make sure the SEM is well focused. \n Click OK to proceed.',
+                QMessageBox.Ok)
+            msg = self.autofocus.calibrate_mapfost_af(calib_mode="defocus")
+
+            user_reply = QMessageBox.question(
+                self, 'Defocus calibration','Probe convergence angle is ' + str(msg) + "\n" + "Please update the ini file." + "\n" +
+                                            "Click Ok to proceed with Astig calibration"
+                , QMessageBox.Ok| QMessageBox.Cancel)
+
+            utils.log_info('SEM ', 'The probe convergence angle is ' + str(msg))
+            self.accept()
+
+            if user_reply == QMessageBox.Ok:
+                user_reply = QMessageBox.question(
+                    self, 'Astig calibration.',' Astig Calibration \n Please make sure the SEM is well focused. \n Click OK to proceed.',
+                    QMessageBox.Ok | QMessageBox.Cancel)
+                if user_reply == QMessageBox.Ok:
+                    msg = self.autofocus.calibrate_mapfost_af(calib_mode="astig")
+                    QMessageBox.question(
+                        self, 'Astig calibration.', 'The astig rotation (deg) is ' + str(msg[0]) + "\n" +
+                                                    'The astig scaling is ' + str(msg[1]) +
+                                                    " \n Calibration complete. Please update the ini file", QMessageBox.Ok)
+                    utils.log_info('SEM' , "Astig Rotation and Scaling : " + str(msg))
+                self.accept()
+                self.af_msg = "Calibration complete. Please update the ini file"
+                self.new_wd_stig = self.sem.get_wd(), *self.sem.get_stig_xy()
+                self.finish_trigger.signal.emit()
 
     def reject(self):
         if not self.busy:
@@ -3744,7 +3908,11 @@ class GrabFrameDlg(QDialog):
         self.comboBox_dwellTime.addItems(map(str, self.sem.DWELL_TIME))
         self.comboBox_dwellTime.setCurrentIndex(
             self.sem.DWELL_TIME.index(self.sem.grab_dwell_time))
+        # Button to load current SEM imaging parameters. 
+        # For now, only enabled for ZEISS SEMs.
         self.pushButton_getFromSEM.clicked.connect(self.get_settings_from_sem)
+        self.pushButton_getFromSEM.setEnabled(
+            self.sem.device_name.startswith("ZEISS"))
         self.pushButton_scan.clicked.connect(self.scan_frame)
         self.pushButton_save.clicked.connect(self.save_frame)
 
@@ -3961,12 +4129,12 @@ class FTSetParamsDlg(QDialog):
 class FTMoveDlg(QDialog):
     """Move the stage to the selected tile or OV position."""
 
-    def __init__(self, microtome, coordinate_system, grid_manager,
+    def __init__(self, stage, grid_manager, ov_manager,
                  grid_index, tile_index, ov_index):
         super().__init__()
-        self.microtome = microtome
-        self.cs = coordinate_system
+        self.stage = stage
         self.gm = grid_manager
+        self.ovm = ov_manager
         self.ov_index = ov_index
         self.grid_index = grid_index
         self.tile_index = tile_index
@@ -3998,10 +4166,10 @@ class FTMoveDlg(QDialog):
         elif self.tile_index >= 0:
             stage_x, stage_y = self.gm[self.grid_index][self.tile_index].sx_sy
         # Now move the stage
-        self.microtome.move_stage_to_xy((stage_x, stage_y))
-        if self.microtome.error_state != Error.none:
+        self.stage.move_to_xy((stage_x, stage_y))
+        if self.stage.error_state != Error.none:
             self.error = True
-            self.microtome.reset_error_state()
+            self.stage.reset_error_state()
         # Signal that move complete
         self.finish_trigger.signal.emit()
 

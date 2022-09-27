@@ -27,7 +27,6 @@ from random import random
 from time import sleep, time, strftime, localtime
 from PIL import Image
 from skimage.io import imread
-from skimage.feature import register_translation
 import numpy as np
 from imreg_dft import translation
 from zipfile import ZipFile

@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>311</width>
-    <height>331</height>
+    <height>368</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -20,7 +20,7 @@
    </sizepolicy>
   </property>
   <property name="windowTitle">
-   <string>SEM Beam Settings</string>
+   <string>SEM Settings</string>
   </property>
   <property name="layoutDirection">
    <enum>Qt::LeftToRight</enum>
@@ -29,7 +29,7 @@
    <property name="geometry">
     <rect>
      <x>140</x>
-     <y>290</y>
+     <y>330</y>
      <width>161</width>
      <height>32</height>
     </rect>
@@ -48,7 +48,7 @@
    <property name="geometry">
     <rect>
      <x>230</x>
-     <y>50</y>
+     <y>30</y>
      <width>71</width>
      <height>22</height>
     </rect>
@@ -70,7 +70,7 @@
    <property name="geometry">
     <rect>
      <x>230</x>
-     <y>30</y>
+     <y>10</y>
      <width>41</width>
      <height>20</height>
     </rect>
@@ -83,7 +83,7 @@
    <property name="geometry">
     <rect>
      <x>230</x>
-     <y>80</y>
+     <y>60</y>
      <width>71</width>
      <height>22</height>
     </rect>
@@ -105,7 +105,7 @@
    <property name="geometry">
     <rect>
      <x>150</x>
-     <y>30</y>
+     <y>10</y>
      <width>41</width>
      <height>20</height>
     </rect>
@@ -118,7 +118,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>252</y>
+     <y>230</y>
      <width>131</width>
      <height>20</height>
     </rect>
@@ -134,7 +134,7 @@
    <property name="geometry">
     <rect>
      <x>150</x>
-     <y>192</y>
+     <y>170</y>
      <width>71</width>
      <height>20</height>
     </rect>
@@ -147,7 +147,7 @@
    <property name="geometry">
     <rect>
      <x>150</x>
-     <y>222</y>
+     <y>200</y>
      <width>71</width>
      <height>20</height>
     </rect>
@@ -157,7 +157,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>222</y>
+     <y>200</y>
      <width>131</width>
      <height>20</height>
     </rect>
@@ -170,8 +170,8 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>192</y>
-     <width>151</width>
+     <y>170</y>
+     <width>131</width>
      <height>20</height>
     </rect>
    </property>
@@ -186,7 +186,7 @@
    <property name="geometry">
     <rect>
      <x>150</x>
-     <y>252</y>
+     <y>230</y>
      <width>71</width>
      <height>20</height>
     </rect>
@@ -196,7 +196,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>170</y>
+     <y>146</y>
      <width>291</width>
      <height>16</height>
     </rect>
@@ -205,24 +205,11 @@
     <enum>Qt::Horizontal</enum>
    </property>
   </widget>
-  <widget class="QLabel" name="label_2">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>10</y>
-     <width>181</width>
-     <height>20</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Current beam settings (SmartSEM): </string>
-   </property>
-  </widget>
   <widget class="QLabel" name="label_3">
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>50</y>
+     <y>30</y>
      <width>81</width>
      <height>20</height>
     </rect>
@@ -241,7 +228,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>80</y>
+     <y>60</y>
      <width>131</width>
      <height>20</height>
     </rect>
@@ -263,7 +250,7 @@
    <property name="geometry">
     <rect>
      <x>150</x>
-     <y>50</y>
+     <y>30</y>
      <width>71</width>
      <height>22</height>
     </rect>
@@ -288,7 +275,7 @@
    <property name="geometry">
     <rect>
      <x>150</x>
-     <y>80</y>
+     <y>60</y>
      <width>71</width>
      <height>22</height>
     </rect>
@@ -310,7 +297,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>110</y>
+     <y>90</y>
      <width>131</width>
      <height>20</height>
     </rect>
@@ -329,7 +316,7 @@
    <property name="geometry">
     <rect>
      <x>230</x>
-     <y>110</y>
+     <y>90</y>
      <width>69</width>
      <height>22</height>
     </rect>
@@ -342,7 +329,7 @@
    <property name="geometry">
     <rect>
      <x>150</x>
-     <y>110</y>
+     <y>90</y>
      <width>71</width>
      <height>22</height>
     </rect>
@@ -364,13 +351,49 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>140</y>
+     <y>120</y>
      <width>131</width>
      <height>19</height>
     </rect>
    </property>
    <property name="text">
     <string>High Current</string>
+   </property>
+  </widget>
+  <widget class="Line" name="line_2">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>259</y>
+     <width>291</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="orientation">
+    <enum>Qt::Horizontal</enum>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_detector">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>280</y>
+     <width>131</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Detector:</string>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="comboBox_detector">
+   <property name="geometry">
+    <rect>
+     <x>150</x>
+     <y>280</y>
+     <width>151</width>
+     <height>22</height>
+    </rect>
    </property>
   </widget>
  </widget>

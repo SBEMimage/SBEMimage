@@ -37,30 +37,12 @@ class Microtome_katana(Microtome):
         self.current_osc_freq = None
         self.current_osc_amp = None
         self.cut_completed = False 
+        # COM port
+        self.com_port = serial.Serial()
         # Connection status:
         self.connected = False
         # Try to connect with current selected port
         self.connect()
-        if self.connected:
-            # wait after opening port for arduino to initialise (won't be
-            # necessary in future when using extra usb-serial chip)
-            sleep(1)
-            # initial comm is lost when on arduino usb port. (ditto)
-            self._send_command(' ')
-            # clear any incoming data from the serial buffer (probably
-            # not necessary here)
-            self.com_port.flushInput()
-            # need to delay after opening port before sending anything.
-            # 0.2s fails. 0.25s seems to be always OK. Suggest >0.3s for
-            # reliability.
-            sleep(0.3)
-            # if this software is the first to interact with the hardware
-            # after power-on, then the motor parameters need to be set
-            # (no harm to do anyway)
-            self.initialise_motor()
-            # get the initial Z position from the encoder
-            self.last_known_z = self.get_stage_z()
-            print('Starting Z position: ' + str(self.last_known_z) + 'µm')
 
     def save_to_cfg(self):
         super().save_to_cfg()
@@ -72,9 +54,17 @@ class Microtome_katana(Microtome):
             self.retract_clearance)
 
     def connect(self):
-        # Open COM port
+        """
+        Attempt to connect to specified COM port (self.selected_port).
+        If port is open, perform backwards compatibility sequence,
+        handshake ('K?' command), and initialize motor.
+        """
+        if self.com_port.isOpen():
+            self.com_port.close() 
+            self.connected = False
+
+        # Open COM port specified by self.selected_port
         if not self.simulation_mode:
-            self.com_port = serial.Serial()
             self.com_port.port = self.selected_port
             self.com_port.baudrate = 115200
             self.com_port.bytesize = 8
@@ -84,11 +74,38 @@ class Microtome_katana(Microtome):
             self.com_port.timeout = 0.5
             try:
                 self.com_port.open()
-                self.connected = True
                 # print('Connection to katana successful.')
             except Exception as e:
                 print('Connection to katana failed: ' + repr(e))
-
+        if self.com_port.isOpen():
+            # only for backwards compatibility with old controllers
+            # (the MCU no longer resets upon comms initialisation)
+            sleep(1)
+            # initial comm is lost when on arduino usb port. (ditto)
+            self._send_command(' ')
+            # clear any incoming data from the serial buffer
+            self.com_port.flushInput()
+            # need to delay after opening port before sending anything.
+            # 0.2s fails. 0.25s seems to be always OK. Suggest >0.3s for
+            # reliability.
+            sleep(0.3)
+            # Perform handshake and initialize motors
+            self._send_command('K?')
+            response = self._read_response()
+            if response[:3] == 'K?:':
+                self.connected = True
+                print(response)
+                # if this software is the first to interact with the hardware
+                # after power-on, then the motor parameters need to be set
+                # (no harm to do anyway)
+                self.initialise_motor()
+                # get the initial Z position from the encoder
+                self.last_known_z = self.get_stage_z()
+                print('Starting Z position: ' + str(self.last_known_z) + 'µm')
+            else:
+                self.connected = False
+                print('Handshake with katana failed.')
+        
     def initialise_motor(self):
          self._send_command('XM2')
          self._send_command('XY13,1')
@@ -132,7 +149,7 @@ class Microtome_katana(Microtome):
             # there is no error check, so it should only be used for display
             # purposes. (it is very fast though, so you can use it in a loop
             # to update the GUI)
-            self._read_realtime_data()
+            # self._read_realtime_data()
             print("Knife status: "
                   + knife_status
                   + ", \tKnife pos: "
@@ -140,7 +157,7 @@ class Microtome_katana(Microtome):
                   + "µm")
 
             if knife_status == 'KKP:0':    # If knife is not moving
-                # print('Knife stationary')
+                print('Knife stopped (KKP:0)')
                 return 0
             # re-check every 0.2s. Repeated queries like this shouldnt be more
             # often than every 0.025s (risks overflowing the microtome
@@ -178,6 +195,7 @@ class Microtome_katana(Microtome):
         #       +" \t"+str(katana.oscfreq)+" \t"+str(katana.oscAmp))
 
     def _reached_target(self):
+         print('_reached_target(self)')
          """Check to see if the z motor is still moving (returns 1 if target
          reached, otherwise 0 if still moving."""
          self.com_port.flushInput()
@@ -196,10 +214,12 @@ class Microtome_katana(Microtome):
 
     def do_full_cut(self):
         """Perform a full cut cycle. Code is run in a thread."""
+        print('def do_full_cut(self)')
         self.cut_completed = False
         utils.run_log_thread(self.run_cut_sequence)
 
     def run_cut_sequence(self):
+        print('def run_cut_sequence(self)')
         # Move to cutting window
         # (good practice to check the knife is not moving before starting)
         self._wait_until_knife_stopped()
@@ -248,30 +268,85 @@ class Microtome_katana(Microtome):
         
     def check_cut_cycle_status(self):
         # Excess duration of cutting cycle in seconds
+        print('def check_cut_cycle_status(self)')
         delay = 0
-        for i in range(15):
+        for i in range(240):    # if no cut finished signal detected after 240s, assume signal was missed and continue. Was previously 15s which is not enough for a slow cut
+            print(str(i) + ' - self.cut_completed = ' + str(self.cut_completed))
             if self.cut_completed:
                 print('cut completed, returning: ', delay)
                 return delay
             sleep(1)
             delay += 1
+        if not self.cut_completed:
+            print('cut complete not detected. timing out and continuing...')
         return delay    
 
     def do_full_approach_cut(self):
         """Perform a full cut cycle under the assumption that knife is
            already neared."""
-        pass
+        print('def do_full_approach_cut(self)')
+
+        # before coming here, the knife should already be at the start of the cutting window
+        
+        # Turn oscillator on
+        self._wait_until_knife_stopped()
+        if self.use_oscillation:
+            # turn oscillator on
+            self._send_command('KO' + str(self.oscillation_frequency))
+            self._send_command('KOA' + str(self.oscillation_amplitude))
+
+        # Cut sample
+        self._wait_until_knife_stopped()
+        print('Cutting sample...')
+        # self._send_command('KMS' + str(self.knife_cut_speed)) # For now, keep fast speed for approach cutting. Can add setting later
+        self._send_command('KKM' + str(0))
+
+
+        # Return to cutting window start
+        self._wait_until_knife_stopped()
+        print('Moving to cutting position '
+              + str(self.cut_window_start) + ' ...')
+        self._send_command('KMS' + str(self.knife_fast_speed))
+        # send required speed. The reason I'm setting it every time before
+        # moving is that I'm using two different speeds
+        # (knifeFastSpeed & knifeCutSpeed)
+        self._send_command('KKM' + str(self.cut_window_start))   # send required position
+        ###self._send_command('KKM' + str(1000))   # send required position
+
+
+        # Turn oscillator off
+        self._wait_until_knife_stopped()
+        if self.use_oscillation:
+            self._send_command('KOA0')
+            
 
     def do_sweep(self, z_position):
         """Perform a sweep by cutting slightly above the surface."""
-        pass
+        print('def do_sweep(self, z_position)')
+        self._wait_until_knife_stopped()
+        print('Moving to cutting position '
+              + str(self.cut_window_start) + ' ...')
+        self._send_command('KMS' + str(self.knife_fast_speed))
+        self._send_command('KKM' + str(self.cut_window_start))   # send required position
+        self._wait_until_knife_stopped()
+
+        # Cut sample
+        print('Cutting sample...')
+        # self._send_command('KMS' + str(self.knife_cut_speed)) # For sweep, keep fast speed for approach cutting. Can add setting later
+        self._send_command('KKM' + str(self.cut_window_end))
+        self._wait_until_knife_stopped()
+
+        self.retract_knife()
+        self._wait_until_knife_stopped()        
 
     def cut(self):
+        print('def cut(self)')
         self._send_command('KKM0')
         pass
 
     def retract_knife(self):
-        self._send_command('KKM4000')
+        print('def retract(self)')
+        self._send_command('KKM5000')
         pass
 
     def get_stage_z(self, wait_interval=0.5):
@@ -302,7 +377,7 @@ class Microtome_katana(Microtome):
         response = response.rstrip()
         while self._reached_target() != 1:
         # _reached_target() returns 1 when stage is at target position
-            self._read_realtime_data()
+            #self._read_realtime_data()
             print('stage pos: ' + str(self.encoder_position))
             sleep(0.05)
         print('stage finished moving')
@@ -310,13 +385,14 @@ class Microtome_katana(Microtome):
 
     def near_knife(self):
         #self.add_to_log('ssearle - nearing knife (KKM0)') # not working. not sure how to add to log from here
-        print('ssearle - nearing knife (KKM0)')
+        print('ssearle - nearing knife (KKM0)') # print command goes to the terminal window, which is fine for debugging
         self._send_command('KKM0')
         pass
 
     def clear_knife(self):
-        print('ssearle - clearing knife (KKM4000)')
-        self._send_command('KKM4000')
+        print('def clear_knife(self)')
+        print('ssearle - clearing knife (KKM5256)')
+        self._send_command('KKM5256')
         pass
 
     def get_clear_position(self):
@@ -331,8 +407,9 @@ class Microtome_katana(Microtome):
     def set_retract_clearance(self, retract_clearance):
         self.retract_clearance = int(retract_clearance)
 
-    def check_cut_cycle_status(self):
-        pass
+    #def check_cut_cycle_status(self):
+        #print('Unused - def check_cut_cycle_status(self)')
+        #pass
 
     def reset_error_state(self):
         self.error_state = Error.none

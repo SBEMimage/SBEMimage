@@ -217,7 +217,7 @@
             </rect>
            </property>
            <property name="text">
-            <string>Show stub overview</string>
+            <string>Show stub OV</string>
            </property>
           </widget>
           <widget class="QCheckBox" name="checkBox_showImported">
@@ -231,6 +231,22 @@
            </property>
            <property name="text">
             <string>Show imported</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_updateStagePos">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="geometry">
+            <rect>
+             <x>310</x>
+             <y>33</y>
+             <width>30</width>
+             <height>24</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string/>
            </property>
           </widget>
          </widget>

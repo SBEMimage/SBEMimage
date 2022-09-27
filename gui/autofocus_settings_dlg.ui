@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>301</width>
-    <height>679</height>
+    <height>709</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -23,7 +23,7 @@
    <property name="geometry">
     <rect>
      <x>100</x>
-     <y>640</y>
+     <y>670</y>
      <width>191</width>
      <height>32</height>
     </rect>
@@ -100,7 +100,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>460</y>
+     <y>487</y>
      <width>281</width>
      <height>171</height>
     </rect>
@@ -371,7 +371,7 @@
      <x>10</x>
      <y>320</y>
      <width>281</width>
-     <height>131</height>
+     <height>158</height>
     </rect>
    </property>
    <property name="title">
@@ -411,6 +411,22 @@
     <property name="text">
      <string>Pixel size for refocusing (nm):</string>
     </property>
+   </widget>
+   <widget class="QRadioButton" name="radioButton_mapfost_largeaberr">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>127</y>
+     <width>251</width>
+     <height>17</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Large aberrations expected (mapfost only)</string>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
    </widget>
    <widget class="QLabel" name="label_fdp_3">
     <property name="geometry">

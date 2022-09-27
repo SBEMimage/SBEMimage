@@ -15,6 +15,7 @@ imageio
 pyyaml
 psutil
 opencv-python
+mapfost
 comtypes
 shapely>=1.8a1
 qdarkstyle

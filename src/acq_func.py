@@ -19,6 +19,7 @@ and not during acquisitions:
 import os
 import datetime
 import numpy as np
+import scipy.ndimage
 from time import sleep
 from skimage import io
 
@@ -262,7 +263,7 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
             stub_dlg_trigger.transmit(
                 'UPDATE PROGRESS' + str(percentage_done))
 
-        # Write final full stub overview image to disk unless acq aborted
+        # Write final full stub overview image and downsampled copies to disk unless acq aborted
         if not aborted:
             stub_dir = os.path.join(acq.base_dir, 'overviews', 'stub')
             if not os.path.exists(stub_dir):
@@ -275,8 +276,21 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
                 acq.stack_name + '_stubOV_s'
                 + str(acq.slice_counter).zfill(5)
                 + '_' + timestamp + '.png')
+            
+            # Full stub OV image
             io.imsave(stub_overview_file_name, full_stub_image,
                       check_contrast=False)
+            try:
+                # Generate downsampled versions of stub OV
+                for mag in [2, 4, 8, 16]:
+                    vp_fname_mag = stub_overview_file_name[:-4] + f'_mag{mag}.png'
+                    img_mag = scipy.ndimage.zoom(full_stub_image, 1 / mag, order=3)
+                    io.imsave(vp_fname_mag, img_mag)
+            except Exception as e:
+                stub_dlg_trigger.transmit(
+                    f'An exception occurred while saving downsampled copies'
+                    f'of the acquired stub overview image: {str(e)}')
+
             ovm['stub'].vp_file_path = stub_overview_file_name
         else:
             # Restore previous stub OV

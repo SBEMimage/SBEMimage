@@ -2966,7 +2966,7 @@ class MainControls(QMainWindow):
         SEM control software and then manually set the tile/OV to the new focus
         parameters."""
         if (self.ft_selected_tile >=0) or (self.ft_selected_ov >= 0):
-            dialog = FTMoveDlg(self.microtome, self.cs, self.gm,
+            dialog = FTMoveDlg(self.stage, self.gm, self.ovm,
                                self.ft_selected_grid, self.ft_selected_tile,
                                self.ft_selected_ov)
             if dialog.exec_():
