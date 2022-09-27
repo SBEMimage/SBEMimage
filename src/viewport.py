@@ -590,11 +590,12 @@ class Viewport(QWidget):
             else:
                 # Disable paint mode when mouse moved beyond grid edge.
                 self.tile_paint_mode_active = False
-        elif any([
-            self.grid_draw_active,
-            self.ov_draw_active,
-            self.template_draw_active,
-            self.grid_selection_or_draw_selection_box_active]):
+        elif (
+            self.grid_draw_active
+            or self.ov_draw_active
+            or self.template_draw_active
+            or self.grid_selection_or_draw_selection_box_active
+        ):
 
             # if the modifier key is not held down any more during the operation
             # then stop the operation
@@ -691,11 +692,12 @@ class Viewport(QWidget):
                     # Restore centre coordinates
                     self.tm.template.origin_sx_sy = self.stage_pos_backup
 
-            if any([
-                self.grid_draw_active,
-                self.ov_draw_active,
-                self.template_draw_active,
-                self.grid_selection_or_draw_selection_box_active]):
+            if (
+                self.grid_draw_active
+                or self.ov_draw_active
+                or self.template_draw_active
+                or self.grid_selection_or_draw_selection_box_active
+            ):
 
                 x0, y0 = self.cs.convert_mouse_to_v(self.drag_origin)
                 x1, y1 = self.cs.convert_mouse_to_v(self.drag_current)
@@ -746,7 +748,8 @@ class Viewport(QWidget):
                                 grid_bb[0] > x0,
                                 grid_bb[1] < x0 + w,
                                 grid_bb[2] > y0,
-                                grid_bb[3] < y0 + h]):
+                                grid_bb[3] < y0 + h
+                            ]):
 
                                 contained_grid_indexes.append(grid_index)
                         if len(contained_grid_indexes)>0:
@@ -778,14 +781,6 @@ class Viewport(QWidget):
                                 'MAGC SET SECTION STATE-'
                                 + str(self.selected_grid)
                                 + '-toggle')
-                    # else:
-                        # if self.selected_grid is not None:
-                            # self.main_controls_trigger.transmit(
-                                # 'MAGC SET SECTION STATE-'
-                                # + str(self.selected_grid)
-                                # + '-select')
-
-
 
             if self.tile_paint_mode_active:
                 self.vp_update_after_active_tile_selection()
@@ -930,7 +925,7 @@ class Viewport(QWidget):
         self.pushButton_measureViewport.setToolTip(
             'Update stage position')
         self.pushButton_updateStagePos.clicked.connect(
-            self._vp_update_stage_position)   
+            self._vp_update_stage_position)
         self.pushButton_helpViewport.clicked.connect(self.vp_toggle_help_panel)
         self.pushButton_helpSliceViewer.clicked.connect(self.vp_toggle_help_panel)
         # Slider for zoom
@@ -1264,36 +1259,6 @@ class Viewport(QWidget):
                 action_addAutofocusPoint.triggered.connect(
                     self.vp_add_autofocus_point)
             #----------------------#
-
-            # #---ROI---#
-            # if (self.sem.magc_mode
-                # and len(self.gm.magc['selected_sections']) == 1):
-
-                # if (self.gm.magc_polyroi_points(
-                        # magc_selected_section)!=[]):
-
-                    # action_removePolyroiPoint = menu.addAction(
-                        # 'MagC | Remove last ROI point of grid '
-                        # + str(magc_selected_section)
-                        # + ' | Shortcut &D')
-                    # action_removePolyroiPoint.triggered.connect(
-                        # self.vp_remove_polyroi_point)
-
-                    # action_removePolyroi = menu.addAction(
-                        # 'MagC | Remove ROI of grid '
-                        # + str(magc_selected_section)
-                        # + ' | Shortcut &S')
-                    # action_removePolyroi.triggered.connect(
-                        # self.vp_remove_polyroi)
-
-                # action_addPolyroiPoint = menu.addAction(
-                    # 'MagC | Add ROI point to grid '
-                    # + str(magc_selected_section)
-                    # + ' | Shortcut &F')
-                # action_addPolyroiPoint.triggered.connect(
-                    # self.vp_add_polyroi_point)
-            # #---------#
-
             # ----- End of MagC items -----
 
             if (self.selected_tile is None) and (self.selected_ov is None):
@@ -1355,25 +1320,6 @@ class Viewport(QWidget):
             self.gm.magc['selected_sections'][0])
         magc_utils.write_magc(self.gm)
         self.vp_draw()
-
-    # def vp_add_polyroi_point(self):
-        # (self.gm[self.gm.magc['selected_sections'][0]]
-            # .magc_add_polyroi_point(
-                # self.selected_stage_pos))
-        # magc_utils.write_magc(self.gm)
-        # self.vp_draw()
-
-    # def vp_remove_polyroi_point(self):
-        # (self.gm[self.gm.magc['selected_sections'][0]]
-            # .magc_delete_last_polyroi_point())
-        # magc_utils.write_magc(self.gm)
-        # self.vp_draw()
-
-    # def vp_remove_polyroi(self):
-        # (self.gm[self.gm.magc['selected_sections'][0]]
-            # .magc_delete_polyroi())
-        # magc_utils.write_magc(self.gm)
-        # self.vp_draw()
 
     def _vp_load_selected_in_ft(self):
         self.main_controls_trigger.transmit('LOAD IN FOCUS TOOL')
@@ -1598,7 +1544,7 @@ class Viewport(QWidget):
         """
         # Calling stage.get_xy() updates the last known XY stage position
         self.stage.get_xy()
-        # Set "Show stage position" option as selected and redraw new 
+        # Set "Show stage position" option as selected and redraw new
         # view centred on updated stage position
         self.vp_activate_checkbox_show_stage_pos()
         self.cs.vp_centre_dx_dy = self.cs.convert_s_to_d(self.stage.last_known_xy)
@@ -2129,33 +2075,6 @@ class Viewport(QWidget):
                     diameter,
                     diameter)
         #-----------------------------------------#
-
-        # # ---- Polygon ROI if MultiSEM ---- #
-        # if 'multisem' in self.sem.device_name.lower():
-            # roi_point_brush = QBrush(QColor(Qt.green), Qt.SolidPattern)
-            # self.vp_qp.setBrush(roi_point_brush)
-            # self.vp_qp.setPen(grid_pen)
-
-            # polyroi_points = self.gm.magc_polyroi_points(grid_index)
-            # polyroi_number = len(polyroi_points)
-            # for id,polyroi_point in enumerate(polyroi_points):
-                # polyroi_point_v = self.cs.convert_d_to_v(polyroi_point)
-                # diameter = 2 * self.cs.vp_scale
-                # self.vp_qp.drawEllipse(
-                    # polyroi_point_v[0]-diameter/2,
-                    # polyroi_point_v[1]-diameter/2,
-                    # diameter,
-                    # diameter)
-
-                # next_polyroi_point_v = self.cs.convert_d_to_v(
-                    # self.gm.magc_polyroi_points(grid_index)
-                        # [(id+1)%polyroi_number])
-                # self.vp_qp.drawLine(
-                    # polyroi_point_v[0],
-                    # polyroi_point_v[1],
-                    # next_polyroi_point_v[0],
-                    # next_polyroi_point_v[1])
-        # #-------------------------------------#
 
     def _place_template(self):
         if np.prod(self.tm.template.frame_size) == 0:
@@ -4179,7 +4098,7 @@ class Viewport(QWidget):
                                 break
 
         else:
-            # Use current image from SEM 
+            # Use current image from SEM
             selected_file = os.path.join(
                 self.acq.base_dir, 'workspace', 'current_frame.tif')
             self.sem.save_frame(selected_file)
@@ -4188,7 +4107,7 @@ class Viewport(QWidget):
 
         if os.path.isfile(selected_file):
             img = np.array(Image.open(selected_file))
-    
+
             # calculate mean and SD:
             mean = np.mean(img)
             stddev = np.std(img)

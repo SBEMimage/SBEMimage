@@ -527,11 +527,11 @@ def focus_points_from_focused_points(focused_points, points_to_focus, verbose=Fa
 
     focused_points = np.array(focused_points, dtype=float)
 
-    if len(focused_points) == 1:
+    if len(focused_points) in (1,2,):
         return np.insert(
             points_to_focus,
             2,
-            focused_points[0][2],
+            np.mean(focused_points, axis=0)[2],
             axis=1,
         )
     # first fit

@@ -458,14 +458,14 @@ class SEM_SmartSEM(SEM):
         is added by default for cycle times > 0.5 s."""
 
         self.sem_execute('CMD_UNFREEZE_ALL')
-        
-        if all([
-            self.magc_mode,
-            self.device_name.lower() in [
+
+        if (
+            self.magc_mode
+            and self.device_name.lower() in [
                 'zeiss merlin',
                 'zeiss sigma',
                 ]
-            ]):
+        ):
             sleep(0.5)
 
         self.sem_execute('CMD_FREEZE_ALL') # Assume 'freeze on end of frame'
@@ -492,7 +492,7 @@ class SEM_SmartSEM(SEM):
             self.error_info = (
                 f'sem.acquire_frame: command failed (ret_val: {ret_val})')
             return False
-            
+
     def save_frame(self, save_path_filename):
         """Save the frame currently displayed in SmartSEM."""
         ret_val = self.sem_api.Grab(0, 0, 1024, 768, 0,

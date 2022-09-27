@@ -159,13 +159,6 @@ class ImportMagCDlg(QDialog):
             header.setSectionResizeMode(i, QHeaderView.ResizeToContents)
         header.setStretchLastSection(True)
 
-        # self.gm.magc_delete_autofocus_points(0)
-        # self.gm[0].magc_polyroi_points_source = [
-            # (-10, 0),
-            # ( 10, 0),
-            # ( 10, 20),
-            # (-10, 20)]
-
         self.gm[0].origin_sx_sy = [0,0]
 
         if self.checkBox.isChecked():
@@ -394,9 +387,8 @@ class WaferCalibrationDlg(QDialog):
         landmark_model = self.lTable.model()
 
         for id_lmk,key in enumerate(
-                        sorted(
-                            self.gm.magc['landmarks']['source'])):
-
+            sorted(self.gm.magc['landmarks']['source'])
+        ):
             # the target key does not exist until it is either
             # manually defined
             # or inferred when enough (>=2) other target landmarks

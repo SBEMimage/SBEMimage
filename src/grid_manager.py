@@ -179,7 +179,6 @@ class Grid:
         # used in MagC: these autofocus locations are defined relative to the
         # center of the non-rotated grid.
         self.magc_autofocus_points_source = []
-        # self.magc_polyroi_points_source = []
 
         #--------------------------#
 
@@ -1274,47 +1273,6 @@ class GridManager:
                 self.__grids[g][t].autofocus_active = True
 
     # ----------------------------- MagC functions ---------------------------------
-    # def magc_polyroi_points(self, grid_index):
-        # """The vertices of the ROI polygon"""
-        # return self.magc_convert_to_current_grid(
-            # grid_index,
-            # self.__grids[grid_index].magc_polyroi_points_source)
-
-    # def magc_add_polyroi_point(self, grid_index, input_poly_point):
-        # """Add point only if it creates a convex polygon """
-        # grid = self.__grids[grid_index]
-        # transformed_poly_point = self.magc_convert_to_source(
-            # [input_poly_point])[0]
-
-        # if len(grid.magc_polyroi_points_source) < 3:
-            # grid.magc_polyroi_points_source.append(
-                # transformed_poly_point)
-            # return
-        # else:
-            # grid.magc_polyroi_points_source.append(
-                # transformed_poly_point)
-            # # check polygon
-            # if magc_utils.is_valid_polygon(
-                # grid.magc_polyroi_points_source):
-                # return
-            # else:
-                # del grid.magc_polyroi_points_source[-1]
-
-            # # # for i in range(len(grid.magc_polyroi_points_source) + 1):
-                # # # # insert new point
-                # # # grid.magc_polyroi_points_source.append(
-                    # # # transformed_poly_point)
-                # # # # check polygon
-                # # # if magc_utils.is_valid_polygon(
-                    # # # grid.magc_polyroi_points_source):
-                    # # # return
-                # # # else:
-                    # # # del grid.magc_polyroi_points_source[-1]
-                # # # # rotate polygon and try again
-                # # # grid.magc_polyroi_points_source = (
-                    # # # grid.magc_polyroi_points_source[1:]
-                    # # # + grid.magc_polyroi_points_source[:1])
-
     def magc_landmarks(self):
         if self.magc['calibrated']:
             transformed_landmarks = magc_utils.applyAffineT(
@@ -1509,8 +1467,6 @@ class GridManager:
         self.__grids[t].autofocus_ref_tiles = self.__grids[s].autofocus_ref_tiles
         self.__grids[t].magc_autofocus_points_source = copy.deepcopy(
             self.__grids[s].magc_autofocus_points_source)
-        # self.__grids[t].magc_polyroi_points_source = copy.deepcopy(
-            # self.__grids[s].magc_polyroi_points_source)
         # xxx self.set_adaptive_focus_enabled(t, self.get_adaptive_focus_enabled(s))
         # xxx self.set_adaptive_focus_tiles(t, self.get_adaptive_focus_tiles(s))
         # xxx self.set_adaptive_focus_gradient(t, self.get_adaptive_focus_gradient(s))
