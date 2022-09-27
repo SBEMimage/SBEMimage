@@ -1887,13 +1887,13 @@ class Acquisition:
                     else:
                         # Do autofocus on non-active tiles before grid acq
                         if (
-                            self.use_autofocus,
+                            self.use_autofocus
                             and self.autofocus.method in [0, 3]  # zeiss or mapfost
                             and (
                                 self.autofocus_stig_current_slice[0]
                                 or self.autofocus_stig_current_slice[1]
                             )
-                            self.autofocus.tracking_mode != 3  # in that case these tiles have been visited already
+                            and self.autofocus.tracking_mode != 3  # in that case these tiles have been visited already
                         ):
                             self.do_autofocus_before_grid_acq(grid_index)
                         # Adjust working distances and stigmation parameters
