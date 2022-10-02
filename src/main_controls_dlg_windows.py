@@ -2367,7 +2367,7 @@ class PreStackDlg(QDialog):
         if self.acq.use_autofocus:
             if autofocus.method == 0:
                 self.label_autofocusActive.setFont(boldFont)
-                self.label_autofocusActive.setText('Active (SmartSEM)')
+                self.label_autofocusActive.setText('Active (SEM)')
             elif autofocus.method == 1:
                 self.label_autofocusActive.setFont(boldFont)
                 self.label_autofocusActive.setText('Active (heuristic)')

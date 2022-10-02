@@ -2727,7 +2727,7 @@ class Acquisition:
             self.gm[grid_index][tile_index].wd = self.sem.get_wd()
             self.gm[grid_index][tile_index].stig_xy = list(
                 self.sem.get_stig_xy())
-            msg = f'Finished MAPFoSt AF procedure for tile {grid_index}.{tile_index} with final WD/STIG_X/Y: ' \
+            msg = f'Finished autofocus procedure for tile {grid_index}.{tile_index} with final WD/STIG_X/Y: ' \
                   f'{self.gm[grid_index][tile_index].wd*1000:.4f}, {self.gm[grid_index][tile_index].stig_xy[0]:.4f},' \
                   f' {self.gm[grid_index][tile_index].stig_xy[1]:.4f}'
             utils.log_info('SEM', msg)
