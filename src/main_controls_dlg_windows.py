@@ -3299,7 +3299,7 @@ class AutofocusTESCANParamsDlg(QDialog):
 
 class RunAutofocusDlg(QDialog):
     """Run the autofocus/autostigmator or both and use method specifed by
-    user (SmartSEM or MAPFoSt).
+    user (SEM or MAPFoSt).
     """
     def __init__(self, autofocus, sem):
         super().__init__()
@@ -3319,7 +3319,14 @@ class RunAutofocusDlg(QDialog):
         self.setFixedSize(self.size())
         self.show()
 
-        self.comboBox_method.addItems(['SmartSEM', 'MAPFoSt'])
+        if self.sem.device_name.startswith("ZEISS"):
+            sem_method_name = "SmartSEM"
+        elif self.sem.device_name.startswith("TESCAN"):
+            sem_method_name = "TESCAN"
+        else:
+            sem_method_name = "SEM unsupported"
+
+        self.comboBox_method.addItems([sem_method_name, 'MAPFoSt'])
         self.comboBox_method.setCurrentIndex(0)
         self.comboBox_mode.addItems(
             ['Autofocus + stig', 'Autofocus only', 'Autostig only'])
@@ -3349,14 +3356,14 @@ class RunAutofocusDlg(QDialog):
             else:
                 self.use_autofocus = False
                 self.use_autostig = True
-            utils.run_log_thread(self.call_zeiss_af_routine)
+            utils.run_log_thread(self.call_sem_af_routine)
 
     def call_mapfost_af_routine(self):
         self.af_msg = self.autofocus.run_mapfost_af(self.aberr_mode_bools, self.large_aberr)
         self.finish_trigger.signal.emit()
 
-    def call_zeiss_af_routine(self):
-        self.af_msg = self.autofocus.run_zeiss_af(
+    def call_sem_af_routine(self):
+        self.af_msg = self.autofocus.run_sem_af(
             self.use_autofocus, self.use_autostig)
         self.finish_trigger.signal.emit()
 
@@ -3367,20 +3374,19 @@ class RunAutofocusDlg(QDialog):
         if 'ERROR' in self.af_msg:
             self.new_wd_stig = None, None, None
             QMessageBox.warning(
-                self, 'SmartSEM Autofocus error',
-                'An error occurred while running the SmartSEM Autofocus',
+                self, 'SEM Autofocus error',
+                'An error occurred while running the SEM Autofocus',
                 QMessageBox.Ok)
             utils.log_error('SEM', self.af_msg)
         else:
             self.new_wd_stig = self.sem.get_wd(), *self.sem.get_stig_xy()
             QMessageBox.information(
-                self, 'SmartSEM Autofocus completed',
+                self, 'SEM Autofocus completed',
                 f'New working distance and stigmation:\n'
                 f'{utils.format_wd_stig(*self.new_wd_stig)}',
                 QMessageBox.Ok)
             utils.log_info('SEM', self.af_msg)
             self.accept()
-
 
     def calibrate_af(self):
         method = self.comboBox_method.currentIndex()
