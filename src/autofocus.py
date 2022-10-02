@@ -2,7 +2,7 @@
 
 # ==============================================================================
 #   This source file is part of SBEMimage (github.com/SBEMimage)
-#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel,
+#   (c) 2018-2022 Friedrich Miescher Institute for Biomedical Research, Basel,
 #   and the SBEMimage developers.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
@@ -35,10 +35,16 @@ class Autofocus():
         self.tracking_mode = int(self.cfg['autofocus']['tracking_mode'])
         self.interval = int(self.cfg['autofocus']['interval'])
         self.autostig_delay = int(self.cfg['autofocus']['autostig_delay'])
-        self.pixel_size = float(self.cfg['autofocus']['pixel_size'])
         # Maximum allowed change in focus/stigmation
         self.max_wd_diff, self.max_stig_x_diff, self.max_stig_y_diff = (
             json.loads(self.cfg['autofocus']['max_wd_stig_diff']))
+
+        # SEM autofocus parameters (autofocus/autostigmator provided by the SEM manufacturers)
+        self.pixel_size = float(self.cfg['autofocus']['pixel_size'])
+        self.wd_range = float(self.cfg['autofocus']['wd_range'])
+        self.wd_step = float(self.cfg['autofocus']['wd_step'])
+        self.autostig_range = float(self.cfg['autofocus']['autostig_range'])
+
         # For the heuristic autofocus method, a dictionary of cropped central
         # tile areas is kept in memory for processing during the cut cycles.
         self.img = {}
@@ -68,7 +74,6 @@ class Autofocus():
             self.method = 0         # SmartSEM autofocus
             self.tracking_mode = 0  # Track selected, approx. others
 
-
         self.MAPFOST_PATCH_SIZE = [768, 768]
         self.MAPFOST_FRAME_RESOLUTION = 2
         self.mapfost_wd_pert = float(self.cfg['autofocus']['mapfost_wd_perturbations'])
@@ -77,13 +82,10 @@ class Autofocus():
         self.mapfost_conv_thresh = float(self.cfg['autofocus']['mapfost_convergence_threshold_um'])
         self.mapfost_large_aberrations = int(self.cfg['autofocus']['mapfost_large_aberrations'])
 
-
         # Mapfost Calibration Parameters
         self.mapfost_probe_conv = float(self.cfg['autofocus']['mapfost_probe_convergence_angle'])
         self.mapfost_stig_rot = float(self.cfg['autofocus']['mapfost_astig_rotation_deg'])
         self.mapfost_stig_scale = json.loads(self.cfg['autofocus']['mapfost_astig_scaling'])
-
-
 
     def save_to_cfg(self):
         """Save current autofocus settings to ConfigParser object. Note that
@@ -96,6 +98,9 @@ class Autofocus():
         self.cfg['autofocus']['interval'] = str(self.interval)
         self.cfg['autofocus']['autostig_delay'] = str(self.autostig_delay)
         self.cfg['autofocus']['pixel_size'] = str(self.pixel_size)
+        self.cfg['autofocus']['wd_range'] = str(self.wd_range)
+        self.cfg['autofocus']['wd_step'] = str(self.wd_step)
+        self.cfg['autofocus']['autostig_range'] = str(self.autostig_range)
         self.cfg['autofocus']['heuristic_deltas'] = str(
             [self.wd_delta, self.stig_x_delta, self.stig_y_delta])
         self.cfg['autofocus']['heuristic_calibration'] = str(

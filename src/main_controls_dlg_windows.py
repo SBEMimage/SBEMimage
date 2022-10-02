@@ -2,7 +2,7 @@
 
 # ==============================================================================
 #   This source file is part of SBEMimage (github.com/SBEMimage)
-#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel,
+#   (c) 2018-2022 Friedrich Miescher Institute for Biomedical Research, Basel,
 #   and the SBEMimage developers.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
@@ -3202,11 +3202,11 @@ class AutofocusSettingsDlg(QDialog):
             self.lineEdit_refTiles.setEnabled(True)
 
     def open_zeiss_params_dlg(self):
-        sub_dialog = AutofocusZEISSParamsDlg(self.sem)
+        sub_dialog = AutofocusZEISSParamsDlg(self.autofocus)
         sub_dialog.exec_()
 
     def open_tescan_params_dlg(self):
-        sub_dialog = AutofocusTESCANParamsDlg(self.sem)
+        sub_dialog = AutofocusTESCANParamsDlg(self.autofocus)
         sub_dialog.exec_()
 
     def accept(self):
@@ -3258,16 +3258,18 @@ class AutofocusSettingsDlg(QDialog):
 class AutofocusZEISSParamsDlg(QDialog):
     """Dialog to adjust parameters for the ZEISS (SmartSEM) Autofocus."""
 
-    def __init__(self, sem):
+    def __init__(self, autofocus):
         super().__init__()
-        self.sem = sem
+        self.autofocus = autofocus
         loadUi('..\\gui\\autofocus_zeiss_params_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
+        self.doubleSpinBox_pixelSize.setValue(self.autofocus.pixel_size)
 
     def accept(self):
+        self.autofocus.pixel_size = self.doubleSpinBox_pixelSize.value()
         super().accept()
 
 # ------------------------------------------------------------------------------
@@ -3275,16 +3277,22 @@ class AutofocusZEISSParamsDlg(QDialog):
 class AutofocusTESCANParamsDlg(QDialog):
     """Dialog to adjust parameters for the TESCAN Autofocus."""
 
-    def __init__(self, sem):
+    def __init__(self, autofocus):
         super().__init__()
-        self.sem = sem
+        self.autofocus = autofocus
         loadUi('..\\gui\\autofocus_tescan_params_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
+        self.doubleSpinBox_WDrange.setValue(self.autofocus.wd_range)
+        self.doubleSpinBox_WDstep.setValue(self.autofocus.wd_step)
+        self.doubleSpinBox_autostigRange.setValue(self.autofocus.autostig_range)
 
     def accept(self):
+        self.autofocus.wd_range = self.doubleSpinBox_WDrange.value()
+        self.autofocus.wd_step = self.doubleSpinBox_WDstep.value()
+        self.autofocus.autostig_range = self.doubleSpinBox_autostigRange.value()
         super().accept()
 
 # ------------------------------------------------------------------------------
