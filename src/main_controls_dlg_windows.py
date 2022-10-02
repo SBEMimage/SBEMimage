@@ -3063,11 +3063,12 @@ class ImageMonitoringSettingsDlg(QDialog):
 # ------------------------------------------------------------------------------
 
 class AutofocusSettingsDlg(QDialog):
-    """Adjust settings for the ZEISS autofocus, the heuristic autofocus,
-    and tracking the focus/stig when refocusing manually.
+    """Dialog to adjust settings for the SEM autofocus, the heuristic autofocus,
+    MAPFoSt, and for tracking the focus/stig when refocusing manually.
     """
-    def __init__(self, autofocus, grid_manager, magc_mode=False):
+    def __init__(self, sem, autofocus, grid_manager, magc_mode=False):
         super().__init__()
+        self.sem = sem
         self.autofocus = autofocus
         self.gm = grid_manager
         loadUi('..\\gui\\autofocus_settings_dlg.ui', self)
@@ -3076,14 +3077,14 @@ class AutofocusSettingsDlg(QDialog):
         self.setFixedSize(self.size())
         self.show()
         if self.autofocus.method == 0:
-            self.radioButton_useSmartSEM.setChecked(True)
+            self.radioButton_useSEM.setChecked(True)
         elif self.autofocus.method == 1:
             self.radioButton_useHeuristic.setChecked(True)
         elif self.autofocus.method == 2:
             self.radioButton_useTrackingOnly.setChecked(True)
         elif self.autofocus.method == 3:
             self.radioButton_useMAPFoSt.setChecked(True)
-        self.radioButton_useSmartSEM.toggled.connect(self.group_box_update)
+        self.radioButton_useSEM.toggled.connect(self.group_box_update)
         self.radioButton_useHeuristic.toggled.connect(self.group_box_update)
         self.radioButton_useTrackingOnly.toggled.connect(self.group_box_update)
         self.radioButton_useMAPFoSt.toggled.connect(self.group_box_update)
@@ -3107,13 +3108,28 @@ class AutofocusSettingsDlg(QDialog):
             self.autofocus.tracking_mode)
         self.comboBox_trackingMode.currentIndexChanged.connect(
             self.change_tracking_mode)
-        # SmartSEM autofocus
+        # SEM autofocus
         self.spinBox_interval.setValue(self.autofocus.interval)
         self.spinBox_autostigDelay.setValue(self.autofocus.autostig_delay)
-        self.doubleSpinBox_pixelSize.setValue(self.autofocus.pixel_size)
         if self.autofocus.mapfost_large_aberrations:
             self.radioButton_mapfost_largeaberr.setChecked(True)
-        # For heuristic autofocus:
+        if self.sem.device_name.startswith("ZEISS"):
+            self.label_af_params.setText(
+                "SmartSEM autofocus/autostigmator parameters:")
+            self.radioButton_useSEM.setText(
+                "Use SmartSEM autofocus/autostimator")         
+            self.toolButton_autofocusParameters.clicked.connect(
+                self.open_zeiss_params_dlg)
+        elif self.sem.device_name.startswith("TESCAN"):
+            self.radioButton_useSEM.setText(
+                "Use TESCAN autofocus/autostimator")
+            self.label_af_params.setText(
+                "TESCAN autofocus/autostigmator parameters:")
+            self.toolButton_autofocusParameters.clicked.connect(
+                self.open_tescan_params_dlg)
+        else:
+            self.toolButton_autofocusParameters.setEnabled(False)
+        # Heuristic autofocus
         self.doubleSpinBox_wdDiff.setValue(
             self.autofocus.wd_delta * 1000000)
         self.doubleSpinBox_stigXDiff.setValue(
@@ -3137,28 +3153,28 @@ class AutofocusSettingsDlg(QDialog):
             self.comboBox_trackingMode.setEnabled(False)
             self.spinBox_interval.setEnabled(False)
             # make autostig interval work on grids instead of slices
-            self.label_fdp_4.setText('Autostig interval (grids) ')
+            self.label_autostig_delay_1.setText('Autostig interval (grids) ')
 
     def group_box_update(self):
         mapfost_enabled = False
-        if self.radioButton_useSmartSEM.isChecked():
-            zeiss_enabled = True
+        if self.radioButton_useSEM.isChecked():
+            sem_af_enabled = True
             heuristic_enabled = False
             diffs_enabled = True
         elif self.radioButton_useHeuristic.isChecked():
-            zeiss_enabled = False
+            sem_af_enabled = False
             heuristic_enabled = True
             diffs_enabled = True
         elif self.radioButton_useTrackingOnly.isChecked():
-            zeiss_enabled = False
+            sem_af_enabled = False
             heuristic_enabled = False
             diffs_enabled = False
         elif self.radioButton_useMAPFoSt.isChecked():
-            zeiss_enabled = True  # mapfost uses intervall and pixel size value.
+            sem_af_enabled = True  # mapfost uses intervall and pixel size value.
             heuristic_enabled = False
             diffs_enabled = True
             mapfost_enabled = True  # TODO: add mapfost parameter group
-        self.groupBox_ZEISS_af.setEnabled(zeiss_enabled)
+        self.groupBox_SEM_af.setEnabled(sem_af_enabled)
         self.groupBox_heuristic_af.setEnabled(heuristic_enabled)
         self.doubleSpinBox_maxWDDiff.setEnabled(diffs_enabled)
         self.doubleSpinBox_maxStigXDiff.setEnabled(diffs_enabled)
@@ -3185,9 +3201,17 @@ class AutofocusSettingsDlg(QDialog):
         else:
             self.lineEdit_refTiles.setEnabled(True)
 
+    def open_zeiss_params_dlg(self):
+        sub_dialog = AutofocusZEISSParamsDlg(self.sem)
+        sub_dialog.exec_()
+
+    def open_tescan_params_dlg(self):
+        sub_dialog = AutofocusTESCANParamsDlg(self.sem)
+        sub_dialog.exec_()
+
     def accept(self):
         error_str = ''
-        if self.radioButton_useSmartSEM.isChecked():
+        if self.radioButton_useSEM.isChecked():
             self.autofocus.method = 0
         elif self.radioButton_useHeuristic.isChecked():
             self.autofocus.method = 1
@@ -3212,7 +3236,7 @@ class AutofocusSettingsDlg(QDialog):
             self.doubleSpinBox_maxStigYDiff.value())
         self.autofocus.interval = self.spinBox_interval.value()
         self.autofocus.autostig_delay = self.spinBox_autostigDelay.value()
-        self.autofocus.pixel_size = self.doubleSpinBox_pixelSize.value()
+        # self.autofocus.pixel_size = self.doubleSpinBox_pixelSize.value()
         self.autofocus.wd_delta = self.doubleSpinBox_wdDiff.value() / 1000000
         self.autofocus.stig_x_delta = self.doubleSpinBox_stigXDiff.value()
         self.autofocus.stig_y_delta = self.doubleSpinBox_stigYDiff.value()
@@ -3228,6 +3252,40 @@ class AutofocusSettingsDlg(QDialog):
             super().accept()
         else:
             QMessageBox.warning(self, 'Error', error_str, QMessageBox.Ok)
+
+# ------------------------------------------------------------------------------
+
+class AutofocusZEISSParamsDlg(QDialog):
+    """Dialog to adjust parameters for the ZEISS (SmartSEM) Autofocus."""
+
+    def __init__(self, sem):
+        super().__init__()
+        self.sem = sem
+        loadUi('..\\gui\\autofocus_zeiss_params_dlg.ui', self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setFixedSize(self.size())
+        self.show()
+
+    def accept(self):
+        super().accept()
+
+# ------------------------------------------------------------------------------
+
+class AutofocusTESCANParamsDlg(QDialog):
+    """Dialog to adjust parameters for the TESCAN Autofocus."""
+
+    def __init__(self, sem):
+        super().__init__()
+        self.sem = sem
+        loadUi('..\\gui\\autofocus_tescan_params_dlg.ui', self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setFixedSize(self.size())
+        self.show()
+
+    def accept(self):
+        super().accept()
 
 # ------------------------------------------------------------------------------
 

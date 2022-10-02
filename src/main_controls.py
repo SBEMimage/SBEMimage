@@ -1630,7 +1630,7 @@ class MainControls(QMainWindow):
         dialog.exec_()
 
     def open_autofocus_settings_dlg(self):
-        dialog = AutofocusSettingsDlg(self.autofocus, self.gm, self.magc_mode)
+        dialog = AutofocusSettingsDlg(self.sem, self.autofocus, self.gm, self.magc_mode)
         if dialog.exec_():
             if self.autofocus.method == 2:
                 self.checkBox_useAutofocus.setText('Focus tracking')
