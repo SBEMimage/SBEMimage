@@ -3286,12 +3286,12 @@ class AutofocusTESCANParamsDlg(QDialog):
         self.setFixedSize(self.size())
         self.show()
         self.doubleSpinBox_WDrange.setValue(self.autofocus.wd_range)
-        self.doubleSpinBox_WDstep.setValue(self.autofocus.wd_step)
+        self.doubleSpinBox_WDstep.setValue(self.autofocus.wd_final_step)
         self.doubleSpinBox_autostigRange.setValue(self.autofocus.autostig_range)
 
     def accept(self):
         self.autofocus.wd_range = self.doubleSpinBox_WDrange.value()
-        self.autofocus.wd_step = self.doubleSpinBox_WDstep.value()
+        self.autofocus.wd_final_step = self.doubleSpinBox_WDstep.value()
         self.autofocus.autostig_range = self.doubleSpinBox_autostigRange.value()
         super().accept()
 
