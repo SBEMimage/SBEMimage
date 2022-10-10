@@ -124,17 +124,19 @@ class SEM_SharkSEM(SEM):
     # IMPLEMENTED
     ###########################################################################
 
-    def run_autofocus(self, wd_range: float = 5.0, wd_final_step: float = 2.0):
-        """Run autofocus, break if it takes longer than 1 min."""
+    def run_autofocus(self, wd_range: float = 5.0, wd_final_step: float = 0.5):
+        """Run autofocus, break if it takes longer than 1 min.
+        wd_range and wd_final_step are provided in micrometres.
+        """
         if wd_range < 0:
             wd_range = 0
-        elif wd_range > 10:
-            wd_range = 10
+        elif wd_range > 10000:
+            wd_range = 10000
 
         if wd_final_step < 0:
             wd_final_step = 0
-        elif wd_final_step > 5:
-            wd_final_step = 5
+        elif wd_final_step > 1000:
+            wd_final_step = 1000
 
         wd = self.sem_api.GetWD()
         # Calculate minimum and maximum working distance in mm.

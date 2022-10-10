@@ -3122,7 +3122,7 @@ class AutofocusSettingsDlg(QDialog):
                 self.open_zeiss_params_dlg)
         elif self.sem.device_name.startswith("TESCAN"):
             self.radioButton_useSEM.setText(
-                "Use TESCAN autofocus/autostimator")
+                "Use TESCAN autofocus/autostigmator")
             self.label_af_params.setText(
                 "TESCAN autofocus/autostigmator parameters:")
             self.toolButton_autofocusParameters.clicked.connect(
