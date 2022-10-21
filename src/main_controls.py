@@ -1434,7 +1434,7 @@ class MainControls(QMainWindow):
         item1 = QStandardItem(str(grid_index))
         item1.setCheckable(True)
         item2 = QStandardItem('')
-        item2.setBackground(color_not_acquired)
+        item2.setBackground(QColor(Qt.lightGray))
         item2.setCheckable(False)
         item2.setSelectable(False)
         model = self.tableView_magc_sections.model()
