@@ -2954,7 +2954,7 @@ class Acquisition:
                 # Immediately pause and save interruption info
                 if not self.acq_paused:
                     self.pause_acquisition(1)
-                self.set_interruption_point(grid_index, tile_index)
+                self.set_interruption_point(grid_index, 0)
                 break
         AFAS_results = [
             result
