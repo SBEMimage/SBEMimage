@@ -674,19 +674,19 @@ class MainControls(QMainWindow):
             self.initialize_magc_gui()
         #------------------#
 
-        #-------MultiSEM-------#
-        if self.multisem_mode:
-            # no aboutBox in MultiSEM API
-            self.pushButton_testZeissAPIVersion.setEnabled(False)
+        # #-------MultiSEM-------#
+        # if self.multisem_mode:
+            # # no aboutBox in MultiSEM API
+            # self.pushButton_testZeissAPIVersion.setEnabled(False)
 
-            self.pushButton_msem_transferToZen.setEnabled(False)
-            self.gm[0].size = [1,1]
-            self.msem_variables = {}
-        else:
-            # Disable MultiSEM tab
-            self.tabWidget.setTabEnabled(4, False)
-            self.tabWidget.setTabToolTip(4, 'MultiSEM mode under development')
-        #----------------------#
+            # self.pushButton_msem_transferToZen.setEnabled(False)
+            # self.gm[0].size = [1,1]
+            # self.msem_variables = {}
+        # else:
+            # # Disable MultiSEM tab
+            # self.tabWidget.setTabEnabled(4, False)
+            # self.tabWidget.setTabToolTip(4, 'MultiSEM mode under development')
+        # #----------------------#
 
     def activate_magc_mode(self, tabIndex):
         if tabIndex != 3:
@@ -1023,144 +1023,144 @@ class MainControls(QMainWindow):
         self.actionDebrisDetectionSettings.setEnabled(False)
         self.actionAskUserModeSettings.setEnabled(False)
         self.checkBox_useAutofocus.setEnabled(True)
-        
-        # multisem
-        self.pushButton_msem_loadZen.clicked.connect(
-            self.msem_import_zen_experiment)
-        self.label_input_experiment_flag.setAlignment(
-            Qt.AlignCenter)
-        self.pushButton_msem_exportZen.setEnabled(False)
-        self.pushButton_msem_exportZen.clicked.connect(
-            self.msem_export_zen_experiment)
 
-    def msem_import_zen_experiment(self):
-        import_zen_dialog = ImportZENExperimentDlg(
-            self.msem_variables, self.trigger)
-        if import_zen_dialog.exec_():
-            pass
+        # # multisem
+        # self.pushButton_msem_loadZen.clicked.connect(
+            # self.msem_import_zen_experiment)
+        # self.label_input_experiment_flag.setAlignment(
+            # Qt.AlignCenter)
+        # self.pushButton_msem_exportZen.setEnabled(False)
+        # self.pushButton_msem_exportZen.clicked.connect(
+            # self.msem_export_zen_experiment)
 
-    def msem_export_zen_experiment(self):
-        save_dir = os.path.dirname(
-            self.msem_variables['zen_input_path'])
-        save_name = (
-            self.textEdit_msem_zen_export_name.toPlainText()
-            + '.json')
-        zen_output_path = os.path.join(save_dir, save_name)
-        with open(
-            self.msem_variables['zen_input_path'],
-            'rb') as f:
-            input_json = json.load(f)
+    # def msem_import_zen_experiment(self):
+        # import_zen_dialog = ImportZENExperimentDlg(
+            # self.msem_variables, self.trigger)
+        # if import_zen_dialog.exec_():
+            # pass
 
-        output_json = copy.deepcopy(input_json)
-        output_json['Name'] = os.path.splitext(save_name)[0]
-        # print(json.dumps(output_json, indent=4, sort_keys=True))
+    # def msem_export_zen_experiment(self):
+        # save_dir = os.path.dirname(
+            # self.msem_variables['zen_input_path'])
+        # save_name = (
+            # self.textEdit_msem_zen_export_name.toPlainText()
+            # + '.json')
+        # zen_output_path = os.path.join(save_dir, save_name)
+        # with open(
+            # self.msem_variables['zen_input_path'],
+            # 'rb') as f:
+            # input_json = json.load(f)
 
-        input_regions = input_json['Regions']
-        region_template_xml = ET.fromstring(input_regions[0])
+        # output_json = copy.deepcopy(input_json)
+        # output_json['Name'] = os.path.splitext(save_name)[0]
+        # # print(json.dumps(output_json, indent=4, sort_keys=True))
 
-        # WorkflowParameter_element = region_template_xml.find('WorkflowParameter')
-        # print(json.dumps(WorkflowParameter_element.attrib, indent=4))
+        # input_regions = input_json['Regions']
+        # region_template_xml = ET.fromstring(input_regions[0])
 
-        output_regions = []
-        polyrois = [
-            self.gm.magc_polyroi_points(id)
-            for id in range(self.gm.number_grids)]
-        if [] in polyrois:
-            self.add_to_log(
-                'MSEM: No file written. These sections lack a ROI: '
-                + ', '.join(
-                    [str(i) for i,p in enumerate(polyrois) if p == []]))
-            return
-        all_focus_points = [
-            self.gm.magc_autofocus_points(id)
-            for id in range(self.gm.number_grids)]
+        # # WorkflowParameter_element = region_template_xml.find('WorkflowParameter')
+        # # print(json.dumps(WorkflowParameter_element.attrib, indent=4))
 
-        for id, (polyroi, focus_points) \
-            in enumerate(zip(polyrois, all_focus_points)):
+        # output_regions = []
+        # polyrois = [
+            # self.gm.magc_polyroi_points(id_)
+            # for id_ in range(self.gm.number_grids)]
+        # if [] in polyrois:
+            # self.add_to_log(
+                # 'MSEM: No file written. These sections lack a ROI: '
+                # + ', '.join(
+                    # [str(i) for i,p in enumerate(polyrois) if p == []]))
+            # return
+        # all_focus_points = [
+            # self.gm.magc_autofocus_points(id_)
+            # for id_ in range(self.gm.number_grids)]
 
-            output_region = copy.deepcopy(region_template_xml)
+        # for id_, (polyroi, focus_points) \
+            # in enumerate(zip(polyrois, all_focus_points)):
 
-            # set name
-            output_region.attrib['Name'] = 'Section' + str(id).zfill(4)
+            # output_region = copy.deepcopy(region_template_xml)
 
-            # set ROI points
-            (output_region
-                .find('Contour')
-                .attrib['Type']) = 'Polygon'
+            # # set name
+            # output_region.attrib['Name'] = 'Section' + str(id_).zfill(4)
 
-            # remove existing contours
-            while output_region.find('Contour'):
-                output_region.find('Contour').remove(
-                    output_region.find('Contour')[0])
+            # # set ROI points
+            # (output_region
+                # .find('Contour')
+                # .attrib['Type']) = 'Polygon'
 
-            points_element = ET.SubElement(
-                output_region.find('Contour'),
-                'Points')
-            points_element.text = ' '.join(
-                [','.join(map(str, point))
-                    for point in polyroi])
+            # # remove existing contours
+            # while output_region.find('Contour'):
+                # output_region.find('Contour').remove(
+                    # output_region.find('Contour')[0])
 
-            # set ROI center position
-            (output_region
-                .find('CenterPosition')
-                .text) = ','.join(
-                    map(str,
-                        magc_utils.barycenter(polyroi)))
+            # points_element = ET.SubElement(
+                # output_region.find('Contour'),
+                # 'Points')
+            # points_element.text = ' '.join(
+                # [','.join(map(str, point))
+                    # for point in polyroi])
 
-            # set autofocus points
-            focus_points_elements = output_region.find('SupportPoints')
-            # remove elements of focus_points_elements
-            while focus_points_elements:
-                focus_points_elements.remove(focus_points_elements[0])
-            for focus_id, focus_point in enumerate(focus_points):
-                point_id = int(id * 10e10 + focus_id)
-                focus_point_element = ET.SubElement(
-                    focus_points_elements,
-                    'SupportPoint')
-                focus_point_element.attrib['Id'] = str(point_id).zfill(18)
-                X_element = ET.SubElement(focus_point_element, 'X')
-                Y_element = ET.SubElement(focus_point_element, 'Y')
-                Z_element = ET.SubElement(focus_point_element, 'Z')
-                OL_element = ET.SubElement(focus_point_element, 'OL')
-                OLTiltX_element = ET.SubElement(focus_point_element, 'OLTiltX')
-                OLTiltY_element = ET.SubElement(focus_point_element, 'OLTiltY')
+            # # set ROI center position
+            # (output_region
+                # .find('CenterPosition')
+                # .text) = ','.join(
+                    # map(str,
+                        # magc_utils.barycenter(polyroi)))
 
-                X_element.text = str(focus_point[0])
-                Y_element.text = str(focus_point[1])
-                Z_element.text = str(0)
-                OL_element = str(0)
-                OLTiltX_element = str(0)
-                OLTiltY_element = str(0)
+            # # set autofocus points
+            # focus_points_elements = output_region.find('SupportPoints')
+            # # remove elements of focus_points_elements
+            # while focus_points_elements:
+                # focus_points_elements.remove(focus_points_elements[0])
+            # for focus_id, focus_point in enumerate(focus_points):
+                # point_id = int(id * 10e10 + focus_id)
+                # focus_point_element = ET.SubElement(
+                    # focus_points_elements,
+                    # 'SupportPoint')
+                # focus_point_element.attrib['Id'] = str(point_id).zfill(18)
+                # X_element = ET.SubElement(focus_point_element, 'X')
+                # Y_element = ET.SubElement(focus_point_element, 'Y')
+                # Z_element = ET.SubElement(focus_point_element, 'Z')
+                # OL_element = ET.SubElement(focus_point_element, 'OL')
+                # OLTiltX_element = ET.SubElement(focus_point_element, 'OLTiltX')
+                # OLTiltY_element = ET.SubElement(focus_point_element, 'OLTiltY')
 
-            output_regions.append(
-                ET.tostring(
-                    output_region,
-                    encoding='unicode', # utf8 returns a bytestring
-                    method='xml'))
-        output_json['Regions'] = output_regions
+                # X_element.text = str(focus_point[0])
+                # Y_element.text = str(focus_point[1])
+                # Z_element.text = str(0)
+                # OL_element = str(0)
+                # OLTiltX_element = str(0)
+                # OLTiltY_element = str(0)
 
-        with open(
-            zen_output_path,
-            'w',
-            encoding='utf-8') as f:
-            json.dump(output_json,
-                f,
-                indent=4)
+            # output_regions.append(
+                # ET.tostring(
+                    # output_region,
+                    # encoding='unicode', # utf8 returns a bytestring
+                    # method='xml'))
+        # output_json['Regions'] = output_regions
 
-        self.add_to_log(
-            'MSEM: ZEN experiment written to '
-            + zen_output_path)
+        # with open(
+            # zen_output_path,
+            # 'w',
+            # encoding='utf-8') as f:
+            # json.dump(output_json,
+                # f,
+                # indent=4)
+
+        # self.add_to_log(
+            # 'MSEM: ZEN experiment written to '
+            # + zen_output_path)
 
 
-    def msem_update_gui(self, msg):
-        input_text, input_color, output_text = msg.split('-')[1:]
-        self.label_input_experiment_flag.setText(input_text)
-        (self.label_input_experiment_flag
-            .setStyleSheet(
-                'background-color: ' + input_color))
-        self.textEdit_msem_zen_export_name.setPlainText(output_text)
-        if input_color == 'green':
-            self.pushButton_msem_exportZen.setEnabled(True)
+    # def msem_update_gui(self, msg):
+        # input_text, input_color, output_text = msg.split('-')[1:]
+        # self.label_input_experiment_flag.setText(input_text)
+        # (self.label_input_experiment_flag
+            # .setStyleSheet(
+                # 'background-color: ' + input_color))
+        # self.textEdit_msem_zen_export_name.setPlainText(output_text)
+        # if input_color == 'green':
+            # self.pushButton_msem_exportZen.setEnabled(True)
 
     def magc_select_all(self):
         model = self.tableView_magc_sections.model()
@@ -1386,14 +1386,14 @@ class MainControls(QMainWindow):
     def magc_trigger_wafer_calibrated(self):
         (self.pushButton_magc_waferCalibration
             .setStyleSheet('background-color: green'))
-        self.pushButton_msem_transferToZen.setEnabled(True)
+        # self.pushButton_msem_transferToZen.setEnabled(True)
 
     def magc_trigger_wafer_uncalibrated(self):
         # change wafer flag
         (self.pushButton_magc_waferCalibration
             .setStyleSheet('background-color: yellow'))
         # inactivate msem transfer to ZEN
-        self.pushButton_msem_transferToZen.setEnabled(False)
+        # self.pushButton_msem_transferToZen.setEnabled(False)
 
     def magc_trigger_wafer_calibratable(self):
         # the wafer can be calibrated
@@ -1886,8 +1886,8 @@ class MainControls(QMainWindow):
         elif 'ACTIVATE SHOW STAGE' in msg:
             self.viewport.show_stage_pos = True
             self.viewport.vp_activate_checkbox_show_stage_pos()
-        elif 'MSEM GUI' in msg:
-            self.msem_update_gui(msg)
+        # elif 'MSEM GUI' in msg:
+            # self.msem_update_gui(msg)
         elif msg == 'REFRESH OV':
             self.acquire_ov()
         elif msg == 'SHOW CURRENT SETTINGS':
