@@ -16,6 +16,7 @@ from time import sleep
 import json
 import pythoncom
 import win32com.client  # required to use CZEMApi.ocx (Carl Zeiss EM API)
+from PyQt5.QtWidgets import QMessageBox
 from win32com.client import VARIANT  # required for API function calls
 
 import utils
@@ -814,6 +815,7 @@ class SEM_MultiSEM(SEM):
         # TODO: Better use base class constructor and then ignore single-beam
         # parameters and define additional parameters if necessary
 
+        super().__init__(config, sysconfig)
         self.cfg = config  # user/project configuration (ConfigParser object)
         self.syscfg = sysconfig  # system configuration
         self.load_system_constants()
@@ -965,7 +967,6 @@ class SEM_MultiSEM(SEM):
         self.cfg['sem']['bsd_brightness'] = str(self.bsd_brightness)
         self.cfg['sem']['bsd_bias'] = str(self.bsd_bias)
         self.cfg['sem']['auto_beam_blank'] = str(self.auto_beam_blank)
-
 
     def turn_eht_on(self):
         """Turn EHT (= high voltage) on. Return True if successful,
