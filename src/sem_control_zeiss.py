@@ -245,6 +245,17 @@ class SEM_SmartSEM(SEM):
                 f'sem.set_fcc_level: command failed (ret_val: {ret_val})')
             return False
 
+    def set_mode_normal(self):
+        """Sets mode NORMAL (not split, not reduced, not emission)"""
+        ret_val = self.sem_execute('CMD_MODE_NORMAL')
+        if ret_val == 0:
+            return True
+        else:
+            self.error_state = Error.mode_normal
+            self.error_info = (
+                f'sem.mode_normal: command failed (ret_val: {ret_val})')
+            return False
+
     def get_beam_current(self):
         """Read beam current (in pA) from SmartSEM."""
         return int(round(self.sem_get('AP_IPROBE') * 10**12))
@@ -445,7 +456,18 @@ class SEM_SmartSEM(SEM):
         additional waiting period after the cycle time (extra_delay, in seconds)
         may be necessary. The delay specified in syscfg (self.DEFAULT_DELAY)
         is added by default for cycle times > 0.5 s."""
+
         self.sem_execute('CMD_UNFREEZE_ALL')
+
+        if (
+            self.magc_mode
+            and self.device_name.lower() in [
+                'zeiss merlin',
+                'zeiss sigma',
+                ]
+        ):
+            sleep(0.5)
+
         self.sem_execute('CMD_FREEZE_ALL') # Assume 'freeze on end of frame'
 
         self.additional_cycle_time = extra_delay
@@ -453,6 +475,7 @@ class SEM_SmartSEM(SEM):
             self.additional_cycle_time += self.DEFAULT_DELAY
 
         sleep(self.current_cycle_time + self.additional_cycle_time)
+
         # This sleep interval could be used to carry out other operations in
         # parallel while waiting for the new image.
         # Wait longer if necessary before grabbing image
@@ -643,12 +666,28 @@ class SEM_SmartSEM(SEM):
         return self.last_known_x, self.last_known_y, self.last_known_z
 
     def get_stage_xyztr(self):
-        """Read XYZ stage position (in micrometres) and transition and
+        """Read XYZ stage position (in micrometres) and tilt and
         rotation angles (in degree) from SEM."""
         x, y, z, t, r = self.sem_api.GetStagePosition()[1:6]
         self.last_known_x, self.last_known_y, self.last_known_z = (
             x * 10**6, y * 10**6, z * 10**6)
         return self.last_known_x, self.last_known_y, self.last_known_z, t, r
+
+    def get_stage_t(self):
+        """Read stage tilt (in degrees) from SEM"""
+        x, y, z, t, r = self.sem_api.GetStagePosition()[1:6]
+        return t
+
+    def get_stage_r(self):
+        """Read stage rotation (in degrees) from SEM"""
+        x, y, z, t, r = self.sem_api.GetStagePosition()[1:6]
+        return r
+
+    def get_stage_tr(self):
+        """Read tilt (degrees) and stage rotation (degrees) from SEM
+        as a tuple"""
+        x, y, z, t, r = self.sem_api.GetStagePosition()[1:6]
+        return t,r
 
     def move_stage_to_x(self, x):
         """Move stage to coordinate x, provided in microns"""
@@ -689,7 +728,18 @@ class SEM_SmartSEM(SEM):
         x /= 10**6   # convert to metres
         y /= 10**6
         z = self.get_stage_z() / 10**6
-        self.sem_api.MoveStage(x, y, z, 0, self.stage_rotation, 0)
+
+        # adding a magc_mode as precaution
+        # should this not be the standard way to make a stage movement:
+        # keep the other parameters constant by reading them first?
+        if self.magc_mode:
+            t,r = self.get_stage_tr()
+        else:
+            r = self.stage_rotation
+            t = 0
+
+        self.sem_api.MoveStage(x, y, z, t, r, 0)
+
         while self.sem_stage_busy():
             sleep(self.stage_move_check_interval)
         sleep(self.stage_move_wait_interval)
@@ -761,7 +811,7 @@ class SEM_MultiSEM(SEM):
         # do not use  __init__ from base class (which loads all settings from
         # config and sysconfig) because some single beam parameters do not
         # apply to MultiSEM
-        # TODO: Better use base class constructor and then ignore single-beam 
+        # TODO: Better use base class constructor and then ignore single-beam
         # parameters and define additional parameters if necessary
 
         self.cfg = config  # user/project configuration (ConfigParser object)

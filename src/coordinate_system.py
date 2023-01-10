@@ -37,7 +37,7 @@ class CoordinateSystem:
         self.syscfg = sysconfig
 
         if ((self.cfg['sys']['use_microtome'].lower() == 'true')
-                and (self.syscfg['device']['microtome'] 
+                and (self.syscfg['device']['microtome']
                      not in ['ConnectomX katana', 'GCIB'])):
             self._device = 'microtome'
         else:
@@ -68,12 +68,6 @@ class CoordinateSystem:
         # Origin of the current OV relative to the Slice-by-Slice Viewer origin
         self.sv_ov_vx_vy = [int(self.cfg['viewport']['sv_offset_x_ov']),
                             int(self.cfg['viewport']['sv_offset_y_ov'])]
-
-        # --- MagC --- #
-        self.magc_landmarks = []
-        self.magc_wafer_transform = []
-        self.magc_wafer_calibrated = False
-        #--------------#
 
     def save_to_cfg(self):
         """Save current parameters to the self.cfg ConfigParser object.

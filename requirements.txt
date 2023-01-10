@@ -17,6 +17,6 @@ psutil
 opencv-python
 mapfost
 comtypes
-shapely
+shapely>=1.8a1
 qdarkstyle
-tqdm
+statsmodels

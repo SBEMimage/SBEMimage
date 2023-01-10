@@ -66,7 +66,7 @@ class SEM:
         self.use_sem_stage = (
             self.cfg['sys']['use_microtome'].lower() == 'false'
             or (self.cfg['sys']['use_microtome'].lower() == 'true'
-                and self.syscfg['device']['microtome'] 
+                and self.syscfg['device']['microtome']
                 in ['ConnectomX katana', 'GCIB']))
         # The target EHT (= high voltage, in kV) and beam current (in pA)
         # are (as implemented at the moment in SBEMimage) global settings for
@@ -90,7 +90,7 @@ class SEM:
             self.grab_dwell_time = self.DWELL_TIME[self.grab_dwell_time_selector]
         else:
             self.grab_dwell_time = float(self.cfg['sem']['grab_frame_dwell_time'])
-        self.grab_pixel_size = float(self.cfg['sem']['grab_frame_pixel_size'])        
+        self.grab_pixel_size = float(self.cfg['sem']['grab_frame_pixel_size'])
         if self.cfg['sem']['grab_frame_size_selector'] == 'None':
             self.grab_frame_size_selector = self.STORE_RES_DEFAULT_INDEX_TILE
         else:
@@ -498,6 +498,19 @@ class SEM:
 
     def get_stage_xyz(self):
         """Read XYZ stage position (in micrometres) from SEM, return as tuple"""
+        raise NotImplementedError
+
+    def get_stage_t(self):
+        """Read stage tilt (in degrees) from SEM"""
+        raise NotImplementedError
+
+    def get_stage_r(self):
+        """Read stage rotation (in degrees) from SEM"""
+        raise NotImplementedError
+
+    def get_stage_tr(self):
+        """Read tilt (degrees) and stage rotation (degrees) from SEM
+        as a tuple"""
         raise NotImplementedError
 
     def move_stage_to_x(self, x):

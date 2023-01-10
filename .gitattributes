@@ -1,2 +1,2 @@
-*.magc text -diff
-*.magc linguist-generated=true
+*.magc diff
+*.magc diff merge text

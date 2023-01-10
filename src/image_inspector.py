@@ -158,18 +158,21 @@ class ImageInspector:
         # Skip tests in MagC mode if memory usage too high
         # TODO: Look into this
         if self.magc_mode and psutil.virtual_memory()[2] > 50:
-            print('### WARNING ### Memory usage '
-                  + str(psutil.virtual_memory()[2])
-                  + ' too high. Tile checks will be skipped.')
-            range_test_passed, slice_by_slice_test_passed = True, True
-            frozen_frame_error = False
-            grab_incomplete = False
-            load_error = False
-            tile_selected = True
-            return (np.zeros((1000,1000)), mean, stddev,
-                    range_test_passed, slice_by_slice_test_passed,
-                    tile_selected,
-                    load_error, grab_incomplete, frozen_frame_error)
+            utils.log_warning(
+                'MagC-WARNING',
+                f'Memory usage too high: {psutil.virtual_memory()[2]}.'
+                # ' Tile checks will be skipped.'
+                )
+            # # # range_test_passed, slice_by_slice_test_passed = True, True
+            # # # frozen_frame_error = False
+            # # # grab_incomplete = False
+            # # # load_error = False
+            # # # load_exception = False
+            # # # tile_selected = True
+            # # # return (np.zeros((1000,1000)), 0, 0,
+                    # # # range_test_passed, slice_by_slice_test_passed,
+                    # # # tile_selected,
+                    # # # load_error, load_exception, grab_incomplete, frozen_frame_error)
         # End of MagC-specific code
 
         img, mean, stddev, load_error, load_exception, grab_incomplete = (
@@ -187,8 +190,8 @@ class ImageInspector:
             preview_img = Image.frombytes(
                 'L', (width, height),
                 img_tostring).resize((
-                    PREVIEW_IMG_WIDTH, 
-                    int(PREVIEW_IMG_WIDTH * height / width)), 
+                    PREVIEW_IMG_WIDTH,
+                    int(PREVIEW_IMG_WIDTH * height / width)),
                     resample=Image.BILINEAR)
 
             # Convert to QPixmap and save in grid_manager

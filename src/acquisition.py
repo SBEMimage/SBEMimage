@@ -567,7 +567,7 @@ class Acquisition:
         if self.use_mirror_drive:
             self.mirror_files([notes_file])
 
-# ====================== STACK ACQUISITION THREAD run() ========================
+    # ====================== STACK ACQUISITION THREAD run() ========================
 
     def run(self):
         # override exception catching to reset GUI on error
@@ -826,6 +826,9 @@ class Acquisition:
                 self.acq_interrupted = False
                 self.interrupted_at = []
                 self.tiles_acquired = []
+
+            if self.sem.magc_mode:
+                self.sem.set_mode_normal()
 
         # ========================= ACQUISITION LOOP ===========================
 
@@ -1853,9 +1856,12 @@ class Acquisition:
                         self.autofocus_stig_current_slice[0],
                         (grid_index % self.autofocus.autostig_delay == 0))
 
-                if (num_active_tiles > 0
-                        and not self.pause_state == 1
-                        and self.error_state == Error.none):
+                if (
+                    num_active_tiles > 0
+                    and self.pause_state != 1
+                    and self.error_state == Error.none,
+                ):
+
                     if grid_index in self.grids_acquired:
                         utils.log_info(
                             'CTRL',
@@ -1864,20 +1870,30 @@ class Acquisition:
                         self.add_to_main_log(
                             f'CTRL: Grid {grid_index} already acquired. '
                             f'Skipping.')
-                    elif (self.magc_mode
-                          and grid_index not in self.gm.magc_checked_sections):
-                        utils.log_info(
-                            'CTRL',
-                            f'Grid {grid_index} not checked. Skipping.')
-                        self.add_to_main_log(
-                            f'CTRL: Grid {grid_index} not checked. Skipping.')
+                    elif (
+                            self.magc_mode
+                            and grid_index not in self.gm.magc['checked_sections']
+                        ):
+                            utils.log_info(
+                                'MagC-CTRL',
+                                f'Grid {grid_index} not checked. Skipping.')
+                            self.add_to_main_log(
+                                f'MagC-CTRL: Grid {grid_index} not checked. Skipping.')
+                            # there are two termination checkpoints in magc
+                            # 1. here, when a grid is unchecked
+                            # 2. after grid acquisition
+                            if grid_index==self.gm.number_grids-1:
+                                self.stack_completed = True
                     else:
                         # Do autofocus on non-active tiles before grid acq
-                        if (self.use_autofocus
-                            and self.autofocus.method in [0, 3]  # SEM or mapfost
-                            and (self.autofocus_stig_current_slice[0]
-                            or self.autofocus_stig_current_slice[1])
-                            and not self.autofocus.tracking_mode == 3  # in that case these tiles have been visited already
+                        if (
+                            self.use_autofocus
+                            and self.autofocus.method in [0, 3]  # zeiss or mapfost
+                            and (
+                                self.autofocus_stig_current_slice[0]
+                                or self.autofocus_stig_current_slice[1]
+                            )
+                            and self.autofocus.tracking_mode != 3  # in that case these tiles have been visited already
                         ):
                             self.do_autofocus_before_grid_acq(grid_index)
                         # Adjust working distances and stigmation parameters
@@ -1887,6 +1903,8 @@ class Acquisition:
                         # image inspection and error handling, and with
                         # autofocus on reference tiles)
                         self.acquire_grid(grid_index)
+
+
             else:
                 utils.log_info(
                     'CTRL',
@@ -1894,11 +1912,16 @@ class Acquisition:
                 self.add_to_main_log(
                     'CTRL: Skip grid %d (intervallic acquisition)' % grid_index)
 
+            if (self.magc_mode
+                and len(self.grids_acquired) == len(self.gm.magc['checked_sections'])
+            ):
+                self.stack_completed = True
+
         # Reset the interruption point (from the previous run) if the affected
         # grid was acquired
         if (self.pause_state != 1
-                and self.acq_interrupted
-                and self.acq_interrupted_at[0] in self.grids_acquired):
+            and self.acq_interrupted
+            and self.acq_interrupted_at[0] in self.grids_acquired):
             self.interrupted_at = []
             self.acq_interrupted = False
 
@@ -1929,233 +1952,274 @@ class Acquisition:
         # all other tiles in the grid (adjust_acq_settings set to False).
         adjust_acq_settings = True
 
-        if self.pause_state != 1:
+        if self.pause_state == 1:
+            return
+        utils.log_info(
+            'CTRL',
+            f'Starting acquisition of active tiles in grid {grid_index}')
+        self.add_to_main_log(
+            'CTRL: Starting acquisition of active tiles in grid %d'
+            % grid_index)
+
+        if self.magc_mode:
+            # WD/stig is set elsewhere for magc
+            # 1. interpolative focus computed before grid acquisition
+            # 2. or kept the same from the previous grid if current grid
+            # does not have focus points
+            adjust_wd_stig = False
+
+            # In MagC mode: Track grid being acquired in Viewport
+            self.cs.vp_centre_dx_dy = self.gm[grid_index].centre_dx_dy
+            self.main_controls_trigger.transmit('DRAW VP')
+            self.main_controls_trigger.transmit(
+                f'MAGC SET SECTION STATE GUI-{grid_index}-acquiring'
+            )
+
+            # # the acq parameters stay the same across grids in magc
+            # # TODO: why is the very first tile acquisition failing?
+            # # if this is solved, then this can be removed and
+            # # custom grid settings can be used for each grid
+            # # TODO: to remove?
+            # if grid_index !=0:
+            #     adjust_acq_settings = False
+
+        if self.acq_interrupted:
+            # Remove tiles that are no longer active from
+            # tiles_acquired list
+            acq_tmp = list(self.tiles_acquired)
+            for tile in acq_tmp:
+                if not (tile in active_tiles):
+                    self.tiles_acquired.remove(tile)
+
+        # Set WD and stig settings for the current grid
+        # and lock the settings unless individual adjustment is required
+        if not adjust_wd_stig:
+            if not self.magc_mode:
+                self.set_default_wd_stig()
+                self.lock_wd_stig()
+
+        theta = self.gm[grid_index].rotation
+        # TODO: Whether theta or (360 - theta) must be used here may be
+        # device-specific. Look into that!
+        if not self.magc_mode:
+            theta = 360 - theta
+        else:
+            theta = theta % 360
+            # workaround to make sure that the set_scan_rotation
+            # command is issued below. TT would suggest changing
+            # the check below to if theta >= 0: but it might not
+            # be OK for non-magc applications
+            if theta == 0:
+                theta = 0.01
+        if theta > 0:
+            # Enable scan rotation
+            self.sem.set_scan_rotation(theta)
+
+        # ============= Acquisition loop of all active tiles ===============
+        for tile_index in active_tiles:
+            fail_counter = 0
+            tile_accepted = False
+            tile_skipped = False
+            tile_id = str(grid_index) + '.' + str(tile_index)
+
+            # Acquire the current tile
+            while (
+                not tile_accepted
+                and not tile_skipped
+                and fail_counter < 2
+            ):
+
+                (tile_img, relative_save_path, save_path,
+                    tile_accepted, tile_skipped, tile_selected,
+                    rejected_by_user) = (
+                    self.acquire_tile(grid_index, tile_index,
+                                        adjust_wd_stig, adjust_acq_settings))
+                if not tile_skipped:
+                    adjust_acq_settings = False
+
+                if (
+                    self.error_state in [
+                        Error.grab_image,
+                        Error.grab_incomplete,
+                        Error.frame_frozen,
+                        Error.image_load,
+                        ]
+                    and not rejected_by_user
+                ):
+
+                    self.save_rejected_tile(save_path, grid_index,
+                                            tile_index, fail_counter)
+                    # Try again
+                    fail_counter += 1
+                    if fail_counter == 2:
+                        # Pause after second failed attempt
+                        self.pause_acquisition(1)
+                    else:
+                        # Remove the file to avoid overwrite error
+                        try:
+                            os.remove(save_path)
+                        except Exception as e:
+                            utils.log_error(
+                                'CTRL',
+                                'Tile image file could not be '
+                                'removed: ' + str(e))
+                            self.add_to_main_log(
+                                'CTRL: Tile image file could not be '
+                                'removed: ' + str(e))
+                        # TODO: Try to solve frozen frame problem:
+                        # if self.error_state == Error.frame_frozen:
+                        #    self.handle_frozen_frame(grid_index)
+                        utils.log_warning(
+                            'SEM',
+                            'Trying again to image tile.')
+                        self.add_to_main_log(
+                            'SEM: Trying again to image tile.')
+                        # Reset error state
+                        self.error_state = Error.none
+                elif self.error_state != Error.none:
+                    self.pause_acquisition(1)
+                    break
+            # End of tile aquisition while loop
+
+            if (
+                tile_accepted
+                and tile_selected
+                and not tile_skipped
+            ):
+                # Write tile's name and position into imagelist
+                self.register_accepted_tile(relative_save_path,
+                                            grid_index, tile_index)
+                # Save stats and reslice
+                success, error_msg = self.img_inspector.save_tile_stats(
+                    self.base_dir, grid_index, tile_index,
+                    self.slice_counter)
+                if not success:
+                    utils.log_error(
+                        'CTRL',
+                        'Warning: Could not save tile mean and SD '
+                        'to disk: ' + error_msg)
+                    self.add_to_main_log(
+                        'CTRL: Warning: Could not save tile mean and SD '
+                        'to disk.')
+                    self.add_to_main_log(
+                        'CTRL: ' + error_msg)
+                success, error_msg = self.img_inspector.save_tile_reslice(
+                    self.base_dir, grid_index, tile_index)
+                if not success:
+                    utils.log_error(
+                        'CTRL',
+                        'Warning: Could not save tile reslice to '
+                        'disk:' + utils.log_error())
+                    self.add_to_main_log(
+                        'CTRL: Warning: Could not save tile reslice to '
+                        'disk.')
+                    self.add_to_main_log(
+                        'CTRL: ' + error_msg)
+
+                # If heuristic autofocus is enabled and tile is selected as
+                # a reference tile, prepare tile for processing:
+                if (
+                    self.use_autofocus
+                    and self.autofocus.method==1
+                    and self.gm[grid_index][tile_index].autofocus_active
+                ):
+
+                    tile_key = str(grid_index) + '.' + str(tile_index)
+                    self.autofocus.prepare_tile_for_heuristic_af(
+                        tile_img, tile_key)
+                    self.heuristic_af_queue.append(tile_key)
+                    del tile_img
+
+            elif (
+                not tile_selected
+                and not tile_skipped
+                and self.error_state == Error.none
+            ):
+                utils.log_info(
+                    'CTRL',
+                    f'Tile {tile_id} was discarded by image '
+                    f'inspector.')
+                self.add_to_main_log(
+                    f'CTRL: Tile {tile_id} was discarded by image '
+                    f'inspector.')
+                # Delete file
+                try:
+                    os.remove(save_path)
+                except Exception as e:
+                    utils.log_error(
+                        'CTRL',
+                        'Tile image file could not be deleted: '
+                        + str(e))
+                    self.add_to_main_log(
+                        'CTRL: Tile image file could not be deleted: '
+                        + str(e))
+            # Save current position if acquisition was paused by user
+            # or interrupted by an error.
+            if self.pause_state == 1:
+                self.set_interruption_point(grid_index, tile_index)
+                break
+        # ================= End of tile acquisition loop ===================
+
+        cycle_time_diff = (self.sem.additional_cycle_time
+                            - self.sem.DEFAULT_DELAY)
+        if cycle_time_diff > 0.15:
+            utils.log_warning(
+                'CTRL',
+                f'Warning: Grid {grid_index} tile cycle time was '
+                f'{cycle_time_diff:.2f} s longer than expected.')
+            self.add_to_main_log(
+                f'CTRL: Warning: Grid {grid_index} tile cycle time was '
+                f'{cycle_time_diff:.2f} s longer than expected.')
+
+        # Show the average durations for grabbing, inspecting and mirroring
+        # tiles in the current grid
+        if self.tile_grab_durations and self.tile_inspect_durations:
             utils.log_info(
                 'CTRL',
-                f'Starting acquisition of active tiles in grid {grid_index}')
+                f'Grid {grid_index}: avg. tile grab duration: '
+                f'{mean(self.tile_grab_durations):.1f} s '
+                f'(cycle time: {self.sem.current_cycle_time:.1f})')
+            utils.log_info(
+                'CTRL',
+                f'Grid {grid_index}: avg. tile inspect '
+                f'duration: {mean(self.tile_inspect_durations):.1f} s')
             self.add_to_main_log(
-                'CTRL: Starting acquisition of active tiles in grid %d'
-                % grid_index)
+                f'CTRL: Grid {grid_index}: avg. tile grab duration: '
+                f'{mean(self.tile_grab_durations):.1f} s '
+                f'(cycle time: {self.sem.current_cycle_time:.1f})')
+            self.add_to_main_log(
+                f'CTRL: Grid {grid_index}: avg. tile inspect '
+                f'duration: {mean(self.tile_inspect_durations):.1f} s')
+        if self.use_mirror_drive and self.tile_mirror_durations:
+            utils.log_info(
+                'CTRL',
+                f'Grid {grid_index}: avg. time to copy tile to '
+                f'mirror drive: {mean(self.tile_mirror_durations):.1f} s')
+            self.add_to_main_log(
+                f'CTRL: Grid {grid_index}: avg. time to copy tile to '
+                f'mirror drive: {mean(self.tile_mirror_durations):.1f} s')
+        # Clear duration lists for the next grid
+        self.tile_grab_durations = []
+        self.tile_inspect_durations = []
+        self.tile_mirror_durations = []
+
+        if theta > 0:
+            # Disable scan rotation
+            self.sem.set_scan_rotation(0)
+
+        if len(active_tiles) == len(self.tiles_acquired):
+            # Grid is complete, add it to the grids_acquired list
+            self.grids_acquired.append(grid_index)
+            # Empty the tile list since all tiles were acquired
+            self.tiles_acquired = []
 
             if self.magc_mode:
-                # In MagC mode: Track grid being acquired in Viewport
-                grid_centre_d = self.gm[grid_index].centre_dx_dy
-                self.cs.set_vp_centre_d(grid_centre_d)
+                self.cs.vp_centre_dx_dy = self.gm[grid_index].centre_dx_dy
                 self.main_controls_trigger.transmit('DRAW VP')
                 self.main_controls_trigger.transmit(
                     'MAGC SET SECTION STATE GUI-'
-                    + str(grid_index)
-                    + '-acquiring')
-
-            if self.acq_interrupted:
-                # Remove tiles that are no longer active from
-                # tiles_acquired list
-                acq_tmp = list(self.tiles_acquired)
-                for tile in acq_tmp:
-                    if not (tile in active_tiles):
-                        self.tiles_acquired.remove(tile)
-
-            # Set WD and stig settings for the current grid
-            # and lock the settings unless individual adjustment is required
-            if not adjust_wd_stig:
-                # MagC: WD/stig is kept at the current values from grid to grid
-                if not self.magc_mode:
-                    self.set_default_wd_stig()
-                self.lock_wd_stig()
-
-            theta = self.gm[grid_index].rotation
-            # TODO: Whether theta or (360 - theta) must be used here may be
-            # device-specific. Look into that!
-            if not self.magc_mode:
-                theta = 360 - theta
-            if theta > 0:
-                # Enable scan rotation
-                self.sem.set_scan_rotation(theta)
-
-            # ============= Acquisition loop of all active tiles ===============
-            for tile_index in active_tiles:
-                fail_counter = 0
-                tile_accepted = False
-                tile_skipped = False
-                tile_id = str(grid_index) + '.' + str(tile_index)
-
-                # Acquire the current tile
-                while not (tile_accepted or tile_skipped) and fail_counter < 2:
-
-                    (tile_img, relative_save_path, save_path,
-                     tile_accepted, tile_skipped, tile_selected,
-                     rejected_by_user) = (
-                        self.acquire_tile(grid_index, tile_index,
-                                          adjust_wd_stig, adjust_acq_settings))
-                    if not tile_skipped:
-                        adjust_acq_settings = False
-
-                    if (self.error_state in [Error.grab_image, Error.grab_incomplete, Error.frame_frozen, Error.image_load]
-                            and not rejected_by_user):
-                        self.save_rejected_tile(save_path, grid_index,
-                                                tile_index, fail_counter)
-                        # Try again
-                        fail_counter += 1
-                        if fail_counter == 2:
-                            # Pause after second failed attempt
-                            self.pause_acquisition(1)
-                        else:
-                            # Remove the file to avoid overwrite error
-                            try:
-                                os.remove(save_path)
-                            except Exception as e:
-                                utils.log_error(
-                                    'CTRL',
-                                    'Tile image file could not be '
-                                    'removed: ' + str(e))
-                                self.add_to_main_log(
-                                    'CTRL: Tile image file could not be '
-                                    'removed: ' + str(e))
-                            # TODO: Try to solve frozen frame problem:
-                            # if self.error_state == Error.frame_frozen:
-                            #    self.handle_frozen_frame(grid_index)
-                            utils.log_warning(
-                                'SEM',
-                                'Trying again to image tile.')
-                            self.add_to_main_log(
-                                'SEM: Trying again to image tile.')
-                            # Reset error state
-                            self.error_state = Error.none
-                    elif self.error_state != Error.none:
-                        self.pause_acquisition(1)
-                        break
-                # End of tile aquisition while loop
-
-                if tile_accepted and tile_selected and not tile_skipped:
-                    # Write tile's name and position into imagelist
-                    self.register_accepted_tile(relative_save_path,
-                                                grid_index, tile_index)
-                    # Save stats and reslice
-                    success, error_msg = self.img_inspector.save_tile_stats(
-                        self.base_dir, grid_index, tile_index,
-                        self.slice_counter)
-                    if not success:
-                        utils.log_error(
-                            'CTRL',
-                            'Warning: Could not save tile mean and SD '
-                            'to disk: ' + error_msg)
-                        self.add_to_main_log(
-                            'CTRL: Warning: Could not save tile mean and SD '
-                            'to disk.')
-                        self.add_to_main_log(
-                            'CTRL: ' + error_msg)
-                    success, error_msg = self.img_inspector.save_tile_reslice(
-                        self.base_dir, grid_index, tile_index)
-                    if not success:
-                        utils.log_error(
-                            'CTRL',
-                            'Warning: Could not save tile reslice to '
-                            'disk:' + utils.log_error())
-                        self.add_to_main_log(
-                            'CTRL: Warning: Could not save tile reslice to '
-                            'disk.')
-                        self.add_to_main_log(
-                            'CTRL: ' + error_msg)
-
-                    # If heuristic autofocus is enabled and tile is selected as
-                    # a reference tile, prepare tile for processing:
-                    if (self.use_autofocus and self.autofocus.method == 1
-                        and self.gm[grid_index][tile_index].autofocus_active):
-                        tile_key = str(grid_index) + '.' + str(tile_index)
-                        self.autofocus.prepare_tile_for_heuristic_af(
-                            tile_img, tile_key)
-                        self.heuristic_af_queue.append(tile_key)
-                        del tile_img
-
-                elif (not tile_selected
-                      and not tile_skipped
-                      and self.error_state == Error.none):
-                    utils.log_info(
-                        'CTRL',
-                        f'Tile {tile_id} was discarded by image '
-                        f'inspector.')
-                    self.add_to_main_log(
-                        f'CTRL: Tile {tile_id} was discarded by image '
-                        f'inspector.')
-                    # Delete file
-                    try:
-                        os.remove(save_path)
-                    except Exception as e:
-                        utils.log_error(
-                            'CTRL',
-                            'Tile image file could not be deleted: '
-                            + str(e))
-                        self.add_to_main_log(
-                            'CTRL: Tile image file could not be deleted: '
-                            + str(e))
-                # Save current position if acquisition was paused by user
-                # or interrupted by an error.
-                if self.pause_state == 1:
-                    self.set_interruption_point(grid_index, tile_index)
-                    break
-            # ================= End of tile acquisition loop ===================
-
-            cycle_time_diff = (self.sem.additional_cycle_time
-                               - self.sem.DEFAULT_DELAY)
-            if cycle_time_diff > 0.15:
-                utils.log_warning(
-                    'CTRL',
-                    f'Warning: Grid {grid_index} tile cycle time was '
-                    f'{cycle_time_diff:.2f} s longer than expected.')
-                self.add_to_main_log(
-                    f'CTRL: Warning: Grid {grid_index} tile cycle time was '
-                    f'{cycle_time_diff:.2f} s longer than expected.')
-
-            # Show the average durations for grabbing, inspecting and mirroring
-            # tiles in the current grid
-            if self.tile_grab_durations and self.tile_inspect_durations:
-                utils.log_info(
-                    'CTRL',
-                    f'Grid {grid_index}: avg. tile grab duration: '
-                    f'{mean(self.tile_grab_durations):.1f} s '
-                    f'(cycle time: {self.sem.current_cycle_time:.1f})')
-                utils.log_info(
-                    'CTRL',
-                    f'Grid {grid_index}: avg. tile inspect '
-                    f'duration: {mean(self.tile_inspect_durations):.1f} s')
-                self.add_to_main_log(
-                    f'CTRL: Grid {grid_index}: avg. tile grab duration: '
-                    f'{mean(self.tile_grab_durations):.1f} s '
-                    f'(cycle time: {self.sem.current_cycle_time:.1f})')
-                self.add_to_main_log(
-                    f'CTRL: Grid {grid_index}: avg. tile inspect '
-                    f'duration: {mean(self.tile_inspect_durations):.1f} s')
-            if self.use_mirror_drive and self.tile_mirror_durations:
-                utils.log_info(
-                    'CTRL',
-                    f'Grid {grid_index}: avg. time to copy tile to '
-                    f'mirror drive: {mean(self.tile_mirror_durations):.1f} s')
-                self.add_to_main_log(
-                    f'CTRL: Grid {grid_index}: avg. time to copy tile to '
-                    f'mirror drive: {mean(self.tile_mirror_durations):.1f} s')
-            # Clear duration lists for the next grid
-            self.tile_grab_durations = []
-            self.tile_inspect_durations = []
-            self.tile_mirror_durations = []
-
-            if theta > 0:
-                # Disable scan rotation
-                self.sem.set_scan_rotation(0)
-
-            if len(active_tiles) == len(self.tiles_acquired):
-                # Grid is complete, add it to the grids_acquired list
-                self.grids_acquired.append(grid_index)
-                # Empty the tile list since all tiles were acquired
-                self.tiles_acquired = []
-
-                if self.magc_mode:
-                    grid_centre_d = self.gm[grid_index].centre_dx_dy
-                    self.cs.set_vp_centre_d(grid_centre_d)
-                    self.main_controls_trigger.transmit('DRAW VP')
-                    self.main_controls_trigger.transmit(
-                        'MAGC SET SECTION STATE GUI-'
-                        + str(grid_index)
-                        + '-acquired')
+                    f'{grid_index}'
+                    '-acquired')
 
     def acquire_tile(self, grid_index, tile_index,
                      adjust_wd_stig=False, adjust_acq_settings=False):
@@ -2187,8 +2251,9 @@ class Acquisition:
         # Skip the tile if it is in the interrupted grid and already listed
         # as acquired.
         if (self.acq_interrupted
-                and self.acq_interrupted_at[0] == grid_index
-                and tile_index in self.tiles_acquired):
+            and self.acq_interrupted_at[0] == grid_index
+            and tile_index in self.tiles_acquired):
+
             tile_skipped = True
             utils.log_info(
                 'CTRL',
@@ -2200,16 +2265,18 @@ class Acquisition:
             if not os.path.isfile(save_path) or retake_img:
                 # If current tile has different focus settings from previous
                 # tile, adjust working distance and stigmation for this tile
-                if adjust_wd_stig and not self.magc_mode:
+                if adjust_wd_stig:
                     new_wd = (self.gm[grid_index][tile_index].wd
                               + self.wd_delta)
                     new_stig_x = (self.gm[grid_index][tile_index].stig_xy[0]
                                   + self.stig_x_delta)
                     new_stig_y = (self.gm[grid_index][tile_index].stig_xy[1]
                                   + self.stig_y_delta)
-                    if ((new_wd != self.tile_wd)
-                        or (new_stig_x != self.tile_stig_x)
-                        or (new_stig_y != self.tile_stig_y)):
+                    if any([
+                        new_wd != self.tile_wd,
+                        new_stig_x != self.tile_stig_x,
+                        new_stig_y != self.tile_stig_y,
+                        ]):
                         # Adjust and show new parameters in the main log
                         self.sem.set_wd(new_wd)
                         self.sem.set_stig_xy(new_stig_x, new_stig_y)
@@ -2280,18 +2347,34 @@ class Acquisition:
                 self.add_to_main_log(
                     'CTRL: Tile %s: Image file already exists!' %tile_id)
 
+            if self.magc_mode:
+                # set wd,stig calculated at the beginning of the grid
+                self.sem.set_wd(self.gm[grid_index][tile_index].wd)
+                self.sem.set_stig_xy(*self.gm[grid_index][tile_index].stig_xy)
+
+
         # Proceed if no error has ocurred and tile not skipped:
-        if self.error_state == Error.none and not tile_skipped:
+        if (
+            self.error_state == Error.none
+            and not tile_skipped
+        ):
 
             # Show updated XY stage coordinates in Main Controls GUI
             self.main_controls_trigger.transmit('UPDATE XY')
 
             # Call autofocus routine (method 0, SEM) on current tile
             # if enabled and tile selected on this slice
-            if (self.use_autofocus and self.autofocus.method in [0, 3]
-                    and self.gm[grid_index][tile_index].autofocus_active
-                    and (self.autofocus_stig_current_slice[0] or
-                         self.autofocus_stig_current_slice[1])):
+            if (
+                self.use_autofocus
+                and self.autofocus.method in [0, 3]
+                and self.gm[grid_index][tile_index].autofocus_active
+                and (
+                    self.autofocus_stig_current_slice[0]
+                    or self.autofocus_stig_current_slice[1]
+                )
+                and not self.magc_mode
+            ):
+
                 do_move = False  # already at tile stage position
                 self.do_autofocus(*self.autofocus_stig_current_slice,
                                   do_move, grid_index, tile_index)
@@ -2299,7 +2382,10 @@ class Acquisition:
                 # They must be restored to the settings for the current grid.
                 adjust_acq_settings = True
                 # For tracking mode 0: Adjust wd/stig of other tiles
-                if self.error_state == Error.none and self.autofocus.tracking_mode == 0:
+                if (
+                    self.error_state == Error.none
+                    and self.autofocus.tracking_mode == 0
+                ):
                     self.autofocus.approximate_wd_stig_in_grid(grid_index)
                     self.main_controls_trigger.transmit('DRAW VP')
 
@@ -2317,13 +2403,17 @@ class Acquisition:
                 # undo the change.
                 self.lock_mag()
 
-            # Check mag if locked
-            if self.mag_locked and not self.error_state in [Error.autofocus_smartsem, Error.autofocus_heuristic, Error.wd_stig_difference]:
-                self.check_locked_mag()
-            # Check focus if locked
-            if (self.wd_stig_locked
-                    and not self.error_state in [Error.autofocus_smartsem, Error.autofocus_heuristic, Error.wd_stig_difference]):
-                self.check_locked_wd_stig()
+            if not self.error_state in [
+                Error.autofocus_smartsem,
+                Error.autofocus_heuristic,
+                Error.wd_stig_difference,
+            ]:
+                # Check mag if locked
+                if self.mag_locked:
+                    self.check_locked_mag()
+                # Check focus if locked
+                if self.wd_stig_locked:
+                    self.check_locked_wd_stig()
 
             # After all preliminary checks complete, now acquire the frame!
             # (Even if error has been detected. May be helpful.)
@@ -2412,7 +2502,11 @@ class Acquisition:
                     # New preview available, show it (if tile previews active)
                     self.main_controls_trigger.transmit('DRAW VP')
 
-                    if self.error_state in [Error.autofocus_smartsem, Error.autofocus_heuristic, Error.wd_stig_difference]:
+                    if self.error_state in [
+                        Error.autofocus_smartsem,
+                        Error.autofocus_heuristic,
+                        Error.wd_stig_difference,
+                    ]:
                         # Don't accept tile if autofocus error has ocurred
                         tile_accepted = False
                     else:
@@ -2450,8 +2544,10 @@ class Acquisition:
                                 self.add_to_main_log(
                                     'CTRL: Tile outside of permitted mean/SD '
                                     'range!')
-                            elif (slice_by_slice_test_passed is not None
-                                  and not slice_by_slice_test_passed):
+                            elif (
+                                slice_by_slice_test_passed is not None
+                                and not slice_by_slice_test_passed
+                            ):
                                 tile_accepted = False
                                 self.error_state = Error.tile_image_compare
                                 utils.log_error(
@@ -2479,7 +2575,15 @@ class Acquisition:
                 self.error_state = Error.grab_image
 
         # Check for "Ask User" override
-        if self.ask_user_mode and self.error_state in [Error.grab_incomplete, Error.frame_frozen, Error.tile_image_range, Error.tile_image_compare]:
+        if (
+            self.ask_user_mode
+            and self.error_state in [
+                Error.grab_incomplete,
+                Error.frame_frozen,
+                Error.tile_image_range,
+                Error.tile_image_compare
+            ]
+        ):
             self.main_controls_trigger.transmit('ASK IMAGE ERROR OVERRIDE')
             while self.user_reply is None:
                 sleep(0.1)
@@ -2624,6 +2728,62 @@ class Acquisition:
         # Back to previous store resolution:
         self.sem.set_frame_size(target_store_res)
 
+    def do_autofocus_position(self, position, grid_index, id_focus):
+        """Run SmartSEM autofocus at given position"""
+        do_focus, do_stig = self.autofocus_stig_current_slice
+        move_msg = (
+            "STAGE-MagC",
+            f"Moving to {position} for AFAS of grid {grid_index} at focus point {id_focus}",
+        )
+        self.double_log(*move_msg)
+        self.stage.move_to_xy(position)
+        if self.stage.error_state != Error.none:
+            self.stage.reset_error_state()
+            self.double_log('STAGE', 'Problem with XY move. Trying again.')
+            self.add_to_incident_log('WARNING (Problem with XY stage move)')
+            sleep(2)
+            # Try to move to tile position again
+            self.double_log(*move_msg)
+            self.stage.move_to_xy(position)
+            # Check again if there is an error
+            self.error_state = self.stage.error_state
+            self.stage.reset_error_state()
+            # If yes, pause stack
+            if self.error_state != Error.none:
+                self.double_log("STAGE-MagC", "XY move for autofocus failed.")
+
+        if self.error_state != Error.none:
+            return None
+        self.main_controls_trigger.transmit('DRAW VP') # show that the stage moved
+        if do_focus and do_stig:
+            af_type = '(focus+stig)'
+        elif do_focus:
+            af_type = '(focus only)'
+        elif do_stig:
+            af_type = '(stig only)'
+
+        if self.autofocus.method == 0:
+            self.double_log(
+                'SEM-MagC',
+                f'Running SmartSEM AF procedure {af_type} for grid {grid_index}'
+            )
+            autofocus_msg = 'SEM', self.autofocus.run_zeiss_af(do_focus, do_stig)
+
+        self.double_log(*autofocus_msg)
+        if 'ERROR' in autofocus_msg[1]:
+            self.error_state = Error.autofocus_smartsem
+            return None
+        else:
+            wd = self.sem.get_wd()
+            sx, sy = list(self.sem.get_stig_xy())
+            self.double_log(
+                "SEM",
+                f"Result of {af_type.lstrip('(').rstrip(')')}: \nWD: {wd*1000:.4f}\n StigX: {sx}\nStigY: {sy}",
+            )
+            # Show updated WD label(s) in Viewport
+            self.main_controls_trigger.transmit('DRAW VP')
+            return wd, sx, sy
+
     def do_autofocus(self, do_focus, do_stig, do_move, grid_index, tile_index):
         """Run SEM autofocus at current stage position if do_move == False,
         otherwise move to grid_index.tile_index position beforehand.
@@ -2735,10 +2895,17 @@ class Acquisition:
             # Show updated WD label(s) in Viewport
             self.main_controls_trigger.transmit('DRAW VP')
 
+    def double_log(self, header, msg):
+        utils.log_info(header, msg)
+        self.add_to_main_log(f'{header}: {msg}')
+
+
     def do_autofocus_before_grid_acq(self, grid_index):
         """If non-active tiles are selected for the SEM autofocus, call the
         autofocus on them one by one before the grid acquisition starts.
         """
+        if self.magc_mode:
+            return self.magc_do_autofocus_before_grid_acq(grid_index)
         autofocus_ref_tiles = self.gm[grid_index].autofocus_ref_tiles()
         active_tiles = self.gm[grid_index].active_tiles
         # Perform SEM autofocus for non-active autofocus tiles
@@ -2754,6 +2921,48 @@ class Acquisition:
                         self.pause_acquisition(1)
                     self.set_interruption_point(grid_index, tile_index)
                     break
+
+
+    def magc_do_autofocus_before_grid_acq(self, grid_index):
+        """
+        Perform AF/AS at focus positions for the grid
+        Adds AFAS_Results to the grid
+        AFAS_results: list[
+            [xy, (wd, sx, sy)]
+        ]
+        """
+        focus_positions = self.gm.magc_autofocus_points(grid_index)
+        AFAS_results = [] # results for each focus point
+        for id_focus, focus_position in enumerate(focus_positions):
+            if id_focus !=0:
+                # if autostig for this grid, then must be done in the first
+                # focus point
+                self.autofocus_stig_current_slice = (
+                    self.autofocus_stig_current_slice[0], False)
+            operation_str = (
+                    self.autofocus_stig_current_slice[0] * "Autostig "
+                    + self.autofocus_stig_current_slice[1] * "Autofocus"
+            )
+            self.double_log(
+                "MagC-CTRL",
+                f"Performing {operation_str} in autofocus point #{id_focus} in grid {grid_index}")
+            AFAS_results.append([
+                focus_position,
+                self.do_autofocus_position(focus_position, grid_index, id_focus)
+            ])
+            if self.error_state != Error.none or self.pause_state == 1:
+                # Immediately pause and save interruption info
+                if not self.acq_paused:
+                    self.pause_acquisition(1)
+                self.set_interruption_point(grid_index, 0)
+                break
+        AFAS_results = [
+            result
+            for result in AFAS_results
+            if result[1]
+        ]
+        if AFAS_results:
+            self.gm[grid_index].AFAS_results = AFAS_results
 
     def do_heuristic_autofocus(self, tile_key):
         utils.log_info('CTRL',
@@ -2785,9 +2994,12 @@ class Acquisition:
             self.add_to_main_log(
                 'CTRL: No estimates computed (need one additional slice) ')
 
+
     def do_autofocus_adjustments(self, grid_index):
         # Apply average WD/STIG from reference tiles
         # if tracking mode "Average" is selected.
+        if self.magc_mode:
+            self.magc_do_autofocus_adjustments(grid_index)
         if self.use_autofocus and self.autofocus.tracking_mode == 2:
             if self.autofocus.method == 0:
                 utils.log_info(
@@ -2812,10 +3024,7 @@ class Acquisition:
             avg_grid_stig_x, avg_grid_stig_y = (
                 self.gm[grid_index].average_stig_xy_of_autofocus_ref_tiles())
 
-            if (avg_grid_wd is not None
-                    and avg_grid_stig_x is not None
-                    and avg_grid_stig_y is not None):
-
+            if not None in [avg_grid_wd, avg_grid_stig_x , avg_grid_stig_y]:
                 # Apply corrections. At the moment, all reference tiles are
                 # checked individually if the difference in wd/stig from
                 # the autofocus correction is within the permissable limit,
@@ -2840,6 +3049,19 @@ class Acquisition:
 
         # If focus gradient active, adjust focus for grid(s):
         # TODO
+
+
+    def magc_do_autofocus_adjustments(self, grid_index):
+        """Apply focus gradient on grid based on AFAS performed on the focus points"""
+        if not hasattr(self.gm[grid_index], "AFAS_results"):
+            self.double_log(
+                "MagC-CTRL",
+                f"No grid autofocus adjustment for grid {grid_index}"
+            )
+            return
+        self.double_log("MagC-CTRL", "Applying WD/STIG to the grid")
+        self.gm[grid_index].set_wd_stig_from_calibrated_points()
+
 
     def lock_wd_stig(self):
         self.locked_wd = self.sem.get_wd()

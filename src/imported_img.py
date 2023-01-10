@@ -73,7 +73,16 @@ class ImportedImage:
         self._rotation = new_rotation
         self._load_image()
 
-
+    def flip_x(self):
+        trans = QTransform()
+        trans.setMatrix(
+            -1,0,0,
+            0,1,0,
+            0,0,1,
+            )
+        self.image = self.image.transformed(trans)
+        
+        
 
 class ImportedImages:
 

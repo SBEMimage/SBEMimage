@@ -39,6 +39,7 @@ from viewport_dlg_windows import StubOVDlg, FocusGradientTileSelectionDlg, \
                                  AdjustImageDlg, DeleteImageDlg
 from main_controls_dlg_windows import MotorStatusDlg
 
+import magc_utils
 
 class Viewport(QWidget):
 
@@ -150,8 +151,9 @@ class Viewport(QWidget):
         when an acquisition is running."""
         self.busy = b
         b ^= True
-        self.pushButton_refreshOVs.setEnabled(b)
-        self.pushButton_acquireStubOV.setEnabled(b)
+        if not self.sem.magc_mode:
+            self.pushButton_refreshOVs.setEnabled(b)
+            self.pushButton_acquireStubOV.setEnabled(b)
         if not b:
             self.radioButton_fromStack.setChecked(not b)
         self.radioButton_fromSEM.setEnabled(b)
@@ -316,7 +318,7 @@ class Viewport(QWidget):
         else:
             event.accept()
 
-# ======================= Below: event-handling methods ========================
+    # ======================= Below: event-handling methods ========================
 
     def setMouseTracking(self, flag):
         """Recursively activate or deactive mouse tracking in a widget."""
@@ -338,12 +340,11 @@ class Viewport(QWidget):
         mouse_pos_within_plot_area = (
             px in range(445, 940) and py in range(22, 850))
 
-        # --- MagC --- #
-        self.control_down_at_mouse_press = (
-            QApplication.keyboardModifiers() == Qt.ControlModifier)
-        # keep in memory the origin when button pressed
-        self.drag_origin_at_press_event = px, py
-        #--------------#
+        if self.sem.magc_mode and not self.sem.simulation_mode:
+            # update stage position indicator at any click in VP
+            self.stage.get_xy()
+            self.vp_draw()
+
         if ((event.button() == Qt.LeftButton)
             and (self.tabWidget.currentIndex() < 2)
             and mouse_pos_within_viewer):
@@ -353,11 +354,11 @@ class Viewport(QWidget):
             self.selected_ov = self._vp_ov_mouse_selection(px, py)
             self.selected_imported = (
                 self._vp_imported_img_mouse_selection(px, py))
-            
+
             # Disable self.selected_template for now (causing runtime warnings)
             # TODO (Benjamin / Philipp): look into this
             # self.selected_template = self._vp_template_mouse_selection(px, py)
-            
+
             # Shift pressed in first tab? Toggle active tiles.
             if ((self.tabWidget.currentIndex() == 0)
                and (QApplication.keyboardModifiers() == Qt.ShiftModifier)):
@@ -403,7 +404,8 @@ class Viewport(QWidget):
             elif ((self.tabWidget.currentIndex() == 0)
                 and (QApplication.keyboardModifiers() == Qt.ControlModifier)
                 and self.vp_current_ov >= -2
-                and not self.busy):
+                and not self.busy
+                and not self.sem.magc_mode):
                 if self.selected_ov is not None and self.selected_ov >= 0:
                     self.ov_drag_active = True
                     self.drag_origin = (px, py)
@@ -413,6 +415,21 @@ class Viewport(QWidget):
                     # Draw OV
                     self.ov_draw_active = True
                     self.drag_origin = px, py
+                    self.drag_current = self.drag_origin
+
+            #Ctrl pressed in magc_mode: select grid or draw selection box for grids
+            elif ((self.tabWidget.currentIndex() == 0)
+                and (QApplication.keyboardModifiers()==Qt.ControlModifier)
+                and not self.busy
+                and self.sem.magc_mode):
+                # Select grid or draw selection box for grids
+                self.grid_selection_or_draw_selection_box_active = True
+                self.drag_origin = px, py
+                # it is crucial to update drag_current
+                # otherwise when doing a simple click without dragging
+                # the drag_current value is taken from the last time
+                # a drag was performed
+                self.drag_current = self.drag_origin
 
             # Check if Alt key is pressed -> Move grid
             elif ((self.tabWidget.currentIndex() == 0)
@@ -422,13 +439,15 @@ class Viewport(QWidget):
                 if self.selected_grid is not None and self.selected_grid >= 0:
                     self.grid_drag_active = True
                     self.drag_origin = px, py
+                    self.drag_current = self.drag_origin
                     # Save coordinates in case user wants to undo
                     self.stage_pos_backup = (
                         self.gm[self.selected_grid].origin_sx_sy)
-                else:
+                elif not self.sem.magc_mode:
                     # Draw grid
                     self.grid_draw_active = True
                     self.drag_origin = px, py
+                    self.drag_current = self.drag_origin
 
             # Check if ctrl+shift key is pressed -> Move template
             elif ((self.tabWidget.currentIndex() == 0)
@@ -437,12 +456,14 @@ class Viewport(QWidget):
                 if self.selected_template:
                     self.template_drag_active = True
                     self.drag_origin = px, py
+                    self.drag_current = self.drag_origin
                     # Save coordinates in case user wants to undo
                     self.stage_pos_backup = self.tm.template.origin_sx_sy
                 else:
                     # Draw template
                     self.template_draw_active = True
                     self.drag_origin = px, py
+                    self.drag_current = self.drag_origin
 
             # Check if Ctrl + Alt keys are pressed -> Move imported image
             elif ((self.tabWidget.currentIndex() == 0)
@@ -451,6 +472,7 @@ class Viewport(QWidget):
                 if self.selected_imported is not None:
                     self.imported_img_drag_active = True
                     self.drag_origin = px, py
+                    self.drag_current = self.drag_origin
                     # Save coordinates in case user wants to undo
                     self.stage_pos_backup = (
                         self.imported[self.selected_imported].centre_sx_sy)
@@ -568,13 +590,27 @@ class Viewport(QWidget):
             else:
                 # Disable paint mode when mouse moved beyond grid edge.
                 self.tile_paint_mode_active = False
-        elif self.grid_draw_active:
-            self.drag_current = px, py
-            self.vp_draw()
-        elif self.ov_draw_active:
-            self.drag_current = px, py
-            self.vp_draw()
-        elif self.template_draw_active:
+        elif (
+            self.grid_draw_active
+            or self.ov_draw_active
+            or self.template_draw_active
+            or self.grid_selection_or_draw_selection_box_active
+        ):
+
+            # if the modifier key is not held down any more during the operation
+            # then stop the operation
+            if QApplication.keyboardModifiers()!=Qt.AltModifier:
+                self.grid_draw_active = False
+
+            if QApplication.keyboardModifiers()!=Qt.ControlModifier:
+                self.ov_draw_active = False
+
+            if not (QApplication.keyboardModifiers()==(Qt.ControlModifier | Qt.ShiftModifier)):
+                self.template_draw_active = False
+
+            if QApplication.keyboardModifiers()!=Qt.ControlModifier:
+                self.grid_selection_or_draw_selection_box_active = False
+
             self.drag_current = px, py
             self.vp_draw()
 
@@ -628,9 +664,7 @@ class Viewport(QWidget):
                     if self.sem.magc_mode:
                         # in magc_mode, save the new grid location back
                         # to the source magc sections
-                        self.gm.update_source_ROIs_from_grids()
-                        # deactivate roi_mode because grid manually moved
-                        self.gm.magc_roi_mode = False
+                        magc_utils.write_magc(self.gm)
                     #------------------------#
 
             if self.ov_drag_active:
@@ -658,7 +692,13 @@ class Viewport(QWidget):
                     # Restore centre coordinates
                     self.tm.template.origin_sx_sy = self.stage_pos_backup
 
-            if self.grid_draw_active or self.ov_draw_active or self.template_draw_active:
+            if (
+                self.grid_draw_active
+                or self.ov_draw_active
+                or self.template_draw_active
+                or self.grid_selection_or_draw_selection_box_active
+            ):
+
                 x0, y0 = self.cs.convert_mouse_to_v(self.drag_origin)
                 x1, y1 = self.cs.convert_mouse_to_v(self.drag_current)
                 if x0 > x1:
@@ -673,16 +713,74 @@ class Viewport(QWidget):
                     self.grid_draw_active = False
                     self.gm.draw_grid(x0, y0, w, h)
                     self.main_controls_trigger.transmit('GRID SETTINGS CHANGED')
+
             if self.ov_draw_active:
                 if h != 0 and w != 0:
                     self.ov_draw_active = False
                     self.ovm.draw_overview(x0, y0, w, h)
                     self.main_controls_trigger.transmit('OV SETTINGS CHANGED')
+
             if self.template_draw_active:
                 if h != 0 and w != 0:
                     self.template_draw_active = False
                     self.tm.draw_template(x0, y0, w, h)
                     self.main_controls_trigger.transmit('TEMPLATE SETTINGS CHANGED')
+
+            # ----magc_mode----
+            if self.grid_selection_or_draw_selection_box_active:
+
+                self.grid_selection_or_draw_selection_box_active = False
+
+                # checking whether no other action than
+                # simple section click was performed
+                if not any([
+                    self.grid_drag_active,
+                    self.ov_drag_active,
+                    self.tile_paint_mode_active,
+                    self.imported_img_drag_active]):
+
+                    if h != 0 and w != 0:
+                        #find grids in the drawn box
+                        contained_grid_indexes = []
+                        for grid_index in range(self.gm.number_grids):
+                            grid_bb = self.gm[grid_index].bounding_box()
+                            if all([
+                                grid_bb[0] > x0,
+                                grid_bb[1] < x0 + w,
+                                grid_bb[2] > y0,
+                                grid_bb[3] < y0 + h
+                            ]):
+
+                                contained_grid_indexes.append(grid_index)
+                        if len(contained_grid_indexes)>0:
+                            self.main_controls_trigger.transmit(
+                                'MAGC SET SECTION STATE-'
+                                + ','.join(
+                                    [str(x) for x in contained_grid_indexes])
+                                + '-toggle')
+
+                    else:
+                        if self.selected_grid is None:
+                            # ctrl+click in background: deselect all
+                            # ask for confirmation if more than 10 grids already selected
+                            if len(self.gm.magc['selected_sections'])>=10:
+                                user_reply = QMessageBox.question(
+                                    self, 'Large deselection',
+                                    'Deselect all '
+                                    + str(len(self.gm.magc['selected_sections']))
+                                    + ' grids?',
+                                    QMessageBox.Ok | QMessageBox.Cancel)
+                                if user_reply == QMessageBox.Ok:
+                                    self.main_controls_trigger.transmit(
+                                        'MAGC SET SECTION STATE-99999-deselectall')
+                            else:
+                                self.main_controls_trigger.transmit(
+                                    'MAGC SET SECTION STATE-99999-deselectall')
+                        else:
+                            self.main_controls_trigger.transmit(
+                                'MAGC SET SECTION STATE-'
+                                + str(self.selected_grid)
+                                + '-toggle')
 
             if self.tile_paint_mode_active:
                 self.vp_update_after_active_tile_selection()
@@ -696,34 +794,6 @@ class Viewport(QWidget):
                     # Restore centre coordinates
                     self.imported[self.selected_imported].centre_sx_sy = (
                         self.stage_pos_backup)
-
-            if self.gm.magc_mode:
-                # checking whether no other action than
-                # simple section click was performed
-                if not any([
-                    self.grid_drag_active,
-                    self.ov_drag_active,
-                    self.tile_paint_mode_active,
-                    self.imported_img_drag_active]):
-                    p = event.pos()
-                    px = p.x() - utils.VP_MARGIN_X
-                    py = p.y() - utils.VP_MARGIN_Y
-                    if self.drag_origin_at_press_event == (px, py):
-                        if self.control_down_at_mouse_press:
-                            if self.selected_grid is not None:
-                                self.main_controls_trigger.transmit(
-                                    'MAGC SET SECTION STATE-'
-                                    + str(self.selected_grid)
-                                    + '-toggle')
-                            else:
-                                self.main_controls_trigger.transmit(
-                                    'MAGC SET SECTION STATE-99999-deselectall')
-                        else:
-                            if self.selected_grid is not None:
-                                self.main_controls_trigger.transmit(
-                                    'MAGC SET SECTION STATE-'
-                                    + str(self.selected_grid)
-                                    + '-select')
 
             self.fov_drag_active = False
             self.grid_drag_active = False
@@ -776,7 +846,7 @@ class Viewport(QWidget):
         self.vp_draw()
         self.sv_draw()
 
-# ====================== Below: Viewport (vp) methods ==========================
+    # ====================== Below: Viewport (vp) methods ==========================
 
     def _vp_initialize(self):
         # self.vp_current_grid and self.vp_current_ov store the grid(s) and
@@ -826,6 +896,9 @@ class Viewport(QWidget):
         self.template_drag_active = False
         self.imported_img_drag_active = False
         self.vp_measure_active = False
+        #---magc---
+        self.grid_selection_or_draw_selection_box_active = False
+        #----------
 
         # Canvas
         self.vp_canvas = QPixmap(self.cs.vp_width, self.cs.vp_height)
@@ -852,7 +925,7 @@ class Viewport(QWidget):
         self.pushButton_measureViewport.setToolTip(
             'Update stage position')
         self.pushButton_updateStagePos.clicked.connect(
-            self._vp_update_stage_position)   
+            self._vp_update_stage_position)
         self.pushButton_helpViewport.clicked.connect(self.vp_toggle_help_panel)
         self.pushButton_helpSliceViewer.clicked.connect(self.vp_toggle_help_panel)
         # Slider for zoom
@@ -893,6 +966,11 @@ class Viewport(QWidget):
         self.checkBox_showStagePos.setChecked(self.show_stage_pos)
         self.checkBox_showStagePos.stateChanged.connect(
             self.vp_toggle_show_stage_pos)
+
+        if self.sem.magc_mode:
+            self.pushButton_refreshOVs.setEnabled(False)
+            self.pushButton_acquireStubOV.setEnabled(False)
+
 
     def vp_update_grid_selector(self):
         if self.vp_current_grid >= self.gm.number_grids:
@@ -1053,7 +1131,7 @@ class Viewport(QWidget):
             if self.selected_grid is not None:
                 action_openGridSettings = menu.addAction(
                     f'Open settings of grid {self.selected_grid}'
-                    f' | Shortcut &G')
+                    ' | Shortcut &G')
             else:
                 action_openGridSettings = menu.addAction(
                     'Open settings of selected grid')
@@ -1066,12 +1144,9 @@ class Viewport(QWidget):
             action_deselectAll.triggered.connect(self.vp_deactivate_all_tiles)
             if self.selected_grid is not None:
                 action_changeRotation = menu.addAction(
-                    'Change rotation of ' + grid_str[3:])
-            else:
-                action_changeRotation = menu.addAction(
-                    'Change rotation of selected grid')
-            action_changeRotation.triggered.connect(
-                self._vp_open_change_grid_rotation_dlg)
+                    f'Change rotation of {grid_str[3:]} | Shortcut &R')
+                action_changeRotation.triggered.connect(
+                    self._vp_open_change_grid_rotation_dlg)
 
             if self.sem.magc_mode:
                 action_moveGridCurrentStage = menu.addAction(
@@ -1079,7 +1154,7 @@ class Viewport(QWidget):
                 action_moveGridCurrentStage.triggered.connect(
                     self._vp_manual_stage_move)
                 if not ((self.selected_grid is not None)
-                    and self.cs.magc_wafer_calibrated):
+                    and self.gm.magc['calibrated']):
                     action_moveGridCurrentStage.setEnabled(False)
 
             menu.addSeparator()
@@ -1127,100 +1202,63 @@ class Viewport(QWidget):
                 # get closest grid
                 self._closest_grid_number = self._vp_get_closest_grid_id(
                     self.selected_stage_pos)
-                if self.gm.magc_selected_sections != []:
-                    magc_selected_section = self.gm.magc_selected_sections[0]
+                if self.gm.magc['selected_sections'] != []:
+                    magc_selected_section = self.gm.magc['selected_sections'][0]
 
             if (self.sem.magc_mode
                 and self.selected_grid is not None):
 
                 # propagate to all sections
                 action_propagateToAll = menu.addAction(
-                    'MagC | Propagate properties of grid '
-                    + str(self.selected_grid)
-                    + ' to all sections')
+                    f'MagC | Propagate properties of grid {self.selected_grid}'
+                    ' to all grids | Shortcut &P')
                 action_propagateToAll.triggered.connect(
-                    self.vp_propagate_grid_properties_to_all_sections)
+                    self.magc_vp_propagate_grid_to_all_sections)
 
                 # propagate to selected sections
                 action_propagateToSelected = menu.addAction(
-                    'MagC | Propagate properties of grid '
-                    + str(self.selected_grid)
-                    + ' to selected sections')
+                    f'MagC | Propagate properties of grid {self.selected_grid}'
+                    ' to selected grids | Shortcut &O')
                 action_propagateToSelected.triggered.connect(
-                    self.vp_propagate_grid_properties_to_selected_sections)
+                    self.magc_vp_propagate_grid_to_selected_sections)
 
                 # revert location to file-defined location
                 action_revertLocation = menu.addAction(
-                    'MagC | Revert location of grid  '
-                    + str(self.selected_grid)
-                    + ' to original file-defined location'
-                    + ' | Shortcut &Z')
+                    f'MagC | Revert location of grid {self.selected_grid}'
+                    ' to original file-defined location | Shortcut &Z')
                 action_revertLocation.triggered.connect(
-                    self.vp_revert_grid_location_to_file)
+                    self.magc_vp_revert_grid_to_file)
 
-                if self.gm.magc_sections_path == '':
+                # if self.gm.magc['path'] == '':
+                if not self.gm.magc:
                     action_propagateToAll.setEnabled(False)
                     action_propagateToSelected.setEnabled(False)
                     action_revertLocation.setEnabled(False)
 
             #---autofocus points---#
             if (self.sem.magc_mode
-                and len(self.gm.magc_selected_sections) == 1):
+                and len(self.gm.magc['selected_sections']) == 1):
 
-                if (self.gm[magc_selected_section]
-                    .magc_autofocus_points != []):
+                if self.gm.magc_autofocus_points(magc_selected_section):
 
                     action_removeAutofocusPoint = menu.addAction(
                         'MagC | Remove last autofocus point of grid '
-                        + str(magc_selected_section)
-                        + ' | Shortcut &E')
+                        f' {magc_selected_section} | Shortcut &E')
                     action_removeAutofocusPoint.triggered.connect(
                         self.vp_remove_autofocus_point)
 
                     action_removeAllAutofocusPoint = menu.addAction(
                         'MagC | Remove all autofocus points of grid '
-                        + str(magc_selected_section)
-                        + ' | Shortcut &W')
+                        f' {magc_selected_section} | Shortcut &W')
                     action_removeAllAutofocusPoint.triggered.connect(
                         self.vp_remove_all_autofocus_point)
 
                 action_addAutofocusPoint = menu.addAction(
                     'MagC | Add autofocus point to grid '
-                    + str(magc_selected_section)
-                    + ' | Shortcut &R')
+                    f' {magc_selected_section} | Shortcut &T')
                 action_addAutofocusPoint.triggered.connect(
                     self.vp_add_autofocus_point)
             #----------------------#
-
-            #---ROI---#
-            if (self.sem.magc_mode
-                and len(self.gm.magc_selected_sections) == 1):
-
-                if (self.gm[magc_selected_section]
-                    .magc_polyroi_points != []):
-
-                    action_removePolyroiPoint = menu.addAction(
-                        'MagC | Remove last ROI point of grid '
-                        + str(magc_selected_section)
-                        + ' | Shortcut &D')
-                    action_removePolyroiPoint.triggered.connect(
-                        self.vp_remove_polyroi_point)
-
-                    action_removePolyroi = menu.addAction(
-                        'MagC | Remove ROI of grid '
-                        + str(magc_selected_section)
-                        + ' | Shortcut &S')
-                    action_removePolyroi.triggered.connect(
-                        self.vp_remove_polyroi)
-
-                action_addPolyroiPoint = menu.addAction(
-                    'MagC | Add ROI point to grid '
-                    + str(magc_selected_section)
-                    + ' | Shortcut &F')
-                action_addPolyroiPoint.triggered.connect(
-                    self.vp_add_polyroi_point)
-            #---------#
-
             # ----- End of MagC items -----
 
             if (self.selected_tile is None) and (self.selected_ov is None):
@@ -1265,40 +1303,22 @@ class Viewport(QWidget):
         return closest_id
 
     def vp_add_autofocus_point(self):
-        (self.gm[self.gm.magc_selected_sections[0]]
-            .magc_add_autofocus_point(
-                self.selected_stage_pos))
+        self.gm.magc_add_autofocus_point(
+            self.gm.magc['selected_sections'][0],
+            self.selected_stage_pos)
+        magc_utils.write_magc(self.gm)
         self.vp_draw()
 
     def vp_remove_autofocus_point(self):
-        (self.gm[self.gm.magc_selected_sections[0]]
-            .magc_delete_last_autofocus_point())
+        self.gm.magc_delete_last_autofocus_point(
+            self.gm.magc['selected_sections'][0])
+        magc_utils.write_magc(self.gm)
         self.vp_draw()
 
     def vp_remove_all_autofocus_point(self):
-        (self.gm[self.gm.magc_selected_sections[0]]
-            .magc_delete_autofocus_points())
-        self.vp_draw()
-
-    def vp_remove_all_autofocus_point(self):
-        (self.gm[self.gm.magc_selected_sections[0]]
-            .magc_delete_autofocus_points())
-        self.vp_draw()
-
-    def vp_add_polyroi_point(self):
-        (self.gm[self.gm.magc_selected_sections[0]]
-            .magc_add_polyroi_point(
-                self.selected_stage_pos))
-        self.vp_draw()
-
-    def vp_remove_polyroi_point(self):
-        (self.gm[self.gm.magc_selected_sections[0]]
-            .magc_delete_last_polyroi_point())
-        self.vp_draw()
-
-    def vp_remove_polyroi(self):
-        (self.gm[self.gm.magc_selected_sections[0]]
-            .magc_delete_polyroi())
+        self.gm.magc_delete_autofocus_points(
+            self.gm.magc['selected_sections'][0])
+        magc_utils.write_magc(self.gm)
         self.vp_draw()
 
     def _vp_load_selected_in_ft(self):
@@ -1366,6 +1386,7 @@ class Viewport(QWidget):
                                     show_previews,
                                     with_gaps,
                                     suppress_labels)
+
         if self.vp_current_grid >= 0:   # show only the selected grid
             self._vp_place_grid(self.vp_current_grid,
                                 show_grid,
@@ -1391,6 +1412,61 @@ class Viewport(QWidget):
         if self.template_draw_active:
             self._draw_rectangle(self.vp_qp, self.drag_origin, self.drag_current,
                                  utils.COLOUR_SELECTOR[8], line_style=Qt.DashLine)
+
+        # --- magc_mode ---
+        if self.grid_selection_or_draw_selection_box_active:
+            self._draw_rectangle(self.vp_qp, self.drag_origin, self.drag_current,
+                                 utils.COLOUR_SELECTOR[0], line_style=Qt.DashLine)
+        # magc landmarks
+        if self.sem.magc_mode:
+            self.vp_qp.setBrush(QBrush(
+                QColor(255,255,255,100),
+                Qt.SolidPattern,
+            ))
+            for landmark_id, landmark in enumerate(self.gm.magc_landmarks()):
+                landmark_v = self.cs.convert_d_to_v(landmark)
+                # draw cross
+                cross_length = 100 * self.cs.vp_scale
+                self.vp_qp.setPen(QColor(Qt.yellow))
+                self.vp_qp.drawLine(
+                    landmark_v[0] - cross_length,
+                    landmark_v[1],
+                    landmark_v[0] + cross_length,
+                    landmark_v[1],
+                )
+                self.vp_qp.drawLine(
+                    landmark_v[0],
+                    landmark_v[1] - cross_length,
+                    landmark_v[0],
+                    landmark_v[1] + cross_length,
+                )
+                # draw landmark label
+                font = QFont()
+                fontsize = int(self.cs.vp_scale * 8)
+                fontsize = max(fontsize, 10)
+                font.setPixelSize(fontsize)
+                self.vp_qp.setFont(font)
+                landmark_rect = QRect(
+                    landmark_v[0] - 50 * self.cs.vp_scale,
+                    landmark_v[1] - 12 * self.cs.vp_scale,
+                    int(6 * fontsize),
+                    int(4/3 * fontsize),
+                )
+                self.vp_qp.setPen(QColor(255,255,255,100))
+                self.vp_qp.drawRect(landmark_rect)
+                self.vp_qp.setPen(QColor(Qt.black))
+                self.vp_qp.drawText(
+                    landmark_rect,
+                    Qt.AlignVCenter | Qt.AlignHCenter,
+                    f"landmark {landmark_id}",
+                )
+
+
+
+        #-----------------------------------------#
+
+
+        # ------
         if self.vp_measure_active:
             self._draw_measure_labels(self.vp_qp)
         # Show help panel
@@ -1447,8 +1523,11 @@ class Viewport(QWidget):
         """Draw red bullseye indicator at last known stage position.
         QPainter object self.vp_qp must be active when caling this method.
         """
-        vx, vy = self.cs.convert_d_to_v(
-            self.cs.convert_s_to_d(self.stage.last_known_xy))
+        try:
+            vx, vy = self.cs.convert_d_to_v(
+                self.cs.convert_s_to_d(self.stage.last_known_xy))
+        except TypeError: # last_known_xy not defined (e.g. simulation mode)
+            return
         size = int(self.cs.vp_scale * 5)
         if size < 10:
             size = 10
@@ -1465,7 +1544,7 @@ class Viewport(QWidget):
         """
         # Calling stage.get_xy() updates the last known XY stage position
         self.stage.get_xy()
-        # Set "Show stage position" option as selected and redraw new 
+        # Set "Show stage position" option as selected and redraw new
         # view centred on updated stage position
         self.vp_activate_checkbox_show_stage_pos()
         self.cs.vp_centre_dx_dy = self.cs.convert_s_to_d(self.stage.last_known_xy)
@@ -1871,8 +1950,8 @@ class Viewport(QWidget):
         if not suppress_labels:
             suppress_labels = ((self.gm.number_grids + self.ovm.number_ov) > 10
                                and (self.cs.vp_scale < 1.0
-                               or self.fov_drag_active
-                               or self.grid_drag_active))
+                                   or self.fov_drag_active
+                                   or self.grid_drag_active))
 
         if ((tile_width_v * cols > 2 or tile_height_v * rows > 2)
             and not 'multisem' in self.sem.device_name.lower()):
@@ -1982,6 +2061,21 @@ class Viewport(QWidget):
         # Reset painter (undo translation and rotation).
         self.vp_qp.resetTransform()
 
+        # ---- Autofocus points in MagC mode ---- #
+        if self.sem.magc_mode:
+            self.vp_qp.setBrush(QBrush(
+                QColor(Qt.red),
+                Qt.SolidPattern))
+            for autofocus_point in self.gm.magc_autofocus_points(grid_index):
+                autofocus_point_v = self.cs.convert_d_to_v(autofocus_point)
+                diameter = 2 * self.cs.vp_scale
+                self.vp_qp.drawEllipse(
+                    autofocus_point_v[0]-diameter/2,
+                    autofocus_point_v[1]-diameter/2,
+                    diameter,
+                    diameter)
+        #-----------------------------------------#
+
     def _place_template(self):
         if np.prod(self.tm.template.frame_size) == 0:
             return
@@ -2090,47 +2184,6 @@ class Viewport(QWidget):
 
         # Reset painter (undo translation and rotation).
         self.vp_qp.resetTransform()
-
-        # ---- Autofocus points in MagC mode ---- #
-        if self.gm.magc_mode:
-            focus_point_brush = QBrush(QColor(Qt.red), Qt.SolidPattern)
-            self.vp_qp.setBrush(focus_point_brush)
-            for autofocus_point in self.gm[grid_index].magc_autofocus_points:
-                autofocus_point_v = self.cs.convert_to_v(autofocus_point)
-                diameter = 2 * self.cs.vp_scale
-                self.vp_qp.drawEllipse(
-                    autofocus_point_v[0]-diameter/2,
-                    autofocus_point_v[1]-diameter/2,
-                    diameter,
-                    diameter)
-        #-----------------------------------------#
-
-        # ---- Polygon ROI if MultiSEM ---- #
-        if 'multisem' in self.sem.device_name.lower():
-            roi_point_brush = QBrush(QColor(Qt.green), Qt.SolidPattern)
-            self.vp_qp.setBrush(roi_point_brush)
-            self.vp_qp.setPen(grid_pen)
-
-            polyroi_number = len(self.gm[grid_index].magc_polyroi_points)
-            for id,polyroi_point in enumerate(
-                self.gm[grid_index].magc_polyroi_points):
-                polyroi_point_v = self.cs.convert_to_v(polyroi_point)
-                diameter = 2 * self.cs.vp_scale
-                self.vp_qp.drawEllipse(
-                    polyroi_point_v[0]-diameter/2,
-                    polyroi_point_v[1]-diameter/2,
-                    diameter,
-                    diameter)
-
-                next_polyroi_point_v = self.cs.convert_to_v(
-                    self.gm[grid_index]
-                        .magc_polyroi_points[(id+1)%polyroi_number])
-                self.vp_qp.drawLine(
-                    polyroi_point_v[0],
-                    polyroi_point_v[1],
-                    next_polyroi_point_v[0],
-                    next_polyroi_point_v[1])
-        #-------------------------------------#
 
     def _vp_draw_stage_boundaries(self):
         """Calculate and show bounding box around the area accessible to the
@@ -2382,6 +2435,7 @@ class Viewport(QWidget):
                             / 1000 * self.cs.vp_scale)
             tile_height_v = ((tile_height_p - overlap) * pixel_size
                              / 1000 * self.cs.vp_scale)
+            overlap_v = overlap * pixel_size / 1000 * self.cs.vp_scale
             # Row shift in viewport pixels
             shift_v = (self.gm[grid_index].row_shift * pixel_size
                        / 1000 * self.cs.vp_scale)
@@ -2403,47 +2457,87 @@ class Viewport(QWidget):
             if not 'multisem' in self.sem.device_name.lower():
                 # Check if mouse click position is within current grid's tile area
                 # if the current grid is active
-                if self.gm[grid_index].active and x >= 0 and y >= 0:
-                    j = y // tile_height_v
-                    if j % 2 == 0:
-                        i = x // tile_width_v
-                    elif x > shift_v:
-                        # Subtract shift for odd rows
-                        i = (x - shift_v) // tile_width_v
+                if all([
+                    self.gm[grid_index].active,
+                    # we can include + shift_v here and handle
+                    # the following 2 peculiar cases later:
+                    # 1. click at the left of a shifted row
+                    # 2. click at the right of a non-shifted row
+                    0 <= x <= cols * tile_width_v + overlap_v + shift_v, # = grid_width + shift_v
+                    0 <= y <= rows * tile_height_v + overlap_v]):
+
+                    # with tile_width_p = 10; tile_width_v = 9; overlap = 1
+                    # Intervals of x coordinates for each column
+                    # column 1: [0,10]
+                    # column 2: [9,19]
+                    # column 3: [18,28]
+                    tile_intervals_y = [
+                        [r * tile_height_v,
+                        (r+1) * tile_height_v + overlap_v]
+                        for r in range(rows)]
+
+                    r = [interval[0] <= y <= interval[1]
+                        for interval in tile_intervals_y].index(True)
+
+                    if shift_v!=0 and r%2==1:
+                        tile_intervals_x = [
+                            [c * tile_width_v + shift_v,
+                            (c+1) * tile_width_v + overlap_v + shift_v]
+                            for c in range(cols)]
                     else:
-                        i = cols
-                    if (i < cols) and (j < rows):
-                        selected_tile = int(i + j * cols)
-                        selected_grid = grid_index
+                        tile_intervals_x = [
+                            [c * tile_width_v,
+                            (c+1) * tile_width_v + overlap_v]
+                            for c in range(cols)]
+
+                    try:
+                        c = [interval[0] <= x <= interval[1]
+                            for interval in tile_intervals_x].index(True)
+                    except ValueError:
+                        # the click_x is outside of the intervals
+                        # when click at the left of a shifted row
+                        # or at the right of a non-shifted row
                         break
+
+                    selected_tile = int(c + r * cols)
+                    selected_grid = grid_index
+                    break
+
             else: # Check if mouse click position is within current ROI.
-                polyroi_s = self.gm[grid_index].magc_polyroi_points
-                if len(polyroi_s) > 2:
-                    polyroi_v = [
-                        self.cs.convert_to_v(point)
-                        for point in polyroi_s]
-                    if utils.is_point_inside_polygon((px, py), polyroi_v):
-                        selected_grid = grid_index
-                        break
+                pass
+                # polyroi_s = self.gm.magc_polyroi_points(grid_index)
+                # if len(polyroi_s) > 2:
+                    # polyroi_v = [
+                        # self.cs.convert_d_to_v(point)
+                        # for point in polyroi_s]
+                    # if magc_utils.is_point_inside_polygon((px, py), polyroi_v):
+                        # selected_grid = grid_index
+                        # break
 
             # Also check whether grid label clicked. This selects only the grid
             # and not a specific tile.
-            f = int(self.cs.vp_scale * 8)
-            if f < 12:
-                f = 12
-            # Active and inactive grids have different label widths
-            if self.gm[grid_index].active:
-                width_factor = 5.3
-            else:
-                width_factor = 10.5
-            label_width = int(width_factor * f)
-            label_height = int(4/3 * f)
-            l_y = y + label_height
-            if x >= 0 and l_y >= 0 and selected_grid is None:
-                if x < label_width and l_y < label_height:
-                    selected_grid = grid_index
-                    selected_tile = None
-                    break
+            suppress_labels = ((self.gm.number_grids + self.ovm.number_ov) > 10
+                               and (self.cs.vp_scale < 1.0
+                               or self.fov_drag_active
+                               or self.grid_drag_active))
+
+            if self.show_labels and (not suppress_labels):
+                f = int(self.cs.vp_scale * 8)
+                if f < 12:
+                    f = 12
+                # Active and inactive grids have different label widths
+                if self.gm[grid_index].active:
+                    width_factor = 5.3
+                else:
+                    width_factor = 10.5
+                label_width = int(width_factor * f)
+                label_height = int(4/3 * f)
+                l_y = y + label_height
+                if x >= 0 and l_y >= 0 and selected_grid is None:
+                    if x < label_width and l_y < label_height:
+                        selected_grid = grid_index
+                        selected_tile = None
+                        break
 
         return selected_grid, selected_tile
 
@@ -2632,8 +2726,7 @@ class Viewport(QWidget):
         x, y = self.stage.get_xy()
         self.gm[self.selected_grid].centre_sx_sy = [x, y]
         self.gm[self.selected_grid].update_tile_positions()
-        self.gm.magc_roi_mode = False
-        self.gm.update_source_ROIs_from_grids()
+        magc_utils.write_magc(self.gm)
         self.vp_draw()
 
     def _vp_toggle_tile_autofocus(self):
@@ -2873,83 +2966,94 @@ class Viewport(QWidget):
 
     # ---------------------- MagC methods in Viewport --------------------------
 
-    def vp_propagate_grid_properties_to_selected_sections(self):
+    def magc_vp_propagate_grid_to_selected_sections(self):
         # TODO
         clicked_section_number = self.selected_grid
 
-        # load original sections from file which might be different from
-        # the grids adjusted in SBEMImage
-        with open(self.gm.magc_sections_path, 'r') as f:
-            sections, landmarks = utils.sectionsYAML_to_sections_landmarks(
-            yaml.full_load(f))
-
-        for selected_section in self.gm.magc_selected_sections:
-            self.gm.propagate_source_grid_properties_to_target_grid(
+        for selected_section in self.gm.magc['selected_sections']:
+            self.gm.magc_propagate_source_grid_to_target_grid(
                 clicked_section_number,
-                selected_section,
-                sections)
-        self.gm.update_source_ROIs_from_grids()
+                selected_section)
+        magc_utils.write_magc(self.gm)
         self.vp_draw()
         self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS') # update statistics in GUI
-        self._add_to_main_log('Properties of grid '
-            + str(clicked_section_number)
-            + ' have been propagated to the selected sections')
+        utils.log_info(
+            'MagC-CTRL',
+            f'Properties of grid {clicked_section_number}'
+            ' have been propagated to the selected sections')
 
-    def vp_propagate_grid_properties_to_all_sections(self):
+    def magc_vp_propagate_grid_to_all_sections(self):
         # TODO
         clicked_section_number = self.selected_grid
-        n_sections = self.gm.number_grids
 
-        if self.gm.magc_sections_path != '':
-            # load original sections from file which might be different from
-            # the grids adjusted in SBEMImage
-            with open(self.gm.magc_sections_path, 'r') as f:
-                sections, landmarks = utils.sectionsYAML_to_sections_landmarks(
-                yaml.full_load(f))
-            for section in range(n_sections):
-                self.gm.propagate_source_grid_properties_to_target_grid(
+        if self.gm.magc['path']:
+            for grid_index in range(self.gm.number_grids):
+                self.gm.magc_propagate_source_grid_to_target_grid(
                     clicked_section_number,
-                    section,
-                    sections)
+                    grid_index)
 
-            self.gm.update_source_ROIs_from_grids()
+            magc_utils.write_magc(self.gm)
 
             self.vp_draw()
             self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS') # update statistics in GUI
-            self.add_to_log('Properties of grid '
-                + str(clicked_section_number)
-                + ' have been propagated to all sections')
+            utils.log_info(
+                'MagC-CTRL',
+                f'Properties of grid {clicked_section_number}'
+                ' have been propagated to all sections')
 
-    def vp_revert_grid_location_to_file(self):
+    def magc_vp_revert_grid_to_file(self):
         clicked_section_number = self.selected_grid
-        # load original sections from file which might be different from
-        # the grids adjusted in SBEMImage
-        with open(self.gm.magc_sections_path, 'r') as f:
-            sections, landmarks = utils.sectionsYAML_to_sections_landmarks(
-            yaml.full_load(f))
 
-        source_location = sections[clicked_section_number]['center']
+        # ROI has priority over section:
+        # if a ROI is defined:
+            # use the ROI
+        # else:
+            # use the section
+        try:
+            source_location = self.gm.magc['rois'][clicked_section_number]['center']
+            source_angle = self.gm.magc['rois'][clicked_section_number]['angle']
+        except KeyError:
+            source_location = self.gm.magc['sections'][clicked_section_number]['center']
+            source_angle = self.gm.magc['sections'][clicked_section_number]['angle']
+
+        flip_x = self.sem.device_name.lower() in [
+                    'zeiss merlin',
+                    'zeiss sigma',
+                    ]
         # source_location is in LM image pixel coordinates
-        if not self.cs.magc_wafer_calibrated:
+        if not self.gm.magc['calibrated']:
             (self.gm[clicked_section_number]
-                .centre_sx_sy) = list(map(float, source_location))
+                .rotation) = (0 - source_angle) % 360
+            (self.gm[clicked_section_number]
+                .centre_sx_sy) = source_location
         else:
             # transform into wafer coordinates
-            result = utils.applyAffineT(
+            result = magc_utils.applyAffineT(
                 [source_location[0]],
                 [source_location[1]],
-                self.cs.magc_wafer_transform)
-            target_location = [result[0][0], result[1][0]]
+                self.gm.magc['transform'],
+                flip_x=flip_x)
+
+            transformAngle = -magc_utils.getAffineRotation(
+                self.gm.magc['transform'])
+            target_angle = (source_angle + transformAngle) % 360
+            self.gm[clicked_section_number].rotation = target_angle
+            self.gm[clicked_section_number].update_tile_positions()
+
+            # set the center last
+            target_location = [
+                result[0][0],
+                result[1][0]]
             self.gm[clicked_section_number].centre_sx_sy = target_location
 
         self.vp_draw()
-        self.gm.update_source_ROIs_from_grids()
+        magc_utils.write_magc(self.gm)
         self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS') # update statistics in GUI
 
     # -------------------- End of MagC methods in Viewport ---------------------
 
 
-# ================= Below: Slice-by-Slice Viewer (sv) methods ==================
+    # ================= Below: Slice-by-Slice Viewer (sv) methods ==================
 
     def _sv_initialize(self):
         self.slice_view_images = []
@@ -3485,7 +3589,7 @@ class Viewport(QWidget):
             action1.triggered.connect(self.sv_reset_view)
             menu.exec_(self.mapToGlobal(p))
 
-# ================ Below: Monitoring tab (m) functions =================
+    # ================ Below: Monitoring tab (m) functions =================
 
     def _m_initialize(self):
         # Currently selected grid/tile/OV in the drop-down lists
@@ -3994,7 +4098,7 @@ class Viewport(QWidget):
                                 break
 
         else:
-            # Use current image from SEM 
+            # Use current image from SEM
             selected_file = os.path.join(
                 self.acq.base_dir, 'workspace', 'current_frame.tif')
             self.sem.save_frame(selected_file)
@@ -4003,7 +4107,7 @@ class Viewport(QWidget):
 
         if os.path.isfile(selected_file):
             img = np.array(Image.open(selected_file))
-    
+
             # calculate mean and SD:
             mean = np.mean(img)
             stddev = np.std(img)
