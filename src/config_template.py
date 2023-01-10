@@ -2,7 +2,7 @@
 
 # ==============================================================================
 #   This source file is part of SBEMimage (github.com/SBEMimage)
-#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel,
+#   (c) 2018-2022 Friedrich Miescher Institute for Biomedical Research, Basel,
 #   and the SBEMimage developers.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
@@ -23,7 +23,7 @@ from configparser import ConfigParser
 # deleted from the default configuration files
 CFG_TEMPLATE_FILE = '..\\src\\default_cfg\\default.ini'    # Template of session configuration
 CFG_NUMBER_SECTIONS = 12
-CFG_NUMBER_KEYS = 221
+CFG_NUMBER_KEYS = 224
 
 SYSCFG_TEMPLATE_FILE = '..\\src\\default_cfg\\system.cfg'  # Template of system configuration
 SYSCFG_NUMBER_SECTIONS = 8

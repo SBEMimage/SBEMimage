@@ -124,14 +124,33 @@ class SEM_SharkSEM(SEM):
     # IMPLEMENTED
     ###########################################################################
 
-    def run_autofocus(self):
-        """Run autofocus, break if it takes longer than 1 min."""
+    def run_autofocus(self, wd_range: float = 5.0, wd_final_step: float = 0.5):
+        """Run autofocus, break if it takes longer than 1 min.
+        wd_range and wd_final_step are provided in micrometres.
+        """
+        if wd_range < 0:
+            wd_range = 0
+        elif wd_range > 10000:
+            wd_range = 10000
+
+        if wd_final_step < 0:
+            wd_final_step = 0
+        elif wd_final_step > 1000:
+            wd_final_step = 1000
+
+        wd = self.sem_api.GetWD()
+        # Calculate minimum and maximum working distance in mm.
+        # Convert wd_range and wd_final_step from micrometres to mm.
+        min_wd = wd - wd_range / 1000
+        max_wd = wd + wd_range / 1000
+        wd_final_step /= 1000
+
+        self.sem_api.AutoWDFine(self.CHANNEL, min_wd, max_wd, wd_final_step)
+
         MAX_WAIT_S = 60
         SLEEP_S = 0.5
         FLAG_WAIT_D = 1 << 11
         MAX_END_TIME = time.time() + MAX_WAIT_S
-
-        self.sem_api.AutoWDFine(self.CHANNEL)   # TODO - add optional parameters?
 
         # Is busy Wait D
         while time.time() < MAX_END_TIME:
@@ -142,14 +161,19 @@ class SEM_SharkSEM(SEM):
         # Did not finish on time
         return False
 
-    def run_autostig(self):
+    def run_autostig(self, autostig_range: float = 10.0):
         """Run autostig, break if it takes longer than 1 min."""
+        if autostig_range < 0:
+            autostig_range = 0
+        elif autostig_range > 100:
+            autostig_range = 100 
+
+        self.sem_api.AutoStigmators(self.CHANNEL, autostig_range)
+
         MAX_WAIT_S = 60
         SLEEP_S = 0.5
         FLAG_WAIT_D = 1 << 11
         MAX_END_TIME = time.time() + MAX_WAIT_S
-
-        self.sem_api.AutoStigmators(self.CHANNEL)   # TODO - add optional parameters?
 
         # Is busy Wait D
         while time.time() < MAX_END_TIME:
@@ -297,12 +321,13 @@ class SEM_SharkSEM(SEM):
         if detector_name in self.get_detector_list():
             self.current_detector = detector_name
 
-    def run_autofocus_stig(self):
+    def run_autofocus_stig(self, wd_range: float = 5.0, wd_final_step: float = 2.0,
+                           autostig_range: float = 10.0):
         """Run combined autofocus and autostig, break if it takes longer than 1 min."""
-        res = self.run_autofocus()
+        res = self.run_autofocus(wd_range, wd_final_step)
         if res is not True:
             return res
-        return self.run_autostig()
+        return self.run_autostig(autostig_range)
 
     def __get_scan_window_width_px(self) -> int:
         """Returns scan window width in pixels"""

@@ -2,7 +2,7 @@
 
 # ==============================================================================
 #   This source file is part of SBEMimage (github.com/SBEMimage)
-#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel,
+#   (c) 2018-2022 Friedrich Miescher Institute for Biomedical Research, Basel,
 #   and the SBEMimage developers.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
@@ -35,10 +35,18 @@ class Autofocus():
         self.tracking_mode = int(self.cfg['autofocus']['tracking_mode'])
         self.interval = int(self.cfg['autofocus']['interval'])
         self.autostig_delay = int(self.cfg['autofocus']['autostig_delay'])
-        self.pixel_size = float(self.cfg['autofocus']['pixel_size'])
+        self.use_smartsem = self.sem.device_name.startswith("ZEISS")
+         
         # Maximum allowed change in focus/stigmation
         self.max_wd_diff, self.max_stig_x_diff, self.max_stig_y_diff = (
             json.loads(self.cfg['autofocus']['max_wd_stig_diff']))
+
+        # SEM autofocus parameters (autofocus/autostigmator provided by the SEM manufacturers)
+        self.pixel_size = float(self.cfg['autofocus']['pixel_size'])
+        self.wd_range = float(self.cfg['autofocus']['wd_range'])
+        self.wd_final_step = float(self.cfg['autofocus']['wd_final_step'])
+        self.autostig_range = float(self.cfg['autofocus']['autostig_range'])
+
         # For the heuristic autofocus method, a dictionary of cropped central
         # tile areas is kept in memory for processing during the cut cycles.
         self.img = {}
@@ -68,7 +76,6 @@ class Autofocus():
             self.method = 0         # SmartSEM autofocus
             self.tracking_mode = 0  # Track selected, approx. others
 
-
         self.MAPFOST_PATCH_SIZE = [768, 768]
         self.MAPFOST_FRAME_RESOLUTION = 2
         self.mapfost_wd_pert = float(self.cfg['autofocus']['mapfost_wd_perturbations'])
@@ -77,13 +84,10 @@ class Autofocus():
         self.mapfost_conv_thresh = float(self.cfg['autofocus']['mapfost_convergence_threshold_um'])
         self.mapfost_large_aberrations = int(self.cfg['autofocus']['mapfost_large_aberrations'])
 
-
         # Mapfost Calibration Parameters
         self.mapfost_probe_conv = float(self.cfg['autofocus']['mapfost_probe_convergence_angle'])
         self.mapfost_stig_rot = float(self.cfg['autofocus']['mapfost_astig_rotation_deg'])
         self.mapfost_stig_scale = json.loads(self.cfg['autofocus']['mapfost_astig_scaling'])
-
-
 
     def save_to_cfg(self):
         """Save current autofocus settings to ConfigParser object. Note that
@@ -96,6 +100,9 @@ class Autofocus():
         self.cfg['autofocus']['interval'] = str(self.interval)
         self.cfg['autofocus']['autostig_delay'] = str(self.autostig_delay)
         self.cfg['autofocus']['pixel_size'] = str(self.pixel_size)
+        self.cfg['autofocus']['wd_range'] = str(self.wd_range)
+        self.cfg['autofocus']['wd_final_step'] = str(self.wd_final_step)
+        self.cfg['autofocus']['autostig_range'] = str(self.autostig_range)
         self.cfg['autofocus']['heuristic_deltas'] = str(
             [self.wd_delta, self.stig_x_delta, self.stig_y_delta])
         self.cfg['autofocus']['heuristic_calibration'] = str(
@@ -145,21 +152,23 @@ class Autofocus():
                 (slice_counter - self.autostig_delay) % self.interval) == 0)
         return autofocus_active, autostig_active
 
-    def run_zeiss_af(self, autofocus=True, autostig=True):
-        """Call the SmartSEM autofocus and autostigmation routines
+    def run_sem_af(self, autofocus=True, autostig=True):
+        """Call the SEM autofocus and autostigmation routines
         separately, or the combined routine, or no routine at all. Return a
         message that the routine was completed or an error message if not.
         """
-        assert autostig or autofocus
-        msg = 'SmartSEM AF did not run.'
+        assert autostig or autofocus  
+        msg = 'SEM AF did not run.'
         if autofocus or autostig:
             # Switch to autofocus settings
             # TODO: allow different dwell times
-            self.sem.apply_frame_settings(0, self.pixel_size, 0.8)
-            sleep(0.5)
+            if self.use_smartsem: 
+                self.sem.apply_frame_settings(0, self.pixel_size, 0.8)
+                sleep(0.5)
             if autofocus and autostig:
                 if self.magc_mode:
                     # Run SmartSEM autofocus-autostig-autofocus sequence
+                    # TODO: Check compatibility of MagC with non-SmartSEM autofocus
                     msg = 'SmartSEM autofocus-autostig-autofocus (MagC)'
                     success = self.sem.run_autofocus()
                     sleep(0.5)
@@ -169,17 +178,28 @@ class Autofocus():
                         if success:
                             success = self.sem.run_autofocus()
                 else:
-                    msg = 'SmartSEM autofocus + autostig procedure'
+                    msg = 'SEM autofocus + autostig procedure'
                     # Perform combined autofocus + autostig
-                    success = self.sem.run_autofocus_stig()
+                    if self.use_smartsem:
+                        success = self.sem.run_autofocus_stig()
+                    else:
+                        success = self.sem.run_autofocus_stig(
+                            self.wd_range, self.wd_final_step, self.autostig_range)
             elif autofocus:
-                msg = 'SmartSEM autofocus procedure'
-                # Call only SmartSEM autofocus routine
-                success = self.sem.run_autofocus()
+                msg = 'SEM autofocus procedure'
+                # Call only autofocus routine
+                if self.use_smartsem:
+                    success = self.sem.run_autofocus()
+                else:
+                    success = self.sem.run_autofocus(
+                        self.wd_range, self.wd_final_step)
             else:
-                msg = 'SmartSEM autostig procedure'
-                # Call only SmartSEM autostig routine
-                success = self.sem.run_autostig()
+                msg = 'SEM autostig procedure'
+                # Call only autostig routine
+                if self.use_smartsem:
+                    success = self.sem.run_autostig()
+                else:
+                    success = self.sem.run_autostig(self.autostig_range)
         if success:
             msg = 'Completed ' + msg + '.'
         else:

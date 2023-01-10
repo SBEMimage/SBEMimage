@@ -2,7 +2,7 @@
 
 # ==============================================================================
 #   This source file is part of SBEMimage (github.com/SBEMimage)
-#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel,
+#   (c) 2018-2022 Friedrich Miescher Institute for Biomedical Research, Basel,
 #   and the SBEMimage developers.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
@@ -1794,7 +1794,7 @@ class Acquisition:
     def acquire_all_grids(self):
         """Acquire all grids that are active, with error handling."""
 
-        # Use (SmartSEM) autofocus/autostig (method 0) on this slice for the
+        # Use (SEM) autofocus/autostig (method 0) on this slice for the
         # grid acquisition depending on whether MagC mode is active, and
         # on the slice number and current autofocus settings.
         # Perform mapfost also prior to first removal.
@@ -2362,7 +2362,7 @@ class Acquisition:
             # Show updated XY stage coordinates in Main Controls GUI
             self.main_controls_trigger.transmit('UPDATE XY')
 
-            # Call autofocus routine (method 0, SmartSEM) on current tile
+            # Call autofocus routine (method 0, SEM) on current tile
             # if enabled and tile selected on this slice
             if (
                 self.use_autofocus
@@ -2785,7 +2785,7 @@ class Acquisition:
             return wd, sx, sy
 
     def do_autofocus(self, do_focus, do_stig, do_move, grid_index, tile_index):
-        """Run SmartSEM autofocus at current stage position if do_move == False,
+        """Run SEM autofocus at current stage position if do_move == False,
         otherwise move to grid_index.tile_index position beforehand.
         """
         if do_move:
@@ -2847,13 +2847,13 @@ class Acquisition:
         # TODO: Use enum for method:
         if self.autofocus.method == 0:
             utils.log_info('SEM',
-                           'Running SmartSEM AF procedure '
+                           'Running SEM AF procedure '
                            + af_type + ' for tile '
                            + str(grid_index) + '.' + str(tile_index))
-            self.add_to_main_log('SEM: Running SmartSEM AF procedure '
+            self.add_to_main_log('SEM: Running SEM AF procedure '
                                  + af_type + ' for tile '
                                  + str(grid_index) + '.' + str(tile_index))
-            autofocus_msg = 'SEM', self.autofocus.run_zeiss_af(do_focus, do_stig)
+            autofocus_msg = 'SEM', self.autofocus.run_sem_af(do_focus, do_stig)
         elif self.autofocus.method == 3:
             msg = f'Running MAPFoSt AF procedure for tile {grid_index}.{tile_index} with initial WD/STIG_X/Y: ' \
                   f'{tile_wd*1000:.4f}, {tile_stig_x:.4f}, {tile_stig_y:.4f}'
@@ -2887,7 +2887,7 @@ class Acquisition:
             self.gm[grid_index][tile_index].wd = self.sem.get_wd()
             self.gm[grid_index][tile_index].stig_xy = list(
                 self.sem.get_stig_xy())
-            msg = f'Finished MAPFoSt AF procedure for tile {grid_index}.{tile_index} with final WD/STIG_X/Y: ' \
+            msg = f'Finished autofocus procedure for tile {grid_index}.{tile_index} with final WD/STIG_X/Y: ' \
                   f'{self.gm[grid_index][tile_index].wd*1000:.4f}, {self.gm[grid_index][tile_index].stig_xy[0]:.4f},' \
                   f' {self.gm[grid_index][tile_index].stig_xy[1]:.4f}'
             utils.log_info('SEM', msg)
@@ -2901,14 +2901,14 @@ class Acquisition:
 
 
     def do_autofocus_before_grid_acq(self, grid_index):
-        """If non-active tiles are selected for the SmartSEM autofocus, call the
+        """If non-active tiles are selected for the SEM autofocus, call the
         autofocus on them one by one before the grid acquisition starts.
         """
         if self.magc_mode:
             return self.magc_do_autofocus_before_grid_acq(grid_index)
         autofocus_ref_tiles = self.gm[grid_index].autofocus_ref_tiles()
         active_tiles = self.gm[grid_index].active_tiles
-        # Perform Zeiss autofocus for non-active autofocus tiles
+        # Perform SEM autofocus for non-active autofocus tiles
         for tile_index in autofocus_ref_tiles:
             if tile_index not in active_tiles:
                 do_move = True
@@ -3005,10 +3005,10 @@ class Acquisition:
                 utils.log_info(
                     'CTRL',
                     'Applying average WD/STIG parameters '
-                    '(SmartSEM autofocus).')
+                    '(SEM autofocus).')
                 self.add_to_main_log(
                     'CTRL: Applying average WD/STIG parameters '
-                    '(SmartSEM autofocus).')
+                    '(SEM autofocus).')
             elif self.autofocus.method == 1:
                 utils.log_info(
                     'CTRL',
