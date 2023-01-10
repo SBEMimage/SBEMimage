@@ -2391,7 +2391,7 @@ class PreStackDlg(QDialog):
         self.show_interruption_point()
         self.doubleSpinBox_brightness.setValue(self.sem.bsd_brightness)
         self.doubleSpinBox_contrast.setValue(self.sem.bsd_contrast)
-        self.spinBox_bias.setValue(self.sem.bsd_bias)
+        self.spinBox_bias.setValue(int(self.sem.bsd_bias))
         if self.microtome is not None and self.microtome.device_name != 'GCIB':
             self.checkBox_oscillation.setChecked(self.microtome.use_oscillation)
             self.doubleSpinBox_cutSpeed.setValue(

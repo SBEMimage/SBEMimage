@@ -1725,7 +1725,7 @@ class MainControls(QMainWindow):
                 '{0:.3f}'.format(total_z_diff) + ' µm' + '      (slice no. = '
                 + str(current_slice) + ")")
             self.progressBar.setValue(
-                total_z_diff / self.acq.target_z_diff * 100)
+                int(total_z_diff / self.acq.target_z_diff * 100))
         else:
             self.label_cp.setText("Current slice:")
             if self.acq.number_slices > 0:
@@ -1733,7 +1733,7 @@ class MainControls(QMainWindow):
                     str(current_slice) + '      (' + chr(8710) + 'Z = '
                     + '{0:.3f}'.format(self.acq.total_z_diff) + ' µm)')
                 self.progressBar.setValue(
-                    current_slice / self.acq.number_slices * 100)
+                    int(current_slice / self.acq.number_slices * 100))
             else:
                 self.label_currentPosition.setText(
                     str(current_slice) + "      (no cut after acq.)")
