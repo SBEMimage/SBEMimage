@@ -165,7 +165,7 @@ class MainControls(QMainWindow):
                     '\nSBEMimage will be run in simulation mode.',
                     QMessageBox.Ok)
                 self.simulation_mode = True
-        elif self.syscfg['device']['sem'].startswith('PHENOM'):
+        elif self.syscfg['device']['sem'].startswith('TFS'):
             # Create SEM instance to control SEM via Phenom API
             self.sem = SEM_Phenom(self.cfg, self.syscfg)
             if self.sem.error_state != Error.none:
