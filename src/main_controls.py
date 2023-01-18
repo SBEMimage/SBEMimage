@@ -46,6 +46,7 @@ from sem_control import SEM
 from sem_control_zeiss import SEM_SmartSEM, SEM_MultiSEM
 from sem_control_fei import SEM_Quanta
 from sem_control_tescan import SEM_SharkSEM
+from sem_control_tfs import SEM_Phenom
 from sem_control_mock import SEM_Mock
 from microtome_control import Microtome
 from microtome_control_gatan import Microtome_3View
@@ -161,6 +162,18 @@ class MainControls(QMainWindow):
                     self, 'Error initializing TESCAN SharkSEM API',
                     'TESCAN SharkSEM API could not be initialized / '
                     'connection to SEM failed.'
+                    '\nSBEMimage will be run in simulation mode.',
+                    QMessageBox.Ok)
+                self.simulation_mode = True
+        elif self.syscfg['device']['sem'].startswith('TFS'):
+            # Create SEM instance to control SEM via Phenom API
+            self.sem = SEM_Phenom(self.cfg, self.syscfg)
+            if self.sem.error_state != Error.none:
+                QMessageBox.warning(
+                    self, 'Error initializing Phenom Remote API',
+                    'initialisation of the Phenom Remote API failed. Please '
+                    'verify that the Remote API is installed and configured '
+                    'correctly.'
                     '\nSBEMimage will be run in simulation mode.',
                     QMessageBox.Ok)
                 self.simulation_mode = True

@@ -3119,7 +3119,7 @@ class AutofocusSettingsDlg(QDialog):
             self.label_af_params.setText(
                 "SmartSEM autofocus/autostigmator parameters:")
             self.radioButton_useSEM.setText(
-                "Use SmartSEM autofocus/autostimator")         
+                "Use SmartSEM autofocus/autostigmator")
             self.toolButton_autofocusParameters.clicked.connect(
                 self.open_zeiss_params_dlg)
         elif self.sem.device_name.startswith("TESCAN"):
