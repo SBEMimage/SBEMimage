@@ -1447,8 +1447,8 @@ class Viewport(QWidget):
                 font.setPixelSize(fontsize)
                 self.vp_qp.setFont(font)
                 landmark_rect = QRect(
-                    landmark_v[0] - 50 * self.cs.vp_scale,
-                    landmark_v[1] - 12 * self.cs.vp_scale,
+                    int(landmark_v[0] - 50 * self.cs.vp_scale),
+                    int(landmark_v[1] - 12 * self.cs.vp_scale),
                     int(6 * fontsize),
                     int(4/3 * fontsize),
                 )
@@ -1562,22 +1562,22 @@ class Viewport(QWidget):
         if visible:
             if (vx >= 0) and (vy >= 0):
                 crop_area = QRect(0, 0,
-                                  (self.cs.vp_width - vx) / resize_ratio + 1,
-                                  self.cs.vp_height / resize_ratio + 1)
+                                  int((self.cs.vp_width - vx) / resize_ratio + 1),
+                                  int(self.cs.vp_height / resize_ratio + 1))
             if (vx >= 0) and (vy < 0):
-                crop_area = QRect(0, -vy / resize_ratio,
-                                  (self.cs.vp_width - vx) / resize_ratio + 1,
-                                  (self.cs.vp_height) / resize_ratio + 1)
+                crop_area = QRect(0, int(-vy / resize_ratio),
+                                  int((self.cs.vp_width - vx) / resize_ratio + 1),
+                                  int((self.cs.vp_height) / resize_ratio + 1))
                 vy_cropped = 0
             if (vx < 0) and (vy < 0):
-                crop_area = QRect(-vx / resize_ratio, -vy / resize_ratio,
-                                  (self.cs.vp_width) / resize_ratio + 1,
-                                  (self.cs.vp_height) / resize_ratio + 1)
+                crop_area = QRect(int(-vx / resize_ratio), int(-vy / resize_ratio),
+                                  int((self.cs.vp_width) / resize_ratio + 1),
+                                  int((self.cs.vp_height) / resize_ratio + 1))
                 vx_cropped, vy_cropped = 0, 0
             if (vx < 0) and (vy >= 0):
-                crop_area = QRect(-vx / resize_ratio, 0,
-                                  (self.cs.vp_width) / resize_ratio + 1,
-                                  (self.cs.vp_height - vy) / resize_ratio + 1)
+                crop_area = QRect(int(-vx / resize_ratio), 0,
+                                  int((self.cs.vp_width) / resize_ratio + 1),
+                                  int((self.cs.vp_height - vy) / resize_ratio + 1))
                 vx_cropped = 0
         return visible, crop_area, vx_cropped, vy_cropped
 
@@ -1641,7 +1641,7 @@ class Viewport(QWidget):
             cropped_img = img.copy(crop_area)
             v_width = cropped_img.size().width()
             cropped_resized_img = cropped_img.scaledToWidth(
-                v_width * resize_ratio)
+                int(v_width * resize_ratio))
             # Draw stub OV on canvas
             self.vp_qp.drawPixmap(vx_cropped, vy_cropped,
                                   cropped_resized_img)
@@ -1649,8 +1649,8 @@ class Viewport(QWidget):
             pen = QPen(QColor(*utils.COLOUR_SELECTOR[11]), 2, Qt.SolidLine)
             self.vp_qp.setPen(pen)
             self.vp_qp.drawRect(vx - 1, vy - 1,
-                                width_px * resize_ratio + 1,
-                                height_px * resize_ratio + 1)
+                                int(width_px * resize_ratio + 1),
+                                int(height_px * resize_ratio + 1))
 
     def _vp_place_imported_img(self, index):
         """Place imported image specified by index onto the viewport canvas."""
@@ -1676,7 +1676,7 @@ class Viewport(QWidget):
                 cropped_img = self.imported[index].image.copy(crop_area)
                 v_width = cropped_img.size().width()
                 cropped_resized_img = cropped_img.scaledToWidth(
-                    v_width * resize_ratio)
+                    int(v_width * resize_ratio))
                 self.vp_qp.setOpacity(
                     1 - self.imported[index].transparency / 100)
                 self.vp_qp.drawPixmap(vx_cropped, vy_cropped,
@@ -1731,7 +1731,7 @@ class Viewport(QWidget):
             else:
                 width_factor = 9
             ov_label_rect = QRect(
-                vx, vy - int(4/3 * font_size),
+                vx, int(vy - int(4/3 * font_size)),
                 int(width_factor * font_size), int(4/3 * font_size))
             self.vp_qp.drawRect(ov_label_rect)
             self.vp_qp.setPen(QColor(255, 255, 255))
@@ -1753,7 +1753,7 @@ class Viewport(QWidget):
         cropped_img = self.ovm[ov_index].image.copy(crop_area)
         v_width = cropped_img.size().width()
         cropped_resized_img = cropped_img.scaledToWidth(
-            v_width * resize_ratio)
+            int(v_width * resize_ratio))
         if not (self.ov_drag_active and ov_index == self.selected_ov):
             # Draw OV
             self.vp_qp.drawPixmap(vx_cropped, vy_cropped,
@@ -1767,8 +1767,8 @@ class Viewport(QWidget):
         else:
             self.vp_qp.setBrush(QColor(0, 0, 0, 0))
         self.vp_qp.drawRect(vx, vy,
-                            width_px * resize_ratio,
-                            height_px * resize_ratio)
+                            int(width_px * resize_ratio),
+                            int(height_px * resize_ratio))
 
         if show_debris_area:
             # w3, w4 are fudge factors for clearer display
@@ -1788,10 +1788,10 @@ class Viewport(QWidget):
                     QColor(*utils.COLOUR_SELECTOR[10]), 2, Qt.DashDotLine)
                 self.vp_qp.setPen(pen)
                 self.vp_qp.setBrush(QColor(0, 0, 0, 0))
-                self.vp_qp.drawRect(vx + top_left_dx * resize_ratio - w3,
-                                    vy + top_left_dy * resize_ratio - w3,
-                                    width * resize_ratio + w4,
-                                    height * resize_ratio + w4)
+                self.vp_qp.drawRect(int(vx + top_left_dx * resize_ratio - w3),
+                                    int(vy + top_left_dy * resize_ratio - w3),
+                                    int(width * resize_ratio + w4),
+                                    int(height * resize_ratio + w4))
 
     def _vp_place_grid(self, grid_index,
                        show_grid=True, show_previews=False, with_gaps=False,
@@ -1921,8 +1921,8 @@ class Viewport(QWidget):
             height_px = self.gm[grid_index].tile_height_p()
 
             for tile_index in self.gm[grid_index].active_tiles:
-                vx = tile_map[tile_index][0] * resize_ratio
-                vy = tile_map[tile_index][1] * resize_ratio
+                vx = int(tile_map[tile_index][0] * resize_ratio)
+                vy = int(tile_map[tile_index][1] * resize_ratio)
                 tile_visible = self._vp_element_visible(
                     topleft_vx + vx, topleft_vy + vy,
                     width_px, height_px, resize_ratio,
@@ -1932,7 +1932,7 @@ class Viewport(QWidget):
                 # Show tile preview
                 preview_img = self.gm[grid_index][tile_index].preview_img
                 if preview_img is not None:
-                    tile_img = preview_img.scaledToWidth(tile_width_v)
+                    tile_img = preview_img.scaledToWidth(int(tile_width_v))
                     self.vp_qp.drawPixmap(vx, vy, tile_img)
 
         # Display grid lines
@@ -1968,9 +1968,9 @@ class Viewport(QWidget):
                 # Draw tile rectangles.
                 if show_grid:
                     self.vp_qp.drawRect(
-                        tile_map[tile_index][0] * resize_ratio,
-                        tile_map[tile_index][1] * resize_ratio,
-                        tile_width_v, tile_height_v)
+                        int(tile_map[tile_index][0] * resize_ratio),
+                        int(tile_map[tile_index][1] * resize_ratio),
+                        int(tile_width_v), int(tile_height_v))
                 if self.show_labels and not suppress_labels:
                     if self.gm[grid_index][tile_index].tile_active:
                         self.vp_qp.setPen(QColor(255, 255, 255))
@@ -1982,9 +1982,9 @@ class Viewport(QWidget):
                              + tile_width_v / 2)
                     pos_y = (tile_map[tile_index][1] * resize_ratio
                              + tile_height_v / 2)
-                    position_rect = QRect(pos_x - tile_width_v / 2,
-                                          pos_y - tile_height_v / 2,
-                                          tile_width_v, tile_height_v)
+                    position_rect = QRect(int(pos_x - tile_width_v / 2),
+                                          int(pos_y - tile_height_v / 2),
+                                          int(tile_width_v), int(tile_height_v))
                     # Show tile indices.
                     font.setPixelSize(int(font_size1))
                     self.vp_qp.setFont(font)
@@ -1998,9 +1998,9 @@ class Viewport(QWidget):
                     font.setBold(True)
                     self.vp_qp.setFont(font)
                     position_rect = QRect(
-                        pos_x - tile_width_v,
-                        pos_y - tile_height_v - tile_height_v/4,
-                        2 * tile_width_v, 2 * tile_height_v)
+                        int(pos_x - tile_width_v),
+                        int(pos_y - tile_height_v - tile_height_v/4),
+                        int(2 * tile_width_v), int(2 * tile_height_v))
                     show_grad_label = (
                         self.gm[grid_index][tile_index].wd_grad_active
                         and self.gm[grid_index].use_wd_gradient)
@@ -2042,10 +2042,9 @@ class Viewport(QWidget):
                              or show_autofocus_label
                              or show_tracking_label)):
                         position_rect = QRect(
-                            pos_x - tile_width_v,
-                            pos_y - tile_height_v
-                            + tile_height_v / 4,
-                            2 * tile_width_v, 2 * tile_height_v)
+                            int(pos_x - tile_width_v),
+                            int(pos_y - tile_height_v + tile_height_v / 4),
+                            int(2 * tile_width_v), int(2 * tile_height_v))
                         self.vp_qp.drawText(
                             position_rect,
                             Qt.AlignVCenter | Qt.AlignHCenter,
@@ -2272,7 +2271,7 @@ class Viewport(QWidget):
         viewport scaling."""
         self.horizontalSlider_VP.blockSignals(True)
         self.horizontalSlider_VP.setValue(
-            log(self.cs.vp_scale / self.VP_ZOOM[0], self.VP_ZOOM[1]))
+            int(log(self.cs.vp_scale / self.VP_ZOOM[0], self.VP_ZOOM[1])))
         self.horizontalSlider_VP.blockSignals(False)
 
     def _vp_adjust_scale_from_slider(self):
@@ -3197,12 +3196,12 @@ class Viewport(QWidget):
         self.horizontalSlider_SV.blockSignals(True)
         if self.sv_current_ov >= 0:
             self.horizontalSlider_SV.setValue(
-                log(self.cs.sv_scale_ov / utils.SV_ZOOM_OV[0],
-                    utils.SV_ZOOM_OV[1]))
+                int(log(self.cs.sv_scale_ov / utils.SV_ZOOM_OV[0],
+                        utils.SV_ZOOM_OV[1])))
         else:
             self.horizontalSlider_SV.setValue(
-                log(self.cs.sv_scale_tile / utils.SV_ZOOM_TILE[0],
-                    utils.SV_ZOOM_TILE[1]))
+                int(log(self.cs.sv_scale_tile / utils.SV_ZOOM_TILE[0],
+                        utils.SV_ZOOM_TILE[1])))
         self.horizontalSlider_SV.blockSignals(False)
 
     def _sv_mouse_zoom(self, px, py, factor):
@@ -3393,7 +3392,7 @@ class Viewport(QWidget):
             # Todo:
             # Check if out of bounds.
             self.horizontalSlider_SV.setValue(
-                log(self.cs.sv_scale_tile / 5.0, 1.04))
+                int(log(self.cs.sv_scale_tile / 5.0, 1.04)))
         self._sv_adjust_zoom_slider()
         self.sv_draw()
 
@@ -3454,7 +3453,7 @@ class Viewport(QWidget):
                 # Resize according to scale factor:
                 current_width = display_img.size().width()
                 display_img = display_img.scaledToWidth(
-                    current_width * resize_ratio)
+                    int(current_width * resize_ratio))
 
                 # Show saturated pixels?
                 if self.show_saturated_pixels:
