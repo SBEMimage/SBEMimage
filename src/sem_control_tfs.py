@@ -11,10 +11,13 @@
 """This module provides the commands to operate the SEM. Only the functions
 that are actually required in SBEMimage have been implemented."""
 
-import PyPhenom as ppi  # required for Phenom API
 from sem_control import SEM
 from utils import Error
 
+try:
+    import PyPhenom as ppi  # required for Phenom API
+except:
+    pass
 
 class SEM_Phenom(SEM):
     """Implements all methods for remote control of Phenom SEMs via the
