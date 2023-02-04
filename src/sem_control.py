@@ -96,6 +96,9 @@ class SEM:
         else:
             self.grab_frame_size_selector = int(
                 self.cfg['sem']['grab_frame_size_selector'])
+        # Bit depth selector (0: 8 bit [default]; 1: 16 bit). Selects the
+        # image bit depth to be used for acquisition.
+        self.bit_depth_selector = 0
         # The cycle time is total duration to acquire a full frame.
         # self.current_cycle_time will be set (in seconds) the first time when
         # self.apply_frame_settings() is called.
@@ -416,6 +419,10 @@ class SEM:
     def set_scan_rotation(self, angle):
         """Set the scan rotation angle (in degrees)."""
         raise NotImplementedError
+    
+    def set_bit_depth(self, bit_depth_selector: int):
+        """Set the bit depth selector."""
+        self.bit_depth_selector = bit_depth_selector
 
     def acquire_frame(self, save_path_filename, extra_delay=0):
         """Acquire a full frame and save it to save_path_filename.

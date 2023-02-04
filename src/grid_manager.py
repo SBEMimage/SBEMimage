@@ -95,7 +95,8 @@ class Grid:
                  size=(5, 5), overlap=None, row_shift=0, active_tiles=None,
                  frame_size=None, frame_size_selector=None,
                  pixel_size=10.0, dwell_time=None, dwell_time_selector=None,
-                 display_colour=0, acq_interval=1, acq_interval_offset=0,
+                 bit_depth_selector=0, display_colour=0, 
+                 acq_interval=1, acq_interval_offset=0,
                  wd_stig_xy=(0, 0, 0), use_wd_gradient=False,
                  wd_gradient_ref_tiles=None,
                  wd_gradient_params=None):
@@ -154,6 +155,9 @@ class Grid:
         # Dwell time in microseconds (float)
         self.dwell_time = dwell_time
         self.dwell_time_selector = dwell_time_selector
+
+        # Bit depth selector: 0: 8 bit (default); 1: 16 bit
+        self.bit_depth_selector = bit_depth_selector
 
         # Pixel size in nm (float)
         self.pixel_size = pixel_size
@@ -657,8 +661,6 @@ class Grid:
             tile.wd = wd[2]
             tile.stig_xy = stigx[2], stigy[2]
 
-
-
     def set_stig_xy_for_all_tiles(self, stig_xy):
         """Set the same stigmation parameters for all tiles in the grid."""
         for tile in self.__tiles:
@@ -869,6 +871,8 @@ class GridManager:
         dwell_time = json.loads(self.cfg['grids']['dwell_time'])
         dwell_time_selector = json.loads(
             self.cfg['grids']['dwell_time_selector'])
+        bit_depth_selector = json.loads(
+            self.cfg['grids']['bit_depth_selector'])
         display_colour = json.loads(self.cfg['grids']['display_colour'])
         wd_stig_xy = json.loads(self.cfg['grids']['wd_stig_xy'])
         acq_interval = json.loads(self.cfg['grids']['acq_interval'])
@@ -899,6 +903,7 @@ class GridManager:
                         rotation[i], size[i], overlap[i], row_shift[i],
                         active_tiles[i], frame_size[i], frame_size_selector[i],
                         pixel_size[i], dwell_time[i], dwell_time_selector[i],
+                        bit_depth_selector[i],
                         display_colour[i], acq_interval[i],
                         acq_interval_offset[i], wd_stig_xy[i],
                         use_wd_gradient[i] == 1, wd_gradient_ref_tiles[i],
@@ -1017,6 +1022,8 @@ class GridManager:
             [grid.dwell_time for grid in self.__grids])
         self.cfg['grids']['dwell_time_selector'] = str(
             [grid.dwell_time_selector for grid in self.__grids])
+        self.cfg['grids']['bit_depth_selector'] = str(
+            [grid.bit_depth_selector for grid in self.__grids])
         self.cfg['grids']['display_colour'] = str(
             [grid.display_colour for grid in self.__grids])
         self.cfg['grids']['wd_stig_xy'] = str(
@@ -1071,6 +1078,7 @@ class GridManager:
     def add_new_grid(self, origin_sx_sy=None, sw_sh=(0, 0), active=True,
                      frame_size=None, frame_size_selector=None, overlap=None,
                      pixel_size=10.0, dwell_time=None, dwell_time_selector=None,
+                     bit_depth_selector=0,
                      rotation=0, row_shift=0, acq_interval=1, acq_interval_offset=0,
                      wd_stig_xy=(0, 0, 0), use_wd_gradient=False,
                      wd_gradient_ref_tiles=None, wd_gradient_params=None,
@@ -1101,6 +1109,7 @@ class GridManager:
                         active_tiles=[], frame_size=frame_size,
                         frame_size_selector=frame_size_selector, pixel_size=pixel_size,
                         dwell_time=dwell_time, dwell_time_selector=dwell_time_selector,
+                        bit_depth_selector=bit_depth_selector,
                         display_colour=display_colour, acq_interval=acq_interval,
                         acq_interval_offset=acq_interval_offset, wd_stig_xy=wd_stig_xy,
                         use_wd_gradient=use_wd_gradient,
@@ -1142,7 +1151,8 @@ class GridManager:
         self.add_new_grid(origin_sx_sy=origin_sx_sy, sw_sh=(w, h), active=grid.active,
                           frame_size=grid.frame_size, frame_size_selector=grid.frame_size_selector,
                           overlap=grid.overlap, pixel_size=grid.pixel_size,
-                          dwell_time_selector=grid.dwell_time_selector, dwell_time=grid.dwell_time,
+                          dwell_time=grid.dwell_time, dwell_time_selector=grid.dwell_time_selector,
+                          bit_depth_selector=grid.bit_depth_selector, 
                           rotation=0, row_shift=grid.row_shift,
                           acq_interval=grid.acq_interval, acq_interval_offset=grid.acq_interval_offset,
                           wd_stig_xy=grid.wd_stig_xy, use_wd_gradient=grid.use_wd_gradient,

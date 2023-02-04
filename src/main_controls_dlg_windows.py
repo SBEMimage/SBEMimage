@@ -1487,6 +1487,7 @@ class OVSettingsDlg(QDialog):
         self.comboBox_frameSize.currentIndexChanged.connect(
             self.update_pixel_size)
         self.comboBox_dwellTime.addItems(map(str, self.sem.DWELL_TIME))
+        self.comboBox_bitDepth.addItems(['8 bit', '16 bit'])
         # Update pixel size when mag changed
         self.spinBox_magnification.valueChanged.connect(self.update_pixel_size)
         # Button to clear OV image in Viewport
@@ -1513,11 +1514,13 @@ class OVSettingsDlg(QDialog):
         self.comboBox_frameSize.setCurrentIndex(
             self.ovm[self.current_ov].frame_size_selector)
         self.spinBox_magnification.setValue(
-            self.ovm[self.current_ov].magnification)
+            int(self.ovm[self.current_ov].magnification))
         self.doubleSpinBox_pixelSize.setValue(
             self.ovm[self.current_ov].pixel_size)
         self.comboBox_dwellTime.setCurrentIndex(
             self.ovm[self.current_ov].dwell_time_selector)
+        self.comboBox_bitDepth.setCurrentIndex(
+            self.ovm[self.current_ov].bit_depth_selector)
         self.spinBox_acqInterval.setValue(
             self.ovm[self.current_ov].acq_interval)
         self.spinBox_acqIntervalOffset.setValue(
@@ -1583,6 +1586,8 @@ class OVSettingsDlg(QDialog):
             self.spinBox_magnification.value())
         self.ovm[self.current_ov].dwell_time_selector = (
             self.comboBox_dwellTime.currentIndex())
+        self.ovm[self.current_ov].bit_depth_selector = (
+            self.comboBox_bitDepth.currentIndex())
         self.ovm[self.current_ov].acq_interval = (
             self.spinBox_acqInterval.value())
         self.ovm[self.current_ov].acq_interval_offset = (
@@ -1599,10 +1604,12 @@ class OVSettingsDlg(QDialog):
         pixel_size = self.doubleSpinBox_pixelSize.value()
         dwell_time_selector = self.comboBox_dwellTime.currentIndex()
         dwell_time = self.comboBox_dwellTime.currentText()
+        bit_depth_selector = self.comboBox_bitDepth.currentIndex()
         acq_interval = self.spinBox_acqInterval.value()
         acq_interval_offset = self.spinBox_acqIntervalOffset.value()
         self.ovm.add_new_overview(frame_size=frame_size, frame_size_selector=frame_size_selector, pixel_size=pixel_size,
-                                  dwell_time_selector=dwell_time_selector, dwell_time=dwell_time,
+                                  dwell_time=dwell_time, dwell_time_selector=dwell_time_selector,
+                                  bit_depth_selector=bit_depth_selector,
                                   acq_interval=acq_interval, acq_interval_offset=acq_interval_offset)
         self.current_ov = self.ovm.number_ov - 1
         # Update OV selector:
@@ -1671,6 +1678,7 @@ class GridSettingsDlg(QDialog):
             self.show_frame_size_and_dose)
         self.doubleSpinBox_pixelSize.valueChanged.connect(
             self.show_frame_size_and_dose)
+        self.comboBox_bitDepth.addItems(['8 bit', '16 bit'])
         # Focus gradient feature, disabled for TESCAN SEMs
         self.toolButton_focusGradient.clicked.connect(
             self.open_focus_gradient_dlg)
@@ -1749,13 +1757,14 @@ class GridSettingsDlg(QDialog):
         self.doubleSpinBox_rotation.setValue(
             self.gm[self.current_grid].rotation)
         self.spinBox_shift.setValue(self.gm[self.current_grid].row_shift)
-
         self.doubleSpinBox_pixelSize.setValue(
             self.gm[self.current_grid].pixel_size)
         self.comboBox_tileSize.setCurrentIndex(
             self.gm[self.current_grid].frame_size_selector)
         self.comboBox_dwellTime.setCurrentIndex(
             self.gm[self.current_grid].dwell_time_selector)
+        self.comboBox_bitDepth.setCurrentIndex(
+            self.gm[self.current_grid].bit_depth_selector)
         self.spinBox_acqInterval.setValue(
             self.gm[self.current_grid].acq_interval)
         self.spinBox_acqIntervalOffset.setValue(
@@ -1813,6 +1822,7 @@ class GridSettingsDlg(QDialog):
         pixel_size = self.doubleSpinBox_pixelSize.value()
         dwell_time_selector = self.comboBox_dwellTime.currentIndex()
         dwell_time = self.comboBox_dwellTime.currentText()
+        bit_depth_selector = self.comboBox_bitDepth.currentIndex()
         rotation = self.doubleSpinBox_rotation.value()
         input_shift = self.spinBox_shift.value()
         acq_interval = self.spinBox_acqInterval.value()
@@ -1821,7 +1831,8 @@ class GridSettingsDlg(QDialog):
         self.gm.add_new_grid(active=active,
                              frame_size=frame_size, frame_size_selector=frame_size_selector,
                              overlap=input_overlap, pixel_size=pixel_size,
-                             dwell_time_selector=dwell_time_selector, dwell_time=dwell_time,
+                             dwell_time=dwell_time, dwell_time_selector=dwell_time_selector,
+                             bit_depth_selector=bit_depth_selector,
                              rotation=rotation, row_shift=input_shift,
                              acq_interval=acq_interval, acq_interval_offset=acq_interval_offset,
                              size=size)
@@ -1913,6 +1924,8 @@ class GridSettingsDlg(QDialog):
             self.doubleSpinBox_pixelSize.value())
         self.gm[self.current_grid].dwell_time_selector = (
             self.comboBox_dwellTime.currentIndex())
+        self.gm[self.current_grid].bit_depth_selector = (
+            self.comboBox_bitDepth.currentIndex())
         self.gm[self.current_grid].acq_interval = (
             self.spinBox_acqInterval.value())
         self.gm[self.current_grid].acq_interval_offset = (
@@ -3980,6 +3993,7 @@ class GrabFrameDlg(QDialog):
         self.comboBox_dwellTime.addItems(map(str, self.sem.DWELL_TIME))
         self.comboBox_dwellTime.setCurrentIndex(
             self.sem.DWELL_TIME.index(self.sem.grab_dwell_time))
+        self.comboBox_bitDepth.addItems(['8 bit', '16 bit'])
         # Button to load current SEM imaging parameters. 
         # For now, only enabled for ZEISS SEMs.
         self.pushButton_getFromSEM.clicked.connect(self.get_settings_from_sem)
@@ -4021,7 +4035,9 @@ class GrabFrameDlg(QDialog):
         self.sem.grab_pixel_size = self.doubleSpinBox_pixelSize.value()
         self.sem.grab_dwell_time = self.sem.DWELL_TIME[
             self.comboBox_dwellTime.currentIndex()]
+        bit_depth_selector = self.comboBox_bitDepth.currentIndex()
         self.sem.apply_grab_settings()
+        self.sem.set_bit_depth(bit_depth_selector)
         self.pushButton_scan.setText('Wait')
         self.pushButton_scan.setEnabled(False)
         self.pushButton_save.setEnabled(False)

@@ -1587,6 +1587,10 @@ class Acquisition:
                 self.ovm[ov_index].frame_size_selector,
                 self.ovm[ov_index].pixel_size,
                 self.ovm[ov_index].dwell_time)
+            
+            # Set image bit depth for current overview
+            self.sem.set_bit_depth(self.ovm[ov_index].bit_depth_selector)
+            
             # Use individual OV focus parameters if available
             # (if wd == 0, use current)
             ov_wd = self.ovm[ov_index].wd_stig_xy[0]
@@ -2395,6 +2399,9 @@ class Acquisition:
                     self.gm[grid_index].frame_size_selector,
                     self.gm[grid_index].pixel_size,
                     self.gm[grid_index].dwell_time)
+
+                # Set image bit depth for current grid
+                self.sem.set_bit_depth(self.gm[grid_index].bit_depth_selector)
 
                 # Delay necessary for Gemini? (change of mag)
                 sleep(0.2)

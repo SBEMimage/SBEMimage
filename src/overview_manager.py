@@ -33,7 +33,8 @@ from grid_manager import Grid
 class Overview(Grid):
     def __init__(self, coordinate_system, sem,
                  ov_active, centre_sx_sy, frame_size, frame_size_selector,
-                 pixel_size, dwell_time, dwell_time_selector, acq_interval,
+                 pixel_size, dwell_time, dwell_time_selector, 
+                 bit_depth_selector, acq_interval,
                  acq_interval_offset, wd_stig_xy, vp_file_path,
                  debris_detection_area):
 
@@ -49,6 +50,7 @@ class Overview(Grid):
                          frame_size_selector=frame_size_selector,
                          pixel_size=pixel_size, dwell_time=dwell_time,
                          dwell_time_selector=dwell_time_selector,
+                         bit_depth_selector=bit_depth_selector,
                          display_colour=10, acq_interval=acq_interval,
                          acq_interval_offset=acq_interval_offset,
                          wd_stig_xy=wd_stig_xy)
@@ -200,6 +202,7 @@ class StubOverview(Grid):
                          frame_size=None, frame_size_selector=frame_size_selector,
                          pixel_size=pixel_size, dwell_time=None,
                          dwell_time_selector=dwell_time_selector,
+                         bit_depth_selector=0,
                          display_colour=11)
 
         # Set the centre coordinates, which will update the origin.
@@ -256,6 +259,8 @@ class OverviewManager:
         ov_dwell_time = json.loads(self.cfg['overviews']['ov_dwell_time'])
         ov_dwell_time_selector = json.loads(
             self.cfg['overviews']['ov_dwell_time_selector'])
+        ov_bit_depth_selector = json.loads(
+            self.cfg['overviews']['ov_bit_depth_selector'])
         ov_wd_stig_xy = json.loads(self.cfg['overviews']['ov_wd_stig_xy'])
         ov_acq_interval = json.loads(
             self.cfg['overviews']['ov_acq_interval'])
@@ -271,6 +276,8 @@ class OverviewManager:
             ov_active = [1] * self.number_ov
         if len(ov_wd_stig_xy) < self.number_ov:
             ov_wd_stig_xy = [[0, 0, 0]] * self.number_ov
+        if len(ov_bit_depth_selector) < self.number_ov:
+            ov_bit_depth_selector = [0] * self.number_ov
 
         # Create OV objects
         self.__overviews = []
@@ -279,9 +286,9 @@ class OverviewManager:
                                 ov_centre_sx_sy[i], ov_size[i],
                                 ov_size_selector[i], ov_pixel_size[i],
                                 ov_dwell_time[i], ov_dwell_time_selector[i],
-                                ov_acq_interval[i], ov_acq_interval_offset[i],
-                                ov_wd_stig_xy[i], ov_vp_file_paths[i],
-                                debris_detection_area[i])
+                                ov_bit_depth_selector[i], ov_acq_interval[i], 
+                                ov_acq_interval_offset[i], ov_wd_stig_xy[i], 
+                                ov_vp_file_paths[i], debris_detection_area[i])
             self.__overviews.append(overview)
 
         self.use_auto_debris_area = (
@@ -350,6 +357,8 @@ class OverviewManager:
             [ov.dwell_time for ov in self.__overviews])
         self.cfg['overviews']['ov_dwell_time_selector'] = str(
             [ov.dwell_time_selector for ov in self.__overviews])
+        self.cfg['overviews']['ov_bit_depth_selector'] = str(
+            [ov.bit_depth_selector for ov in self.__overviews])
         self.cfg['overviews']['ov_wd_stig_xy'] = str(
             [ov.wd_stig_xy for ov in self.__overviews])
         self.cfg['overviews']['ov_acq_interval'] = str(
@@ -384,7 +393,8 @@ class OverviewManager:
 
     def add_new_overview(self, ov_active=True, centre_sx_sy=None,
                          frame_size=None, frame_size_selector=None, pixel_size=None,
-                         dwell_time=0.8, dwell_time_selector=4,
+                         dwell_time=0.8, dwell_time_selector=4, 
+                         bit_depth_selector=0,
                          acq_interval=1, acq_interval_offset=0):
         new_ov_index = self.number_ov
         if centre_sx_sy is None:
@@ -404,8 +414,10 @@ class OverviewManager:
         new_ov = Overview(self.cs, self.sem, ov_active=ov_active,
                           centre_sx_sy=[x_pos, y_pos], frame_size=frame_size,
                           frame_size_selector=frame_size_selector, pixel_size=pixel_size,
-                          dwell_time_selector=dwell_time_selector, dwell_time=dwell_time,
-                          acq_interval=acq_interval, acq_interval_offset=acq_interval_offset,
+                          dwell_time=dwell_time, dwell_time_selector=dwell_time_selector,
+                          bit_depth_selector=bit_depth_selector,
+                          acq_interval=acq_interval, 
+                          acq_interval_offset=acq_interval_offset,
                           wd_stig_xy=[0, 0, 0], vp_file_path='',
                           debris_detection_area=[])
         self.__overviews.append(new_ov)
@@ -442,7 +454,8 @@ class OverviewManager:
 
         self.add_new_overview(ov_active=ov.active, centre_sx_sy=(sx, sy), pixel_size=pixel_size,
                               frame_size=ov.frame_size, frame_size_selector=ov.frame_size_selector,
-                              dwell_time_selector=ov.dwell_time_selector, dwell_time=ov.dwell_time,
+                              dwell_time=ov.dwell_time, dwell_time_selector=ov.dwell_time_selector,
+                              bit_depth_selector=ov.bit_depth_selector,
                               acq_interval=ov.acq_interval, acq_interval_offset=ov.acq_interval_offset)
 
     def overview_position_for_registration(self, ov_index):

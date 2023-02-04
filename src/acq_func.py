@@ -79,6 +79,8 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
             sem.apply_frame_settings(ovm[ov_index].frame_size_selector,
                                      ovm[ov_index].pixel_size,
                                      ovm[ov_index].dwell_time)
+            # Set bit depth
+            sem.set_bit_depth(ovm[ov_index].bit_depth_selector)
             save_path = os.path.join(
                 base_dir, 'workspace', 'OV'
                 + str(ov_index).zfill(3) + '.bmp')
@@ -211,6 +213,7 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
                             ovm['stub'].frame_size_selector,
                             ovm['stub'].pixel_size,
                             ovm['stub'].dwell_time)
+                        sem.set_bit_depth(ovm['stub'].bit_depth_selector)
                         first_tile = False
                     success = sem.acquire_frame(save_path)
                     sleep(0.5)

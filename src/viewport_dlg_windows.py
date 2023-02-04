@@ -60,8 +60,8 @@ class StubOVDlg(QDialog):
         self.abort_queue = Queue()
         self.pushButton_acquire.clicked.connect(self.start_stub_ov_acquisition)
         self.pushButton_abort.clicked.connect(self.abort)
-        self.spinBox_X.setValue(centre_sx_sy[0])
-        self.spinBox_Y.setValue(centre_sx_sy[1])
+        self.spinBox_X.setValue(int(round(centre_sx_sy[0])))
+        self.spinBox_Y.setValue(int(round(centre_sx_sy[1])))
         self.spinBox_rows.setValue(ovm['stub'].size[0])
         self.spinBox_cols.setValue(ovm['stub'].size[1])
         self.spinBox_rows.valueChanged.connect(

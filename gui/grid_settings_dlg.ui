@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>261</width>
-    <height>802</height>
+    <height>838</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -20,7 +20,7 @@
    <property name="geometry">
     <rect>
      <x>60</x>
-     <y>765</y>
+     <y>800</y>
      <width>191</width>
      <height>32</height>
     </rect>
@@ -46,7 +46,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>730</y>
+     <y>765</y>
      <width>111</width>
      <height>23</height>
     </rect>
@@ -59,7 +59,7 @@
    <property name="geometry">
     <rect>
      <x>130</x>
-     <y>730</y>
+     <y>765</y>
      <width>121</width>
      <height>23</height>
     </rect>
@@ -101,7 +101,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>700</y>
+     <y>735</y>
      <width>241</width>
      <height>23</height>
     </rect>
@@ -123,9 +123,9 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>45</y>
+     <y>50</y>
      <width>241</width>
-     <height>370</height>
+     <height>405</height>
     </rect>
    </property>
    <property name="title">
@@ -154,9 +154,9 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>114</y>
+      <y>110</y>
       <width>161</width>
-      <height>16</height>
+      <height>22</height>
      </rect>
     </property>
     <property name="text">
@@ -167,9 +167,9 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>204</y>
+      <y>200</y>
       <width>161</width>
-      <height>16</height>
+      <height>22</height>
      </rect>
     </property>
     <property name="text">
@@ -180,7 +180,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>144</y>
+      <y>140</y>
       <width>211</width>
       <height>16</height>
      </rect>
@@ -222,9 +222,9 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>24</y>
+      <y>20</y>
       <width>101</width>
-      <height>16</height>
+      <height>22</height>
      </rect>
     </property>
     <property name="text">
@@ -248,7 +248,7 @@
     <property name="geometry">
      <rect>
       <x>120</x>
-      <y>84</y>
+      <y>80</y>
       <width>81</width>
       <height>16</height>
      </rect>
@@ -274,7 +274,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>84</y>
+      <y>80</y>
       <width>81</width>
       <height>16</height>
      </rect>
@@ -287,9 +287,9 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>54</y>
+      <y>50</y>
       <width>91</width>
-      <height>16</height>
+      <height>22</height>
      </rect>
     </property>
     <property name="text">
@@ -300,13 +300,13 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>174</y>
+      <y>170</y>
       <width>161</width>
-      <height>16</height>
+      <height>22</height>
      </rect>
     </property>
     <property name="text">
-     <string>Rotation angle (degrees)</string>
+     <string>Rotation angle (degrees):</string>
     </property>
    </widget>
    <widget class="QDoubleSpinBox" name="doubleSpinBox_rotation">
@@ -350,7 +350,7 @@
       <x>180</x>
       <y>306</y>
       <width>46</width>
-      <height>16</height>
+      <height>22</height>
      </rect>
     </property>
     <property name="text">
@@ -363,7 +363,7 @@
       <x>10</x>
       <y>306</y>
       <width>131</width>
-      <height>16</height>
+      <height>22</height>
      </rect>
     </property>
     <property name="text">
@@ -374,9 +374,9 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>250</y>
+      <y>246</y>
       <width>111</width>
-      <height>16</height>
+      <height>22</height>
      </rect>
     </property>
     <property name="text">
@@ -406,9 +406,9 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>280</y>
+      <y>276</y>
       <width>111</width>
-      <height>16</height>
+      <height>22</height>
      </rect>
     </property>
     <property name="text">
@@ -432,7 +432,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>335</y>
+      <y>370</y>
       <width>221</width>
       <height>23</height>
      </rect>
@@ -441,12 +441,38 @@
      <string>Get current settings from SEM</string>
     </property>
    </widget>
+   <widget class="QLabel" name="label_12">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>336</y>
+      <width>111</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Image bit depth:</string>
+    </property>
+   </widget>
+   <widget class="QComboBox" name="comboBox_bitDepth">
+    <property name="geometry">
+     <rect>
+      <x>180</x>
+      <y>336</y>
+      <width>51</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="layoutDirection">
+     <enum>Qt::LeftToRight</enum>
+    </property>
+   </widget>
   </widget>
   <widget class="QGroupBox" name="groupBox_2">
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>425</y>
+     <y>460</y>
      <width>241</width>
      <height>231</height>
     </rect>
@@ -502,7 +528,7 @@
       <x>10</x>
       <y>20</y>
       <width>161</width>
-      <height>20</height>
+      <height>22</height>
      </rect>
     </property>
     <property name="text">
@@ -560,7 +586,7 @@
       <x>10</x>
       <y>50</y>
       <width>141</width>
-      <height>20</height>
+      <height>22</height>
      </rect>
     </property>
     <property name="text">
@@ -598,7 +624,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>670</y>
+     <y>705</y>
      <width>82</width>
      <height>17</height>
     </rect>
@@ -614,7 +640,7 @@
    <property name="geometry">
     <rect>
      <x>100</x>
-     <y>670</y>
+     <y>705</y>
      <width>82</width>
      <height>17</height>
     </rect>

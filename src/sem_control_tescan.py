@@ -233,6 +233,7 @@ class SEM_SharkSEM(SEM):
         self.sem_api.ScStopScan()
 
         CHANNEL = self.CHANNEL
+        # BITS can be set depending on self.bit_depth_selector
         BITS = 8       # todo - if 16 bits are also made available, review the rest of the function - needs adjustments!
 
         width = self.__get_scan_window_width_px()
@@ -495,7 +496,7 @@ class SEM_SharkSEM(SEM):
 
     def get_beam_current(self):
         """Read beam current (in pA) from SmartSEM."""
-        return self.sem_api.GetBeamCurrent()
+        return int(round(self.sem_api.GetBeamCurrent()))
 
     def set_beam_current(self, target_current):
         """Save the target beam current (in pA) and set the SEM's beam to this
