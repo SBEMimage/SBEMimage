@@ -12,12 +12,16 @@
 that are actually required in SBEMimage have been implemented."""
 
 from sem_control import SEM
-from utils import Error
+from utils import Error, load_csv
 
 try:
     import PyPhenom as ppi  # required for Phenom API
 except:
     pass
+
+
+PPAPI_CREDENTIALS_FILENAME = '../credentials/ppapi_credentials.txt'
+
 
 class SEM_Phenom(SEM):
     """Implements all methods for remote control of Phenom SEMs via the
@@ -27,6 +31,7 @@ class SEM_Phenom(SEM):
         super().__init__(config, sysconfig)
         if not self.simulation_mode:
             exception_msg = ''
+            phenom_id, username, password = load_csv(PPAPI_CREDENTIALS_FILENAME)
             try:
                 self.sem_api = ppi.Phenom(phenom_id, username, password)
                 if self.sem_api is not None:
@@ -44,8 +49,7 @@ class SEM_Phenom(SEM):
                     f'initialised (ret_val: {ret_val}). {exception_msg}')
             elif self.use_sem_stage:
                 # Read current SEM stage coordinates
-                self.last_known_x, self.last_known_y, self.last_known_z = (
-                    self.get_stage_xyz())
+                self.last_known_x, self.last_known_y, self.last_known_z = self.get_stage_xyz()
         else:
             self.sem_api = ppi.Phenom('Simulator', '', '')
 
@@ -180,12 +184,10 @@ class SEM_Phenom(SEM):
         return True
 
     def get_pixel_size(self):
-        return self.MAG_PX_SIZE_FACTOR / (self.mag
-                   * self.STORE_RES[self.frame_size_selector][0])
+        return self.MAG_PX_SIZE_FACTOR / (self.mag * self.STORE_RES[self.frame_size_selector][0])
 
     def set_pixel_size(self, pixel_size):
-        self.mag = int(self.MAG_PX_SIZE_FACTOR /
-                       (self.STORE_RES[self.frame_size_selector][0] * pixel_size))
+        self.mag = int(self.MAG_PX_SIZE_FACTOR / (self.STORE_RES[self.frame_size_selector][0] * pixel_size))
         return True
 
     def get_scan_rate(self):

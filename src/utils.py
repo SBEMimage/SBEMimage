@@ -10,6 +10,7 @@
 
 """This modules provides various constants and helper functions."""
 
+import csv
 import os
 import datetime
 import json
@@ -393,6 +394,17 @@ def try_to_remove(file_name):
             except:
                 return False
     return True
+
+
+def load_csv(file_name):
+    with open(file_name, 'r') as file:
+        csv_reader = csv.reader(file)
+        content = []
+        for row in csv_reader:
+            if len(row) == 1:
+                row = row[0]
+            content.append(row)
+    return content
 
 
 def create_subdirectories(base_dir, dir_list):

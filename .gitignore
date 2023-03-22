@@ -36,3 +36,4 @@ extra_wheels/
 pkgs/
 Python/
 uninstall.exe
+credentials/
