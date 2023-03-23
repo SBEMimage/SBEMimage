@@ -220,7 +220,7 @@ class SEM_Phenom(SEM):
         additional waiting period after the cycle time (extra_delay, in seconds)
         may be necessary. The delay specified in syscfg (self.DEFAULT_DELAY)
         is added by default for cycle times > 0.5 s."""
-        self.sem_api.MoveToSem()
+
         scan_params = ppi.ScanParamsEx()
         scan_params.dwellTime = self.dwell_time
         scan_params.scale = 1.0
@@ -229,6 +229,8 @@ class SEM_Phenom(SEM):
         scan_params.center = ppi.Position(0, 0)
         scan_params.detector = self.detector
         scan_params.nFrames = 2
+
+        self.sem_api.MoveToSem()
         acq = self.sem_api.SemAcquireImageEx(scan_params)
         ppi.Save(acq, save_path_filename)
         return True
