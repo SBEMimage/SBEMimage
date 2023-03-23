@@ -224,7 +224,7 @@ class SEM_Phenom(SEM):
         scan_params = ppi.ScanParamsEx()
         scan_params.dwellTime = self.dwell_time
         scan_params.scale = 1.0
-        scan_params.size = ppi.Size(self.frame_size)
+        scan_params.size = ppi.Size(self.frame_size[0], self.frame_size[1])
         scan_params.hdr = (self.bit_depth_selector == 1)
         scan_params.center = ppi.Position(0, 0)
         scan_params.detector = self.detector
