@@ -87,13 +87,13 @@ import magc_utils
 
 class MainControls(QMainWindow):
 
-    def __init__(self, config, sysconfig, config_file, VERSION):
+    def __init__(self, config, sysconfig, config_file, version):
         super().__init__()
         self.cfg = config
         self.syscfg = sysconfig
         self.cfg_file = config_file
         self.syscfg_file = self.cfg['sys']['sys_config_file']
-        self.VERSION = VERSION
+        self.version = version
 
         # Show progress bar in console during start-up. The percentages are
         # just estimates, but helpful for user to see that initialization
@@ -364,7 +364,7 @@ class MainControls(QMainWindow):
         utils.show_progress_in_console(80)
 
         # First log messages
-        utils.log_info('CTRL', 'SBEMimage Version ' + self.VERSION)
+        utils.log_info('CTRL', 'SBEMimage Version ' + self.version)
 
         # Initialize viewport window
         self.viewport = Viewport(self.cfg, self.sem, self.stage, self.cs,
@@ -473,7 +473,7 @@ class MainControls(QMainWindow):
     def initialize_main_controls_gui(self):
         """Load and set up the Main Controls GUI"""
         loadUi('..\\gui\\main_window.ui', self)
-        if 'dev' in self.VERSION.lower():
+        if 'dev' in self.version.lower():
             self.setWindowTitle(
                 'SBEMimage - Main Controls - DEVELOPMENT VERSION')
             # Disable 'Update' function (would overwrite current (local) changes
@@ -1723,7 +1723,7 @@ class MainControls(QMainWindow):
         dialog.exec_()
 
     def open_about_box(self):
-        dialog = AboutBox(self.VERSION)
+        dialog = AboutBox(self.version)
         dialog.exec_()
 
     # ============ Below: stack progress update and signal processing ==============

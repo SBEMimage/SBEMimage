@@ -82,16 +82,16 @@ class ConfigDlg(QDialog):
     for different SEM and microtome models including mocks.
     """
 
-    def __init__(self, VERSION):
+    def __init__(self, version):
         super().__init__()
         self.device_presets_selection = [None, None]
         self.load_presets_enabled = False
         loadUi('..\\gui\\config_dlg.ui', self)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        if 'dev' in VERSION.lower():
-            self.label_version.setText(f'DEVELOPMENT VERSION ({VERSION})')
+        if 'dev' in version.lower():
+            self.label_version.setText(f'DEVELOPMENT VERSION ({version})')
         else:
-            self.label_version.setText('Version ' + VERSION)
+            self.label_version.setText('Version ' + version)
         self.labelIcon.setPixmap(QPixmap('..\\img\\logo.png'))
         self.label_website.setText('<a href="https://github.com/SBEMimage">'
                                    'https://github.com/SBEMimage</a>')
@@ -4615,15 +4615,15 @@ class AboutBox(QDialog):
     version and release date.
     """
 
-    def __init__(self, VERSION):
+    def __init__(self, version):
         super().__init__()
         loadUi('..\\gui\\about_box.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
-        if 'dev' in VERSION.lower():
-            self.label_version.setText(f'DEVELOPMENT VERSION ({VERSION})')
+        if 'dev' in version.lower():
+            self.label_version.setText(f'DEVELOPMENT VERSION ({version})')
         else:
-            self.label_version.setText('Version ' + VERSION)
+            self.label_version.setText('Version ' + version)
         self.labelIcon.setPixmap(QPixmap('..\\img\\logo.png'))
         # Enable links to readthedocs and GitHub
         self.label_readthedocs.setText('<a href="https://sbemimage.readthedocs.io">'

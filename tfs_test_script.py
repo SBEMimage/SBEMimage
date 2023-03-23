@@ -1,3 +1,5 @@
+# TODO: Not part of SBEMimage - testing only - remove from repo
+
 import csv
 import os
 import time
