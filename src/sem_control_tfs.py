@@ -68,10 +68,16 @@ class SEM_Phenom(SEM):
         return not self.eht_on
 
     def get_eht(self):
+        """Return current SmartSEM EHT setting in kV."""
+        self.target_eht = self.sem_api.GetSemHighTension() / 1000
         return self.target_eht
 
     def set_eht(self, target_eht):
-        self.target_eht = round(target_eht, 2)
+        """Save the target EHT (in kV) and set the EHT to this target value."""
+        # Call method in parent class
+        super().set_eht(target_eht)
+        # target_eht given in kV
+        self.sem_api.SetSemHighTension(self.target_eht * 1000)
         return True
 
     def has_vp(self):
@@ -140,7 +146,7 @@ class SEM_Phenom(SEM):
         pass
 
     def apply_beam_settings(self):
-        pass
+        self.sem_api.SetSemHighTension(self.target_eht * 1000)
 
     def get_detector_list(self):
         return ppi.DetectorMode.names
@@ -172,7 +178,7 @@ class SEM_Phenom(SEM):
         return self.frame_size_selector
 
     def get_frame_size(self):
-        raise NotImplementedError
+        return self.frame_size
 
     def set_frame_size(self, frame_size_selector):
         self.frame_size_selector = frame_size_selector
@@ -214,6 +220,7 @@ class SEM_Phenom(SEM):
         additional waiting period after the cycle time (extra_delay, in seconds)
         may be necessary. The delay specified in syscfg (self.DEFAULT_DELAY)
         is added by default for cycle times > 0.5 s."""
+        self.sem_api.MoveToSem()
         scan_params = ppi.ScanParamsEx()
         scan_params.dwellTime = self.dwell_time
         scan_params.scale = 1.0
@@ -282,12 +289,12 @@ class SEM_Phenom(SEM):
 
     def get_stage_x(self):
         """Read X stage position (in micrometres) from SEM."""
-        self.last_known_x = self.sem_api.GetStageModeAndPosition().position[0]
+        self.last_known_x = self.sem_api.GetStageModeAndPosition().position.x
         return self.last_known_x
 
     def get_stage_y(self):
         """Read Y stage position (in micrometres) from SEM."""
-        self.last_known_y = self.sem_api.GetStageModeAndPosition().position[1]
+        self.last_known_y = self.sem_api.GetStageModeAndPosition().position.y
         return self.last_known_y
 
     def get_stage_z(self):
