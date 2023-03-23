@@ -84,13 +84,13 @@ class SEM_Phenom(SEM):
         return False
 
     def get_chamber_pressure(self):
-        raise NotImplementedError
+        return self.sem_api.SemGetVacuumChargeReductionState().pressureEstimate
 
     def get_vp_target(self):
-        raise NotImplementedError
+        return self.sem_api.SemGetVacuumChargeReductionState().target
 
     def set_hv(self):
-        raise NotImplementedError
+        self.sem_api.SemSetTargetVacuumChargeReduction(ppi.VacuumChargeReduction.High)
 
     def set_vp(self):
         raise NotImplementedError
@@ -143,14 +143,16 @@ class SEM_Phenom(SEM):
         pass
 
     def get_detector_list(self):
-        return ['All', 'NorthSouth', 'EastWest', 'A', 'B', 'C', 'D', 'Sed']
+        return ppi.DetectorMode.names
 
     def get_detector(self):
+        self.detector = self.sem_api.GetSemViewingMode()
         return self.detector
 
     def set_detector(self, detector_name):
-        if detector_name in self.get_detector_list():
-            self.detector = detector_name
+        #if detector_name in self.get_detector_list():
+        self.sem_api.SetSemViewingMode(detector_name)
+        self.detector = detector_name
 
     def apply_grab_settings(self):
         self.apply_frame_settings(
@@ -174,6 +176,7 @@ class SEM_Phenom(SEM):
 
     def set_frame_size(self, frame_size_selector):
         self.frame_size_selector = frame_size_selector
+        self.frame_size = self.STORE_RES[frame_size_selector]
         return True
 
     def get_mag(self):
@@ -198,6 +201,7 @@ class SEM_Phenom(SEM):
 
     def set_dwell_time(self, dwell_time):
         self.dwell_time = dwell_time
+        # set dwell time [s]
         return True
 
     def set_scan_rotation(self, angle):
@@ -210,57 +214,80 @@ class SEM_Phenom(SEM):
         additional waiting period after the cycle time (extra_delay, in seconds)
         may be necessary. The delay specified in syscfg (self.DEFAULT_DELAY)
         is added by default for cycle times > 0.5 s."""
-
+        scan_params = ppi.ScanParamsEx()
+        scan_params.dwellTime = self.dwell_time
+        scan_params.scale = 1.0
+        scan_params.size = ppi.Size(self.frame_size)
+        scan_params.hdr = (self.bit_depth_selector == 1)
+        scan_params.center = ppi.Position(0, 0)
+        scan_params.detector = self.detector
+        scan_params.nFrames = 2
+        acq = self.sem_api.SemAcquireImageEx(scan_params)
+        ppi.Save(acq, save_path_filename)
         return True
 
     def save_frame(self, save_path_filename):
         self.acquire_frame(save_path_filename)
 
     def get_wd(self):
-        return self.wd
+        """Return current working distance in metres."""
+        return self.sem_api.GetSemWD()
 
     def set_wd(self, target_wd):
-        self.wd = target_wd
+        """Set working distance to target working distance (in metres)."""
+        self.sem_api.SetSemWD(target_wd)
         return True
 
     def get_stig_xy(self):
+        self.stig_x, self.stig_y = self.sem_api.GetSemStigmate()
         return self.stig_x, self.stig_y
 
     def set_stig_xy(self, target_stig_x, target_stig_y):
+        self.sem_api.SetSemStigmate((target_stig_x, target_stig_y))
         self.stig_x = target_stig_x
         self.stig_y = target_stig_y
         return True
 
     def get_stig_x(self):
+        self.get_stig_xy()
         return self.stig_x
 
     def set_stig_x(self, target_stig_x):
-        self.stig_x = target_stig_x
+        self.set_stig_xy(target_stig_x, self.stig_y)
         return True
 
     def get_stig_y(self):
+        self.get_stig_xy()
         return self.stig_y
 
     def set_stig_y(self, target_stig_y):
+        self.set_stig_xy(self.stig_x, target_stig_y)
         self.stig_y = target_stig_y
         return True
 
     def set_beam_blanking(self, enable_blanking):
+        self.sem_api.SemBlankBeam()
         return True
 
     def run_autofocus(self):
+        self.sem_api.SemAutoFocus()
         return True
 
     def run_autostig(self):
+        self.sem_api.SemAutoStigmate()
         return True
 
     def run_autofocus_stig(self):
-        return True
+        return self.sem_api.SemAutoFocus() and self.sem_api.SemAutoStigmate()
 
     def get_stage_x(self):
+        """Read X stage position (in micrometres) from SEM."""
+        self.last_known_x = self.sem_api.GetStageModeAndPosition().position[0]
         return self.last_known_x
 
     def get_stage_y(self):
+        """Read Y stage position (in micrometres) from SEM."""
+        self.last_known_y = self.sem_api.GetStageModeAndPosition().position[1]
         return self.last_known_y
 
     def get_stage_z(self):
@@ -273,16 +300,32 @@ class SEM_Phenom(SEM):
         return self.last_known_x, self.last_known_y, self.last_known_z
 
     def move_stage_to_x(self, x):
-        self.last_known_x = x
+        """Move stage to coordinate x, provided in microns"""
+        x /= 10**6   # convert to metres
+        y = self.get_stage_y() / 10**6
+        self.sem_api.MoveTo(x, y)
+        #self.get_stage_x
+        self.get_stage_x()
 
     def move_stage_to_y(self, y):
-        self.last_known_y = y
+        """Move stage to coordinate y, provided in microns"""
+        y /= 10**6   # convert to metres
+        x = self.get_stage_x() / 10**6
+        self.sem_api.MoveTo(x, y)
+        #self.last_known_y = y
+        self.get_stage_y()
 
     def move_stage_to_z(self, z):
         self.last_known_z = z
 
     def move_stage_to_xy(self, coordinates):
-        self.last_known_x, self.last_known_y = coordinates
+        """Move stage to coordinates x and y, provided in microns"""
+        x, y = coordinates
+        x /= 10**6   # convert to metres
+        y /= 10**6
+        self.sem_api.MoveTo(x, y)
+        self.get_stage_x()
+        self.get_stage_y()
 
     def stage_move_duration(self, from_x, from_y, to_x, to_y):
         duration_x = abs(to_x - from_x) / self.motor_speed_x
