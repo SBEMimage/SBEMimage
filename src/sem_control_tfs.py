@@ -20,24 +20,24 @@ except:
     pass
 
 
-PPAPI_CREDENTIALS_FILENAME = '../credentials/ppapi_credentials.txt'
-
-
 class SEM_Phenom(SEM):
     """Implements all methods for remote control of Phenom SEMs via the
     Phenom remote control API. Currently supported: Phenom Pharos."""
 
+    PPAPI_CREDENTIALS_FILENAME = '../credentials/ppapi_credentials.txt'
+    DEFAULT_DETECTOR = ppi.DetectorMode.All
+
     def __init__(self, config, sysconfig):
         super().__init__(config, sysconfig)
+        self.detector = self.DEFAULT_DETECTOR
         if not self.simulation_mode:
             exception_msg = ''
-            phenom_id, username, password = load_csv(PPAPI_CREDENTIALS_FILENAME)
+            phenom_id, username, password = load_csv(self.PPAPI_CREDENTIALS_FILENAME)
             try:
                 self.sem_api = ppi.Phenom(phenom_id, username, password)
                 if self.sem_api is not None:
                     self.sem_api.Activate()
                     self.sem_api.Load()
-                    self.sem_api.MoveToNavCam()
                 ret_val = (self.sem_api is not None)
             except Exception as e:
                 ret_val = False
