@@ -163,7 +163,7 @@ class SEM_Phenom(SEM):
 
     def set_detector(self, detector_name):
         """Select the detector specified by 'detector_name'."""
-        self.detector = ppi.DetectorMode(detector_name)
+        self.detector = ppi.DetectorMode.names[detector_name]
         self.sem_api.SetSemViewingMode(self.detector)
 
     def apply_grab_settings(self):
