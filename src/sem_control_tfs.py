@@ -240,16 +240,19 @@ class SEM_Phenom(SEM):
         scan_params.detector = self.detector
         scan_params.nFrames = 2
 
-        self.sem_api.MoveToSem()
+        try:
+            self.sem_api.MoveToSem()
 
-        acq = self.sem_api.SemAcquireImageEx(scan_params)
+            acq = self.sem_api.SemAcquireImageEx(scan_params)
 
-        if save_path_filename.lower().endswith('.bmp'):
-            conversion = ppi.SaveConversion.ToCompatibleFormat
-        else:
-            conversion = ppi.SaveConversion.NoConversion
-        ppi.Save(acq, save_path_filename, conversion)
-        return True
+            if save_path_filename.lower().endswith('.bmp'):
+                conversion = ppi.SaveConversion.ToCompatibleFormat
+            else:
+                conversion = ppi.SaveConversion.NoConversion
+            ppi.Save(acq, save_path_filename, conversion)
+            return True
+        except:
+            return False
 
     def save_frame(self, save_path_filename):
         self.acquire_frame(save_path_filename)
