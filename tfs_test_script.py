@@ -31,7 +31,7 @@ def load_csv(file_name):
     return content
 
 
-if __name__ == '__main__':
+def test():
     i = 1
     saveFolderFinal = saveFolder
     while os.path.exists(saveFolderFinal):
@@ -75,3 +75,36 @@ if __name__ == '__main__':
             ppi.Save(acq, os.path.join(saveFolderFinal, "image_x_" + str(x) + "_y_" + str(y) + "inv.tiff"))
 
     print("finished")
+
+
+def dump_object(obj):
+    # TODO: add hierarchical indentation
+    s = ''
+    if hasattr(obj, '__str__'):
+        s += str(obj)
+    else:
+        for attr in dir(obj):
+            if not attr.startswith('_'):
+                s += 'attr: '
+                if isinstance(obj, object):
+                    s += dump_object(obj)
+                else:
+                    s += getattr(obj, attr)
+                s += '\n'
+    return s
+
+
+if __name__ == '__main__':
+    #test()
+
+    scanParams = ppi.ScanParamsEx()
+    scanParams.dwellTime = dwellTime
+    scanParams.scale = 1.0
+    scanParams.size = ppi.Size(1920,1200)
+    scanParams.hdr = bitDepth16Bit
+    scanParams.center = ppi.Position(0,0)
+    scanParams.detector = ppi.DetectorMode.All
+    scanParams.nFrames = 2
+
+    #dump = dump_object(scanParams)
+    print(scanParams)
