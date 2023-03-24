@@ -799,7 +799,7 @@ class Acquisition:
                         'STAGE: Please ensure that the Z position is positive.')
 
             # Check for Z mismatch
-            if self.microtome is not None and self.microtome.error_state == 206:
+            if self.microtome is not None and self.microtome.error_state == Error.mismatch_z:
                 self.microtome.reset_error_state()
                 self.error_state = Error.mismatch_z
                 self.pause_acquisition(1)

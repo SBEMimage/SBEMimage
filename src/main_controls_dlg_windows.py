@@ -3885,7 +3885,7 @@ class ApproachDlg(QDialog):
                     'Error reading Z position. Approach aborted.')
                 self.microtome.reset_error_state()
                 self.aborted = True
-        if self.microtome.error_state == 206:
+        if self.microtome.error_state == Error.mismatch_z:
             self.microtome.reset_error_state()
             self.z_mismatch = True
             self.aborted = True

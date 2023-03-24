@@ -266,11 +266,12 @@ class SEM_Phenom(SEM):
         return True
 
     def get_stig_xy(self):
-        self.stig_x, self.stig_y = self.sem_api.GetSemStigmate()
+        stigmate = self.sem_api.GetSemStigmate()
+        self.stig_x, self.stig_y = stigmate.x, stigmate.y
         return self.stig_x, self.stig_y
 
     def set_stig_xy(self, target_stig_x, target_stig_y):
-        self.sem_api.SetSemStigmate((target_stig_x, target_stig_y))
+        self.sem_api.SetSemStigmate(ppi.Position(target_stig_x, target_stig_y))
         self.stig_x = target_stig_x
         self.stig_y = target_stig_y
         return True
