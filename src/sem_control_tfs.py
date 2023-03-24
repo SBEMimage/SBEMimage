@@ -158,13 +158,11 @@ class SEM_Phenom(SEM):
 
     def get_detector(self):
         """Return the currently selected detector."""
-        self.detector = self.sem_api.GetSemViewingMode()
         return self.detector
 
     def set_detector(self, detector_name):
         """Select the detector specified by 'detector_name'."""
         self.detector = ppi.DetectorMode.names[detector_name]
-        self.sem_api.SetSemViewingMode(self.detector)
 
     def apply_grab_settings(self):
         """Set the SEM to the current grab settings (stored in
