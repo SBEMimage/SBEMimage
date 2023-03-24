@@ -69,7 +69,7 @@ class SEM_Phenom(SEM):
 
     def get_eht(self):
         """Return current SmartSEM EHT setting in kV."""
-        self.target_eht = self.sem_api.GetSemHighTension() / 1000
+        self.target_eht = self.sem_api.GetSemHighTension() * 1e-3
         return self.target_eht
 
     def set_eht(self, target_eht):
@@ -77,7 +77,7 @@ class SEM_Phenom(SEM):
         # Call method in parent class
         super().set_eht(target_eht)
         # target_eht given in kV
-        self.sem_api.SetSemHighTension(self.target_eht * 1000)
+        self.sem_api.SetSemHighTension(self.target_eht * 1e+3)
         return True
 
     def has_vp(self):
@@ -146,20 +146,27 @@ class SEM_Phenom(SEM):
         pass
 
     def apply_beam_settings(self):
-        self.sem_api.SetSemHighTension(self.target_eht * 1000)
+        """Set the SEM to the current target EHT voltage and beam current."""
+        self.sem_api.SetSemHighTension(self.target_eht * 1e+3)
 
     def get_detector_list(self):
+        """Return a list of all available detectors."""
         return ppi.DetectorMode.names
 
     def get_detector(self):
+        """Return the currently selected detector."""
         self.detector = self.sem_api.GetSemViewingMode()
         return self.detector
 
     def set_detector(self, detector_name):
+        """Select the detector specified by 'detector_name'."""
         self.detector = ppi.DetectorMode(detector_name)
         self.sem_api.SetSemViewingMode(self.detector)
 
     def apply_grab_settings(self):
+        """Set the SEM to the current grab settings (stored in
+        self.grab_dwell_time, self.grab_pixel_size, and
+        self.grab_frame_size_selector)."""
         self.apply_frame_settings(
             self.grab_frame_size_selector,
             self.grab_pixel_size,
@@ -174,12 +181,15 @@ class SEM_Phenom(SEM):
         return ret
 
     def get_frame_size_selector(self):
+        """Get the current frame size selector."""
         return self.frame_size_selector
 
     def get_frame_size(self):
+        """Get the current frame size."""
         return self.frame_size
 
     def set_frame_size(self, frame_size_selector):
+        """Set SEM to frame size specified by frame_size_selector."""
         self.frame_size_selector = frame_size_selector
         self.frame_size = self.STORE_RES[frame_size_selector]
         return True
@@ -219,7 +229,7 @@ class SEM_Phenom(SEM):
         may be necessary. The delay specified in syscfg (self.DEFAULT_DELAY)
         is added by default for cycle times > 0.5 s."""
 
-        dwell_time = self.dwell_time * 1E-6    # convert us to s
+        dwell_time = self.dwell_time * 1e-6    # convert us to s
         scan_params = ppi.ScanParamsEx()
         scan_params.dwellTime = float(dwell_time)
         scan_params.scale = 1.0
@@ -228,11 +238,16 @@ class SEM_Phenom(SEM):
         scan_params.center = ppi.Position(0, 0)
         scan_params.detector = self.detector
         scan_params.nFrames = 2
-        #print(scan_params)  # testing/debugging
 
         self.sem_api.MoveToSem()
+
         acq = self.sem_api.SemAcquireImageEx(scan_params)
-        ppi.Save(acq, save_path_filename)
+
+        if save_path_filename.lower().endswith('.bmp'):
+            conversion = ppi.SaveConversion.ToCompatibleFormat.ToCompatibleFormat
+        else:
+            conversion = ppi.SaveConversion.ToCompatibleFormat.NoConversion
+        ppi.Save(acq, save_path_filename, conversion)
         return True
 
     def save_frame(self, save_path_filename):
@@ -310,16 +325,16 @@ class SEM_Phenom(SEM):
 
     def move_stage_to_x(self, x):
         """Move stage to coordinate x, provided in microns"""
-        x /= 10**6   # convert to metres
-        y = self.get_stage_y() / 10**6
+        x *= 1e-6   # convert to metres
+        y = self.get_stage_y() * 1e-6
         self.sem_api.MoveTo(x, y)
         #self.get_stage_x
         self.get_stage_x()
 
     def move_stage_to_y(self, y):
         """Move stage to coordinate y, provided in microns"""
-        y /= 10**6   # convert to metres
-        x = self.get_stage_x() / 10**6
+        y *= 1e-6   # convert to metres
+        x = self.get_stage_x() * 1e-6
         self.sem_api.MoveTo(x, y)
         #self.last_known_y = y
         self.get_stage_y()
@@ -330,8 +345,8 @@ class SEM_Phenom(SEM):
     def move_stage_to_xy(self, coordinates):
         """Move stage to coordinates x and y, provided in microns"""
         x, y = coordinates
-        x /= 10**6   # convert to metres
-        y /= 10**6
+        x *= 1e-6   # convert to metres
+        y *= 1e-6
         self.sem_api.MoveTo(x, y)
         self.get_stage_x()
         self.get_stage_y()
