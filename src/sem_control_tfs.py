@@ -54,18 +54,16 @@ class SEM_Phenom(SEM):
             self.sem_api = ppi.Phenom('Simulator', '', '')
 
     def turn_eht_on(self):
-        self.eht_on = True
         return True
 
     def turn_eht_off(self):
-        self.eht_on = False
         return True
 
     def is_eht_on(self):
-        return self.eht_on
+        return True
 
     def is_eht_off(self):
-        return not self.eht_on
+        return False
 
     def get_eht(self):
         """Return current SmartSEM EHT setting in kV."""
@@ -84,18 +82,23 @@ class SEM_Phenom(SEM):
         return False
 
     def is_hv_on(self):
-        return True
+        """Return True if High Vacuum is on."""
+        return self.sem_api.SemGetVacuumChargeReduction() == ppi.VacuumChargeReduction.High
 
     def is_vp_on(self):
+        """Return True if VP is on."""
         return False
 
     def get_chamber_pressure(self):
+        """Read current chamber pressure from SmartSEM."""
         return self.sem_api.SemGetVacuumChargeReductionState().pressureEstimate
 
     def get_vp_target(self):
+        """Read current VP target pressure from SmartSEM."""
         return self.sem_api.SemGetVacuumChargeReductionState().target
 
     def set_hv(self):
+        """Set HV (= High Vacuum)."""
         self.sem_api.SemSetTargetVacuumChargeReduction(ppi.VacuumChargeReduction.High)
 
     def set_vp(self):
