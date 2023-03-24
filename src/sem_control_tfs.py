@@ -244,9 +244,9 @@ class SEM_Phenom(SEM):
         acq = self.sem_api.SemAcquireImageEx(scan_params)
 
         if save_path_filename.lower().endswith('.bmp'):
-            conversion = ppi.SaveConversion.ToCompatibleFormat.ToCompatibleFormat
+            conversion = ppi.SaveConversion.ToCompatibleFormat
         else:
-            conversion = ppi.SaveConversion.ToCompatibleFormat.NoConversion
+            conversion = ppi.SaveConversion.NoConversion
         ppi.Save(acq, save_path_filename, conversion)
         return True
 
