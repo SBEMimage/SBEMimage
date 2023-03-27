@@ -307,15 +307,15 @@ class SEM_Phenom(SEM):
         self.sem_api.SemBlankBeam()
         return True
 
-    def run_autofocus(self):
+    def run_autofocus(self, *args):
         self.sem_api.SemAutoFocus()
         return True
 
-    def run_autostig(self):
+    def run_autostig(self, *args):
         self.sem_api.SemAutoStigmate()
         return True
 
-    def run_autofocus_stig(self):
+    def run_autofocus_stig(self, *args):
         return self.run_autofocus() and self.run_autostig()
 
     def get_stage_x(self):
