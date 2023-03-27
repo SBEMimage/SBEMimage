@@ -67,7 +67,8 @@ class SEM_Phenom(SEM):
 
     def get_eht(self):
         """Return current SmartSEM EHT setting in kV."""
-        self.target_eht = self.sem_api.GetSemHighTension() * 1e-3
+        # TFS uses negative tension value
+        self.target_eht = -self.sem_api.GetSemHighTension() * 1e-3
         return self.target_eht
 
     def set_eht(self, target_eht):
@@ -75,11 +76,12 @@ class SEM_Phenom(SEM):
         # Call method in parent class
         super().set_eht(target_eht)
         # target_eht given in kV
-        self.sem_api.SetSemHighTension(self.target_eht * 1e+3)
+        # TFS uses negative tension value
+        self.sem_api.SetSemHighTension(-self.target_eht * 1e+3)
         return True
 
     def has_vp(self):
-        return False
+        return True
 
     def is_hv_on(self):
         """Return True if High Vacuum is on."""

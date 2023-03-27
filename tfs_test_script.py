@@ -12,7 +12,7 @@ saveFolder = "tfs_test"
 
 dwellTime = 500E-9 # Seconds
 waitTime = 0 # Seconds
-overlap = 10 # %
+overlap = 0.10
 ACB = False # Bool Auto / contrast brightness on each image
 bitDepth16Bit = False # False = 8 bit mages, True = 16 bit images
 
@@ -31,6 +31,12 @@ def load_csv(file_name):
     return content
 
 
+def init():
+    phenomID, username, password = load_csv(PPAPI_CREDENTIALS_FILENAME)
+    phenom = ppi.Phenom(phenomID, username, password)
+    return phenom
+
+
 def test():
     i = 1
     saveFolderFinal = saveFolder
@@ -39,9 +45,7 @@ def test():
         i += 1
     os.makedirs(saveFolderFinal)
 
-    phenomID, username, password = load_csv(PPAPI_CREDENTIALS_FILENAME)
-
-    phenom = ppi.Phenom(phenomID, username, password)
+    phenom = init()
 
     scanParams = ppi.ScanParamsEx()
     scanParams.dwellTime = dwellTime
@@ -53,7 +57,7 @@ def test():
     scanParams.nFrames = 2
 
     i = 0
-    stepSize = phenom.GetHFW() * (100 - overlap)/100
+    stepSize = phenom.GetHFW() * (1 - overlap)
     currentPos = phenom.GetStageModeAndPosition().position
     for y in range(numberInY):
         for x in range(numberInX):
