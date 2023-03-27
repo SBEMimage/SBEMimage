@@ -12,7 +12,7 @@
 that are actually required in SBEMimage have been implemented."""
 
 from sem_control import SEM
-from utils import Error, load_csv
+from utils import Error, load_csv, log_exception
 
 try:
     import PyPhenom as ppi  # required for Phenom API
@@ -239,9 +239,8 @@ class SEM_Phenom(SEM):
         may be necessary. The delay specified in syscfg (self.DEFAULT_DELAY)
         is added by default for cycle times > 0.5 s."""
 
-        dwell_time = self.dwell_time * 1e-6    # convert us to s
         scan_params = ppi.ScanParamsEx()
-        scan_params.dwellTime = float(dwell_time)
+        scan_params.dwellTime = float(self.dwell_time * 1e-6)   # convert us to s
         scan_params.scale = 1.0
         scan_params.size = ppi.Size(self.frame_size[0], self.frame_size[1])
         scan_params.hdr = (self.bit_depth_selector == 1)
@@ -260,7 +259,8 @@ class SEM_Phenom(SEM):
                 conversion = ppi.SaveConversion.NoConversion
             ppi.Save(acq, save_path_filename, conversion)
             return True
-        except:
+        except Exception as e:
+            log_exception(e)
             return False
 
     def save_frame(self, save_path_filename):
@@ -316,7 +316,7 @@ class SEM_Phenom(SEM):
         return True
 
     def run_autofocus_stig(self):
-        return self.sem_api.SemAutoFocus() and self.sem_api.SemAutoStigmate()
+        return self.run_autofocus() and self.run_autostig()
 
     def get_stage_x(self):
         """Read X stage position (in micrometres) from SEM."""
