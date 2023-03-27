@@ -198,6 +198,7 @@ class SEM_Phenom(SEM):
         return True
 
     def get_mag(self):
+        self.mag = int(self.MAG_PX_SIZE_FACTOR / (self.frame_size[0] * self.pixel_size))
         return self.mag
 
     def set_mag(self, target_mag):
@@ -205,10 +206,14 @@ class SEM_Phenom(SEM):
         return True
 
     def get_pixel_size(self):
-        return self.MAG_PX_SIZE_FACTOR / (self.mag * self.STORE_RES[self.frame_size_selector][0])
+        # m -> nm
+        return self.sem_api.GetHFW() / self.frame_size[0] * 1e+9
 
     def set_pixel_size(self, pixel_size):
-        self.mag = int(self.MAG_PX_SIZE_FACTOR / (self.STORE_RES[self.frame_size_selector][0] * pixel_size))
+        # pixel_size in [nm]
+        self.pixel_size = pixel_size
+        self.sem_api.SetHFW(self.frame_size[0] * pixel_size * 1e-9)
+        self.mag = self.get_mag()
         return True
 
     def get_scan_rate(self):
