@@ -68,7 +68,7 @@ class SEM_Phenom(SEM):
     def get_eht(self):
         """Return current SmartSEM EHT setting in kV."""
         # TFS uses negative tension value
-        self.target_eht = -self.sem_api.GetSemHighTension() * 1e-3
+        self.target_eht = self.sem_api.GetSemHighTension() * -1e-3
         return self.target_eht
 
     def set_eht(self, target_eht):
@@ -77,7 +77,7 @@ class SEM_Phenom(SEM):
         super().set_eht(target_eht)
         # target_eht given in kV
         # TFS uses negative tension value
-        self.sem_api.SetSemHighTension(-self.target_eht * 1e+3)
+        self.sem_api.SetSemHighTension(self.target_eht * -1e+3)
         return True
 
     def has_vp(self):
@@ -85,7 +85,7 @@ class SEM_Phenom(SEM):
 
     def is_hv_on(self):
         """Return True if High Vacuum is on."""
-        return self.sem_api.SemGetVacuumChargeReduction() == ppi.VacuumChargeReduction.High
+        return False
 
     def is_vp_on(self):
         """Return True if VP is on."""
@@ -93,11 +93,13 @@ class SEM_Phenom(SEM):
 
     def get_chamber_pressure(self):
         """Read current chamber pressure from SmartSEM."""
-        return self.sem_api.SemGetVacuumChargeReductionState().pressureEstimate
+        # Pascal -> Bar
+        return self.sem_api.SemGetVacuumChargeReductionState().pressureEstimate * 1e-5
 
     def get_vp_target(self):
         """Read current VP target pressure from SmartSEM."""
-        return self.sem_api.SemGetVacuumChargeReductionState().target
+        # Pascal -> Bar
+        return self.sem_api.SemGetVacuumChargeReductionState().target * 1e-5
 
     def set_hv(self):
         """Set HV (= High Vacuum)."""
@@ -319,13 +321,13 @@ class SEM_Phenom(SEM):
     def get_stage_x(self):
         """Read X stage position (in micrometres) from SEM."""
         # m -> um
-        self.last_known_x = self.sem_api.GetStageModeAndPosition().position.x * 1e-6
+        self.last_known_x = self.sem_api.GetStageModeAndPosition().position.x * -1e+6
         return self.last_known_x
 
     def get_stage_y(self):
         """Read Y stage position (in micrometres) from SEM."""
         # m -> um
-        self.last_known_y = -self.sem_api.GetStageModeAndPosition().position.y * 1e-6
+        self.last_known_y = self.sem_api.GetStageModeAndPosition().position.y * -1e+6
         return self.last_known_y
 
     def get_stage_z(self):
@@ -353,7 +355,7 @@ class SEM_Phenom(SEM):
     def move_stage_to_xy(self, coordinates):
         """Move stage to coordinates x and y, provided in microns"""
         x, y = coordinates
-        self.sem_api.MoveTo(x * 1e-6, y * -1e-6)    # um -> m
+        self.sem_api.MoveTo(x * -1e-6, y * -1e-6)    # um -> m
         self.get_stage_x()
         self.get_stage_y()
 

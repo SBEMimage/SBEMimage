@@ -3598,7 +3598,11 @@ class VariablePressureDlg(QDialog):
 
     def update_target_pressure_slider(self):
         self.horizontalSlider_target.blockSignals(True)
-        self.horizontalSlider_target.setValue(math.log10(self.target) * 100)
+        if self.target > 0:
+            value = math.log10(self.target) * 100
+        else:
+            value = self.horizontalSlider_target.minimum()
+        self.horizontalSlider_target.setValue(value)
         self.horizontalSlider_target.blockSignals(False)
 
     def update_pressure(self, textEdit, value):
