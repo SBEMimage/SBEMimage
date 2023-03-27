@@ -702,4 +702,4 @@ def match_template(img: np.ndarray, templ: np.ndarray, thresh_match: float) -> n
     for ix, sl in enumerate(scipy.ndimage.find_objects(match)):
         # store coordinate of this object
         locs[ix] = np.mean(match[sl] == (ix + 1)) + np.array([sl[0].start, sl[1].start])
-    return locs.astype(np.int)
+    return locs.astype(int)

@@ -1145,7 +1145,7 @@ class GridManager:
         origin_sx_sy = self.cs.convert_d_to_s((x + tile_width / 2, y + tile_height / 2))
 
         # size[rows, cols]
-        size = [np.int(np.ceil(h / tile_height)), np.int(np.ceil(w / tile_width))]
+        size = [int(np.ceil(h / tile_height)), int(np.ceil(w / tile_width))]
 
         # do not use rotation of previous grid!
         self.add_new_grid(origin_sx_sy=origin_sx_sy, sw_sh=(w, h), active=grid.active,

@@ -198,8 +198,8 @@ class TemplateManager:
         tile_width = grid.tile_width_d()
         tile_height = grid.tile_height_d()
         # size[rows, cols]
-        size = [np.int(np.ceil(self.template.tile_height_d() / tile_height)),
-                np.int(np.ceil(self.template.tile_width_d() / tile_width))]
+        size = [int(np.ceil(self.template.tile_height_d() / tile_height)),
+                int(np.ceil(self.template.tile_width_d() / tile_width))]
 
         for k in dc_locs:
             loc_d = dc_locs[k]
@@ -239,7 +239,7 @@ class TemplateManager:
         if angle != 0:
             # get template transformation
             center = (self.template.origin_dx_dy - np.array([dx, dy])) / self.pixel_size * 1000
-            center = tuple(center.astype(np.int))
+            center = tuple(center.astype(int))
             A = cv2.getRotationMatrix2D(center, angle, 1)
             # rotate stub ov and extract template
             stub_ov_warped = cv2.warpAffine(stub_ov, A, stub_ov.shape[:2])

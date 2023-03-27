@@ -1219,8 +1219,8 @@ class StageCalibrationDlg(QDialog):
             else:  # use skimage.phase_cross_correlation
                 x_shift = phase_cross_correlation(start_img, shift_x_img)[0][::-1]
                 y_shift = phase_cross_correlation(start_img, shift_y_img)[0][::-1]
-            x_shift = x_shift.astype(np.int)
-            y_shift = y_shift.astype(np.int)
+            x_shift = x_shift.astype(int)
+            y_shift = y_shift.astype(int)
             self.x_shift_vector = [x_shift[0], x_shift[1]]
             self.y_shift_vector = [y_shift[0], y_shift[1]]
         except Exception as e:
