@@ -16,7 +16,8 @@ from utils import Error, load_csv
 
 try:
     # required for Phenom API
-    import PyPhenom as ppi, OperationalMode
+    import PyPhenom as ppi
+    from PyPhenom import OperationalMode
 except:
     pass
 
@@ -258,6 +259,8 @@ class SEM_Phenom(SEM):
                 self.sem_api.Load()
             if mode != OperationalMode.LiveSem:
                 self.sem_api.MoveToSem()
+                self.move_stage_to_xy((self.last_known_x, self.last_known_y))
+                self.set_pixel_size(self.pixel_size)
 
             acq = self.sem_api.SemAcquireImageEx(scan_params)
 
