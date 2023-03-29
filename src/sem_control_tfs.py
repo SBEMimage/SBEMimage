@@ -321,13 +321,13 @@ class SEM_Phenom(SEM):
     def get_stage_x(self):
         """Read X stage position (in micrometres) from SEM."""
         # m -> um
-        self.last_known_x = self.sem_api.GetStageModeAndPosition().position.x * -1e+6
+        self.last_known_x = self.sem_api.GetStageModeAndPosition().position.x * 1e+6
         return self.last_known_x
 
     def get_stage_y(self):
         """Read Y stage position (in micrometres) from SEM."""
         # m -> um
-        self.last_known_y = self.sem_api.GetStageModeAndPosition().position.y * -1e+6
+        self.last_known_y = self.sem_api.GetStageModeAndPosition().position.y * 1e+6
         return self.last_known_y
 
     def get_stage_z(self):
@@ -355,7 +355,7 @@ class SEM_Phenom(SEM):
     def move_stage_to_xy(self, coordinates):
         """Move stage to coordinates x and y, provided in microns"""
         x, y = coordinates
-        self.sem_api.MoveTo(x * -1e-6, y * -1e-6)    # um -> m
+        self.sem_api.MoveTo(x * 1e-6, y * 1e-6)    # um -> m
         self.get_stage_x()
         self.get_stage_y()
 
