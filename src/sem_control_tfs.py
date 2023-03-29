@@ -12,10 +12,11 @@
 that are actually required in SBEMimage have been implemented."""
 
 from sem_control import SEM
-from utils import Error, load_csv, log_exception
+from utils import Error, load_csv
 
 try:
-    import PyPhenom as ppi  # required for Phenom API
+    # required for Phenom API
+    import PyPhenom as ppi, OperationalMode
 except:
     pass
 
@@ -46,7 +47,6 @@ class SEM_Phenom(SEM):
 
         if self.sem_api is not None:
             self.sem_api.Activate()
-            self.sem_api.Load()
             if self.use_sem_stage:
                 # Read current SEM stage coordinates
                 self.last_known_x, self.last_known_y, self.last_known_z = self.get_stage_xyz()
@@ -253,7 +253,11 @@ class SEM_Phenom(SEM):
         scan_params.nFrames = 2
 
         try:
-            self.sem_api.MoveToSem()
+            mode = self.sem_api.GetOperationalMode()
+            if mode == OperationalMode.Loadpos:
+                self.sem_api.Load()
+            if mode != OperationalMode.LiveSem:
+                self.sem_api.MoveToSem()
 
             acq = self.sem_api.SemAcquireImageEx(scan_params)
 
@@ -264,11 +268,12 @@ class SEM_Phenom(SEM):
             ppi.Save(acq, save_path_filename, conversion)
             return True
         except Exception as e:
-            log_exception(e)
+            self.error_state = Error.grab_image
+            self.error_info = f'sem.acquire_frame: command failed ({e})'
             return False
 
     def save_frame(self, save_path_filename):
-        self.acquire_frame(save_path_filename)
+        return self.acquire_frame(save_path_filename)
 
     def get_wd(self):
         """Return current working distance in metres."""
