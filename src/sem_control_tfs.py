@@ -29,29 +29,30 @@ class SEM_Phenom(SEM):
 
     def __init__(self, config, sysconfig):
         super().__init__(config, sysconfig)
+
+        self.sem_api = None
         self.detector = self.DEFAULT_DETECTOR
+
         if not self.simulation_mode:
-            exception_msg = ''
             phenom_id, username, password = load_csv(self.PPAPI_CREDENTIALS_FILENAME)
             try:
                 self.sem_api = ppi.Phenom(phenom_id, username, password)
-                if self.sem_api is not None:
-                    self.sem_api.Activate()
-                    self.sem_api.Load()
-                ret_val = (self.sem_api is not None)
             except Exception as e:
-                ret_val = False
-                exception_msg = str(e)
-            if not ret_val:
                 self.error_state = Error.smartsem_api
-                self.error_info = (
-                    f'sem.__init__: remote API control could not be '
-                    f'initialised (ret_val: {ret_val}). {exception_msg}')
-            elif self.use_sem_stage:
+                self.error_info = str(e)
+                self.simulation_mode = True
+        if self.simulation_mode:
+            self.sem_api = ppi.Phenom('Simulator', '', '')
+
+        if self.sem_api is not None:
+            self.sem_api.Activate()
+            self.sem_api.Load()
+            if self.use_sem_stage:
                 # Read current SEM stage coordinates
                 self.last_known_x, self.last_known_y, self.last_known_z = self.get_stage_xyz()
         else:
-            self.sem_api = ppi.Phenom('Simulator', '', '')
+            self.error_state = Error.smartsem_api
+            self.error_info = ''
 
     def turn_eht_on(self):
         return True
@@ -81,7 +82,10 @@ class SEM_Phenom(SEM):
         return True
 
     def has_vp(self):
-        return True
+        if not self.simulation_mode:
+            return True
+        else:
+            return False
 
     def is_hv_on(self):
         """Return True if High Vacuum is on."""
@@ -106,10 +110,10 @@ class SEM_Phenom(SEM):
         self.sem_api.SemSetTargetVacuumChargeReduction(ppi.VacuumChargeReduction.High)
 
     def set_vp(self):
-        raise NotImplementedError
+        pass
 
     def set_vp_target(self, target_pressure):
-        raise NotImplementedError
+        pass
 
     def has_fcc(self):
         return False

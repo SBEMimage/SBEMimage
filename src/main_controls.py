@@ -174,6 +174,7 @@ class MainControls(QMainWindow):
                     'initialisation of the Phenom Remote API failed. Please '
                     'verify that the Remote API is installed and configured '
                     'correctly.'
+                    '\n' + self.sem.error_info +
                     '\nSBEMimage will be run in simulation mode.',
                     QMessageBox.Ok)
                 self.simulation_mode = True
