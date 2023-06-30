@@ -43,16 +43,7 @@ import acq_func
 import utils
 from utils import Error
 from sem_control import SEM
-from sem_control_zeiss import SEM_SmartSEM, SEM_MultiSEM
-from sem_control_fei import SEM_Quanta
-from sem_control_tescan import SEM_SharkSEM
-from sem_control_tfs import SEM_Phenom
-from sem_control_mock import SEM_Mock
 from microtome_control import Microtome
-from microtome_control_gatan import Microtome_3View
-from microtome_control_katana import Microtome_katana
-from microtome_control_gcib import GCIB
-from microtome_control_mock import Microtome_Mock
 from stage import Stage
 from plasma_cleaner import PlasmaCleaner
 from acquisition import Acquisition
@@ -132,6 +123,7 @@ class MainControls(QMainWindow):
 
         # Initialize SEM
         if self.syscfg['device']['sem'] == 'ZEISS MultiSEM':
+            from sem_control_zeiss import SEM_MultiSEM
             QMessageBox.critical(
                 self, 'STAGE COLLISION WARNING - MULTISEM',
                 'THIS MODULE FOR MULTISEM IS STILL IN DEVELOPMENT.\n\n\n\n'
@@ -143,6 +135,7 @@ class MainControls(QMainWindow):
 
         elif self.syscfg['device']['sem'].startswith('ZEISS'):
             # Create SEM instance to control SEM via SmartSEM API
+            from sem_control_zeiss import SEM_SmartSEM
             self.sem = SEM_SmartSEM(self.cfg, self.syscfg)
             if self.sem.error_state != Error.none:
                 QMessageBox.warning(
@@ -156,6 +149,7 @@ class MainControls(QMainWindow):
         elif self.syscfg['device']['sem'].startswith('TESCAN'):
             # TESCAN, only for testing at this point
             # Create SEM instance to control SEM via SharkSEM API
+            from sem_control_tescan import SEM_SharkSEM
             self.sem = SEM_SharkSEM(self.cfg, self.syscfg)
             if self.sem.error_state != Error.none:
                 QMessageBox.warning(
@@ -167,6 +161,7 @@ class MainControls(QMainWindow):
                 self.simulation_mode = True
         elif self.syscfg['device']['sem'].startswith('TFS'):
             # Create SEM instance to control SEM via Phenom API
+            from sem_control_tfs import SEM_Phenom
             self.sem = SEM_Phenom(self.cfg, self.syscfg)
             if self.sem.error_state != Error.none:
                 QMessageBox.warning(
@@ -179,6 +174,7 @@ class MainControls(QMainWindow):
                     QMessageBox.Ok)
                 self.simulation_mode = True
         elif self.syscfg['device']['sem'] == 'Mock SEM':
+            from sem_control_mock import SEM_Mock
             self.sem = SEM_Mock(self.cfg, self.syscfg)
         elif self.syscfg['device']['sem'] == 'Unknown':
             # SBEMimage started with default configuration, no SEM selected yet.
@@ -230,6 +226,7 @@ class MainControls(QMainWindow):
         if (self.use_microtome
                 and self.syscfg['device']['microtome'] == 'Gatan 3View'):
             # Create object for 3View microtome (control via DigitalMicrograph)
+            from microtome_control_gatan import Microtome_3View
             self.microtome = Microtome_3View(self.cfg, self.syscfg)
             if self.microtome.error_state in [Error.dm_init, Error.dm_comm_send, Error.dm_comm_response, Error.dm_comm_retval]:
                 utils.log_warning('CTRL', 'Error initializing DigitalMicrograph API')
@@ -260,9 +257,11 @@ class MainControls(QMainWindow):
         elif (self.use_microtome
                 and self.syscfg['device']['microtome'] == 'ConnectomX katana'):
             # Initialize katana microtome
+            from microtome_control_katana import Microtome_katana
             self.microtome = Microtome_katana(self.cfg, self.syscfg)
         elif (self.use_microtome
                 and self.syscfg['device']['microtome'] == 'GCIB'):
+            from microtome_control_gcib import GCIB
             self.microtome = GCIB(self.cfg, self.syscfg, self.sem)
         elif (self.use_microtome
                 and self.syscfg['device']['microtome'] == 'Unknown'):
@@ -270,6 +269,7 @@ class MainControls(QMainWindow):
             self.microtome = Microtome(self.cfg, self.syscfg)
         elif (self.use_microtome
                 and self.syscfg['device']['microtome'] == 'Mock Microtome'):
+            from microtome_control_mock import Microtome_Mock
             self.microtome = Microtome_Mock(self.cfg, self.syscfg)
         else:
             # No microtome or unknown device

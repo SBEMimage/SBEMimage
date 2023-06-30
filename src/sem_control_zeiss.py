@@ -11,14 +11,14 @@
 """This module provides the commands to operate the SEM. Only the functions
 that are actually required in SBEMimage have been implemented."""
 
-import comtypes
-import comtypes.client as cc
 import json
 import sys
 from PyQt5.QtWidgets import QMessageBox
 from time import sleep
 
 try:
+    import comtypes
+    import comtypes.client as cc
     import pythoncom
     import win32com.client  # required to use CZEMApi.ocx (Carl Zeiss EM API)
     from win32com.client import VARIANT  # required for API function calls
