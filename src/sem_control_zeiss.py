@@ -11,13 +11,19 @@
 """This module provides the commands to operate the SEM. Only the functions
 that are actually required in SBEMimage have been implemented."""
 
+import comtypes
+import comtypes.client as cc
+import json
+import sys
+from PyQt5.QtWidgets import QMessageBox
 from time import sleep
 
-import json
-import pythoncom
-import win32com.client  # required to use CZEMApi.ocx (Carl Zeiss EM API)
-from PyQt5.QtWidgets import QMessageBox
-from win32com.client import VARIANT  # required for API function calls
+try:
+    import pythoncom
+    import win32com.client  # required to use CZEMApi.ocx (Carl Zeiss EM API)
+    from win32com.client import VARIANT  # required for API function calls
+except:
+    pass
 
 import utils
 from utils import Error
@@ -829,7 +835,7 @@ class SEM_MultiSEM(SEM):
         self.error_info = ''
         # Use device selection from system configuration
         self.cfg['sem']['device'] = self.syscfg['device']['sem']
-        if self.cfg['sem']['device'] not in recognized_devices:
+        if self.cfg['sem']['device'] not in self.recognized_devices:
             self.cfg['sem']['device'] = 'NOT RECOGNIZED'
         self.device_name = self.cfg['sem']['device']
         # In simulation mode, there is no connection to the SEM hardware

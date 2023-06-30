@@ -18,11 +18,8 @@ import glob
 import shutil
 import logging
 import tempfile
-import pythoncom
-
 import numpy as np
 import numpy.ma as ma
-import win32com.client
 
 from PIL import Image
 from typing import Union
@@ -31,7 +28,13 @@ from typing import Optional
 from multiprocessing import Pool
 from mapfost import mapfost as mf
 from scipy.optimize import minimize
-from win32com.client import VARIANT
+
+try:
+    import pythoncom
+    import win32com.client  # required to use CZEMApi.ocx (Carl Zeiss EM API)
+    from win32com.client import VARIANT  # required for API function calls
+except:
+    pass
 
 
 class RunAutoFoc:

@@ -11,11 +11,14 @@
 """This module provides the commands to operate the SEM. Only the functions
 that are actually required in SBEMimage have been implemented."""
 
+import json
 from time import sleep
 
-import json
-import pythoncom
-from win32com.client import VARIANT  # required for API function calls
+try:
+    import pythoncom
+    from win32com.client import VARIANT  # required for API function calls
+except:
+    pass
 
 from sem_control import SEM
 

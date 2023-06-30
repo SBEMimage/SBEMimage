@@ -93,10 +93,13 @@ def main():
 
     SBEMimage = QApplication(sys.argv)
     app_id = 'SBEMimage ' + VERSION
-    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(app_id)
 
-    colorama.init()
-    os.system('cls')
+    os_name = os.name.lower()
+    if 'nt' in os_name or 'win' in os_name:
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(app_id)
+        colorama.init()
+        os.system('cls')
+
     if 'dev' in VERSION.lower():
         title_str = 'SBEMimage - Console - DEVELOPMENT VERSION'
         version_info = f'DEVELOPMENT VERSION ({VERSION})'
