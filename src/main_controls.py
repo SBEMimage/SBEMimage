@@ -23,13 +23,12 @@ window (in viewport.py) as a QWidget.
 import os
 import sys
 from typing import Optional
-import threading
-import json
-import copy
-import xml.etree.ElementTree as ET
 from time import sleep
+#import json
+#import copy
+#import xml.etree.ElementTree as ET
 
-from PyQt5.QtWidgets import QApplication, QTableWidgetSelectionRange, \
+from PyQt5.QtWidgets import QApplication, \
                             QAbstractItemView, QPushButton
 from PyQt5.QtCore import Qt, QRect, QSize, QEvent, QItemSelection, \
                          QItemSelectionModel, QModelIndex
@@ -73,8 +72,9 @@ from main_controls_dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                                       GCIBSettingsDlg, RunAutofocusDlg
 
 from magc_dlg_windows import ImportMagCDlg, ImportWaferImageDlg, \
-                          WaferCalibrationDlg, ImportZENExperimentDlg
+                          WaferCalibrationDlg #, ImportZENExperimentDlg
 import magc_utils
+
 
 class MainControls(QMainWindow):
 
@@ -407,7 +407,7 @@ class MainControls(QMainWindow):
         if self.cfg_file == 'default.ini':
             # Check how many .cfg files exist
             cfgfile_counter = 0
-            for file in os.listdir('..\\cfg'):
+            for file in os.listdir('../cfg'):
                 if file.endswith('.cfg'):
                     cfgfile_counter += 1
             # Check if presets loaded
@@ -473,7 +473,7 @@ class MainControls(QMainWindow):
 
     def initialize_main_controls_gui(self):
         """Load and set up the Main Controls GUI"""
-        loadUi('..\\gui\\main_window.ui', self)
+        loadUi('../gui/main_window.ui', self)
         if 'dev' in self.version.lower():
             self.setWindowTitle(
                 'SBEMimage - Main Controls - DEVELOPMENT VERSION')
@@ -485,8 +485,8 @@ class MainControls(QMainWindow):
             self.setWindowTitle('SBEMimage - Main Controls')
 
         app_icon = QIcon()
-        app_icon.addFile('..\\img\\icon_16px.ico', QSize(16, 16))
-        app_icon.addFile('..\\img\\icon_48px.ico', QSize(48, 48))
+        app_icon.addFile('../img/icon_16px.ico', QSize(16, 16))
+        app_icon.addFile('../img/icon_48px.ico', QSize(48, 48))
         self.setWindowIcon(app_icon)
         #self.setFixedSize(self.size())
         self.move(1120, 20)
@@ -495,23 +495,23 @@ class MainControls(QMainWindow):
         utils.set_log_text_handler(self.trigger)
         # Pushbuttons
         self.pushButton_SEMSettings.clicked.connect(self.open_sem_dlg)
-        self.pushButton_SEMSettings.setIcon(QIcon('..\\img\\settings.png'))
+        self.pushButton_SEMSettings.setIcon(QIcon('../img/settings.png'))
         self.pushButton_SEMSettings.setIconSize(QSize(16, 16))
         self.pushButton_microtomeSettings.clicked.connect(
             self.open_microtome_dlg)
         self.pushButton_microtomeSettings.setIcon(
-            QIcon('..\\img\\settings.png'))
+            QIcon('../img/settings.png'))
         self.pushButton_microtomeSettings.setIconSize(QSize(16, 16))
         self.pushButton_gridSettings.clicked.connect(
             lambda: self.open_grid_dlg(self.grid_index_dropdown))
-        self.pushButton_gridSettings.setIcon(QIcon('..\\img\\settings.png'))
+        self.pushButton_gridSettings.setIcon(QIcon('../img/settings.png'))
         self.pushButton_gridSettings.setIconSize(QSize(16, 16))
-        self.pushButton_OVSettings.setIcon(QIcon('..\\img\\settings.png'))
+        self.pushButton_OVSettings.setIcon(QIcon('../img/settings.png'))
         self.pushButton_OVSettings.setIconSize(QSize(16, 16))
         self.pushButton_OVSettings.clicked.connect(self.open_ov_dlg)
         self.pushButton_acqSettings.clicked.connect(
             self.open_acq_settings_dlg)
-        self.pushButton_acqSettings.setIcon(QIcon('..\\img\\settings.png'))
+        self.pushButton_acqSettings.setIcon(QIcon('../img/settings.png'))
         self.pushButton_acqSettings.setIconSize(QSize(16, 16))
         self.pushButton_setActiveUserFlag.clicked.connect(
             self.set_active_user_flag)
@@ -2728,7 +2728,7 @@ class MainControls(QMainWindow):
                 sleep(1)
                 # Recreate status.dat to indicate that program was closed
                 # normally and didn't crash:
-                status_file = open('..\\cfg\\status.dat', 'w+')
+                status_file = open('../cfg/status.dat', 'w+')
                 status_file.write(self.cfg_file)
                 status_file.close()
                 print('Closed by user.\n')

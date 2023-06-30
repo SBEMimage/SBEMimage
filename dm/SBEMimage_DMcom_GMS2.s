@@ -37,7 +37,7 @@
 // full record cycle from within DM with the intended knife speed.
 
 
-string install_path = "C:\\Utilities\\SBEMimage\\dm\\"
+string install_path = "C:/Utilities/SBEMimage/dm/"
 
 string input_file
 string command_file
@@ -653,7 +653,7 @@ void wait_for_command()
 // install_path = GetApplicationDirectory(0, 0)
 
 if (!DoesFileExist(install_path + "SBEMimage_DMcom_GMS2.s")) {
-	install_path = "C:\\pytools\\SBEMimage\\dm\\"	
+	install_path = "C:/pytools/SBEMimage/dm/"
 	if (!DoesFileExist(install_path + "SBEMimage_DMcom_GMS2.s")) {
 		Throw("Wrong install path. Please check and update the variable 'install_path' in this script.")
 	}

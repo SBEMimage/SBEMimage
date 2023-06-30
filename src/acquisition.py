@@ -155,7 +155,8 @@ class Acquisition:
     def base_dir(self, new_base_dir):
         self._base_dir = new_base_dir
         # Extract the name of the stack from the base directory
-        self.stack_name = self.base_dir[self.base_dir.rfind('\\') + 1:]
+        sep = '\\' if '\\' in self.base_dir else '/'
+        self.stack_name = self.base_dir[self.base_dir.rfind(sep) + 1:]
 
     def save_to_cfg(self):
         """Save current state of attributes to ConfigParser object cfg."""
@@ -379,16 +380,16 @@ class Acquisition:
         """Set up and mirror all subdirectories for the stack acquisition."""
         subdirectory_list = [
             'meta',
-            'meta\\logs',
-            'meta\\stats',
+            'meta/logs',
+            'meta/stats',
             'overviews',
-            'overviews\\stub',
-            'overviews\\debris',
+            'overviews/stub',
+            'overviews/debris',
             'tiles',
-            'tiles\\rejected',
+            'tiles/rejected',
             'workspace',
-            'workspace\\viewport',
-            'workspace\\reslices'
+            'workspace/viewport',
+            'workspace/reslices'
         ]
         # Add subdirectories for overviews, grids, tiles
         for ov_index in range(self.ovm.number_ov):

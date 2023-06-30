@@ -21,16 +21,16 @@ from configparser import ConfigParser
 
 # The following constants must be updated if entries are added to or
 # deleted from the default configuration files
-CFG_TEMPLATE_FILE = '..\\src\\default_cfg\\default.ini'    # Template of session configuration
+CFG_TEMPLATE_FILE = '../src/default_cfg/default.ini'    # Template of session configuration
 CFG_NUMBER_SECTIONS = 12
 CFG_NUMBER_KEYS = 226
 
-SYSCFG_TEMPLATE_FILE = '..\\src\\default_cfg\\system.cfg'  # Template of system configuration
+SYSCFG_TEMPLATE_FILE = '../src/default_cfg/system.cfg'  # Template of system configuration
 SYSCFG_NUMBER_SECTIONS = 8
 SYSCFG_NUMBER_KEYS = 55
 
 # Presets file: contains presets for different devices
-DEVICE_PRESETS_FILE = '..\\src\\default_cfg\\device_presets.cfg'
+DEVICE_PRESETS_FILE = '../src/default_cfg/device_presets.cfg'
 
 # Backward compatibility for older system config files
 LEGACY_DEVICE_NUMBERS = {0: 'Gatan 3View',

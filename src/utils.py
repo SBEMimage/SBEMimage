@@ -274,7 +274,7 @@ class QtTextHandler(StreamHandler):
         # Filter stack trace from main view
         if 'Traceback' in message:
             message = (message[:message.index('Traceback')]
-                + 'EXCEPTION occurred: See \\log\\SBEMimage.log '
+                + 'EXCEPTION occurred: See /log/SBEMimage.log '
                 'and output in console window for details.')
         if self.qt_trigger:
             self.qt_trigger.transmit(message)

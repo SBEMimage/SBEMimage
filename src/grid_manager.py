@@ -932,7 +932,8 @@ class GridManager:
         # Load tile previews for active tiles if available and if source tiles
         # are present at the current slice number in the base directory
         base_dir = self.cfg['acq']['base_dir']
-        stack_name = base_dir[base_dir.rfind('\\') + 1:]
+        sep = '\\' if '\\' in base_dir else '/'
+        stack_name = base_dir[base_dir.rfind(sep) + 1:]
         slice_counter = int(self.cfg['acq']['slice_counter'])
         for g in range(self.number_grids):
             for t in self.__grids[g].active_tiles:

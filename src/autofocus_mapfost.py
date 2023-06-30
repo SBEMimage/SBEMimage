@@ -45,8 +45,8 @@ class RunAutoFoc:
         self.exp_id = exp_id
         self.additional_cycle_time = 0
         self.path_to_exp = self.exps_dir + self.exp_id
-        self.result_path = self.path_to_exp + "\\Result"
-        self.perturbed_ims_path = self.path_to_exp + "\\Test_Images" + "_" + self.exp_id
+        self.result_path = self.path_to_exp + "/Result"
+        self.perturbed_ims_path = self.path_to_exp + "/Test_Images" + "_" + self.exp_id
 
         if sem_api is None:
             self.sem_api = win32com.client.Dispatch('CZ.EMApiCtrl.1')
@@ -157,7 +157,7 @@ class RunAutoFoc:
         final_aberr_params = [np.add(aberr, current_aberr_params) for aberr in aberr_perturbation]
         for key, par in enumerate(final_aberr_params):
             self.set_wd_and_stig_vals(par)
-            save_as = self.perturbed_ims_path + "\\" + "_".join( [str(ab) for ab in aberr_perturbation[key]]) + ".tif"
+            save_as = self.perturbed_ims_path + "/" + "_".join( [str(ab) for ab in aberr_perturbation[key]]) + ".tif"
             self.acquire_frame(save_as)
         self.set_wd_and_stig_vals(current_aberr_params)
         return 0
@@ -482,7 +482,7 @@ def aberr_perturbation_from_tifname(name):
 
 def get_perturbed_ims(perturbed_ims_path):
 
-    perturbed_ims_abs_paths = glob.glob(perturbed_ims_path + "\\*.tif")
+    perturbed_ims_abs_paths = glob.glob(perturbed_ims_path + "/*.tif")
     perturbed_ims = [np.array(Image.open(imgPath)) for imgPath in perturbed_ims_abs_paths]
     aberr_perturbation = [aberr_perturbation_from_tifname(t) for t in perturbed_ims_abs_paths]
 
