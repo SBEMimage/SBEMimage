@@ -78,9 +78,9 @@ def main():
     utils.logging_init('CTRL', '***** New SBEMimage session *****')
 
     # Check Windows version
-    is_windows = (platform.system() == 'Windows')
-    if not (is_windows and platform.release() in ['7', '10']):
-        print('Warning: SBEMimage is designed to run on Windows 7 or 10.')
+    is_windows = (platform.system().lower() == 'windows')
+    if not (is_windows and platform.release().isnumeric() and float(platform.release()) >= 7):
+        print('Warning: SBEMimage is designed to run on Windows 7 or higher. Use on other operating system at own risk.')
 
     if is_windows and platform.release() == '10':
         # High dpi scaling for Windows 10

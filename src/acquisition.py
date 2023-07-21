@@ -67,7 +67,7 @@ class Acquisition:
         self.vp_screenshot_filename = None
 
         # Remove trailing slashes and whitespace from base directory string
-        self.cfg['acq']['base_dir'] = self.cfg['acq']['base_dir'].rstrip(r'\/ ')
+        self.cfg['acq']['base_dir'] = self.cfg['acq']['base_dir'].rstrip(r'\\\/ ')
         self.base_dir = self.cfg['acq']['base_dir']
         # pause_state:
         # 1 -> pause immediately, 2 -> pause after completing current slice
@@ -155,8 +155,7 @@ class Acquisition:
     def base_dir(self, new_base_dir):
         self._base_dir = new_base_dir
         # Extract the name of the stack from the base directory
-        sep = '\\' if '\\' in self.base_dir else '/'
-        self.stack_name = self.base_dir[self.base_dir.rfind(sep) + 1:]
+        self.stack_name = self.base_dir[os.path.normpath(self.base_dir).rfind(os.sep) + 1:]
 
     def save_to_cfg(self):
         """Save current state of attributes to ConfigParser object cfg."""

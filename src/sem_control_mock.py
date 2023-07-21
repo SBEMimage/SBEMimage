@@ -203,10 +203,8 @@ class SEM_Mock(SEM):
     def _generate_random_image(self, width, height):
         """Create empty image with random grey values"""
         # TODO: Add location-dependent patterns
-        mock_image = np.zeros((height, width), dtype=np.uint8)
-        for row in range(height):
-            for col in range(width):
-                mock_image[row, col] = random.randint(0, 255)
+        # mock_image = np.random.randint(0, 255, size=(height, width), dtype=np.uint8)  # uniform distribution
+        mock_image = (np.clip(np.random.normal(loc=0.5, scale=0.5 / 3, size=(height, width)), 0, 1) * 255).astype(np.uint8)   # gaussian distribution
         return mock_image
 
     def _grab_image_from_previous_acq_dir(self, save_path_filename, width, height):

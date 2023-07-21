@@ -2145,9 +2145,8 @@ class AcqSettingsDlg(QDialog):
             self.checkBox_sendMetaData.isChecked())
 
     def update_stack_name(self):
-        base_dir = self.lineEdit_baseDir.text().rstrip(r'\/ ')
-        sep = '\\' if '\\' in base_dir else '/'
-        self.label_stackName.setText(base_dir[base_dir.rfind(sep) + 1:])
+        base_dir = self.lineEdit_baseDir.text().rstrip(r'\\\/ ')
+        self.label_stackName.setText(base_dir[os.path.normpath(base_dir).rfind(os.sep) + 1:])
 
     def update_target_settings(self):
         if self.acq.use_target_z_diff:
