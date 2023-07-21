@@ -233,8 +233,23 @@ class SEM_SharkSEM(SEM):
         self.sem_api.ScStopScan()
 
         CHANNEL = self.CHANNEL
-        # BITS can be set depending on self.bit_depth_selector
-        BITS = 8       # todo - if 16 bits are also made available, review the rest of the function - needs adjustments!
+
+        # Bit depth selector (0: 8 bit [default]; 1: 16 bit). Selects the
+        # image bit depth to be used for acquisition.
+        if self.bit_depth_selector == 0:
+            bpp = 8
+        elif self.bit_depth_selector == 1:
+            bpp = 16
+        else:
+            bpp = 8
+        
+        # in case of .BMP, we must not use 16 bits
+        if save_path_filename.lower().endswith(".bmp"): 
+            bpp = 8
+            
+        ##### debug
+        # print("acquire_frame: bit_depth_selector=%d bpp=%d\n" %(self.bit_depth_selector, bpp))
+        #####  
 
         width = self.__get_scan_window_width_px()
         height = self.__get_scan_window_height_px()
@@ -246,7 +261,7 @@ class SEM_SharkSEM(SEM):
         bottom = dimension - top - 1
 
         self.sem_api.DtSelect(CHANNEL, detector)
-        self.sem_api.DtEnable(CHANNEL, 1, BITS)
+        self.sem_api.DtEnable(CHANNEL, 1, bpp)
 
         # start single frame acquisition
         if self.dwell_time_ns is not None:
@@ -261,8 +276,10 @@ class SEM_SharkSEM(SEM):
         self.sem_api.ScStopScan()
 
         # create and save the images (only here the 'Image' library is required)
-        # todo - some parameters in following functions need to be changed in case of 16 bits
-        img = Image.frombuffer("L", (width, height), img_str[0], "raw", "L", 0, 1)  # 8-bit grayscale
+        if bpp == 8:
+            img = Image.frombuffer("L", (width, height), img_str[0], "raw", "L", 0, 1)          # 8-bit grayscale
+        else:
+            img = Image.frombuffer("I;16", (width, height), img_str[0], "raw", "I;16", 0, 1)    # 16-bit grayscale
         img.save(save_path_filename)
 
         return True
