@@ -67,7 +67,7 @@ class Acquisition:
         self.vp_screenshot_filename = None
 
         # Remove trailing slashes and whitespace from base directory string
-        self.cfg['acq']['base_dir'] = self.cfg['acq']['base_dir'].rstrip(r'\/ ')
+        self.cfg['acq']['base_dir'] = self.cfg['acq']['base_dir'].rstrip(r'\\\/ ')
         self.base_dir = self.cfg['acq']['base_dir']
         # pause_state:
         # 1 -> pause immediately, 2 -> pause after completing current slice
@@ -155,7 +155,7 @@ class Acquisition:
     def base_dir(self, new_base_dir):
         self._base_dir = new_base_dir
         # Extract the name of the stack from the base directory
-        self.stack_name = self.base_dir[self.base_dir.rfind('\\') + 1:]
+        self.stack_name = self.base_dir[os.path.normpath(self.base_dir).rfind(os.sep) + 1:]
 
     def save_to_cfg(self):
         """Save current state of attributes to ConfigParser object cfg."""
@@ -379,16 +379,16 @@ class Acquisition:
         """Set up and mirror all subdirectories for the stack acquisition."""
         subdirectory_list = [
             'meta',
-            'meta\\logs',
-            'meta\\stats',
+            'meta/logs',
+            'meta/stats',
             'overviews',
-            'overviews\\stub',
-            'overviews\\debris',
+            'overviews/stub',
+            'overviews/debris',
             'tiles',
-            'tiles\\rejected',
+            'tiles/rejected',
             'workspace',
-            'workspace\\viewport',
-            'workspace\\reslices'
+            'workspace/viewport',
+            'workspace/reslices'
         ]
         # Add subdirectories for overviews, grids, tiles
         for ov_index in range(self.ovm.number_ov):
@@ -799,7 +799,7 @@ class Acquisition:
                         'STAGE: Please ensure that the Z position is positive.')
 
             # Check for Z mismatch
-            if self.microtome is not None and self.microtome.error_state == 206:
+            if self.microtome is not None and self.microtome.error_state == Error.mismatch_z:
                 self.microtome.reset_error_state()
                 self.error_state = Error.mismatch_z
                 self.pause_acquisition(1)

@@ -127,8 +127,8 @@ class Viewport(QWidget):
         self.cfg['viewport']['m_current_ov'] = str(self.m_current_ov)
 
     def _load_gui(self):
-        loadUi('..\\gui\\viewport.ui', self)
-        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        loadUi('../gui/viewport.ui', self)
+        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
         self.setWindowTitle('SBEMimage - Viewport')
         # Display current settings:
         #self.setFixedSize(self.size())
@@ -184,19 +184,19 @@ class Viewport(QWidget):
         """Display the measuring tool buttons as active or inactive."""
         if self.vp_measure_active:
             self.pushButton_measureViewport.setIcon(
-                QIcon('..\\img\\measure-active.png'))
+                QIcon('../img/measure-active.png'))
             self.pushButton_measureViewport.setIconSize(QSize(16, 16))
         else:
             self.pushButton_measureViewport.setIcon(
-                QIcon('..\\img\\measure.png'))
+                QIcon('../img/measure.png'))
             self.pushButton_measureViewport.setIconSize(QSize(16, 16))
         if self.sv_measure_active:
             self.pushButton_measureSliceViewer.setIcon(
-                QIcon('..\\img\\measure-active.png'))
+                QIcon('../img/measure-active.png'))
             self.pushButton_measureSliceViewer.setIconSize(QSize(16, 16))
         else:
             self.pushButton_measureSliceViewer.setIcon(
-                QIcon('..\\img\\measure.png'))
+                QIcon('../img/measure.png'))
             self.pushButton_measureSliceViewer.setIconSize(QSize(16, 16))
 
     def _draw_rectangle(self, qp, point0, point1, color, line_style=Qt.SolidLine):
@@ -920,7 +920,7 @@ class Viewport(QWidget):
         self.pushButton_measureViewport.setToolTip(
             'Measure with right mouse clicks')
         self.pushButton_updateStagePos.setIcon(
-            QIcon('..\\img\\stage_pos.png'))
+            QIcon('../img/stage_pos.png'))
         self.pushButton_updateStagePos.setIconSize(QSize(16, 16))
         self.pushButton_measureViewport.setToolTip(
             'Update stage position')
@@ -3072,14 +3072,14 @@ class Viewport(QWidget):
         self.sv_measure_active = False
         self.sv_canvas = QPixmap(self.cs.vp_width, self.cs.vp_height)
         # Help panel:
-        self.sv_help_panel_img = QPixmap('..\\img\\help-sliceviewer.png')
+        self.sv_help_panel_img = QPixmap('../img/help-sliceviewer.png')
         self.sv_qp = QPainter()
 
         self.pushButton_reloadSV.clicked.connect(self.sv_load_slices)
         self.pushButton_measureSliceViewer.clicked.connect(
             self.sv_toggle_measure)
         self.pushButton_measureSliceViewer.setIcon(
-            QIcon('..\\img\\measure.png'))
+            QIcon('../img/measure.png'))
         self.pushButton_measureSliceViewer.setIconSize(QSize(16, 16))
         self.pushButton_measureSliceViewer.setToolTip(
             'Measure with right mouse clicks')

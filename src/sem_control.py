@@ -17,11 +17,6 @@ from typing import List
 
 from utils import Error
 
-import pythoncom
-import win32com.client  # required to use CZEMApi.ocx (Carl Zeiss EM API)
-from win32com.client import VARIANT  # required for API function calls
-import comtypes.client as cc
-
 
 class SEM:
     """Base class for remote SEM control. Implements minimum parameter handling.
@@ -42,10 +37,10 @@ class SEM:
         self.error_state = Error.none
         self.error_info = ''
         # Check if specified device is recognized
-        recognized_devices = json.loads(self.syscfg['device']['sem_recognized'])
+        self.recognized_devices = json.loads(self.syscfg['device']['sem_recognized'])
         # Use device selection from system configuration
         self.cfg['sem']['device'] = self.syscfg['device']['sem']
-        if self.cfg['sem']['device'] not in recognized_devices:
+        if self.cfg['sem']['device'] not in self.recognized_devices:
             self.cfg['sem']['device'] = 'NOT RECOGNIZED'
         self.device_name = self.cfg['sem']['device']
         # IP address and port to communicate with SEM

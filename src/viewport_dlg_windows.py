@@ -40,9 +40,9 @@ class StubOVDlg(QDialog):
     def __init__(self, centre_sx_sy,
                  sem, stage, ovm, acq, img_inspector, viewport_trigger):
         super().__init__()
-        loadUi('..\\gui\\stub_ov_dlg.ui', self)
+        loadUi('../gui/stub_ov_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
         self.sem = sem
@@ -201,12 +201,12 @@ class FocusGradientTileSelectionDlg(QDialog):
     def __init__(self, current_ref_tiles):
         super().__init__()
         self.selected = None
-        loadUi('..\\gui\\wd_gradient_tile_selection_dlg.ui', self)
+        loadUi('../gui/wd_gradient_tile_selection_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
-        self.grid_illustration.setPixmap(QPixmap('..\\img\\grid.png'))
+        self.grid_illustration.setPixmap(QPixmap('../img/grid.png'))
         if current_ref_tiles[0] >= 0:
             self.pushButton_pos0.setText(str(current_ref_tiles[0]))
         else:
@@ -248,9 +248,9 @@ class GridRotationDlg(QDialog):
         self.rotation_in_progress = False
         self.gm[self.selected_grid].auto_update_tile_positions = False
         super().__init__()
-        loadUi('..\\gui\\change_grid_rotation_dlg.ui', self)
+        loadUi('../gui/change_grid_rotation_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
         self.label_description.setText(
@@ -350,9 +350,9 @@ class TemplateRotationDlg(QDialog):
         self.viewport_trigger = viewport_trigger
         self.rotation_in_progress = False
         super().__init__()
-        loadUi('..\\gui\\change_grid_rotation_dlg.ui', self)
+        loadUi('../gui/change_grid_rotation_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
         self.label_description.setText(
@@ -443,26 +443,24 @@ class ImportImageDlg(QDialog):
         self.imported = imported_images
         self.target_dir = target_dir
         super().__init__()
-        loadUi('..\\gui\\import_image_dlg.ui', self)
+        loadUi('../gui/import_image_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
         self.pushButton_selectFile.clicked.connect(self.select_file)
-        self.pushButton_selectFile.setIcon(QIcon('..\\img\\selectdir.png'))
+        self.pushButton_selectFile.setIcon(QIcon('../img/selectdir.png'))
         self.pushButton_selectFile.setIconSize(QSize(16, 16))
 
     def select_file(self):
         # Let user select image to be imported:
-        start_path = 'C:\\'
+        start_path = 'C:/'
         selected_file = str(QFileDialog.getOpenFileName(
             self, 'Select image',
             start_path,
             'Images (*.tif *.png *.bmp *.jpg)'
             )[0])
         if len(selected_file) > 0:
-            # Replace forward slashes with backward slashes:
-            # selected_file = selected_file.replace('/', '\\')
             selected_file = os.path.normpath(selected_file)
             self.lineEdit_fileName.setText(selected_file)
             self.lineEdit_name.setText(
@@ -476,7 +474,7 @@ class ImportImageDlg(QDialog):
         timestamp = str(datetime.datetime.now())
         # Remove some characters from timestap to get valid file name:
         timestamp = timestamp[:19].translate({ord(c): None for c in ' :-.'})
-        # target_path = (self.target_dir + '\\'
+        # target_path = (self.target_dir + '/'
                        # + os.path.splitext(selected_filename)[0]
                        # + '_' + timestamp + '.png')
         target_path = os.path.join(
@@ -538,9 +536,9 @@ class AdjustImageDlg(QDialog):
         self.selected_img = selected_img
         self.magc_mode = magc_mode
         super().__init__()
-        loadUi('..\\gui\\adjust_imported_image_dlg.ui', self)
+        loadUi('../gui/adjust_imported_image_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
         self.setFixedSize(self.size())
 
         if self.magc_mode:
@@ -595,9 +593,9 @@ class DeleteImageDlg(QDialog):
     def __init__(self, imported_images):
         self.imported = imported_images
         super().__init__()
-        loadUi('..\\gui\\delete_image_dlg.ui', self)
+        loadUi('../gui/delete_image_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('..\\img\\icon_16px.ico'))
+        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
         self.setFixedSize(self.size())
         self.show()
         # Populate the list widget with existing imported images:

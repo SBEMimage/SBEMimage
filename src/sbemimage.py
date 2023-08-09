@@ -25,7 +25,7 @@ import os
 import sys
 
 # Required for version installed with pynsist installer
-if os.path.exists('..\\Python') and os.path.exists('..\\pkgs'):
+if os.path.exists('../Python') and os.path.exists('../pkgs'):
     import site
     scriptdir, script = os.path.split(__file__)
     pkgdir = os.path.join(scriptdir, '..', 'pkgs')
@@ -54,7 +54,7 @@ import utils
 # master branch (for example, '2020.07 R2020-07-28'). For the current version
 # in the dev (development) branch, it must contain the tag 'dev'.
 # Following https://www.python.org/dev/peps/pep-0440/#public-version-identifiers
-VERSION = '2022.03 dev'
+VERSION = '2023.03 dev'
 
 
 # Hook for uncaught/Qt exceptions
@@ -78,14 +78,11 @@ def main():
     utils.logging_init('CTRL', '***** New SBEMimage session *****')
 
     # Check Windows version
-    if not (platform.system() == 'Windows'
-            and platform.release() in ['7', '10']):
-        print('This version of SBEMimage requires Windows 7 or 10. '
-              'Program aborted.\n')
-        os.system('cmd /k')  # keep console window open
-        sys.exit()
+    is_windows = (platform.system().lower() == 'windows')
+    if not (is_windows and platform.release().isnumeric() and float(platform.release()) >= 7):
+        print('Warning: SBEMimage is designed to run on Windows 7 or higher. Use on other operating system at own risk.')
 
-    if platform.release() == '10':
+    if is_windows and platform.release() == '10':
         # High dpi scaling for Windows 10
         QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
         # TODO: This does not work well for 150% and other scale factors.
@@ -93,10 +90,12 @@ def main():
 
     SBEMimage = QApplication(sys.argv)
     app_id = 'SBEMimage ' + VERSION
-    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(app_id)
 
-    colorama.init()
-    os.system('cls')
+    if is_windows:
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(app_id)
+        colorama.init()
+        os.system('cls')
+
     if 'dev' in VERSION.lower():
         title_str = 'SBEMimage - Console - DEVELOPMENT VERSION'
         version_info = f'DEVELOPMENT VERSION ({VERSION})'
@@ -252,8 +251,8 @@ def main():
             # Remove status.dat. This file will be recreated when the program
             # terminates normally. The start-up dialog checks if status.dat
             # exists and displays a warning message if not.
-            if os.path.isfile('..\\cfg\\status.dat'):
-                os.remove('..\\cfg\\status.dat')
+            if os.path.isfile('../cfg/status.dat'):
+                os.remove('../cfg/status.dat')
 
             # Switch to dark style (experimental) if specified in session configuration
             if config['sys']['use_dark_mode_gui'].lower() == 'true':

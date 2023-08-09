@@ -23,13 +23,12 @@ window (in viewport.py) as a QWidget.
 import os
 import sys
 from typing import Optional
-import threading
-import json
-import copy
-import xml.etree.ElementTree as ET
 from time import sleep
+#import json
+#import copy
+#import xml.etree.ElementTree as ET
 
-from PyQt5.QtWidgets import QApplication, QTableWidgetSelectionRange, \
+from PyQt5.QtWidgets import QApplication, \
                             QAbstractItemView, QPushButton
 from PyQt5.QtCore import Qt, QRect, QSize, QEvent, QItemSelection, \
                          QItemSelectionModel, QModelIndex
@@ -43,16 +42,7 @@ import acq_func
 import utils
 from utils import Error
 from sem_control import SEM
-from sem_control_zeiss import SEM_SmartSEM, SEM_MultiSEM
-from sem_control_fei import SEM_Quanta
-from sem_control_tescan import SEM_SharkSEM
-from sem_control_tfs import SEM_Phenom
-from sem_control_mock import SEM_Mock
 from microtome_control import Microtome
-from microtome_control_gatan import Microtome_3View
-from microtome_control_katana import Microtome_katana
-from microtome_control_gcib import GCIB
-from microtome_control_mock import Microtome_Mock
 from stage import Stage
 from plasma_cleaner import PlasmaCleaner
 from acquisition import Acquisition
@@ -82,18 +72,19 @@ from main_controls_dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                                       GCIBSettingsDlg, RunAutofocusDlg
 
 from magc_dlg_windows import ImportMagCDlg, ImportWaferImageDlg, \
-                          WaferCalibrationDlg, ImportZENExperimentDlg
+                          WaferCalibrationDlg #, ImportZENExperimentDlg
 import magc_utils
+
 
 class MainControls(QMainWindow):
 
-    def __init__(self, config, sysconfig, config_file, VERSION):
+    def __init__(self, config, sysconfig, config_file, version):
         super().__init__()
         self.cfg = config
         self.syscfg = sysconfig
         self.cfg_file = config_file
         self.syscfg_file = self.cfg['sys']['sys_config_file']
-        self.VERSION = VERSION
+        self.version = version
 
         # Show progress bar in console during start-up. The percentages are
         # just estimates, but helpful for user to see that initialization
@@ -132,6 +123,7 @@ class MainControls(QMainWindow):
 
         # Initialize SEM
         if self.syscfg['device']['sem'] == 'ZEISS MultiSEM':
+            from sem_control_zeiss import SEM_MultiSEM
             QMessageBox.critical(
                 self, 'STAGE COLLISION WARNING - MULTISEM',
                 'THIS MODULE FOR MULTISEM IS STILL IN DEVELOPMENT.\n\n\n\n'
@@ -143,6 +135,7 @@ class MainControls(QMainWindow):
 
         elif self.syscfg['device']['sem'].startswith('ZEISS'):
             # Create SEM instance to control SEM via SmartSEM API
+            from sem_control_zeiss import SEM_SmartSEM
             self.sem = SEM_SmartSEM(self.cfg, self.syscfg)
             if self.sem.error_state != Error.none:
                 QMessageBox.warning(
@@ -156,6 +149,7 @@ class MainControls(QMainWindow):
         elif self.syscfg['device']['sem'].startswith('TESCAN'):
             # TESCAN, only for testing at this point
             # Create SEM instance to control SEM via SharkSEM API
+            from sem_control_tescan import SEM_SharkSEM
             self.sem = SEM_SharkSEM(self.cfg, self.syscfg)
             if self.sem.error_state != Error.none:
                 QMessageBox.warning(
@@ -167,6 +161,7 @@ class MainControls(QMainWindow):
                 self.simulation_mode = True
         elif self.syscfg['device']['sem'].startswith('TFS'):
             # Create SEM instance to control SEM via Phenom API
+            from sem_control_tfs import SEM_Phenom
             self.sem = SEM_Phenom(self.cfg, self.syscfg)
             if self.sem.error_state != Error.none:
                 QMessageBox.warning(
@@ -174,10 +169,12 @@ class MainControls(QMainWindow):
                     'initialisation of the Phenom Remote API failed. Please '
                     'verify that the Remote API is installed and configured '
                     'correctly.'
+                    '\n' + self.sem.error_info +
                     '\nSBEMimage will be run in simulation mode.',
                     QMessageBox.Ok)
                 self.simulation_mode = True
         elif self.syscfg['device']['sem'] == 'Mock SEM':
+            from sem_control_mock import SEM_Mock
             self.sem = SEM_Mock(self.cfg, self.syscfg)
         elif self.syscfg['device']['sem'] == 'Unknown':
             # SBEMimage started with default configuration, no SEM selected yet.
@@ -229,6 +226,7 @@ class MainControls(QMainWindow):
         if (self.use_microtome
                 and self.syscfg['device']['microtome'] == 'Gatan 3View'):
             # Create object for 3View microtome (control via DigitalMicrograph)
+            from microtome_control_gatan import Microtome_3View
             self.microtome = Microtome_3View(self.cfg, self.syscfg)
             if self.microtome.error_state in [Error.dm_init, Error.dm_comm_send, Error.dm_comm_response, Error.dm_comm_retval]:
                 utils.log_warning('CTRL', 'Error initializing DigitalMicrograph API')
@@ -259,9 +257,11 @@ class MainControls(QMainWindow):
         elif (self.use_microtome
                 and self.syscfg['device']['microtome'] == 'ConnectomX katana'):
             # Initialize katana microtome
+            from microtome_control_katana import Microtome_katana
             self.microtome = Microtome_katana(self.cfg, self.syscfg)
         elif (self.use_microtome
                 and self.syscfg['device']['microtome'] == 'GCIB'):
+            from microtome_control_gcib import GCIB
             self.microtome = GCIB(self.cfg, self.syscfg, self.sem)
         elif (self.use_microtome
                 and self.syscfg['device']['microtome'] == 'Unknown'):
@@ -269,6 +269,7 @@ class MainControls(QMainWindow):
             self.microtome = Microtome(self.cfg, self.syscfg)
         elif (self.use_microtome
                 and self.syscfg['device']['microtome'] == 'Mock Microtome'):
+            from microtome_control_mock import Microtome_Mock
             self.microtome = Microtome_Mock(self.cfg, self.syscfg)
         else:
             # No microtome or unknown device
@@ -364,7 +365,7 @@ class MainControls(QMainWindow):
         utils.show_progress_in_console(80)
 
         # First log messages
-        utils.log_info('CTRL', 'SBEMimage Version ' + self.VERSION)
+        utils.log_info('CTRL', 'SBEMimage Version ' + self.version)
 
         # Initialize viewport window
         self.viewport = Viewport(self.cfg, self.sem, self.stage, self.cs,
@@ -406,7 +407,7 @@ class MainControls(QMainWindow):
         if self.cfg_file == 'default.ini':
             # Check how many .cfg files exist
             cfgfile_counter = 0
-            for file in os.listdir('..\\cfg'):
+            for file in os.listdir('../cfg'):
                 if file.endswith('.cfg'):
                     cfgfile_counter += 1
             # Check if presets loaded
@@ -472,8 +473,8 @@ class MainControls(QMainWindow):
 
     def initialize_main_controls_gui(self):
         """Load and set up the Main Controls GUI"""
-        loadUi('..\\gui\\main_window.ui', self)
-        if 'dev' in self.VERSION.lower():
+        loadUi('../gui/main_window.ui', self)
+        if 'dev' in self.version.lower():
             self.setWindowTitle(
                 'SBEMimage - Main Controls - DEVELOPMENT VERSION')
             # Disable 'Update' function (would overwrite current (local) changes
@@ -484,8 +485,8 @@ class MainControls(QMainWindow):
             self.setWindowTitle('SBEMimage - Main Controls')
 
         app_icon = QIcon()
-        app_icon.addFile('..\\img\\icon_16px.ico', QSize(16, 16))
-        app_icon.addFile('..\\img\\icon_48px.ico', QSize(48, 48))
+        app_icon.addFile('../img/icon_16px.ico', QSize(16, 16))
+        app_icon.addFile('../img/icon_48px.ico', QSize(48, 48))
         self.setWindowIcon(app_icon)
         #self.setFixedSize(self.size())
         self.move(1120, 20)
@@ -494,23 +495,23 @@ class MainControls(QMainWindow):
         utils.set_log_text_handler(self.trigger)
         # Pushbuttons
         self.pushButton_SEMSettings.clicked.connect(self.open_sem_dlg)
-        self.pushButton_SEMSettings.setIcon(QIcon('..\\img\\settings.png'))
+        self.pushButton_SEMSettings.setIcon(QIcon('../img/settings.png'))
         self.pushButton_SEMSettings.setIconSize(QSize(16, 16))
         self.pushButton_microtomeSettings.clicked.connect(
             self.open_microtome_dlg)
         self.pushButton_microtomeSettings.setIcon(
-            QIcon('..\\img\\settings.png'))
+            QIcon('../img/settings.png'))
         self.pushButton_microtomeSettings.setIconSize(QSize(16, 16))
         self.pushButton_gridSettings.clicked.connect(
             lambda: self.open_grid_dlg(self.grid_index_dropdown))
-        self.pushButton_gridSettings.setIcon(QIcon('..\\img\\settings.png'))
+        self.pushButton_gridSettings.setIcon(QIcon('../img/settings.png'))
         self.pushButton_gridSettings.setIconSize(QSize(16, 16))
-        self.pushButton_OVSettings.setIcon(QIcon('..\\img\\settings.png'))
+        self.pushButton_OVSettings.setIcon(QIcon('../img/settings.png'))
         self.pushButton_OVSettings.setIconSize(QSize(16, 16))
         self.pushButton_OVSettings.clicked.connect(self.open_ov_dlg)
         self.pushButton_acqSettings.clicked.connect(
             self.open_acq_settings_dlg)
-        self.pushButton_acqSettings.setIcon(QIcon('..\\img\\settings.png'))
+        self.pushButton_acqSettings.setIcon(QIcon('../img/settings.png'))
         self.pushButton_acqSettings.setIconSize(QSize(16, 16))
         self.pushButton_setActiveUserFlag.clicked.connect(
             self.set_active_user_flag)
@@ -1723,7 +1724,7 @@ class MainControls(QMainWindow):
         dialog.exec_()
 
     def open_about_box(self):
-        dialog = AboutBox(self.VERSION)
+        dialog = AboutBox(self.version)
         dialog.exec_()
 
     # ============ Below: stack progress update and signal processing ==============
@@ -2727,7 +2728,7 @@ class MainControls(QMainWindow):
                 sleep(1)
                 # Recreate status.dat to indicate that program was closed
                 # normally and didn't crash:
-                status_file = open('..\\cfg\\status.dat', 'w+')
+                status_file = open('../cfg/status.dat', 'w+')
                 status_file.write(self.cfg_file)
                 status_file.close()
                 print('Closed by user.\n')

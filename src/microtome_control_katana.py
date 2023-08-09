@@ -11,7 +11,6 @@
 
 from time import sleep
 import serial
-import threading
 
 import utils
 from utils import Error

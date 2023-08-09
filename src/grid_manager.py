@@ -932,7 +932,7 @@ class GridManager:
         # Load tile previews for active tiles if available and if source tiles
         # are present at the current slice number in the base directory
         base_dir = self.cfg['acq']['base_dir']
-        stack_name = base_dir[base_dir.rfind('\\') + 1:]
+        stack_name = base_dir[os.path.normpath(base_dir).rfind(os.sep) + 1:]
         slice_counter = int(self.cfg['acq']['slice_counter'])
         for g in range(self.number_grids):
             for t in self.__grids[g].active_tiles:
@@ -1145,7 +1145,7 @@ class GridManager:
         origin_sx_sy = self.cs.convert_d_to_s((x + tile_width / 2, y + tile_height / 2))
 
         # size[rows, cols]
-        size = [np.int(np.ceil(h / tile_height)), np.int(np.ceil(w / tile_width))]
+        size = [int(np.ceil(h / tile_height)), int(np.ceil(w / tile_width))]
 
         # do not use rotation of previous grid!
         self.add_new_grid(origin_sx_sy=origin_sx_sy, sw_sh=(w, h), active=grid.active,

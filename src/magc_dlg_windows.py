@@ -842,7 +842,7 @@ class ImportZENExperimentDlg(QDialog):
         return output
 
     def select_file(self):
-        start_path = 'C:\\'
+        start_path = 'C:/'
         selected_file = str(QFileDialog.getOpenFileName(
                 self, 'Select ZEN experiment file',
                 start_path,

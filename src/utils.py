@@ -10,6 +10,7 @@
 
 """This modules provides various constants and helper functions."""
 
+import csv
 import os
 import datetime
 import json
@@ -273,7 +274,7 @@ class QtTextHandler(StreamHandler):
         # Filter stack trace from main view
         if 'Traceback' in message:
             message = (message[:message.index('Traceback')]
-                + 'EXCEPTION occurred: See \\log\\SBEMimage.log '
+                + 'EXCEPTION occurred: See /log/SBEMimage.log '
                 'and output in console window for details.')
         if self.qt_trigger:
             self.qt_trigger.transmit(message)
@@ -393,6 +394,17 @@ def try_to_remove(file_name):
             except:
                 return False
     return True
+
+
+def load_csv(file_name):
+    with open(file_name, 'r') as file:
+        csv_reader = csv.reader(file)
+        content = []
+        for row in csv_reader:
+            if len(row) == 1:
+                row = row[0]
+            content.append(row)
+    return content
 
 
 def create_subdirectories(base_dir, dir_list):
@@ -690,4 +702,4 @@ def match_template(img: np.ndarray, templ: np.ndarray, thresh_match: float) -> n
     for ix, sl in enumerate(scipy.ndimage.find_objects(match)):
         # store coordinate of this object
         locs[ix] = np.mean(match[sl] == (ix + 1)) + np.array([sl[0].start, sl[1].start])
-    return locs.astype(np.int)
+    return locs.astype(int)

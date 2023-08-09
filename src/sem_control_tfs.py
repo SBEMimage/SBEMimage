@@ -12,87 +12,109 @@
 that are actually required in SBEMimage have been implemented."""
 
 from sem_control import SEM
-from utils import Error
+from utils import Error, load_csv
 
 try:
-    import PyPhenom as ppi  # required for Phenom API
+    # required for Phenom API
+    import PyPhenom as ppi
+    from PyPhenom import OperationalMode
 except:
     pass
+
 
 class SEM_Phenom(SEM):
     """Implements all methods for remote control of Phenom SEMs via the
     Phenom remote control API. Currently supported: Phenom Pharos."""
 
+    PPAPI_CREDENTIALS_FILENAME = '../credentials/ppapi_credentials.txt'
+    DEFAULT_DETECTOR = ppi.DetectorMode.All
+
     def __init__(self, config, sysconfig):
         super().__init__(config, sysconfig)
+
+        self.sem_api = None
+        self.detector = self.DEFAULT_DETECTOR
+
         if not self.simulation_mode:
-            exception_msg = ''
+            phenom_id, username, password = load_csv(self.PPAPI_CREDENTIALS_FILENAME)
             try:
                 self.sem_api = ppi.Phenom(phenom_id, username, password)
-                if self.sem_api is not None:
-                    self.sem_api.Activate()
-                    self.sem_api.Load()
-                    self.sem_api.MoveToNavCam()
-                ret_val = (self.sem_api is not None)
             except Exception as e:
-                ret_val = False
-                exception_msg = str(e)
-            if not ret_val:
                 self.error_state = Error.smartsem_api
-                self.error_info = (
-                    f'sem.__init__: remote API control could not be '
-                    f'initialised (ret_val: {ret_val}). {exception_msg}')
-            elif self.use_sem_stage:
-                # Read current SEM stage coordinates
-                self.last_known_x, self.last_known_y, self.last_known_z = (
-                    self.get_stage_xyz())
-        else:
+                self.error_info = str(e)
+                self.simulation_mode = True
+        if self.simulation_mode:
             self.sem_api = ppi.Phenom('Simulator', '', '')
 
+        if self.sem_api is not None:
+            self.sem_api.Activate()
+            if self.use_sem_stage:
+                # Read current SEM stage coordinates
+                self.last_known_x, self.last_known_y, self.last_known_z = self.get_stage_xyz()
+        else:
+            self.error_state = Error.smartsem_api
+            self.error_info = ''
+
     def turn_eht_on(self):
-        self.eht_on = True
         return True
 
     def turn_eht_off(self):
-        self.eht_on = False
         return True
 
     def is_eht_on(self):
-        return self.eht_on
+        return True
 
     def is_eht_off(self):
-        return not self.eht_on
+        return False
 
     def get_eht(self):
+        """Return current SmartSEM EHT setting in kV."""
+        # TFS uses negative tension value
+        self.target_eht = self.sem_api.GetSemHighTension() * -1e-3
         return self.target_eht
 
     def set_eht(self, target_eht):
-        self.target_eht = round(target_eht, 2)
+        """Save the target EHT (in kV) and set the EHT to this target value."""
+        # Call method in parent class
+        super().set_eht(target_eht)
+        # target_eht given in kV
+        # TFS uses negative tension value
+        self.sem_api.SetSemHighTension(self.target_eht * -1e+3)
         return True
 
     def has_vp(self):
-        return False
+        if not self.simulation_mode:
+            return True
+        else:
+            return False
 
     def is_hv_on(self):
-        return True
+        """Return True if High Vacuum is on."""
+        return False
 
     def is_vp_on(self):
+        """Return True if VP is on."""
         return False
 
     def get_chamber_pressure(self):
-        raise NotImplementedError
+        """Read current chamber pressure from SmartSEM."""
+        # Pascal -> Bar
+        return self.sem_api.SemGetVacuumChargeReductionState().pressureEstimate * 1e-5
 
     def get_vp_target(self):
-        raise NotImplementedError
+        """Read current VP target pressure from SmartSEM."""
+        # Pascal -> Bar
+        return self.sem_api.SemGetVacuumChargeReductionState().target * 1e-5
 
     def set_hv(self):
-        raise NotImplementedError
+        """Set HV (= High Vacuum)."""
+        self.sem_api.SemSetTargetVacuumChargeReduction(ppi.VacuumChargeReduction.High)
 
     def set_vp(self):
-        raise NotImplementedError
+        pass
 
     def set_vp_target(self, target_pressure):
-        raise NotImplementedError
+        pass
 
     def has_fcc(self):
         return False
@@ -136,19 +158,25 @@ class SEM_Phenom(SEM):
         pass
 
     def apply_beam_settings(self):
-        pass
+        """Set the SEM to the current target EHT voltage and beam current."""
+        self.sem_api.SetSemHighTension(self.target_eht * 1e+3)
 
     def get_detector_list(self):
-        return ['All', 'NorthSouth', 'EastWest', 'A', 'B', 'C', 'D', 'Sed']
+        """Return a list of all available detectors."""
+        return ppi.DetectorMode.names
 
     def get_detector(self):
+        """Return the currently selected detector."""
         return self.detector
 
     def set_detector(self, detector_name):
-        if detector_name in self.get_detector_list():
-            self.detector = detector_name
+        """Select the detector specified by 'detector_name'."""
+        self.detector = ppi.DetectorMode.names[detector_name]
 
     def apply_grab_settings(self):
+        """Set the SEM to the current grab settings (stored in
+        self.grab_dwell_time, self.grab_pixel_size, and
+        self.grab_frame_size_selector)."""
         self.apply_frame_settings(
             self.grab_frame_size_selector,
             self.grab_pixel_size,
@@ -163,16 +191,21 @@ class SEM_Phenom(SEM):
         return ret
 
     def get_frame_size_selector(self):
+        """Get the current frame size selector."""
         return self.frame_size_selector
 
     def get_frame_size(self):
-        raise NotImplementedError
+        """Get the current frame size."""
+        return self.frame_size
 
     def set_frame_size(self, frame_size_selector):
+        """Set SEM to frame size specified by frame_size_selector."""
         self.frame_size_selector = frame_size_selector
+        self.frame_size = self.STORE_RES[frame_size_selector]
         return True
 
     def get_mag(self):
+        self.mag = int(self.MAG_PX_SIZE_FACTOR / (self.frame_size[0] * self.pixel_size))
         return self.mag
 
     def set_mag(self, target_mag):
@@ -180,12 +213,14 @@ class SEM_Phenom(SEM):
         return True
 
     def get_pixel_size(self):
-        return self.MAG_PX_SIZE_FACTOR / (self.mag
-                   * self.STORE_RES[self.frame_size_selector][0])
+        # m -> nm
+        return self.sem_api.GetHFW() / self.frame_size[0] * 1e+9
 
     def set_pixel_size(self, pixel_size):
-        self.mag = int(self.MAG_PX_SIZE_FACTOR /
-                       (self.STORE_RES[self.frame_size_selector][0] * pixel_size))
+        # pixel_size in [nm]
+        self.pixel_size = pixel_size
+        self.sem_api.SetHFW(self.frame_size[0] * pixel_size * 1e-9)
+        self.mag = self.get_mag()
         return True
 
     def get_scan_rate(self):
@@ -209,56 +244,102 @@ class SEM_Phenom(SEM):
         may be necessary. The delay specified in syscfg (self.DEFAULT_DELAY)
         is added by default for cycle times > 0.5 s."""
 
-        return True
+        scan_params = ppi.ScanParamsEx()
+        scan_params.dwellTime = float(self.dwell_time * 1e-6)   # convert us to s
+        scan_params.scale = 1.0
+        scan_params.size = ppi.Size(self.frame_size[0], self.frame_size[1])
+        scan_params.hdr = (self.bit_depth_selector == 1)
+        scan_params.center = ppi.Position(0, 0)
+        scan_params.detector = self.detector
+        scan_params.nFrames = 2
+
+        try:
+            mode = self.sem_api.GetOperationalMode()
+            if mode == OperationalMode.Loadpos:
+                self.sem_api.Load()
+            if mode != OperationalMode.LiveSem:
+                self.sem_api.MoveToSem()
+                self.move_stage_to_xy((self.last_known_x, self.last_known_y))
+                self.set_pixel_size(self.pixel_size)
+
+            acq = self.sem_api.SemAcquireImageEx(scan_params)
+
+            if save_path_filename.lower().endswith('.bmp'):
+                conversion = ppi.SaveConversion.ToCompatibleFormat
+            else:
+                conversion = ppi.SaveConversion.NoConversion
+            ppi.Save(acq, save_path_filename, conversion)
+            return True
+        except Exception as e:
+            self.error_state = Error.grab_image
+            self.error_info = f'sem.acquire_frame: command failed ({e})'
+            return False
 
     def save_frame(self, save_path_filename):
-        self.acquire_frame(save_path_filename)
+        return self.acquire_frame(save_path_filename)
 
     def get_wd(self):
-        return self.wd
+        """Return current working distance in metres."""
+        return self.sem_api.GetSemWD()
 
     def set_wd(self, target_wd):
-        self.wd = target_wd
+        """Set working distance to target working distance (in metres)."""
+        self.sem_api.SetSemWD(target_wd)
         return True
 
     def get_stig_xy(self):
+        stigmate = self.sem_api.GetSemStigmate()
+        self.stig_x, self.stig_y = stigmate.x, stigmate.y
         return self.stig_x, self.stig_y
 
     def set_stig_xy(self, target_stig_x, target_stig_y):
+        self.sem_api.SetSemStigmate(ppi.Position(target_stig_x, target_stig_y))
         self.stig_x = target_stig_x
         self.stig_y = target_stig_y
         return True
 
     def get_stig_x(self):
+        self.get_stig_xy()
         return self.stig_x
 
     def set_stig_x(self, target_stig_x):
-        self.stig_x = target_stig_x
+        self.set_stig_xy(target_stig_x, self.stig_y)
         return True
 
     def get_stig_y(self):
+        self.get_stig_xy()
         return self.stig_y
 
     def set_stig_y(self, target_stig_y):
+        self.set_stig_xy(self.stig_x, target_stig_y)
         self.stig_y = target_stig_y
         return True
 
     def set_beam_blanking(self, enable_blanking):
+        self.sem_api.SemBlankBeam()
         return True
 
-    def run_autofocus(self):
+    def run_autofocus(self, *args):
+        self.sem_api.SemAutoFocus()
         return True
 
-    def run_autostig(self):
+    def run_autostig(self, *args):
+        self.sem_api.SemAutoStigmate()
         return True
 
-    def run_autofocus_stig(self):
-        return True
+    def run_autofocus_stig(self, *args):
+        return self.run_autofocus() and self.run_autostig()
 
     def get_stage_x(self):
+        """Read X stage position (in micrometres) from SEM."""
+        # m -> um
+        self.last_known_x = self.sem_api.GetStageModeAndPosition().position.x * 1e+6
         return self.last_known_x
 
     def get_stage_y(self):
+        """Read Y stage position (in micrometres) from SEM."""
+        # m -> um
+        self.last_known_y = self.sem_api.GetStageModeAndPosition().position.y * 1e+6
         return self.last_known_y
 
     def get_stage_z(self):
@@ -271,16 +352,24 @@ class SEM_Phenom(SEM):
         return self.last_known_x, self.last_known_y, self.last_known_z
 
     def move_stage_to_x(self, x):
-        self.last_known_x = x
+        """Move stage to coordinate x, provided in microns"""
+        y = self.get_stage_y()
+        self.move_stage_to_xy((x, y))
 
     def move_stage_to_y(self, y):
-        self.last_known_y = y
+        """Move stage to coordinate y, provided in microns"""
+        x = self.get_stage_x()
+        self.move_stage_to_xy((x, y))
 
     def move_stage_to_z(self, z):
         self.last_known_z = z
 
     def move_stage_to_xy(self, coordinates):
-        self.last_known_x, self.last_known_y = coordinates
+        """Move stage to coordinates x and y, provided in microns"""
+        x, y = coordinates
+        self.sem_api.MoveTo(x * 1e-6, y * 1e-6)    # um -> m
+        self.get_stage_x()
+        self.get_stage_y()
 
     def stage_move_duration(self, from_x, from_y, to_x, to_y):
         duration_x = abs(to_x - from_x) / self.motor_speed_x
