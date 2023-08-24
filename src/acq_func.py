@@ -45,8 +45,8 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
     for ov_index in range(start, end):
         if not ovm[ov_index].active:
             continue
-        main_controls_trigger.transmit(utils.format_log_entry(
-            'STAGE: Moving to OV %d position.' % ov_index))
+        #main_controls_trigger.transmit(utils.format_log_entry('STAGE: Moving to OV %d position.' % ov_index))
+        utils.log_info('STAGE', f'Moving to OV {ov_index} position.')
         # Move to OV stage coordinates
         stage.move_to_xy(ovm[ov_index].centre_sx_sy)
         # Check to see if error ocurred
@@ -57,9 +57,8 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
             stage.move_to_xy(ovm[ov_index].centre_sx_sy)
             if stage.error_state != Error.none:
                 stage.reset_error_state()
-                main_controls_trigger.transmit(utils.format_log_entry(
-                    'STAGE: Second attempt to move to OV %d position failed.'
-                    % ov_index))
+                #main_controls_trigger.transmit(utils.format_log_entry('STAGE: Second attempt to move to OV %d position failed.' % ov_index))
+                utils.log_info('STAGE', f'Second attempt to move to OV {ov_index} position failed.')
                 success = False
         if success:
             # Update stage position in Main Controls GUI and Viewport
@@ -72,9 +71,8 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
                 sem.set_wd(ov_wd)
                 stig_x, stig_y = ovm[ov_index].wd_stig_xy[1:3]
                 sem.set_stig_xy(stig_x, stig_y)
-                main_controls_trigger.transmit(utils.format_log_entry(
-                    'SEM: Using specified '
-                    + utils.format_wd_stig(ov_wd, stig_x, stig_y)))
+                #main_controls_trigger.transmit(utils.format_log_entry('SEM: Using specified ' + utils.format_wd_stig(ov_wd, stig_x, stig_y)))
+                utils.log_info('SEM', 'Using specified ' + utils.format_wd_stig(ov_wd, stig_x, stig_y))
             # Set specified OV frame settings
             sem.apply_frame_settings(ovm[ov_index].frame_size_selector,
                                      ovm[ov_index].pixel_size,
@@ -83,9 +81,9 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
             sem.set_bit_depth(ovm[ov_index].bit_depth_selector)
             save_path = os.path.join(
                 base_dir, 'workspace', 'OV'
-                + str(ov_index).zfill(3) + '.bmp')
-            main_controls_trigger.transmit(utils.format_log_entry(
-                'SEM: Acquiring OV %d.' % ov_index))
+                + str(ov_index).zfill(3) + '.tif')
+            #main_controls_trigger.transmit(utils.format_log_entry('SEM: Acquiring OV %d.' % ov_index))
+            utils.log_info('SEM', f'Acquiring OV {ov_index}.')
             # Indicate the overview being acquired in the viewport
             viewport_trigger.transmit('ACQ IND OV' + str(ov_index))
             success = sem.acquire_frame(save_path)
@@ -96,8 +94,8 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
             if load_error or grab_incomplete and check_ov_acceptance:
                 # Try again
                 sleep(0.5)
-                main_controls_trigger.transmit(utils.format_log_entry(
-                    'SEM: Second attempt: Acquiring OV %d.' % ov_index))
+                #main_controls_trigger.transmit(utils.format_log_entry('SEM: Second attempt: Acquiring OV %d.' % ov_index))
+                utils.log_info('SEM', f'Second attempt: Acquiring OV {ov_index}.')
                 viewport_trigger.transmit('ACQ IND OV' + str(ov_index))
                 success = sem.acquire_frame(save_path)
                 viewport_trigger.transmit('ACQ IND OV' + str(ov_index))
@@ -112,9 +110,8 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
                         cause = 'grab incomplete'
                     else:
                         cause = 'acquisition error'
-                    main_controls_trigger.transmit(utils.format_log_entry(
-                        f'SEM: Second attempt to acquire OV {ov_index} '
-                        f'failed ({cause}).'))
+                    #main_controls_trigger.transmit(utils.format_log_entry(f'SEM: Second attempt to acquire OV {ov_index} failed ({cause}).'))
+                    utils.log_info('SEM', f'Second attempt to acquire OV {ov_index} failed ({cause}).')
             if success:
                 ovm[ov_index].vp_file_path = save_path
             # Show updated OV

@@ -262,12 +262,13 @@ class SEM_Phenom(SEM):
                 self.move_stage_to_xy((self.last_known_x, self.last_known_y))
                 self.set_pixel_size(self.pixel_size)
 
-            acq = self.sem_api.SemAcquireImageEx(scan_params)
-
             if save_path_filename.lower().endswith('.bmp'):
                 conversion = ppi.SaveConversion.ToCompatibleFormat
+                scan_params.hdr = False     # bmp does not support 16-bit images
             else:
                 conversion = ppi.SaveConversion.NoConversion
+
+            acq = self.sem_api.SemAcquireImageEx(scan_params)
             ppi.Save(acq, save_path_filename, conversion)
             return True
         except Exception as e:

@@ -3155,7 +3155,7 @@ class MainControls(QMainWindow):
             self.ft_series_wd_values.append(
                 self.ft_selected_wd + self.ft_fdeltas[i])
             filename = os.path.join(
-                self.acq.base_dir, 'workspace', 'ft' + str(i) + '.bmp')
+                self.acq.base_dir, 'workspace', 'ft' + str(i) + '.tif')
             self.sem.acquire_frame(filename)
             self.ft_series_img.append(QPixmap(filename))
         self.sem.set_beam_blanking(1)
@@ -3189,7 +3189,7 @@ class MainControls(QMainWindow):
                 self.ft_series_stig_y_values.append(
                     self.ft_selected_stig_y + self.ft_sdeltas[i])
             filename = os.path.join(
-                self.acq.base_dir, 'workspace', 'ft' + str(i) + '.bmp')
+                self.acq.base_dir, 'workspace', 'ft' + str(i) + '.tif')
             self.sem.acquire_frame(filename)
             self.ft_series_img.append(QPixmap(filename))
         self.sem.set_beam_blanking(1)

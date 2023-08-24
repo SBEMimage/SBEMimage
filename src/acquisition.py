@@ -1651,7 +1651,7 @@ class Acquisition:
                     # Save the acquired image in the workspace folder
                     workspace_save_path = os.path.join(
                         self.base_dir, 'workspace',
-                        'OV' + str(ov_index).zfill(3) + '.bmp')
+                        'OV' + str(ov_index).zfill(3) + '.tif')
                     imwrite(workspace_save_path, ov_img)
                     # Update the vp_file_path in the overview manager,
                     # thereby loading the overview as a QPixmap for display

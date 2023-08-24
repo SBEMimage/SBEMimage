@@ -458,7 +458,7 @@ class ImportImageDlg(QDialog):
         selected_file = str(QFileDialog.getOpenFileName(
             self, 'Select image',
             start_path,
-            'Images (*.tif *.png *.bmp *.jpg)'
+            'Images (*.tif *.tiff *.png *.bmp *.jpg)'
             )[0])
         if len(selected_file) > 0:
             selected_file = os.path.normpath(selected_file)

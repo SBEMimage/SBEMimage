@@ -179,7 +179,7 @@ class Notifications:
             for ov_index in self.status_report_ov_list:
                 ov_path = os.path.join(
                     base_dir, 'workspace',
-                    'OV' + str(ov_index).zfill(utils.OV_DIGITS) + '.bmp')
+                    'OV' + str(ov_index).zfill(utils.OV_DIGITS) + '.tif')
                 if os.path.isfile(ov_path):
                     attachment_list.append(ov_path)
                 else:

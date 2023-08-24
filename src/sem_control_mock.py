@@ -12,9 +12,7 @@
 an SEM for testing purposes.
 """
 
-import random
 import numpy as np
-
 from time import sleep
 from skimage import io
 
@@ -200,18 +198,20 @@ class SEM_Mock(SEM):
     def set_scan_rotation(self, angle):
         return True
 
-    def _generate_random_image(self, width, height):
+    def _generate_random_image(self, width, height, bitsize=8):
         """Create empty image with random grey values"""
         # TODO: Add location-dependent patterns
-        # mock_image = np.random.randint(0, 255, size=(height, width), dtype=np.uint8)  # uniform distribution
-        mock_image = (np.clip(np.random.normal(loc=0.5, scale=0.5 / 3, size=(height, width)), 0, 1) * 255).astype(np.uint8)   # gaussian distribution
+        max_val = 2 ** bitsize - 1
+        # mock_image = np.random.randint(0, max_val, size=(height, width), dtype=np.uint8)  # uniform distribution
+        gaussian_noise = np.clip(np.random.normal(loc=0.5, scale=0.5 / 3, size=(height, width)), 0, 1)
+        mock_image = (gaussian_noise * max_val).astype(np.dtype(f'u{bitsize // 8}'))   # gaussian distribution
         return mock_image
 
-    def _grab_image_from_previous_acq_dir(self, save_path_filename, width, height):
+    def _grab_image_from_previous_acq_dir(self, save_path_filename, width, height, bitsize=8):
         """Grab image with matching overview id / grid id and slice number from previous acquisition. If dimensions
         don't match then generate a random noise image."""
 
-        if not save_path_filename.endswith(".tif"):
+        if not (save_path_filename.endswith(".tif") or save_path_filename.endswith(".tiff")):
             return self._generate_random_image(width, height)
 
         save_path = os.path.normpath(save_path_filename)
@@ -239,16 +239,17 @@ class SEM_Mock(SEM):
             if mock_image.shape == (height, width):
                 return mock_image
 
-        return self._generate_random_image(width, height)
+        return self._generate_random_image(width, height, bitsize)
 
     def acquire_frame(self, save_path_filename, extra_delay=0):
         width = self.STORE_RES[self.frame_size_selector][0]
         height = self.STORE_RES[self.frame_size_selector][1]
+        bitsize = (self.bit_depth_selector + 1) * 8
 
         if self.mock_type == "noise":
-            mock_image = self._generate_random_image(width, height)
+            mock_image = self._generate_random_image(width, height, bitsize)
         else:
-            mock_image = self._grab_image_from_previous_acq_dir(save_path_filename, width, height)
+            mock_image = self._grab_image_from_previous_acq_dir(save_path_filename, width, height, bitsize)
 
         sleep(self.current_cycle_time + self.additional_cycle_time)
         io.imsave(save_path_filename, mock_image,
