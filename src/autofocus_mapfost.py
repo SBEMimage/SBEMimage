@@ -12,6 +12,11 @@
 
 """
 
+# TODO: remove duplicate calls to zeiss API, instead using self.sem_api.functionx(),
+# add (split up) sem functions in sem class where needed,
+# then remove win32 imports here
+
+
 import os
 import time
 import glob
