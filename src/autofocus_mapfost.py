@@ -16,15 +16,11 @@ import os
 import time
 import glob
 import shutil
-import logging
 import tempfile
 import numpy as np
-import numpy.ma as ma
 
 from PIL import Image
 from typing import Union
-from scipy import ndimage
-from typing import Optional
 from multiprocessing import Pool
 from mapfost import mapfost as mf
 from scipy.optimize import minimize
@@ -39,20 +35,14 @@ except:
 
 class RunAutoFoc:
 
-    def __init__(self, exps_dir, exp_id, sem_api: Optional[object] = None):
-
+    def __init__(self, exps_dir, exp_id, sem_api):
         self.exps_dir = exps_dir
         self.exp_id = exp_id
         self.additional_cycle_time = 0
         self.path_to_exp = self.exps_dir + self.exp_id
         self.result_path = self.path_to_exp + "/Result"
         self.perturbed_ims_path = self.path_to_exp + "/Test_Images" + "_" + self.exp_id
-
-        if sem_api is None:
-            self.sem_api = win32com.client.Dispatch('CZ.EMApiCtrl.1')
-            self.sem_api.InitialiseRemoting()
-        else:
-            self.sem_api = sem_api
+        self.sem_api = sem_api
         self.create_exps_dir()
 
     def create_exps_dir(self):
