@@ -14,7 +14,7 @@ import sys
 import pytest
 
 # QApplication needed because QPixmap is used in overview_manager.py
-from PyQt5.QtWidgets import QApplication
+from qtpy.QtWidgets import QApplication
 app = QApplication(sys.argv)
 
 # Use the default configuration for all tests

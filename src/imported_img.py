@@ -16,7 +16,7 @@ future.
 import os
 import json
 
-from PyQt5.QtGui import QPixmap, QTransform
+from qtpy.QtGui import QPixmap, QTransform
 
 import utils
 

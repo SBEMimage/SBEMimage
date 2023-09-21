@@ -26,11 +26,11 @@ from PIL import Image
 from math import log, sqrt, sin, cos, radians
 from statistics import mean
 
-from PyQt5.uic import loadUi
-from PyQt5.QtWidgets import QWidget, QApplication, QMessageBox, QMenu
-from PyQt5.QtGui import QPixmap, QPainter, QColor, QFont, QIcon, QPen, \
-                        QBrush, QKeyEvent, QFontMetrics
-from PyQt5.QtCore import Qt, QObject, QRect, QPoint, QSize
+from qtpy.uic import loadUi
+from qtpy.QtWidgets import QWidget, QApplication, QMessageBox, QMenu
+from qtpy.QtGui import QPixmap, QPainter, QColor, QFont, QIcon, QPen, \
+                       QBrush, QKeyEvent, QFontMetrics
+from qtpy.QtCore import Qt, QObject, QRect, QPoint, QSize
 
 import utils
 import acq_func
@@ -40,6 +40,7 @@ from viewport_dlg_windows import StubOVDlg, FocusGradientTileSelectionDlg, \
 from main_controls_dlg_windows import MotorStatusDlg
 
 import magc_utils
+
 
 class Viewport(QWidget):
 

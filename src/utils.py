@@ -13,11 +13,9 @@
 import csv
 import os
 import datetime
-import json
 import re
 import logging
 import threading
-import math
 import cv2
 import numpy as np
 
@@ -29,7 +27,7 @@ from logging.handlers import RotatingFileHandler
 from skimage.transform import ProjectiveTransform
 from skimage.measure import ransac
 from serial.tools import list_ports
-from PyQt5.QtCore import QObject, pyqtSignal
+from qtpy.QtCore import QObject, Signal
 
 
 # Default and minimum size of the Viewport canvas.
@@ -248,7 +246,7 @@ class Trigger(QObject):
     be used to send commands: queue.put(cmd) puts a cmd into the
     queue, and queue.get() reads the cmd and empties the queue.
     """
-    signal = pyqtSignal()
+    signal = Signal()
     queue = Queue()
 
     def transmit(self, cmd):

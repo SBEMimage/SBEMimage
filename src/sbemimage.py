@@ -41,8 +41,8 @@ import ctypes
 import traceback
 import colorama # needed to suppress TIFFReadDirectory warnings in the console
 from configparser import ConfigParser
-from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import Qt
+from qtpy.QtWidgets import QApplication
+from qtpy.QtCore import Qt
 
 from main_controls_dlg_windows import ConfigDlg
 from config_template import process_cfg, load_device_presets, default_cfg_found
@@ -54,7 +54,7 @@ import utils
 # master branch (for example, '2020.07 R2020-07-28'). For the current version
 # in the dev (development) branch, it must contain the tag 'dev'.
 # Following https://www.python.org/dev/peps/pep-0440/#public-version-identifiers
-VERSION = '2023.03 dev'
+VERSION = '2023.09 dev'
 
 
 # Hook for uncaught/Qt exceptions
@@ -257,7 +257,7 @@ def main():
             # Switch to dark style (experimental) if specified in session configuration
             if config['sys']['use_dark_mode_gui'].lower() == 'true':
                 import qdarkstyle
-                SBEMimage.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt5'))
+                SBEMimage.setStyleSheet(qdarkstyle.load_stylesheet())
 
             print('Please wait while SBEMimage is starting up...\n')
 

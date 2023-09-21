@@ -25,7 +25,7 @@ from time import sleep, time
 from statistics import mean
 from imageio import imwrite
 from dateutil.relativedelta import relativedelta
-from PyQt5.QtWidgets import QMessageBox
+from qtpy.QtWidgets import QMessageBox
 
 import utils
 from utils import Error

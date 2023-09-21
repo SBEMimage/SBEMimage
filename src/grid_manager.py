@@ -30,7 +30,7 @@ import numpy as np
 from statistics import mean
 from typing import List, Optional
 from math import sqrt, radians, sin, cos
-from PyQt5.QtGui import QPixmap
+from qtpy.QtGui import QPixmap
 import scipy
 import utils
 import magc_utils

@@ -23,7 +23,7 @@ self.ovm['stub'].size  (size of the stub overview grid)
 
 import os
 import json
-from PyQt5.QtGui import QPixmap, QPainter, QColor
+from qtpy.QtGui import QPixmap, QPainter, QColor
 
 import numpy as np
 import utils

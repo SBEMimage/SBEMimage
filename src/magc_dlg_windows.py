@@ -10,44 +10,24 @@
 
 """This module contains several MagC dialogs."""
 
-import os
-import re
-import string
-import threading
-import datetime
-import glob
-import json
-import validators
-import csv
-import requests
-import shutil
-import yaml
-
-from random import random
-from time import sleep, time, strftime, localtime
-from PIL import Image
-from skimage.io import imread
 import numpy as np
-from imreg_dft import translation
-from zipfile import ZipFile
+import os
 
-from viewport_dlg_windows import ImportImageDlg
-
-from PyQt5.uic import loadUi
-from PyQt5.QtCore import Qt, QObject, QSize, pyqtSignal
-from PyQt5.QtGui import QPixmap, QIcon, QPalette, QColor, QFont, \
-    QStandardItem, QStandardItemModel
-from PyQt5.QtWidgets import QApplication, QDialog, QMessageBox, \
-    QFileDialog, QLineEdit, QDialogButtonBox, QHeaderView, QPushButton
-
-import utils
-import acq_func
+from qtpy.uic import loadUi
+from qtpy.QtCore import Qt, QSize
+from qtpy.QtGui import QIcon, QColor, QStandardItem, QStandardItemModel
+from qtpy.QtWidgets import QDialog, QMessageBox, QFileDialog, QHeaderView, QPushButton
+from time import strftime, localtime
 
 import magc_utils
+import utils
+from viewport_dlg_windows import ImportImageDlg
+
 
 GRAY = QColor(Qt.lightGray)
 GREEN = QColor(Qt.green)
 YELLOW = QColor(Qt.yellow)
+
 
 class ImportMagCDlg(QDialog):
     """Import MagC metadata."""

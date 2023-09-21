@@ -13,7 +13,7 @@ that are actually required in SBEMimage have been implemented."""
 
 import json
 import sys
-from PyQt5.QtWidgets import QMessageBox
+from qtpy.QtWidgets import QMessageBox
 from time import sleep
 
 try:

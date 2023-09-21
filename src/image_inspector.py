@@ -16,13 +16,12 @@ import json
 import psutil
 import numpy as np
 
-from time import sleep
 from imageio import imwrite
 from scipy.signal import medfilt2d
 from collections import deque
 from PIL import Image
 from PIL.ImageQt import ImageQt
-from PyQt5.QtGui import QPixmap
+from qtpy.QtGui import QPixmap
 
 import utils
 

@@ -28,15 +28,13 @@ from time import sleep
 #import copy
 #import xml.etree.ElementTree as ET
 
-from PyQt5.QtWidgets import QApplication, \
-                            QAbstractItemView, QPushButton
-from PyQt5.QtCore import Qt, QRect, QSize, QEvent, QItemSelection, \
+from qtpy.QtWidgets import QApplication, QMainWindow, QMessageBox, QInputDialog, QLineEdit, \
+                            QAbstractItemView, QPushButton, QHeaderView, QProgressDialog
+from qtpy.QtCore import Qt, QRect, QSize, QEvent, QItemSelection, \
                          QItemSelectionModel, QModelIndex
-from PyQt5.QtGui import QIcon, QPalette, QColor, QPixmap, QKeyEvent, \
+from qtpy.QtGui import QIcon, QPalette, QColor, QPixmap, QKeyEvent, \
                         QStatusTipEvent, QStandardItem, QStandardItemModel
-from PyQt5.QtWidgets import QMainWindow, QMessageBox, QInputDialog, QLineEdit, \
-                            QHeaderView, QProgressDialog
-from PyQt5.uic import loadUi
+from qtpy.uic import loadUi
 
 import acq_func
 import utils

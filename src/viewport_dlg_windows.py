@@ -12,18 +12,17 @@
 Viewport."""
 
 import os
-import threading
 import datetime
 
 from time import time, sleep
 from queue import Queue
 from PIL import Image
 
-from PyQt5.uic import loadUi
-from PyQt5.QtCore import Qt, QObject, QSize, pyqtSignal
-from PyQt5.QtGui import QPixmap, QIcon
-from PyQt5.QtWidgets import QApplication, QDialog, QMessageBox, QFileDialog, \
-                            QDialogButtonBox
+from qtpy.uic import loadUi
+from qtpy.QtCore import Qt, QSize
+from qtpy.QtGui import QPixmap, QIcon
+from qtpy.QtWidgets import QApplication, QDialog, QMessageBox, QFileDialog, \
+                           QDialogButtonBox
 
 import utils
 import acq_func

@@ -16,7 +16,6 @@ import math
 import os
 import re
 import string
-import threading
 import datetime
 import glob
 import json
@@ -31,7 +30,6 @@ from time import sleep, time
 from validate_email import validate_email
 from math import atan, atan2, sqrt
 from statistics import mean
-from PIL import Image
 from skimage.io import imread
 from skimage.registration import phase_cross_correlation
 import numpy as np
@@ -39,23 +37,21 @@ from imreg_dft import translation
 from zipfile import ZipFile
 from typing import Tuple
 
-from PyQt5.uic import loadUi
-from PyQt5.QtCore import Qt, QObject, QSize, pyqtSignal, QThread
-from PyQt5.QtGui import QPixmap, QIcon, QPalette, QColor, QFont
-from PyQt5.QtWidgets import QApplication, QDialog, QMessageBox, \
-                            QFileDialog, QLineEdit, QDialogButtonBox
-
-import utils
-from sem_control_mock import SEM_Mock
-from utils import Error
-import acq_func
+from qtpy.uic import loadUi
+from qtpy.QtCore import Qt, QSize, Signal, QThread
+from qtpy.QtGui import QPixmap, QIcon, QPalette, QColor, QFont
+from qtpy.QtWidgets import QApplication, QDialog, QMessageBox, \
+                            QFileDialog, QLineEdit
 
 import magc_utils
+from sem_control_mock import SEM_Mock
+import utils
+from utils import Error
 
 
 class UpdateQThread(QThread):
     """Helper for updating QDialogs using QThread"""
-    update = pyqtSignal()
+    update = Signal()
 
     def __init__(self, secs):
         self.active = True
