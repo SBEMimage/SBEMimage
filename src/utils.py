@@ -657,7 +657,7 @@ def align_images_cv2(src: np.ndarray, target: np.ndarray) -> np.ndarray:
     matcher = cv2.DescriptorMatcher_create(cv2.DESCRIPTOR_MATCHER_BRUTEFORCE_HAMMING)
     matches = matcher.match(des1, des2, None)
     # Sort matches by score
-    matches.sort(key=lambda x: x.distance, reverse=False)
+    matches = sorted(matches, key=lambda x: x.distance)
 
     # Remove not so good matches
     numGoodMatches = int(len(matches) * GOOD_MATCH_PERCENT)

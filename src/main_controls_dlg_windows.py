@@ -1220,6 +1220,7 @@ class StageCalibrationDlg(QDialog):
             self.x_shift_vector = [x_shift[0], x_shift[1]]
             self.y_shift_vector = [y_shift[0], y_shift[1]]
         except Exception as e:
+            utils.log_exception(str(e))
             self.calc_exception = str(e)
         self.finish_trigger.signal.emit()
 

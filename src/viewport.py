@@ -1537,8 +1537,8 @@ class Viewport(QWidget):
         self.vp_qp.drawEllipse(QPoint(vx, vy), size, size)
         self.vp_qp.setBrush(QColor(255, 0, 0, 0))
         self.vp_qp.drawEllipse(QPoint(vx, vy), int(size/2), int(size/2))
-        self.vp_qp.drawLine(vx - 1.25 * size, vy, vx + 1.25 * size, vy)
-        self.vp_qp.drawLine(vx, vy - 1.25 * size, vx, vy + 1.25 * size)
+        self.vp_qp.drawLine(int(vx - 1.25 * size), int(vy), int(vx + 1.25 * size), int(vy))
+        self.vp_qp.drawLine(int(vx), int(vy - 1.25 * size), int(vx), int(vy + 1.25 * size))
 
     def _vp_update_stage_position(self):
         """Read the current stage position and show the stage position indicator.
@@ -2055,8 +2055,8 @@ class Viewport(QWidget):
             # Show the grid as a single pixel (for performance reasons when
             # zoomed out).
             self.vp_qp.setPen(grid_pen)
-            self.vp_qp.drawPoint(tile_map[0][0] * resize_ratio,
-                                 tile_map[0][1] * resize_ratio)
+            self.vp_qp.drawPoint(int(tile_map[0][0] * resize_ratio),
+                                 int(tile_map[0][1] * resize_ratio))
 
         # Reset painter (undo translation and rotation).
         self.vp_qp.resetTransform()
