@@ -1530,15 +1530,15 @@ class OVSettingsDlg(QDialog):
             / (self.sem.STORE_RES[self.comboBox_frameSize.currentIndex()][0]
             * self.spinBox_magnification.value()))
         self.doubleSpinBox_pixelSize.setValue(pixel_size)
+        self.show_frame_size();
 
     def show_frame_size(self):
-        """Calculate and show frame size depending on user selection."""
-        frame_size_selector = self.ovm[self.current_ov].frame_size_selector
-        pixel_size = self.ovm[self.current_ov].pixel_size
+        """Calculate and show physical frame size depending on current frame resolution and pixel size."""
+        frame_size_selector = self.comboBox_frameSize.currentIndex()
+        pixel_size = self.doubleSpinBox_pixelSize.value()
         width = self.sem.STORE_RES[frame_size_selector][0] * pixel_size / 1000
         height = self.sem.STORE_RES[frame_size_selector][1] * pixel_size / 1000
-        self.label_frameSize.setText('{0:.1f} × '.format(width)
-                                    + '{0:.1f}'.format(height))
+        self.label_frameSize.setText(f'{width:.1f} × {height:.1f}')
 
     def change_ov(self):
         self.current_ov = self.comboBox_OVSelector.currentIndex()
