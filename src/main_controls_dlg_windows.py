@@ -448,12 +448,13 @@ class SEMSettingsDlg(QDialog):
         super().accept()
 
     def reject(self):
+        if (self.has_auto_brightness_contrast and
+                self.sem.get_auto_brightness_contrast() != self.auto_brightness_contrast_initial):
+            self.sem.set_auto_brightness_contrast(self.auto_brightness_contrast_initial)
         if self.has_brightness:
             self.sem.set_brightness(self.brightness_initial)
         if self.has_contrast:
             self.sem.set_contrast(self.contrast_initial)
-        if self.has_auto_brightness_contrast:
-            self.sem.set_auto_brightness_contrast(self.auto_brightness_contrast_initial)
         super().reject()
 
 # ------------------------------------------------------------------------------
