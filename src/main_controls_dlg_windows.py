@@ -2294,13 +2294,8 @@ class AcqSettingsDlg(QDialog):
                 'trailing slashes and whitespace and replacing spaces with '
                 'underscores and forward slashes with backslashes.',
                 QMessageBox.Ok)
-        # Check if path contains a drive letter / valid absolute path
-        try:
-            os.lstat(os.path.splitdrive(modified_dir)[0])
-            ok = True
-        except:
-            ok = False
-        if not ok:
+        # Check if path is a valid absolute path
+        if not os.path.isabs(modified_dir):
             success = False
             QMessageBox.warning(
                 self, 'Error',
