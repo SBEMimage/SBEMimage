@@ -419,56 +419,6 @@
     <string>Contrast:</string>
    </property>
   </widget>
-  <widget class="QSlider" name="horizontalSlider_brightness">
-   <property name="geometry">
-    <rect>
-     <x>150</x>
-     <y>310</y>
-     <width>71</width>
-     <height>22</height>
-    </rect>
-   </property>
-   <property name="maximum">
-    <number>100</number>
-   </property>
-   <property name="value">
-    <number>50</number>
-   </property>
-   <property name="orientation">
-    <enum>Qt::Horizontal</enum>
-   </property>
-   <property name="tickPosition">
-    <enum>QSlider::TicksAbove</enum>
-   </property>
-   <property name="tickInterval">
-    <number>10</number>
-   </property>
-  </widget>
-  <widget class="QSlider" name="horizontalSlider_contrast">
-   <property name="geometry">
-    <rect>
-     <x>150</x>
-     <y>340</y>
-     <width>71</width>
-     <height>22</height>
-    </rect>
-   </property>
-   <property name="maximum">
-    <number>100</number>
-   </property>
-   <property name="value">
-    <number>50</number>
-   </property>
-   <property name="orientation">
-    <enum>Qt::Horizontal</enum>
-   </property>
-   <property name="tickPosition">
-    <enum>QSlider::TicksAbove</enum>
-   </property>
-   <property name="tickInterval">
-    <number>10</number>
-   </property>
-  </widget>
   <widget class="QDoubleSpinBox" name="doubleSpinBox_brightness">
    <property name="geometry">
     <rect>
@@ -519,26 +469,13 @@
     <double>50.000000000000000</double>
    </property>
   </widget>
-  <widget class="QCheckBox" name="checkBox_brightness">
+  <widget class="QPushButton" name="pushButton_auto_brightness_contrast">
    <property name="geometry">
     <rect>
-     <x>100</x>
+     <x>150</x>
      <y>310</y>
-     <width>51</width>
-     <height>20</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Auto</string>
-   </property>
-  </widget>
-  <widget class="QCheckBox" name="checkBox_contrast">
-   <property name="geometry">
-    <rect>
-     <x>100</x>
-     <y>340</y>
-     <width>51</width>
-     <height>20</height>
+     <width>71</width>
+     <height>51</height>
     </rect>
    </property>
    <property name="text">

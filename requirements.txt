@@ -2,7 +2,7 @@ PyQt5
 colorama
 validators
 validate_email
-Pillow==9.5.0   # latest versionof Pillow requires PyQt6
+Pillow==9.5.0   # latest version of Pillow requires PyQt6
 requests
 pywin32
 pyserial

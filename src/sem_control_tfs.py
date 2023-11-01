@@ -36,8 +36,12 @@ class SEM_Phenom(SEM):
         self.detector = self.DEFAULT_DETECTOR
 
         if not self.simulation_mode:
-            phenom_id, username, password = load_csv(self.PPAPI_CREDENTIALS_FILENAME)
             try:
+                phenom_id, username, password = load_csv(self.PPAPI_CREDENTIALS_FILENAME)
+                if len(username) == 0:
+                    username = ''
+                if len(password) == 0:
+                    password = ''
                 self.sem_api = ppi.Phenom(phenom_id, username, password)
             except Exception as e:
                 self.error_state = Error.smartsem_api
@@ -82,6 +86,42 @@ class SEM_Phenom(SEM):
         self.sem_api.SetSemHighTension(self.target_eht * -1e+3)
         return True
 
+    def has_brightness(self):
+        """Return True if supports brightness control."""
+        return True
+
+    def has_contrast(self):
+        """Return True if supports contrast control."""
+        return True
+
+    def has_auto_brightness_contrast(self):
+        """Return True if supports auto brightness/contrast control."""
+        return True
+
+    def get_brightness(self):
+        """Read SmartSEM brightness (0-1)."""
+        return self.sem_api.GetSemBrightness()
+
+    def get_contrast(self):
+        """Read SmartSEM contrast (0-1)."""
+        return self.sem_api.GetSemContrast()
+
+    def get_auto_brightness_contrast(self):
+        """Return True if auto active, otherwise False."""
+        return False
+
+    def set_brightness(self, brightness):
+        """Write SmartSEM brightness (0-1)."""
+        self.sem_api.SetSemBrightness(brightness)
+
+    def set_contrast(self, contrast):
+        """Write SmartSEM contrast (0-1)."""
+        self.sem_api.SetSemContrast(contrast)
+
+    def set_auto_brightness_contrast(self, enable=True):
+        """Perform or set auto contrast brightness."""
+        self.sem_api.SemAutoContrastBrightness()
+
     def has_vp(self):
         if not self.simulation_mode:
             return True
@@ -115,28 +155,7 @@ class SEM_Phenom(SEM):
 
     def set_vp_target(self, target_pressure):
         pass
-
-    def has_fcc(self):
-        return False
  
-    def is_fcc_on(self):
-        raise NotImplementedError
-
-    def is_fcc_off(self):
-        raise NotImplementedError
-
-    def get_fcc_level(self):
-        raise NotImplementedError
-
-    def turn_fcc_on(self):
-        raise NotImplementedError
-
-    def turn_fcc_off(self):
-        raise NotImplementedError
-
-    def set_fcc_level(self, target_fcc_level):
-        raise NotImplementedError
-
     def get_beam_current(self):
         return self.target_beam_current
 
@@ -167,7 +186,7 @@ class SEM_Phenom(SEM):
 
     def get_detector(self):
         """Return the currently selected detector."""
-        return self.detector
+        return str(self.detector)
 
     def set_detector(self, detector_name):
         """Select the detector specified by 'detector_name'."""

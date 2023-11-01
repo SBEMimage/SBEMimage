@@ -253,9 +253,45 @@ class SEM:
         self.target_eht = round(target_eht, 2)
         # Setting SEM to target EHT must be implemented in child class!
 
+    def has_brightness(self):
+        """Return True if supports brightness control."""
+        return False
+
+    def has_contrast(self):
+        """Return True if supports contrast control."""
+        return False
+
+    def has_auto_brightness_contrast(self):
+        """Return True if supports auto brightness/contrast control."""
+        return False
+
+    def get_brightness(self):
+        """Read SmartSEM brightness (0-1)."""
+        raise NotImplementedError
+
+    def get_contrast(self):
+        """Read SmartSEM contrast (0-1)."""
+        raise NotImplementedError
+
+    def get_auto_brightness_contrast(self):
+        """Return True if auto active, otherwise False."""
+        raise NotImplementedError
+
+    def set_brightness(self, brightness):
+        """Write SmartSEM brightness (0-1)."""
+        raise NotImplementedError
+
+    def set_contrast(self, contrast):
+        """Write SmartSEM contrast (0-1)."""
+        raise NotImplementedError
+
+    def set_auto_brightness_contrast(self, enable=True):
+        """Perform or set auto contrast brightness."""
+        raise NotImplementedError
+
     def has_vp(self):
         """Return True if VP is fitted."""
-        raise NotImplementedError
+        return False
 
     def is_hv_on(self):
         """Return True if HV is on."""
@@ -287,7 +323,7 @@ class SEM:
 
     def has_fcc(self):
         """Return True if FCC is fitted."""
-        raise NotImplementedError
+        return False
 
     def is_fcc_on(self):
         """Return True if FCC is on."""
