@@ -54,7 +54,8 @@ class SEM_Phenom(SEM):
             self.sem_api.Activate()
             if self.use_sem_stage:
                 # Read current SEM stage coordinates
-                self.last_known_x, self.last_known_y, self.last_known_z = self.get_stage_xyz()
+                self.last_known_x, self.last_known_y = self.get_stage_xy()
+                self.last_known_z = 0
         else:
             self.error_state = Error.smartsem_api
             self.error_info = ''
@@ -366,10 +367,10 @@ class SEM_Phenom(SEM):
         return self.last_known_z
 
     def get_stage_xy(self):
-        return self.last_known_x, self.last_known_y
+        return self.get_stage_x(), self.get_stage_y()
 
     def get_stage_xyz(self):
-        return self.last_known_x, self.last_known_y, self.last_known_z
+        return self.get_stage_x(), self.get_stage_y(), self.last_known_z
 
     def move_stage_to_x(self, x):
         """Move stage to coordinate x, provided in microns"""
