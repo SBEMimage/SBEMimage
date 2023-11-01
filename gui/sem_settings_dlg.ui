@@ -422,7 +422,7 @@
   <widget class="QDoubleSpinBox" name="doubleSpinBox_brightness">
    <property name="geometry">
     <rect>
-     <x>230</x>
+     <x>150</x>
      <y>310</y>
      <width>71</width>
      <height>22</height>
@@ -447,7 +447,7 @@
   <widget class="QDoubleSpinBox" name="doubleSpinBox_contrast">
    <property name="geometry">
     <rect>
-     <x>230</x>
+     <x>150</x>
      <y>340</y>
      <width>71</width>
      <height>22</height>
@@ -472,7 +472,7 @@
   <widget class="QPushButton" name="pushButton_auto_brightness_contrast">
    <property name="geometry">
     <rect>
-     <x>150</x>
+     <x>230</x>
      <y>310</y>
      <width>71</width>
      <height>51</height>
