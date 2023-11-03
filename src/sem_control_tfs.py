@@ -11,6 +11,8 @@
 """This module provides the commands to operate the SEM. Only the functions
 that are actually required in SBEMimage have been implemented."""
 
+from time import sleep
+
 from sem_control import SEM
 from utils import Error, load_csv
 
@@ -287,6 +289,11 @@ class SEM_Phenom(SEM):
                 scan_params.hdr = False     # bmp does not support 16-bit images
             else:
                 conversion = ppi.SaveConversion.NoConversion
+
+            self.sem_api.SemUnblankBeam()
+
+            if extra_delay > 0:
+                sleep(extra_delay)
 
             acq = self.sem_api.SemAcquireImageEx(scan_params)
             ppi.Save(acq, save_path_filename, conversion)
