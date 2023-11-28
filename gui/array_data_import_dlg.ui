@@ -48,7 +48,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>Import MagC metadata file:</string>
+    <string>Import array data file:</string>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_selectFile">

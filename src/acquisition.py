@@ -1876,10 +1876,10 @@ class Acquisition:
                             f'Skipping.')
                     elif (
                             self.magc_mode
-                            and grid_index not in self.gm.magc['checked_sections']
+                            and grid_index not in self.gm.array['checked_sections']
                         ):
                             utils.log_info(
-                                'MagC-CTRL',
+                                'Array-CTRL',
                                 f'Grid {grid_index} not checked. Skipping.')
                             self.add_to_main_log(
                                 f'MagC-CTRL: Grid {grid_index} not checked. Skipping.')
@@ -1917,7 +1917,7 @@ class Acquisition:
                     'CTRL: Skip grid %d (intervallic acquisition)' % grid_index)
 
             if (self.magc_mode
-                and len(self.grids_acquired) == len(self.gm.magc['checked_sections'])
+                and len(self.grids_acquired) == len(self.gm.array['checked_sections'])
             ):
                 self.stack_completed = True
 
@@ -2938,7 +2938,7 @@ class Acquisition:
             [xy, (wd, sx, sy)]
         ]
         """
-        focus_positions = self.gm.magc_autofocus_points(grid_index)
+        focus_positions = self.gm.array_autofocus_points(grid_index)
         AFAS_results = [] # results for each focus point
         for id_focus, focus_position in enumerate(focus_positions):
             if id_focus !=0:

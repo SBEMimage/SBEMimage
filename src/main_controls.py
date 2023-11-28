@@ -15,7 +15,7 @@ The 'Main Controls' window consists of four tabs:
     (1) Main controls: action buttons, settings, stack progress and main log;
     (2) Focus tool;
     (3) Functions for testing/debugging;
-    (4) MagC module.
+    (4) Array module.
 
 The 'Main Controls' window is a QMainWindow, and it launches the Viewport
 window (in viewport.py) as a QWidget.
@@ -69,9 +69,9 @@ from main_controls_dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                                       MotorTestDlg, MotorStatusDlg, AboutBox, \
                                       GCIBSettingsDlg, RunAutofocusDlg
 
-from magc_dlg_windows import ImportMagCDlg, ImportWaferImageDlg, \
+from array_dlg_windows import ArrayImportCDlg, ImportWaferImageDlg, \
                           WaferCalibrationDlg #, ImportZENExperimentDlg
-import magc_utils
+import array_utils
 
 
 class MainControls(QMainWindow):
@@ -673,17 +673,17 @@ class MainControls(QMainWindow):
         self.pushButton_FCC.setEnabled(self.fcc_installed)
         self.actionChargeCompensatorSettings.setEnabled(self.fcc_installed)
 
-        #-------MagC-------#
+        #-------Array-------#
 
         if not self.magc_mode:
-            # disable MagC tab
+            # disable Array tab
             self.tabWidget.setTabEnabled(3, False)
-            self.actionImportMagCMetadata.setEnabled(False)
-            # activate MagC with a double-click on the MagC tab
+            self.actionImportArrayData.setEnabled(False)
+            # activate Array with a double-click on the Array tab
             self.tabWidget.setTabToolTip(3, 'Double-click to toggle MagC mode')
             self.tabWidget.tabBarDoubleClicked.connect(self.activate_magc_mode)
         else:
-            self.initialize_magc_gui()
+            self.initialize_array_gui()
         #------------------#
 
         # #-------MultiSEM-------#
@@ -968,66 +968,66 @@ class MainControls(QMainWindow):
         self.pushButton_saveNotes.setText('Saved')
         self.pushButton_saveNotes.setEnabled(False)
 
-    # ----------------------------- MagC tab ---------------------------------------
+    # ----------------------------- Array tab ---------------------------------------
 
-    def initialize_magc_gui(self):
-        self.gm.magc = magc_utils.create_empty_magc()
-        self.actionImportMagCMetadata.triggered.connect(
-            self.magc_open_import_dlg)
+    def initialize_array_gui(self):
+        self.gm.array = array_utils.create_empty_array()
+        self.actionImportArrayData.triggered.connect(
+            self.array_open_import_dlg)
 
         # initialize the section_table (QTableView)
         model = QStandardItemModel(0, 0)
         model.setHorizontalHeaderItem(0, QStandardItem(' Section '))
         model.setHorizontalHeaderItem(1, QStandardItem('State'))
-        self.tableView_magc_sections.setModel(model)
-        (self.tableView_magc_sections.selectionModel()
-            .selectionChanged
-            .connect(self.magc_actions_selected_sections_changed))
+        self.tableView_array_sections.setModel(model)
+        (self.tableView_array_sections.selectionModel()
+         .selectionChanged
+         .connect(self.array_actions_selected_sections_changed))
 
-        header = self.tableView_magc_sections.horizontalHeader()
+        header = self.tableView_array_sections.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
         header.setStretchLastSection(True)
 
-        self.tableView_magc_sections.doubleClicked.connect(
-            self.magc_double_clicked_section)
+        self.tableView_array_sections.doubleClicked.connect(
+            self.array_double_clicked_section)
 
         # checking a section (can be different from change selection)
-        self.tableView_magc_sections.clicked.connect(
-            self.magc_clicked_section)
+        self.tableView_array_sections.clicked.connect(
+            self.array_clicked_section)
 
-        # initialize other MagC GUI items
-        self.pushButton_magc_importMagc.clicked.connect(
-            self.magc_open_import_dlg)
-        self.pushButton_magc_waferCalibration.clicked.connect(
-            self.magc_open_wafer_calibration_dlg)
-        self.pushButton_magc_resetMagc.clicked.connect(self.magc_reset)
-        self.pushButton_magc_selectAll.clicked.connect(self.magc_select_all)
-        self.pushButton_magc_deselectAll.clicked.connect(self.magc_deselect_all)
-        self.pushButton_magc_checkSelected.clicked.connect(
-            self.magc_check_selected)
-        self.pushButton_magc_uncheckSelected.clicked.connect(
-            self.magc_uncheck_selected)
-        self.pushButton_magc_invertSelection.clicked.connect(
-            self.magc_invert_selection)
-        self.pushButton_magc_selectChecked.clicked.connect(
-            self.magc_select_checked)
-        self.pushButton_magc_okStringSections.clicked.connect(
-            self.magc_select_string_sections)
-        self.pushButton_magc_importWaferImage.clicked.connect(
-            self.magc_open_import_wafer_image)
-        if not self.gm.magc['path']:
-            self.pushButton_magc_importWaferImage.setEnabled(False)
-        self.pushButton_magc_addSection.clicked.connect(
-            self.magc_add_section)
-        if not self.gm.magc['calibrated']:
-            self.pushButton_magc_addSection.setEnabled(False)
-        self.pushButton_magc_deleteLastSection.clicked.connect(
-            self.magc_delete_last_section)
+        # initialize other Array GUI items
+        self.pushButton_array_importData.clicked.connect(
+            self.array_open_import_dlg)
+        self.pushButton_array_waferCalibration.clicked.connect(
+            self.array_open_wafer_calibration_dlg)
+        self.pushButton_array_reset.clicked.connect(self.array_reset)
+        self.pushButton_array_selectAll.clicked.connect(self.array_select_all)
+        self.pushButton_array_deselectAll.clicked.connect(self.array_deselect_all)
+        self.pushButton_array_checkSelected.clicked.connect(
+            self.array_check_selected)
+        self.pushButton_array_uncheckSelected.clicked.connect(
+            self.array_uncheck_selected)
+        self.pushButton_array_invertSelection.clicked.connect(
+            self.array_invert_selection)
+        self.pushButton_array_selectChecked.clicked.connect(
+            self.array_select_checked)
+        self.pushButton_array_okStringSections.clicked.connect(
+            self.array_select_string_sections)
+        self.pushButton_array_importWaferImage.clicked.connect(
+            self.array_open_import_wafer_image)
+        if not self.gm.array['path']:
+            self.pushButton_array_importWaferImage.setEnabled(False)
+        self.pushButton_array_addSection.clicked.connect(
+            self.array_add_section)
+        if not self.gm.array['calibrated']:
+            self.pushButton_array_addSection.setEnabled(False)
+        self.pushButton_array_deleteLastSection.clicked.connect(
+            self.array_delete_last_section)
 
-        self.pushButton_magc_waferCalibration.setStyleSheet(
+        self.pushButton_array_waferCalibration.setStyleSheet(
             'background-color: yellow')
-        self.pushButton_magc_waferCalibration.setEnabled(False)
+        self.pushButton_array_waferCalibration.setEnabled(False)
 
         # deactivate/activate some core SBEMimage functions
         self.pushButton_microtomeSettings.setEnabled(False)
@@ -1174,44 +1174,44 @@ class MainControls(QMainWindow):
         # if input_color == 'green':
             # self.pushButton_msem_exportZen.setEnabled(True)
 
-    def magc_select_all(self):
-        model = self.tableView_magc_sections.model()
-        self.magc_select_rows(range(model.rowCount()))
+    def array_select_all(self):
+        model = self.tableView_array_sections.model()
+        self.array_select_rows(range(model.rowCount()))
 
-    def magc_deselect_all(self):
-        self.tableView_magc_sections.clearSelection()
+    def array_deselect_all(self):
+        self.tableView_array_sections.clearSelection()
 
-    def magc_check_selected(self):
+    def array_check_selected(self):
         selectedRows = [
             id.row() for id
-                in self.tableView_magc_sections
+                in self.tableView_array_sections
                     .selectedIndexes()]
-        self.magc_set_check_rows(selectedRows, Qt.Checked)
-        self.magc_update_checked_sections_to_config()
+        self.array_set_check_rows(selectedRows, Qt.Checked)
+        self.array_update_checked_sections_to_config()
 
-    def magc_uncheck_selected(self):
+    def array_uncheck_selected(self):
         selectedRows = [
             id.row() for id
-                in self.tableView_magc_sections
+                in self.tableView_array_sections
                     .selectedIndexes()]
-        self.magc_set_check_rows(selectedRows, Qt.Unchecked)
-        self.magc_update_checked_sections_to_config()
+        self.array_set_check_rows(selectedRows, Qt.Unchecked)
+        self.array_update_checked_sections_to_config()
 
-    def magc_invert_selection(self):
+    def array_invert_selection(self):
         selectedRows = [
             id.row() for id
-                in self.tableView_magc_sections
+                in self.tableView_array_sections
                     .selectedIndexes()]
-        model = self.tableView_magc_sections.model()
+        model = self.tableView_array_sections.model()
         rowsToSelect = set(range(model.rowCount())) - set(selectedRows)
-        self.magc_select_rows(rowsToSelect)
+        self.array_select_rows(rowsToSelect)
 
-    def magc_toggle_selection(self, section_numbers):
+    def array_toggle_selection(self, section_numbers):
         # ctrl+click in viewport: select or deselect clicked
         # section without changing existing selected sections
         selectedRows = [
             id.row() for id
-                in self.tableView_magc_sections
+                in self.tableView_array_sections
                     .selectedIndexes()]
         rowsToSelect = set(selectedRows)
 
@@ -1226,45 +1226,45 @@ class MainControls(QMainWindow):
                 rowsToSelect.add(section_number)
 
         rowsToSelect = list(rowsToSelect)
-        self.magc_select_rows(rowsToSelect)
+        self.array_select_rows(rowsToSelect)
 
-    def magc_select_checked(self):
-        model = self.tableView_magc_sections.model()
+    def array_select_checked(self):
+        model = self.tableView_array_sections.model()
         checkedRows = []
         for r in range(model.rowCount()):
             item = model.item(r, 0)
             if item.checkState() == Qt.Checked:
                 checkedRows.append(r)
-        self.magc_select_rows(checkedRows)
+        self.array_select_rows(checkedRows)
 
-    def magc_select_string_sections(self):
-        userString = self.textEdit_magc_stringSections.toPlainText()
+    def array_select_string_sections(self):
+        userString = self.textEdit_array_stringSections.toPlainText()
         indexes = utils.get_indexes_from_user_string(userString)
         if indexes is not None:
-            self.magc_select_rows(indexes)
-            (self.tableView_magc_sections
+            self.array_select_rows(indexes)
+            (self.tableView_array_sections
                 .verticalScrollBar()
                 .setValue(indexes[0]))
             utils.log_info(
-                'MagC-CTRL',
+                'Array-CTRL',
                 f'Custom section string selection: {userString}')
         else:
             utils.log_error(
-                'MagC-CTRL',
+                'Array-CTRL',
                 'Something wrong in the input. Use 2,5,3 or 2-30 or 2-30-5')
 
-    def magc_set_check_rows(self, rows, check_state):
-        model = self.tableView_magc_sections.model()
+    def array_set_check_rows(self, rows, check_state):
+        model = self.tableView_array_sections.model()
         model.blockSignals(True) # prevent slowness
         for row in rows:
             item = model.item(row, 0)
             if item is not None:
                 item.setCheckState(check_state)
         model.blockSignals(False)
-        self.tableView_magc_sections.setFocus()
+        self.tableView_array_sections.setFocus()
 
-    def magc_select_rows(self, rows):
-        tableView = self.tableView_magc_sections
+    def array_select_rows(self, rows):
+        tableView = self.tableView_array_sections
         tableView.clearSelection()
         selectionModel = tableView.selectionModel()
         model = tableView.model()
@@ -1278,7 +1278,7 @@ class MainControls(QMainWindow):
         selectionModel.select(selection, QItemSelectionModel.Select)
         tableView.setFocus()
 
-    def magc_actions_selected_sections_changed(
+    def array_actions_selected_sections_changed(
         self, changedSelected, changedDeselected):
 
         # update color of selected/deselected sections
@@ -1290,24 +1290,24 @@ class MainControls(QMainWindow):
             self.gm[row].display_colour = 1
         self.viewport.vp_draw()
         # update config
-        self.gm.magc['selected_sections'] = [
+        self.gm.array['selected_sections'] = [
             id.row() for id
-                in self.tableView_magc_sections
+                in self.tableView_array_sections
                     .selectedIndexes()]
 
-    def magc_update_checked_sections_to_config(self):
+    def array_update_checked_sections_to_config(self):
         checkedSections = []
-        model = self.tableView_magc_sections.model()
+        model = self.tableView_array_sections.model()
         for r in range(model.rowCount()):
             item = model.item(r, 0)
             if item.checkState() == Qt.Checked:
                 checkedSections.append(r)
-        self.gm.magc['checked_sections'] = checkedSections
+        self.gm.array['checked_sections'] = checkedSections
 
-    def magc_clicked_section(self, clickedIndex):
-        self.magc_update_checked_sections_to_config()
+    def array_clicked_section(self, clickedIndex):
+        self.array_update_checked_sections_to_config()
 
-    def magc_double_clicked_section(self, doubleClickedIndex):
+    def array_double_clicked_section(self, doubleClickedIndex):
         row = doubleClickedIndex.row()
         model = doubleClickedIndex.model()
         firstColumnIndex = model.index(row, 0)
@@ -1317,9 +1317,9 @@ class MainControls(QMainWindow):
         self.cs.vp_centre_dx_dy = self.gm[row].centre_dx_dy
         self.viewport.vp_draw()
 
-        if self.gm.magc['calibrated']:
+        if self.gm.array['calibrated']:
             utils.log_info(
-                'MagC-CTRL',
+                'Array-CTRL',
                 f'Section {sectionKey} has been double-clicked. Moving to section...')
 
             # set scan rotation
@@ -1329,19 +1329,19 @@ class MainControls(QMainWindow):
             grid_center_s = self.gm[row].centre_sx_sy
             self.stage.move_to_xy(grid_center_s)
             utils.log_info(
-                'MagC-CTRL',
+                'Array-CTRL',
                 f'Moved to section {sectionKey}.')
             # to update the stage position cursor
             self.viewport.vp_draw()
         else:
             utils.log_warning(
-                'MagC-CTRL',
+                'Array-CTRL',
                 (f'Section {sectionKey}'
                 ' has been double-clicked. Wafer is not'
                 ' calibrated, therefore no stage movement.'))
 
-    def magc_set_section_state_in_table(self, msg):
-        model = self.tableView_magc_sections.model()
+    def array_set_section_state_in_table(self, msg):
+        model = self.tableView_array_sections.model()
         # number can be a single int or a list 1,2,3
         if ',' in msg:
             section_number = [
@@ -1362,60 +1362,60 @@ class MainControls(QMainWindow):
                 state_color = QColor(Qt.lightGray)
             item = model.item(section_number, 1)
             item.setBackground(state_color)
-            self.tableView_magc_sections.scrollTo(
+            self.tableView_array_sections.scrollTo(
                 index,
                 QAbstractItemView.PositionAtCenter)
         if state == 'select':
-            self.magc_select_rows([section_number])
-            self.tableView_magc_sections.scrollTo(
+            self.array_select_rows([section_number])
+            self.tableView_array_sections.scrollTo(
                 index,
                 QAbstractItemView.PositionAtCenter)
         if state == 'toggle':
-            self.magc_toggle_selection(section_number)
-            if section_number in self.gm.magc['selected_sections']:
-                self.tableView_magc_sections.scrollTo(
+            self.array_toggle_selection(section_number)
+            if section_number in self.gm.array['selected_sections']:
+                self.tableView_array_sections.scrollTo(
                     index,
                     QAbstractItemView.PositionAtCenter)
         if state == 'deselectall':
-            self.magc_deselect_all()
+            self.array_deselect_all()
 
-    def magc_reset(self):
-        model = self.tableView_magc_sections.model()
+    def array_reset(self):
+        model = self.tableView_array_sections.model()
         model.removeRows(0, model.rowCount(), QModelIndex())
-        self.magc_trigger_wafer_uncalibrated()
-        self.magc_trigger_wafer_uncalibratable()
-        self.gm.magc = magc_utils.create_empty_magc()
+        self.array_trigger_wafer_uncalibrated()
+        self.array_trigger_wafer_uncalibratable()
+        self.gm.array = array_utils.create_empty_array()
         self.gm.delete_all_grids_above_index(0)
-        self.gm.magc_delete_autofocus_points(0)
-        # self.gm[0].magc_delete_polyroi()
+        self.gm.array_delete_autofocus_points(0)
+        # self.gm[0].array_delete_polyroi()
         self.viewport.update_grids()
         # unenable wafer image import
-        self.pushButton_magc_importWaferImage.setEnabled(False)
+        self.pushButton_array_importWaferImage.setEnabled(False)
         # delete all imported images in viewport
         self.imported.delete_all_images()
         self.viewport.vp_draw()
 
-    def magc_trigger_wafer_calibrated(self):
-        (self.pushButton_magc_waferCalibration
+    def array_trigger_wafer_calibrated(self):
+        (self.pushButton_array_waferCalibration
             .setStyleSheet('background-color: green'))
         # self.pushButton_msem_transferToZen.setEnabled(True)
 
-    def magc_trigger_wafer_uncalibrated(self):
+    def array_trigger_wafer_uncalibrated(self):
         # change wafer flag
-        (self.pushButton_magc_waferCalibration
+        (self.pushButton_array_waferCalibration
             .setStyleSheet('background-color: yellow'))
         # inactivate msem transfer to ZEN
         # self.pushButton_msem_transferToZen.setEnabled(False)
 
-    def magc_trigger_wafer_calibratable(self):
+    def array_trigger_wafer_calibratable(self):
         # the wafer can be calibrated
-        self.pushButton_magc_waferCalibration.setEnabled(True)
+        self.pushButton_array_waferCalibration.setEnabled(True)
 
-    def magc_trigger_wafer_uncalibratable(self):
+    def array_trigger_wafer_uncalibratable(self):
         # the wafer cannot be calibrated
-        self.pushButton_magc_waferCalibration.setEnabled(False)
+        self.pushButton_array_waferCalibration.setEnabled(False)
 
-    def magc_open_import_wafer_image(self):
+    def array_open_import_wafer_image(self):
         target_dir = os.path.join(
             self.acq.base_dir,
             'overviews', 'imported')
@@ -1423,10 +1423,10 @@ class MainControls(QMainWindow):
             self.try_to_create_directory(target_dir)
         import_wafer_dlg = ImportWaferImageDlg(
             self.acq, self.imported,
-            os.path.dirname(self.gm.magc['path']),
+            os.path.dirname(self.gm.array['path']),
             self.trigger)
 
-    def magc_add_section(self):
+    def array_add_section(self):
         self.gm.add_new_grid()
         grid_index = self.gm.number_grids - 1
         self.gm[grid_index].origin_sx_sy = list(*self.stage.get_xy())
@@ -1449,42 +1449,42 @@ class MainControls(QMainWindow):
         item2.setBackground(QColor(Qt.lightGray))
         item2.setCheckable(False)
         item2.setSelectable(False)
-        model = self.tableView_magc_sections.model()
+        model = self.tableView_array_sections.model()
         model.appendRow([item1, item2])
 
-    def magc_delete_last_section(self):
+    def array_delete_last_section(self):
         # remove section from list
-        model = self.tableView_magc_sections.model()
+        model = self.tableView_array_sections.model()
         lastSectionNumber = model.rowCount()-1
         if lastSectionNumber > 1:
             model.removeRow(lastSectionNumber)
             # unselect and uncheck section
-            if lastSectionNumber in self.gm.magc['selected_sections']:
-                self.gm.magc['selected_sections'].remove(lastSectionNumber)
+            if lastSectionNumber in self.gm.array['selected_sections']:
+                self.gm.array['selected_sections'].remove(lastSectionNumber)
 
-            if lastSectionNumber in self.gm.magc['checked_sections']:
-                self.gm.magc['checked_sections'].remove(lastSectionNumber)
+            if lastSectionNumber in self.gm.array['checked_sections']:
+                self.gm.array['checked_sections'].remove(lastSectionNumber)
 
             # remove grid
             self.gm.delete_grid()
             self.update_from_grid_dlg()
         else:
-            self.magc_reset()
+            self.array_reset()
 
-    def magc_open_import_dlg(self):
-        gui_items = {'section_table': self.tableView_magc_sections,}
-        dialog = ImportMagCDlg(self.acq, self.gm, self.sem, self.imported,
-                               self.cs, gui_items, self.trigger)
+    def array_open_import_dlg(self):
+        gui_items = {'section_table': self.tableView_array_sections,}
+        dialog = ArrayImportCDlg(self.acq, self.gm, self.sem, self.imported,
+                                 self.cs, gui_items, self.trigger)
         if dialog.exec_():
             # self.tabWidget.setTabEnabled(3, True)
             self.update_from_grid_dlg()
 
-    def magc_open_wafer_calibration_dlg(self):
+    def array_open_wafer_calibration_dlg(self):
         dialog = WaferCalibrationDlg(self.cfg, self.stage, self.ovm, self.cs,
                                      self.gm, self.imported, self.trigger)
         if dialog.exec_():
             pass
-    # --------------------------- End of MagC tab ----------------------------------
+    # --------------------------- End of Array tab ----------------------------------
 
 
     # =============== Below: all methods that open dialog windows ==================
@@ -1881,20 +1881,20 @@ class MainControls(QMainWindow):
             except Exception as e:
                 utils.log_error('CTRL', 'Could not write current log to disk: '
                                 + str(e))
-        elif msg == 'MAGC RESET':
-            self.magc_reset()
-        elif msg == 'MAGC WAFER CALIBRATED':
-            self.magc_trigger_wafer_calibrated()
-        elif msg == 'MAGC WAFER NOT CALIBRATED':
-            self.magc_trigger_wafer_uncalibrated()
-        elif msg == 'MAGC ENABLE CALIBRATION':
-            self.magc_trigger_wafer_calibratable()
-        elif msg == 'MAGC UNENABLE CALIBRATION':
-            self.magc_trigger_wafer_uncalibratable()
-        elif msg == 'MAGC ENABLE WAFER IMAGE IMPORT':
-            self.pushButton_magc_importWaferImage.setEnabled(True)
-        elif 'MAGC SET SECTION STATE' in msg:
-            self.magc_set_section_state_in_table(msg)
+        elif msg == 'ARRAY RESET':
+            self.array_reset()
+        elif msg == 'ARRAY WAFER CALIBRATED':
+            self.array_trigger_wafer_calibrated()
+        elif msg == 'ARRAY WAFER NOT CALIBRATED':
+            self.array_trigger_wafer_uncalibrated()
+        elif msg == 'ARRAY ENABLE CALIBRATION':
+            self.array_trigger_wafer_calibratable()
+        elif msg == 'ARRAY UNENABLE CALIBRATION':
+            self.array_trigger_wafer_uncalibratable()
+        elif msg == 'ARRAY ENABLE WAFER IMAGE IMPORT':
+            self.pushButton_array_importWaferImage.setEnabled(True)
+        elif 'ARRAY SET SECTION STATE' in msg:
+            self.array_set_section_state_in_table(msg)
         elif 'ACTIVATE SHOW STAGE' in msg:
             self.viewport.show_stage_pos = True
             self.viewport.vp_activate_checkbox_show_stage_pos()

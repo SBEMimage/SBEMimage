@@ -43,7 +43,7 @@ from qtpy.QtGui import QPixmap, QIcon, QPalette, QColor, QFont
 from qtpy.QtWidgets import QApplication, QDialog, QMessageBox, \
                             QFileDialog, QLineEdit
 
-import magc_utils
+import array_utils
 from sem_control_mock import SEM_Mock
 import utils
 from utils import Error
@@ -2002,7 +2002,7 @@ class GridSettingsDlg(QDialog):
 
         if self.magc_mode:
             self.gm[self.current_grid].centre_sx_sy = prev_grid_centre
-            magc_utils.write_magc(self.gm)
+            array_utils.write_data(self.gm)
         # Restore default behaviour for updating tile positions
         if error_msg:
             QMessageBox.warning(self, 'Error', error_msg, QMessageBox.Ok)

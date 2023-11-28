@@ -1,4 +1,7 @@
 import math
+import os
+
+import yaml
 
 import utils
 import io
@@ -79,16 +82,13 @@ warnings.filterwarnings("ignore")
 
 # Note: the 'sbemimage_sections' field is saved at the end of the file
 
-def create_empty_magc():
-    magc = {
+def create_empty_array():
+    array = {
         'sections': {},
         'rois': {},
         'magnets': {},
         'focus': {},
-        'landmarks': {
-            'source': {},
-            'target': {}
-            },
+        'landmarks': {},
         'sbemimage_sections': {},
         'selected_sections': [],
         'checked_sections': [],
@@ -96,12 +96,30 @@ def create_empty_magc():
         'transform': [],
         'calibrated': False
         }
-    return magc
+    return array
 
-def read_magc(magc_path):
+
+def read_array_data(path):
+    ext = os.path.splitext(path)[-1].lower()
+    if ext == '.magc':
+        return read_data_magc(path)
+    else:
+        return read_data_yaml(path)
+
+
+def read_data_yaml(path):
+    with open(path, 'r') as infile:
+        full_dict = yaml.load(infile, Loader=yaml.Loader)
+        flat_dict = {}
+        for section in full_dict:
+            flat_dict[section] = full_dict[section]['values']
+    return flat_dict
+
+
+def read_data_magc(magc_path):
     config = configparser.ConfigParser()
 
-    magc = create_empty_magc()
+    magc = create_empty_array()
     magc['path'] = magc_path
 
     with open(magc_path, 'r') as configfile:
@@ -111,106 +129,123 @@ def read_magc(magc_path):
         if header.startswith('sections.'):
             section_id = int(header.split('.')[1])
             magc['sections'][section_id] = {}
-            for key,val in config.items(header):
+            for key, val in config.items(header):
                 if key == 'polygon':
                     vals = [float(x) for x in val.split(',')]
-                    poly_points = [[x,y] for x,y in zip(vals[::2], vals[1::2])]
+                    poly_points = [[x, y] for x, y in zip(vals[::2], vals[1::2])]
                     magc['sections'][section_id]['polygon'] = poly_points
                 elif key == 'center':
                     magc['sections'][section_id]['center'] = [float(x) for x in val.split(',')]
                 elif key in ['area', 'compression']:
                     magc['sections'][section_id][str(key)] = float(val)
                 elif key == 'angle':
-                    magc['sections'][section_id][str(key)] = ((float(val)+90)%360) - 180
+                    magc['sections'][section_id][str(key)] = ((float(val) + 90) % 360) - 180
 
         elif header.startswith('rois.'):
             roi_id = int(header.split('.')[1])
             magc['rois'][roi_id] = {}
-            for key,val in config.items(header):
-                if key=='template':
+            for key, val in config.items(header):
+                if key == 'template':
                     magc['rois'][roi_id]['template'] = int(val)
                 elif key == 'polygon':
                     vals = [float(x) for x in val.split(',')]
-                    poly_points = [[x,y] for x,y in zip(vals[::2], vals[1::2])]
+                    poly_points = [[x, y] for x, y in zip(vals[::2], vals[1::2])]
                     magc['rois'][roi_id]['polygon'] = poly_points
                 elif key == 'center':
                     magc['rois'][roi_id]['center'] = [float(x) for x in val.split(',')]
                 elif key in ['area']:
                     magc['rois'][roi_id][str(key)] = float(val)
                 elif key == 'angle':
-                    magc['rois'][roi_id][str(key)] = ((float(val)+90)%360) - 180
+                    magc['rois'][roi_id][str(key)] = ((float(val) + 90) % 360) - 180
 
         elif header.startswith('magnets.'):
             magnet_id = int(header.split('.')[1])
             magc['magnets'][magnet_id] = {}
-            for key,val in config.items(header):
-                if key=='template':
+            for key, val in config.items(header):
+                if key == 'template':
                     magc['magnets'][magnet_id]['template'] = int(val)
-                elif key=='location':
+                elif key == 'location':
                     magc['magnets'][magnet_id]['location'] = [float(x) for x in val.split(',')]
 
         elif header.startswith('focus.'):
             focus_id = int(header.split('.')[1])
             magc['focus'][focus_id] = {}
-            for key,val in config.items(header):
-                if key=='template':
+            for key, val in config.items(header):
+                if key == 'template':
                     magc['focus'][focus_id]['template'] = int(val)
                 elif key in ['location', 'polygon']:
                     vals = [float(x) for x in val.split(',')]
-                    focus_points = [
-                        [x,y]
-                        for x,y in zip(vals[::2], vals[1::2])]
+                    focus_points = [[x, y] for x, y in zip(vals[::2], vals[1::2])]
                     magc['focus'][focus_id]['polygon'] = focus_points
 
         elif header.startswith('landmarks.'):
             landmark_id = int(header.split('.')[1])
-            magc['landmarks']['source'][landmark_id] = [float(x) for x in config.get(header, 'location').split(',')]
+            magc['landmarks'][landmark_id] = {'source': [float(x) for x in config.get(header, 'location').split(',')]}
 
         elif header == 'serialorder':
             value = config.get('serialorder', 'serialorder')
-            if value!='[]':
+            if value != '[]':
                 magc['serialorder'] = [int(x) for x in value.split(',')]
 
         elif header == 'tsporder':
             value = config.get('tsporder', 'tsporder')
-            if value!='[]':
+            if value != '[]':
                 magc['tsporder'] = [int(x) for x in value.split(',')]
 
         elif header == 'selected_sections':
             value = config.get('selected_sections', 'selected_sections')
-            if value!='[]':
+            if value != '[]':
                 magc['selected_sections'] = [int(x) for x in value.split(',')]
 
         elif header == 'checked_sections':
             value = config.get('checked_sections', 'checked_sections')
-            if value!='[]':
+            if value != '[]':
                 magc['checked_sections'] = [int(x) for x in value.split(',')]
 
         elif header == 'transform':
             value = config.get('transform', 'transform')
-            if value!='[]':
+            if value != '[]':
                 magc['transform'] = [int(x) for x in value.split(',')]
 
         if header.startswith('sbemimage_sections.'):
             sbemimage_section_id = int(header.split('.')[1])
             magc['sbemimage_sections'][sbemimage_section_id] = {}
-            for key,val in config.items(header):
+            for key, val in config.items(header):
                 if key == 'focus':
                     vals = [float(x) for x in val.split(',')]
-                    focus_points = [[x,y] for x,y in zip(vals[::2], vals[1::2])]
+                    focus_points = [[x, y] for x, y in zip(vals[::2], vals[1::2])]
                     magc['sbemimage_sections'][sbemimage_section_id]['focus'] = focus_points
                 elif key == 'center':
                     magc['sbemimage_sections'][sbemimage_section_id]['center'] = [float(x) for x in val.split(',')]
                 elif key == 'angle':
-                    magc['sbemimage_sections'][sbemimage_section_id]['angle'] = ((-float(val)+90)%360) - 180
+                    magc['sbemimage_sections'][sbemimage_section_id]['angle'] = ((-float(val) + 90) % 360) - 180
 
     utils.log_info(
-        'MagC-CTRL',
+        'Array-CTRL',
         f'File successfully read from {magc_path}')
     return magc
 
-def write_magc(gm):
-    if not gm.magc['path'] :
+
+def write_data(gm):
+    magc_path = gm.array['path']
+    if magc_path:
+        magc_ext = os.path.splitext(magc_path)[-1].lower()
+        if magc_ext == '.magc':
+            write_data_magc(gm)
+        else:
+            write_data_yaml(gm)
+
+
+def write_data_yaml(gm):
+    magc_path = gm.array['path']
+    if magc_path:
+        # use updateable persistent data object (dict / datafile) instead
+        with open(magc_path, 'w') as outfile:
+            yaml.dump(data, outfile, sort_keys=False, default_flow_style=None)
+
+
+def write_data_magc(gm):
+    if not gm.array['path']:
         return
 
     config = configparser.ConfigParser()
@@ -220,11 +255,11 @@ def write_magc(gm):
         'number',
         str(gm.number_grids))
 
-    if gm.magc['calibrated']:
-        waferTransformInverse = invertAffineT(gm.magc['transform'])
-        transform_angle = -getAffineRotation(gm.magc['transform'])
+    if gm.array['calibrated']:
+        waferTransformInverse = invertAffineT(gm.array['transform'])
+        transform_angle = -getAffineRotation(gm.array['transform'])
 
-    with open(gm.magc['path'], 'r') as f:
+    with open(gm.array['path'], 'r') as f:
         lines = f.readlines()
 
     sbemimage_line_index = len(list(itertools.takewhile(
@@ -235,13 +270,13 @@ def write_magc(gm):
         target_ROI = gm[grid_index].centre_sx_sy
         target_ROI_angle = gm[grid_index].rotation
 
-        if gm.magc['calibrated']:
+        if gm.array['calibrated']:
             # transform back the grid coordinates
             # in non-transformed coordinates
             result = applyAffineT(
                 [target_ROI[0]],
                 [target_ROI[1]],
-                gm.magc['transform'])
+                gm.array['transform'])
             source_ROI = [result[0][0], result[1][0]]
             source_ROI_angle = (
                 (-90 + target_ROI_angle - transform_angle) % 360)
@@ -260,14 +295,14 @@ def write_magc(gm):
             'angle',
             str(float(source_ROI_angle)))
 
-        af_points_source = gm[grid_index].magc_autofocus_points_source
+        af_points_source = gm[grid_index].array_autofocus_points_source
         if len(af_points_source) > 0:
             config.set(
                 header,
                 'focus',
                 points_to_flat_string(af_points_source))
 
-    with open(gm.magc['path'], 'w') as f:
+    with open(gm.array['path'], 'w') as f:
         for line in lines[:sbemimage_line_index]:
             f.write(line)
         # f.write('\n')
@@ -279,7 +314,7 @@ def write_magc(gm):
 
 def point_to_flat_string(point):
     flat_string = ','.join(
-        [str(round(x,3)) for x in  point])
+        [str(round(x, 3)) for x in point])
     return flat_string
 
 def points_to_flat_string(points):
@@ -288,7 +323,7 @@ def points_to_flat_string(points):
         points_flat.append(point[0])
         points_flat.append(point[1])
     points_string = ','.join(
-        [str(round(x,3)) for x in points_flat])
+        [str(round(x, 3)) for x in points_flat])
     return points_string
 
 #####################
@@ -303,8 +338,8 @@ def affineT(
     x_in = np.array(x_in)
     x_in = -x_in if flip_x else x_in
 
-    X = np.array([[x, y, 1] for (x,y) in zip(x_in, y_in)])
-    Y = np.array([[x, y, 1] for (x,y) in zip(x_out, y_out)])
+    X = np.array([[x, y, 1] for (x, y) in zip(x_in, y_in)])
+    Y = np.array([[x, y, 1] for (x, y) in zip(x_out, y_out)])
     aff, res, rank, s = np.linalg.lstsq(X, Y, rcond=None)
     return aff
 
@@ -332,11 +367,11 @@ def getAffineRotation(aff):
     return np.rad2deg(np.arctan2(aff[1][0], aff[1][1]))
 
 def getAffineScaling(aff):
-    x_out, y_out = applyAffineT([0,1000], [0,1000], aff)
+    x_out, y_out = applyAffineT([0, 1000], [0, 1000], aff)
     scaling = np.linalg.norm(
         [
-            x_out[1]-x_out[0],
-            y_out[1]-y_out[0],
+            x_out[1] - x_out[0],
+            y_out[1] - y_out[0],
         ]) / np.linalg.norm([1000,1000])
     return scaling
 
@@ -351,16 +386,16 @@ def rigidT(
 
     A_data = []
     for i in range(len(x_in)):
-        A_data.append( [-y_in[i], x_in[i], 1, 0])
-        A_data.append( [x_in[i], y_in[i], 0, 1])
+        A_data.append([-y_in[i], x_in[i], 1, 0])
+        A_data.append([x_in[i], y_in[i], 0, 1])
 
     b_data = []
     for i in range(len(x_out)):
         b_data.append(x_out[i])
         b_data.append(y_out[i])
 
-    A = np.matrix( A_data )
-    b = np.matrix( b_data ).T
+    A = np.matrix(A_data)
+    b = np.matrix(b_data).T
     # Solve
     c = np.linalg.lstsq(A, b, rcond=None)[0].T
     c = np.array(c)[0]
@@ -375,20 +410,20 @@ def rigidT(
     return c
 
 def applyRigidT(
-    x,y,
+    x, y,
     coefs,
     flip_x=False):
 
-    x,y = map(lambda x: np.array(x),[x,y])
+    x, y = map(lambda x: np.array(x), [x, y])
 
     x = -x if flip_x else x
 
-    x_out = coefs[1]*x - coefs[0]*y + coefs[2]
-    y_out = coefs[1]*y + coefs[0]*x + coefs[3]
+    x_out = coefs[1] * x - coefs[0] * y + coefs[2]
+    y_out = coefs[1] * y + coefs[0] * x + coefs[3]
 
     # x_out = -x_out if flip_x else x_out
 
-    return x_out,y_out
+    return x_out, y_out
 
 def getRigidRotation(coefs):
     return np.rad2deg(np.arctan2(coefs[0], coefs[1]))
@@ -467,8 +502,8 @@ def barycenter(points):
     for i,point in enumerate(points):
         xSum = xSum + point[0]
         ySum = ySum + point[1]
-    x = round(xSum/float(i+1))
-    y = round(ySum/float(i+1))
+    x = round(xSum/float(i + 1))
+    y = round(ySum/float(i + 1))
     return x,y
 
 ####################################################
@@ -604,11 +639,11 @@ def polygon_area(points):
     points = np.array(points)
     return 0.5*np.abs(
             np.dot(
-                points[:,0],
-                np.roll(points[:,1],1))
+                points[:, 0],
+                np.roll(points[:, 1], 1))
             -np.dot(
-                points[:,1],
-                np.roll(points[:,0],1)
+                points[:, 1],
+                np.roll(points[:, 0], 1)
         ))
 
 def get_substrate_focus_points(focus_points, n_substrate_focus_points):

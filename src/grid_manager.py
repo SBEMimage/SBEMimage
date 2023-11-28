@@ -33,7 +33,7 @@ from math import sqrt, radians, sin, cos
 from qtpy.QtGui import QPixmap
 import scipy
 import utils
-import magc_utils
+import array_utils
 
 
 class Tile:
@@ -179,10 +179,10 @@ class Grid:
         # self.__tiles
         self.wd_gradient_ref_tiles = wd_gradient_ref_tiles
         self.wd_gradient_params = wd_gradient_params
-        #----- MagC variables -----#
-        # used in MagC: these autofocus locations are defined relative to the
+        #----- Array variables -----#
+        # used in Array: these autofocus locations are defined relative to the
         # center of the non-rotated grid.
-        self.magc_autofocus_points_source = []
+        self.array_autofocus_points_source = []
 
         #--------------------------#
 
@@ -636,19 +636,19 @@ class Grid:
             for r in self.AFAS_results
         ])
         xy_tiles = [tile.sx_sy for tile in self.__tiles]
-        wd_tiles, wd_outliers = magc_utils.focus_points_from_focused_points(
+        wd_tiles, wd_outliers = array_utils.focus_points_from_focused_points(
             wd_calibrated_points,
             xy_tiles,
         )
         if len(wd_outliers)>0:
             utils.log_warning(f"There are autofocus outliers: {wd_outliers}")
-        stigx_tiles, stigx_outliers = magc_utils.focus_points_from_focused_points(
+        stigx_tiles, stigx_outliers = array_utils.focus_points_from_focused_points(
             stigx_calibrated_points,
             xy_tiles,
         )
         if len(stigx_outliers)>0:
             utils.log_warning(f"There are autostig_x outliers: {stigx_outliers}")
-        stigy_tiles, stigy_outliers = magc_utils.focus_points_from_focused_points(
+        stigy_tiles, stigy_outliers = array_utils.focus_points_from_focused_points(
             stigy_calibrated_points,
             xy_tiles,
         )
@@ -950,9 +950,9 @@ class GridManager:
                 else:
                     self.__grids[g][t].preview_img = None
 
-        # initialize MagC settings
+        # initialize Array settings
         self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
-        self.magc = None
+        self.array = None
 
     def fit_apply_aberration_gradient(self):
         dc_aberr = dict()
@@ -1073,7 +1073,7 @@ class GridManager:
                 if img is not None:
                     img.save(preview_path)
 
-        # Save MagC settings to config (currently none)
+        # Save Array settings to config (currently none)
 
     def add_new_grid(self, origin_sx_sy=None, sw_sh=(0, 0), active=True,
                      frame_size=None, frame_size_selector=None, overlap=None,
@@ -1282,41 +1282,39 @@ class GridManager:
                 self._autofocus_ref_tiles.append(str(g) + '.' + str(t))
                 self.__grids[g][t].autofocus_active = True
 
-    # ----------------------------- MagC functions ---------------------------------
-    def magc_landmarks(self):
-        if self.magc['calibrated']:
-            transformed_landmarks = magc_utils.applyAffineT(
-                [landmark[0] for landmark in self.magc['landmarks']['source'].values()],
-                [landmark[1] for landmark in self.magc['landmarks']['source'].values()],
-                self.magc['transform'],
+    # ----------------------------- Array functions ---------------------------------
+    def array_landmarks(self):
+        if self.array['calibrated']:
+            # TODO: fix
+            transformed_landmarks = array_utils.applyAffineT(
+                [landmark[0] for landmark in self.array['landmarks']['source'].values()],
+                [landmark[1] for landmark in self.array['landmarks']['source'].values()],
+                self.array['transform'],
                 # flip_x=False,
-                flip_x= self.sem.device_name.lower() in [
-                        'zeiss merlin',
-                        'zeiss sigma',
-                ],
+                flip_x=self.sem.device_name.lower() in ['zeiss merlin', 'zeiss sigma'],
             )
-            return [[x,y] for x,y in zip(*transformed_landmarks)]
+            return [[x, y] for x, y in zip(*transformed_landmarks)]
         else:
-            return self.magc['landmarks']['source'].values()
+            return {index: landmark['source'] for index, landmark in self.array['landmarks'].items()}
 
-    def magc_autofocus_points(self, grid_index):
+    def array_autofocus_points(self, grid_index):
         """The magc_autofocus_points_source are in non-rotated grid coordinates
         without wafer transform.
         This function calculates the af_points according to current
         grid location and rotation in stage coordinates"""
 
-        return self.magc_convert_to_current_grid(
+        return self.array_convert_to_current_grid(
             grid_index,
-            self.__grids[grid_index].magc_autofocus_points_source)
+            self.__grids[grid_index].array_autofocus_points_source)
 
-    def magc_convert_to_current_grid(self, grid_index, input_points):
+    def array_convert_to_current_grid(self, grid_index, input_points):
         if input_points == []:
             return []
         grid = self.__grids[grid_index]
         transformed_points = []
         scale_factor = (
-            magc_utils.getAffineScaling(self.magc['transform'])
-            if self.magc["calibrated"]
+            array_utils.getAffineScaling(self.array['transform'])
+            if self.array["calibrated"]
             else 1
         )
         grid_center_c = np.dot(grid.centre_sx_sy, [1,1j])
@@ -1336,18 +1334,18 @@ class GridManager:
             ])
         return transformed_points
 
-    def magc_convert_to_source(self, grid_index, input_points):
+    def array_convert_to_source(self, grid_index, input_points):
         """
         Converts coordinates of points back to non-rotated, non-wafer-transformed cooordinates
-        If the wafer is calibrated (i.e. self.magc['transform'] has been applied),
+        If the wafer is calibrated (i.e. self.array['transform'] has been applied),
         then the distance to the center of the grid must be scaled according to the transform
         """
         grid = self.__grids[grid_index]
         transformed_points = []
 
         scale_factor = (
-            1 / float(magc_utils.getAffineScaling(self.magc['transform']))
-            if self.magc["calibrated"]
+            1 / float(array_utils.getAffineScaling(self.array['transform']))
+            if self.array["calibrated"]
             else 1
         )
         # _c indicates complex number
@@ -1368,30 +1366,30 @@ class GridManager:
             ])
         return transformed_points
 
-    def magc_add_autofocus_point(self, grid_index, input_af_point):
+    def array_add_autofocus_point(self, grid_index, input_af_point):
         """input_af_point is in stage coordinates of
         the translated, rotated grid.
         This function transforms input_af_point to
         the coordinates relative to a non-translated, non-rotated grid
         in source pixel coordinates (LM wafer image)"""
 
-        transformed_af_point = self.magc_convert_to_source(
+        transformed_af_point = self.array_convert_to_source(
             grid_index,
             [input_af_point])[0]
 
-        self.__grids[grid_index].magc_autofocus_points_source.append(
+        self.__grids[grid_index].array_autofocus_points_source.append(
             transformed_af_point)
 
-    def magc_delete_last_autofocus_point(self, grid_index):
-        if self.__grids[grid_index].magc_autofocus_points_source != []:
-            del self.__grids[grid_index].magc_autofocus_points_source[-1]
+    def array_delete_last_autofocus_point(self, grid_index):
+        if self.__grids[grid_index].array_autofocus_points_source != []:
+            del self.__grids[grid_index].array_autofocus_points_source[-1]
         # magc_utils.write_magc(self)
 
-    def magc_delete_autofocus_points(self, grid_index):
-        self.__grids[grid_index].magc_autofocus_points_source = []
+    def array_delete_autofocus_points(self, grid_index):
+        self.__grids[grid_index].array_autofocus_points_source = []
         # magc_utils.write_magc(self)
 
-    def magc_propagate_source_grid_to_target_grid(
+    def array_propagate_source_grid_to_target_grid(
         self,
         source_grid_number,
         target_grid_number,
@@ -1404,18 +1402,18 @@ class GridManager:
             return
 
         try:
-            sourceSectionCenter = np.array(self.magc['rois'][s]['center'])
-            sourceSectionAngle = self.magc['rois'][s]['angle'] % 360
+            sourceSectionCenter = np.array(self.array['rois'][s]['center'])
+            sourceSectionAngle = self.array['rois'][s]['angle'] % 360
         except KeyError:
-            sourceSectionCenter = np.array(self.magc['sections'][s]['center'])
-            sourceSectionAngle = self.magc['sections'][s]['angle'] % 360
+            sourceSectionCenter = np.array(self.array['sections'][s]['center'])
+            sourceSectionAngle = self.array['sections'][s]['angle'] % 360
 
         try:
-            targetSectionCenter = np.array(self.magc['rois'][t]['center'])
-            targetSectionAngle = self.magc['rois'][t]['angle'] % 360
+            targetSectionCenter = np.array(self.array['rois'][t]['center'])
+            targetSectionAngle = self.array['rois'][t]['angle'] % 360
         except KeyError:
-            targetSectionCenter = np.array(self.magc['sections'][t]['center'])
-            targetSectionAngle = self.magc['sections'][t]['angle'] % 360
+            targetSectionCenter = np.array(self.array['sections'][t]['center'])
+            targetSectionAngle = self.array['sections'][t]['angle'] % 360
 
         sourceGridCenter = np.array(self.__grids[s].centre_sx_sy)
         sourceGridRotation = self.__grids[s].rotation
@@ -1425,13 +1423,13 @@ class GridManager:
                         'zeiss sigma',
                     ]
 
-        if self.magc['calibrated']:
+        if self.array['calibrated']:
             # transform back the grid coordinates in non-transformed coordinates
             # inefficient but ok for now:
 
-            waferTransformInverse = magc_utils.invertAffineT(self.magc['transform'])
+            waferTransformInverse = array_utils.invertAffineT(self.array['transform'])
 
-            result = magc_utils.applyAffineT(
+            result = array_utils.applyAffineT(
                 [sourceGridCenter[0]],
                 [sourceGridCenter[1]],
                 waferTransformInverse,
@@ -1447,7 +1445,7 @@ class GridManager:
             np.dot(sourceSectionGrid, [1, 1j]), deg=True)
 
         # set all parameters in target grid
-        if not self.magc['calibrated']:
+        if not self.array['calibrated']:
             target_grid_rotation = (
                 - targetSectionAngle
                 + sourceGridRotation
@@ -1475,8 +1473,8 @@ class GridManager:
 
         self.__grids[t].acq_interval_offset = self.__grids[s].acq_interval_offset
         self.__grids[t].autofocus_ref_tiles = self.__grids[s].autofocus_ref_tiles
-        self.__grids[t].magc_autofocus_points_source = copy.deepcopy(
-            self.__grids[s].magc_autofocus_points_source)
+        self.__grids[t].array_autofocus_points_source = copy.deepcopy(
+            self.__grids[s].array_autofocus_points_source)
         # xxx self.set_adaptive_focus_enabled(t, self.get_adaptive_focus_enabled(s))
         # xxx self.set_adaptive_focus_tiles(t, self.get_adaptive_focus_tiles(s))
         # xxx self.set_adaptive_focus_gradient(t, self.get_adaptive_focus_gradient(s))
@@ -1492,12 +1490,12 @@ class GridManager:
             np.real(targetGridCenterComplex),
             np.imag(targetGridCenterComplex))
 
-        if self.magc['calibrated']:
+        if self.array['calibrated']:
             # transform the grid coordinates to wafer coordinates
-            result = magc_utils.applyAffineT(
+            result = array_utils.applyAffineT(
                 [targetGridCenter[0]],
                 [targetGridCenter[1]],
-                self.magc['transform'],
+                self.array['transform'],
                 flip_x=self.sem.device_name.lower() in [
                         'zeiss merlin',
                         'zeiss sigma',
@@ -1508,4 +1506,4 @@ class GridManager:
         self.__grids[t].centre_sx_sy = targetGridCenter
 
 
-# ------------------------- End of MagC functions ------------------------------
+# ------------------------- End of Array functions ------------------------------

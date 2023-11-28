@@ -12,6 +12,7 @@ python-dateutil
 scikit-image
 imreg_dft
 imageio
+imagecodecs
 pyyaml
 psutil
 opencv-python
