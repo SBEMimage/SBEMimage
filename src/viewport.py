@@ -39,7 +39,7 @@ from viewport_dlg_windows import StubOVDlg, FocusGradientTileSelectionDlg, \
                                  AdjustImageDlg, DeleteImageDlg
 from main_controls_dlg_windows import MotorStatusDlg
 
-import array_utils
+import ArrayData
 
 
 class Viewport(QWidget):
@@ -665,7 +665,7 @@ class Viewport(QWidget):
                     if self.sem.magc_mode:
                         # in magc_mode, save the new grid location back
                         # to the source magc sections
-                        magc_utils.write_data(self.gm)
+                        self.gm.array_write()
                     #------------------------#
 
             if self.ov_drag_active:
@@ -764,11 +764,11 @@ class Viewport(QWidget):
                         if self.selected_grid is None:
                             # ctrl+click in background: deselect all
                             # ask for confirmation if more than 10 grids already selected
-                            if len(self.gm.array['selected_sections'])>=10:
+                            if len(self.gm.array_data['selected_sections'])>=10:
                                 user_reply = QMessageBox.question(
                                     self, 'Large deselection',
                                     'Deselect all '
-                                    + str(len(self.gm.array['selected_sections']))
+                                    + str(len(self.gm.array_data['selected_sections']))
                                     + ' grids?',
                                     QMessageBox.Ok | QMessageBox.Cancel)
                                 if user_reply == QMessageBox.Ok:
@@ -1155,7 +1155,7 @@ class Viewport(QWidget):
                 action_moveGridCurrentStage.triggered.connect(
                     self._vp_manual_stage_move)
                 if not ((self.selected_grid is not None)
-                    and self.gm.array['calibrated']):
+                    and self.gm.array_data['calibrated']):
                     action_moveGridCurrentStage.setEnabled(False)
 
             menu.addSeparator()
@@ -1203,8 +1203,8 @@ class Viewport(QWidget):
                 # get closest grid
                 self._closest_grid_number = self._vp_get_closest_grid_id(
                     self.selected_stage_pos)
-                if self.gm.array['selected_sections'] != []:
-                    magc_selected_section = self.gm.array['selected_sections'][0]
+                if self.gm.array_data['selected_sections'] != []:
+                    magc_selected_section = self.gm.array_data['selected_sections'][0]
 
             if (self.sem.magc_mode
                 and self.selected_grid is not None):
@@ -1231,14 +1231,14 @@ class Viewport(QWidget):
                     self.magc_vp_revert_grid_to_file)
 
                 # if self.gm.magc['path'] == '':
-                if not self.gm.array:
+                if not self.gm.array_data:
                     action_propagateToAll.setEnabled(False)
                     action_propagateToSelected.setEnabled(False)
                     action_revertLocation.setEnabled(False)
 
             #---autofocus points---#
             if (self.sem.magc_mode
-                and len(self.gm.array['selected_sections']) == 1):
+                and len(self.gm.array_data['selected_sections']) == 1):
 
                 if self.gm.array_autofocus_points(magc_selected_section):
 
@@ -1305,21 +1305,21 @@ class Viewport(QWidget):
 
     def vp_add_autofocus_point(self):
         self.gm.array_add_autofocus_point(
-            self.gm.array['selected_sections'][0],
+            self.gm.array_data['selected_sections'][0],
             self.selected_stage_pos)
-        magc_utils.write_data(self.gm)
+        self.gm.array_write()
         self.vp_draw()
 
     def vp_remove_autofocus_point(self):
         self.gm.array_delete_last_autofocus_point(
-            self.gm.array['selected_sections'][0])
-        magc_utils.write_data(self.gm)
+            self.gm.array_data['selected_sections'][0])
+        self.gm.array_write()
         self.vp_draw()
 
     def vp_remove_all_autofocus_point(self):
         self.gm.array_delete_autofocus_points(
-            self.gm.array['selected_sections'][0])
-        magc_utils.write_data(self.gm)
+            self.gm.array_data['selected_sections'][0])
+        self.gm.array_write()
         self.vp_draw()
 
     def _vp_load_selected_in_ft(self):
@@ -2726,7 +2726,7 @@ class Viewport(QWidget):
         x, y = self.stage.get_xy()
         self.gm[self.selected_grid].centre_sx_sy = [x, y]
         self.gm[self.selected_grid].update_tile_positions()
-        magc_utils.write_data(self.gm)
+        self.gm.array_write()
         self.vp_draw()
 
     def _vp_toggle_tile_autofocus(self):
@@ -2970,11 +2970,11 @@ class Viewport(QWidget):
         # TODO
         clicked_section_number = self.selected_grid
 
-        for selected_section in self.gm.array['selected_sections']:
+        for selected_section in self.gm.array_data['selected_sections']:
             self.gm.array_propagate_source_grid_to_target_grid(
                 clicked_section_number,
                 selected_section)
-        magc_utils.write_data(self.gm)
+        self.gm.array_write()
         self.vp_draw()
         self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS') # update statistics in GUI
         utils.log_info(
@@ -2986,13 +2986,13 @@ class Viewport(QWidget):
         # TODO
         clicked_section_number = self.selected_grid
 
-        if self.gm.array['path']:
+        if self.gm.array_data['path']:
             for grid_index in range(self.gm.number_grids):
                 self.gm.array_propagate_source_grid_to_target_grid(
                     clicked_section_number,
                     grid_index)
 
-            magc_utils.write_data(self.gm)
+            self.gm.array_write()
 
             self.vp_draw()
             self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS') # update statistics in GUI
@@ -3010,18 +3010,18 @@ class Viewport(QWidget):
         # else:
             # use the section
         try:
-            source_location = self.gm.array['rois'][clicked_section_number]['center']
-            source_angle = self.gm.array['rois'][clicked_section_number]['angle']
+            source_location = self.gm.array_data['rois'][clicked_section_number]['center']
+            source_angle = self.gm.array_data['rois'][clicked_section_number]['angle']
         except KeyError:
-            source_location = self.gm.array['sections'][clicked_section_number]['center']
-            source_angle = self.gm.array['sections'][clicked_section_number]['angle']
+            source_location = self.gm.array_data['sections'][clicked_section_number]['center']
+            source_angle = self.gm.array_data['sections'][clicked_section_number]['angle']
 
         flip_x = self.sem.device_name.lower() in [
                     'zeiss merlin',
                     'zeiss sigma',
                     ]
         # source_location is in LM image pixel coordinates
-        if not self.gm.array['calibrated']:
+        if not self.gm.array_data['calibrated']:
             (self.gm[clicked_section_number]
                 .rotation) = (0 - source_angle) % 360
             (self.gm[clicked_section_number]
@@ -3031,11 +3031,11 @@ class Viewport(QWidget):
             result = magc_utils.applyAffineT(
                 [source_location[0]],
                 [source_location[1]],
-                self.gm.array['transform'],
+                self.gm.array_data['transform'],
                 flip_x=flip_x)
 
             transformAngle = -magc_utils.getAffineRotation(
-                self.gm.array['transform'])
+                self.gm.array_data['transform'])
             target_angle = (source_angle + transformAngle) % 360
             self.gm[clicked_section_number].rotation = target_angle
             self.gm[clicked_section_number].update_tile_positions()
@@ -3047,7 +3047,7 @@ class Viewport(QWidget):
             self.gm[clicked_section_number].centre_sx_sy = target_location
 
         self.vp_draw()
-        magc_utils.write_data(self.gm)
+        self.gm.array_write()
         self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS') # update statistics in GUI
 
     # -------------------- End of MagC methods in Viewport ---------------------

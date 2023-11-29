@@ -82,235 +82,247 @@ warnings.filterwarnings("ignore")
 
 # Note: the 'sbemimage_sections' field is saved at the end of the file
 
-def create_empty_array():
-    array = {
-        'sections': {},
-        'rois': {},
-        'magnets': {},
-        'focus': {},
-        'landmarks': {},
-        'sbemimage_sections': {},
-        'selected_sections': [],
-        'checked_sections': [],
-        'path': None,
-        'transform': [],
-        'calibrated': False
-        }
-    return array
 
+class ArrayData:
+    def __init__(self, path=None):
+        self.path = path
 
-def read_array_data(path):
-    ext = os.path.splitext(path)[-1].lower()
-    if ext == '.magc':
-        return read_data_magc(path)
-    else:
-        return read_data_yaml(path)
+    def reset(self):
+        self.sections = {}
+        self.landmarks = {}
+        self.focus = {}
+        self.sbemimage_sections = {}
+        self.selected_sections = []
+        self.checked_sections = []
+        self.transform = []
+        self.calibrated = False
 
-
-def read_data_yaml(path):
-    with open(path, 'r') as infile:
-        full_dict = yaml.load(infile, Loader=yaml.Loader)
-        flat_dict = {}
-        for section in full_dict:
-            flat_dict[section] = full_dict[section]['values']
-    return flat_dict
-
-
-def read_data_magc(magc_path):
-    config = configparser.ConfigParser()
-
-    magc = create_empty_array()
-    magc['path'] = magc_path
-
-    with open(magc_path, 'r') as configfile:
-        config.read_file(configfile)
-
-    for header in config.sections():
-        if header.startswith('sections.'):
-            section_id = int(header.split('.')[1])
-            magc['sections'][section_id] = {}
-            for key, val in config.items(header):
-                if key == 'polygon':
-                    vals = [float(x) for x in val.split(',')]
-                    poly_points = [[x, y] for x, y in zip(vals[::2], vals[1::2])]
-                    magc['sections'][section_id]['polygon'] = poly_points
-                elif key == 'center':
-                    magc['sections'][section_id]['center'] = [float(x) for x in val.split(',')]
-                elif key in ['area', 'compression']:
-                    magc['sections'][section_id][str(key)] = float(val)
-                elif key == 'angle':
-                    magc['sections'][section_id][str(key)] = ((float(val) + 90) % 360) - 180
-
-        elif header.startswith('rois.'):
-            roi_id = int(header.split('.')[1])
-            magc['rois'][roi_id] = {}
-            for key, val in config.items(header):
-                if key == 'template':
-                    magc['rois'][roi_id]['template'] = int(val)
-                elif key == 'polygon':
-                    vals = [float(x) for x in val.split(',')]
-                    poly_points = [[x, y] for x, y in zip(vals[::2], vals[1::2])]
-                    magc['rois'][roi_id]['polygon'] = poly_points
-                elif key == 'center':
-                    magc['rois'][roi_id]['center'] = [float(x) for x in val.split(',')]
-                elif key in ['area']:
-                    magc['rois'][roi_id][str(key)] = float(val)
-                elif key == 'angle':
-                    magc['rois'][roi_id][str(key)] = ((float(val) + 90) % 360) - 180
-
-        elif header.startswith('magnets.'):
-            magnet_id = int(header.split('.')[1])
-            magc['magnets'][magnet_id] = {}
-            for key, val in config.items(header):
-                if key == 'template':
-                    magc['magnets'][magnet_id]['template'] = int(val)
-                elif key == 'location':
-                    magc['magnets'][magnet_id]['location'] = [float(x) for x in val.split(',')]
-
-        elif header.startswith('focus.'):
-            focus_id = int(header.split('.')[1])
-            magc['focus'][focus_id] = {}
-            for key, val in config.items(header):
-                if key == 'template':
-                    magc['focus'][focus_id]['template'] = int(val)
-                elif key in ['location', 'polygon']:
-                    vals = [float(x) for x in val.split(',')]
-                    focus_points = [[x, y] for x, y in zip(vals[::2], vals[1::2])]
-                    magc['focus'][focus_id]['polygon'] = focus_points
-
-        elif header.startswith('landmarks.'):
-            landmark_id = int(header.split('.')[1])
-            magc['landmarks'][landmark_id] = {'source': [float(x) for x in config.get(header, 'location').split(',')]}
-
-        elif header == 'serialorder':
-            value = config.get('serialorder', 'serialorder')
-            if value != '[]':
-                magc['serialorder'] = [int(x) for x in value.split(',')]
-
-        elif header == 'tsporder':
-            value = config.get('tsporder', 'tsporder')
-            if value != '[]':
-                magc['tsporder'] = [int(x) for x in value.split(',')]
-
-        elif header == 'selected_sections':
-            value = config.get('selected_sections', 'selected_sections')
-            if value != '[]':
-                magc['selected_sections'] = [int(x) for x in value.split(',')]
-
-        elif header == 'checked_sections':
-            value = config.get('checked_sections', 'checked_sections')
-            if value != '[]':
-                magc['checked_sections'] = [int(x) for x in value.split(',')]
-
-        elif header == 'transform':
-            value = config.get('transform', 'transform')
-            if value != '[]':
-                magc['transform'] = [int(x) for x in value.split(',')]
-
-        if header.startswith('sbemimage_sections.'):
-            sbemimage_section_id = int(header.split('.')[1])
-            magc['sbemimage_sections'][sbemimage_section_id] = {}
-            for key, val in config.items(header):
-                if key == 'focus':
-                    vals = [float(x) for x in val.split(',')]
-                    focus_points = [[x, y] for x, y in zip(vals[::2], vals[1::2])]
-                    magc['sbemimage_sections'][sbemimage_section_id]['focus'] = focus_points
-                elif key == 'center':
-                    magc['sbemimage_sections'][sbemimage_section_id]['center'] = [float(x) for x in val.split(',')]
-                elif key == 'angle':
-                    magc['sbemimage_sections'][sbemimage_section_id]['angle'] = ((-float(val) + 90) % 360) - 180
-
-    utils.log_info(
-        'Array-CTRL',
-        f'File successfully read from {magc_path}')
-    return magc
-
-
-def write_data(gm):
-    magc_path = gm.array['path']
-    if magc_path:
-        magc_ext = os.path.splitext(magc_path)[-1].lower()
-        if magc_ext == '.magc':
-            write_data_magc(gm)
+    def read_data(self):
+        self.reset()
+        ext = os.path.splitext(self.path)[-1].lower()
+        if ext == '.magc':
+            return self.read_data_magc()
         else:
-            write_data_yaml(gm)
+            return self.read_data_yaml()
 
+    def read_data_yaml(self):
+        with open(self.path, 'r') as infile:
+            full_dict = yaml.load(infile, Loader=yaml.Loader)
+            flat_dict = {}
+            for section in full_dict:
+                flat_dict[section] = full_dict[section]['values']
+        return flat_dict
 
-def write_data_yaml(gm):
-    magc_path = gm.array['path']
-    if magc_path:
-        # use updateable persistent data object (dict / datafile) instead
-        with open(magc_path, 'w') as outfile:
-            yaml.dump(data, outfile, sort_keys=False, default_flow_style=None)
+    def read_data_magc(self):
+        config = configparser.ConfigParser()
 
+        with open(self.path, 'r') as configfile:
+            config.read_file(configfile)
 
-def write_data_magc(gm):
-    if not gm.array['path']:
-        return
+        for header in config.sections():
+            ids = [int(index) for index in header.split('.')[1:]] if '.' in header else []
+            id = ids[0] if len(ids) > 0 else None
 
-    config = configparser.ConfigParser()
-    config.add_section('sbemimage_sections')
-    config.set(
-        'sbemimage_sections',
-        'number',
-        str(gm.number_grids))
+            if header.startswith('sections.'):
+                if id not in self.sections:
+                    self.sections[id] = {}
+                self.sections[id]['sample'] = {}
+                sample = self.sections[id]['sample']
+                for key, val in config.items(header):
+                    if key == 'polygon':
+                        vals = [float(x) for x in val.split(',')]
+                        poly_points = [[x, y] for x, y in zip(vals[::2], vals[1::2])]
+                        sample['polygon'] = poly_points
+                    elif key == 'center':
+                        sample['center'] = [float(x) for x in val.split(',')]
+                    elif key == 'area':
+                        sample['area'] = float(val)
+                    elif key == 'angle':
+                        sample['angle'] = ((float(val) + 90) % 360) - 180
 
-    if gm.array['calibrated']:
-        waferTransformInverse = invertAffineT(gm.array['transform'])
-        transform_angle = -getAffineRotation(gm.array['transform'])
+            elif header.startswith('magnets.'):
+                if id not in self.sections:
+                    self.sections[id] = {}
+                self.sections[id]['magnet'] = {}
+                magnet = self.sections[id]['magnet']
+                for key, val in config.items(header):
+                    if key == 'template':
+                        magnet['template'] = int(val)
+                    elif key == 'location':
+                        magnet['location'] = [float(x) for x in val.split(',')]
 
-    with open(gm.array['path'], 'r') as f:
-        lines = f.readlines()
+            elif header.startswith('rois.'):
+                roi_id = ids[1] if len(ids) > 1 else 0
+                if 'rois' not in self.sections[id]:
+                    self.sections[id]['rois'] = {}
+                self.sections[id]['rois'][roi_id] = {}
+                roi = self.sections[id]['rois'][roi_id]
+                for key, val in config.items(header):
+                    if key == 'template':
+                        roi['template'] = int(val)
+                    elif key == 'polygon':
+                        vals = [float(x) for x in val.split(',')]
+                        poly_points = [[x, y] for x, y in zip(vals[::2], vals[1::2])]
+                        roi['polygon'] = poly_points
+                    elif key == 'center':
+                        roi['center'] = [float(x) for x in val.split(',')]
+                    elif key == 'area':
+                        roi['area'] = float(val)
+                    elif key == 'angle':
+                        roi['angle'] = ((float(val) + 90) % 360) - 180
 
-    sbemimage_line_index = len(list(itertools.takewhile(
-            lambda x: not 'sbemimage_sections' in x,
-            lines)))
+            elif header.startswith('focus.'):
+                for key, val in config.items(header):
+                    self.focus[id] = {}
+                    if key == 'template':
+                        self.focus[id]['template'] = int(val)
+                    elif key in ['location', 'polygon']:
+                        vals = [float(x) for x in val.split(',')]
+                        focus_points = [[x, y] for x, y in zip(vals[::2], vals[1::2])]
+                        self.focus[id]['polygon'] = focus_points
 
-    for grid_index in range(gm.number_grids):
-        target_ROI = gm[grid_index].centre_sx_sy
-        target_ROI_angle = gm[grid_index].rotation
+            elif header.startswith('landmarks.'):
+                self.landmarks[id] = {'source': [float(x) for x in config.get(header, 'location').split(',')]}
 
-        if gm.array['calibrated']:
-            # transform back the grid coordinates
-            # in non-transformed coordinates
-            result = applyAffineT(
-                [target_ROI[0]],
-                [target_ROI[1]],
-                gm.array['transform'])
-            source_ROI = [result[0][0], result[1][0]]
-            source_ROI_angle = (
-                (-90 + target_ROI_angle - transform_angle) % 360)
-        else:
-            source_ROI = target_ROI
-            source_ROI_angle = (-90 + target_ROI_angle) % 360
+            elif header == 'serialorder':
+                value = config.get('serialorder', 'serialorder')
+                if value != '[]':
+                    self.serial_order = [int(x) for x in value.split(',')]
 
-        header = f'sbemimage_sections.{grid_index}'
-        config.add_section(header)
+            elif header == 'tsporder':
+                value = config.get('tsporder', 'tsporder')
+                if value != '[]':
+                    self.stage_order = [int(x) for x in value.split(',')]
+
+            elif header == 'selected_sections':
+                value = config.get('selected_sections', 'selected_sections')
+                if value != '[]':
+                    self.selected_sections = [int(x) for x in value.split(',')]
+
+            elif header == 'checked_sections':
+                value = config.get('checked_sections', 'checked_sections')
+                if value != '[]':
+                    self.checked_sections = [int(x) for x in value.split(',')]
+
+            elif header == 'transform':
+                value = config.get('transform', 'transform')
+                if value != '[]':
+                    self.transform = [int(x) for x in value.split(',')]
+
+            if header.startswith('sbemimage_sections.'):
+                self.sbemimage_sections[id] = {}
+                section = self.sbemimage_sections[id]
+                for key, val in config.items(header):
+                    if key == 'focus':
+                        vals = [float(x) for x in val.split(',')]
+                        focus_points = [[x, y] for x, y in zip(vals[::2], vals[1::2])]
+                        section['focus'] = focus_points
+                    elif key == 'center':
+                        section['center'] = [float(x) for x in val.split(',')]
+                    elif key == 'angle':
+                        section['angle'] = ((-float(val) + 90) % 360) - 180
+
+        utils.log_info(
+            'Array-CTRL',
+            f'File successfully read from {self.path}')
+
+    # deprecated: save grids instead
+    def write_data(self, gm):
+        if self.path:
+            magc_ext = os.path.splitext(self.path)[-1].lower()
+            if magc_ext == '.magc':
+                self.write_data_magc(gm)
+            else:
+                self.write_data_yaml(gm)
+
+    def write_data_yaml(self, gm):
+        if self.path:
+            # use updateable persistent data object (dict / datafile) instead
+            with open(self.path, 'w') as outfile:
+                yaml.dump(self.sections, outfile, sort_keys=False, default_flow_style=None)
+
+    def write_data_magc(self, gm):
+        if not self.path:
+            return
+
+        config = configparser.ConfigParser()
+        config.add_section('sbemimage_sections')
         config.set(
-            header,
-            'center',
-            point_to_flat_string(source_ROI))
-        config.set(
-            header,
-            'angle',
-            str(float(source_ROI_angle)))
+            'sbemimage_sections',
+            'number',
+            str(gm.number_grids))
 
-        af_points_source = gm[grid_index].array_autofocus_points_source
-        if len(af_points_source) > 0:
+        if self.calibrated:
+            waferTransformInverse = invertAffineT(self.transform)
+            transform_angle = -getAffineRotation(self.transform)
+
+        with open(self.path, 'r') as f:
+            lines = f.readlines()
+
+        sbemimage_line_index = len(list(itertools.takewhile(
+                lambda x: not 'sbemimage_sections' in x,
+                lines)))
+
+        for grid_index in range(gm.number_grids):
+            target_ROI = gm[grid_index].centre_sx_sy
+            target_ROI_angle = gm[grid_index].rotation
+
+            if gm.array_data['calibrated']:
+                # transform back the grid coordinates
+                # in non-transformed coordinates
+                result = applyAffineT(
+                    [target_ROI[0]],
+                    [target_ROI[1]],
+                    gm.array_data['transform'])
+                source_ROI = [result[0][0], result[1][0]]
+                source_ROI_angle = (
+                    (-90 + target_ROI_angle - transform_angle) % 360)
+            else:
+                source_ROI = target_ROI
+                source_ROI_angle = (-90 + target_ROI_angle) % 360
+
+            header = f'sbemimage_sections.{grid_index}'
+            config.add_section(header)
             config.set(
                 header,
-                'focus',
-                points_to_flat_string(af_points_source))
+                'center',
+                point_to_flat_string(source_ROI))
+            config.set(
+                header,
+                'angle',
+                str(float(source_ROI_angle)))
 
-    with open(gm.array['path'], 'w') as f:
-        for line in lines[:sbemimage_line_index]:
-            f.write(line)
-        # f.write('\n')
+            af_points_source = gm[grid_index].array_autofocus_points_source
+            if len(af_points_source) > 0:
+                config.set(
+                    header,
+                    'focus',
+                    points_to_flat_string(af_points_source))
 
-        with io.StringIO('') as g:
-            config.write(g)
-            for line in g.getvalue().splitlines(True):
+        with open(gm.array_data['path'], 'w') as f:
+            for line in lines[:sbemimage_line_index]:
                 f.write(line)
+            # f.write('\n')
+
+            with io.StringIO('') as g:
+                config.write(g)
+                for line in g.getvalue().splitlines(True):
+                    f.write(line)
+
+    def get_landmarks(self, device_name):
+        if self.calibrated:
+            transformed_landmarks = applyAffineT(
+                [landmark[0] for landmark in self.landmarks['source'].values()],
+                [landmark[1] for landmark in self.landmarks['source'].values()],
+                self.transform,
+                # flip_x=False,
+                flip_x=device_name.lower() in ['zeiss merlin', 'zeiss sigma'],
+            )
+            return [[x, y] for x, y in zip(*transformed_landmarks)]
+        else:
+            return {index: landmark['source'] for index, landmark in self.landmarks.items()}
+
+
 
 def point_to_flat_string(point):
     flat_string = ','.join(

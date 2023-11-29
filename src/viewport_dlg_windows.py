@@ -26,7 +26,7 @@ from qtpy.QtWidgets import QApplication, QDialog, QMessageBox, QFileDialog, \
 
 import utils
 import acq_func
-import array_utils
+import ArrayData
 
 
 # ------------------------------------------------------------------------------
@@ -333,7 +333,7 @@ class GridRotationDlg(QDialog):
         # Calculate new grid map with new rotation angle
         self.gm[self.selected_grid].update_tile_positions()
         if self.magc_mode:
-            magc_utils.write_data(self.gm)
+            self.gm.array_write()
         # Restore default behaviour for updating tile positions
         self.gm[self.selected_grid].auto_update_tile_positions = True
         super().accept()

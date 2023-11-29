@@ -10,17 +10,16 @@
 
 """This module contains several Array dialogs."""
 
+import ArrayData
 import numpy as np
 import os
-
 from qtpy.uic import loadUi
 from qtpy.QtCore import Qt, QSize
 from qtpy.QtGui import QIcon, QColor, QStandardItem, QStandardItemModel
 from qtpy.QtWidgets import QDialog, QMessageBox, QFileDialog, QHeaderView, QPushButton
 from time import strftime, localtime
-
-import array_utils
 import utils
+
 from viewport_dlg_windows import ImportImageDlg
 
 
@@ -72,7 +71,7 @@ class ArrayImportCDlg(QDialog):
         data_path = os.path.normpath(self.lineEdit_fileName.text())
         ext = os.path.splitext(data_path)[-1].lower()
         if not os.path.isfile(data_path):
-            msg = ('The file could not be found with the following path: {magc_path}')
+            msg = (f'The file could not be found with the following path: {data_path}')
             utils.log_info(
                 'Array-CTRL',
                 msg)
@@ -80,7 +79,7 @@ class ArrayImportCDlg(QDialog):
             self.accept()
             return
         elif not (ext == '.magc' or ext == '.yml' or ext == '.yaml'):
-            msg = 'The file chosen should be in magc format (.magc/.yml/.yaml).'
+            msg = 'The file chosen should be in the correct format (.magc/.yml/.yaml).'
             utils.log_info(
                 'Array-CTRL',
                 msg)
@@ -89,11 +88,12 @@ class ArrayImportCDlg(QDialog):
             return
 
         self.main_controls_trigger.transmit('MAGC RESET')
-        data = array_utils.read_array_data(data_path)
+        self.gm.array_read(data_path)
+        array_data = self.gm.array_data
 
         # load ROIs updated by user manually
         if self.checkBox.isChecked():
-            if not data['sbemimage_sections']:
+            if not array_data.sbemimage_sections:
                 msg = ('The array file does not contain information from a previous'
                     ' SBEMimage session. Please try another file, or uncheck the option'
                     ' in the import dialog.')
@@ -105,11 +105,11 @@ class ArrayImportCDlg(QDialog):
             else:
                 utils.log_info(
                     'Array-CTRL',
-                    f'{len(data["sbemimage_sections"])} Array sections have been loaded.')
+                    f'{len(array_data.sbemimage_sections)} Array sections have been loaded.')
         else:
             utils.log_info(
                 'Array-CTRL',
-                f'{len(data["sections"])} Array sections have been loaded.')
+                f'{len(array_data.sections)} Array sections have been loaded.')
         #-----------------------------
 
         #-----------------------------------------
@@ -133,12 +133,7 @@ class ArrayImportCDlg(QDialog):
 
         self.gm[0].origin_sx_sy = [0, 0]
 
-        if self.checkBox.isChecked():
-            sections = data['sbemimage_sections']
-        elif 'rois' in data:
-            sections = data['rois']
-        else:
-            sections = data['sections']
+        sections = array_data.sections
         if isinstance(sections, dict):
             sections = list(sections.values())
 
@@ -146,6 +141,7 @@ class ArrayImportCDlg(QDialog):
             self.gm.add_new_grid([0, 0])
 
         for index, section in enumerate(sections):
+            sample_section = section['sample']
             grid = self.gm[index]
             grid.auto_update_tile_positions = False
             grid.size = [
@@ -156,24 +152,24 @@ class ArrayImportCDlg(QDialog):
             grid.pixel_size = pixel_size
             grid.overlap = tile_overlap
             grid.activate_all_tiles()
-            grid.rotation = -section['angle'] % 360
+            grid.rotation = -sample_section['angle'] % 360
             # Update tile positions after initializing all grid attributes
             grid.update_tile_positions()
             # centre must be finally set after updating tile positions
             grid.auto_update_tile_positions = True
-            grid.centre_sx_sy = section['center']
+            grid.centre_sx_sy = sample_section['center']
 
             # load autofocus points
-            if self.checkBox.isChecked() and data['sbemimage_sections']:
-                if 'focus' in data['sbemimage_sections'][index]:
-                    self.gm[index].array_autofocus_points_source = data['sbemimage_sections'][index]['focus']
+            if self.checkBox.isChecked() and array_data.sbemimage_sections:
+                if 'focus' in array_data.sbemimage_sections[index]:
+                    self.gm[index].array_autofocus_points_source = array_data.sbemimage_sections[index]['focus']
                     # for point in magc['sbemimage_sections'][key]['focus']:
                         # self.gm.magc_add_autofocus_point(
                             # key,
                             # point)
 
-            elif index in data['focus']:
-                for point in data['focus'][index]['polygon']:
+            elif index in array_data.focus:
+                for point in array_data.focus[index]['polygon']:
                     self.gm.array_add_autofocus_point(
                         index,
                         point)
@@ -196,8 +192,6 @@ class ArrayImportCDlg(QDialog):
         #-----------------------------------------
 
         #------------------------------
-        # Update config with MagC items
-        self.gm.array = data
         # todo: does importing a new magc file always require
         # a wafer_calibration ?
         #------------------------------
@@ -209,7 +203,7 @@ class ArrayImportCDlg(QDialog):
         # activate stage show
         self.main_controls_trigger.transmit('ACTIVATE SHOW STAGE')
 
-        if len(data['landmarks']) > 2:
+        if len(array_data.landmarks) > 2:
             self.main_controls_trigger.transmit('ARRAY ENABLE CALIBRATION')
 
         self.main_controls_trigger.transmit('DRAW VP')
@@ -256,7 +250,7 @@ class ImportWaferImageDlg(QDialog):
         # pre-filling the ImportImageDialog if wafer image (unique) present
         im_names = [im_name for im_name in os.listdir(self.wafer_im_dir)
                     if ('wafer' in im_name.lower())
-                    and (os.path.splitext(im_name)[1] in ['.tif', '.png', '.jpg'])]
+                    and (os.path.splitext(im_name)[1] in ['.tif', '.tiff', '.png', '.jpg'])]
         if len(im_names) == 0:
             utils.log_info(
                 'Array-CTRL',
@@ -291,7 +285,7 @@ class ImportWaferImageDlg(QDialog):
             wafer_im = self.imported[-1]
             width, height = wafer_im.size
             wafer_im.pixel_size = 1000
-            wafer_im.centre_sx_sy = [width//2, height//2]
+            wafer_im.centre_sx_sy = [width // 2, height // 2]
             self.main_controls_trigger.transmit('SHOW IMPORTED')
             self.main_controls_trigger.transmit('DRAW VP')
             utils.log_info(
@@ -319,8 +313,7 @@ class WaferCalibrationDlg(QDialog):
         self.lTable = self.tableView_array_landmarkTable
         self.initLandmarkList()
         self.pushButton_cancel.clicked.connect(self.accept)
-        self.pushButton_validateCalibration.clicked.connect(
-            self.validate_calibration)
+        self.pushButton_validateCalibration.clicked.connect(self.validate_calibration)
         self.show()
 
     def initLandmarkList(self):
@@ -339,18 +332,16 @@ class WaferCalibrationDlg(QDialog):
 
         header = self.lTable.horizontalHeader()
         for i in range(8):
-            if i not in [3, 4]: # fixed width for target columns
-                header.setSectionResizeMode(
-                    i, QHeaderView.ResizeToContents)
+            if i not in [3, 4]:  # fixed width for target columns
+                header.setSectionResizeMode(i, QHeaderView.ResizeToContents)
 
         self.lTable.setColumnWidth(3, 70)
         self.lTable.setColumnWidth(4, 70)
-        self.lTable.verticalHeader().setSectionResizeMode(
-            QHeaderView.ResizeToContents)
+        self.lTable.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
 
         landmark_model = self.lTable.model()
 
-        for index, (key, landmark) in enumerate(sorted(self.gm.array['landmarks'].items())):
+        for index, (key, landmark) in enumerate(sorted(self.gm.array_data.landmarks.items())):
             # the target key does not exist until it is either
             # manually defined
             # or inferred when enough (>=2) other target landmarks
@@ -418,7 +409,7 @@ class WaferCalibrationDlg(QDialog):
             item4.setData('', Qt.DisplayRole)
             item4.setBackground(GRAY)
 
-            del self.gm.array['landmarks'][row]['target']
+            del self.gm.array_data.landmarks[row]['target']
 
             # update table
             item0 = self.lTable.model().item(row, 0)
@@ -469,13 +460,13 @@ class WaferCalibrationDlg(QDialog):
             item7.setEnabled(True)
 
             # update landmarks
-            self.gm.array['landmarks'][row]['target'] = [x, y]
+            self.gm.array_data.landmarks[row]['target'] = [x, y]
 
             # compute transform and update landmarks
-            n_landmarks = len(self.gm.array['landmarks'])
+            n_landmarks = len(self.gm.array_data.landmarks)
 
             calibrated_landmark_ids = [
-                id for id in self.gm.array['landmarks']
+                id for id in self.gm.array_data.landmarks
                 if self.lTable.model().item(id, 0).background().color() == GREEN]
 
                 # the green color shows that the landmark has been
@@ -491,26 +482,26 @@ class WaferCalibrationDlg(QDialog):
                 # (minimum 2)
 
                 x_landmarks_source = np.array([
-                    self.gm.array['landmarks'][i]['source'][0]
+                    self.gm.array_data.landmarks[i]['source'][0]
                     for i in range(n_landmarks)])
                 y_landmarks_source = np.array([
-                    self.gm.array['landmarks'][i]['source'][1]
+                    self.gm.array_data.landmarks[i]['source'][1]
                     for i in range(n_landmarks)])
 
                 # taking only the source landmarks for which there is a
                 # corresponding target landmark
                 x_landmarks_source_partial = np.array(
-                    [self.gm.array['landmarks'][i]['source'][0]
+                    [self.gm.array_data.landmarks[i]['source'][0]
                      for i in calibrated_landmark_ids])
                 y_landmarks_source_partial = np.array(
-                    [self.gm.array['landmarks'][i]['source'][1]
+                    [self.gm.array_data.landmarks[i]['source'][1]
                      for i in calibrated_landmark_ids])
 
                 x_landmarks_target_partial = np.array(
-                    [self.gm.array['landmarks'][i]['target'][0]
+                    [self.gm.array_data.landmarks[i]['target'][0]
                      for i in calibrated_landmark_ids])
                 y_landmarks_target_partial = np.array(
-                    [self.gm.array['landmarks'][i]['target'][1]
+                    [self.gm.array_data.landmarks[i]['target'][1]
                      for i in calibrated_landmark_ids])
 
                 flip_x = self.gm.sem.device_name.lower() in [
@@ -519,13 +510,13 @@ class WaferCalibrationDlg(QDialog):
                         ]
 
                 if len(calibrated_landmark_ids) < 3:
-                    get_transform = array_utils.rigidT
-                    apply_transform = array_utils.applyRigidT
+                    get_transform = ArrayData.rigidT
+                    apply_transform = ArrayData.applyRigidT
                 else:
-                    get_transform = array_utils.affineT
-                    apply_transform = array_utils.applyAffineT
+                    get_transform = ArrayData.affineT
+                    apply_transform = ArrayData.applyAffineT
 
-                self.gm.array['transform'] = get_transform(
+                self.gm.array_data.transform = get_transform(
                     x_landmarks_source_partial,
                     y_landmarks_source_partial,
                     x_landmarks_target_partial,
@@ -537,7 +528,7 @@ class WaferCalibrationDlg(QDialog):
                     apply_transform(
                         x_landmarks_source,
                         y_landmarks_source,
-                        self.gm.array['transform'],
+                        self.gm.array_data.transform,
                         flip_x=flip_x,
                         ))
 
@@ -548,7 +539,7 @@ class WaferCalibrationDlg(QDialog):
                 for noncalibrated_landmark_id in noncalibrated_landmark_ids:
                     x = x_target_updated_landmarks[noncalibrated_landmark_id]
                     y = y_target_updated_landmarks[noncalibrated_landmark_id]
-                    self.gm.array['landmarks'][noncalibrated_landmark_id]['target'] = [x, y]
+                    self.gm.array_data.landmarks[noncalibrated_landmark_id]['target'] = [x, y]
 
                     item0 = self.lTable.model().item(
                         noncalibrated_landmark_id,
@@ -605,10 +596,10 @@ class WaferCalibrationDlg(QDialog):
 
     def validate_calibration(self):
         calibrated_landmark_ids = [
-            id for id in self.gm.array['landmarks']
+            id for id in self.gm.array_data.landmarks
             if self.lTable.model().item(id, 0).background().color() == GREEN]
 
-        n_landmarks = len(self.gm.array['landmarks'])
+        n_landmarks = len(self.gm.array_data.landmarks)
 
         if len(calibrated_landmark_ids) != n_landmarks:
             utils.log_info(
@@ -617,26 +608,25 @@ class WaferCalibrationDlg(QDialog):
                     +'must first be validated.'))
         else:
             x_landmarks_source = [
-                self.gm.array['landmarks']['source'][i][0]
+                self.gm.array_data.landmarks['source'][i][0]
                 for i in range(n_landmarks)]
             y_landmarks_source = [
-                self.gm.array['landmarks']['source'][i][1]
+                self.gm.array_data.landmarks['source'][i][1]
                 for i in range(n_landmarks)]
 
             x_landmarks_target = [
-                self.gm.array['landmarks']['target'][i][0]
+                self.gm.array_data.landmarks['target'][i][0]
                 for i in range(n_landmarks)]
             y_landmarks_target = [
-                self.gm.array['landmarks']['target'][i][1]
+                self.gm.array_data.landmarks['target'][i][1]
                 for i in range(n_landmarks)]
-
 
             flip_x = self.gm.sem.device_name.lower() in [
                     'zeiss merlin',
                     'zeiss sigma',
                     ]
 
-            self.gm.array['transform'] = array_utils.affineT(
+            self.gm.array_data.transform = ArrayData.affineT(
                 x_landmarks_source,
                 y_landmarks_source,
                 x_landmarks_target,
@@ -646,7 +636,7 @@ class WaferCalibrationDlg(QDialog):
 
             # compute new grid locations
             # (always transform from reference source)
-            n_sections = len(self.gm.array['sections'])
+            n_sections = len(self.gm.array_data.sections)
 
             # ROI has priority over section:
             # if a ROI is defined:
@@ -654,33 +644,33 @@ class WaferCalibrationDlg(QDialog):
             # else:
                 # use the section
             x_source = np.array([
-                self.gm.array['rois'][k]['center'][0]
-                    if k in self.gm.array['rois']
-                    else self.gm.array['sections'][k]['center'][0]
-                    for k in sorted(self.gm.array['sections'])
+                self.gm.array_data.sections[k]['rois'][0]['center'][0]
+                    if 'rois' in self.gm.array_data.sections[k]
+                    else self.gm.array_data.sections[k]['sample']['center'][0]
+                    for k in sorted(self.gm.array_data.sections)
                     ])
             y_source = np.array([
-                self.gm.array['rois'][k]['center'][1]
-                    if k in self.gm.array['rois']
-                    else self.gm.array['sections'][k]['center'][1]
-                    for k in sorted(self.gm.array['sections'])
+                self.gm.array_datasections[k]['rois'][0]['center'][1]
+                    if 'rois' in self.gm.array_data.sections[k]
+                    else self.gm.array_data.sections[k]['sample']['center'][1]
+                    for k in sorted(self.gm.array_data.sections)
                     ])
 
             angles_source = np.array([
-                self.gm.array['rois'][k]['angle']
-                    if k in self.gm.array['rois']
-                    else self.gm.array['sections'][k]['angle']
-                    for k in sorted(self.gm.array['sections'])
+                self.gm.array_datasections[k]['rois'][0]['angle']
+                    if 'rois' in self.gm.array_data.sections[k]
+                    else self.gm.array_data.sections[k]['sample']['angle']
+                    for k in sorted(self.gm.array_data.sections)
                     ])
 
-            x_target, y_target = array_utils.applyAffineT(
+            x_target, y_target = ArrayData.applyAffineT(
                 x_source,
                 y_source,
-                self.gm.array['transform'],
+                self.gm.array_data.transform,
                 flip_x=flip_x)
 
-            transformAngle = -array_utils.getAffineRotation(
-                self.gm.array['transform'])
+            transformAngle = -ArrayData.getAffineRotation(
+                self.gm.array_data.transform)
             angles_target = (angles_source + transformAngle) % 360
 
             # update grids
@@ -697,15 +687,15 @@ class WaferCalibrationDlg(QDialog):
 
             # update wafer picture
             if self.imported[0] is not None:
-                waferTransformAngle = -array_utils.getAffineRotation(
-                    self.gm.array['transform'])
-                waferTransformScaling = array_utils.getAffineScaling(
-                    self.gm.array['transform'])
+                waferTransformAngle = -ArrayData.getAffineRotation(
+                    self.gm.array_data.transform)
+                waferTransformScaling = ArrayData.getAffineScaling(
+                    self.gm.array_data.transform)
 
-                im_center_target_s = array_utils.applyAffineT(
+                im_center_target_s = ArrayData.applyAffineT(
                     [self.imported[0].centre_sx_sy[0]],
                     [self.imported[0].centre_sx_sy[1]],
-                    self.gm.array['transform'],
+                    self.gm.array_data.transform,
                     flip_x=flip_x)
 
                 im_center_target_s = [float(a[0]) for a in im_center_target_s]
@@ -725,7 +715,7 @@ class WaferCalibrationDlg(QDialog):
             self.main_controls_trigger.transmit('DRAW VP')
 
             # update calibration flag
-            self.gm.array['calibrated'] = True
+            self.gm.array_data.calibrated = True
             self.main_controls_trigger.transmit('ARRAY WAFER CALIBRATED')
 
             self.accept()

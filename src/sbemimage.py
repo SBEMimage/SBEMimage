@@ -263,23 +263,23 @@ def main():
 
             # Launch Main Controls window. The Viewport window (see viewport.py)
             # is launched from Main Controls.
-            try:
-                SBEMimage_main_window = MainControls(config,
-                                                     sysconfig,
-                                                     config_file,
-                                                     VERSION)
-                sys.exit(SBEMimage.exec_())
-            except Exception as e:
-                print('\nAn exception occurred during this SBEMimage session:\n')
-                utils.logger.propagate = True
-                utils.log_exception("Exception")
-                print('\nProgram aborted.')
-                print('Please submit a bug report at '
-                      'https://github.com/SBEMimage/SBEMimage/issues and '
-                      'include all lines in /SBEMimage/log/SBEMimage.log '
-                      'after the entry "ERROR : Exception".')
-                os.system('cmd /k')
-                sys.exit()
+            #try:
+            SBEMimage_main_window = MainControls(config,
+                                                 sysconfig,
+                                                 config_file,
+                                                 VERSION)
+            sys.exit(SBEMimage.exec_())
+            #except Exception as e:
+            #    print('\nAn exception occurred during this SBEMimage session:\n')
+            #    utils.logger.propagate = True
+            #    utils.log_exception("Exception")
+            #    print('\nProgram aborted.')
+            #    print('Please submit a bug report at '
+            #          'https://github.com/SBEMimage/SBEMimage/issues and '
+            #          'include all lines in /SBEMimage/log/SBEMimage.log '
+            #          'after the entry "ERROR : Exception".')
+            #    os.system('cmd /k')
+            #    sys.exit()
 
         else:
             config_error = ('Error(s) while checking configuration file(s): '

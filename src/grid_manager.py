@@ -32,8 +32,9 @@ from typing import List, Optional
 from math import sqrt, radians, sin, cos
 from qtpy.QtGui import QPixmap
 import scipy
+
 import utils
-import array_utils
+import ArrayData
 
 
 class Tile:
@@ -636,19 +637,19 @@ class Grid:
             for r in self.AFAS_results
         ])
         xy_tiles = [tile.sx_sy for tile in self.__tiles]
-        wd_tiles, wd_outliers = array_utils.focus_points_from_focused_points(
+        wd_tiles, wd_outliers = ArrayData.focus_points_from_focused_points(
             wd_calibrated_points,
             xy_tiles,
         )
         if len(wd_outliers)>0:
             utils.log_warning(f"There are autofocus outliers: {wd_outliers}")
-        stigx_tiles, stigx_outliers = array_utils.focus_points_from_focused_points(
+        stigx_tiles, stigx_outliers = ArrayData.focus_points_from_focused_points(
             stigx_calibrated_points,
             xy_tiles,
         )
         if len(stigx_outliers)>0:
             utils.log_warning(f"There are autostig_x outliers: {stigx_outliers}")
-        stigy_tiles, stigy_outliers = array_utils.focus_points_from_focused_points(
+        stigy_tiles, stigy_outliers = ArrayData.focus_points_from_focused_points(
             stigy_calibrated_points,
             xy_tiles,
         )
@@ -952,7 +953,7 @@ class GridManager:
 
         # initialize Array settings
         self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
-        self.array = None
+        self.array_data = ArrayData.ArrayData()
 
     def fit_apply_aberration_gradient(self):
         dc_aberr = dict()
@@ -1283,19 +1284,19 @@ class GridManager:
                 self.__grids[g][t].autofocus_active = True
 
     # ----------------------------- Array functions ---------------------------------
+    def array_read(self, path):
+        self.array_data = ArrayData.ArrayData(path)
+        self.array_data.read_data()
+
+    # deprecated: save grids instead
+    def array_write(self):
+        self.array_data.write_data(self)
+
+    def array_reset(self):
+        self.array_data.reset()
+
     def array_landmarks(self):
-        if self.array['calibrated']:
-            # TODO: fix
-            transformed_landmarks = array_utils.applyAffineT(
-                [landmark[0] for landmark in self.array['landmarks']['source'].values()],
-                [landmark[1] for landmark in self.array['landmarks']['source'].values()],
-                self.array['transform'],
-                # flip_x=False,
-                flip_x=self.sem.device_name.lower() in ['zeiss merlin', 'zeiss sigma'],
-            )
-            return [[x, y] for x, y in zip(*transformed_landmarks)]
-        else:
-            return {index: landmark['source'] for index, landmark in self.array['landmarks'].items()}
+        return self.array_data.get_landmarks(self.sem.device_name)
 
     def array_autofocus_points(self, grid_index):
         """The magc_autofocus_points_source are in non-rotated grid coordinates
@@ -1313,8 +1314,8 @@ class GridManager:
         grid = self.__grids[grid_index]
         transformed_points = []
         scale_factor = (
-            array_utils.getAffineScaling(self.array['transform'])
-            if self.array["calibrated"]
+            ArrayData.getAffineScaling(self.array_data.transform)
+            if self.array_data.calibrated
             else 1
         )
         grid_center_c = np.dot(grid.centre_sx_sy, [1,1j])
@@ -1344,8 +1345,8 @@ class GridManager:
         transformed_points = []
 
         scale_factor = (
-            1 / float(array_utils.getAffineScaling(self.array['transform']))
-            if self.array["calibrated"]
+            1 / float(ArrayData.getAffineScaling(self.array_data.transform))
+            if self.array_data.calibrated
             else 1
         )
         # _c indicates complex number
@@ -1398,64 +1399,66 @@ class GridManager:
         # TODO (TT): Test and refactor the following
         s = source_grid_number
         t = target_grid_number
-        if s==t:
+        if s == t:
             return
 
-        try:
-            sourceSectionCenter = np.array(self.array['rois'][s]['center'])
-            sourceSectionAngle = self.array['rois'][s]['angle'] % 360
-        except KeyError:
-            sourceSectionCenter = np.array(self.array['sections'][s]['center'])
-            sourceSectionAngle = self.array['sections'][s]['angle'] % 360
+        sections = self.array_data.sections
+        source_section = sections[s]
+        target_section = sections[t]
 
-        try:
-            targetSectionCenter = np.array(self.array['rois'][t]['center'])
-            targetSectionAngle = self.array['rois'][t]['angle'] % 360
-        except KeyError:
-            targetSectionCenter = np.array(self.array['sections'][t]['center'])
-            targetSectionAngle = self.array['sections'][t]['angle'] % 360
+        if 'rois' in source_section and len(source_section['rois']) > 0:
+            source = source_section['rois'][0]
+        else:
+            source = source_section['sample']
+        source_section_center = np.array(source['center'])
+        source_section_angle = source['angle'] % 360
 
-        sourceGridCenter = np.array(self.__grids[s].centre_sx_sy)
-        sourceGridRotation = self.__grids[s].rotation
+        if 'rois' in target_section and len(target_section['rois']) > 0:
+            target = target_section['rois'][0]
+        else:
+            target = target_section['sample']
+        target_section_center = np.array(target['center'])
+        target_section_angle = target['angle'] % 360
+
+        source_grid_center = np.array(self.__grids[s].centre_sx_sy)
+        source_grid_rotation = self.__grids[s].rotation
 
         flip_x = self.sem.device_name.lower() in [
                         'zeiss merlin',
                         'zeiss sigma',
                     ]
 
-        if self.array['calibrated']:
+        if self.array_data.calibrated:
             # transform back the grid coordinates in non-transformed coordinates
             # inefficient but ok for now:
 
-            waferTransformInverse = array_utils.invertAffineT(self.array['transform'])
+            wafer_transform_inverse = ArrayData.invertAffineT(self.array_data.transform)
 
-            result = array_utils.applyAffineT(
-                [sourceGridCenter[0]],
-                [sourceGridCenter[1]],
-                waferTransformInverse,
+            result = ArrayData.applyAffineT(
+                [source_grid_center[0]],
+                [source_grid_center[1]],
+                wafer_transform_inverse,
                 flip_x=False)
 
-            sourceGridCenter = [
-                -result[0][0] if flip_x else result[0][0],
-                result[1][0]]
+            source_grid_center = [-result[0][0] if flip_x else result[0][0], result[1][0]]
 
-        sourceSectionGrid = sourceGridCenter - sourceSectionCenter
-        sourceSectionGridDistance = np.linalg.norm(sourceSectionGrid)
-        sourceSectionGridAngle = np.angle(
-            np.dot(sourceSectionGrid, [1, 1j]), deg=True)
+        source_section_grid = source_grid_center - source_section_center
+        source_section_grid_distance = np.linalg.norm(source_section_grid)
+        source_section_grid_angle = np.angle(
+            np.dot(source_section_grid, [1, 1j]), deg=True)
 
         # set all parameters in target grid
-        if not self.array['calibrated']:
+        if not self.array_data.calibrated:
             target_grid_rotation = (
-                - targetSectionAngle
-                + sourceGridRotation
-                + sourceSectionAngle
+                - target_section_angle
+                + source_grid_rotation
+                + source_section_angle
             )
         else:
             target_grid_rotation = (
-                sourceGridRotation
-                - sourceSectionAngle
-                + targetSectionAngle
+                source_grid_rotation
+                - source_section_angle
+                + target_section_angle
             )
         target_grid_rotation = target_grid_rotation % 360
 
@@ -1479,31 +1482,31 @@ class GridManager:
         # xxx self.set_adaptive_focus_tiles(t, self.get_adaptive_focus_tiles(s))
         # xxx self.set_adaptive_focus_gradient(t, self.get_adaptive_focus_gradient(s))
 
-        targetSectionGridAngle = (
-            sourceSectionGridAngle + sourceSectionAngle - targetSectionAngle)
+        target_section_grid_angle = (
+            source_section_grid_angle + source_section_angle - target_section_angle)
 
-        targetGridCenterComplex = (
-            np.dot(targetSectionCenter, [1, 1j])
-            + sourceSectionGridDistance
-                * np.exp(1j * np.radians(targetSectionGridAngle)))
-        targetGridCenter = (
-            np.real(targetGridCenterComplex),
-            np.imag(targetGridCenterComplex))
+        target_grid_center_complex = (
+            np.dot(target_section_center, [1, 1j])
+            + source_section_grid_distance
+            * np.exp(1j * np.radians(target_section_grid_angle)))
+        target_grid_center = (
+            np.real(target_grid_center_complex),
+            np.imag(target_grid_center_complex))
 
-        if self.array['calibrated']:
+        if self.array_data.calibrated:
             # transform the grid coordinates to wafer coordinates
-            result = array_utils.applyAffineT(
-                [targetGridCenter[0]],
-                [targetGridCenter[1]],
-                self.array['transform'],
+            result = ArrayData.applyAffineT(
+                [target_grid_center[0]],
+                [target_grid_center[1]],
+                self.array_data.transform,
                 flip_x=self.sem.device_name.lower() in [
                         'zeiss merlin',
                         'zeiss sigma',
                 ])
-            targetGridCenter = [result[0][0], result[1][0]]
+            target_grid_center = [result[0][0], result[1][0]]
 
         self.__grids[t].update_tile_positions()
-        self.__grids[t].centre_sx_sy = targetGridCenter
+        self.__grids[t].centre_sx_sy = target_grid_center
 
 
 # ------------------------- End of Array functions ------------------------------

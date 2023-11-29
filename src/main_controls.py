@@ -71,7 +71,7 @@ from main_controls_dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
 
 from array_dlg_windows import ArrayImportCDlg, ImportWaferImageDlg, \
                           WaferCalibrationDlg #, ImportZENExperimentDlg
-import array_utils
+import ArrayData
 
 
 class MainControls(QMainWindow):
@@ -971,7 +971,7 @@ class MainControls(QMainWindow):
     # ----------------------------- Array tab ---------------------------------------
 
     def initialize_array_gui(self):
-        self.gm.array = array_utils.create_empty_array()
+        self.gm.array_reset()
         self.actionImportArrayData.triggered.connect(
             self.array_open_import_dlg)
 
@@ -1016,12 +1016,8 @@ class MainControls(QMainWindow):
             self.array_select_string_sections)
         self.pushButton_array_importWaferImage.clicked.connect(
             self.array_open_import_wafer_image)
-        if not self.gm.array['path']:
-            self.pushButton_array_importWaferImage.setEnabled(False)
         self.pushButton_array_addSection.clicked.connect(
             self.array_add_section)
-        if not self.gm.array['calibrated']:
-            self.pushButton_array_addSection.setEnabled(False)
         self.pushButton_array_deleteLastSection.clicked.connect(
             self.array_delete_last_section)
 
@@ -1290,7 +1286,7 @@ class MainControls(QMainWindow):
             self.gm[row].display_colour = 1
         self.viewport.vp_draw()
         # update config
-        self.gm.array['selected_sections'] = [
+        self.gm.array_data.selected_sections = [
             id.row() for id
                 in self.tableView_array_sections
                     .selectedIndexes()]
@@ -1302,7 +1298,7 @@ class MainControls(QMainWindow):
             item = model.item(r, 0)
             if item.checkState() == Qt.Checked:
                 checkedSections.append(r)
-        self.gm.array['checked_sections'] = checkedSections
+        self.gm.array_data.checked_sections = checkedSections
 
     def array_clicked_section(self, clickedIndex):
         self.array_update_checked_sections_to_config()
@@ -1317,7 +1313,7 @@ class MainControls(QMainWindow):
         self.cs.vp_centre_dx_dy = self.gm[row].centre_dx_dy
         self.viewport.vp_draw()
 
-        if self.gm.array['calibrated']:
+        if self.gm.array_data.calibrated:
             utils.log_info(
                 'Array-CTRL',
                 f'Section {sectionKey} has been double-clicked. Moving to section...')
@@ -1372,7 +1368,7 @@ class MainControls(QMainWindow):
                 QAbstractItemView.PositionAtCenter)
         if state == 'toggle':
             self.array_toggle_selection(section_number)
-            if section_number in self.gm.array['selected_sections']:
+            if section_number in self.gm.array_data.selected_sections:
                 self.tableView_array_sections.scrollTo(
                     index,
                     QAbstractItemView.PositionAtCenter)
@@ -1384,7 +1380,7 @@ class MainControls(QMainWindow):
         model.removeRows(0, model.rowCount(), QModelIndex())
         self.array_trigger_wafer_uncalibrated()
         self.array_trigger_wafer_uncalibratable()
-        self.gm.array = array_utils.create_empty_array()
+        self.gm.array_reset()
         self.gm.delete_all_grids_above_index(0)
         self.gm.array_delete_autofocus_points(0)
         # self.gm[0].array_delete_polyroi()
@@ -1423,13 +1419,13 @@ class MainControls(QMainWindow):
             self.try_to_create_directory(target_dir)
         import_wafer_dlg = ImportWaferImageDlg(
             self.acq, self.imported,
-            os.path.dirname(self.gm.array['path']),
+            os.path.dirname(self.gm.array_data.path),
             self.trigger)
 
     def array_add_section(self):
         self.gm.add_new_grid()
         grid_index = self.gm.number_grids - 1
-        self.gm[grid_index].origin_sx_sy = list(*self.stage.get_xy())
+        self.gm[grid_index].origin_sx_sy = list(self.stage.get_xy())
 
         # set same properties as previous section if it exists
         if grid_index != 0:
@@ -1459,11 +1455,11 @@ class MainControls(QMainWindow):
         if lastSectionNumber > 1:
             model.removeRow(lastSectionNumber)
             # unselect and uncheck section
-            if lastSectionNumber in self.gm.array['selected_sections']:
-                self.gm.array['selected_sections'].remove(lastSectionNumber)
+            if lastSectionNumber in self.gm.array_data.selected_sections:
+                self.gm.array_data.selected_sections.remove(lastSectionNumber)
 
-            if lastSectionNumber in self.gm.array['checked_sections']:
-                self.gm.array['checked_sections'].remove(lastSectionNumber)
+            if lastSectionNumber in self.gm.array_data.checked_sections:
+                self.gm.array_data.checked_sections.remove(lastSectionNumber)
 
             # remove grid
             self.gm.delete_grid()
