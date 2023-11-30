@@ -117,7 +117,7 @@ def main():
     if default_cfg_found():
         # Ask user to select .ini file
         startup_dialog = ConfigDlg(VERSION)
-        startup_dialog.exec_()
+        startup_dialog.exec()
         dlg_response = startup_dialog.get_ini_file()
         device_presets_selection = startup_dialog.device_presets_selection
         if dlg_response == 'abort':
@@ -263,23 +263,26 @@ def main():
 
             # Launch Main Controls window. The Viewport window (see viewport.py)
             # is launched from Main Controls.
-            #try:
-            SBEMimage_main_window = MainControls(config,
-                                                 sysconfig,
-                                                 config_file,
-                                                 VERSION)
-            sys.exit(SBEMimage.exec_())
-            #except Exception as e:
-            #    print('\nAn exception occurred during this SBEMimage session:\n')
-            #    utils.logger.propagate = True
-            #    utils.log_exception("Exception")
-            #    print('\nProgram aborted.')
-            #    print('Please submit a bug report at '
-            #          'https://github.com/SBEMimage/SBEMimage/issues and '
-            #          'include all lines in /SBEMimage/log/SBEMimage.log '
-            #          'after the entry "ERROR : Exception".')
-            #    os.system('cmd /k')
-            #    sys.exit()
+            try:
+                SBEMimage_main_window = MainControls(config,
+                                                     sysconfig,
+                                                     config_file,
+                                                     VERSION)
+                sys.exit(SBEMimage.exec())
+            except Exception as e:
+                if 'dev' in VERSION.lower():
+                    utils.log_exception("Exception")
+                else:
+                    print('\nAn exception occurred during this SBEMimage session:\n')
+                    utils.logger.propagate = True   # TODO: why is this flag set here?
+                    utils.log_exception("Exception")
+                    print('\nProgram aborted.')
+                    print('Please submit a bug report at '
+                          'https://github.com/SBEMimage/SBEMimage/issues and '
+                          'include all lines in /SBEMimage/log/SBEMimage.log '
+                          'after the entry "ERROR : Exception".')
+                    os.system('cmd /k')
+                    sys.exit()
 
         else:
             config_error = ('Error(s) while checking configuration file(s): '

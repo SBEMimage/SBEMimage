@@ -1,86 +1,20 @@
-import math
-import os
-
-import yaml
-
-import utils
-import io
 import configparser
-import numpy as np
-
+import io
 import itertools
-
+import math
+import numpy as np
+import os
 import statsmodels.api as smapi
-
-from shapely.geometry import Polygon
-from shapely.geometry import Point
+import utils
+import warnings
+import yaml
 
 from scipy.spatial import ConvexHull
 from scipy.spatial.distance import cdist
+from shapely.geometry import Polygon
+from shapely.geometry import Point
 
-import warnings
 warnings.filterwarnings("ignore")
-###############################
-# format of the magc dictionary
-###############################
-# magc
-    # 'sections'
-        # 1
-            # 'polygon': [[x1,y1],...,[xn,yn]]
-            # 'center': [x,y]
-            # 'area': x (pixel)
-            # 'compression': x
-        # .   'angle': x (degree)
-        # :
-        # n
-    # 'rois'
-        # 1
-            # 'template': x
-            # 'polygon': [[x1,y1],...,[xn,yn]]
-            # 'center': [x,y]
-            # 'area': x (pixel)
-        # .   'angle': x (degree)
-        # :
-        # n
-    # 'magnets'
-        # 1
-            # 'template': x
-        # .   'location': [x,y]
-        # :
-        # n
-    # 'focus'
-        # 1
-            # 'template': x
-        # .   'polygon': [[x1,y1],...,[xn,yn]]
-        # :
-        # n
-    # 'landmarks'
-        # 'source'
-            # 1: [x,y]
-            # .
-            # :
-            # n: [x,y]
-        # 'target'
-            # 1: [x,y]
-            # .
-            # :
-            # n: [x,y]
-    # 'sbemimage_sections'
-        # 1
-            # 'center': [x,y]
-            # 'angle': x
-        # . # 'focus': [[x1,y1],...,[xn,yn]]
-        # :
-        # n
-# 'serialorder': [x1,...,xn]
-# 'tsporder': [x1,...,xn]
-# 'selected_sections': [x1,...,xn]
-# 'checked_sections': [x1,...,xn]
-# 'path': string
-# 'transform': [x1,...,xn]
-# 'calibrated': bool
-
-# Note: the 'sbemimage_sections' field is saved at the end of the file
 
 
 class ArrayData:
@@ -101,17 +35,26 @@ class ArrayData:
         self.reset()
         ext = os.path.splitext(self.path)[-1].lower()
         if ext == '.magc':
-            return self.read_data_magc()
+            self.read_data_magc()
         else:
-            return self.read_data_yaml()
+            self.read_data_yaml()
+
+        utils.log_info(
+            'Array-CTRL',
+            f'File successfully read from {self.path}')
 
     def read_data_yaml(self):
         with open(self.path, 'r') as infile:
-            full_dict = yaml.load(infile, Loader=yaml.Loader)
-            flat_dict = {}
-            for section in full_dict:
-                flat_dict[section] = full_dict[section]['values']
-        return flat_dict
+            data = yaml.load(infile, Loader=yaml.Loader)
+            for section, contents in data.items():
+                if section == 'sections':
+                    self.sections = contents
+                elif section == 'landmarks':
+                    self.landmarks = contents
+                elif section == 'serial_order':
+                    self.serial_order = contents
+                elif section == 'stage_order':
+                    self.stage_order = contents
 
     def read_data_magc(self):
         config = configparser.ConfigParser()
@@ -120,19 +63,22 @@ class ArrayData:
             config.read_file(configfile)
 
         for header in config.sections():
-            ids = [int(index) for index in header.split('.')[1:]] if '.' in header else []
+            headers = header.split('.')
+            header0 = headers[0]
+            ids = [int(index) for index in headers[1:]] if '.' in header else []
             id = ids[0] if len(ids) > 0 else None
+            contents = config.items(header)
 
-            if header.startswith('sections.'):
+            if header.startswith('section.') or header.startswith('sections.'):
                 if id not in self.sections:
                     self.sections[id] = {}
                 self.sections[id]['sample'] = {}
                 sample = self.sections[id]['sample']
-                for key, val in config.items(header):
+                for key, val in contents:
                     if key == 'polygon':
-                        vals = [float(x) for x in val.split(',')]
-                        poly_points = [[x, y] for x, y in zip(vals[::2], vals[1::2])]
-                        sample['polygon'] = poly_points
+                        values = [float(x) for x in val.split(',')]
+                        polygon = np.reshape(values, (-1, 2)).tolist()
+                        sample['polygon'] = polygon
                     elif key == 'center':
                         sample['center'] = [float(x) for x in val.split(',')]
                     elif key == 'area':
@@ -140,30 +86,28 @@ class ArrayData:
                     elif key == 'angle':
                         sample['angle'] = ((float(val) + 90) % 360) - 180
 
-            elif header.startswith('magnets.'):
+            elif header.startswith('magnet.') or header.startswith('magnets.'):
                 if id not in self.sections:
                     self.sections[id] = {}
                 self.sections[id]['magnet'] = {}
                 magnet = self.sections[id]['magnet']
-                for key, val in config.items(header):
-                    if key == 'template':
-                        magnet['template'] = int(val)
-                    elif key == 'location':
-                        magnet['location'] = [float(x) for x in val.split(',')]
+                for key, val in contents:
+                    value = [float(x) for x in val.split(',')]
+                    if key == 'location':
+                        value = [value]
+                    magnet['polygon'] = value
 
-            elif header.startswith('rois.'):
+            elif header.startswith('roi.') or header.startswith('rois.'):
                 roi_id = ids[1] if len(ids) > 1 else 0
                 if 'rois' not in self.sections[id]:
                     self.sections[id]['rois'] = {}
                 self.sections[id]['rois'][roi_id] = {}
                 roi = self.sections[id]['rois'][roi_id]
-                for key, val in config.items(header):
-                    if key == 'template':
-                        roi['template'] = int(val)
-                    elif key == 'polygon':
-                        vals = [float(x) for x in val.split(',')]
-                        poly_points = [[x, y] for x, y in zip(vals[::2], vals[1::2])]
-                        roi['polygon'] = poly_points
+                for key, val in contents:
+                    if key == 'polygon':
+                        values = [float(x) for x in val.split(',')]
+                        polygon = np.reshape(values, (-1, 2)).tolist()
+                        roi['polygon'] = polygon
                     elif key == 'center':
                         roi['center'] = [float(x) for x in val.split(',')]
                     elif key == 'area':
@@ -172,25 +116,25 @@ class ArrayData:
                         roi['angle'] = ((float(val) + 90) % 360) - 180
 
             elif header.startswith('focus.'):
-                for key, val in config.items(header):
-                    self.focus[id] = {}
-                    if key == 'template':
-                        self.focus[id]['template'] = int(val)
-                    elif key in ['location', 'polygon']:
-                        vals = [float(x) for x in val.split(',')]
-                        focus_points = [[x, y] for x, y in zip(vals[::2], vals[1::2])]
-                        self.focus[id]['polygon'] = focus_points
+                self.sections[id]['focus'] = {}
+                focus = self.sections[id]['focus']
+                for key, val in contents:
+                    if key == 'polygon':
+                        values = [float(x) for x in val.split(',')]
+                        points = np.reshape(values, (-1, 2)).tolist()
+                        for point_index, point in enumerate(points):
+                            focus[point_index] = {'location': point}
 
-            elif header.startswith('landmarks.'):
-                self.landmarks[id] = {'source': [float(x) for x in config.get(header, 'location').split(',')]}
+            elif header.startswith('landmarks.') or header.startswith('landmark.'):
+                self.landmarks[id] = {'source': {'location': [float(x) for x in config.get(header, 'location').split(',')]}}
 
-            elif header == 'serialorder':
-                value = config.get('serialorder', 'serialorder')
+            elif header in ['serial_order', 'serialorder']:
+                value = config.get(header0, header0)
                 if value != '[]':
                     self.serial_order = [int(x) for x in value.split(',')]
 
-            elif header == 'tsporder':
-                value = config.get('tsporder', 'tsporder')
+            elif header in ['stage_order', 'tsporder']:
+                value = config.get(header0, header0)
                 if value != '[]':
                     self.stage_order = [int(x) for x in value.split(',')]
 
@@ -209,22 +153,19 @@ class ArrayData:
                 if value != '[]':
                     self.transform = [int(x) for x in value.split(',')]
 
-            if header.startswith('sbemimage_sections.'):
+            # deprecated
+            if header0 == 'sbemimage_sections':
                 self.sbemimage_sections[id] = {}
                 section = self.sbemimage_sections[id]
-                for key, val in config.items(header):
+                for key, val in contents:
                     if key == 'focus':
-                        vals = [float(x) for x in val.split(',')]
-                        focus_points = [[x, y] for x, y in zip(vals[::2], vals[1::2])]
-                        section['focus'] = focus_points
+                        values = [float(x) for x in val.split(',')]
+                        points = [[x, y] for x, y in zip(values[::2], values[1::2])]
+                        section['focus'] = points
                     elif key == 'center':
                         section['center'] = [float(x) for x in val.split(',')]
                     elif key == 'angle':
                         section['angle'] = ((-float(val) + 90) % 360) - 180
-
-        utils.log_info(
-            'Array-CTRL',
-            f'File successfully read from {self.path}')
 
     # deprecated: save grids instead
     def write_data(self, gm):
@@ -253,8 +194,8 @@ class ArrayData:
             str(gm.number_grids))
 
         if self.calibrated:
-            waferTransformInverse = invertAffineT(self.transform)
-            transform_angle = -getAffineRotation(self.transform)
+            wafer_transform_inverse = invert_affine_t(self.transform)
+            transform_angle = -get_affine_rotation(self.transform)
 
         with open(self.path, 'r') as f:
             lines = f.readlines()
@@ -270,7 +211,7 @@ class ArrayData:
             if gm.array_data['calibrated']:
                 # transform back the grid coordinates
                 # in non-transformed coordinates
-                result = applyAffineT(
+                result = apply_affine_t(
                     [target_ROI[0]],
                     [target_ROI[1]],
                     gm.array_data['transform'])
@@ -310,18 +251,18 @@ class ArrayData:
                     f.write(line)
 
     def get_landmarks(self, device_name):
+        landmarks = {index: landmark['source']['location'] for index, landmark in self.landmarks.items()}
         if self.calibrated:
-            transformed_landmarks = applyAffineT(
-                [landmark[0] for landmark in self.landmarks['source'].values()],
-                [landmark[1] for landmark in self.landmarks['source'].values()],
+            transformed_landmarks = apply_affine_t(
+                [landmark[0] for landmark in landmarks.values()],
+                [landmark[1] for landmark in landmarks.values()],
                 self.transform,
                 # flip_x=False,
                 flip_x=device_name.lower() in ['zeiss merlin', 'zeiss sigma'],
             )
-            return [[x, y] for x, y in zip(*transformed_landmarks)]
+            return {index: [x, y] for index, (x, y) in enumerate(zip(*transformed_landmarks))}
         else:
-            return {index: landmark['source'] for index, landmark in self.landmarks.items()}
-
+            return landmarks
 
 
 def point_to_flat_string(point):
@@ -340,7 +281,9 @@ def points_to_flat_string(points):
 
 #####################
 # geometric functions
-def affineT(
+#####################
+
+def affine_t(
     x_in,
     y_in,
     x_out,
@@ -355,7 +298,7 @@ def affineT(
     aff, res, rank, s = np.linalg.lstsq(X, Y, rcond=None)
     return aff
 
-def applyAffineT(
+def apply_affine_t(
     x_in,
     y_in,
     aff,
@@ -372,14 +315,14 @@ def applyAffineT(
 
     return x_out, y_out
 
-def invertAffineT(aff):
+def invert_affine_t(aff):
     return np.linalg.inv(aff)
 
-def getAffineRotation(aff):
+def get_affine_rotation(aff):
     return np.rad2deg(np.arctan2(aff[1][0], aff[1][1]))
 
-def getAffineScaling(aff):
-    x_out, y_out = applyAffineT([0, 1000], [0, 1000], aff)
+def get_affine_scaling(aff):
+    x_out, y_out = apply_affine_t([0, 1000], [0, 1000], aff)
     scaling = np.linalg.norm(
         [
             x_out[1] - x_out[0],
@@ -387,7 +330,7 @@ def getAffineScaling(aff):
         ]) / np.linalg.norm([1000,1000])
     return scaling
 
-def rigidT(
+def rigid_t(
     x_in,
     y_in,
     x_out,
@@ -421,7 +364,7 @@ def rigidT(
     # return c, np.mean(displacements)
     return c
 
-def applyRigidT(
+def apply_rigid_t(
     x, y,
     coefs,
     flip_x=False):
@@ -437,10 +380,10 @@ def applyRigidT(
 
     return x_out, y_out
 
-def getRigidRotation(coefs):
+def get_rigid_rotation(coefs):
     return np.rad2deg(np.arctan2(coefs[0], coefs[1]))
 
-def getRigidScaling(coefs):
+def get_rigid_scaling(coefs):
     return coefs[1]
 
 #####################

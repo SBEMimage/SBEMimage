@@ -680,8 +680,8 @@ class MainControls(QMainWindow):
             self.tabWidget.setTabEnabled(3, False)
             self.actionImportArrayData.setEnabled(False)
             # activate Array with a double-click on the Array tab
-            self.tabWidget.setTabToolTip(3, 'Double-click to toggle MagC mode')
-            self.tabWidget.tabBarDoubleClicked.connect(self.activate_magc_mode)
+            self.tabWidget.setTabToolTip(3, 'Double-click to toggle Array mode')
+            self.tabWidget.tabBarDoubleClicked.connect(self.activate_array_mode)
         else:
             self.initialize_array_gui()
         #------------------#
@@ -700,39 +700,39 @@ class MainControls(QMainWindow):
             # self.tabWidget.setTabToolTip(4, 'MultiSEM mode under development')
         # #----------------------#
 
-    def activate_magc_mode(self, tabIndex):
+    def activate_array_mode(self, tabIndex):
         if tabIndex != 3:
             return
 
         if self.cfg_file == 'default.ini':
             QMessageBox.information(
-                self, 'Activating MagC mode',
-                'Please activate MagC mode from a configuration file other '
+                self, 'Activating Array mode',
+                'Please activate Array mode from a configuration file other '
                 'than default.ini.',
                 QMessageBox.Ok)
             return
 
         answer = QMessageBox.question(
-            self, 'Activating MagC mode',
-            'Do you want to activate the MagC mode?'
+            self, 'Activating Array mode',
+            'Do you want to activate the Array mode?'
             '\n\nMake sure you have saved everything you need '
             'in the current session. \nYou will be prompted to '
             'enter a name for a new configuration file and '
-            'SBEMimage will close. \nThe MagC mode will be active '
+            'SBEMimage will close. \nThe Array mode will be active '
             'at the next start if you select the new configuration file.',
-            QMessageBox.Yes| QMessageBox.No)
+            QMessageBox.Yes|QMessageBox.No)
         if answer != QMessageBox.Yes:
             return
 
         dialog = SaveConfigDlg(self.syscfg_file)
-        dialog.label.setText('Name of new MagC config file')
-        dialog.label_line1.setText('Choose a name for the new MagC configuration')
+        dialog.label.setText('Name of new config file')
+        dialog.label_line1.setText('Choose a name for the new configuration')
         dialog.label_line2.setText('file. If the configuration file already exists,')
         dialog.label_line3.setText('then it will be overwritten.')
         dialog.label_line4.setText('Use only A-Z, a-z, 0-9, and hyphen/underscore.')
         dialog.label_line5.setText('.ini will be added automatically')
 
-        if dialog.exec_():
+        if dialog.exec():
             self.cfg_file = dialog.file_name
             self.cfg['sys']['magc_mode'] = 'True'
             self.cfg['sys']['use_microtome'] = 'False'
@@ -1044,7 +1044,7 @@ class MainControls(QMainWindow):
     # def msem_import_zen_experiment(self):
         # import_zen_dialog = ImportZENExperimentDlg(
             # self.msem_variables, self.trigger)
-        # if import_zen_dialog.exec_():
+        # if import_zen_dialog.exec():
             # pass
 
     # def msem_export_zen_experiment(self):
@@ -1419,7 +1419,7 @@ class MainControls(QMainWindow):
             self.try_to_create_directory(target_dir)
         import_wafer_dlg = ImportWaferImageDlg(
             self.acq, self.imported,
-            os.path.dirname(self.gm.array_data.path),
+            self.gm.array_data.path,
             self.trigger)
 
     def array_add_section(self):
@@ -1471,14 +1471,14 @@ class MainControls(QMainWindow):
         gui_items = {'section_table': self.tableView_array_sections,}
         dialog = ArrayImportCDlg(self.acq, self.gm, self.sem, self.imported,
                                  self.cs, gui_items, self.trigger)
-        if dialog.exec_():
+        if dialog.exec():
             # self.tabWidget.setTabEnabled(3, True)
             self.update_from_grid_dlg()
 
     def array_open_wafer_calibration_dlg(self):
         dialog = WaferCalibrationDlg(self.cfg, self.stage, self.ovm, self.cs,
                                      self.gm, self.imported, self.trigger)
-        if dialog.exec_():
+        if dialog.exec():
             pass
     # --------------------------- End of Array tab ----------------------------------
 
@@ -1487,7 +1487,7 @@ class MainControls(QMainWindow):
 
     def open_mag_calibration_dlg(self):
         dialog = MagCalibrationDlg(self.sem)
-        if dialog.exec_():
+        if dialog.exec():
             # Show updated OV magnification
             self.show_current_settings()
 
@@ -1502,7 +1502,7 @@ class MainControls(QMainWindow):
         else:
             new_syscfg = False
             dialog = SaveConfigDlg(self.syscfg_file)
-        if dialog.exec_():
+        if dialog.exec():
             self.cfg_file = dialog.file_name
             if new_syscfg:
                 self.syscfg_file = dialog.sysfile_name
@@ -1513,7 +1513,7 @@ class MainControls(QMainWindow):
 
     def open_sem_dlg(self):
         dialog = SEMSettingsDlg(self.sem)
-        if dialog.exec_():
+        if dialog.exec():
             if self.microtome is not None:
                 # Update stage calibration (EHT may have changed)
                 self.cs.load_stage_calibration(self.sem.target_eht)
@@ -1541,16 +1541,16 @@ class MainControls(QMainWindow):
                 dialog = MicrotomeSettingsDlg(self.microtome, self.sem,
                                               self.stage, self.cs,
                                               self.trigger, self.use_microtome)
-                if dialog.exec_():
+                if dialog.exec():
                     self.show_current_settings()
                     self.show_stack_acq_estimates()
                     self.viewport.vp_draw()
             elif self.microtome.device_name == 'ConnectomX katana':
                 dialog = KatanaSettingsDlg(self.microtome)
-                dialog.exec_()
+                dialog.exec()
             elif self.microtome.device_name == 'GCIB':
                 dialog = GCIBSettingsDlg(self.microtome)
-                dialog.exec_()
+                dialog.exec()
         else:
             utils.log_error('No microtome-related functions are available'
                 ' because no microtome is configured in the current session')
@@ -1559,7 +1559,7 @@ class MainControls(QMainWindow):
         prev_calibration = self.cs.stage_calibration
         dialog = StageCalibrationDlg(self.cs, self.stage, self.sem,
                                      self.acq.base_dir)
-        if dialog.exec_() and self.cs.stage_calibration != prev_calibration:
+        if dialog.exec() and self.cs.stage_calibration != prev_calibration:
             # Recalculate all grids and debris detection areas
             for grid_index in range(self.gm.number_grids):
                 # Resetting the origin triggers updates of dx_dy coordinates
@@ -1574,14 +1574,14 @@ class MainControls(QMainWindow):
 
     def open_cut_duration_dlg(self):
         dialog = CutDurationDlg(self.microtome)
-        dialog.exec_()
+        dialog.exec()
 
     def open_ov_dlg(self):
         dialog = OVSettingsDlg(self.ovm, self.sem, self.ov_index_dropdown,
                                self.trigger)
         # self.update_from_ov_dlg() is called when user saves settings
         # or adds/deletes OVs.
-        dialog.exec_()
+        dialog.exec()
 
     def update_from_ov_dlg(self):
         self.update_main_controls_ov_selector(self.ov_index_dropdown)
@@ -1598,7 +1598,7 @@ class MainControls(QMainWindow):
                                  self.trigger, self.magc_mode)
         # self.update_from_grid_dlg() is called when user saves settings
         # or adds/deletes grids.
-        dialog.exec_()
+        dialog.exec()
 
     def update_from_grid_dlg(self):
         # Update selectors
@@ -1618,7 +1618,7 @@ class MainControls(QMainWindow):
         prev_stack_name = self.acq.stack_name
         dialog = AcqSettingsDlg(self.acq, self.notifications,
                                 self.use_microtome)
-        if dialog.exec_():
+        if dialog.exec():
             self.show_current_settings()
             self.show_stack_acq_estimates()
             self.show_stack_progress()   # Slice number may have changed.
@@ -1630,44 +1630,44 @@ class MainControls(QMainWindow):
         self.show_stack_acq_estimates()
         dialog = PreStackDlg(self.acq, self.sem, self.microtome,
                              self.autofocus, self.ovm, self.gm)
-        if dialog.exec_():
+        if dialog.exec():
             self.show_current_settings()
             self.start_acquisition()
 
     def open_export_dlg(self):
         dialog = ExportDlg(self.acq)
-        dialog.exec_()
+        dialog.exec()
 
     def open_update_dlg(self):
         dialog = UpdateDlg()
-        dialog.exec_()
+        dialog.exec()
 
     def open_email_monitoring_dlg(self):
         dialog = EmailMonitoringSettingsDlg(self.acq, self.notifications)
-        dialog.exec_()
+        dialog.exec()
 
     def open_debris_dlg(self):
         dialog = DebrisSettingsDlg(self.ovm, self.img_inspector, self.acq)
-        if dialog.exec_():
+        if dialog.exec():
             self.ovm.update_all_debris_detections_areas(self.gm)
             self.show_current_settings()
             self.viewport.vp_draw()
 
     def open_ask_user_dlg(self):
         dialog = AskUserDlg()
-        dialog.exec_()
+        dialog.exec()
 
     def open_mirror_drive_dlg(self):
         dialog = MirrorDriveDlg(self.acq)
-        dialog.exec_()
+        dialog.exec()
 
     def open_image_monitoring_dlg(self):
         dialog = ImageMonitoringSettingsDlg(self.img_inspector)
-        dialog.exec_()
+        dialog.exec()
 
     def open_autofocus_settings_dlg(self):
         dialog = AutofocusSettingsDlg(self.sem, self.autofocus, self.gm, self.magc_mode)
-        if dialog.exec_():
+        if dialog.exec():
             if self.autofocus.method == 2:
                 self.checkBox_useAutofocus.setText('Focus tracking')
             else:
@@ -1676,50 +1676,50 @@ class MainControls(QMainWindow):
 
     def open_run_autofocus_dlg(self):
         dialog = RunAutofocusDlg(self.autofocus, self.sem)
-        if dialog.exec_():
+        if dialog.exec():
             return dialog.new_wd_stig
         else:
             return None, None, None
 
     def open_plasma_cleaner_dlg(self):
         dialog = PlasmaCleanerDlg(self.plasma_cleaner)
-        dialog.exec_()
+        dialog.exec()
 
     def open_approach_dlg(self):
         dialog = ApproachDlg(self.microtome, self.trigger)
-        dialog.exec_()
+        dialog.exec()
 
     def open_grab_frame_dlg(self):
         dialog = GrabFrameDlg(self.sem, self.acq, self.trigger)
-        dialog.exec_()
+        dialog.exec()
 
     def open_variable_pressure_dlg(self):
         dialog = VariablePressureDlg(self.sem)
-        dialog.exec_()
+        dialog.exec()
 
     def open_charge_compensator_dlg(self):
         dialog = ChargeCompensatorDlg(self.sem)
-        dialog.exec_()
+        dialog.exec()
 
     def open_eht_dlg(self):
         dialog = EHTDlg(self.sem)
-        dialog.exec_()
+        dialog.exec()
 
     def open_motor_test_dlg(self):
         dialog = MotorTestDlg(self.microtome, self.acq, self.trigger)
-        dialog.exec_()
+        dialog.exec()
 
     def open_motor_status_dlg(self):
         dialog = MotorStatusDlg(self.stage)
-        dialog.exec_()
+        dialog.exec()
 
     def open_send_command_dlg(self):
         dialog = SendCommandDlg(self.microtome)
-        dialog.exec_()
+        dialog.exec()
 
     def open_about_box(self):
         dialog = AboutBox(self.version)
-        dialog.exec_()
+        dialog.exec()
 
     # ============ Below: stack progress update and signal processing ==============
 
@@ -1960,7 +1960,7 @@ class MainControls(QMainWindow):
                              QMessageBox.NoRole)
             msgBox.addButton(QPushButton('Abort'),
                              QMessageBox.RejectRole)
-            reply = msgBox.exec_()
+            reply = msgBox.exec()
             # Redraw with previous settings
             self.viewport.vp_draw()
             self.acq.user_reply = reply
@@ -1982,7 +1982,7 @@ class MainControls(QMainWindow):
                              QMessageBox.NoRole)
             msgBox.addButton(QPushButton('Abort'),
                              QMessageBox.RejectRole)
-            reply = msgBox.exec_()
+            reply = msgBox.exec()
             # Redraw with previous settings
             self.viewport.vp_draw()
             self.acq.user_reply = reply
@@ -2474,7 +2474,7 @@ class MainControls(QMainWindow):
         """
         if not self.acq.acq_paused:
             dialog = PauseDlg()
-            dialog.exec_()
+            dialog.exec()
             pause_type = dialog.pause_type
             if pause_type == 1 or pause_type == 2:
                 utils.log_info('CTRL', 'PAUSE command received.')
@@ -2911,7 +2911,7 @@ class MainControls(QMainWindow):
                                     self.ft_selected_stig_x,
                                     self.ft_selected_stig_y,
                                     self.simulation_mode)
-            if dialog.exec_():
+            if dialog.exec():
                 self.ft_set_new_wd_stig(dialog.new_wd,
                                         dialog.new_stig_x,
                                         dialog.new_stig_y)
@@ -2977,7 +2977,7 @@ class MainControls(QMainWindow):
             dialog = FTMoveDlg(self.stage, self.gm, self.ovm,
                                self.ft_selected_grid, self.ft_selected_tile,
                                self.ft_selected_ov)
-            if dialog.exec_():
+            if dialog.exec():
                 self.ft_cycle_counter = 0
                 self.ft_show_updated_stage_position()
         else:

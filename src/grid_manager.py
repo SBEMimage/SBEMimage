@@ -1118,6 +1118,7 @@ class GridManager:
                         wd_gradient_params=wd_gradient_params)
         self.__grids.append(new_grid)
         self.number_grids += 1
+        return new_grid
 
     def delete_grid(self):
         """Delete the grid with the highest grid index. Grids at indices that
@@ -1132,6 +1133,31 @@ class GridManager:
         if grid_index >= 0:
             self.number_grids = grid_index + 1
             del self.__grids[self.number_grids:]
+
+    def add_new_grid_from_roi(self, center, size, rotation):
+        if self.template_grid_index >= self.number_grids:
+            self.template_grid_index = 0
+        grid = self.__grids[self.template_grid_index]
+
+        tile_width = grid.tile_width_d()
+        tile_height = grid.tile_height_d()
+
+        w, h = size
+        origin_sx_sy = self.cs.convert_d_to_s(center)
+
+        tiles = [int(np.ceil(h / tile_height)), int(np.ceil(w / tile_width))]
+
+        new_grid = self.add_new_grid(origin_sx_sy=origin_sx_sy, sw_sh=(w, h), active=grid.active,
+                                     frame_size=grid.frame_size, frame_size_selector=grid.frame_size_selector,
+                                     overlap=grid.overlap, pixel_size=grid.pixel_size,
+                                     dwell_time=grid.dwell_time, dwell_time_selector=grid.dwell_time_selector,
+                                     bit_depth_selector=grid.bit_depth_selector,
+                                     rotation=rotation, row_shift=grid.row_shift,
+                                     acq_interval=grid.acq_interval, acq_interval_offset=grid.acq_interval_offset,
+                                     wd_stig_xy=grid.wd_stig_xy, use_wd_gradient=grid.use_wd_gradient,
+                                     wd_gradient_ref_tiles=grid.wd_gradient_ref_tiles, wd_gradient_params=grid.wd_gradient_params,
+                                     size=tiles)
+        return new_grid
 
     def draw_grid(self, x, y, w, h):
         """Draw grid/tiles rectangle using mouse"""
@@ -1309,18 +1335,18 @@ class GridManager:
             self.__grids[grid_index].array_autofocus_points_source)
 
     def array_convert_to_current_grid(self, grid_index, input_points):
-        if input_points == []:
+        if len(input_points) == 0:
             return []
         grid = self.__grids[grid_index]
         transformed_points = []
         scale_factor = (
-            ArrayData.getAffineScaling(self.array_data.transform)
+            ArrayData.get_affine_scaling(self.array_data.transform)
             if self.array_data.calibrated
             else 1
         )
-        grid_center_c = np.dot(grid.centre_sx_sy, [1,1j])
+        grid_center_c = np.dot(grid.centre_sx_sy, [1, 1j])
         for point in input_points:
-            point_c = np.dot(point, [1,1j])
+            point_c = np.dot(point, [1, 1j])
             transformed_point_c = (
                 grid_center_c
                 + (
@@ -1345,7 +1371,7 @@ class GridManager:
         transformed_points = []
 
         scale_factor = (
-            1 / float(ArrayData.getAffineScaling(self.array_data.transform))
+            1 / float(ArrayData.get_affine_scaling(self.array_data.transform))
             if self.array_data.calibrated
             else 1
         )
@@ -1355,7 +1381,7 @@ class GridManager:
             [1, 1j],
         )
         for point in input_points:
-            point_c = np.dot(point, [1,1j])
+            point_c = np.dot(point, [1, 1j])
             transformed_point_c = (
                 (point_c - grid_center_c)
                 * np.exp(1j * np.radians(-grid.rotation))
@@ -1382,7 +1408,7 @@ class GridManager:
             transformed_af_point)
 
     def array_delete_last_autofocus_point(self, grid_index):
-        if self.__grids[grid_index].array_autofocus_points_source != []:
+        if len(self.__grids[grid_index].array_autofocus_points_source) > 0:
             del self.__grids[grid_index].array_autofocus_points_source[-1]
         # magc_utils.write_magc(self)
 
@@ -1432,9 +1458,9 @@ class GridManager:
             # transform back the grid coordinates in non-transformed coordinates
             # inefficient but ok for now:
 
-            wafer_transform_inverse = ArrayData.invertAffineT(self.array_data.transform)
+            wafer_transform_inverse = ArrayData.invert_affine_t(self.array_data.transform)
 
-            result = ArrayData.applyAffineT(
+            result = ArrayData.apply_affine_t(
                 [source_grid_center[0]],
                 [source_grid_center[1]],
                 wafer_transform_inverse,
@@ -1495,7 +1521,7 @@ class GridManager:
 
         if self.array_data.calibrated:
             # transform the grid coordinates to wafer coordinates
-            result = ArrayData.applyAffineT(
+            result = ArrayData.apply_affine_t(
                 [target_grid_center[0]],
                 [target_grid_center[1]],
                 self.array_data.transform,

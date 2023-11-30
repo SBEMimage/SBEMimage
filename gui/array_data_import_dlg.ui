@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>766</width>
-    <height>911</height>
+    <width>411</width>
+    <height>430</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -25,19 +25,6 @@
   <property name="layoutDirection">
    <enum>Qt::RightToLeft</enum>
   </property>
-  <widget class="Line" name="line_2">
-   <property name="geometry">
-    <rect>
-     <x>40</x>
-     <y>450</y>
-     <width>331</width>
-     <height>16</height>
-    </rect>
-   </property>
-   <property name="orientation">
-    <enum>Qt::Horizontal</enum>
-   </property>
-  </widget>
   <widget class="QLabel" name="label">
    <property name="geometry">
     <rect>
@@ -80,7 +67,7 @@
      <x>10</x>
      <y>72</y>
      <width>391</width>
-     <height>381</height>
+     <height>311</height>
     </rect>
    </property>
    <property name="layoutDirection">
@@ -236,8 +223,8 @@
    <widget class="QCheckBox" name="checkBox">
     <property name="geometry">
      <rect>
-      <x>320</x>
-      <y>280</y>
+      <x>330</x>
+      <y>230</y>
       <width>51</width>
       <height>51</height>
      </rect>
@@ -253,9 +240,9 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>250</y>
+      <y>230</y>
       <width>305</width>
-      <height>92</height>
+      <height>71</height>
      </rect>
     </property>
     <property name="text">
@@ -266,10 +253,10 @@
   <widget class="QDialogButtonBox" name="pushButton_import">
    <property name="geometry">
     <rect>
-     <x>40</x>
-     <y>460</y>
-     <width>331</width>
-     <height>61</height>
+     <x>240</x>
+     <y>390</y>
+     <width>161</width>
+     <height>31</height>
     </rect>
    </property>
    <property name="layoutDirection">

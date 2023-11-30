@@ -1421,7 +1421,7 @@ class Viewport(QWidget):
         # magc landmarks
         if self.sem.magc_mode:
             self.vp_qp.setBrush(QBrush(
-                QColor(255,255,255,100),
+                QColor(255, 255, 255, 100),
                 Qt.SolidPattern,
             ))
             for landmark_id, landmark in self.gm.array_landmarks().items():
@@ -1453,7 +1453,7 @@ class Viewport(QWidget):
                     int(6 * fontsize),
                     int(4/3 * fontsize),
                 )
-                self.vp_qp.setPen(QColor(255,255,255,100))
+                self.vp_qp.setPen(QColor(255, 255, 255, 100))
                 self.vp_qp.drawRect(landmark_rect)
                 self.vp_qp.setPen(QColor(Qt.black))
                 self.vp_qp.drawText(
@@ -2747,7 +2747,7 @@ class Viewport(QWidget):
             else:
                 # Let user choose the intended relative position of the tile:
                 dialog = FocusGradientTileSelectionDlg(ref_tiles)
-                if dialog.exec_():
+                if dialog.exec():
                     if dialog.selected is not None:
                         ref_tiles[dialog.selected] = self.selected_tile
             self.gm[self.selected_grid].wd_gradient_ref_tiles = ref_tiles
@@ -2864,7 +2864,7 @@ class Viewport(QWidget):
                            self.sem, self.stage, self.ovm, self.acq,
                            self.img_inspector,
                            self.viewport_trigger)
-        dialog.exec_()
+        dialog.exec()
 
     def _vp_stub_overview_acq_success(self, success):
         if success:
@@ -2903,7 +2903,7 @@ class Viewport(QWidget):
         else:
             dialog = GridRotationDlg(self.selected_grid, self.gm,
                                      self.viewport_trigger, self.sem.magc_mode)
-        if dialog.exec_():
+        if dialog.exec():
             if self.ovm.use_auto_debris_area:
                 self.ovm.update_all_debris_detections_areas(self.gm)
                 self.vp_draw()
@@ -2922,17 +2922,17 @@ class Viewport(QWidget):
                     QMessageBox.Ok)
                 return
         dialog = ImportImageDlg(self.imported, target_dir)
-        if dialog.exec_():
+        if dialog.exec():
             self.vp_draw()
 
     def _vp_open_adjust_image_dlg(self):
         dialog = AdjustImageDlg(self.imported, self.selected_imported,
                                 self.sem.magc_mode, self.viewport_trigger)
-        dialog.exec_()
+        dialog.exec()
 
     def _vp_open_delete_image_dlg(self):
         dialog = DeleteImageDlg(self.imported)
-        if dialog.exec_():
+        if dialog.exec():
             self.vp_draw()
 
     def vp_show_new_stub_overview(self):
@@ -3028,13 +3028,13 @@ class Viewport(QWidget):
                 .centre_sx_sy) = source_location
         else:
             # transform into wafer coordinates
-            result = magc_utils.applyAffineT(
+            result = ArrayData.apply_affine_t(
                 [source_location[0]],
                 [source_location[1]],
                 self.gm.array_data['transform'],
                 flip_x=flip_x)
 
-            transformAngle = -magc_utils.getAffineRotation(
+            transformAngle = -ArrayData.get_affine_rotation(
                 self.gm.array_data['transform'])
             target_angle = (source_angle + transformAngle) % 360
             self.gm[clicked_section_number].rotation = target_angle
@@ -4161,7 +4161,7 @@ class Viewport(QWidget):
 
     def _m_open_motor_status_dlg(self):
         dialog = MotorStatusDlg(self.stage)
-        dialog.exec_()
+        dialog.exec()
 
     def m_show_motor_status(self):
         """Show recent motor warnings or errors if there are any."""

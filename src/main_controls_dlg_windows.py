@@ -160,7 +160,7 @@ class ConfigDlg(QDialog):
     def open_device_selection_dlg(self):
         dialog = DeviceSelectionDlg(self.load_presets_enabled,
                                     self.device_presets_selection)
-        if dialog.exec_():
+        if dialog.exec():
             self.device_presets_selection = dialog.selected_presets
             self.load_presets_enabled = dialog.presets_enabled
 
@@ -560,11 +560,11 @@ class MicrotomeSettingsDlg(QDialog):
 
     def open_motor_status_dlg(self):
         dialog = MotorStatusDlg(self.microtome)
-        dialog.exec_()
+        dialog.exec()
 
     def open_set_stage_position_dlg(self):
         dialog = SetStagePositionDlg(self.stage, self.main_controls_trigger)
-        dialog.exec_()
+        dialog.exec()
 
     def update_maintenance_move_interval_spinbox(self):
         self.spinBox_maintenanceMoveInterval.setEnabled(
@@ -2011,7 +2011,7 @@ class GridSettingsDlg(QDialog):
 
     def open_focus_gradient_dlg(self):
         sub_dialog = FocusGradientSettingsDlg(self.gm, self.current_grid)
-        sub_dialog.exec_()
+        sub_dialog.exec()
 
 # ------------------------------------------------------------------------------
 
@@ -2468,7 +2468,7 @@ class PreStackDlg(QDialog):
 
     def edit_interruption_point(self):
         dialog = SetStartTileDlg(self.acq, self.gm)
-        dialog.exec_()
+        dialog.exec()
         # Update interruption point label
         self.show_interruption_point()
 
@@ -3272,11 +3272,11 @@ class AutofocusSettingsDlg(QDialog):
 
     def open_zeiss_params_dlg(self):
         sub_dialog = AutofocusZEISSParamsDlg(self.autofocus)
-        sub_dialog.exec_()
+        sub_dialog.exec()
 
     def open_tescan_params_dlg(self):
         sub_dialog = AutofocusTESCANParamsDlg(self.autofocus)
-        sub_dialog.exec_()
+        sub_dialog.exec()
 
     def accept(self):
         error_str = ''

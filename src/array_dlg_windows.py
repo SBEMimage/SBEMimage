@@ -95,8 +95,8 @@ class ArrayImportCDlg(QDialog):
         if self.checkBox.isChecked():
             if not array_data.sbemimage_sections:
                 msg = ('The array file does not contain information from a previous'
-                    ' SBEMimage session. Please try another file, or uncheck the option'
-                    ' in the import dialog.')
+                       ' SBEMimage session. Please try another file, or uncheck the option'
+                       ' in the import dialog.')
                 utils.log_info(
                     'Array-CTRL',
                     msg)
@@ -137,27 +137,35 @@ class ArrayImportCDlg(QDialog):
         if isinstance(sections, dict):
             sections = list(sections.values())
 
-        for s in range(len(sections) - 1):
-            self.gm.add_new_grid([0, 0])
+        #for _ in range(len(sections) - 1):
+        #    self.gm.add_new_grid([0, 0])
 
         for index, section in enumerate(sections):
-            sample_section = section['sample']
-            grid = self.gm[index]
+            if 'rois' in section:
+                # TODO: support multiple roi/grids
+                grid_section = section['rois'][0]
+            else:
+                grid_section = section['sample']
+
+            center, size, angle = utils.calc_rotated_rect(grid_section['polygon'])
+            grid = self.gm.add_new_grid_from_roi(grid_section['center'], size, -grid_section['angle'] % 360)
+
+            #grid = self.gm[index]
             grid.auto_update_tile_positions = False
-            grid.size = [
-                self.spinBox_rows.value(),
-                self.spinBox_cols.value()]
+            #grid.size = [
+            #    self.spinBox_rows.value(),
+            #    self.spinBox_cols.value()]
             grid.display_colour = 1
-            grid.frame_size_selector = frame_size_selector
-            grid.pixel_size = pixel_size
+            #grid.frame_size_selector = frame_size_selector
+            #grid.pixel_size = pixel_size
             grid.overlap = tile_overlap
             grid.activate_all_tiles()
-            grid.rotation = -sample_section['angle'] % 360
+            #grid.rotation = -grid_section['angle'] % 360
             # Update tile positions after initializing all grid attributes
             grid.update_tile_positions()
             # centre must be finally set after updating tile positions
             grid.auto_update_tile_positions = True
-            grid.centre_sx_sy = sample_section['center']
+            #grid.centre_sx_sy = grid_section['center']
 
             # load autofocus points
             if self.checkBox.isChecked() and array_data.sbemimage_sections:
@@ -168,11 +176,11 @@ class ArrayImportCDlg(QDialog):
                             # key,
                             # point)
 
-            elif index in array_data.focus:
-                for point in array_data.focus[index]['polygon']:
+            elif 'focus' in section:
+                for point in section['focus'].values():
                     self.gm.array_add_autofocus_point(
                         index,
-                        point)
+                        point['location'])
 
             # self.gm[key].magc_polyroi_points_source = [
                 # (-10, 0),
@@ -210,7 +218,7 @@ class ArrayImportCDlg(QDialog):
         self.accept()
 
     def select_file(self):
-        start_path = f'C:{os.sep}'
+        start_path = self.lineEdit_fileName.text()
         selected_file = str(QFileDialog.getOpenFileName(
                 self, 'Select Array data file',
                 start_path,
@@ -228,7 +236,7 @@ class ArrayImportCDlg(QDialog):
 class ImportWaferImageDlg(QDialog):
     """Import a wafer image into the viewport for Array."""
 
-    def __init__(self, acq, imported, wafer_im_dir,
+    def __init__(self, acq, imported, data_path,
                  main_controls_trigger):
         super().__init__()
         self.acq = acq
@@ -236,44 +244,45 @@ class ImportWaferImageDlg(QDialog):
         self.main_controls_trigger = main_controls_trigger
         self.imported_dir = os.path.join(
             self.acq.base_dir, 'overviews', 'imported')
-        self.wafer_im_dir = wafer_im_dir
+        if data_path is None:
+            data_path = 'C:/'
+        self.wafer_image_dir = os.path.dirname(data_path)
 
-        import_img_dlg = ImportImageDlg(
+        import_image_dialog = ImportImageDlg(
             self.imported,
             self.imported_dir)
-        import_img_dlg.doubleSpinBox_pixelSize.setEnabled(False)
-        import_img_dlg.doubleSpinBox_pixelSize.setValue(1000)
-        import_img_dlg.doubleSpinBox_posX.setEnabled(False)
-        import_img_dlg.doubleSpinBox_posY.setEnabled(False)
-        import_img_dlg.spinBox_rotation.setEnabled(False)
+        import_image_dialog.doubleSpinBox_pixelSize.setEnabled(False)
+        import_image_dialog.doubleSpinBox_pixelSize.setValue(1000)
+        import_image_dialog.doubleSpinBox_posX.setEnabled(False)
+        import_image_dialog.doubleSpinBox_posY.setEnabled(False)
+        import_image_dialog.spinBox_rotation.setEnabled(False)
 
         # pre-filling the ImportImageDialog if wafer image (unique) present
-        im_names = [im_name for im_name in os.listdir(self.wafer_im_dir)
-                    if ('wafer' in im_name.lower())
-                    and (os.path.splitext(im_name)[1] in ['.tif', '.tiff', '.png', '.jpg'])]
-        if len(im_names) == 0:
+        image_names = [image_name for image_name in os.listdir(self.wafer_image_dir)
+                       if ('wafer' in image_name.lower())
+                       and (os.path.splitext(image_name)[1] in ['.tif', '.tiff', '.png', '.jpg'])]
+        if len(image_names) == 0:
             utils.log_info(
                 'Array-CTRL',
                 ('No wafer picture was found. '
                     + 'Select the wafer image manually.'))
-        elif len(im_names) > 1:
+        elif len(image_names) > 1:
             utils.log_info(
                 'Array-CTRL',
                 ('There is more than one image available in the folder '
                     + 'containing the array section file.'
                     + 'Select the wafer image manually'))
-        elif len(im_names) == 1:
+        elif len(image_names) == 1:
             # pre-fill the import dialog
-            im_path = os.path.normpath(
-                os.path.join(self.wafer_im_dir, im_names[0]))
-            import_img_dlg.lineEdit_fileName.setText(im_path)
-            import_img_dlg.lineEdit_name.setText(
+            image_path = os.path.normpath(
+                os.path.join(self.wafer_image_dir, image_names[0]))
+            import_image_dialog.lineEdit_fileName.setText(image_path)
+            import_image_dialog.lineEdit_name.setText(
                 os.path.splitext(
-                    os.path.basename(im_path))[0])
+                    os.path.basename(image_path))[0])
 
         current_imported_number = self.imported.number_imported
-        if import_img_dlg.exec_():
-            pass
+        import_image_dialog.exec()
 
         if self.imported.number_imported == current_imported_number:
             utils.log_info(
@@ -290,7 +299,7 @@ class ImportWaferImageDlg(QDialog):
             self.main_controls_trigger.transmit('DRAW VP')
             utils.log_info(
                 'Array-CTRL',
-                'Wafer image succesfully imported.')
+                'Wafer image successfully imported.')
 
 #------------------------------------------------------------------------------
 
@@ -311,12 +320,12 @@ class WaferCalibrationDlg(QDialog):
         self.setWindowIcon(QIcon(os.path.join('..', 'img', 'icon_16px.ico')))
         self.setFixedSize(self.size())
         self.lTable = self.tableView_array_landmarkTable
-        self.initLandmarkList()
+        self.init_landmarks()
         self.pushButton_cancel.clicked.connect(self.accept)
         self.pushButton_validateCalibration.clicked.connect(self.validate_calibration)
         self.show()
 
-    def initLandmarkList(self):
+    def init_landmarks(self):
 
         # initialize the landmarkTableModel (QTableView)
         landmark_model = QStandardItemModel(0, 0)
@@ -510,11 +519,11 @@ class WaferCalibrationDlg(QDialog):
                         ]
 
                 if len(calibrated_landmark_ids) < 3:
-                    get_transform = ArrayData.rigidT
-                    apply_transform = ArrayData.applyRigidT
+                    get_transform = ArrayData.rigid_t
+                    apply_transform = ArrayData.apply_rigid_t
                 else:
-                    get_transform = ArrayData.affineT
-                    apply_transform = ArrayData.applyAffineT
+                    get_transform = ArrayData.affine_t
+                    apply_transform = ArrayData.apply_affine_t
 
                 self.gm.array_data.transform = get_transform(
                     x_landmarks_source_partial,
@@ -626,7 +635,7 @@ class WaferCalibrationDlg(QDialog):
                     'zeiss sigma',
                     ]
 
-            self.gm.array_data.transform = ArrayData.affineT(
+            self.gm.array_data.transform = ArrayData.affine_t(
                 x_landmarks_source,
                 y_landmarks_source,
                 x_landmarks_target,
@@ -663,13 +672,13 @@ class WaferCalibrationDlg(QDialog):
                     for k in sorted(self.gm.array_data.sections)
                     ])
 
-            x_target, y_target = ArrayData.applyAffineT(
+            x_target, y_target = ArrayData.apply_affine_t(
                 x_source,
                 y_source,
                 self.gm.array_data.transform,
                 flip_x=flip_x)
 
-            transformAngle = -ArrayData.getAffineRotation(
+            transformAngle = -ArrayData.get_affine_rotation(
                 self.gm.array_data.transform)
             angles_target = (angles_source + transformAngle) % 360
 
@@ -687,12 +696,12 @@ class WaferCalibrationDlg(QDialog):
 
             # update wafer picture
             if self.imported[0] is not None:
-                waferTransformAngle = -ArrayData.getAffineRotation(
+                waferTransformAngle = -ArrayData.get_affine_rotation(
                     self.gm.array_data.transform)
-                waferTransformScaling = ArrayData.getAffineScaling(
+                waferTransformScaling = ArrayData.get_affine_scaling(
                     self.gm.array_data.transform)
 
-                im_center_target_s = ArrayData.applyAffineT(
+                im_center_target_s = ArrayData.apply_affine_t(
                     [self.imported[0].centre_sx_sy[0]],
                     [self.imported[0].centre_sx_sy[1]],
                     self.gm.array_data.transform,

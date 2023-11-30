@@ -453,7 +453,7 @@ class ImportImageDlg(QDialog):
 
     def select_file(self):
         # Let user select image to be imported:
-        start_path = 'C:/'
+        start_path = self.imported
         selected_file = str(QFileDialog.getOpenFileName(
             self, 'Select image',
             start_path,

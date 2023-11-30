@@ -272,8 +272,8 @@ class QtTextHandler(StreamHandler):
         # Filter stack trace from main view
         if 'Traceback' in message:
             message = (message[:message.index('Traceback')]
-                + 'EXCEPTION occurred: See /log/SBEMimage.log '
-                'and output in console window for details.')
+                       + 'EXCEPTION occurred: See /log/SBEMimage.log '
+                       'and output in console window for details.')
         if self.qt_trigger:
             self.qt_trigger.transmit(message)
         else:
@@ -448,6 +448,9 @@ def show_progress_in_console(progress):
         '.' * int(progress/10)
         + ' ' * (10 - int(progress/10)),
         progress), end='')
+
+def calc_rotated_rect(polygon):
+    return cv2.minAreaRect(np.array(polygon, dtype=np.float32))
 
 def ov_save_path(base_dir, stack_name, ov_index, slice_counter):
     return os.path.join(

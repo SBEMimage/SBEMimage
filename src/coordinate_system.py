@@ -124,9 +124,9 @@ class CoordinateSystem:
         """(Re)load rotation and scale parameters and compute rotation
         matrix elements.
         """
-        self.scale_x, self.scale_y, θ_x, θ_y = self.stage_calibration
-        θ_diff = θ_x - θ_y
-        if cos(θ_diff) == 0:
+        self.scale_x, self.scale_y, rotation_x, rotation_y = self.stage_calibration
+        rotation_diff = rotation_x - rotation_y
+        if cos(rotation_diff) == 0:
             raise ValueError('Illegal values of the stage rotation angles. '
                              'X and Y axes would coincide!')
         # Elements of the rotation matrix are precomputed here to enable
@@ -134,10 +134,10 @@ class CoordinateSystem:
         # elements only change if the user recalibrates the stage.
         # Rotation matrix:   ⎛ a  b ⎞
         #                    ⎝ c  d ⎠
-        self.rot_mat_a = cos(θ_y) / cos(θ_diff)
-        self.rot_mat_b = -sin(θ_y) / cos(θ_diff)
-        self.rot_mat_c = sin(θ_x) / cos(θ_diff)
-        self.rot_mat_d = cos(θ_x) / cos(θ_diff)
+        self.rot_mat_a = cos(rotation_y) / cos(rotation_diff)
+        self.rot_mat_b = -sin(rotation_y) / cos(rotation_diff)
+        self.rot_mat_c = sin(rotation_x) / cos(rotation_diff)
+        self.rot_mat_d = cos(rotation_x) / cos(rotation_diff)
         self.rot_mat_determinant = (
             self.rot_mat_a * self.rot_mat_d - self.rot_mat_b * self.rot_mat_c)
         if self.rot_mat_determinant == 0:
