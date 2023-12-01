@@ -13,12 +13,12 @@ an SEM for testing purposes.
 """
 
 import numpy as np
+import os
 from time import sleep
-from skimage import io
 
+from image_io import imread, imwrite
 from sem_control import SEM
 from utils import Error
-import os
 
 
 class SEM_Mock(SEM):
@@ -235,7 +235,7 @@ class SEM_Mock(SEM):
             mock_image_path = os.path.join(self.previous_acq_dir, "tiles", grid_id, tile_id, mock_image_name)
 
         if os.path.isfile(mock_image_path):
-            mock_image = io.imread(mock_image_path)
+            mock_image = imread(mock_image_path)
             if mock_image.shape == (height, width):
                 return mock_image
 
@@ -252,8 +252,7 @@ class SEM_Mock(SEM):
             mock_image = self._grab_image_from_previous_acq_dir(save_path_filename, width, height, bitsize)
 
         sleep(self.current_cycle_time + self.additional_cycle_time)
-        io.imsave(save_path_filename, mock_image,
-                  check_contrast=False)
+        imwrite(save_path_filename, mock_image)
         return True
 
     def save_frame(self, save_path_filename):

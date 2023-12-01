@@ -16,7 +16,6 @@ import json
 import psutil
 import numpy as np
 
-from imageio import imwrite
 from scipy.signal import medfilt2d
 from collections import deque
 from PIL import Image
@@ -24,6 +23,7 @@ from PIL.ImageQt import ImageQt
 from qtpy.QtGui import QPixmap
 
 import utils
+from image_io import imread, imwrite
 
 # Remove image size limit in PIL (Pillow) to prevent DecompressionBombError
 Image.MAX_IMAGE_PIXELS = None
@@ -126,8 +126,7 @@ class ImageInspector:
         grab_incomplete = False
 
         try:
-            # TODO: Switch to skimage / imageio?
-            img = Image.open(filename)
+            img = imread(filename)
         except Exception as e:
             load_exception = str(e)
             load_error = True
@@ -147,7 +146,6 @@ class ImageInspector:
                                np.min(final_line) == np.max(final_line))
 
         return img, mean, stddev, load_error, load_exception, grab_incomplete
-
 
     def process_tile(self, filename, grid_index, tile_index, slice_counter):
         range_test_passed, slice_by_slice_test_passed = False, False

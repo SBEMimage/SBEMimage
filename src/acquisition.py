@@ -23,7 +23,7 @@ import math
 
 from time import sleep, time
 from statistics import mean
-from imageio import imwrite
+from image_io import imwrite
 from dateutil.relativedelta import relativedelta
 from qtpy.QtWidgets import QMessageBox
 

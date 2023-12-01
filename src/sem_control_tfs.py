@@ -296,7 +296,9 @@ class SEM_Phenom(SEM):
                 sleep(extra_delay)
 
             acq = self.sem_api.SemAcquireImageEx(scan_params)
-            ppi.Save(acq, save_path_filename, conversion)
+            # TODO: check metadata format; extract acq.metadata and store using common imwrite() instead:
+            ppi.Save(acq, save_path_filename, conversion)   # saves metadata inside tiff image (in FeiImage tiff tag?)
+            #imwrite(save_path_filename, acq.image, acq.metadata[...])
             return True
         except Exception as e:
             self.error_state = Error.grab_image

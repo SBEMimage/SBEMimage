@@ -1,14 +1,14 @@
-import os
-import json
-from math import sin, cos, radians
 from collections import Counter
-import imageio
 import cv2
-import tqdm
-import scipy.ndimage
+import json
 import numpy as np
+import os
+import scipy.ndimage
+import tqdm
 import utils
+
 from grid_manager import Grid, GridManager
+from image_io import imread
 
 
 class Template(Grid):
@@ -71,7 +71,7 @@ class TemplateManager:
     @property
     def stub_ov_arr(self):
         if self._stub_ov_arr is None:
-            self._stub_ov_arr = imageio.imread(self.stub_ov_viewport_image).swapaxes(1, 0)
+            self._stub_ov_arr = imread(self.stub_ov_viewport_image).swapaxes(1, 0)
         return self._stub_ov_arr
 
     def delete_cache(self):
@@ -157,8 +157,8 @@ class TemplateManager:
                 del out_
 
         # might be useful for GUI
-        # imageio.imsave(self.stub_ov_viewport_image[:-4] + '_MASK.tif', (out_scores > threshold).astype(np.uint16) * 255)
-        # imageio.imsave(self.stub_ov_viewport_image[:-4] + '_ANGLES.tif', (out_angles + 360).astype(np.uint16))
+        # imwrite(self.stub_ov_viewport_image[:-4] + '_MASK.tif', (out_scores > threshold).astype(np.uint16) * 255)
+        # imwrite(self.stub_ov_viewport_image[:-4] + '_ANGLES.tif', (out_angles + 360).astype(np.uint16))
 
         # Compute position of stub overview (upper left corner) and its
         # width and height
@@ -219,7 +219,7 @@ class TemplateManager:
         Returns:
             Template image array in with shape XY.
         """
-        stub_ov = imageio.imread(self.stub_ov_viewport_image)
+        stub_ov = imread(self.stub_ov_viewport_image)
         # Compute position of stub overview (upper left corner) and its
         # width and height
         dx, dy = self.ovm['stub'].origin_dx_dy

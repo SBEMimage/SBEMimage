@@ -21,9 +21,9 @@ import datetime
 import numpy as np
 import scipy.ndimage
 from time import sleep
-from skimage import io
 
 import utils
+from image_io import imwrite
 from utils import Error
 
 
@@ -153,8 +153,7 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
         # during the acquisition
         temp_save_path = os.path.join(
             acq.base_dir, 'workspace', 'temp_stub_ov.png')
-        io.imsave(temp_save_path, full_stub_image,
-                  check_contrast=False)
+        imwrite(temp_save_path, full_stub_image)
         ovm['stub'].vp_file_path = temp_save_path
 
         image_counter = 0
@@ -245,8 +244,7 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
                         full_stub_image[y_pos:y_pos+tile_height,
                                         x_pos:x_pos+tile_width] = tile_img
                         # Save current stitched image and show it in Viewport
-                        io.imsave(temp_save_path, full_stub_image,
-                                  check_contrast=False)
+                        imwrite(temp_save_path, full_stub_image)
                         # Setting vp_file_path to temp_save_path reloads the
                         # current png file as a QPixmap
                         ovm['stub'].vp_file_path = temp_save_path
@@ -278,14 +276,13 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
                 + '_' + timestamp + '.png')
             
             # Full stub OV image
-            io.imsave(stub_overview_file_name, full_stub_image,
-                      check_contrast=False)
+            imwrite(stub_overview_file_name, full_stub_image)
             try:
                 # Generate downsampled versions of stub OV
                 for mag in [2, 4, 8, 16]:
                     vp_fname_mag = stub_overview_file_name[:-4] + f'_mag{mag}.png'
                     img_mag = scipy.ndimage.zoom(full_stub_image, 1 / mag, order=3)
-                    io.imsave(vp_fname_mag, img_mag)
+                    imwrite(vp_fname_mag, img_mag)
             except Exception as e:
                 stub_dlg_trigger.transmit(
                     f'An exception occurred while saving downsampled copies'

@@ -272,7 +272,7 @@ class QtTextHandler(StreamHandler):
         # Filter stack trace from main view
         if 'Traceback' in message:
             message = (message[:message.index('Traceback')]
-                       + 'EXCEPTION occurred: See /log/SBEMimage.log '
+                       + 'EXCEPTION occurred: See /SBEMimage/log/SBEMimage.log '
                        'and output in console window for details.')
         if self.qt_trigger:
             self.qt_trigger.transmit(message)
@@ -284,8 +284,10 @@ def run_log_thread(thread_function, *args):
     def run_log():
         try:
             thread_function(*args)
-        except:
-            log_exception("Exception")
+        except Exception as e:
+            print('\nEXCEPTION occurred: See /SBEMimage/log/SBEMimage.log '
+                  'and output in console window for details.\n')
+            log_exception(e)
 
     thread = threading.Thread(target=run_log)
     thread.start()
@@ -614,6 +616,16 @@ def round_floats(input_var, precision=3):
     if isinstance(input_var, list):
         return [round_floats(entry) for entry in input_var]
     return input_var
+
+
+def grayscale_image(image):
+    nchannels = image.shape[2] if len(image.shape) > 2 else 1
+    if nchannels == 4:
+        return cv2.cvtColor(image, cv2.COLOR_RGBA2GRAY)
+    elif nchannels > 1:
+        return cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    else:
+        return image
 
 
 class TranslationTransform(ProjectiveTransform):

@@ -30,7 +30,6 @@ from time import sleep, time
 from validate_email import validate_email
 from math import atan, atan2, sqrt
 from statistics import mean
-from skimage.io import imread
 from skimage.registration import phase_cross_correlation
 import numpy as np
 from imreg_dft import translation
@@ -43,9 +42,9 @@ from qtpy.QtGui import QPixmap, QIcon, QPalette, QColor, QFont
 from qtpy.QtWidgets import QApplication, QDialog, QMessageBox, \
                             QFileDialog, QLineEdit
 
-import ArrayData
 from sem_control_mock import SEM_Mock
 import utils
+from image_io import imread
 from utils import Error
 
 
@@ -1238,24 +1237,30 @@ class StageCalibrationDlg(QDialog):
             self.frame_size_selector, pixel_size, dwell_time)
 
         start_x, start_y = self.stage.get_xy()
+
+        start_path = os.path.join(self.base_dir, 'start.tif')
+        shift_x_path = os.path.join(self.base_dir, 'shift_x.tif')
+        shift_y_path = os.path.join(self.base_dir, 'shift_y.tif')
+
         # Acquire first image at starting position
-        self.sem.acquire_frame(self.base_dir + '/start.tif')
+        self.sem.acquire_frame(start_path)
         # Shift along X stage
         self.stage.move_to_xy((start_x + shift, start_y))
         # Second image, at new X position (Y unchanged from starting position)
-        self.sem.acquire_frame(self.base_dir + '/shift_x.tif')
+        self.sem.acquire_frame(shift_x_path)
         # Shift along Y direction, X back to starting position
         self.stage.move_to_xy((start_x, start_y + shift))
         # Acquire third and final image, at new Y position
-        self.sem.acquire_frame(self.base_dir + '/shift_y.tif')
+        self.sem.acquire_frame(shift_y_path)
         # Move back to starting position
         self.stage.move_to_xy((start_x, start_y))
         # Show in log that calculation begins now
         self.update_calc_trigger.signal.emit()
         # Load images and calculate shifts:
-        start_img = imread(os.path.join(self.base_dir, 'start.tif'), 1)
-        shift_x_img = imread(os.path.join(self.base_dir, 'shift_x.tif'), 1)
-        shift_y_img = imread(os.path.join(self.base_dir, 'shift_y.tif'), 1)
+        start_img = utils.grayscale_image(imread(start_path))
+        shift_x_img = utils.grayscale_image(imread(shift_x_path))
+        shift_y_img = utils.grayscale_image(imread(shift_y_path))
+
         self.calc_exception = None
         try:
             # # [::-1] to use x, y, z order
