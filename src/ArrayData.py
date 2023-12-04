@@ -1,6 +1,7 @@
 import configparser
 import io
 import itertools
+import json
 import math
 import numpy as np
 import os
@@ -36,12 +37,27 @@ class ArrayData:
         ext = os.path.splitext(self.path)[-1].lower()
         if ext == '.magc':
             self.read_data_magc()
+        elif ext == '.json':
+            self.read_data_json()
         else:
             self.read_data_yaml()
 
         utils.log_info(
             'Array-CTRL',
             f'File successfully read from {self.path}')
+
+    def read_data_json(self):
+        with open(self.path, 'r') as infile:
+            data = json.load(infile, object_hook=json_keys_to_int)
+            for section, contents in data.items():
+                if section == 'sections':
+                    self.sections = contents
+                elif section == 'landmarks':
+                    self.landmarks = contents
+                elif section == 'serial_order':
+                    self.serial_order = contents
+                elif section == 'stage_order':
+                    self.stage_order = contents
 
     def read_data_yaml(self):
         with open(self.path, 'r') as infile:
@@ -170,15 +186,21 @@ class ArrayData:
     # deprecated: save grids instead
     def write_data(self, gm):
         if self.path:
-            magc_ext = os.path.splitext(self.path)[-1].lower()
-            if magc_ext == '.magc':
+            ext = os.path.splitext(self.path)[-1].lower()
+            if ext == '.magc':
                 self.write_data_magc(gm)
+            elif ext == '.json':
+                self.write_data_json(gm)
             else:
                 self.write_data_yaml(gm)
 
+    def write_data_json(self, gm):
+        if self.path:
+            with open(self.path, 'w') as outfile:
+                json.dump(self.sections, outfile, indent=4)
+
     def write_data_yaml(self, gm):
         if self.path:
-            # use updateable persistent data object (dict / datafile) instead
             with open(self.path, 'w') as outfile:
                 yaml.dump(self.sections, outfile, sort_keys=False, default_flow_style=None)
 
@@ -208,13 +230,13 @@ class ArrayData:
             target_ROI = gm[grid_index].centre_sx_sy
             target_ROI_angle = gm[grid_index].rotation
 
-            if gm.array_data['calibrated']:
+            if gm.array_data.calibrated:
                 # transform back the grid coordinates
                 # in non-transformed coordinates
                 result = apply_affine_t(
                     [target_ROI[0]],
                     [target_ROI[1]],
-                    gm.array_data['transform'])
+                    gm.array_data.transform)
                 source_ROI = [result[0][0], result[1][0]]
                 source_ROI_angle = (
                     (-90 + target_ROI_angle - transform_angle) % 360)
@@ -240,7 +262,7 @@ class ArrayData:
                     'focus',
                     points_to_flat_string(af_points_source))
 
-        with open(gm.array_data['path'], 'w') as f:
+        with open(gm.array_data.path, 'w') as f:
             for line in lines[:sbemimage_line_index]:
                 f.write(line)
             # f.write('\n')
@@ -263,6 +285,18 @@ class ArrayData:
             return {index: [x, y] for index, (x, y) in enumerate(zip(*transformed_landmarks))}
         else:
             return landmarks
+
+
+def json_keys_to_int(data0):
+    if isinstance(data0, dict):
+        data = {}
+        for key, value in data0.items():
+            if key.isnumeric():
+                key = int(key)
+            data[key] = value
+    else:
+        data = data0
+    return data
 
 
 def point_to_flat_string(point):

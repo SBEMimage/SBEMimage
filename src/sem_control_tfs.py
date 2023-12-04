@@ -13,15 +13,15 @@ that are actually required in SBEMimage have been implemented."""
 
 from time import sleep
 
-from sem_control import SEM
-from utils import Error, load_csv
-
 try:
     # required for Phenom API
     import PyPhenom as ppi
     from PyPhenom import OperationalMode
 except:
     pass
+
+from sem_control import SEM
+from utils import Error, load_csv
 
 
 class SEM_Phenom(SEM):
@@ -181,7 +181,7 @@ class SEM_Phenom(SEM):
 
     def apply_beam_settings(self):
         """Set the SEM to the current target EHT voltage and beam current."""
-        self.sem_api.SetSemHighTension(self.target_eht * 1e+3)
+        self.set_eht(self.target_eht)
 
     def get_detector_list(self):
         """Return a list of all available detectors."""
@@ -296,9 +296,9 @@ class SEM_Phenom(SEM):
                 sleep(extra_delay)
 
             acq = self.sem_api.SemAcquireImageEx(scan_params)
-            # TODO: check metadata format; extract acq.metadata and store using common imwrite() instead:
-            ppi.Save(acq, save_path_filename, conversion)   # saves metadata inside tiff image (in FeiImage tiff tag?)
-            #imwrite(save_path_filename, acq.image, acq.metadata[...])
+            ppi.Save(acq, save_path_filename, conversion)   # saves metadata inside tiff image (in FeiImage tiff tag)
+            # alternative: image_io imwrite(save_path_filename, acq.image, acq.metadata[...])
+            # pixel_size_um = acq.metadata.pixelSize * 1e6
             return True
         except Exception as e:
             self.error_state = Error.grab_image

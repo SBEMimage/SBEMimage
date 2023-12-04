@@ -275,6 +275,9 @@ class SEM_SharkSEM(SEM):
         # we must stop the scanning even after single scan
         self.sem_api.ScStopScan()
 
+        # TODO: avoid image conversions (to string?)
+        # TODO: use generic image_io imwrite() instead
+
         # create and save the images (only here the 'Image' library is required)
         if bpp == 8:
             img = Image.frombuffer("L", (width, height), img_str[0], "raw", "L", 0, 1)          # 8-bit grayscale

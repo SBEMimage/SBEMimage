@@ -32,7 +32,7 @@ class SEM:
         self.last_known_x = None
         self.last_known_y = None
         self.last_known_z = None
-        # self.error_state: see list in utils.py; no error -> error_state = 0
+        # self.error_state: see list in utils.py; no error -> error_state = Error.none
         # self.error_info: further description / exception error message
         self.error_state = Error.none
         self.error_info = ''

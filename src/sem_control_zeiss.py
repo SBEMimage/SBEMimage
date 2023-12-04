@@ -829,9 +829,9 @@ class SEM_MultiSEM(SEM):
         self.last_known_x = None
         self.last_known_y = None
         self.last_known_z = None
-        # self.error_state: see list in utils.py; no error -> error_state = 0
+        # self.error_state: see list in utils.py; no error -> error_state = Error.none
         # self.error_info: further description / exception error message
-        self.error_state = 0
+        self.error_state = Error.none
         self.error_info = ''
         # Use device selection from system configuration
         self.cfg['sem']['device'] = self.syscfg['device']['sem']
@@ -917,7 +917,7 @@ class SEM_MultiSEM(SEM):
                 ret_val = 1
                 exception_msg = str(e)
             if ret_val != 0:   # In mSEMService API, '0' means success
-                self.error_state = 301
+                self.error_state = Error.smartsem_api
                 self.error_info = (
                     f'sem.__init__: remote API control could not be '
                     f'initalized (ret_val: {ret_val}). {exception_msg}')
@@ -997,7 +997,7 @@ class SEM_MultiSEM(SEM):
                 sleep(1)
                 wait_beam_on = self.sem_api.Execute('CMD_WAIT_BEAM_ON')
                 if wait_beam_on != 0:
-                    self.error_state = 306
+                    self.error_state = Error.eht
                     self.error_info = (
                         f'sem.turn_eht_on: command failed (wait_beam_on: {wait_beam_on})')
                     QMessageBox.critical(self,
@@ -1017,7 +1017,7 @@ class SEM_MultiSEM(SEM):
             sleep(1)
             wait_beam_off = self.sem_api.Execute('CMD_WAIT_BEAM_OFF')
             if wait_beam_off != 0:
-                self.error_state = 306
+                self.error_state = Error.eht
                 self.error_info = (
                     f'sem.turn_eht_off: command failed (wait_beam_off: {wait_beam_off})')
                 QMessageBox.critical(self,
@@ -1027,7 +1027,7 @@ class SEM_MultiSEM(SEM):
             else:
                 return True
         else:
-            self.error_state = 306
+            self.error_state = Error.eht
             self.error_info = (
                 f'sem.turn_eht_off: command failed (ret_val: {ret_val})')
             QMessageBox.critical(self,
@@ -1058,7 +1058,7 @@ class SEM_MultiSEM(SEM):
     def get_eht(self):
         """Return current echuck voltage in kV."""
         return (self.sem_api
-            .Get_ReturnTypeDouble('AP_ECHUCK_VOLTAGE_MONITOR') / 1000)
+                .Get_ReturnTypeDouble('AP_ECHUCK_VOLTAGE_MONITOR') / 1000)
 
     def set_eht(self, target_eht):
         """Save the target echuck voltage (in kV) and set the EHT to this target value."""
@@ -1071,7 +1071,7 @@ class SEM_MultiSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = 306
+            self.error_state = Error.eht
             self.error_info = (
                 f'sem.set_eht: command failed (ret_val: {ret_val})')
             return False
@@ -1134,7 +1134,7 @@ class SEM_MultiSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = 310
+            self.error_state = Error.scan_rate
             self.error_info = (
                 f'sem.set_scan_rate: command failed (ret_val: {ret_val})')
             return False
@@ -1180,7 +1180,7 @@ class SEM_MultiSEM(SEM):
         if (ret_val1 == 0) and (ret_val2 == 0):
             return True
         else:
-            self.error_state = 312
+            self.error_state = Error.stig_xy
             self.error_info = (
                 f'sem.set_stig_xy: command failed (ret_vals: {ret_val1}, '
                 f'{ret_val2})')
@@ -1198,7 +1198,7 @@ class SEM_MultiSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = 312
+            self.error_state = Error.stig_xy
             self.error_info = (
                 f'sem.set_stig_x: command failed (ret_val: {ret_val})')
             return False
@@ -1215,7 +1215,7 @@ class SEM_MultiSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = 312
+            self.error_state = Error.stig_xy
             self.error_info = (
                 f'sem.set_stig_y: command failed (ret_val: {ret_val})')
             return False
@@ -1249,7 +1249,7 @@ class SEM_MultiSEM(SEM):
             'AP_STAGE_GOTO_X',
             x)
         if move_x_success != 0:
-            self.error_state = 201
+            self.error_state = Error.stage_xy
             self.error_info = (
                 f'sem.move_stage_to_x: command failed '
                 f'(move_x_success: {move_x_success})')
@@ -1259,7 +1259,7 @@ class SEM_MultiSEM(SEM):
         stage_settled = self.sem_api.Execute('CMD_WAIT_STAGE_SETTLED')
 
         if stage_settled != 0:
-            self.error_state = 201
+            self.error_state = Error.stage_xy
             self.error_info = (
                 f'sem.move_stage_to_x: command failed '
                 f'(stage_settled: {stage_settled})')
@@ -1273,7 +1273,7 @@ class SEM_MultiSEM(SEM):
             'AP_STAGE_GOTO_Y',
             y)
         if move_y_success != 0:
-            self.error_state = 201
+            self.error_state = Error.stage_xy
             self.error_info = (
                 f'sem.move_stage_to_y: command failed '
                 f'(move_y_success: {move_y_success})')
@@ -1283,7 +1283,7 @@ class SEM_MultiSEM(SEM):
         stage_settled = self.sem_api.Execute('CMD_WAIT_STAGE_SETTLED')
 
         if stage_settled != 0:
-            self.error_state = 201
+            self.error_state = Error.stage_xy
             self.error_info = (
                 f'sem.move_stage_to_y: command failed '
                 f'(stage_settled: {stage_settled})')
@@ -1297,7 +1297,7 @@ class SEM_MultiSEM(SEM):
             'AP_STAGE_GOTO_Z',
             z)
         if move_z_success != 0:
-            self.error_state = 201
+            self.error_state = Error.stage_z_move
             self.error_info = (
                 f'sem.move_stage_to_z: command failed '
                 f'(move_z_success: {move_z_success})')
@@ -1307,7 +1307,7 @@ class SEM_MultiSEM(SEM):
         stage_settled = self.sem_api.Execute('CMD_WAIT_STAGE_SETTLED')
 
         if stage_settled != 0:
-            self.error_state = 201
+            self.error_state = Error.stage_z_move
             self.error_info = (
                 f'sem.move_stage_to_z: command failed '
                 f'(stage_settled: {stage_settled})')
@@ -1326,7 +1326,7 @@ class SEM_MultiSEM(SEM):
             y)
 
         if move_x_success != 0 or move_y_success != 0:
-            self.error_state = 201
+            self.error_state = Error.stage_xy
             self.error_info = (
                 f'sem.move_stage_to_xy: command failed '
                 f'\n(move_x_success: {move_x_success}) '
@@ -1337,7 +1337,7 @@ class SEM_MultiSEM(SEM):
         stage_settled = self.sem_api.Execute('CMD_WAIT_STAGE_SETTLED')
 
         if stage_settled != 0:
-            self.error_state = 201
+            self.error_state = Error.stage_xy
             self.error_info = (
                 f'sem.move_stage_to_xy: command failed '
                 f'(stage_settled: {stage_settled})')
@@ -1355,14 +1355,14 @@ class SEM_MultiSEM(SEM):
         if system_sanity == 0:
             return True
         elif system_sanity == -101:
-            self.error_state = 901
+            self.error_state = Error.multisem_beam_control
             self.error_info = (
                 f'sem.check_system_sanity: command failed. '
                 f'Beam control not possible. Check HV and vacuum '
                 f'(system_sanity: {system_sanity})')
             return False
         elif system_sanity == -102:
-            self.error_state = 902
+            self.error_state = Error.multisem_imaging
             self.error_info = (
                 f'sem.check_system_sanity: command failed. '
                 f'Imaging not possible. Make sure '
@@ -1370,7 +1370,7 @@ class SEM_MultiSEM(SEM):
                 f'(system_sanity: {system_sanity})')
             return False
         elif system_sanity == -103:
-            self.error_state = 903
+            self.error_state = Error.multisem_alignment
             self.error_info = (
                 f'sem.check_system_sanity: command failed. '
                 f'Auto alignment is not possible. '
@@ -1385,7 +1385,7 @@ class SEM_MultiSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = 904
+            self.error_state = Error.multisem_failed_to_write
             self.error_info = (
                 f'sem.create_metadata_thumbnails: command failed. '
                 f'(ret_val: {ret_val})')

@@ -51,7 +51,7 @@
     <double>10.000000000000000</double>
    </property>
    <property name="value">
-    <double>100.000000000000000</double>
+    <double>1000.000000000000000</double>
    </property>
   </widget>
   <widget class="QLabel" name="label_st_4">
@@ -64,7 +64,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>(X, Y, in micrometres)</string>
+    <string>X, Y (µm)</string>
    </property>
   </widget>
   <widget class="QLineEdit" name="lineEdit_fileName">
@@ -135,7 +135,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>Pixel size in nanometres:</string>
+    <string>Pixel size (nm):</string>
    </property>
   </widget>
   <widget class="QDoubleSpinBox" name="doubleSpinBox_posX">

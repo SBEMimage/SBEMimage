@@ -628,6 +628,22 @@ def grayscale_image(image):
         return image
 
 
+def color_image(image):
+    nchannels = image.shape[2] if len(image.shape) > 2 else 1
+    if nchannels == 1:
+        return cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+    else:
+        return image
+
+
+def uint8_image(image):
+    itemsize = image.dtype.itemsize
+    if itemsize > 1:
+        factor = 2 ** (8 * (itemsize - 1))
+        image = (image / factor).astype(np.uint8)
+    return image
+
+
 class TranslationTransform(ProjectiveTransform):
     """
     Helper Transform class for pure translations.

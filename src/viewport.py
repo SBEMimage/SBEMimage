@@ -764,11 +764,11 @@ class Viewport(QWidget):
                         if self.selected_grid is None:
                             # ctrl+click in background: deselect all
                             # ask for confirmation if more than 10 grids already selected
-                            if len(self.gm.array_data['selected_sections'])>=10:
+                            if len(self.gm.array_data.selected_sections)>=10:
                                 user_reply = QMessageBox.question(
                                     self, 'Large deselection',
                                     'Deselect all '
-                                    + str(len(self.gm.array_data['selected_sections']))
+                                    + str(len(self.gm.array_data.selected_sections))
                                     + ' grids?',
                                     QMessageBox.Ok | QMessageBox.Cancel)
                                 if user_reply == QMessageBox.Ok:
@@ -1155,7 +1155,7 @@ class Viewport(QWidget):
                 action_moveGridCurrentStage.triggered.connect(
                     self._vp_manual_stage_move)
                 if not ((self.selected_grid is not None)
-                    and self.gm.array_data['calibrated']):
+                    and self.gm.array_data.calibrated):
                     action_moveGridCurrentStage.setEnabled(False)
 
             menu.addSeparator()
@@ -1203,32 +1203,32 @@ class Viewport(QWidget):
                 # get closest grid
                 self._closest_grid_number = self._vp_get_closest_grid_id(
                     self.selected_stage_pos)
-                if self.gm.array_data['selected_sections'] != []:
-                    magc_selected_section = self.gm.array_data['selected_sections'][0]
+                if len(self.gm.array_data.selected_sections) > 0:
+                    magc_selected_section = self.gm.array_data.selected_sections[0]
 
             if (self.sem.magc_mode
                 and self.selected_grid is not None):
 
                 # propagate to all sections
                 action_propagateToAll = menu.addAction(
-                    f'MagC | Propagate properties of grid {self.selected_grid}'
+                    f'Array | Propagate properties of grid {self.selected_grid}'
                     ' to all grids | Shortcut &P')
                 action_propagateToAll.triggered.connect(
-                    self.magc_vp_propagate_grid_to_all_sections)
+                    self.array_vp_propagate_grid_to_all_sections)
 
                 # propagate to selected sections
                 action_propagateToSelected = menu.addAction(
-                    f'MagC | Propagate properties of grid {self.selected_grid}'
+                    f'Array | Propagate properties of grid {self.selected_grid}'
                     ' to selected grids | Shortcut &O')
                 action_propagateToSelected.triggered.connect(
-                    self.magc_vp_propagate_grid_to_selected_sections)
+                    self.array_vp_propagate_grid_to_selected_sections)
 
                 # revert location to file-defined location
                 action_revertLocation = menu.addAction(
-                    f'MagC | Revert location of grid {self.selected_grid}'
+                    f'Array | Revert location of grid {self.selected_grid}'
                     ' to original file-defined location | Shortcut &Z')
                 action_revertLocation.triggered.connect(
-                    self.magc_vp_revert_grid_to_file)
+                    self.array_vp_revert_grid_to_file)
 
                 # if self.gm.magc['path'] == '':
                 if not self.gm.array_data:
@@ -1238,7 +1238,7 @@ class Viewport(QWidget):
 
             #---autofocus points---#
             if (self.sem.magc_mode
-                and len(self.gm.array_data['selected_sections']) == 1):
+                and len(self.gm.array_data.selected_sections) == 1):
 
                 if self.gm.array_autofocus_points(magc_selected_section):
 
@@ -1305,20 +1305,20 @@ class Viewport(QWidget):
 
     def vp_add_autofocus_point(self):
         self.gm.array_add_autofocus_point(
-            self.gm.array_data['selected_sections'][0],
+            self.gm.array_data.selected_sections[0],
             self.selected_stage_pos)
         self.gm.array_write()
         self.vp_draw()
 
     def vp_remove_autofocus_point(self):
         self.gm.array_delete_last_autofocus_point(
-            self.gm.array_data['selected_sections'][0])
+            self.gm.array_data.selected_sections[0])
         self.gm.array_write()
         self.vp_draw()
 
     def vp_remove_all_autofocus_point(self):
         self.gm.array_delete_autofocus_points(
-            self.gm.array_data['selected_sections'][0])
+            self.gm.array_data.selected_sections[0])
         self.gm.array_write()
         self.vp_draw()
 
@@ -1657,8 +1657,8 @@ class Viewport(QWidget):
         """Place imported image specified by index onto the viewport canvas."""
         if self.imported[index].image is not None:
             viewport_pixel_size = 1000 / self.cs.vp_scale
-            img_pixel_size = self.imported[index].pixel_size
-            resize_ratio = img_pixel_size / viewport_pixel_size
+            image_pixel_size = self.imported[index].pixel_size
+            resize_ratio = image_pixel_size / viewport_pixel_size
 
             # Compute position of image in viewport:
             dx, dy = self.cs.convert_s_to_d(
@@ -1826,7 +1826,7 @@ class Viewport(QWidget):
         # Suppress labels when zoomed out or when user is moving a grid or
         # panning the view, under the condition that there are >10 grids.
         # TODO: Revisit this restriction after refactoring and test with
-        # MagC example grids.
+        # Array example grids.
         if not suppress_labels:
             suppress_labels = ((self.gm.number_grids + self.ovm.number_ov) > 10
                                and (self.cs.vp_scale < 1.0
@@ -1947,7 +1947,7 @@ class Viewport(QWidget):
         # Suppress labels when zoomed out or when user is moving a grid or
         # panning the view, under the condition that there are >10 grids.
         # TODO: Revisit this restriction after refactoring and test with
-        # MagC example grids.
+        # Array example grids.
         if not suppress_labels:
             suppress_labels = ((self.gm.number_grids + self.ovm.number_ov) > 10
                                and (self.cs.vp_scale < 1.0
@@ -2964,13 +2964,13 @@ class Viewport(QWidget):
         self.cs.vp_centre_dx_dy = vp_centre_dx_dy_prev
         self.cs.vp_scale = vp_scale_prev
 
-    # ---------------------- MagC methods in Viewport --------------------------
+    # ---------------------- Array methods in Viewport --------------------------
 
-    def magc_vp_propagate_grid_to_selected_sections(self):
+    def array_vp_propagate_grid_to_selected_sections(self):
         # TODO
         clicked_section_number = self.selected_grid
 
-        for selected_section in self.gm.array_data['selected_sections']:
+        for selected_section in self.gm.array_data.selected_sections:
             self.gm.array_propagate_source_grid_to_target_grid(
                 clicked_section_number,
                 selected_section)
@@ -2982,11 +2982,11 @@ class Viewport(QWidget):
             f'Properties of grid {clicked_section_number}'
             ' have been propagated to the selected sections')
 
-    def magc_vp_propagate_grid_to_all_sections(self):
+    def array_vp_propagate_grid_to_all_sections(self):
         # TODO
         clicked_section_number = self.selected_grid
 
-        if self.gm.array_data['path']:
+        if self.gm.array_data.path:
             for grid_index in range(self.gm.number_grids):
                 self.gm.array_propagate_source_grid_to_target_grid(
                     clicked_section_number,
@@ -3001,7 +3001,7 @@ class Viewport(QWidget):
                 f'Properties of grid {clicked_section_number}'
                 ' have been propagated to all sections')
 
-    def magc_vp_revert_grid_to_file(self):
+    def array_vp_revert_grid_to_file(self):
         clicked_section_number = self.selected_grid
 
         # ROI has priority over section:
@@ -3009,19 +3009,21 @@ class Viewport(QWidget):
             # use the ROI
         # else:
             # use the section
-        try:
-            source_location = self.gm.array_data['rois'][clicked_section_number]['center']
-            source_angle = self.gm.array_data['rois'][clicked_section_number]['angle']
-        except KeyError:
-            source_location = self.gm.array_data['sections'][clicked_section_number]['center']
-            source_angle = self.gm.array_data['sections'][clicked_section_number]['angle']
+
+        section = self.gm.array_data.sections[clicked_section_number]
+        if len(section.get('rois', [])) > 0:
+            source_location = section['rois'][0]['center']
+            source_angle = section['rois'][0]['angle']
+        else:
+            source_location = section['sample']['center']
+            source_angle = section['sample']['angle']
 
         flip_x = self.sem.device_name.lower() in [
                     'zeiss merlin',
                     'zeiss sigma',
                     ]
         # source_location is in LM image pixel coordinates
-        if not self.gm.array_data['calibrated']:
+        if not self.gm.array_data.calibrated:
             (self.gm[clicked_section_number]
                 .rotation) = (0 - source_angle) % 360
             (self.gm[clicked_section_number]
@@ -3031,12 +3033,12 @@ class Viewport(QWidget):
             result = ArrayData.apply_affine_t(
                 [source_location[0]],
                 [source_location[1]],
-                self.gm.array_data['transform'],
+                self.gm.array_data.transform,
                 flip_x=flip_x)
 
-            transformAngle = -ArrayData.get_affine_rotation(
-                self.gm.array_data['transform'])
-            target_angle = (source_angle + transformAngle) % 360
+            transform_angle = -ArrayData.get_affine_rotation(
+                self.gm.array_data.transform)
+            target_angle = (source_angle + transform_angle) % 360
             self.gm[clicked_section_number].rotation = target_angle
             self.gm[clicked_section_number].update_tile_positions()
 

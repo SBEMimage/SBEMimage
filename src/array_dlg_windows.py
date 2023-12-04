@@ -10,7 +10,6 @@
 
 """This module contains several Array dialogs."""
 
-import ArrayData
 import numpy as np
 import os
 from qtpy.uic import loadUi
@@ -20,6 +19,7 @@ from qtpy.QtWidgets import QDialog, QMessageBox, QFileDialog, QHeaderView, QPush
 from time import strftime, localtime
 import utils
 
+import ArrayData
 from viewport_dlg_windows import ImportImageDlg
 
 
@@ -43,7 +43,7 @@ class ArrayImportCDlg(QDialog):
         self.main_controls_trigger = main_controls_trigger
         self.target_dir = os.path.join(self.acq.base_dir, 'overviews', 'imported')
         loadUi(os.path.join('..', 'gui', 'array_data_import_dlg.ui'), self)
-        self.default_array_path = os.path.join('..', 'magc', 'example', 'wafer_example1.magc')
+        self.default_array_path = os.path.join('..', 'array', 'example', 'wafer_example1.json')
         self.lineEdit_fileName.setText(self.default_array_path)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon(os.path.join('..', 'img', 'icon_16px.ico')))
@@ -67,7 +67,7 @@ class ArrayImportCDlg(QDialog):
 
     def import_data(self):
         #-----------------------------
-        # read sections from data file (.magc, .ini based)
+        # read sections from data file
         data_path = os.path.normpath(self.lineEdit_fileName.text())
         ext = os.path.splitext(data_path)[-1].lower()
         if not os.path.isfile(data_path):
@@ -78,8 +78,8 @@ class ArrayImportCDlg(QDialog):
             QMessageBox.critical(self, 'Warning', msg)
             self.accept()
             return
-        elif not (ext == '.magc' or ext == '.yml' or ext == '.yaml'):
-            msg = 'The file chosen should be in the correct format (.magc/.yml/.yaml).'
+        elif not (ext == '.magc' or ext == '.yml' or ext == '.yaml' or ext == '.json'):
+            msg = 'The file chosen should be in the correct format (.magc/.yml/.yaml/.json).'
             utils.log_info(
                 'Array-CTRL',
                 msg)
@@ -87,7 +87,7 @@ class ArrayImportCDlg(QDialog):
             self.accept()
             return
 
-        self.main_controls_trigger.transmit('MAGC RESET')
+        self.main_controls_trigger.transmit('ARRAY RESET')
         self.gm.array_read(data_path)
         array_data = self.gm.array_data
 
@@ -141,7 +141,7 @@ class ArrayImportCDlg(QDialog):
         #    self.gm.add_new_grid([0, 0])
 
         for index, section in enumerate(sections):
-            if 'rois' in section:
+            if len(section.get('rois', [])) > 0:
                 # TODO: support multiple roi/grids
                 grid_section = section['rois'][0]
             else:
@@ -200,13 +200,13 @@ class ArrayImportCDlg(QDialog):
         #-----------------------------------------
 
         #------------------------------
-        # todo: does importing a new magc file always require
+        # todo: does importing a new data file always require
         # a wafer_calibration ?
         #------------------------------
 
         # enable wafer configuration buttons
         self.main_controls_trigger.transmit('ARRAY WAFER NOT CALIBRATED')
-        self.main_controls_trigger.transmit('ARRAY ENABLE WAFER IMAGE IMPORT')
+        self.main_controls_trigger.transmit('ARRAY ENABLE IMAGE IMPORT')
 
         # activate stage show
         self.main_controls_trigger.transmit('ACTIVATE SHOW STAGE')
@@ -222,7 +222,7 @@ class ArrayImportCDlg(QDialog):
         selected_file = str(QFileDialog.getOpenFileName(
                 self, 'Select Array data file',
                 start_path,
-                'Sections files (*.yml;*.yaml);;MagC files (*.magc)'
+                'Sections files (*.yml;*.yaml;*.json);;MagC files (*.magc)'
                 )[0])
         if len(selected_file) > 0:
             selected_file = os.path.normpath(selected_file)
@@ -256,6 +256,7 @@ class ImportWaferImageDlg(QDialog):
         import_image_dialog.doubleSpinBox_posX.setEnabled(False)
         import_image_dialog.doubleSpinBox_posY.setEnabled(False)
         import_image_dialog.spinBox_rotation.setEnabled(False)
+        import_image_dialog.start_path = self.wafer_image_dir
 
         # pre-filling the ImportImageDialog if wafer image (unique) present
         image_names = [image_name for image_name in os.listdir(self.wafer_image_dir)
@@ -288,18 +289,16 @@ class ImportWaferImageDlg(QDialog):
             utils.log_info(
                 'Array-CTRL',
                 ('No wafer image overview was added.'
-                    + 'You can still do it by selecting "Import Wafer Image"'
+                    + 'You can still do it by selecting "Import Image"'
                     + 'in the Array tab.'))
         else:
-            wafer_im = self.imported[-1]
-            width, height = wafer_im.size
-            wafer_im.pixel_size = 1000
-            wafer_im.centre_sx_sy = [width // 2, height // 2]
+            wafer_image = self.imported[-1]
+            wafer_image.centre_sx_sy = np.divide(wafer_image.size, 2).astype(int)
             self.main_controls_trigger.transmit('SHOW IMPORTED')
             self.main_controls_trigger.transmit('DRAW VP')
             utils.log_info(
                 'Array-CTRL',
-                'Wafer image successfully imported.')
+                'Image successfully imported.')
 
 #------------------------------------------------------------------------------
 
@@ -701,23 +700,23 @@ class WaferCalibrationDlg(QDialog):
                 waferTransformScaling = ArrayData.get_affine_scaling(
                     self.gm.array_data.transform)
 
-                im_center_target_s = ArrayData.apply_affine_t(
+                image_center_target_s = ArrayData.apply_affine_t(
                     [self.imported[0].centre_sx_sy[0]],
                     [self.imported[0].centre_sx_sy[1]],
                     self.gm.array_data.transform,
                     flip_x=flip_x)
 
-                im_center_target_s = [float(a[0]) for a in im_center_target_s]
+                image_center_target_s = [float(a[0]) for a in image_center_target_s]
 
-                # im_center_source_v = self.cs.convert_to_v(im_center_source_s)
-                # im_center_target_v = array_utils.applyRigidT(
-                    # [im_center_source_v[0]],
-                    # [im_center_source_v[1]],
+                # image_center_source_v = self.cs.convert_to_v(image_center_source_s)
+                # image_center_target_v = array_utils.applyRigidT(
+                    # [image_center_source_v[0]],
+                    # [image_center_source_v[1]],
                     # waferTransform_v)
 
                 self.imported[0].rotation = (0 - waferTransformAngle) % 360
                 self.imported[0].pixel_size = 1000 * waferTransformScaling
-                self.imported[0].centre_sx_sy = im_center_target_s
+                self.imported[0].centre_sx_sy = image_center_target_s
                 self.imported[0].flip_x()
 
             # update drawn image

@@ -1876,7 +1876,7 @@ class Acquisition:
                             f'Skipping.')
                     elif (
                             self.magc_mode
-                            and grid_index not in self.gm.array_data['checked_sections']
+                            and grid_index not in self.gm.array_data.checked_sections
                         ):
                             utils.log_info(
                                 'Array-CTRL',
@@ -1917,7 +1917,7 @@ class Acquisition:
                     'CTRL: Skip grid %d (intervallic acquisition)' % grid_index)
 
             if (self.magc_mode
-                and len(self.grids_acquired) == len(self.gm.array_data['checked_sections'])
+                and len(self.grids_acquired) == len(self.gm.array_data.checked_sections)
             ):
                 self.stack_completed = True
 

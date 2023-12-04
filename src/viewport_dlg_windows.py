@@ -11,12 +11,11 @@
 """This modules contains all dialog windows that are called from the
 Viewport."""
 
-import os
 import datetime
-
-from time import time, sleep
+import os
+import shutil
 from queue import Queue
-from PIL import Image
+from time import time, sleep
 
 from qtpy.uic import loadUi
 from qtpy.QtCore import Qt, QSize
@@ -24,9 +23,8 @@ from qtpy.QtGui import QPixmap, QIcon
 from qtpy.QtWidgets import QApplication, QDialog, QMessageBox, QFileDialog, \
                            QDialogButtonBox
 
-import utils
 import acq_func
-import ArrayData
+import utils
 
 
 # ------------------------------------------------------------------------------
@@ -439,6 +437,7 @@ class ImportImageDlg(QDialog):
     """Import an image into the viewport."""
 
     def __init__(self, imported_images, target_dir):
+        self.start_path = None
         self.imported = imported_images
         self.target_dir = target_dir
         super().__init__()
@@ -453,7 +452,10 @@ class ImportImageDlg(QDialog):
 
     def select_file(self):
         # Let user select image to be imported:
-        start_path = self.imported
+        if self.start_path is not None:
+            start_path = self.start_path
+        else:
+            start_path = 'C:/'
         selected_file = str(QFileDialog.getOpenFileName(
             self, 'Select image',
             start_path,
@@ -471,20 +473,15 @@ class ImportImageDlg(QDialog):
             self.lineEdit_fileName.text())
         selected_filename = os.path.basename(selected_path)
         timestamp = str(datetime.datetime.now())
-        # Remove some characters from timestap to get valid file name:
+        # Remove extra characters from timestamp:
         timestamp = timestamp[:19].translate({ord(c): None for c in ' :-.'})
-        # target_path = (self.target_dir + '/'
-                       # + os.path.splitext(selected_filename)[0]
-                       # + '_' + timestamp + '.png')
+        paths = selected_filename.split('.', 1)
         target_path = os.path.join(
             self.target_dir,
-            os.path.splitext(selected_filename)[0]
-            + '_' + timestamp + '.png')
+            paths[0] + '_' + timestamp + '.' + paths[1])
         if os.path.isfile(selected_path):
-            # Copy file to data folder as png:
             try:
-                imported_img = Image.open(selected_path)
-                imported_img.save(target_path)
+                shutil.copy2(selected_path, target_path)
             except Exception as e:
                 QMessageBox.warning(
                     self, 'Error',
@@ -493,26 +490,17 @@ class ImportImageDlg(QDialog):
                 selection_success = False
 
             if selection_success:
-                new_index = self.imported.number_imported
-                self.imported.add_image()
-                self.imported[new_index].image_src = target_path
-                self.imported[new_index].centre_sx_sy = [
-                    self.doubleSpinBox_posX.value(),
-                    self.doubleSpinBox_posY.value()]
-                self.imported[new_index].rotation = (
-                    self.spinBox_rotation.value())
-                self.imported[new_index].description = (
-                    self.lineEdit_name.text())
-                width, height = imported_img.size
-                self.imported[new_index].size = [width, height]
-                self.imported[new_index].pixel_size = (
-                    self.doubleSpinBox_pixelSize.value())
-                self.imported[new_index].transparency = (
-                    self.spinBox_transparency.value())
-                if self.imported[new_index].image is None:
+                pixel_size = self.doubleSpinBox_pixelSize.value()
+                centre_sx_sy = [self.doubleSpinBox_posX.value(), self.doubleSpinBox_posY.value()]
+                rotation = self.spinBox_rotation.value()
+                transparency = self.spinBox_transparency.value()
+                description = self.lineEdit_name.text()
+                imported_image = self.imported.add_image(target_path, description, centre_sx_sy, rotation,
+                                                         [], pixel_size, transparency)
+                if imported_image.image is None:
                     QMessageBox.warning(
                         self, 'Error',
-                        'Could not load image as QPixmap.',
+                        'Could not load image.',
                          QMessageBox.Ok)
         else:
             QMessageBox.warning(self, 'Error',

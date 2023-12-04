@@ -16,8 +16,10 @@ future.
 import os
 import json
 
-from qtpy.QtGui import QPixmap, QTransform
+from PyQt5.QtGui import QImage
+from qtpy.QtGui import QPixmap, QImage, QTransform
 
+from image_io import imread_metadata, imread
 import utils
 
 
@@ -37,7 +39,13 @@ class ImportedImage:
         # Load image as QPixmap
         if os.path.isfile(self.image_src):
             try:
-                self.image = QPixmap(self.image_src)
+                image = utils.color_image(imread(self.image_src))
+                height, width = image.shape[0], image.shape[1]
+                self.size = width, height
+                self.image = QPixmap(QImage(image, width, height, QImage.Format_RGB888))
+                pixel_size0 = imread_metadata(self.image_src)
+                if len(pixel_size0) > 0:
+                    self.pixel_size = pixel_size0[0]
                 if self.rotation != 0:
                     trans = QTransform()
                     trans.rotate(self.rotation)
@@ -82,31 +90,30 @@ class ImportedImage:
             )
         self.image = self.image.transformed(trans)
         
-        
 
 class ImportedImages:
 
     def __init__(self, config):
         self.cfg = config
-        self.number_imported = int(self.cfg['imported']['number_imported'])
+        imported = self.cfg['imported']
+        self.number_imported = int(imported['number_imported'])
 
         # Load parameters from session configuration
-        image_src = json.loads(self.cfg['imported']['image_src'])
-        description = json.loads(self.cfg['imported']['description'])
-        centre_sx_sy = json.loads(self.cfg['imported']['centre_sx_sy'])
-        rotation = json.loads(self.cfg['imported']['rotation'])
-        size = json.loads(self.cfg['imported']['size'])
-        pixel_size = json.loads(self.cfg['imported']['pixel_size'])
-        transparency = json.loads(self.cfg['imported']['transparency'])
+        image_src = json.loads(imported['image_src'])
+        description = json.loads(imported['description'])
+        centre_sx_sy = json.loads(imported['centre_sx_sy'])
+        rotation = json.loads(imported['rotation'])
+        size = json.loads(imported['size'])
+        pixel_size = json.loads(imported['pixel_size'])
+        transparency = json.loads(imported['transparency'])
 
         # Create ImportedImage objects
         self.__imported_images = []
         for i in range(self.number_imported):
-            imported_img = ImportedImage(image_src[i], description[i],
-                                         centre_sx_sy[i], rotation[i],
-                                         size[i], pixel_size[i],
-                                         transparency[i])
-            self.__imported_images.append(imported_img)
+            self.add_image(image_src[i], description[i],
+                           centre_sx_sy[i], rotation[i],
+                           size[i], pixel_size[i],
+                           transparency[i])
 
     def __getitem__(self, index):
         """Return the ImportedImage object selected by index."""
@@ -118,29 +125,28 @@ class ImportedImages:
     def save_to_cfg(self):
         self.cfg['imported']['number_imported'] = str(self.number_imported)
         self.cfg['imported']['image_src'] = json.dumps(
-            [img.image_src for img in self.__imported_images])
-        self.cfg['imported']['description']= json.dumps(
-            [img.description for img in self.__imported_images])
-        self.cfg['imported']['centre_sx_sy']= str(
+            [image.image_src for image in self.__imported_images])
+        self.cfg['imported']['description'] = json.dumps(
+            [image.description for image in self.__imported_images])
+        self.cfg['imported']['centre_sx_sy'] = str(
             [utils.round_xy(img.centre_sx_sy)
              for img in self.__imported_images])
-        self.cfg['imported']['rotation']= str(
+        self.cfg['imported']['rotation'] = str(
             [img.rotation for img in self.__imported_images])
-        self.cfg['imported']['size']= str(
+        self.cfg['imported']['size'] = str(
             [img.size for img in self.__imported_images])
-        self.cfg['imported']['pixel_size']= str(
+        self.cfg['imported']['pixel_size'] = str(
             [img.pixel_size for img in self.__imported_images])
-        self.cfg['imported']['transparency']= str(
+        self.cfg['imported']['transparency'] = str(
             [img.transparency for img in self.__imported_images])
 
-    def add_image(self):
-        new_index = self.number_imported
-        new_image = ImportedImage(image_src='', description='',
-                                  centre_sx_sy=[0, 0], rotation=0,
-                                  size=[1000, 1000], pixel_size=10,
-                                  transparency=0)
-        self.__imported_images.append(new_image)
+    def add_image(self, image_src, description, centre_sx_sy, rotation,
+                  size, pixel_size, transparency):
+        new_imported_image = ImportedImage(image_src, description, centre_sx_sy, rotation,
+                                           size, pixel_size, transparency)
+        self.__imported_images.append(new_imported_image)
         self.number_imported += 1
+        return new_imported_image
 
     def delete_image(self, index):
         """Delete the imported image at index"""
@@ -152,11 +158,3 @@ class ImportedImages:
         if self.number_imported>0:
             for id in range(self.number_imported):
                 self.delete_image(self.number_imported - id - 1)
-
-    def get_imported_img_file_list(self):
-        return self.imported_file_list
-
-    def get_imported_img_file_name_list(self):
-        return [os.path.basename(s) for s in self.imported_file_list]
-
-

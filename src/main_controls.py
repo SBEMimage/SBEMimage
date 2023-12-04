@@ -46,7 +46,7 @@ from plasma_cleaner import PlasmaCleaner
 from acquisition import Acquisition
 from notifications import Notifications
 from overview_manager import OverviewManager
-from imported_img import ImportedImages
+from ImportedImage import ImportedImages
 from grid_manager import GridManager
 from template_manager import TemplateManager
 from coordinate_system import CoordinateSystem
@@ -1887,7 +1887,7 @@ class MainControls(QMainWindow):
             self.array_trigger_wafer_calibratable()
         elif msg == 'ARRAY UNENABLE CALIBRATION':
             self.array_trigger_wafer_uncalibratable()
-        elif msg == 'ARRAY ENABLE WAFER IMAGE IMPORT':
+        elif msg == 'ARRAY ENABLE IMAGE IMPORT':
             self.pushButton_array_importWaferImage.setEnabled(True)
         elif 'ARRAY SET SECTION STATE' in msg:
             self.array_set_section_state_in_table(msg)
