@@ -53,6 +53,7 @@ from coordinate_system import CoordinateSystem
 from viewport import Viewport
 from image_inspector import ImageInspector
 from autofocus import Autofocus
+from remote_tcp import RemoteControlTCP
 from main_controls_dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                                       GridSettingsDlg, OVSettingsDlg, \
                                       AcqSettingsDlg, PreStackDlg, PauseDlg, \
@@ -205,6 +206,8 @@ class MainControls(QMainWindow):
         self.gm = GridManager(self.cfg, self.sem, self.cs)
         self.tm = TemplateManager(self.ovm)
         self.imported = ImportedImages(self.cfg)
+        self.remote_tcp = RemoteControlTCP('localhost', 8881, self.trigger)
+        utils.run_log_thread(self.remote_tcp.run)
 
         # Notify user if imported images could not be loaded
         for i in range(self.imported.number_imported):
@@ -2679,6 +2682,7 @@ class MainControls(QMainWindow):
                         QMessageBox.Yes| QMessageBox.No)
                     if result == QMessageBox.Yes:
                         self.save_acq_notes()
+                self.remote_tcp.close()
                 if self.acq.acq_paused:
                     if self.cfg_file != 'default.ini':
                         QMessageBox.information(
