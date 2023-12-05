@@ -116,9 +116,9 @@
           <widget class="QLabel" name="label_mousePos">
            <property name="geometry">
             <rect>
-             <x>60</x>
+             <x>50</x>
              <y>40</y>
-             <width>201</width>
+             <width>221</width>
              <height>16</height>
             </rect>
            </property>
@@ -131,12 +131,12 @@
             <rect>
              <x>10</x>
              <y>40</y>
-             <width>51</width>
+             <width>41</width>
              <height>16</height>
             </rect>
            </property>
            <property name="text">
-            <string>Mouse @</string>
+            <string>Mouse</string>
            </property>
           </widget>
          </widget>
@@ -280,7 +280,6 @@
            <property name="font">
             <font>
              <pointsize>9</pointsize>
-             <weight>75</weight>
              <bold>true</bold>
             </font>
            </property>
@@ -677,7 +676,6 @@
           <property name="font">
            <font>
             <pointsize>9</pointsize>
-            <weight>75</weight>
             <bold>true</bold>
            </font>
           </property>

@@ -270,13 +270,11 @@ def main():
                                                      VERSION)
                 sys.exit(SBEMimage.exec())
             except Exception as e:
-                if 'dev' in VERSION.lower():
-                    utils.log_exception("Exception")
-                else:
-                    print('\nAn exception occurred during this SBEMimage session:\n')
-                    utils.logger.propagate = True   # TODO: why is this flag set here?
-                    utils.log_exception("Exception")
-                    print('\nProgram aborted.')
+                print('\nAn exception occurred during this SBEMimage session:\n')
+                utils.logger.propagate = True  # TODO: why is this flag set here?
+                utils.log_exception("Exception")
+                print('\nProgram aborted.')
+                if 'dev' not in VERSION.lower():
                     print('Please submit a bug report at '
                           'https://github.com/SBEMimage/SBEMimage/issues and '
                           'include all lines in /SBEMimage/log/SBEMimage.log '

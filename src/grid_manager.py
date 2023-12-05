@@ -1134,11 +1134,9 @@ class GridManager:
             self.number_grids = grid_index + 1
             del self.__grids[self.number_grids:]
 
-    def add_new_grid_from_roi(self, center, size, rotation):
-        if self.template_grid_index >= self.number_grids:
-            self.template_grid_index = 0
-        grid = self.__grids[self.template_grid_index]
-
+    def add_new_grid_from_roi(self, center, size, rotation, pixel_size, frame_size, frame_size_selector, overlap,
+                              dwell_time, dwell_time_selector, bit_depth_selector):
+        # TODO: use selected frame_size:
         tile_width = grid.tile_width_d()
         tile_height = grid.tile_height_d()
 
@@ -1147,15 +1145,14 @@ class GridManager:
 
         tiles = [int(np.ceil(h / tile_height)), int(np.ceil(w / tile_width))]
 
-        new_grid = self.add_new_grid(origin_sx_sy=origin_sx_sy, sw_sh=(w, h), active=grid.active,
-                                     frame_size=grid.frame_size, frame_size_selector=grid.frame_size_selector,
-                                     overlap=grid.overlap, pixel_size=grid.pixel_size,
-                                     dwell_time=grid.dwell_time, dwell_time_selector=grid.dwell_time_selector,
-                                     bit_depth_selector=grid.bit_depth_selector,
+        new_grid = self.add_new_grid(origin_sx_sy=origin_sx_sy, sw_sh=(w, h),
+                                     frame_size=frame_size, frame_size_selector=frame_size_selector,
+                                     overlap=overlap, pixel_size=pixel_size,
+                                     dwell_time=dwell_time, dwell_time_selector=dwell_time_selector,
+                                     bit_depth_selector=bit_depth_selector,
                                      rotation=rotation, row_shift=grid.row_shift,
                                      acq_interval=grid.acq_interval, acq_interval_offset=grid.acq_interval_offset,
-                                     wd_stig_xy=grid.wd_stig_xy, use_wd_gradient=grid.use_wd_gradient,
-                                     wd_gradient_ref_tiles=grid.wd_gradient_ref_tiles, wd_gradient_params=grid.wd_gradient_params,
+                                     wd_stig_xy=grid.wd_stig_xy,
                                      size=tiles)
         return new_grid
 

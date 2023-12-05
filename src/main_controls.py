@@ -675,15 +675,8 @@ class MainControls(QMainWindow):
 
         #-------Array-------#
 
-        if not self.magc_mode:
-            # disable Array tab
-            self.tabWidget.setTabEnabled(3, False)
-            self.actionImportArrayData.setEnabled(False)
-            # activate Array with a double-click on the Array tab
-            self.tabWidget.setTabToolTip(3, 'Double-click to toggle Array mode')
-            self.tabWidget.tabBarDoubleClicked.connect(self.activate_array_mode)
-        else:
-            self.initialize_array_gui()
+        self.initialize_array_gui()
+
         #------------------#
 
         # #-------MultiSEM-------#
@@ -700,6 +693,7 @@ class MainControls(QMainWindow):
             # self.tabWidget.setTabToolTip(4, 'MultiSEM mode under development')
         # #----------------------#
 
+    # deprecated
     def activate_array_mode(self, tabIndex):
         if tabIndex != 3:
             return

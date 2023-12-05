@@ -637,11 +637,27 @@ def color_image(image):
 
 
 def uint8_image(image):
-    itemsize = image.dtype.itemsize
-    if itemsize > 1:
-        factor = 2 ** (8 * (itemsize - 1))
-        image = (image / factor).astype(np.uint8)
-    return image
+    if image.dtype.kind == 'f':
+        image *= 255
+    elif image.dtype.itemsize != 1:
+        factor = 2 ** (8 * (image.dtype.itemsize - 1))
+        image //= factor
+    return image.astype(np.uint8)
+
+
+def norm_image_minmax(image0):
+    if len(image0.shape) == 3 and image0.shape[2] == 4:
+        image, alpha = image0[..., :3], image0[..., 3]
+    else:
+        image, alpha = image0, None
+    normimage = cv2.normalize(image, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+    if alpha is not None:
+        normimage = np.dstack([normimage, alpha])
+    return normimage
+
+
+def resize_image(image, new_size):
+    return cv2.resize(image, new_size)
 
 
 class TranslationTransform(ProjectiveTransform):
