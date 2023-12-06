@@ -1870,9 +1870,9 @@
         </property>
         <property name="geometry">
          <rect>
-          <x>350</x>
+          <x>150</x>
           <y>10</y>
-          <width>181</width>
+          <width>381</width>
           <height>481</height>
          </rect>
         </property>
@@ -1940,13 +1940,13 @@ Green: acquired</string>
          <number>90</number>
         </attribute>
         <attribute name="verticalHeaderVisible">
-         <bool>false</bool>
+         <bool>true</bool>
         </attribute>
         <attribute name="verticalHeaderMinimumSectionSize">
          <number>10</number>
         </attribute>
         <attribute name="verticalHeaderDefaultSectionSize">
-         <number>10</number>
+         <number>40</number>
         </attribute>
        </widget>
        <widget class="QTextEdit" name="textEdit_array_stringSections">
@@ -2084,7 +2084,7 @@ Green: acquired</string>
          <rect>
           <x>10</x>
           <y>10</y>
-          <width>138</width>
+          <width>131</width>
           <height>40</height>
          </rect>
         </property>
@@ -2102,7 +2102,7 @@ Green: acquired</string>
          <rect>
           <x>10</x>
           <y>60</y>
-          <width>141</width>
+          <width>131</width>
           <height>58</height>
          </rect>
         </property>
@@ -2115,8 +2115,8 @@ Wafer Image</string>
         <property name="geometry">
          <rect>
           <x>10</x>
-          <y>130</y>
-          <width>138</width>
+          <y>180</y>
+          <width>131</width>
           <height>40</height>
          </rect>
         </property>
@@ -2179,9 +2179,9 @@ Wafer Image</string>
        <widget class="QPushButton" name="pushButton_array_waferCalibration">
         <property name="geometry">
          <rect>
-          <x>160</x>
-          <y>10</y>
-          <width>177</width>
+          <x>10</x>
+          <y>130</y>
+          <width>131</width>
           <height>40</height>
          </rect>
         </property>

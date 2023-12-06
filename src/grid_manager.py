@@ -184,6 +184,8 @@ class Grid:
         # used in Array: these autofocus locations are defined relative to the
         # center of the non-rotated grid.
         self.array_autofocus_points_source = []
+        self.section_index = None
+        self.roi_index = None
 
         #--------------------------#
 
@@ -1096,7 +1098,7 @@ class GridManager:
             x_pos, y_pos = origin_sx_sy
 
         # Set grid colour
-        if self.sem.magc_mode or self.sem.syscfg['device']['microtome'] == '6':  # or GCIB in use
+        if self.sem.syscfg['device']['microtome'] == '6':  # or GCIB in use
             # Cycle through available colours.
             display_colour = (
                 (self.__grids[new_grid_index - 1].display_colour + 1) % 10)
@@ -1134,26 +1136,19 @@ class GridManager:
             self.number_grids = grid_index + 1
             del self.__grids[self.number_grids:]
 
-    def add_new_grid_from_roi(self, center, size, rotation, pixel_size, frame_size, frame_size_selector, overlap,
-                              dwell_time, dwell_time_selector, bit_depth_selector):
-        # TODO: use selected frame_size:
-        tile_width = grid.tile_width_d()
-        tile_height = grid.tile_height_d()
+    def add_new_grid_from_roi(self, center, size, rotation,
+                              pixel_size, frame_size, frame_size_selector, tile_overlap):
+        tile_width = frame_size[0] * pixel_size / 1000
+        tile_height = frame_size[1] * pixel_size / 1000
 
         w, h = size
         origin_sx_sy = self.cs.convert_d_to_s(center)
 
         tiles = [int(np.ceil(h / tile_height)), int(np.ceil(w / tile_width))]
 
-        new_grid = self.add_new_grid(origin_sx_sy=origin_sx_sy, sw_sh=(w, h),
+        new_grid = self.add_new_grid(origin_sx_sy=origin_sx_sy, sw_sh=size, size=tiles, rotation=rotation,
                                      frame_size=frame_size, frame_size_selector=frame_size_selector,
-                                     overlap=overlap, pixel_size=pixel_size,
-                                     dwell_time=dwell_time, dwell_time_selector=dwell_time_selector,
-                                     bit_depth_selector=bit_depth_selector,
-                                     rotation=rotation, row_shift=grid.row_shift,
-                                     acq_interval=grid.acq_interval, acq_interval_offset=grid.acq_interval_offset,
-                                     wd_stig_xy=grid.wd_stig_xy,
-                                     size=tiles)
+                                     pixel_size=pixel_size, overlap=tile_overlap)
         return new_grid
 
     def draw_grid(self, x, y, w, h):
@@ -1307,6 +1302,12 @@ class GridManager:
                 self.__grids[g][t].autofocus_active = True
 
     # ----------------------------- Array functions ---------------------------------
+    def find_roi_grid(self, section_index, roi_index):
+        for grid in self.__grids:
+            if grid.section_index == section_index and grid.roi_index == roi_index:
+                return grid
+        return None
+
     def array_read(self, path):
         self.array_data = ArrayData.ArrayData(path)
         self.array_data.read_data()

@@ -24,10 +24,12 @@ from time import sleep
 from queue import Queue
 from logging import StreamHandler
 from logging.handlers import RotatingFileHandler
+
 from skimage.transform import ProjectiveTransform
 from skimage.measure import ransac
 from serial.tools import list_ports
-from qtpy.QtCore import QObject, Signal
+from qtpy.QtCore import QObject, Signal, QSize
+from qtpy.QtGui import QIcon
 
 
 # Default and minimum size of the Viewport canvas.
@@ -238,6 +240,16 @@ COLOUR_SELECTOR = [
     [128, 0, 128, 80],  #12 transparent violet (to indicate live acq)
     [255, 195, 0]       #13 bright orange (active user flag, measuring tool)
 ]
+
+
+window_icon = QIcon()
+
+
+def get_window_icon():
+    if window_icon.isNull():
+        window_icon.addFile('../img/icon_16px.ico', QSize(16, 16))
+        window_icon.addFile('../img/icon_48px.ico', QSize(48, 48))
+    return window_icon
 
 
 class Trigger(QObject):

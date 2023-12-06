@@ -43,7 +43,7 @@ class ArrayImportCDlg(QDialog):
         self.main_controls_trigger = main_controls_trigger
         self.target_dir = os.path.join(self.acq.base_dir, 'overviews', 'imported')
         loadUi(os.path.join('..', 'gui', 'array_data_import_dlg.ui'), self)
-        self.default_array_path = os.path.join('..', 'array', 'example', 'wafer_example1.json')
+        self.default_array_path = os.path.join('..', 'array', 'example_v1', 'example1.json')
         self.lineEdit_fileName.setText(self.default_array_path)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(QIcon(os.path.join('..', 'img', 'icon_16px.ico')))
@@ -115,88 +115,78 @@ class ArrayImportCDlg(QDialog):
         #-----------------------------------------
         # populate the grids and the section_table
         frame_size_selector = self.comboBox_frameSize.currentIndex()
+        frame_size = self.sem.STORE_RES[frame_size_selector]
         pixel_size = self.doubleSpinBox_pixelSize.value()
         tile_overlap = self.doubleSpinBox_tileOverlap.value()
 
         table_view = self.gui_items['section_table']
         table_model = table_view.model()
-
         table_model.clear()
-        table_model.setHorizontalHeaderItem(
-            0, QStandardItem('Section'))
-        table_model.setHorizontalHeaderItem(
-            1, QStandardItem('State'))
-        header = table_view.horizontalHeader()
-        for i in range(2):
-            header.setSectionResizeMode(i, QHeaderView.ResizeToContents)
-        header.setStretchLastSection(True)
 
-        self.gm[0].origin_sx_sy = [0, 0]
+        self.gm.delete_all_grids_above_index(0)
+        self.gm.delete_grid()   # delete last grid
 
         sections = array_data.sections
-        if isinstance(sections, dict):
-            sections = list(sections.values())
+        if not isinstance(sections, dict):
+            sections = {index: section for index, section in enumerate(sections)}
 
-        #for _ in range(len(sections) - 1):
-        #    self.gm.add_new_grid([0, 0])
-
-        for index, section in enumerate(sections):
-            if len(section.get('rois', [])) > 0:
-                # TODO: support multiple roi/grids
-                grid_section = section['rois'][0]
+        max_columns = 1
+        for section_index, section0 in sections.items():
+            rois = section0.get('rois', [])
+            if len(rois) > 0:
+                sections2 = rois
             else:
-                grid_section = section['sample']
+                sections2 = {0: section0['sample']}
 
-            center, size, angle = utils.calc_rotated_rect(grid_section['polygon'])
-            grid = self.gm.add_new_grid_from_roi(grid_section['center'], size, -grid_section['angle'] % 360)
+            max_columns = max(len(sections2), max_columns)
 
-            #grid = self.gm[index]
-            grid.auto_update_tile_positions = False
-            #grid.size = [
-            #    self.spinBox_rows.value(),
-            #    self.spinBox_cols.value()]
-            grid.display_colour = 1
-            #grid.frame_size_selector = frame_size_selector
-            #grid.pixel_size = pixel_size
-            grid.overlap = tile_overlap
-            grid.activate_all_tiles()
-            #grid.rotation = -grid_section['angle'] % 360
-            # Update tile positions after initializing all grid attributes
-            grid.update_tile_positions()
-            # centre must be finally set after updating tile positions
-            grid.auto_update_tile_positions = True
-            #grid.centre_sx_sy = grid_section['center']
+            row_items = []
+            for roi_index, section in sections2.items():
+                center_um0, size, angle0 = utils.calc_rotated_rect(section['polygon'])
+                center = section['center']
+                rotation = -section['angle'] % 360
+                grid = self.gm.add_new_grid_from_roi(center, size, rotation,
+                                                     pixel_size, frame_size, frame_size_selector, tile_overlap)
 
-            # load autofocus points
-            if self.checkBox.isChecked() and array_data.sbemimage_sections:
-                if 'focus' in array_data.sbemimage_sections[index]:
-                    self.gm[index].array_autofocus_points_source = array_data.sbemimage_sections[index]['focus']
-                    # for point in magc['sbemimage_sections'][key]['focus']:
-                        # self.gm.magc_add_autofocus_point(
-                            # key,
-                            # point)
+                grid.section_index = section_index
+                grid.roi_index = roi_index
+                # centre must be finally set after updating tile positions
+                grid.auto_update_tile_positions = True
+                grid.centre_sx_sy = center
 
-            elif 'focus' in section:
-                for point in section['focus'].values():
-                    self.gm.array_add_autofocus_point(
-                        index,
-                        point['location'])
+                # load autofocus points
+                if self.checkBox.isChecked() and array_data.sbemimage_sections:
+                    if 'focus' in array_data.sbemimage_sections[section_index]:
+                        self.gm[section_index].array_autofocus_points_source = array_data.sbemimage_sections[section_index]['focus']
+                        # for point in magc['sbemimage_sections'][key]['focus']:
+                            # self.gm.magc_add_autofocus_point(
+                                # key,
+                                # point)
 
-            # self.gm[key].magc_polyroi_points_source = [
-                # (-10, 0),
-                # ( 10, 0),
-                # ( 10, 20),
-                # (-10, 20)]
+                elif 'focus' in section:
+                    for point in section['focus'].values():
+                        self.gm.array_add_autofocus_point(
+                            section_index,
+                            point['location'])
 
-            # populate the section_table
-            item1 = QStandardItem(str(index))
-            item1.setCheckable(True)
-            item2 = QStandardItem('')
-            item2.setBackground(GRAY)
-            item2.setCheckable(False)
-            item2.setSelectable(False)
-            table_model.appendRow([item1, item2])
-            table_view.setRowHeight(index, 40)
+                # self.gm[key].magc_polyroi_points_source = [
+                    # (-10, 0),
+                    # ( 10, 0),
+                    # ( 10, 20),
+                    # (-10, 20)]
+
+                # populate the section_table
+                roi_item = QStandardItem()
+                roi_item.setCheckable(True)
+                row_items.append(roi_item)
+
+            row_index = table_model.rowCount()
+            table_model.appendRow(row_items)
+            table_model.setVerticalHeaderItem(row_index, QStandardItem(str(section_index)))
+            #table_view.setRowHeight(row_index, 40)
+
+        for index in range(max_columns):
+            table_model.setHorizontalHeaderItem(index, QStandardItem(str(index)))
         #-----------------------------------------
 
         #------------------------------
@@ -230,6 +220,7 @@ class ArrayImportCDlg(QDialog):
 
     def accept(self):
         super(ArrayImportCDlg, self).accept()
+
 
 #------------------------------------------------------------------------------
 
@@ -300,6 +291,7 @@ class ImportWaferImageDlg(QDialog):
                 'Array-CTRL',
                 'Image successfully imported.')
 
+
 #------------------------------------------------------------------------------
 
 class WaferCalibrationDlg(QDialog):
@@ -325,7 +317,6 @@ class WaferCalibrationDlg(QDialog):
         self.show()
 
     def init_landmarks(self):
-
         # initialize the landmarkTableModel (QTableView)
         landmark_model = QStandardItemModel(0, 0)
         landmark_model.setHorizontalHeaderItem(0, QStandardItem(' Landmark '))
@@ -354,8 +345,8 @@ class WaferCalibrationDlg(QDialog):
             # manually defined
             # or inferred when enough (>=2) other target landmarks
             # have been defined
-            source = landmark.get('source')
-            target = landmark.get('target')
+            source = landmark.get('source', {}).get('location')
+            target = landmark.get('target', {}).get('location')
 
             item0 = QStandardItem(f'{key}')
             item1 = QStandardItem(f'{source[0]:.3f}')
@@ -731,6 +722,7 @@ class WaferCalibrationDlg(QDialog):
     def accept(self):
         super(WaferCalibrationDlg, self).accept()
 
+
 class ImportZENExperimentDlg(QDialog):
     """Import a ZEN experiment setup."""
 
@@ -746,7 +738,7 @@ class ImportZENExperimentDlg(QDialog):
             '..', 'img', 'icon_16px.ico')))
         self.pushButton_selectFile.clicked.connect(self.select_file)
         self.pushButton_selectFile.setIcon(
-            QIcon(os.path.join('..','img','selectdir.png')))
+            QIcon(os.path.join('..', 'img', 'selectdir.png')))
         self.pushButton_selectFile.setIconSize(QSize(16, 16))
         self.setFixedSize(self.size())
         self.buttonBox.accepted.connect(self.import_zen)
