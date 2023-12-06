@@ -1348,7 +1348,7 @@ class Acquisition:
                 self.main_controls_trigger.transmit('REMOTE STOP')
             if command == 'SHOWMESSAGE':
                 # Show message received from metadata server in GUI
-                self.main_controls_trigger.transmit('SHOW MSG' + msg)
+                self.main_controls_trigger.transmit('SHOW MSG', msg)
         else:
             utils.log_warning(
                 'CTRL',
@@ -1362,8 +1362,8 @@ class Acquisition:
             self.base_dir, 'workspace', 'viewport',
             self.stack_name + '_viewport_' + 's'
             + str(self.slice_counter).zfill(utils.SLICE_DIGITS) + '.png')
-        self.main_controls_trigger.transmit('GRAB VP SCREENSHOT'
-                                            + self.vp_screenshot_filename)
+        self.main_controls_trigger.transmit('GRAB VP SCREENSHOT', 
+                                            self.vp_screenshot_filename)
         # Allow enough time to grab and save viewport screenshot
         time_out = 0
         while (not os.path.isfile(self.vp_screenshot_filename)
@@ -1621,11 +1621,11 @@ class Acquisition:
                 + ', Y:' + '{0:.3f}'.format(ov_stage_position[1]))
 
             # Indicate the overview being acquired in the viewport
-            self.main_controls_trigger.transmit('ACQ IND OV' + str(ov_index))
+            self.main_controls_trigger.transmit('ACQ IND OV', ov_index)
             # Acquire the image
             self.sem.acquire_frame(ov_save_path)
             # Remove indicator colour
-            self.main_controls_trigger.transmit('ACQ IND OV' + str(ov_index))
+            self.main_controls_trigger.transmit('ACQ IND OV', ov_index)
 
             # Check if OV image file exists and show image in Viewport
             if os.path.isfile(ov_save_path):
@@ -1682,7 +1682,7 @@ class Acquisition:
                     # do not check if using GCIB
                     if self.first_ov[ov_index] and not self.syscfg['device']['microtome'] == '6':
                         self.main_controls_trigger.transmit(
-                            'ASK DEBRIS FIRST OV' + str(ov_index))
+                            'ASK DEBRIS FIRST OV', ov_index)
                         # The command above causes a message box to be displayed
                         # in Main Controls. The user is asked if the first
                         # overview image acquired is clean and of good quality.
@@ -1710,7 +1710,7 @@ class Acquisition:
                             # confirm that debris was detected correctly.
                             if self.ask_user_mode:
                                 self.main_controls_trigger.transmit(
-                                    'ASK DEBRIS CONFIRMATION' + str(ov_index))
+                                    'ASK DEBRIS CONFIRMATION', ov_index)
                                 while self.user_reply is None:
                                     sleep(0.1)
                                 # user_reply (None by default) is updated when a
@@ -2433,7 +2433,7 @@ class Acquisition:
                                  + ', Y:' + '{0:.3f}'.format(stage_y))
             # Indicate current tile in Viewport
             self.main_controls_trigger.transmit(
-                'ACQ IND TILE' + str(grid_index) + '.' + str(tile_index))
+                'ACQ IND TILE', grid_index, tile_index)
             start_time = time()
             # Acquire the frame
             self.sem.acquire_frame(save_path)
@@ -2453,7 +2453,7 @@ class Acquisition:
                     f'({grab_overhead:.1f} s).')
             # Remove indication in Viewport
             self.main_controls_trigger.transmit(
-                'ACQ IND TILE' + str(grid_index) + '.' + str(tile_index))
+                'ACQ IND TILE', grid_index, tile_index)
 
             # Copy image file to the mirror drive
             if self.use_mirror_drive:
@@ -3187,7 +3187,7 @@ class Acquisition:
         if self.incident_log_file is not None:
             self.incident_log_file.write(msg + '\n')
         # Signal to main window to update incident log in Viewport
-        self.main_controls_trigger.transmit('INCIDENT LOG' + msg)
+        self.main_controls_trigger.transmit('INCIDENT LOG', msg)
 
     def pause_acquisition(self, pause_state):
         """Pause the current acquisition."""

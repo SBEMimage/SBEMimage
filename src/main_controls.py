@@ -1789,7 +1789,11 @@ class MainControls(QMainWindow):
         information between threads and to allow the GUI to be updated from a
         thread.
         """
-        msg = self.trigger.queue.get()
+        cmd = self.trigger.queue.get()
+        msg = cmd['msg']
+        args = cmd['args']
+        kwargs = cmd['kwargs']
+        # msg = self.trigger.queue.get()
         if msg == 'STATUS IDLE':
             self.set_status('', 'Ready.', False)
         elif msg == 'STATUS BUSY APPROACH':
@@ -1833,29 +1837,27 @@ class MainControls(QMainWindow):
         elif msg == 'SAVE CFG':
             self.save_config_to_disk()
         elif msg.startswith('ACQ IND OV'):
-            self.viewport.vp_toggle_ov_acq_indicator(
-                int(msg[len('ACQ IND OV'):]))
-        elif msg[:12] == 'ACQ IND TILE':
-            position = msg[12:].split('.')
-            self.viewport.vp_toggle_tile_acq_indicator(
-                int(position[0]), int(position[1]))
+            self.viewport.vp_toggle_ov_acq_indicator(*args, **kwargs)
+        elif msg == 'ACQ IND TILE':
+            self.viewport.vp_toggle_tile_acq_indicator(*args, **kwargs)
         elif msg == 'RESTRICT GUI':
             self.restrict_gui(True)
         elif msg == 'RESTRICT VP GUI':
             self.viewport.restrict_gui(True)
         elif msg == 'UNRESTRICT GUI':
             self.restrict_gui(False)
-        elif msg[:8] == 'SHOW MSG':
+        elif msg == 'SHOW MSG':
+            text = args[0] if args else ''
             QMessageBox.information(self,
                 'Message received from remote server',
-                'Message text: ' + msg[8:],
+                'Message text: ' + text,
                  QMessageBox.Ok)
         elif msg == 'GRID SETTINGS CHANGED':
             self.update_from_grid_dlg()
         elif msg == 'OV SETTINGS CHANGED':
             self.update_from_ov_dlg()
-        elif msg[:18] == 'GRAB VP SCREENSHOT':
-            self.viewport.grab_viewport_screenshot(msg[18:])
+        elif msg == 'GRAB VP SCREENSHOT':
+            self.viewport.grab_viewport_screenshot(*args, **kwargs)
         elif msg == 'DRAW VP':
             self.viewport.vp_draw()
         elif msg == 'DRAW VP NO LABELS':
@@ -1863,11 +1865,11 @@ class MainControls(QMainWindow):
         elif msg == 'SHOW IMPORTED':
             self.viewport.checkBox_showImported.setChecked(True)
             self.viewport.vp_toggle_show_imported()
-        elif msg[:12] == 'INCIDENT LOG':
-            self.viewport.show_in_incident_log(msg[12:])
-        elif msg[:15] == 'GET CURRENT LOG':
+        elif msg == 'INCIDENT LOG':
+            self.viewport.show_in_incident_log(*args, **kwargs)
+        elif msg == 'GET CURRENT LOG':
             try:
-                self.write_current_log_to_file(msg[15:])
+                self.write_current_log_to_file(*args, **kwargs)
             except Exception as e:
                 utils.log_error('CTRL', 'Could not write current log to disk: '
                                 + str(e))
@@ -1905,17 +1907,14 @@ class MainControls(QMainWindow):
             self.add_tile_folder()
         elif msg == 'IMPORT IMG':
             self.open_import_image_dlg()
-        elif msg[:19] == 'ADJUST IMPORTED IMG':
-            selected_img = int(msg[19:])
-            self.open_adjust_image_dlg(selected_img)
+        elif msg == 'ADJUST IMPORTED IMG':
+            self.open_adjust_image_dlg(*args, **kwargs)
         elif msg == 'DELETE IMPORTED IMG':
             self.open_delete_image_dlg()
-        elif msg[:20] == 'CHANGE GRID ROTATION':
-            selected_grid = int(msg[20:])
-            self.open_change_grid_rotation_dlg(selected_grid)
-        elif 'OPEN GRID SETTINGS' in msg:
-            grid_index = int(msg.split('INGS')[1])
-            self.open_grid_dlg(grid_index)
+        elif msg == 'CHANGE GRID ROTATION':
+            self.open_change_grid_rotation_dlg(*args, **kwargs)
+        elif msg == 'OPEN GRID SETTINGS':
+            self.open_grid_dlg(*args, **kwargs)
         elif msg == 'Z WARNING':
             QMessageBox.warning(
                 self, 'Z position mismatch',
@@ -1936,50 +1935,10 @@ class MainControls(QMainWindow):
                 'SBEMimage has detected an unexpected change in '
                 'magnification. Target setting has been restored.',
                 QMessageBox.Ok)
-        elif msg.startswith('ASK DEBRIS FIRST OV'):
-            ov_index = int(msg[len('ASK DEBRIS FIRST OV'):])
-            self.viewport.vp_show_overview_for_user_inspection(ov_index)
-            msgBox = QMessageBox(self)
-            msgBox.setIcon(QMessageBox.Question)
-            msgBox.setWindowTitle('Please inspect overview image quality')
-            msgBox.setText(
-                f'Is the overview image OV {ov_index} now shown in the '
-                f'Viewport clean and of good quality (no debris or other image '
-                f'defects)?\n\n'
-                f'(This confirmation is required for the first slice to be '
-                f'imaged after (re)starting an acquisition.)')
-            msgBox.addButton(QPushButton('  Image is fine!  '),
-                             QMessageBox.YesRole)
-            msgBox.addButton(QPushButton('  There is debris.  '),
-                             QMessageBox.NoRole)
-            msgBox.addButton(QPushButton('Abort'),
-                             QMessageBox.RejectRole)
-            reply = msgBox.exec()
-            # Redraw with previous settings
-            self.viewport.vp_draw()
-            self.acq.user_reply = reply
-        elif msg.startswith('ASK DEBRIS CONFIRMATION'):
-            ov_index = int(msg[len('ASK DEBRIS CONFIRMATION'):])
-            self.viewport.vp_show_overview_for_user_inspection(ov_index)
-            msgBox = QMessageBox(self)
-            msgBox.setIcon(QMessageBox.Question)
-            msgBox.setWindowTitle('Potential debris detected - please confirm')
-            msgBox.setText(
-                f'Is debris visible in the detection area of OV {ov_index} now '
-                f'shown in the Viewport?\n\n'
-                f'(Potential debris has been detected in this overview image. '
-                f'If you get several false positives in a row, you may need to '
-                f'adjust your detection thresholds.)')
-            msgBox.addButton(QPushButton('  Yes, there is debris.  '),
-                             QMessageBox.YesRole)
-            msgBox.addButton(QPushButton('  No debris, continue!  '),
-                             QMessageBox.NoRole)
-            msgBox.addButton(QPushButton('Abort'),
-                             QMessageBox.RejectRole)
-            reply = msgBox.exec()
-            # Redraw with previous settings
-            self.viewport.vp_draw()
-            self.acq.user_reply = reply
+        elif msg == 'ASK DEBRIS FIRST OV':
+            self.ask_debris_first_ov(*args, **kwargs)
+        elif msg == 'ASK DEBRIS CONFIRMATION':
+            self.ask_debris_confirmation(*args, **kwargs)
         elif msg == 'ASK IMAGE ERROR OVERRIDE':
             reply = QMessageBox.question(
                 self, 'Image inspector',
@@ -1992,6 +1951,50 @@ class MainControls(QMainWindow):
             # If msg is not a command, show it in log:
             self.textarea_log.appendPlainText(msg)
             self.textarea_log.ensureCursorVisible()
+            
+    def ask_debris_first_ov(self, ov_index):
+        self.viewport.vp_show_overview_for_user_inspection(ov_index)
+        msgBox = QMessageBox(self)
+        msgBox.setIcon(QMessageBox.Question)
+        msgBox.setWindowTitle('Please inspect overview image quality')
+        msgBox.setText(
+            f'Is the overview image OV {ov_index} now shown in the '
+            f'Viewport clean and of good quality (no debris or other image '
+            f'defects)?\n\n'
+            f'(This confirmation is required for the first slice to be '
+            f'imaged after (re)starting an acquisition.)')
+        msgBox.addButton(QPushButton('  Image is fine!  '),
+                            QMessageBox.YesRole)
+        msgBox.addButton(QPushButton('  There is debris.  '),
+                            QMessageBox.NoRole)
+        msgBox.addButton(QPushButton('Abort'),
+                            QMessageBox.RejectRole)
+        reply = msgBox.exec()
+        # Redraw with previous settings
+        self.viewport.vp_draw()
+        self.acq.user_reply = reply
+            
+    def ask_debris_confirmation(self, ov_index):
+        self.viewport.vp_show_overview_for_user_inspection(ov_index)
+        msgBox = QMessageBox(self)
+        msgBox.setIcon(QMessageBox.Question)
+        msgBox.setWindowTitle('Potential debris detected - please confirm')
+        msgBox.setText(
+            f'Is debris visible in the detection area of OV {ov_index} now '
+            f'shown in the Viewport?\n\n'
+            f'(Potential debris has been detected in this overview image. '
+            f'If you get several false positives in a row, you may need to '
+            f'adjust your detection thresholds.)')
+        msgBox.addButton(QPushButton('  Yes, there is debris.  '),
+                            QMessageBox.YesRole)
+        msgBox.addButton(QPushButton('  No debris, continue!  '),
+                            QMessageBox.NoRole)
+        msgBox.addButton(QPushButton('Abort'),
+                            QMessageBox.RejectRole)
+        reply = msgBox.exec()
+        # Redraw with previous settings
+        self.viewport.vp_draw()
+        self.acq.user_reply = reply 
 
     def add_tile_folder(self):
         """Add a folder for a new tile to be acquired while the acquisition
