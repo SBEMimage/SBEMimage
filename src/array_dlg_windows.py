@@ -32,21 +32,21 @@ class ArrayImportCDlg(QDialog):
     """Import Array data."""
 
     def __init__(self, acq, grid_manager, sem, imported,
-                 coordinate_system, gui_items, main_controls_trigger):
+                 coordinate_system, table_view, main_controls_trigger):
         super().__init__()
         self.acq = acq
         self.gm = grid_manager
         self.sem = sem
         self.imported = imported
         self.cs = coordinate_system
-        self.gui_items = gui_items
+        self.table_view = table_view
         self.main_controls_trigger = main_controls_trigger
         self.target_dir = os.path.join(self.acq.base_dir, 'overviews', 'imported')
         loadUi(os.path.join('..', 'gui', 'array_data_import_dlg.ui'), self)
         self.default_array_path = os.path.join('..', 'array', 'example_v1', 'example1.json')
         self.lineEdit_fileName.setText(self.default_array_path)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon(os.path.join('..', 'img', 'icon_16px.ico')))
+        self.setWindowIcon(utils.get_window_icon())
         self.pushButton_selectFile.clicked.connect(self.select_file)
         self.pushButton_selectFile.setIcon(QIcon(os.path.join('..', 'img', 'selectdir.png')))
         self.pushButton_selectFile.setIconSize(QSize(16, 16))
@@ -78,8 +78,8 @@ class ArrayImportCDlg(QDialog):
             QMessageBox.critical(self, 'Warning', msg)
             self.accept()
             return
-        elif not (ext == '.magc' or ext == '.yml' or ext == '.yaml' or ext == '.json'):
-            msg = 'The file chosen should be in the correct format (.magc/.yml/.yaml/.json).'
+        elif ext not in ['.json', '.yml', '.yaml', '.magc']:
+            msg = 'The file chosen should be in the correct format (json/yml/yaml/magc).'
             utils.log_info(
                 'Array-CTRL',
                 msg)
@@ -114,13 +114,13 @@ class ArrayImportCDlg(QDialog):
 
         #-----------------------------------------
         # populate the grids and the section_table
+        # TODO: use grid dialog for all settings
         frame_size_selector = self.comboBox_frameSize.currentIndex()
         frame_size = self.sem.STORE_RES[frame_size_selector]
         pixel_size = self.doubleSpinBox_pixelSize.value()
         tile_overlap = self.doubleSpinBox_tileOverlap.value()
 
-        table_view = self.gui_items['section_table']
-        table_model = table_view.model()
+        table_model = self.table_view.model()
         table_model.clear()
 
         self.gm.delete_all_grids_above_index(0)
@@ -146,27 +146,24 @@ class ArrayImportCDlg(QDialog):
                 center = section['center']
                 rotation = -section['angle'] % 360
                 grid = self.gm.add_new_grid_from_roi(center, size, rotation,
-                                                     pixel_size, frame_size, frame_size_selector, tile_overlap)
-
-                grid.section_index = section_index
-                grid.roi_index = roi_index
-                # centre must be finally set after updating tile positions
-                grid.auto_update_tile_positions = True
-                grid.centre_sx_sy = center
+                                                     pixel_size, frame_size, frame_size_selector, tile_overlap,
+                                                     section_index, roi_index)
 
                 # load autofocus points
                 if self.checkBox.isChecked() and array_data.sbemimage_sections:
                     if 'focus' in array_data.sbemimage_sections[section_index]:
-                        self.gm[section_index].array_autofocus_points_source = array_data.sbemimage_sections[section_index]['focus']
+                        grid.array_autofocus_points_source = array_data.sbemimage_sections[section_index]['focus']
                         # for point in magc['sbemimage_sections'][key]['focus']:
                             # self.gm.magc_add_autofocus_point(
                                 # key,
                                 # point)
 
-                elif 'focus' in section:
+                elif 'focus' in section and roi_index == 0:
+                    # only add to first ROI
+                    grid_index = self.gm.number_grids - 1
                     for point in section['focus'].values():
                         self.gm.array_add_autofocus_point(
-                            section_index,
+                            grid_index,
                             point['location'])
 
                 # self.gm[key].magc_polyroi_points_source = [
@@ -183,10 +180,11 @@ class ArrayImportCDlg(QDialog):
             row_index = table_model.rowCount()
             table_model.appendRow(row_items)
             table_model.setVerticalHeaderItem(row_index, QStandardItem(str(section_index)))
-            #table_view.setRowHeight(row_index, 40)
 
         for index in range(max_columns):
+            #self.table_view.setIndexWidget(table_model.index(0,0), QPushButton(str(index)))
             table_model.setHorizontalHeaderItem(index, QStandardItem(str(index)))
+        self.table_view.horizontalHeader().sectionClicked.connect(self.header_clicked)  # not working - needs to update table from model first?
         #-----------------------------------------
 
         #------------------------------
@@ -207,19 +205,22 @@ class ArrayImportCDlg(QDialog):
         self.main_controls_trigger.transmit('DRAW VP')
         self.accept()
 
+    def header_clicked(self, index):
+        print(index)
+
     def select_file(self):
         start_path = self.lineEdit_fileName.text()
         selected_file = str(QFileDialog.getOpenFileName(
                 self, 'Select Array data file',
                 start_path,
-                'Sections files (*.yml;*.yaml;*.json);;MagC files (*.magc)'
+                'Sections files (*.json;*.yml;*.yaml);;MagC files (*.magc)'
                 )[0])
         if len(selected_file) > 0:
             selected_file = os.path.normpath(selected_file)
             self.lineEdit_fileName.setText(selected_file)
 
     def accept(self):
-        super(ArrayImportCDlg, self).accept()
+        super().accept()
 
 
 #------------------------------------------------------------------------------
@@ -308,7 +309,7 @@ class WaferCalibrationDlg(QDialog):
         self.main_controls_trigger = main_controls_trigger
         loadUi(os.path.join('..', 'gui', 'wafer_calibration_dlg.ui'), self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon(os.path.join('..', 'img', 'icon_16px.ico')))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.lTable = self.tableView_array_landmarkTable
         self.init_landmarks()
@@ -720,7 +721,7 @@ class WaferCalibrationDlg(QDialog):
             self.accept()
 
     def accept(self):
-        super(WaferCalibrationDlg, self).accept()
+        super().accept()
 
 
 class ImportZENExperimentDlg(QDialog):
@@ -799,4 +800,4 @@ class ImportZENExperimentDlg(QDialog):
                 self.lineEdit_fileName.setText(selected_file)
 
     def accept(self):
-        super(ImportZENExperimentDlg, self).accept()
+        super().accept()

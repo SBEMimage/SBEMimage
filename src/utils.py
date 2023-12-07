@@ -668,6 +668,19 @@ def norm_image_minmax(image0):
     return normimage
 
 
+def norm_image_quantiles(image0, quantile=0.999):
+    if len(image0.shape) == 3 and image0.shape[2] == 4:
+        image, alpha = image0[..., :3], image0[..., 3]
+    else:
+        image, alpha = image0, None
+    min_value = np.quantile(image, 1 - quantile)
+    max_value = np.quantile(image, quantile)
+    normimage = np.clip((image - min_value) / (max_value - min_value), 0, 1).astype(np.float32)
+    if alpha is not None:
+        normimage = np.dstack([normimage, alpha])
+    return normimage
+
+
 def resize_image(image, new_size):
     return cv2.resize(image, new_size)
 

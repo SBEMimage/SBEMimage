@@ -1005,6 +1005,7 @@ class MainControls(QMainWindow):
         self.pushButton_array_deleteLastSection.clicked.connect(
             self.array_delete_last_section)
 
+        self.pushButton_array_importWaferImage.setEnabled(False)
         self.pushButton_array_waferCalibration.setStyleSheet(
             'background-color: yellow')
         self.pushButton_array_waferCalibration.setEnabled(False)
@@ -1361,7 +1362,7 @@ class MainControls(QMainWindow):
 
     def array_reset(self):
         model = self.tableView_array_sections.model()
-        model.removeRows(0, model.rowCount(), QModelIndex())
+        model.clear()
         self.array_trigger_wafer_uncalibrated()
         self.array_trigger_wafer_uncalibratable()
         self.gm.array_reset()
@@ -1452,9 +1453,8 @@ class MainControls(QMainWindow):
             self.array_reset()
 
     def array_open_import_dlg(self):
-        gui_items = {'section_table': self.tableView_array_sections,}
         dialog = ArrayImportCDlg(self.acq, self.gm, self.sem, self.imported,
-                                 self.cs, gui_items, self.trigger)
+                                 self.cs, self.tableView_array_sections, self.trigger)
         if dialog.exec():
             # self.tabWidget.setTabEnabled(3, True)
             self.update_from_grid_dlg()
@@ -1462,8 +1462,7 @@ class MainControls(QMainWindow):
     def array_open_wafer_calibration_dlg(self):
         dialog = WaferCalibrationDlg(self.cfg, self.stage, self.ovm, self.cs,
                                      self.gm, self.imported, self.trigger)
-        if dialog.exec():
-            pass
+        dialog.exec()
     # --------------------------- End of Array tab ----------------------------------
 
 

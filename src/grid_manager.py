@@ -1137,7 +1137,8 @@ class GridManager:
             del self.__grids[self.number_grids:]
 
     def add_new_grid_from_roi(self, center, size, rotation,
-                              pixel_size, frame_size, frame_size_selector, tile_overlap):
+                              pixel_size, frame_size, frame_size_selector, tile_overlap,
+                              section_index, roi_index):
         tile_width = frame_size[0] * pixel_size / 1000
         tile_height = frame_size[1] * pixel_size / 1000
 
@@ -1149,6 +1150,12 @@ class GridManager:
         new_grid = self.add_new_grid(origin_sx_sy=origin_sx_sy, sw_sh=size, size=tiles, rotation=rotation,
                                      frame_size=frame_size, frame_size_selector=frame_size_selector,
                                      pixel_size=pixel_size, overlap=tile_overlap)
+
+        new_grid.section_index = section_index
+        new_grid.roi_index = roi_index
+        # centre must be finally set after updating tile positions
+        new_grid.auto_update_tile_positions = True
+        new_grid.centre_sx_sy = center
         return new_grid
 
     def draw_grid(self, x, y, w, h):

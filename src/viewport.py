@@ -129,7 +129,7 @@ class Viewport(QWidget):
 
     def _load_gui(self):
         loadUi('../gui/viewport.ui', self)
-        self.setWindowIcon(QIcon(utils.get_window_icon()))
+        self.setWindowIcon(utils.get_window_icon())
         self.setWindowTitle('SBEMimage - Viewport')
         # Display current settings:
         #self.setFixedSize(self.size())
