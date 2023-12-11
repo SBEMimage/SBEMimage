@@ -504,18 +504,18 @@ def rejected_tile_save_path(base_dir, stack_name, grid_index, tile_index,
 def tile_preview_save_path(base_dir, grid_index, tile_index):
     return os.path.join(
         base_dir, 'workspace', 'g' + str(grid_index).zfill(GRID_DIGITS)
-         + '_t' + str(tile_index).zfill(TILE_DIGITS) + '.png')
+         + '_t' + str(tile_index).zfill(TILE_DIGITS) + '.tif')
 
 def tile_reslice_save_path(base_dir, grid_index, tile_index):
     return os.path.join(
         base_dir, 'workspace', 'reslices',
         'r_g' + str(grid_index).zfill(GRID_DIGITS)
-        + '_t' + str(tile_index).zfill(TILE_DIGITS) + '.png')
+        + '_t' + str(tile_index).zfill(TILE_DIGITS) + '.tif')
 
 def ov_reslice_save_path(base_dir, ov_index):
     return os.path.join(
         base_dir, 'workspace', 'reslices',
-        'r_OV' + str(ov_index).zfill(OV_DIGITS) + '.png')
+        'r_OV' + str(ov_index).zfill(OV_DIGITS) + '.tif')
 
 def tile_id(grid_index, tile_index, slice_counter):
     return (str(grid_index).zfill(GRID_DIGITS)

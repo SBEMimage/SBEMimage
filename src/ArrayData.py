@@ -28,6 +28,7 @@ class ArrayData:
         self.focus = {}
         self.sbemimage_sections = {}
         self.selected_sections = []
+        self.selected = []
         self.checked_sections = []
         self.transform = []
         self.calibrated = False
@@ -272,6 +273,15 @@ class ArrayData:
                 for line in g.getvalue().splitlines(True):
                     f.write(line)
 
+    def get_nrois(self):
+        sections = self.sections
+        if isinstance(sections, dict):
+            sections = sections.values()
+        nrois = 1
+        for section in sections:
+            nrois = max(len(section.get('rois', [])), nrois)
+        return nrois
+
     def get_landmarks(self, device_name):
         landmarks = {index: landmark['source']['location'] for index, landmark in self.landmarks.items()}
         if self.calibrated:
@@ -304,6 +314,7 @@ def point_to_flat_string(point):
         [str(round(x, 3)) for x in point])
     return flat_string
 
+
 def points_to_flat_string(points):
     points_flat = []
     for point in points:
@@ -316,6 +327,7 @@ def points_to_flat_string(points):
 #####################
 # geometric functions
 #####################
+
 
 def affine_t(
     x_in,
@@ -331,6 +343,7 @@ def affine_t(
     Y = np.array([[x, y, 1] for (x, y) in zip(x_out, y_out)])
     aff, res, rank, s = np.linalg.lstsq(X, Y, rcond=None)
     return aff
+
 
 def apply_affine_t(
     x_in,
@@ -349,11 +362,14 @@ def apply_affine_t(
 
     return x_out, y_out
 
+
 def invert_affine_t(aff):
     return np.linalg.inv(aff)
 
+
 def get_affine_rotation(aff):
     return np.rad2deg(np.arctan2(aff[1][0], aff[1][1]))
+
 
 def get_affine_scaling(aff):
     x_out, y_out = apply_affine_t([0, 1000], [0, 1000], aff)
@@ -363,6 +379,7 @@ def get_affine_scaling(aff):
             y_out[1] - y_out[0],
         ]) / np.linalg.norm([1000,1000])
     return scaling
+
 
 def rigid_t(
     x_in,
@@ -398,6 +415,7 @@ def rigid_t(
     # return c, np.mean(displacements)
     return c
 
+
 def apply_rigid_t(
     x, y,
     coefs,
@@ -414,14 +432,17 @@ def apply_rigid_t(
 
     return x_out, y_out
 
+
 def get_rigid_rotation(coefs):
     return np.rad2deg(np.arctan2(coefs[0], coefs[1]))
+
 
 def get_rigid_scaling(coefs):
     return coefs[1]
 
 #####################
 #####################
+
 
 def is_convex_polygon(polygon):
     """Source: https://stackoverflow.com/a/45372025/10832217
@@ -476,14 +497,17 @@ def is_convex_polygon(polygon):
     except (ArithmeticError, TypeError, ValueError):
         return False  # any exception means not a proper convex polygon
 
+
 def is_valid_polygon(polygon):
     p = Polygon(polygon)
     return p.is_valid
+
 
 def is_point_inside_polygon(point, polygon):
     p = Polygon(polygon)
     point = Point(point)
     return p.contains(point)
+
 
 def barycenter(points):
     xSum = 0
@@ -497,6 +521,7 @@ def barycenter(points):
 
 ####################################################
 # Plane interpolation functions with outlier removal
+
 def pad_left(a,v):
     return np.pad(
             a,
@@ -507,12 +532,14 @@ def pad_left(a,v):
             constant_values=v,
         )
 
+
 def get_regression(a):
     ols = smapi.OLS(
         a[:, 2], # z
         pad_left(a[:, :2], 1),
     )
     return ols.fit()
+
 
 def predict(regression, to_predict):
     return regression.predict(
@@ -634,6 +661,7 @@ def polygon_area(points):
                 points[:, 1],
                 np.roll(points[:, 0], 1)
         ))
+
 
 def get_substrate_focus_points(focus_points, n_substrate_focus_points):
     """

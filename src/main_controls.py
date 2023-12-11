@@ -387,7 +387,7 @@ class MainControls(QMainWindow):
         self.show_stack_progress()
         self.pushButton_resetAcq.setEnabled(True)
 
-        # Check if there is a previous acquisition to be be restarted.
+        # Check if there is a previous acquisition to be restarted.
         if self.acq.acq_paused:
             self.pushButton_startAcq.setText('CONTINUE')
 
@@ -813,42 +813,44 @@ class MainControls(QMainWindow):
             + str(self.sem.target_beam_current) + ' pA / '
             + str(self.sem.target_aperture_size) + ' μm')
         # Show dwell time, pixel size, and frame size for current grid:
+        grid = self.gm[self.grid_index_dropdown]
+        overview = self.ovm[self.ov_index_dropdown]
         self.label_tileDwellTime.setText(
-            str(self.gm[self.grid_index_dropdown].dwell_time) + ' µs')
+            str(grid.dwell_time) + ' µs')
         self.label_tilePixelSize.setText(
-            str(self.gm[self.grid_index_dropdown].pixel_size) + ' nm')
+            str(grid.pixel_size) + ' nm')
         self.label_tileSize.setText(
-            str(self.gm[self.grid_index_dropdown].tile_width_p())
+            str(grid.tile_width_p())
             + ' × '
-            + str(self.gm[self.grid_index_dropdown].tile_height_p()))
+            + str(grid.tile_height_p()))
         # Show settings for current OV:
         self.label_OVDwellTime.setText(
-            str(self.ovm[self.ov_index_dropdown].dwell_time) + ' µs')
+            str(overview.dwell_time) + ' µs')
         self.label_OVMagnification.setText(
-            f'{self.ovm[self.ov_index_dropdown].magnification:.1f}')
+            f'{overview.magnification:.1f}')
         self.label_OVSize.setText(
-            str(self.ovm[self.ov_index_dropdown].width_p())
+            str(overview.width_p())
             + ' × '
-            + str(self.ovm[self.ov_index_dropdown].height_p()))
-        ov_centre = self.ovm[self.ov_index_dropdown].centre_sx_sy
+            + str(overview.height_p()))
+        ov_centre = overview.centre_sx_sy
         self.label_OVLocation.setText('X: {0:.3f}'.format(ov_centre[0])
                                       + ', Y: {0:.3f}'.format(ov_centre[1]))
         # Debris detection area
         if self.acq.use_debris_detection:
             self.label_debrisDetectionArea.setText(
-                str(self.ovm[self.ov_index_dropdown].debris_detection_area))
+                str(overview.debris_detection_area))
         else:
             self.label_debrisDetectionArea.setText('-')
         # Grid parameters
-        grid_origin = self.gm[self.grid_index_dropdown].origin_sx_sy
+        grid_origin = grid.origin_sx_sy
         self.label_gridOrigin.setText('X: {0:.3f}'.format(grid_origin[0])
                                       + ', Y: {0:.3f}'.format(grid_origin[1]))
         # Tile grid parameters
-        grid_size = self.gm[self.grid_index_dropdown].size
+        grid_size = grid.size
         self.label_gridSize.setText(str(grid_size[0]) + ' × ' +
                                     str(grid_size[1]))
         self.label_numberActiveTiles.setText(
-            str(self.gm[self.grid_index_dropdown].number_active_tiles()))
+            str(grid.number_active_tiles()))
         # Acquisition parameters
         self.lineEdit_baseDir.setText(self.acq.base_dir)
         if self.acq.use_target_z_diff:
@@ -983,9 +985,16 @@ class MainControls(QMainWindow):
         # initialize other Array GUI items
         self.pushButton_array_importData.clicked.connect(
             self.array_open_import_dlg)
+        self.pushButton_array_gridSettings.clicked.connect(
+            self.array_grid_settings)
+        self.pushButton_array_createGrids.clicked.connect(
+            self.array_create_grids)
+        self.pushButton_array_importWaferImage.clicked.connect(
+            self.array_open_import_wafer_image)
         self.pushButton_array_waferCalibration.clicked.connect(
             self.array_open_wafer_calibration_dlg)
         self.pushButton_array_reset.clicked.connect(self.array_reset)
+
         self.pushButton_array_selectAll.clicked.connect(self.array_select_all)
         self.pushButton_array_deselectAll.clicked.connect(self.array_deselect_all)
         self.pushButton_array_checkSelected.clicked.connect(
@@ -998,8 +1007,6 @@ class MainControls(QMainWindow):
             self.array_select_checked)
         self.pushButton_array_okStringSections.clicked.connect(
             self.array_select_string_sections)
-        self.pushButton_array_importWaferImage.clicked.connect(
-            self.array_open_import_wafer_image)
         self.pushButton_array_addSection.clicked.connect(
             self.array_add_section)
         self.pushButton_array_deleteLastSection.clicked.connect(
@@ -1155,11 +1162,25 @@ class MainControls(QMainWindow):
         # if input_color == 'green':
             # self.pushButton_msem_exportZen.setEnabled(True)
 
-    def find_grid_from_selection(self, selection):
+    def find_indices_from_selection(self, selection):
         row_index = selection.row()
-        section_index = int(selection.model().verticalHeaderItem(row_index).text())
-        roi_index = selection.column()
-        return self.gm.find_roi_grid(section_index, roi_index), section_index, roi_index
+        header = selection.model().verticalHeaderItem(row_index)
+        if header is not None:
+            section_index = int(header.text())
+        else:
+            section_index = row_index
+
+        column_index = selection.column()
+        header = selection.model().horizontalHeaderItem(column_index)
+        if header is not None:
+            roi_index = int(header.text())
+        else:
+            roi_index = column_index
+        return section_index, roi_index
+
+    def find_grid_from_selection(self, selection):
+        section_index, roi_index = self.find_indices_from_selection(selection)
+        return self.gm.find_roi_grid(section_index, roi_index)
 
     def array_select_all(self):
         self.tableView_array_sections.selectAll()
@@ -1268,17 +1289,17 @@ class MainControls(QMainWindow):
             self, changed_selected, changed_deselected):
         # update color of selected/deselected sections
         for changed_selected_index in changed_selected.indexes():
-            grid = self.find_grid_from_selection(changed_selected_index)[0]
-            grid.display_colour = 0
+            grid = self.find_grid_from_selection(changed_selected_index)
+            if grid is not None:
+                grid.display_colour = 0
         for changed_deselected_index in changed_deselected.indexes():
-            grid = self.find_grid_from_selection(changed_deselected_index)[0]
-            grid.display_colour = 1
+            grid = self.find_grid_from_selection(changed_deselected_index)
+            if grid is not None:
+                grid.display_colour = 1
         self.viewport.vp_draw()
-        # update config
+        indexes = self.tableView_array_sections.selectedIndexes()
         self.gm.array_data.selected_sections = [
-            id.row() for id
-                in self.tableView_array_sections
-                    .selectedIndexes()]
+            id.row() for id in indexes]
 
     def array_update_checked_sections_to_config(self):
         checked_sections = []
@@ -1293,7 +1314,8 @@ class MainControls(QMainWindow):
         self.array_update_checked_sections_to_config()
 
     def array_double_clicked_section(self, selection):
-        grid, section_index, roi_index = self.find_grid_from_selection(selection)
+        section_index, roi_index = self.find_indices_from_selection(selection)
+        grid = self.find_grid_from_selection(selection)
 
         self.cs.vp_centre_dx_dy = grid.centre_dx_dy
         self.viewport.vp_draw()
@@ -1301,7 +1323,7 @@ class MainControls(QMainWindow):
         if self.gm.array_data.calibrated:
             utils.log_info(
                 'Array-CTRL',
-                f'Section {section_index} has been double-clicked. Moving to section...')
+                f'Section/ROI {section_index}/{roi_index} has been double-clicked. Moving to section...')
 
             # set scan rotation
             self.sem.set_scan_rotation(grid.rotation % 360)
@@ -1311,13 +1333,13 @@ class MainControls(QMainWindow):
             self.stage.move_to_xy(grid_center_s)
             utils.log_info(
                 'Array-CTRL',
-                f'Moved to section {section_index}.')
+                f'Moved to section/ROI {section_index}/{roi_index}.')
             # to update the stage position cursor
             self.viewport.vp_draw()
         else:
             utils.log_warning(
                 'Array-CTRL',
-                (f'Section {section_index}'
+                (f'Section/ROI {section_index}/{roi_index}'
                 ' has been double-clicked. Wafer is not'
                 ' calibrated, therefore no stage movement.'))
 
@@ -1455,9 +1477,18 @@ class MainControls(QMainWindow):
     def array_open_import_dlg(self):
         dialog = ArrayImportCDlg(self.acq, self.gm, self.sem, self.imported,
                                  self.cs, self.tableView_array_sections, self.trigger)
-        if dialog.exec():
-            # self.tabWidget.setTabEnabled(3, True)
-            self.update_from_grid_dlg()
+        dialog.exec()
+
+    def array_grid_settings(self):
+        indexes = self.tableView_array_sections.selectedIndexes()
+        if len(indexes) > 0:
+            indices = indexes[0]
+            section_id = self.gm.find_roi_index(indices.row(), indices.column())
+            self.open_grid_dlg(section_id)
+
+    def array_create_grids(self):
+        self.gm.array_create_grids()
+        self.update_from_grid_dlg()
 
     def array_open_wafer_calibration_dlg(self):
         dialog = WaferCalibrationDlg(self.cfg, self.stage, self.ovm, self.cs,

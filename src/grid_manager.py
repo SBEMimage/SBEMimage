@@ -1085,7 +1085,7 @@ class GridManager:
                      rotation=0, row_shift=0, acq_interval=1, acq_interval_offset=0,
                      wd_stig_xy=(0, 0, 0), use_wd_gradient=False,
                      wd_gradient_ref_tiles=None, wd_gradient_params=None,
-                     size=(5, 5)):
+                     size=(5, 5), index=None):
         """Add new grid with default parameters. A new grid is always added
         at the next available grid index, after all existing grids."""
         new_grid_index = self.number_grids
@@ -1118,45 +1118,28 @@ class GridManager:
                         use_wd_gradient=use_wd_gradient,
                         wd_gradient_ref_tiles=wd_gradient_ref_tiles,
                         wd_gradient_params=wd_gradient_params)
-        self.__grids.append(new_grid)
-        self.number_grids += 1
+
+        if index < self.number_grids:
+            self.__grids[index] = new_grid
+        else:
+            self.__grids.append(new_grid)
+            self.number_grids += 1
         return new_grid
 
     def delete_grid(self):
         """Delete the grid with the highest grid index. Grids at indices that
         are smaller than the highest index cannot be deleted because otherwise
         grid identities cannot be preserved."""
-        self.number_grids -= 1
-        del self.__grids[-1]
+        if self.number_grids > 0:
+            self.number_grids -= 1
+            del self.__grids[-1]
 
     def delete_all_grids_above_index(self, grid_index):
         """Delete all grids with an index > grid_index. The grid with index 0
         cannot be deleted."""
         if grid_index >= 0:
-            self.number_grids = grid_index + 1
-            del self.__grids[self.number_grids:]
-
-    def add_new_grid_from_roi(self, center, size, rotation,
-                              pixel_size, frame_size, frame_size_selector, tile_overlap,
-                              section_index, roi_index):
-        tile_width = frame_size[0] * pixel_size / 1000
-        tile_height = frame_size[1] * pixel_size / 1000
-
-        w, h = size
-        origin_sx_sy = self.cs.convert_d_to_s(center)
-
-        tiles = [int(np.ceil(h / tile_height)), int(np.ceil(w / tile_width))]
-
-        new_grid = self.add_new_grid(origin_sx_sy=origin_sx_sy, sw_sh=size, size=tiles, rotation=rotation,
-                                     frame_size=frame_size, frame_size_selector=frame_size_selector,
-                                     pixel_size=pixel_size, overlap=tile_overlap)
-
-        new_grid.section_index = section_index
-        new_grid.roi_index = roi_index
-        # centre must be finally set after updating tile positions
-        new_grid.auto_update_tile_positions = True
-        new_grid.centre_sx_sy = center
-        return new_grid
+            del self.__grids[grid_index + 1:]
+            self.number_grids = len(self.__grids)
 
     def draw_grid(self, x, y, w, h):
         """Draw grid/tiles rectangle using mouse"""
@@ -1309,11 +1292,6 @@ class GridManager:
                 self.__grids[g][t].autofocus_active = True
 
     # ----------------------------- Array functions ---------------------------------
-    def find_roi_grid(self, section_index, roi_index):
-        for grid in self.__grids:
-            if grid.section_index == section_index and grid.roi_index == roi_index:
-                return grid
-        return None
 
     def array_read(self, path):
         self.array_data = ArrayData.ArrayData(path)
@@ -1321,10 +1299,97 @@ class GridManager:
 
     # deprecated: save grids instead
     def array_write(self):
-        self.array_data.write_data(self)
+        #self.array_data.write_data(self)
+        pass
 
     def array_reset(self):
         self.array_data.reset()
+
+    def array_create_grids(self):
+        array_data = self.array_data
+
+        nrois = array_data.get_nrois()
+        self.delete_all_grids_above_index(nrois - 1)
+
+        sections = array_data.sections
+        if not isinstance(sections, dict):
+            sections = {index: section for index, section in enumerate(sections)}
+
+        grid_index = 0
+        for section_index, section0 in sections.items():
+            rois = section0.get('rois', [])
+            if len(rois) > 0:
+                sections2 = rois
+            else:
+                sections2 = {0: section0['sample']}
+
+            for roi_index, section in sections2.items():
+                center_um0, size, angle0 = utils.calc_rotated_rect(section['polygon'])
+                center = section['center']
+                rotation = -section['angle'] % 360
+                self.add_new_grid_from_roi(section_index, roi_index, grid_index, center, size, rotation)
+
+                # load autofocus points
+                if 'focus' in section and roi_index == 0:
+                    # only add to first ROI
+                    grid_index = self.number_grids - 1
+                    for point in section['focus'].values():
+                        self.array_add_autofocus_point(
+                            grid_index,
+                            point['location'])
+
+                # self.gm[key].magc_polyroi_points_source = [
+                    # (-10, 0),
+                    # ( 10, 0),
+                    # ( 10, 20),
+                    # (-10, 20)]
+
+                grid_index += 1
+
+    def add_new_grid_from_roi(self, section_index, roi_index, grid_index, center, size, rotation):
+        template_index = roi_index
+        if template_index >= self.number_grids:
+            template_index = 0
+        grid = self.__grids[template_index]
+
+        tile_width = grid.frame_size[0] * grid.pixel_size / 1000
+        tile_height = grid.frame_size[1] * grid.pixel_size / 1000
+
+        w, h = size
+        origin_sx_sy = self.cs.convert_d_to_s(center)
+
+        tiles = [int(np.ceil(h / tile_height)), int(np.ceil(w / tile_width))]
+
+        new_grid = self.add_new_grid(origin_sx_sy=origin_sx_sy, sw_sh=size, size=tiles, rotation=rotation,
+                                     active=grid.active,
+                                     frame_size=grid.frame_size, frame_size_selector=grid.frame_size_selector,
+                                     overlap=grid.overlap, pixel_size=grid.pixel_size,
+                                     dwell_time=grid.dwell_time, dwell_time_selector=grid.dwell_time_selector,
+                                     bit_depth_selector=grid.bit_depth_selector,
+                                     row_shift=grid.row_shift,
+                                     acq_interval=grid.acq_interval, acq_interval_offset=grid.acq_interval_offset,
+                                     wd_stig_xy=grid.wd_stig_xy, use_wd_gradient=grid.use_wd_gradient,
+                                     wd_gradient_ref_tiles=grid.wd_gradient_ref_tiles,
+                                     wd_gradient_params=grid.wd_gradient_params, index=grid_index)
+
+        new_grid.section_index = section_index
+        new_grid.roi_index = roi_index
+        # centre must be finally set after updating tile positions
+        new_grid.auto_update_tile_positions = True
+        new_grid.centre_sx_sy = center
+        return new_grid
+
+    def find_roi_index(self, section_index, roi_index):
+        for index, grid in enumerate(self.__grids):
+            if grid.section_index == section_index and grid.roi_index == roi_index:
+                return index
+        return None
+
+    def find_roi_grid(self, section_index, roi_index):
+        for grid in self.__grids:
+            if grid.section_index == section_index and grid.roi_index == roi_index:
+                return grid
+        return None
 
     def array_landmarks(self):
         return self.array_data.get_landmarks(self.sem.device_name)

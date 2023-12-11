@@ -53,16 +53,6 @@ class ArrayImportCDlg(QDialog):
         self.setFixedSize(self.size())
         self.pushButton_import.accepted.connect(self.import_data)
         self.pushButton_import.rejected.connect(self.accept)
-        store_res_list = ['%d × %d' % (res[0], res[1]) for res in self.sem.STORE_RES]
-        self.comboBox_frameSize.addItems(store_res_list)
-        self.comboBox_frameSize.setCurrentIndex(len(store_res_list) - 1)
-        if 'multisem' in self.sem.device_name.lower():
-            self.comboBox_frameSize.setEnabled(False)
-            self.comboBox_frameSize.setCurrentIndex(0)
-            self.spinBox_rows.setEnabled(False)
-            self.spinBox_cols.setEnabled(False)
-            self.spinBox_rows.setValue(1)
-            self.spinBox_cols.setValue(1)
         self.show()
 
     def import_data(self):
@@ -88,103 +78,41 @@ class ArrayImportCDlg(QDialog):
             return
 
         self.main_controls_trigger.transmit('ARRAY RESET')
-        self.gm.array_read(data_path)
-        array_data = self.gm.array_data
 
-        # load ROIs updated by user manually
-        if self.checkBox.isChecked():
-            if not array_data.sbemimage_sections:
-                msg = ('The array file does not contain information from a previous'
-                       ' SBEMimage session. Please try another file, or uncheck the option'
-                       ' in the import dialog.')
-                utils.log_info(
-                    'Array-CTRL',
-                    msg)
-                QMessageBox.critical(self, 'Warning', msg)
-                return
-            else:
-                utils.log_info(
-                    'Array-CTRL',
-                    f'{len(array_data.sbemimage_sections)} Array sections have been loaded.')
-        else:
-            utils.log_info(
-                'Array-CTRL',
-                f'{len(array_data.sections)} Array sections have been loaded.')
+        gm = self.gm
+        gm.array_read(data_path)
+        array_data = gm.array_data
+        utils.log_info(
+            'Array-CTRL',
+            f'{len(array_data.sections)} Array sections have been loaded.')
         #-----------------------------
 
         #-----------------------------------------
-        # populate the grids and the section_table
-        # TODO: use grid dialog for all settings
-        frame_size_selector = self.comboBox_frameSize.currentIndex()
-        frame_size = self.sem.STORE_RES[frame_size_selector]
-        pixel_size = self.doubleSpinBox_pixelSize.value()
-        tile_overlap = self.doubleSpinBox_tileOverlap.value()
+        # load data and create
 
+        gm.array_create_grids()
+
+        nsections = len(array_data.sections)
+        nrois = array_data.get_nrois()
         table_model = self.table_view.model()
         table_model.clear()
 
-        self.gm.delete_all_grids_above_index(0)
-        self.gm.delete_grid()   # delete last grid
-
-        sections = array_data.sections
-        if not isinstance(sections, dict):
-            sections = {index: section for index, section in enumerate(sections)}
-
-        max_columns = 1
-        for section_index, section0 in sections.items():
-            rois = section0.get('rois', [])
-            if len(rois) > 0:
-                sections2 = rois
-            else:
-                sections2 = {0: section0['sample']}
-
-            max_columns = max(len(sections2), max_columns)
-
+        for section_index in range(nsections):
             row_items = []
-            for roi_index, section in sections2.items():
-                center_um0, size, angle0 = utils.calc_rotated_rect(section['polygon'])
-                center = section['center']
-                rotation = -section['angle'] % 360
-                grid = self.gm.add_new_grid_from_roi(center, size, rotation,
-                                                     pixel_size, frame_size, frame_size_selector, tile_overlap,
-                                                     section_index, roi_index)
-
-                # load autofocus points
-                if self.checkBox.isChecked() and array_data.sbemimage_sections:
-                    if 'focus' in array_data.sbemimage_sections[section_index]:
-                        grid.array_autofocus_points_source = array_data.sbemimage_sections[section_index]['focus']
-                        # for point in magc['sbemimage_sections'][key]['focus']:
-                            # self.gm.magc_add_autofocus_point(
-                                # key,
-                                # point)
-
-                elif 'focus' in section and roi_index == 0:
-                    # only add to first ROI
-                    grid_index = self.gm.number_grids - 1
-                    for point in section['focus'].values():
-                        self.gm.array_add_autofocus_point(
-                            grid_index,
-                            point['location'])
-
-                # self.gm[key].magc_polyroi_points_source = [
-                    # (-10, 0),
-                    # ( 10, 0),
-                    # ( 10, 20),
-                    # (-10, 20)]
-
-                # populate the section_table
+            for roi_index in range(nrois):
                 roi_item = QStandardItem()
                 roi_item.setCheckable(True)
                 row_items.append(roi_item)
+                #self.table_view.setIndexWidget(table_model.index(0, index), QPushButton('Configure'))
 
             row_index = table_model.rowCount()
             table_model.appendRow(row_items)
             table_model.setVerticalHeaderItem(row_index, QStandardItem(str(section_index)))
 
-        for index in range(max_columns):
-            #self.table_view.setIndexWidget(table_model.index(0,0), QPushButton(str(index)))
+        for index in range(nrois):
             table_model.setHorizontalHeaderItem(index, QStandardItem(str(index)))
-        self.table_view.horizontalHeader().sectionClicked.connect(self.header_clicked)  # not working - needs to update table from model first?
+        #self.table_view.horizontalHeader().sectionClicked.connect(self.header_clicked)  # not working - needs to update table from model first?
+
         #-----------------------------------------
 
         #------------------------------
@@ -204,9 +132,6 @@ class ArrayImportCDlg(QDialog):
 
         self.main_controls_trigger.transmit('DRAW VP')
         self.accept()
-
-    def header_clicked(self, index):
-        print(index)
 
     def select_file(self):
         start_path = self.lineEdit_fileName.text()

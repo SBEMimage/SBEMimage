@@ -3818,14 +3818,14 @@ class Viewport(QWidget):
         if self.m_current_ov >= 0:
             filename = os.path.join(
                 self.acq.base_dir, 'workspace', 'reslices',
-                'r_OV' + str(self.m_current_ov).zfill(utils.OV_DIGITS) + '.png')
+                'r_OV' + str(self.m_current_ov).zfill(utils.OV_DIGITS) + '.tif')
         elif self.m_current_tile >= 0:
             tile_key = ('g' + str(self.m_current_grid).zfill(utils.GRID_DIGITS)
                         + '_t'
                         + str(self.m_current_tile).zfill(utils.TILE_DIGITS))
             filename = os.path.join(
                 self.acq.base_dir, 'workspace', 'reslices',
-                'r_' + tile_key + '.png')
+                'r_' + tile_key + '.tif')
         else:
             filename = None
         canvas = self.reslice_canvas_template.copy()
@@ -3839,7 +3839,7 @@ class Viewport(QWidget):
             if h > 500:
                 # Crop it to last 500:
                 rect = QRect(0, h-500, 400, 500)
-                current_reslice = current_reslice.copy(rect);
+                current_reslice = current_reslice.copy(rect)
                 h = 500
             self.m_qp.drawPixmap(0, 0, current_reslice)
             # Draw red line on currently selected slice:

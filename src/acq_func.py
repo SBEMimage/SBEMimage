@@ -152,7 +152,7 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
         # Save current stub image to temp_save_path to show live preview
         # during the acquisition
         temp_save_path = os.path.join(
-            acq.base_dir, 'workspace', 'temp_stub_ov.png')
+            acq.base_dir, 'workspace', 'temp_stub_ov.tif')
         imwrite(temp_save_path, full_stub_image)
         ovm['stub'].vp_file_path = temp_save_path
 
@@ -273,7 +273,7 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
                 acq.base_dir, 'overviews', 'stub',
                 acq.stack_name + '_stubOV_s'
                 + str(acq.slice_counter).zfill(5)
-                + '_' + timestamp + '.png')
+                + '_' + timestamp + '.tif')
             
             # Full stub OV image
             imwrite(stub_overview_file_name, full_stub_image)
