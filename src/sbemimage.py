@@ -270,7 +270,7 @@ def main():
                                                      VERSION)
                 sys.exit(SBEMimage.exec())
             except Exception as e:
-                print('\nAn exception occurred during this SBEMimage session:\n')
+                print('\nAn exception occurred during this SBEMimage session:\n' + str(e))
                 utils.logger.propagate = True  # TODO: why is this flag set here?
                 utils.log_exception("Exception")
                 print('\nProgram aborted.')
