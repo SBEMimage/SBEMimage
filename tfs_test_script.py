@@ -21,6 +21,10 @@ ny = 10
 
 def init_api():
     phenomID, username, password = load_csv(PPAPI_CREDENTIALS_FILENAME)
+    if len(username) == 0:
+        username = ''
+    if len(password) == 0:
+        password = ''
     api = ppi.Phenom(phenomID, username, password)
     return api
 

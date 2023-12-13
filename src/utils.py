@@ -53,8 +53,8 @@ VP_WINDOW_DIFF_Y = 150
 # tiles and OVs usually differ in pixel size by an order of magnitude.
 VP_ZOOM_MICROTOME_STAGE = (0.2, 1.05)
 VP_ZOOM_SEM_STAGE = (0.0055, 1.085)
-SV_ZOOM_OV = (1.0, 1.03)
-SV_ZOOM_TILE = (5.0, 1.04)
+SV_ZOOM_OV = (0.1, 1.055)
+SV_ZOOM_TILE = (0.5, 1.065)
 
 # Number of digits used to format image file names.
 OV_DIGITS = 3         # up to 999 overview images
