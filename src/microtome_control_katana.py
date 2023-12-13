@@ -140,7 +140,7 @@ class Microtome_katana(Microtome):
             # reset it here just in case no response on next line
             knife_status = 'KKP:1'
             knife_status = self._read_response()
-            knife_status = knife_status.rstrip();
+            knife_status = knife_status.rstrip()
             # print(" knife status: " + knifeStatus)
 
             # optional to show knife position so user knows it hasn't frozen!
@@ -354,7 +354,7 @@ class Microtome_katana(Microtome):
         self._send_command('KE')
         response = self._read_response()
         # response will look like 'KE:120000' (for position of 0.12mm)
-        response = response.rstrip();
+        response = response.rstrip()
         response = response.replace('KE:', '')
         try:
             z = int(response) / 1000

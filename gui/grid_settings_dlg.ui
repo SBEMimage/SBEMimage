@@ -108,7 +108,6 @@
    </property>
    <property name="font">
     <font>
-     <weight>75</weight>
      <bold>true</bold>
     </font>
    </property>
@@ -399,7 +398,7 @@
      <double>1.000000000000000</double>
     </property>
     <property name="maximum">
-     <double>1000.000000000000000</double>
+     <double>1000000.000000000000000</double>
     </property>
    </widget>
    <widget class="QLabel" name="label_9">

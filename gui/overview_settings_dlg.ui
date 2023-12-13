@@ -117,10 +117,10 @@
     </rect>
    </property>
    <property name="minimum">
-    <number>30</number>
+    <number>1</number>
    </property>
    <property name="maximum">
-    <number>3000</number>
+    <number>1000000</number>
    </property>
    <property name="singleStep">
     <number>10</number>
@@ -247,7 +247,6 @@
    </property>
    <property name="font">
     <font>
-     <weight>75</weight>
      <bold>true</bold>
     </font>
    </property>
@@ -329,10 +328,10 @@
     <number>1</number>
    </property>
    <property name="minimum">
-    <double>5.000000000000000</double>
+    <double>1.000000000000000</double>
    </property>
    <property name="maximum">
-    <double>10000.000000000000000</double>
+    <double>1000000.000000000000000</double>
    </property>
    <property name="value">
     <double>150.000000000000000</double>
@@ -378,7 +377,6 @@
    </property>
    <property name="font">
     <font>
-     <weight>50</weight>
      <bold>false</bold>
     </font>
    </property>

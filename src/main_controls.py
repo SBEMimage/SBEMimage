@@ -38,6 +38,7 @@ from qtpy.uic import loadUi
 
 import acq_func
 import utils
+from image_io import imread
 from utils import Error
 from sem_control import SEM
 from microtome_control import Microtome
@@ -2614,7 +2615,7 @@ class MainControls(QMainWindow):
             # Show progress while saving (0..10)
             progress_dlg = QProgressDialog('Saving configuration and workspace status... '
                                            'Please wait.',
-                                           'Cancel', 0, 10, self);
+                                           'Cancel', 0, 10, self)
             progress_dlg.setWindowModality(Qt.WindowModal)
             progress_dlg.setWindowTitle('Saving configuration in progress')
             progress_dlg.setCancelButton(None)
@@ -3165,7 +3166,7 @@ class MainControls(QMainWindow):
             filename = os.path.join(
                 self.acq.base_dir, 'workspace', 'ft' + str(i) + '.tif')
             self.sem.acquire_frame(filename)
-            self.ft_series_img.append(QPixmap(filename))
+            self.ft_series_img.append(utils.image_to_QPixmap(imread(filename)))
         self.sem.set_beam_blanking(1)
         # Display image with current focus:
         self.ft_index = 4
@@ -3199,7 +3200,7 @@ class MainControls(QMainWindow):
             filename = os.path.join(
                 self.acq.base_dir, 'workspace', 'ft' + str(i) + '.tif')
             self.sem.acquire_frame(filename)
-            self.ft_series_img.append(QPixmap(filename))
+            self.ft_series_img.append(utils.image_to_QPixmap(imread(filename)))
         self.sem.set_beam_blanking(1)
         # Display image at current stigmation setting:
         self.ft_index = 4

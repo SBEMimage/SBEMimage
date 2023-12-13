@@ -25,9 +25,10 @@ import os
 import json
 from qtpy.QtGui import QPixmap, QPainter, QColor
 
+from grid_manager import Grid
+from image_io import imread
 import numpy as np
 import utils
-from grid_manager import Grid
 
 
 class Overview(Grid):
@@ -94,7 +95,7 @@ class Overview(Grid):
         self._vp_file_path = file_path
         # Load OV image as QPixmap:
         if os.path.isfile(file_path):
-            self.image = QPixmap(file_path)
+            self.image = utils.image_to_QPixmap(imread(file_path))
         else:
             # Show blue transparent ROI when no OV image found
             blank = QPixmap(self.width_p(), self.height_p())
@@ -225,16 +226,16 @@ class StubOverview(Grid):
     def vp_file_path(self, file_path):
         self._vp_file_path = file_path
         # Load images as QPixmaps:
-        # Full resolution  
+        # Full resolution
         if os.path.isfile(file_path):
-            self.pixmaps_[1] = QPixmap(file_path)
+            self.pixmaps_[1] = utils.image_to_QPixmap(imread(file_path))
         else:
             self.pixmaps_[1] = None
-        # Downsampled 
+        # Downsampled
         for mag in [2, 4, 8, 16]:
-            vp_file_path_mag = file_path[:-4] + f'_mag{mag}.png'
+            vp_file_path_mag = file_path[:-4] + f'_mag{mag}.tif'
             if os.path.isfile(vp_file_path_mag): 
-                self.pixmaps_[mag] = QPixmap(vp_file_path_mag)
+                self.pixmaps_[mag] = utils.image_to_QPixmap(imread(vp_file_path_mag))
             else:
                 self.pixmaps_[mag] = None
 

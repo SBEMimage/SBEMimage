@@ -29,7 +29,7 @@ from skimage.transform import ProjectiveTransform
 from skimage.measure import ransac
 from serial.tools import list_ports
 from qtpy.QtCore import QObject, Signal, QSize
-from qtpy.QtGui import QIcon
+from qtpy.QtGui import QIcon, QPixmap, QImage
 
 
 # Default and minimum size of the Viewport canvas.
@@ -628,6 +628,11 @@ def round_floats(input_var, precision=3):
     if isinstance(input_var, list):
         return [round_floats(entry) for entry in input_var]
     return input_var
+
+
+def image_to_QPixmap(image):
+    height, width = image.shape[:2]
+    return QPixmap(QImage(color_image(image), width, height, QImage.Format_RGB888))
 
 
 def grayscale_image(image):

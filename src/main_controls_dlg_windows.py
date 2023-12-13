@@ -1593,7 +1593,7 @@ class OVSettingsDlg(QDialog):
             / (self.sem.STORE_RES[self.comboBox_frameSize.currentIndex()][0]
             * self.spinBox_magnification.value()))
         self.doubleSpinBox_pixelSize.setValue(pixel_size)
-        self.show_frame_size();
+        self.show_frame_size()
 
     def show_frame_size(self):
         """Calculate and show physical frame size depending on current frame resolution and pixel size."""

@@ -17,9 +17,7 @@
 
 import os
 import shutil
-import yaml
 import numpy as np
-import threading
 import scipy
 from time import time, sleep
 from PIL import Image
@@ -32,14 +30,14 @@ from qtpy.QtGui import QPixmap, QPainter, QColor, QFont, QIcon, QPen, \
                        QBrush, QKeyEvent, QFontMetrics
 from qtpy.QtCore import Qt, QObject, QRect, QPoint, QSize
 
+import ArrayData
 import utils
 import acq_func
+from image_io import imread
 from viewport_dlg_windows import StubOVDlg, FocusGradientTileSelectionDlg, \
                                  GridRotationDlg, TemplateRotationDlg, ImportImageDlg, \
                                  AdjustImageDlg, DeleteImageDlg
 from main_controls_dlg_windows import MotorStatusDlg
-
-import ArrayData
 
 
 class Viewport(QWidget):
@@ -1513,7 +1511,7 @@ class Viewport(QWidget):
         self.vp_qp.setBrush(QColor(0, 0, 0, 255))
         font = QFont()
         font.setPixelSize(16)
-        metrics = QFontMetrics(font);
+        metrics = QFontMetrics(font)
         self.vp_qp.drawRect(0, 0, metrics.width(custom_text) + 15, 30)
         self.vp_qp.setPen(
             QPen(QColor(*utils.COLOUR_SELECTOR[13]), 1, Qt.SolidLine))
@@ -3343,7 +3341,7 @@ class Viewport(QWidget):
                     self.acq.base_dir, self.acq.stack_name,
                     self.sv_current_ov, start_slice - i)
                 if os.path.isfile(filename):
-                    self.slice_view_images.append(QPixmap(filename))
+                    self.slice_view_images.append(utils.image_to_QPixmap(imread(filename)))
                     utils.suppress_console_warning()
             self.sv_set_native_resolution()
             self.sv_draw()
@@ -3354,7 +3352,7 @@ class Viewport(QWidget):
                         self.acq.stack_name, self.sv_current_grid,
                         self.sv_current_tile, start_slice - i))
                 if os.path.isfile(filename):
-                    self.slice_view_images.append(QPixmap(filename))
+                    self.slice_view_images.append(utils.image_to_QPixmap(imread(filename)))
                     utils.suppress_console_warning()
             self.sv_set_native_resolution()
             self.sv_draw()
@@ -3830,7 +3828,7 @@ class Viewport(QWidget):
             filename = None
         canvas = self.reslice_canvas_template.copy()
         if filename is not None and os.path.isfile(filename):
-            current_reslice = QPixmap(filename)
+            current_reslice = utils.image_to_QPixmap(imread(filename))
             self.m_qp.begin(canvas)
             self.m_qp.setPen(QColor(0, 0, 0))
             self.m_qp.setBrush(QColor(0, 0, 0))

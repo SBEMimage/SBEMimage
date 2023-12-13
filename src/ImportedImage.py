@@ -20,7 +20,7 @@ from PyQt5.QtGui import QImage
 from qtpy.QtGui import QPixmap, QImage, QTransform
 
 from image_io import imread_metadata, imread
-from utils import round_xy, norm_image_minmax, uint8_image, color_image, norm_image_quantiles
+from utils import round_xy, norm_image_minmax, uint8_image, color_image, norm_image_quantiles, image_to_QPixmap
 
 
 class ImportedImage:
@@ -43,9 +43,9 @@ class ImportedImage:
         if os.path.isfile(self.image_src):
             try:
                 image = color_image(uint8_image(norm_image_quantiles(imread(self.image_src))))
-                height, width = image.shape[0], image.shape[1]
+                height, width = image.shape[:2]
                 self.size = [width, height]
-                self.image = QPixmap(QImage(image, width, height, QImage.Format_RGB888))
+                self.image = image_to_QPixmap(image)
                 pixel_size_um = imread_metadata(self.image_src).get('pixel_size', [])
                 if len(pixel_size_um) > 0:
                     self.pixel_size = pixel_size_um[0] * 1000     # [um] -> [nm]

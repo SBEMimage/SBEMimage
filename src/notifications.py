@@ -198,7 +198,7 @@ class Notifications:
                         base_dir, 'workspace', 'tile_g'
                         + str(grid_index).zfill(utils.GRID_DIGITS)
                         + 't' + str(tile_index).zfill(utils.TILE_DIGITS)
-                        + '_cropped.png')
+                        + '_cropped.tif')
                     tile_image.crop((int(r_width/3), int(r_height/3),
                          int(2*r_width/3), int(2*r_height/3))).save(
                          cropped_tile_filename)

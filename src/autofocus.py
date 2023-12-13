@@ -221,7 +221,7 @@ class Autofocus():
                               'stig_rot_deg': self.mapfost_stig_rot,
                               'stig_scale': self.mapfost_stig_scale,
                               'crop_size': self.MAPFOST_PATCH_SIZE}
-            corrections = autofocus_mapfost.run(self.sem.sem_api, working_distance_perturbations=[self.mapfost_wd_pert],
+            corrections = autofocus_mapfost.run(self.sem.api, working_distance_perturbations=[self.mapfost_wd_pert],
                                                 mapfost_params=mapfost_params, max_iters = self.mapfost_max_iters,
                                                 convergence_threshold = self.mapfost_conv_thresh,
                                                 aberr_mode_bools=aberr_mode_bools, large_aberrations=large_aberrations,
@@ -246,7 +246,7 @@ class Autofocus():
                               'stig_rot_deg': 0,
                               'stig_scale': [1.,1.],
                               'crop_size': self.MAPFOST_PATCH_SIZE}
-            calib_param = autofocus_mapfost.calibrate(self.sem.sem_api, mapfost_params=mapfost_params,
+            calib_param = autofocus_mapfost.calibrate(self.sem.api, mapfost_params=mapfost_params,
                                                       calib_mode=calib_mode)
             msg = calib_param
         except Exception as e:

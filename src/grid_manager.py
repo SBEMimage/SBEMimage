@@ -22,19 +22,18 @@ self.gm[grid_index][tile_index].sx_sy  (stage position of specified tile)
 
 import os
 import json
-import yaml
 import copy
-import itertools
 
 import numpy as np
 from statistics import mean
-from typing import List, Optional
+from typing import List
 from math import sqrt, radians, sin, cos
 from qtpy.QtGui import QPixmap
 import scipy
 
 import utils
 import ArrayData
+from image_io import imread
 
 
 class Tile:
@@ -81,7 +80,7 @@ class Tile:
         self._preview_src = src
         if os.path.isfile(src):
             try:
-                self.preview_img = QPixmap(src)
+                self.preview_img = utils.image_to_QPixmap(imread(src))
             except:
                 self.preview_img = None
         else:
@@ -949,7 +948,7 @@ class GridManager:
                 if (os.path.isfile(preview_path)
                     and (os.path.isfile(tile_path_current)
                          or os.path.isfile(tile_path_previous))):
-                    self.__grids[g][t].preview_img = QPixmap(preview_path)
+                    self.__grids[g][t].preview_img = utils.image_to_QPixmap(imread(preview_path))
                 else:
                     self.__grids[g][t].preview_img = None
 

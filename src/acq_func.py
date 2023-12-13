@@ -280,7 +280,7 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
             try:
                 # Generate downsampled versions of stub OV
                 for mag in [2, 4, 8, 16]:
-                    vp_fname_mag = stub_overview_file_name[:-4] + f'_mag{mag}.png'
+                    vp_fname_mag = stub_overview_file_name[:-4] + f'_mag{mag}.tif'
                     img_mag = scipy.ndimage.zoom(full_stub_image, 1 / mag, order=3)
                     imwrite(vp_fname_mag, img_mag)
             except Exception as e:
