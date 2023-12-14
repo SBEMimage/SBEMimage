@@ -11,6 +11,7 @@
 """This module provides the commands to operate the SEM. Only the functions
 that are actually required in SBEMimage have been implemented."""
 
+import numpy as np
 from time import sleep
 
 try:
@@ -20,7 +21,9 @@ try:
 except:
     pass
 
+from image_io import imwrite
 from sem_control import SEM
+import utils
 from utils import Error, load_csv
 
 
@@ -296,13 +299,18 @@ class SEM_Phenom(SEM):
                 sleep(extra_delay)
 
             acq = self.sem_api.SemAcquireImageEx(scan_params)
-            ppi.Save(acq, save_path_filename, conversion)   # saves metadata inside tiff image (in FeiImage tiff tag)
-            # alternative: image_io imwrite(save_path_filename, acq.image, acq.metadata[...])
-            # pixel_size_um = acq.metadata.pixelSize * 1e6
+            metadata = acq.metadata
+            metadata_dct = {
+                'pixel_size': [metadata.pixelSize.width * 1e6, metadata.pixelSize.height * 1e6],
+                'position': [metadata.position.x * 1e6, metadata.position.y * 1e6]
+            }
+            #ppi.Save(acq, save_path_filename, conversion)   # saves metadata inside tiff image (in FeiImage tiff tag)
+            imwrite(save_path_filename, np.asarray(acq.image), metadata=metadata_dct)
             return True
         except Exception as e:
             self.error_state = Error.grab_image
             self.error_info = f'sem.acquire_frame: command failed ({e})'
+            utils.log_error('SEM', self.error_info)
             return False
 
     def save_frame(self, save_path_filename):

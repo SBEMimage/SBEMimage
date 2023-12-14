@@ -488,7 +488,7 @@ class ImportImageDlg(QDialog):
             try:
                 pixel_size_um = [1, 1]
                 image = imread(selected_path, target_pixel_size_um=pixel_size_um)
-                imwrite(target_path, image, pixel_size_um=pixel_size_um)
+                imwrite(target_path, image, metadata={'pixel_size': pixel_size_um})
             except Exception as e:
                 QMessageBox.warning(
                     self, 'Error',

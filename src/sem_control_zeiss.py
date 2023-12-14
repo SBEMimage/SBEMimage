@@ -12,6 +12,7 @@
 that are actually required in SBEMimage have been implemented."""
 
 import json
+import os
 import sys
 from qtpy.QtWidgets import QMessageBox
 from time import sleep
@@ -25,9 +26,10 @@ try:
 except:
     pass
 
+from image_io import imread, imwrite
+from sem_control import SEM
 import utils
 from utils import Error
-from sem_control import SEM
 
 
 class SEM_SmartSEM(SEM):
@@ -490,9 +492,22 @@ class SEM_SmartSEM(SEM):
             sleep(0.1)
             self.additional_cycle_time += 0.1
 
-        ret_val = self.sem_api.Grab(0, 0, 1024, 768, 0,
-                                    save_path_filename)
+        # for (ome).tif write to temp file, then rewrite with metadata
+        ext = os.path.splitext(save_path_filename)[1].lower()
+        rewrite_file = ext in ['.tif', '.tiff']
+        if rewrite_file:
+            grab_filename = os.path.join(os.path.dirname(save_path_filename), 'grab.tif')
+        else:
+            grab_filename = save_path_filename
+        ret_val = self.sem_api.Grab(0, 0, 1024, 768, 0, grab_filename)
         if ret_val == 0:
+            if rewrite_file:
+                metadata = {
+                    'pixel_size': [self.grab_pixel_size, self.grab_pixel_size],
+                    'position': [self.last_known_x, self.last_known_y]
+                }
+                image = imread(grab_filename)
+                imwrite(image, metadata)
             return True
         else:
             self.error_state = Error.grab_image

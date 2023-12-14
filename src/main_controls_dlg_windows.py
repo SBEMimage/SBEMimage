@@ -4080,7 +4080,7 @@ class GrabFrameDlg(QDialog):
 
     def file_name_already_exists(self):
         if os.path.isfile(os.path.join(
-                self.acq.base_dir, self.file_name + '.tif')):
+                self.acq.base_dir, self.file_name + utils.FRAME_IMAGE_FORMAT)):
             QMessageBox.information(
                 self, 'File name already exists',
                 'A file with the same name already exists in the base '
@@ -4115,7 +4115,7 @@ class GrabFrameDlg(QDialog):
         time and GUI should not freeze.
         """
         self.scan_success = self.sem.acquire_frame(
-            self.acq.base_dir + '/' + self.file_name + '.tif')
+            self.acq.base_dir + '/' + self.file_name + utils.FRAME_IMAGE_FORMAT)
         self.finish_trigger.signal.emit()
 
     def scan_complete(self):
@@ -4148,7 +4148,7 @@ class GrabFrameDlg(QDialog):
         if self.file_name_already_exists():
             return
         success = self.sem.save_frame(os.path.join(
-            self.acq.base_dir, self.file_name + '.tif'))
+            self.acq.base_dir, self.file_name + utils.FRAME_IMAGE_FORMAT))
         if success:
             utils.log_info('SEM', 'Single frame saved (Grab dialog).')
             QMessageBox.information(

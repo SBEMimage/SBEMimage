@@ -2173,7 +2173,7 @@ class MainControls(QMainWindow):
             'current base directory): ', QLineEdit.Normal, 'current_viewport')
         if ok_button_clicked:
             self.viewport.grab_viewport_screenshot(
-                os.path.join(self.acq.base_dir, file_name + '.png'))
+                os.path.join(self.acq.base_dir, file_name + utils.SCREENSHOT_FORMAT))
             utils.log_info(
                 'CTRL', 'Saved screenshot of current Viewport to base directory.')
 
@@ -3164,7 +3164,7 @@ class MainControls(QMainWindow):
             self.ft_series_wd_values.append(
                 self.ft_selected_wd + self.ft_fdeltas[i])
             filename = os.path.join(
-                self.acq.base_dir, 'workspace', 'ft' + str(i) + '.tif')
+                self.acq.base_dir, 'workspace', 'ft' + str(i) + utils.TEST_IMAGE_FORMAT)
             self.sem.acquire_frame(filename)
             self.ft_series_img.append(utils.image_to_QPixmap(imread(filename)))
         self.sem.set_beam_blanking(1)
@@ -3198,7 +3198,7 @@ class MainControls(QMainWindow):
                 self.ft_series_stig_y_values.append(
                     self.ft_selected_stig_y + self.ft_sdeltas[i])
             filename = os.path.join(
-                self.acq.base_dir, 'workspace', 'ft' + str(i) + '.tif')
+                self.acq.base_dir, 'workspace', 'ft' + str(i) + utils.TEST_IMAGE_FORMAT)
             self.sem.acquire_frame(filename)
             self.ft_series_img.append(utils.image_to_QPixmap(imread(filename)))
         self.sem.set_beam_blanking(1)

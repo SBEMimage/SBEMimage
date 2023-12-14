@@ -1361,7 +1361,7 @@ class Acquisition:
         self.vp_screenshot_filename = os.path.join(
             self.base_dir, 'workspace', 'viewport',
             self.stack_name + '_viewport_' + 's'
-            + str(self.slice_counter).zfill(utils.SLICE_DIGITS) + '.png')
+            + str(self.slice_counter).zfill(utils.SLICE_DIGITS) + utils.SCREENSHOT_FORMAT)
         self.main_controls_trigger.transmit('GRAB VP SCREENSHOT'
                                             + self.vp_screenshot_filename)
         # Allow enough time to grab and save viewport screenshot
@@ -1651,7 +1651,7 @@ class Acquisition:
                     # Save the acquired image in the workspace folder
                     workspace_save_path = os.path.join(
                         self.base_dir, 'workspace',
-                        'OV' + str(ov_index).zfill(3) + '.tif')
+                        'OV' + str(ov_index).zfill(3) + utils.OV_IMAGE_FORMAT)
                     imwrite(workspace_save_path, ov_img)
                     # Update the vp_file_path in the overview manager,
                     # thereby loading the overview as a QPixmap for display

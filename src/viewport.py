@@ -3816,14 +3816,14 @@ class Viewport(QWidget):
         if self.m_current_ov >= 0:
             filename = os.path.join(
                 self.acq.base_dir, 'workspace', 'reslices',
-                'r_OV' + str(self.m_current_ov).zfill(utils.OV_DIGITS) + '.tif')
+                'r_OV' + str(self.m_current_ov).zfill(utils.OV_DIGITS) + utils.OV_IMAGE_FORMAT)
         elif self.m_current_tile >= 0:
             tile_key = ('g' + str(self.m_current_grid).zfill(utils.GRID_DIGITS)
                         + '_t'
                         + str(self.m_current_tile).zfill(utils.TILE_DIGITS))
             filename = os.path.join(
                 self.acq.base_dir, 'workspace', 'reslices',
-                'r_' + tile_key + '.tif')
+                'r_' + tile_key + utils.GRIDTILE_IMAGE_FORMAT)
         else:
             filename = None
         canvas = self.reslice_canvas_template.copy()

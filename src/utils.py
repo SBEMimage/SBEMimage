@@ -70,6 +70,15 @@ RE_TILE_LIST = re.compile('^((0|[1-9][0-9]*)[.](0|[1-9][0-9]*))'
                           '([ ]*,[ ]*(0|[1-9][0-9]*)[.](0|[1-9][0-9]*))*$')
 RE_OV_LIST = re.compile('^([0-9]+)([ ]*,[ ]*[0-9]+)*$')
 
+# Image format / extensions
+DEFAULT_IMAGE_FORMAT = '.ome.tif'
+STUBOV_IMAGE_FORMAT = DEFAULT_IMAGE_FORMAT
+OV_IMAGE_FORMAT = DEFAULT_IMAGE_FORMAT
+GRIDTILE_IMAGE_FORMAT = DEFAULT_IMAGE_FORMAT
+FRAME_IMAGE_FORMAT = DEFAULT_IMAGE_FORMAT
+TEST_IMAGE_FORMAT = '.tif'
+SCREENSHOT_FORMAT = '.png'
+
 LOG_FILENAME = '../log/SBEMimage.log'
 # Custom date/time / format to get '.' instead of ',' as millisecond separator
 LOG_FORMAT = '%(asctime)s.%(msecs)03d %(levelname)s %(category)s: %(message)s'
@@ -391,6 +400,7 @@ def try_to_open(file_name, mode):
                 success = False
     return success, file_handle
 
+
 def try_to_remove(file_name):
     """Try to remove file and retry twice if unsuccessful."""
     try:
@@ -430,6 +440,7 @@ def create_subdirectories(base_dir, dir_list):
     except Exception as e:
         return False, str(e)
 
+
 def fit_in_range(value, min_value, max_value):
     """Make the given value fit into the range min_value..max_value"""
     if value < min_value:
@@ -437,6 +448,7 @@ def fit_in_range(value, min_value, max_value):
     elif value > max_value:
         value = max_value
     return value
+
 
 # TODO (BT): Remove format_log_entry, run through standard logging instead
 def format_log_entry(msg):
@@ -474,7 +486,7 @@ def ov_relative_save_path(stack_name, ov_index, slice_counter):
     return os.path.join(
         'overviews', 'ov' + str(ov_index).zfill(OV_DIGITS),
         stack_name + '_ov' + str(ov_index).zfill(OV_DIGITS)
-        + '_s' + str(slice_counter).zfill(SLICE_DIGITS) + '.tif')
+        + '_s' + str(slice_counter).zfill(SLICE_DIGITS) + OV_IMAGE_FORMAT)
 
 def ov_debris_save_path(base_dir, stack_name, ov_index, slice_counter,
                         sweep_counter):
@@ -482,7 +494,7 @@ def ov_debris_save_path(base_dir, stack_name, ov_index, slice_counter,
         base_dir, 'overviews', 'debris',
         stack_name + '_ov' + str(ov_index).zfill(OV_DIGITS)
         + '_s' + str(slice_counter).zfill(SLICE_DIGITS)
-        + '_' + str(sweep_counter) + '.tif')
+        + '_' + str(sweep_counter) + TEST_IMAGE_FORMAT)
 
 def tile_relative_save_path(stack_name, grid_index, tile_index, slice_counter):
     return os.path.join(
@@ -490,7 +502,7 @@ def tile_relative_save_path(stack_name, grid_index, tile_index, slice_counter):
         't' + str(tile_index).zfill(TILE_DIGITS),
         stack_name + '_g' + str(grid_index).zfill(GRID_DIGITS)
         + '_t' + str(tile_index).zfill(TILE_DIGITS)
-        + '_s' + str(slice_counter).zfill(SLICE_DIGITS) + '.tif')
+        + '_s' + str(slice_counter).zfill(SLICE_DIGITS) + GRIDTILE_IMAGE_FORMAT)
 
 def rejected_tile_save_path(base_dir, stack_name, grid_index, tile_index,
                             slice_counter, fail_counter):
@@ -499,23 +511,23 @@ def rejected_tile_save_path(base_dir, stack_name, grid_index, tile_index,
         stack_name + '_g' + str(grid_index).zfill(GRID_DIGITS)
         + '_t' + str(tile_index).zfill(TILE_DIGITS)
         + '_s' + str(slice_counter).zfill(SLICE_DIGITS)
-        + '_'  + str(fail_counter) + '.tif')
+        + '_'  + str(fail_counter) + GRIDTILE_IMAGE_FORMAT)
 
 def tile_preview_save_path(base_dir, grid_index, tile_index):
     return os.path.join(
         base_dir, 'workspace', 'g' + str(grid_index).zfill(GRID_DIGITS)
-         + '_t' + str(tile_index).zfill(TILE_DIGITS) + '.tif')
+         + '_t' + str(tile_index).zfill(TILE_DIGITS) + GRIDTILE_IMAGE_FORMAT)
 
 def tile_reslice_save_path(base_dir, grid_index, tile_index):
     return os.path.join(
         base_dir, 'workspace', 'reslices',
         'r_g' + str(grid_index).zfill(GRID_DIGITS)
-        + '_t' + str(tile_index).zfill(TILE_DIGITS) + '.tif')
+        + '_t' + str(tile_index).zfill(TILE_DIGITS) + GRIDTILE_IMAGE_FORMAT)
 
 def ov_reslice_save_path(base_dir, ov_index):
     return os.path.join(
         base_dir, 'workspace', 'reslices',
-        'r_OV' + str(ov_index).zfill(OV_DIGITS) + '.tif')
+        'r_OV' + str(ov_index).zfill(OV_DIGITS) + OV_IMAGE_FORMAT)
 
 def tile_id(grid_index, tile_index, slice_counter):
     return (str(grid_index).zfill(GRID_DIGITS)

@@ -294,7 +294,7 @@ class ImageInspector:
         if (tile_key in self.tile_reslice_line
             and self.tile_reslice_line[tile_key].shape[1] == 400):
             reslice_filename = os.path.join(
-                base_dir, 'workspace', 'reslices', 'r_' + tile_key + '.tif')
+                base_dir, 'workspace', 'reslices', 'r_' + tile_key + utils.GRIDTILE_IMAGE_FORMAT)
             reslice_img = None
             # Open reslice file if it exists and save updated reslice
             try:
@@ -389,7 +389,7 @@ class ImageInspector:
             and self.ov_reslice_line[ov_index].shape[1] == 400):
             reslice_filename = os.path.join(
                 base_dir, 'workspace', 'reslices',
-                'r_OV' + str(ov_index).zfill(utils.OV_DIGITS) + '.tif')
+                'r_OV' + str(ov_index).zfill(utils.OV_DIGITS) + utils.OV_IMAGE_FORMAT)
             reslice_img = None
             # Open reslice file if it exists and save updated reslice
             try:

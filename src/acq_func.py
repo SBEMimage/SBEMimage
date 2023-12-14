@@ -81,7 +81,7 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
             sem.set_bit_depth(ovm[ov_index].bit_depth_selector)
             save_path = os.path.join(
                 base_dir, 'workspace', 'OV'
-                + str(ov_index).zfill(3) + '.tif')
+                + str(ov_index).zfill(3) + utils.OV_IMAGE_FORMAT)
             #main_controls_trigger.transmit(utils.format_log_entry('SEM: Acquiring OV %d.' % ov_index))
             utils.log_info('SEM', f'Acquiring OV {ov_index}.')
             # Indicate the overview being acquired in the viewport
@@ -202,7 +202,7 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
                     stub_dlg_trigger.transmit('DRAW VP')
                     save_path = os.path.join(
                         acq.base_dir, 'workspace',
-                        'stub' + str(tile_index).zfill(2) + '.tif')
+                        'stub' + str(tile_index).zfill(2) + utils.STUBOV_IMAGE_FORMAT)
                     if first_tile:
                         # Set acquisition parameters
                         sem.apply_frame_settings(
@@ -273,7 +273,7 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
                 acq.base_dir, 'overviews', 'stub',
                 acq.stack_name + '_stubOV_s'
                 + str(acq.slice_counter).zfill(5)
-                + '_' + timestamp + '.tif')
+                + '_' + timestamp + utils.STUBOV_IMAGE_FORMAT)
             
             # Full stub OV image
             imwrite(stub_overview_file_name, full_stub_image)

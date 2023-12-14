@@ -179,7 +179,7 @@ class Notifications:
             for ov_index in self.status_report_ov_list:
                 ov_path = os.path.join(
                     base_dir, 'workspace',
-                    'OV' + str(ov_index).zfill(utils.OV_DIGITS) + '.tif')
+                    'OV' + str(ov_index).zfill(utils.OV_DIGITS) + utils.OV_IMAGE_FORMAT)
                 if os.path.isfile(ov_path):
                     attachment_list.append(ov_path)
                 else:
@@ -214,7 +214,7 @@ class Notifications:
                     height = ov_reslice_img.size[1]
                     cropped_ov_reslice_save_path = os.path.join(
                         base_dir, 'workspace', 'reslice_OV'
-                        + str(ov_index).zfill(utils.OV_DIGITS) + '.tif')
+                        + str(ov_index).zfill(utils.OV_DIGITS) + utils.OV_IMAGE_FORMAT)
                     if height > 1000:
                         ov_reslice_img.crop(0, height - 1000, 400, height).save(
                             cropped_ov_reslice_save_path)
@@ -236,7 +236,7 @@ class Notifications:
                         base_dir, 'workspace', 'reslice_tile_g'
                         + str(grid_index).zfill(utils.GRID_DIGITS)
                         + 't' + str(tile_index).zfill(utils.TILE_DIGITS)
-                        + '.tif')
+                        + utils.GRIDTILE_IMAGE_FORMAT)
                     if height > 1000:
                         reslice_img.crop(0, height - 1000, 400, height).save(
                             cropped_reslice_save_path)
