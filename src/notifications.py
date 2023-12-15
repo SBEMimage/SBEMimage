@@ -26,6 +26,7 @@ from email.mime.text import MIMEText
 from email.utils import formatdate
 from email import encoders, message_from_string
 
+import constants
 import utils
 
 
@@ -179,7 +180,7 @@ class Notifications:
             for ov_index in self.status_report_ov_list:
                 ov_path = os.path.join(
                     base_dir, 'workspace',
-                    'OV' + str(ov_index).zfill(utils.OV_DIGITS) + utils.OV_IMAGE_FORMAT)
+                    'OV' + str(ov_index).zfill(constants.OV_DIGITS) + constants.OV_IMAGE_FORMAT)
                 if os.path.isfile(ov_path):
                     attachment_list.append(ov_path)
                 else:
@@ -196,9 +197,9 @@ class Notifications:
                     r_width, r_height = tile_image.size
                     cropped_tile_filename = os.path.join(
                         base_dir, 'workspace', 'tile_g'
-                        + str(grid_index).zfill(utils.GRID_DIGITS)
-                        + 't' + str(tile_index).zfill(utils.TILE_DIGITS)
-                        + '_cropped.tif')
+                        + str(grid_index).zfill(constants.GRID_DIGITS)
+                        + 't' + str(tile_index).zfill(constants.TILE_DIGITS)
+                        + '_cropped' + constants.GRIDTILE_IMAGE_FORMAT)
                     tile_image.crop((int(r_width/3), int(r_height/3),
                          int(2*r_width/3), int(2*r_height/3))).save(
                          cropped_tile_filename)
@@ -214,7 +215,7 @@ class Notifications:
                     height = ov_reslice_img.size[1]
                     cropped_ov_reslice_save_path = os.path.join(
                         base_dir, 'workspace', 'reslice_OV'
-                        + str(ov_index).zfill(utils.OV_DIGITS) + utils.OV_IMAGE_FORMAT)
+                        + str(ov_index).zfill(constants.OV_DIGITS) + constants.OV_IMAGE_FORMAT)
                     if height > 1000:
                         ov_reslice_img.crop(0, height - 1000, 400, height).save(
                             cropped_ov_reslice_save_path)
@@ -234,9 +235,9 @@ class Notifications:
                     height = reslice_img.size[1]
                     cropped_reslice_save_path = os.path.join(
                         base_dir, 'workspace', 'reslice_tile_g'
-                        + str(grid_index).zfill(utils.GRID_DIGITS)
-                        + 't' + str(tile_index).zfill(utils.TILE_DIGITS)
-                        + utils.GRIDTILE_IMAGE_FORMAT)
+                        + str(grid_index).zfill(constants.GRID_DIGITS)
+                        + 't' + str(tile_index).zfill(constants.TILE_DIGITS)
+                        + constants.GRIDTILE_IMAGE_FORMAT)
                     if height > 1000:
                         reslice_img.crop(0, height - 1000, 400, height).save(
                             cropped_reslice_save_path)
@@ -287,7 +288,7 @@ class Notifications:
         msg_subject = (f'Error (slice {slice_counter}) '
                        f'during acquisition {stack_name}')
         error_description = (f'An error has occurred: '
-                             + utils.Errors[error_state]
+                             + constants.Errors[error_state]
                              + '\n\nThe acquisition has been paused. '
                              + 'See attached log file for details.')
 

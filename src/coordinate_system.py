@@ -24,6 +24,7 @@ from math import sin, cos
 import json
 import numpy as np
 
+import constants
 import utils
 
 
@@ -50,8 +51,8 @@ class CoordinateSystem:
 
         # Viewport (vp): default width/height,
         # centre position of visible area, and scale factor
-        self.vp_width = utils.VP_WIDTH
-        self.vp_height = utils.VP_HEIGHT
+        self.vp_width = constants.VP_WIDTH
+        self.vp_height = constants.VP_HEIGHT
         self._vp_centre_dx_dy = json.loads(
             self.cfg['viewport']['vp_centre_dx_dy'])
         self._vp_scale = float(self.cfg['viewport']['vp_scale'])

@@ -29,17 +29,17 @@ from time import sleep
 #import xml.etree.ElementTree as ET
 
 from qtpy.QtWidgets import QApplication, QMainWindow, QMessageBox, QInputDialog, QLineEdit, \
-                            QAbstractItemView, QPushButton, QHeaderView, QProgressDialog
-from qtpy.QtCore import Qt, QRect, QSize, QEvent, QItemSelection, \
-                         QItemSelectionModel, QModelIndex
+                            QAbstractItemView, QPushButton, QProgressDialog
+from qtpy.QtCore import Qt, QRect, QSize, QEvent, QItemSelection, QItemSelectionModel
 from qtpy.QtGui import QIcon, QPalette, QColor, QPixmap, QKeyEvent, \
                         QStatusTipEvent, QStandardItem, QStandardItemModel
 from qtpy.uic import loadUi
 
 import acq_func
+import constants
 import utils
+from constants import VERSION, Error
 from image_io import imread
-from utils import Error
 from sem_control import SEM
 from microtome_control import Microtome
 from stage import Stage
@@ -72,18 +72,16 @@ from main_controls_dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
 
 from array_dlg_windows import ArrayImportCDlg, ImportWaferImageDlg, \
                           WaferCalibrationDlg #, ImportZENExperimentDlg
-import ArrayData
 
 
 class MainControls(QMainWindow):
 
-    def __init__(self, config, sysconfig, config_file, version):
+    def __init__(self, config, sysconfig, config_file):
         super().__init__()
         self.cfg = config
         self.syscfg = sysconfig
         self.cfg_file = config_file
         self.syscfg_file = self.cfg['sys']['sys_config_file']
-        self.version = version
 
         # Show progress bar in console during start-up. The percentages are
         # just estimates, but helpful for user to see that initialization
@@ -364,7 +362,7 @@ class MainControls(QMainWindow):
         utils.show_progress_in_console(80)
 
         # First log messages
-        utils.log_info('CTRL', 'SBEMimage Version ' + self.version)
+        utils.log_info('CTRL', 'SBEMimage Version ' + VERSION)
 
         # Initialize viewport window
         self.viewport = Viewport(self.cfg, self.sem, self.stage, self.cs,
@@ -473,7 +471,7 @@ class MainControls(QMainWindow):
     def initialize_main_controls_gui(self):
         """Load and set up the Main Controls GUI"""
         loadUi('../gui/main_window.ui', self)
-        if 'dev' in self.version.lower():
+        if 'dev' in VERSION.lower():
             self.setWindowTitle(
                 'SBEMimage - Main Controls - DEVELOPMENT VERSION')
             # Disable 'Update' function (would overwrite current (local) changes
@@ -1733,7 +1731,7 @@ class MainControls(QMainWindow):
         dialog.exec()
 
     def open_about_box(self):
-        dialog = AboutBox(self.version)
+        dialog = AboutBox()
         dialog.exec()
 
     # ============ Below: stack progress update and signal processing ==============
@@ -2021,8 +2019,8 @@ class MainControls(QMainWindow):
         tile = self.viewport.selected_tile
         tile_folder = os.path.join(
             self.acq.base_dir, 'tiles',
-            'g' + str(grid).zfill(utils.GRID_DIGITS),
-            't' + str(tile).zfill(utils.TILE_DIGITS))
+            'g' + str(grid).zfill(constants.GRID_DIGITS),
+            't' + str(tile).zfill(constants.TILE_DIGITS))
         if not os.path.exists(tile_folder):
             self.try_to_create_directory(tile_folder)
         if self.acq.use_mirror_drive:
@@ -2173,7 +2171,7 @@ class MainControls(QMainWindow):
             'current base directory): ', QLineEdit.Normal, 'current_viewport')
         if ok_button_clicked:
             self.viewport.grab_viewport_screenshot(
-                os.path.join(self.acq.base_dir, file_name + utils.SCREENSHOT_FORMAT))
+                os.path.join(self.acq.base_dir, file_name + constants.SCREENSHOT_FORMAT))
             utils.log_info(
                 'CTRL', 'Saved screenshot of current Viewport to base directory.')
 
@@ -2350,7 +2348,7 @@ class MainControls(QMainWindow):
         if self.plc_installed:
             utils.log_info(
                 'CTRL', 'Testing serial connection to plasma cleaner.')
-            utils.log_info('CTRL', '' + self.plasma_cleaner.version())
+            utils.log_info('CTRL', '' + self.plasma_cleaner.get_version())
         else:
             utils.log_error('CTRL', 'Plasma cleaner not installed/activated.')
 
@@ -2371,8 +2369,8 @@ class MainControls(QMainWindow):
     def debris_detection_test(self):
         # Uses overview images t1.tif and t2.tif in current base directory
         # to run the debris detection in the current detection area.
-        test_image1 = os.path.join(self.acq.base_dir, 't1.tif')
-        test_image2 = os.path.join(self.acq.base_dir, 't2.tif')
+        test_image1 = os.path.join(self.acq.base_dir, 't1' + constants.TEMP_IMAGE_FORMAT)
+        test_image2 = os.path.join(self.acq.base_dir, 't2' + constants.TEMP_IMAGE_FORMAT)
 
         if os.path.isfile(test_image1) and os.path.isfile(test_image2):
             self.img_inspector.process_ov(test_image1, 0, 0)
@@ -2396,8 +2394,8 @@ class MainControls(QMainWindow):
         else:
             QMessageBox.warning(
                 self, 'Debris detection test',
-                'This test expects two test overview images (t1.tif and '
-                't2.tif) in the current base directory.',
+                f'This test expects two test overview images (t1{constants.TEMP_IMAGE_FORMAT} and '
+                f't2{constants.TEMP_IMAGE_FORMAT}) in the current base directory.',
                 QMessageBox.Ok)
 
     def custom_test(self):
@@ -2417,7 +2415,7 @@ class MainControls(QMainWindow):
                     self.cfg['sys']['plc_com_port'])
                 if self.plasma_cleaner.connection_established():
                     utils.log_info('CTRL', 'Plasma cleaner initialised, ver. '
-                                    + self.plasma_cleaner.version()[0])
+                                   + self.plasma_cleaner.get_version()[0])
                     self.plc_initialized = True
                     self.open_plasma_cleaner_dlg()
                 else:
@@ -3164,7 +3162,7 @@ class MainControls(QMainWindow):
             self.ft_series_wd_values.append(
                 self.ft_selected_wd + self.ft_fdeltas[i])
             filename = os.path.join(
-                self.acq.base_dir, 'workspace', 'ft' + str(i) + utils.TEST_IMAGE_FORMAT)
+                self.acq.base_dir, 'workspace', 'ft' + str(i) + constants.TEMP_IMAGE_FORMAT)
             self.sem.acquire_frame(filename)
             self.ft_series_img.append(utils.image_to_QPixmap(imread(filename)))
         self.sem.set_beam_blanking(1)
@@ -3198,7 +3196,7 @@ class MainControls(QMainWindow):
                 self.ft_series_stig_y_values.append(
                     self.ft_selected_stig_y + self.ft_sdeltas[i])
             filename = os.path.join(
-                self.acq.base_dir, 'workspace', 'ft' + str(i) + utils.TEST_IMAGE_FORMAT)
+                self.acq.base_dir, 'workspace', 'ft' + str(i) + constants.TEMP_IMAGE_FORMAT)
             self.sem.acquire_frame(filename)
             self.ft_series_img.append(utils.image_to_QPixmap(imread(filename)))
         self.sem.set_beam_blanking(1)

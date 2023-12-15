@@ -16,11 +16,10 @@ future.
 import os
 import json
 
-from PyQt5.QtGui import QImage
-from qtpy.QtGui import QPixmap, QImage, QTransform
+from qtpy.QtGui import QTransform
 
 from image_io import imread_metadata, imread
-from utils import round_xy, norm_image_minmax, uint8_image, color_image, norm_image_quantiles, image_to_QPixmap
+from utils import round_xy, uint8_image, color_image, norm_image_quantiles, image_to_QPixmap
 
 
 class ImportedImage:

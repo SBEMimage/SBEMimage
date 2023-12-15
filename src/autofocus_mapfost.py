@@ -37,6 +37,8 @@ try:
 except:
     pass
 
+import constants
+
 
 class RunAutoFoc:
 
@@ -152,7 +154,8 @@ class RunAutoFoc:
         final_aberr_params = [np.add(aberr, current_aberr_params) for aberr in aberr_perturbation]
         for key, par in enumerate(final_aberr_params):
             self.set_wd_and_stig_vals(par)
-            save_as = self.perturbed_ims_path + "/" + "_".join( [str(ab) for ab in aberr_perturbation[key]]) + ".tif"
+            save_as = (self.perturbed_ims_path + "/" + "_".join([str(ab) for ab in aberr_perturbation[key]])
+                       + constants.TEMP_IMAGE_FORMAT)
             self.acquire_frame(save_as)
         self.set_wd_and_stig_vals(current_aberr_params)
         return 0
@@ -166,7 +169,7 @@ class RunAutoFoc:
         time.sleep(self.predict_refresh_time())
         self.sem_api.Execute('CMD_FREEZE_ALL')
         if save_result:
-            self.acquire_frame(self.result_path + "//result.tif")
+            self.acquire_frame(self.result_path + "//result" + constants.TEMP_IMAGE_FORMAT)
         return final_aberr_params
 
     def freeze_frame(self, waitTillComplete=0):
@@ -476,8 +479,7 @@ def aberr_perturbation_from_tifname(name):
     return aberr_perturbation
 
 def get_perturbed_ims(perturbed_ims_path):
-
-    perturbed_ims_abs_paths = glob.glob(perturbed_ims_path + "/*.tif")
+    perturbed_ims_abs_paths = glob.glob(perturbed_ims_path + "/*" + constants.TEMP_IMAGE_FORMAT)
     perturbed_ims = [np.array(Image.open(imgPath)) for imgPath in perturbed_ims_abs_paths]
     aberr_perturbation = [aberr_perturbation_from_tifname(t) for t in perturbed_ims_abs_paths]
 

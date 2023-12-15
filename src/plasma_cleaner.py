@@ -32,7 +32,7 @@ class PlasmaCleaner():
         except:
             self.connection_success = False
 
-    def version(self):
+    def get_version(self):
         """Read version info from the device. Serves as a functional test."""
         CRLF = serial.to_bytes([13, 10])
         self.com_port.write(b'F' + CRLF)

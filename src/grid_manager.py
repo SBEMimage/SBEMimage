@@ -28,12 +28,13 @@ import numpy as np
 from statistics import mean
 from typing import List
 from math import sqrt, radians, sin, cos
-from qtpy.QtGui import QPixmap
 import scipy
 
-import utils
 import ArrayData
+import constants
 from image_io import imread
+import utils
+
 
 
 class Tile:
@@ -462,7 +463,7 @@ class Grid:
             self.update_tile_positions()
 
     def display_colour_rgb(self):
-        return utils.COLOUR_SELECTOR[self.display_colour]
+        return constants.COLOUR_SELECTOR[self.display_colour]
 
     def set_display_colour(self, colour):
         self.display_colour = colour

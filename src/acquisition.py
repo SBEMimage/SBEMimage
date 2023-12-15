@@ -27,8 +27,9 @@ from image_io import imwrite
 from dateutil.relativedelta import relativedelta
 from qtpy.QtWidgets import QMessageBox
 
+from constants import Error, Errors
+import constants
 import utils
-from utils import Error
 
 
 class Acquisition:
@@ -393,15 +394,15 @@ class Acquisition:
         # Add subdirectories for overviews, grids, tiles
         for ov_index in range(self.ovm.number_ov):
             ov_dir = os.path.join(
-                'overviews', 'ov' + str(ov_index).zfill(utils.OV_DIGITS))
+                'overviews', 'ov' + str(ov_index).zfill(constants.OV_DIGITS))
             subdirectory_list.append(ov_dir)
         for grid_index in range(self.gm.number_grids):
             grid_dir = os.path.join(
-                'tiles', 'g' + str(grid_index).zfill(utils.GRID_DIGITS))
+                'tiles', 'g' + str(grid_index).zfill(constants.GRID_DIGITS))
             subdirectory_list.append(grid_dir)
             for tile_index in self.gm[grid_index].active_tiles:
                 tile_dir = os.path.join(
-                    grid_dir, 't' + str(tile_index).zfill(utils.TILE_DIGITS))
+                    grid_dir, 't' + str(tile_index).zfill(constants.TILE_DIGITS))
                 subdirectory_list.append(tile_dir)
         # Create the directories in the base directory and the mirror drive
         # (if applicable).
@@ -686,7 +687,7 @@ class Acquisition:
             pixel_size_list = []
             dwell_time_list = []
             for grid_index in range(self.gm.number_grids):
-                grid_list.append(str(grid_index).zfill(utils.GRID_DIGITS))
+                grid_list.append(str(grid_index).zfill(constants.GRID_DIGITS))
                 grid_origin_list.append(self.gm[grid_index].origin_sx_sy.tolist())
                 rotation_angle_list.append(self.gm[grid_index].rotation)
                 pixel_size_list.append(self.gm[grid_index].pixel_size)
@@ -1098,7 +1099,7 @@ class Acquisition:
         notification email. A pop-up alert message is shown in the Main
         Controls windows.
         """
-        error_str = utils.Errors[self.error_state]
+        error_str = Errors[self.error_state]
         utils.log_error(
             'CTRL',
             'ERROR (' + error_str + ')')
@@ -1361,7 +1362,7 @@ class Acquisition:
         self.vp_screenshot_filename = os.path.join(
             self.base_dir, 'workspace', 'viewport',
             self.stack_name + '_viewport_' + 's'
-            + str(self.slice_counter).zfill(utils.SLICE_DIGITS) + utils.SCREENSHOT_FORMAT)
+            + str(self.slice_counter).zfill(constants.SLICE_DIGITS) + constants.SCREENSHOT_FORMAT)
         self.main_controls_trigger.transmit('GRAB VP SCREENSHOT'
                                             + self.vp_screenshot_filename)
         # Allow enough time to grab and save viewport screenshot
@@ -1651,7 +1652,7 @@ class Acquisition:
                     # Save the acquired image in the workspace folder
                     workspace_save_path = os.path.join(
                         self.base_dir, 'workspace',
-                        'OV' + str(ov_index).zfill(3) + utils.OV_IMAGE_FORMAT)
+                        'OV' + str(ov_index).zfill(3) + constants.OV_IMAGE_FORMAT)
                     imwrite(workspace_save_path, ov_img)
                     # Update the vp_file_path in the overview manager,
                     # thereby loading the overview as a QPixmap for display

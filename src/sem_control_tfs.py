@@ -21,10 +21,10 @@ try:
 except:
     pass
 
+from constants import Error
 from image_io import imwrite
 from sem_control import SEM
 import utils
-from utils import Error, load_csv
 
 
 class SEM_Phenom(SEM):
@@ -42,7 +42,7 @@ class SEM_Phenom(SEM):
 
         if not self.simulation_mode:
             try:
-                phenom_id, username, password = load_csv(self.PPAPI_CREDENTIALS_FILENAME)
+                phenom_id, username, password = utils.load_csv(self.PPAPI_CREDENTIALS_FILENAME)
                 if len(username) == 0:
                     username = ''
                 if len(password) == 0:
@@ -64,6 +64,9 @@ class SEM_Phenom(SEM):
         else:
             self.error_state = Error.smartsem_api
             self.error_info = ''
+
+    def has_lm_mode(self):
+        return True
 
     def turn_eht_on(self):
         return True
@@ -276,7 +279,7 @@ class SEM_Phenom(SEM):
         scan_params.hdr = (self.bit_depth_selector == 1)
         scan_params.center = ppi.Position(0, 0)
         scan_params.detector = self.detector
-        scan_params.nFrames = 2
+        scan_params.nFrames = 1
 
         try:
             mode = self.sem_api.GetOperationalMode()
@@ -304,12 +307,48 @@ class SEM_Phenom(SEM):
                 'pixel_size': [metadata.pixelSize.width * 1e6, metadata.pixelSize.height * 1e6],
                 'position': [metadata.position.x * 1e6, metadata.position.y * 1e6]
             }
-            #ppi.Save(acq, save_path_filename, conversion)   # saves metadata inside tiff image (in FeiImage tiff tag)
-            imwrite(save_path_filename, np.asarray(acq.image), metadata=metadata_dct)
+            # ppi.Save(acq, save_path_filename, conversion)   # saves metadata inside tiff image (in FeiImage tiff tag)
+            data = np.asarray(acq.image)
+            imwrite(save_path_filename, data, metadata=metadata_dct)
             return True
         except Exception as e:
             self.error_state = Error.grab_image
             self.error_info = f'sem.acquire_frame: command failed ({e})'
+            utils.log_error('SEM', self.error_info)
+            return False
+
+    def acquire_frame_lm(self, save_path_filename, extra_delay=0):
+        scan_params = ppi.CamParams()  # use default size
+        scan_params.nFrames = 1
+
+        try:
+            mode = self.sem_api.GetOperationalMode()
+            if mode == OperationalMode.Loadpos:
+                self.sem_api.Load()
+            if mode != OperationalMode.LiveNavCam:
+                self.sem_api.MoveToNavCam()
+                #self.move_stage_to_xy((self.last_known_x, self.last_known_y))
+                #self.set_pixel_size(self.pixel_size)
+
+            if extra_delay > 0:
+                sleep(extra_delay)
+
+            acq = self.sem_api.NavCamAcquireImage(scan_params)
+            metadata = acq.metadata
+            metadata_dct = {
+                'pixel_size': [metadata.pixelSize.width * 1e6, metadata.pixelSize.height * 1e6],
+                'position': [metadata.position.x * 1e6, metadata.position.y * 1e6]
+            }
+            # ppi.Save(acq, save_path_filename)   # saves metadata inside tiff image (in FeiImage tiff tag)
+            data = np.asarray(acq.image)
+            if acq.image.encoding == ppi.PixelType.RGB:
+                # API returns multi-type array; convert to simple type
+                data = np.asarray(data.tolist(), dtype=np.uint8)
+            imwrite(save_path_filename, data, metadata=metadata_dct)
+            return True
+        except Exception as e:
+            self.error_state = Error.grab_image
+            self.error_info = f'sem.acquire_frame_lm: command failed ({e})'
             utils.log_error('SEM', self.error_info)
             return False
 

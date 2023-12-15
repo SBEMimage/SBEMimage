@@ -42,10 +42,11 @@ from qtpy.QtGui import QPixmap, QIcon, QPalette, QColor, QFont
 from qtpy.QtWidgets import QApplication, QDialog, QMessageBox, \
                             QFileDialog, QLineEdit
 
+import constants
+from constants import VERSION, Error
+from image_io import imread
 from sem_control_mock import SEM_Mock
 import utils
-from image_io import imread
-from utils import Error
 
 
 class UpdateQThread(QThread):
@@ -77,16 +78,16 @@ class ConfigDlg(QDialog):
     for different SEM and microtome models including mocks.
     """
 
-    def __init__(self, version):
+    def __init__(self):
         super().__init__()
         self.device_presets_selection = [None, None]
         self.load_presets_enabled = False
         loadUi('../gui/config_dlg.ui', self)
         self.setWindowIcon(utils.get_window_icon())
-        if 'dev' in version.lower():
-            self.label_version.setText(f'DEVELOPMENT VERSION ({version})')
+        if 'dev' in VERSION.lower():
+            self.label_version.setText(f'DEVELOPMENT VERSION ({VERSION})')
         else:
-            self.label_version.setText('Version ' + version)
+            self.label_version.setText('Version ' + VERSION)
         self.labelIcon.setPixmap(QPixmap('../img/logo.png'))
         self.label_website.setText('<a href="https://github.com/SBEMimage">'
                                    'https://github.com/SBEMimage</a>')
@@ -1238,9 +1239,9 @@ class StageCalibrationDlg(QDialog):
 
         start_x, start_y = self.stage.get_xy()
 
-        start_path = os.path.join(self.base_dir, 'start.tif')
-        shift_x_path = os.path.join(self.base_dir, 'shift_x.tif')
-        shift_y_path = os.path.join(self.base_dir, 'shift_y.tif')
+        start_path = os.path.join(self.base_dir, 'start' + constants.TEMP_IMAGE_FORMAT)
+        shift_x_path = os.path.join(self.base_dir, 'shift_x' + constants.TEMP_IMAGE_FORMAT)
+        shift_y_path = os.path.join(self.base_dir, 'shift_y' + constants.TEMP_IMAGE_FORMAT)
 
         # Acquire first image at starting position
         self.sem.acquire_frame(start_path)
@@ -1718,8 +1719,8 @@ class GridSettingsDlg(QDialog):
         self.comboBox_gridSelector.currentIndexChanged.connect(
             self.change_grid)
         # Set up colour selector:
-        for i in range(len(utils.COLOUR_SELECTOR)):
-            rgb = utils.COLOUR_SELECTOR[i]
+        for i in range(len(constants.COLOUR_SELECTOR)):
+            rgb = constants.COLOUR_SELECTOR[i]
             colour_icon = QPixmap(20, 10)
             colour_icon.fill(QColor(rgb[0], rgb[1], rgb[2]))
             self.comboBox_colourSelector.addItem(QIcon(colour_icon), '')
@@ -2637,7 +2638,7 @@ class ExportDlg(QDialog):
         QApplication.processEvents()
         base_dir = self.acq.base_dir
         target_grid_index = str(
-            self.spinBox_gridNumber.value()).zfill(utils.GRID_DIGITS)
+            self.spinBox_gridNumber.value()).zfill(constants.GRID_DIGITS)
         pixel_size = self.doubleSpinBox_pixelSize.value()
         start_slice = self.spinBox_fromSlice.value()
         end_slice = self.spinBox_untilSlice.value()
@@ -3667,13 +3668,13 @@ class VariablePressureDlg(QDialog):
         self.horizontalSlider_target.blockSignals(False)
 
     def update_pressure(self, textEdit, value):
-        unit_value = value * utils.PRESSURE_FROM_SEM[self.units]
+        unit_value = value * constants.PRESSURE_FROM_SEM[self.units]
         textEdit.setText("{:.2e}".format(unit_value))
 
     def target_text_changed(self):
         try:
             unit_value = float(self.lineEdit_target.text())
-            self.target = unit_value * utils.PRESSURE_TO_SEM[self.units]
+            self.target = unit_value * constants.PRESSURE_TO_SEM[self.units]
             self.update_target_pressure_slider()
             self.sem.set_vp_target(self.target)
         except Exception as e:
@@ -3785,7 +3786,7 @@ class ChargeCompensatorDlg(QDialog):
         self.update_pressure()
 
     def update_pressure(self):
-        unit_value = self.vacuum_pressure * utils.PRESSURE_FROM_SEM[self.units]
+        unit_value = self.vacuum_pressure * constants.PRESSURE_FROM_SEM[self.units]
         self.lineEdit_vacuumPressure.setText("{:.2e}".format(unit_value))
 
     def update_buttons(self):
@@ -4080,7 +4081,7 @@ class GrabFrameDlg(QDialog):
 
     def file_name_already_exists(self):
         if os.path.isfile(os.path.join(
-                self.acq.base_dir, self.file_name + utils.FRAME_IMAGE_FORMAT)):
+                self.acq.base_dir, self.file_name + constants.FRAME_IMAGE_FORMAT)):
             QMessageBox.information(
                 self, 'File name already exists',
                 'A file with the same name already exists in the base '
@@ -4115,7 +4116,7 @@ class GrabFrameDlg(QDialog):
         time and GUI should not freeze.
         """
         self.scan_success = self.sem.acquire_frame(
-            self.acq.base_dir + '/' + self.file_name + utils.FRAME_IMAGE_FORMAT)
+            self.acq.base_dir + '/' + self.file_name + constants.FRAME_IMAGE_FORMAT)
         self.finish_trigger.signal.emit()
 
     def scan_complete(self):
@@ -4147,14 +4148,15 @@ class GrabFrameDlg(QDialog):
         self.file_name = self.lineEdit_filename.text()
         if self.file_name_already_exists():
             return
+        full_file_name = self.file_name + constants.FRAME_IMAGE_FORMAT
         success = self.sem.save_frame(os.path.join(
-            self.acq.base_dir, self.file_name + utils.FRAME_IMAGE_FORMAT))
+            self.acq.base_dir, full_file_name))
         if success:
             utils.log_info('SEM', 'Single frame saved (Grab dialog).')
             QMessageBox.information(
                 self, 'Frame saved',
                 'The current image shown in SmartSEM was saved as '
-                + self.file_name + '.tif in the current base directory.',
+                + full_file_name + ' in the current base directory.',
                 QMessageBox.Ok)
         else:
             QMessageBox.warning(
@@ -4680,15 +4682,15 @@ class AboutBox(QDialog):
     version and release date.
     """
 
-    def __init__(self, version):
+    def __init__(self):
         super().__init__()
         loadUi('../gui/about_box.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(utils.get_window_icon())
-        if 'dev' in version.lower():
-            self.label_version.setText(f'DEVELOPMENT VERSION ({version})')
+        if 'dev' in VERSION.lower():
+            self.label_version.setText(f'DEVELOPMENT VERSION ({VERSION})')
         else:
-            self.label_version.setText('Version ' + version)
+            self.label_version.setText('Version ' + VERSION)
         self.labelIcon.setPixmap(QPixmap('../img/logo.png'))
         # Enable links to readthedocs and GitHub
         self.label_readthedocs.setText('<a href="https://sbemimage.readthedocs.io">'

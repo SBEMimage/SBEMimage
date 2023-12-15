@@ -50,6 +50,7 @@ class StubOVDlg(QDialog):
         self.viewport_trigger = viewport_trigger
         self.acq_in_progress = False
         self.error_msg_from_acq_thread = ''
+        self.lm_mode = False
 
         # Set up trigger and queue to update dialog GUI during acquisition
         self.stub_dlg_trigger = utils.Trigger()
@@ -57,6 +58,8 @@ class StubOVDlg(QDialog):
         self.abort_queue = Queue()
         self.pushButton_acquire.clicked.connect(self.start_stub_ov_acquisition)
         self.pushButton_abort.clicked.connect(self.abort)
+        self.checkBox_LmMode.stateChanged.connect(self.lm_mode_changed)
+        self.checkBox_LmMode.setEnabled(self.sem.has_lm_mode())
         self.spinBox_X.setValue(int(round(centre_sx_sy[0])))
         self.spinBox_Y.setValue(int(round(centre_sx_sy[1])))
         self.spinBox_rows.setValue(ovm['stub'].size[0])
@@ -68,8 +71,8 @@ class StubOVDlg(QDialog):
         self.update_dimension_and_duration_display()
         # Save previous settings. If user aborts the stub OV acquisition
         # revert to these settings.
-        self.previous_centre_sx_sy = self.ovm['stub'].centre_sx_sy
-        self.previous_grid_size = self.ovm['stub'].size
+        self.previous_centre_sx_sy = ovm['stub'].centre_sx_sy
+        self.previous_grid_size = ovm['stub'].size
 
     def process_thread_signal(self):
         """Process commands from the queue when a trigger signal occurs
@@ -123,6 +126,15 @@ class StubOVDlg(QDialog):
             # Use as error message
             self.error_msg_from_acq_thread = msg
 
+    def lm_mode_changed(self):
+        self.lm_mode = self.checkBox_LmMode.isChecked()
+        if self.lm_mode:
+            self.spinBox_rows.setValue(1)
+            self.spinBox_cols.setValue(1)
+        else:
+            self.spinBox_rows.setValue(self.ovm['stub'].size[0])
+            self.spinBox_cols.setValue(self.ovm['stub'].size[1])
+
     def update_dimension_and_duration_display(self):
         rows = self.spinBox_rows.value()
         cols = self.spinBox_cols.value()
@@ -153,6 +165,7 @@ class StubOVDlg(QDialog):
             centre_sx_sy = self.spinBox_X.value(), self.spinBox_Y.value()
             grid_size = [self.spinBox_rows.value(), self.spinBox_cols.value()]
             # Change the Stub Overview to the requested grid size and centre
+            self.ovm['stub'].lm_mode = self.lm_mode
             self.ovm['stub'].size = grid_size
             self.ovm['stub'].centre_sx_sy = centre_sx_sy
             self.viewport_trigger.transmit(
@@ -477,6 +490,7 @@ class ImportImageDlg(QDialog):
         # Remove extra characters from timestamp:
         timestamp = timestamp[:19].translate({ord(c): None for c in ' :-.'})
         filename, ext = selected_filename.split('.', 1)
+        # format conversion
         if ext.lower() == 'zarr':
             ext = 'ome.zarr'
         elif not ext.lower() == 'ome.zarr':

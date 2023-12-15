@@ -13,7 +13,7 @@ a microtome (including XY stage control) for testing purposes.
 """
 
 
-from utils import Error
+from constants import Error
 from microtome_control import Microtome
 
 

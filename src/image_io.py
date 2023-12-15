@@ -2,6 +2,7 @@ import imageio.v3
 import numpy as np
 import os
 import tifffile
+from tifffile import TiffWriter
 
 from utils import resize_image
 
@@ -9,24 +10,28 @@ from utils import resize_image
 # TODO: add ome.zarr support
 
 
-def imread(path, target_pixel_size_um=None):
+def imread(path, level=None, target_pixel_size_um=None):
+    data = None
     paths = os.path.splitext(path)
     ext = paths[-1].lower()
     is_tiff = ext in ['.tif', '.tiff']
     metadata = imread_metadata(path)
     size = metadata['size']
+    nlevels = len(metadata['sizes'])
     source_pixel_size = metadata.get('pixel_size')
+    scale_by_pixel_size = (target_pixel_size_um is not None and source_pixel_size is not None)
+    target_size = 1
 
     if is_tiff:
-        if target_pixel_size_um is not None and source_pixel_size is not None:
+        if scale_by_pixel_size:
             target_size = (np.divide(source_pixel_size, target_pixel_size_um) * size).astype(int)
-            target_level = 0
-            for level, size1 in enumerate(metadata['sizes']):
+            for level1, size1 in enumerate(metadata['sizes']):
                 if np.all(size1 > target_size):
-                    target_level = level
-            data = resize_image(tifffile.imread(path, level=target_level), target_size)
-        else:
-            data = tifffile.imread(path)
+                    level = level1
+        if level is None or level < nlevels:
+            data = tifffile.imread(path, level=level)
+            if scale_by_pixel_size:
+                data = resize_image(data, target_size)
     else:
         data = imageio.v3.imread(path)
     return data
@@ -60,16 +65,17 @@ def imread_metadata(path):
                 xres = tags['XResolution']
                 yres = tags['YResolution']
                 units = tags['ResolutionUnit'].name
-                if xres is not None:
-                    if isinstance(xres, tuple):
-                        xres = xres[0] / xres[1]
-                    if xres != 0:
-                        pixel_size.append((1 / xres, units))
-                if yres is not None:
-                    if isinstance(yres, tuple):
-                        yres = yres[0] / yres[1]
-                    if yres != 0:
-                        pixel_size.append((1 / yres, units))
+                if units.lower() not in ['', 'none', 'inch']:
+                    if xres is not None:
+                        if isinstance(xres, tuple):
+                            xres = xres[0] / xres[1]
+                        if xres != 0:
+                            pixel_size.append((1 / xres, units))
+                    if yres is not None:
+                        if isinstance(yres, tuple):
+                            yres = yres[0] / yres[1]
+                        if yres != 0:
+                            pixel_size.append((1 / yres, units))
     else:
         properties = imageio.v3.improps(path)
         size = properties.shape[1], properties.shape[0]
@@ -82,7 +88,9 @@ def imread_metadata(path):
 
     all_metadata['size'] = size
     all_metadata['sizes'] = sizes
-    all_metadata['pixel_size'] = convert_units_micrometer(pixel_size)
+    pixel_size_um = convert_units_micrometer(pixel_size)
+    if len(pixel_size_um) > 0:
+        all_metadata['pixel_size'] = pixel_size_um
     return all_metadata
 
 
@@ -116,7 +124,8 @@ def create_tiff_metadata(metadata, is_ome=False):
     return ome_metadata, resolution, resolution_unit
 
 
-def imwrite(path, data, tile_size=None, compression=None, metadata=None):
+def imwrite(path, data, tile_size=None, compression=None, metadata=None,
+            npyramid_add=0, pyramid_downsample=2):
     resolution = None
     resolution_unit = None
 
@@ -130,9 +139,21 @@ def imwrite(path, data, tile_size=None, compression=None, metadata=None):
             tiff_metadata, resolution, resolution_unit = create_tiff_metadata(metadata, is_ome)
         else:
             tiff_metadata = None
-        tifffile.imwrite(path, data,
-                         metadata=tiff_metadata, resolution=resolution, resolutionunit=resolution_unit,
-                         tile=tile_size, compression=compression)
+        with TiffWriter(path) as writer:
+            writer.write(data, subifds=npyramid_add,
+                         tile=tile_size, compression=compression,
+                         resolution=resolution, resolutionunit=resolution_unit,
+                         metadata=tiff_metadata)
+            new_size = np.flip(data.shape[:2])
+            for i in range(npyramid_add):
+                new_size = new_size / 2
+                if resolution is not None:
+                    resolution = tuple(np.divide(resolution, pyramid_downsample))
+                int_size = new_size.astype(int)
+                resized_data = resize_image(data, int_size)
+                writer.write(resized_data, subfiletype=1,
+                             tile=tile_size, compression=compression,
+                             resolution=resolution, resolutionunit=resolution_unit)
     else:
         imageio.v3.imwrite(path, data)
 

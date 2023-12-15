@@ -30,9 +30,10 @@ from qtpy.QtGui import QPixmap, QPainter, QColor, QFont, QIcon, QPen, \
                        QBrush, QKeyEvent, QFontMetrics
 from qtpy.QtCore import Qt, QObject, QRect, QPoint, QSize
 
-import ArrayData
-import utils
 import acq_func
+import ArrayData
+import constants
+import utils
 from image_io import imread
 from viewport_dlg_windows import StubOVDlg, FocusGradientTileSelectionDlg, \
                                  GridRotationDlg, TemplateRotationDlg, ImportImageDlg, \
@@ -62,9 +63,9 @@ class Viewport(QWidget):
 
         # Set Viewport zoom parameters depending on which stage is used for XY
         if self.stage.use_microtome_xy:
-            self.VP_ZOOM = utils.VP_ZOOM_MICROTOME_STAGE
+            self.VP_ZOOM = constants.VP_ZOOM_MICROTOME_STAGE
         else:
-            self.VP_ZOOM = utils.VP_ZOOM_SEM_STAGE
+            self.VP_ZOOM = constants.VP_ZOOM_SEM_STAGE
         # Set limits for viewport panning.
         self.VC_MIN_X, self.VC_MAX_X, self.VC_MIN_Y, self.VC_MAX_Y = (
             self.vp_dx_dy_range())
@@ -222,7 +223,7 @@ class Viewport(QWidget):
         draw_in_vp = (self.tabWidget.currentIndex() == 0)
         tile_display = (self.sv_current_tile >= 0)
 
-        qp.setPen(QPen(QColor(*utils.COLOUR_SELECTOR[13]), 2, Qt.SolidLine))
+        qp.setPen(QPen(QColor(*constants.COLOUR_SELECTOR[13]), 2, Qt.SolidLine))
         qp.setBrush(QColor(0, 0, 0, 0))
         if self.measure_p1[0] is not None:
             if draw_in_vp:
@@ -250,7 +251,7 @@ class Viewport(QWidget):
             font = QFont()
             font.setPixelSize(12)
             qp.setFont(font)
-            qp.setPen(QPen(QColor(*utils.COLOUR_SELECTOR[13]), 1, Qt.SolidLine))
+            qp.setPen(QPen(QColor(*constants.COLOUR_SELECTOR[13]), 1, Qt.SolidLine))
             if distance < 1:
                 qp.drawText(self.cs.vp_width - 75, self.cs.vp_height - 5,
                             str((int(distance * 1000))) + ' nm')
@@ -333,7 +334,7 @@ class Viewport(QWidget):
 
     def mousePressEvent(self, event):
         p = event.pos()
-        px, py = p.x() - utils.VP_MARGIN_X, p.y() - utils.VP_MARGIN_Y
+        px, py = p.x() - constants.VP_MARGIN_X, p.y() - constants.VP_MARGIN_Y
         mouse_pos_within_viewer = (
             px in range(self.cs.vp_width) and py in range(self.cs.vp_height))
         mouse_pos_within_plot_area = (
@@ -483,8 +484,8 @@ class Viewport(QWidget):
                 if self.show_saturated_pixels:
                     self.checkBox_showSaturated.setChecked(False)
                     self.show_saturated_pixels = False
-                self.drag_origin = (p.x() - utils.VP_MARGIN_X,
-                                    p.y() - utils.VP_MARGIN_Y)
+                self.drag_origin = (p.x() - constants.VP_MARGIN_X,
+                                    p.y() - constants.VP_MARGIN_Y)
         # Now check right mouse button for context menus and measuring tool
         if ((event.button() == Qt.RightButton)
                 and (self.tabWidget.currentIndex() < 2)
@@ -517,7 +518,7 @@ class Viewport(QWidget):
 
     def mouseMoveEvent(self, event):
         p = event.pos()
-        px, py = p.x() - utils.VP_MARGIN_X, p.y() - utils.VP_MARGIN_Y
+        px, py = p.x() - constants.VP_MARGIN_X, p.y() - constants.VP_MARGIN_Y
         # Show current stage and SEM coordinates at mouse position
         mouse_pos_within_viewer = (
             px in range(self.cs.vp_width) and py in range(self.cs.vp_height))
@@ -635,7 +636,7 @@ class Viewport(QWidget):
         # Process doubleclick
         if self.doubleclick_registered:
             p = event.pos()
-            px, py = p.x() - utils.VP_MARGIN_X, p.y() - utils.VP_MARGIN_Y
+            px, py = p.x() - constants.VP_MARGIN_X, p.y() - constants.VP_MARGIN_Y
             if px in range(self.cs.vp_width) and py in range(self.cs.vp_height):
                 if self.tabWidget.currentIndex() == 0:
                     self._vp_mouse_zoom(px, py, 2)
@@ -816,7 +817,7 @@ class Viewport(QWidget):
                 self.sv_slice_bwd()
         if self.tabWidget.currentIndex() == 0:
             p = event.pos()
-            px, py = p.x() - utils.VP_MARGIN_X, p.y() - utils.VP_MARGIN_Y
+            px, py = p.x() - constants.VP_MARGIN_X, p.y() - constants.VP_MARGIN_Y
             mouse_pos_within_viewer = (
                 px in range(self.cs.vp_width) and py in range(self.cs.vp_height))
             if mouse_pos_within_viewer:
@@ -837,8 +838,8 @@ class Viewport(QWidget):
         """Adjust the Viewport and Slice-by-slice viewer canvas when the window
         is resized.
         """
-        self.cs.vp_width = event.size().width() - utils.VP_WINDOW_DIFF_X
-        self.cs.vp_height = event.size().height() - utils.VP_WINDOW_DIFF_Y
+        self.cs.vp_width = event.size().width() - constants.VP_WINDOW_DIFF_X
+        self.cs.vp_height = event.size().height() - constants.VP_WINDOW_DIFF_Y
         self.cs.update_vp_origin_dx_dy()
         self.vp_canvas = QPixmap(self.cs.vp_width, self.cs.vp_height)
         self.sv_canvas = QPixmap(self.cs.vp_width, self.cs.vp_height)
@@ -1071,7 +1072,7 @@ class Viewport(QWidget):
 
     def vp_show_context_menu(self, p):
         """Show context menu after user has right-clicked at position p."""
-        px, py = p.x() - utils.VP_MARGIN_X, p.y() - utils.VP_MARGIN_Y
+        px, py = p.x() - constants.VP_MARGIN_X, p.y() - constants.VP_MARGIN_Y
         if px in range(self.cs.vp_width) and py in range(self.cs.vp_height):
             self.selected_grid, self.selected_tile = \
                 self._vp_grid_tile_mouse_selection(px, py)
@@ -1404,18 +1405,18 @@ class Viewport(QWidget):
         # Show interactive features
         if self.grid_draw_active:
             self._draw_rectangle(self.vp_qp, self.drag_origin, self.drag_current,
-                                 utils.COLOUR_SELECTOR[0], line_style=Qt.DashLine)
+                                 constants.COLOUR_SELECTOR[0], line_style=Qt.DashLine)
         if self.ov_draw_active:
             self._draw_rectangle(self.vp_qp, self.drag_origin, self.drag_current,
-                                 utils.COLOUR_SELECTOR[10], line_style=Qt.DashLine)
+                                 constants.COLOUR_SELECTOR[10], line_style=Qt.DashLine)
         if self.template_draw_active:
             self._draw_rectangle(self.vp_qp, self.drag_origin, self.drag_current,
-                                 utils.COLOUR_SELECTOR[8], line_style=Qt.DashLine)
+                                 constants.COLOUR_SELECTOR[8], line_style=Qt.DashLine)
 
         # --- magc_mode ---
         if self.grid_selection_or_draw_selection_box_active:
             self._draw_rectangle(self.vp_qp, self.drag_origin, self.drag_current,
-                                 utils.COLOUR_SELECTOR[0], line_style=Qt.DashLine)
+                                 constants.COLOUR_SELECTOR[0], line_style=Qt.DashLine)
         # magc landmarks
         if self.sem.magc_mode:
             self.vp_qp.setBrush(QBrush(
@@ -1514,7 +1515,7 @@ class Viewport(QWidget):
         metrics = QFontMetrics(font)
         self.vp_qp.drawRect(0, 0, metrics.width(custom_text) + 15, 30)
         self.vp_qp.setPen(
-            QPen(QColor(*utils.COLOUR_SELECTOR[13]), 1, Qt.SolidLine))
+            QPen(QColor(*constants.COLOUR_SELECTOR[13]), 1, Qt.SolidLine))
         self.vp_qp.setFont(font)
         self.vp_qp.drawText(7, 21, custom_text)
 
@@ -1645,7 +1646,7 @@ class Viewport(QWidget):
             self.vp_qp.drawPixmap(vx_cropped, vy_cropped,
                                   cropped_resized_img)
             # Draw dark grey rectangle around stub OV
-            pen = QPen(QColor(*utils.COLOUR_SELECTOR[11]), 2, Qt.SolidLine)
+            pen = QPen(QColor(*constants.COLOUR_SELECTOR[11]), 2, Qt.SolidLine)
             self.vp_qp.setPen(pen)
             self.vp_qp.drawRect(vx - 1, vy - 1,
                                 int(width_px * resize_ratio + 1),
@@ -1723,8 +1724,8 @@ class Viewport(QWidget):
             font_size = int(self.cs.vp_scale * 8)
             if font_size < 12:
                 font_size = 12
-            self.vp_qp.setPen(QColor(*utils.COLOUR_SELECTOR[10]))
-            self.vp_qp.setBrush(QColor(*utils.COLOUR_SELECTOR[10]))
+            self.vp_qp.setPen(QColor(*constants.COLOUR_SELECTOR[10]))
+            self.vp_qp.setBrush(QColor(*constants.COLOUR_SELECTOR[10]))
             if self.ovm[ov_index].active:
                 width_factor = 3.6
             else:
@@ -1759,10 +1760,10 @@ class Viewport(QWidget):
                                   cropped_resized_img)
         # Draw blue rectangle around OV.
         self.vp_qp.setPen(
-            QPen(QColor(*utils.COLOUR_SELECTOR[10]), 2, Qt.SolidLine))
+            QPen(QColor(*constants.COLOUR_SELECTOR[10]), 2, Qt.SolidLine))
         if ((self.ov_acq_indicator is not None)
             and self.ov_acq_indicator == ov_index):
-            self.vp_qp.setBrush(QColor(*utils.COLOUR_SELECTOR[12]))
+            self.vp_qp.setBrush(QColor(*constants.COLOUR_SELECTOR[12]))
         else:
             self.vp_qp.setBrush(QColor(0, 0, 0, 0))
         self.vp_qp.drawRect(vx, vy,
@@ -1784,7 +1785,7 @@ class Viewport(QWidget):
                     w3, w4 = 3, 6
 
                 pen = QPen(
-                    QColor(*utils.COLOUR_SELECTOR[10]), 2, Qt.DashDotLine)
+                    QColor(*constants.COLOUR_SELECTOR[10]), 2, Qt.DashDotLine)
                 self.vp_qp.setPen(pen)
                 self.vp_qp.setBrush(QColor(0, 0, 0, 0))
                 self.vp_qp.drawRect(int(vx + top_left_dx * resize_ratio - w3),
@@ -1819,7 +1820,7 @@ class Viewport(QWidget):
         font = QFont()
         grid_colour_rgb = self.gm[grid_index].display_colour_rgb()
         grid_colour = QColor(*grid_colour_rgb, 255)
-        indicator_colour = QColor(*utils.COLOUR_SELECTOR[12])
+        indicator_colour = QColor(*constants.COLOUR_SELECTOR[12])
 
         # Suppress labels when zoomed out or when user is moving a grid or
         # panning the view, under the condition that there are >10 grids.
@@ -3184,12 +3185,12 @@ class Viewport(QWidget):
         # This depends on whether OV or a tile is displayed.
         if self.sv_current_ov >= 0:
             self.cs.sv_scale_ov = (
-                utils.SV_ZOOM_OV[0]
-                * utils.SV_ZOOM_OV[1]**self.horizontalSlider_SV.value())
+                constants.SV_ZOOM_OV[0]
+                * constants.SV_ZOOM_OV[1] ** self.horizontalSlider_SV.value())
         else:
             self.cs.sv_scale_tile = (
-                utils.SV_ZOOM_TILE[0]
-                * utils.SV_ZOOM_TILE[1]**self.horizontalSlider_SV.value())
+                constants.SV_ZOOM_TILE[0]
+                * constants.SV_ZOOM_TILE[1] ** self.horizontalSlider_SV.value())
         self.sv_disable_saturated_pixels()
         self.sv_draw()
 
@@ -3197,12 +3198,12 @@ class Viewport(QWidget):
         self.horizontalSlider_SV.blockSignals(True)
         if self.sv_current_ov >= 0:
             self.horizontalSlider_SV.setValue(
-                int(log(self.cs.sv_scale_ov / utils.SV_ZOOM_OV[0],
-                        utils.SV_ZOOM_OV[1])))
+                int(log(self.cs.sv_scale_ov / constants.SV_ZOOM_OV[0],
+                        constants.SV_ZOOM_OV[1])))
         else:
             self.horizontalSlider_SV.setValue(
-                int(log(self.cs.sv_scale_tile / utils.SV_ZOOM_TILE[0],
-                        utils.SV_ZOOM_TILE[1])))
+                int(log(self.cs.sv_scale_tile / constants.SV_ZOOM_TILE[0],
+                        constants.SV_ZOOM_TILE[1])))
         self.horizontalSlider_SV.blockSignals(False)
 
     def _sv_mouse_zoom(self, px, py, factor):
@@ -3214,8 +3215,8 @@ class Viewport(QWidget):
             # Recalculate scaling factor.
             self.cs.sv_scale_ov = utils.fit_in_range(
                 factor * old_sv_scale_ov,
-                utils.SV_ZOOM_OV[0],
-                utils.SV_ZOOM_OV[0] * utils.SV_ZOOM_OV[1]**99)
+                constants.SV_ZOOM_OV[0],
+                constants.SV_ZOOM_OV[0] * constants.SV_ZOOM_OV[1] ** 99)
                 # 99 is max slider value
             ratio = self.cs.sv_scale_ov / old_sv_scale_ov
             # Preserve mouse click position.
@@ -3227,8 +3228,8 @@ class Viewport(QWidget):
             current_vx, current_vy = self.cs.sv_tile_vx_vy
             self.cs.sv_scale_tile = utils.fit_in_range(
                 factor * old_sv_scale_tile,
-                utils.SV_ZOOM_TILE[0],
-                utils.SV_ZOOM_TILE[0] * utils.SV_ZOOM_TILE[1]**99)
+                constants.SV_ZOOM_TILE[0],
+                constants.SV_ZOOM_TILE[0] * constants.SV_ZOOM_TILE[1] ** 99)
             ratio = self.cs.sv_scale_tile / old_sv_scale_tile
             # Preserve mouse click position.
             new_vx = int(ratio * current_vx - (ratio - 1) * px)
@@ -3561,7 +3562,7 @@ class Viewport(QWidget):
     def sv_reset_view(self):
         """Zoom out completely and centre current image."""
         if self.sv_current_ov >= 0:
-            self.cs.sv_scale_ov = utils.SV_ZOOM_OV[0]
+            self.cs.sv_scale_ov = constants.SV_ZOOM_OV[0]
             width, height = self.ovm[self.sv_current_ov].frame_size
             viewport_pixel_size = 1000 / self.cs.sv_scale_ov
             ov_pixel_size = self.ovm[self.sv_current_ov].pixel_size
@@ -3569,7 +3570,7 @@ class Viewport(QWidget):
             new_vx = int(self.cs.vp_width // 2 - (width // 2) * resize_ratio)
             new_vy = int(self.cs.vp_height // 2 - (height // 2) * resize_ratio)
         elif self.sv_current_tile >= 0:
-            self.cs.sv_scale_tile = utils.SV_ZOOM_TILE[0]
+            self.cs.sv_scale_tile = constants.SV_ZOOM_TILE[0]
             width, height = self.gm[self.sv_current_grid].frame_size
             viewport_pixel_size = 1000 / self.cs.sv_scale_tile
             tile_pixel_size = self.gm[self.sv_current_grid].pixel_size
@@ -3582,7 +3583,7 @@ class Viewport(QWidget):
         self.sv_draw()
 
     def sv_show_context_menu(self, p):
-        px, py = p.x() - utils.VP_MARGIN_X, p.y() - utils.VP_MARGIN_Y
+        px, py = p.x() - constants.VP_MARGIN_X, p.y() - constants.VP_MARGIN_Y
         if px in range(self.cs.vp_width) and py in range(self.cs.vp_height):
             menu = QMenu()
             action1 = menu.addAction('Reset view for current image')
@@ -3816,14 +3817,14 @@ class Viewport(QWidget):
         if self.m_current_ov >= 0:
             filename = os.path.join(
                 self.acq.base_dir, 'workspace', 'reslices',
-                'r_OV' + str(self.m_current_ov).zfill(utils.OV_DIGITS) + utils.OV_IMAGE_FORMAT)
+                'r_OV' + str(self.m_current_ov).zfill(constants.OV_DIGITS) + constants.OV_IMAGE_FORMAT)
         elif self.m_current_tile >= 0:
-            tile_key = ('g' + str(self.m_current_grid).zfill(utils.GRID_DIGITS)
+            tile_key = ('g' + str(self.m_current_grid).zfill(constants.GRID_DIGITS)
                         + '_t'
-                        + str(self.m_current_tile).zfill(utils.TILE_DIGITS))
+                        + str(self.m_current_tile).zfill(constants.TILE_DIGITS))
             filename = os.path.join(
                 self.acq.base_dir, 'workspace', 'reslices',
-                'r_' + tile_key + utils.GRIDTILE_IMAGE_FORMAT)
+                'r_' + tile_key + constants.GRIDTILE_IMAGE_FORMAT)
         else:
             filename = None
         canvas = self.reslice_canvas_template.copy()
@@ -3887,11 +3888,11 @@ class Viewport(QWidget):
             # get current data:
             filename = os.path.join(
                 self.acq.base_dir, 'meta', 'stats',
-                'OV' + str(self.m_current_ov).zfill(utils.OV_DIGITS) + '.dat')
+                'OV' + str(self.m_current_ov).zfill(constants.OV_DIGITS) + '.dat')
         elif self.m_current_tile >= 0:
-            tile_key = ('g' + str(self.m_current_grid).zfill(utils.GRID_DIGITS)
+            tile_key = ('g' + str(self.m_current_grid).zfill(constants.GRID_DIGITS)
                         + '_t'
-                        + str(self.m_current_tile).zfill(utils.TILE_DIGITS))
+                        + str(self.m_current_tile).zfill(constants.TILE_DIGITS))
             filename = os.path.join(
                 self.acq.base_dir, 'meta', 'stats',
                 tile_key + '.dat')
@@ -4074,12 +4075,12 @@ class Viewport(QWidget):
             if self.m_current_ov >= 0:
                 path = os.path.join(
                     self.acq.base_dir, 'overviews',
-                    'ov' + str(self.m_current_ov).zfill(utils.OV_DIGITS))
+                    'ov' + str(self.m_current_ov).zfill(constants.OV_DIGITS))
             elif self.m_current_tile >= 0:
                 path = os.path.join(
                     self.acq.base_dir, 'tiles',
-                    'g' + str(self.m_current_grid).zfill(utils.GRID_DIGITS)
-                    + '\\t' + str(self.m_current_tile).zfill(utils.TILE_DIGITS))
+                    'g' + str(self.m_current_grid).zfill(constants.GRID_DIGITS)
+                    + '\\t' + str(self.m_current_tile).zfill(constants.TILE_DIGITS))
 
             if path is not None and os.path.exists(path):
                 filenames = next(os.walk(path))[2]
@@ -4091,7 +4092,7 @@ class Viewport(QWidget):
                     else:
                         slice_number_str = (
                             's' + str(self.m_selected_slice_number).zfill(
-                                utils.SLICE_DIGITS))
+                                constants.SLICE_DIGITS))
                         for filename in filenames:
                             if slice_number_str in filename:
                                 selected_file = os.path.join(path, filename)
@@ -4100,7 +4101,7 @@ class Viewport(QWidget):
         else:
             # Use current image from SEM
             selected_file = os.path.join(
-                self.acq.base_dir, 'workspace', 'current_frame.tif')
+                self.acq.base_dir, 'workspace', 'current_frame' + constants.TEMP_IMAGE_FORMAT)
             self.sem.save_frame(selected_file)
             self.m_reset_view()
             self.m_tab_populated = False

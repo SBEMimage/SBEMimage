@@ -13,7 +13,7 @@ import os
 from time import sleep
 
 import utils
-from utils import Error
+from constants import Error
 from microtome_control import Microtome
 
 

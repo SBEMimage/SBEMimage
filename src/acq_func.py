@@ -19,12 +19,12 @@ and not during acquisitions:
 import os
 import datetime
 import numpy as np
-import scipy.ndimage
 from time import sleep
 
+import constants
+from constants import Error
+from image_io import imwrite, imread_metadata
 import utils
-from image_io import imwrite
-from utils import Error
 
 
 def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
@@ -81,7 +81,7 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
             sem.set_bit_depth(ovm[ov_index].bit_depth_selector)
             save_path = os.path.join(
                 base_dir, 'workspace', 'OV'
-                + str(ov_index).zfill(3) + utils.OV_IMAGE_FORMAT)
+                + str(ov_index).zfill(3) + constants.OV_IMAGE_FORMAT)
             #main_controls_trigger.transmit(utils.format_log_entry('SEM: Acquiring OV %d.' % ov_index))
             utils.log_info('SEM', f'Acquiring OV {ov_index}.')
             # Indicate the overview being acquired in the viewport
@@ -146,26 +146,31 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
         success = stage.update_motor_speed()
 
     if success:
-        # NumPy array for final stitched image
-        width, height = ovm['stub'].width_p(), ovm['stub'].height_p()
-        full_stub_image = np.zeros((height, width), dtype=np.uint8)
-        # Save current stub image to temp_save_path to show live preview
-        # during the acquisition
-        temp_save_path = os.path.join(
-            acq.base_dir, 'workspace', 'temp_stub_ov.tif')
-        imwrite(temp_save_path, full_stub_image)
-        ovm['stub'].vp_file_path = temp_save_path
-
         image_counter = 0
         first_tile = True
         number_cols = ovm['stub'].size[1]
         tile_width = ovm['stub'].tile_width_p()
         tile_height = ovm['stub'].tile_height_p()
         overlap = ovm['stub'].overlap
+        metadata = None
 
         # Activate all tiles, which will automatically sort active tiles to
         # minimize motor move durations
         ovm['stub'].activate_all_tiles()
+
+        # NumPy array for final stitched image
+        temp_save_path = os.path.join(
+            acq.base_dir, 'workspace', 'temp_stub_ov' + constants.STUBOV_IMAGE_FORMAT)
+        ovm['stub'].vp_file_path = temp_save_path
+        is_single_tile = (len(ovm['stub'].active_tiles) == 1)
+        if not is_single_tile:
+            width, height = ovm['stub'].width_p(), ovm['stub'].height_p()
+            full_stub_image = np.zeros((height, width), dtype=np.uint8)
+            # Save current stub image to temp_save_path to show live preview
+            # during the acquisition
+            imwrite(temp_save_path, full_stub_image)
+        else:
+            full_stub_image = None
 
         for tile_index in ovm['stub'].active_tiles:
             if not abort_queue.empty():
@@ -202,7 +207,7 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
                     stub_dlg_trigger.transmit('DRAW VP')
                     save_path = os.path.join(
                         acq.base_dir, 'workspace',
-                        'stub' + str(tile_index).zfill(2) + utils.STUBOV_IMAGE_FORMAT)
+                        'stub' + str(tile_index).zfill(2) + constants.STUBOV_IMAGE_FORMAT)
                     if first_tile:
                         # Set acquisition parameters
                         sem.apply_frame_settings(
@@ -211,14 +216,20 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
                             ovm['stub'].dwell_time)
                         sem.set_bit_depth(ovm['stub'].bit_depth_selector)
                         first_tile = False
-                    success = sem.acquire_frame(save_path)
+                    if ovm['stub'].lm_mode:
+                        success = sem.acquire_frame_lm(save_path)
+                    else:
+                        success = sem.acquire_frame(save_path)
                     sleep(0.5)
                     tile_img, _, _, load_error, _, grab_incomplete = (
                         img_inspector.load_and_inspect(save_path))
                     if load_error or grab_incomplete:
                         # Try again
                         sem.reset_error_state()
-                        success = sem.acquire_frame(save_path)
+                        if ovm['stub'].lm_mode:
+                            success = sem.acquire_frame_lm(save_path)
+                        else:
+                            success = sem.acquire_frame(save_path)
                         sleep(1.5)
                         tile_img, _, _, load_error, _, grab_incomplete = (
                             img_inspector.load_and_inspect(save_path))
@@ -241,10 +252,14 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
                         y = tile_index // number_cols
                         x_pos = x * (tile_width - overlap)
                         y_pos = y * (tile_height - overlap)
-                        full_stub_image[y_pos:y_pos+tile_height,
-                                        x_pos:x_pos+tile_width] = tile_img
+                        if is_single_tile:
+                            full_stub_image = tile_img
+                        else:
+                            full_stub_image[y_pos:y_pos+tile_height,
+                                            x_pos:x_pos+tile_width] = tile_img
                         # Save current stitched image and show it in Viewport
-                        imwrite(temp_save_path, full_stub_image)
+                        metadata = imread_metadata(save_path)   # get metadata from last acquisition
+                        imwrite(temp_save_path, full_stub_image, metadata=metadata)
                         # Setting vp_file_path to temp_save_path reloads the
                         # current png file as a QPixmap
                         ovm['stub'].vp_file_path = temp_save_path
@@ -273,21 +288,9 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
                 acq.base_dir, 'overviews', 'stub',
                 acq.stack_name + '_stubOV_s'
                 + str(acq.slice_counter).zfill(5)
-                + '_' + timestamp + utils.STUBOV_IMAGE_FORMAT)
-            
-            # Full stub OV image
-            imwrite(stub_overview_file_name, full_stub_image)
-            try:
-                # Generate downsampled versions of stub OV
-                for mag in [2, 4, 8, 16]:
-                    vp_fname_mag = stub_overview_file_name[:-4] + f'_mag{mag}.tif'
-                    img_mag = scipy.ndimage.zoom(full_stub_image, 1 / mag, order=3)
-                    imwrite(vp_fname_mag, img_mag)
-            except Exception as e:
-                stub_dlg_trigger.transmit(
-                    f'An exception occurred while saving downsampled copies'
-                    f'of the acquired stub overview image: {str(e)}')
+                + '_' + timestamp + constants.STUBOV_IMAGE_FORMAT)
 
+            imwrite(stub_overview_file_name, full_stub_image, metadata=metadata, npyramid_add=4, pyramid_downsample=2)
             ovm['stub'].vp_file_path = stub_overview_file_name
         else:
             # Restore previous stub OV

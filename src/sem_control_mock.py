@@ -16,9 +16,9 @@ import numpy as np
 import os
 from time import sleep
 
+from constants import Error
 from image_io import imread, imwrite
 from sem_control import SEM
-from utils import Error
 
 
 class SEM_Mock(SEM):

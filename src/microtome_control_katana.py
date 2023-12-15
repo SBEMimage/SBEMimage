@@ -12,9 +12,9 @@
 from time import sleep
 import serial
 
-import utils
-from utils import Error
+from constants import Error
 from microtome_control import Microtome
+import utils
 
 
 class Microtome_katana(Microtome):

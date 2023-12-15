@@ -29,6 +29,7 @@ from grid_manager import Grid
 from image_io import imread
 import numpy as np
 import utils
+from src import constants
 
 
 class Overview(Grid):
@@ -206,6 +207,7 @@ class StubOverview(Grid):
                          bit_depth_selector=0,
                          display_colour=11)
 
+        self.lm_mode = False
         # Set the centre coordinates, which will update the origin.
         self.centre_sx_sy = centre_sx_sy
         # QPixmaps of current stub OV (original and downsampled)
@@ -226,18 +228,16 @@ class StubOverview(Grid):
     def vp_file_path(self, file_path):
         self._vp_file_path = file_path
         # Load images as QPixmaps:
-        # Full resolution
-        if os.path.isfile(file_path):
-            self.pixmaps_[1] = utils.image_to_QPixmap(imread(file_path))
-        else:
-            self.pixmaps_[1] = None
-        # Downsampled
-        for mag in [2, 4, 8, 16]:
-            vp_file_path_mag = file_path[:-4] + f'_mag{mag}.tif'
-            if os.path.isfile(vp_file_path_mag): 
-                self.pixmaps_[mag] = utils.image_to_QPixmap(imread(vp_file_path_mag))
+        file_exists = os.path.isfile(file_path)
+        for level, mag in enumerate([1, 2, 4, 8, 16]):
+            if file_exists:
+                image = imread(file_path, level=level)
+                if image is not None:
+                    image = utils.image_to_QPixmap(image)
             else:
-                self.pixmaps_[mag] = None
+                image = None
+            self.pixmaps_[mag] = image
+
 
 class OverviewManager:
     def __init__(self, config, sem, coordinate_system):

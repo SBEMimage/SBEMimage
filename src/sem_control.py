@@ -15,7 +15,7 @@ import json
 from collections import deque
 from typing import List
 
-from utils import Error
+from constants import Error
 
 
 class SEM:
@@ -225,6 +225,10 @@ class SEM:
             self.use_maintenance_moves)
         self.syscfg['stage']['sem_maintenance_move_interval'] = str(int(
             self.maintenance_move_interval))
+
+    def has_lm_mode(self):
+        """Return True if supports LM mode."""
+        return False
 
     def turn_eht_on(self):
         """Turn EHT (= high voltage) on."""
@@ -462,6 +466,10 @@ class SEM:
         additional waiting period after the cycle time (extra_delay, in seconds)
         may be necessary. The delay specified in syscfg (self.DEFAULT_DELAY)
         is added by default for cycle times > 0.5 s."""
+        raise NotImplementedError
+
+    def acquire_frame_lm(self, save_path_filename, extra_delay=0):
+        """Acquire LM frame"""
         raise NotImplementedError
 
     def save_frame(self, save_path_filename):

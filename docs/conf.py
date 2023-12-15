@@ -16,6 +16,7 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
+from src.constants import VERSION
 
 # -- Project information -----------------------------------------------------
 
@@ -24,9 +25,9 @@ copyright = '2018-2020, Friedrich Miescher Institute, Basel, Switzerland'
 author = 'Benjamin Titze'
 
 # The short X.Y version
-version = '2020.05'
+version = VERSION.split()[0]
 # The full version, including alpha/beta/rc tags
-release = '2020.05 Rxxx'
+release = VERSION
 
 
 # -- General configuration ---------------------------------------------------

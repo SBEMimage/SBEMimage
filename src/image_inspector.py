@@ -22,8 +22,10 @@ from PIL import Image
 from PIL.ImageQt import ImageQt
 from qtpy.QtGui import QPixmap
 
-import utils
+import constants
 from image_io import imread, imwrite
+import utils
+
 
 # Remove image size limit in PIL (Pillow) to prevent DecompressionBombError
 Image.MAX_IMAGE_PIXELS = None
@@ -177,8 +179,8 @@ class ImageInspector:
 
         if not load_error:
 
-            tile_key = ('g' + str(grid_index).zfill(utils.GRID_DIGITS)
-                        + '_' + 't' + str(tile_index).zfill(utils.TILE_DIGITS))
+            tile_key = ('g' + str(grid_index).zfill(constants.GRID_DIGITS)
+                        + '_' + 't' + str(tile_index).zfill(constants.TILE_DIGITS))
             tile_key_short = str(grid_index) + '.' + str(tile_index)
 
             # Save preview image
@@ -265,15 +267,15 @@ class ImageInspector:
         """Write mean and SD of specified tile to disk."""
         success = True
         error_msg = ''
-        tile_key = ('g' + str(grid_index).zfill(utils.GRID_DIGITS)
-                    + '_' + 't' + str(tile_index).zfill(utils.TILE_DIGITS))
+        tile_key = ('g' + str(grid_index).zfill(constants.GRID_DIGITS)
+                    + '_' + 't' + str(tile_index).zfill(constants.TILE_DIGITS))
         if tile_key in self.tile_means and tile_key in self.tile_stddevs:
             stats_filename = os.path.join(
                 base_dir, 'meta', 'stats', tile_key + '.dat')
             # Append to existing file or create new file
             try:
                 with open(stats_filename, 'a') as file:
-                    file.write(str(slice_counter).zfill(utils.SLICE_DIGITS)
+                    file.write(str(slice_counter).zfill(constants.SLICE_DIGITS)
                                + ';' + str(self.tile_means[tile_key][-1][1])
                                + ';' + str(self.tile_stddevs[tile_key][-1][1])
                                + '\n')
@@ -287,14 +289,14 @@ class ImageInspector:
 
     def save_tile_reslice(self, base_dir, grid_index, tile_index):
         """Write reslice line of specified tile to disk."""
-        tile_key = ('g' + str(grid_index).zfill(utils.GRID_DIGITS)
-                    + '_' + 't' + str(tile_index).zfill(utils.TILE_DIGITS))
+        tile_key = ('g' + str(grid_index).zfill(constants.GRID_DIGITS)
+                    + '_' + 't' + str(tile_index).zfill(constants.TILE_DIGITS))
         success = True
         error_msg = ''
         if (tile_key in self.tile_reslice_line
             and self.tile_reslice_line[tile_key].shape[1] == 400):
             reslice_filename = os.path.join(
-                base_dir, 'workspace', 'reslices', 'r_' + tile_key + utils.GRIDTILE_IMAGE_FORMAT)
+                base_dir, 'workspace', 'reslices', 'r_' + tile_key + constants.GRIDTILE_IMAGE_FORMAT)
             reslice_img = None
             # Open reslice file if it exists and save updated reslice
             try:
@@ -366,7 +368,7 @@ class ImageInspector:
         if ov_index in self.ov_means and ov_index in self.ov_stddevs:
             stats_filename = os.path.join(
                 base_dir, 'meta', 'stats',
-                'OV' + str(ov_index).zfill(utils.OV_DIGITS) + '.dat')
+                'OV' + str(ov_index).zfill(constants.OV_DIGITS) + '.dat')
             # Append to existing file or create new file
             try:
                 with open(stats_filename, 'a') as file:
@@ -389,7 +391,7 @@ class ImageInspector:
             and self.ov_reslice_line[ov_index].shape[1] == 400):
             reslice_filename = os.path.join(
                 base_dir, 'workspace', 'reslices',
-                'r_OV' + str(ov_index).zfill(utils.OV_DIGITS) + utils.OV_IMAGE_FORMAT)
+                'r_OV' + str(ov_index).zfill(constants.OV_DIGITS) + constants.OV_IMAGE_FORMAT)
             reslice_img = None
             # Open reslice file if it exists and save updated reslice
             try:

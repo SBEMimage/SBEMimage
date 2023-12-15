@@ -19,9 +19,8 @@ import json
 import numpy as np
 from math import sqrt, exp, sin, cos
 from statistics import mean
-import utils
-from time import sleep, time
-from scipy.signal import correlate2d, fftconvolve
+from time import sleep
+from scipy.signal import fftconvolve
 import autofocus_mapfost
 
 

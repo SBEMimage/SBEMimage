@@ -26,10 +26,11 @@ try:
 except:
     pass
 
+import constants
+from constants import Error
 from image_io import imread, imwrite
 from sem_control import SEM
 import utils
-from utils import Error
 
 
 class SEM_SmartSEM(SEM):
@@ -496,7 +497,7 @@ class SEM_SmartSEM(SEM):
         ext = os.path.splitext(save_path_filename)[1].lower()
         rewrite_file = ext in ['.tif', '.tiff']
         if rewrite_file:
-            grab_filename = os.path.join(os.path.dirname(save_path_filename), 'grab.tif')
+            grab_filename = os.path.join(os.path.dirname(save_path_filename), 'grab' + constants.TEMP_IMAGE_FORMAT)
         else:
             grab_filename = save_path_filename
         ret_val = self.sem_api.Grab(0, 0, 1024, 768, 0, grab_filename)

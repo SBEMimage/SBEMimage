@@ -24,6 +24,9 @@ Use 'python sbemimage.py' or call the batch file SBEMimage.bat to run SBEMimage.
 import os
 import sys
 
+from constants import VERSION
+
+
 # Required for version installed with pynsist installer
 if os.path.exists('../Python') and os.path.exists('../pkgs'):
     import site
@@ -48,13 +51,6 @@ from main_controls_dlg_windows import ConfigDlg
 from config_template import process_cfg, load_device_presets, default_cfg_found
 from main_controls import MainControls
 import utils
-
-
-# VERSION contains the current version/release date information for the
-# master branch (for example, '2020.07 R2020-07-28'). For the current version
-# in the dev (development) branch, it must contain the tag 'dev'.
-# Following https://www.python.org/dev/peps/pep-0440/#public-version-identifiers
-VERSION = '2023.12 dev'
 
 
 # Hook for uncaught/Qt exceptions
@@ -116,7 +112,7 @@ def main():
 
     if default_cfg_found():
         # Ask user to select .ini file
-        startup_dialog = ConfigDlg(VERSION)
+        startup_dialog = ConfigDlg()
         startup_dialog.exec()
         dlg_response = startup_dialog.get_ini_file()
         device_presets_selection = startup_dialog.device_presets_selection
@@ -266,8 +262,7 @@ def main():
             try:
                 SBEMimage_main_window = MainControls(config,
                                                      sysconfig,
-                                                     config_file,
-                                                     VERSION)
+                                                     config_file)
                 sys.exit(SBEMimage.exec())
             except Exception as e:
                 print('\nAn exception occurred during this SBEMimage session:\n' + str(e))
