@@ -76,6 +76,11 @@ def imread_metadata(path):
                             yres = yres[0] / yres[1]
                         if yres != 0:
                             pixel_size.append((1 / yres, units))
+            if len(sizes) == 1:
+                if hasattr(tif, 'series'):
+                    series0 = tif.series[0]
+                    if hasattr(series0, 'levels'):
+                        sizes = [(level.shape[1], level.shape[0]) for level in series0.levels]
     else:
         properties = imageio.v3.improps(path)
         size = properties.shape[1], properties.shape[0]
