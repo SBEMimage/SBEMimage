@@ -172,7 +172,9 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
         else:
             full_stub_image = None
 
+        positions = []
         for tile_index in ovm['stub'].active_tiles:
+            positions.append(ovm['stub'][tile_index].sx_sy)
             if not abort_queue.empty():
                 # Check if user has clicked 'Abort' button in dialog GUI
                 if abort_queue.get() == 'ABORT':
@@ -259,6 +261,7 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
                                             x_pos:x_pos+tile_width] = tile_img
                         # Save current stitched image and show it in Viewport
                         metadata = imread_metadata(save_path)   # get metadata from last acquisition
+                        metadata['position'] = np.mean(positions, 0)
                         imwrite(temp_save_path, full_stub_image, metadata=metadata)
                         # Setting vp_file_path to temp_save_path reloads the
                         # current png file as a QPixmap

@@ -43,23 +43,27 @@ def imread_metadata(path):
     ext = paths[-1].lower()
     is_tiff = ext in ['.tif', '.tiff']
     pixel_size = []
+    position = []
 
     if is_tiff:
         with tifffile.TiffFile(path) as tif:
             size = tif.pages.first.imagewidth, tif.pages.first.imagelength
             sizes = [size]
+            if hasattr(tif, 'series'):
+                series0 = tif.series[0]
+                if hasattr(series0, 'levels'):
+                    sizes = [(level.shape[1], level.shape[0]) for level in series0.levels]
             if tif.is_ome:
                 metadata = tifffile.xml2dict(tif.ome_metadata)
                 if 'OME' in metadata:
                     metadata = metadata['OME']
-
-                subsizes0 = metadata.get('StructuredAnnotations', {}).get('MapAnnotation', {}).get('Value', {}).get('M', [])
-                subsizes = {item['K']: item['value'] for item in subsizes0}
-                sizes += [[int(s) for s in subsizes[key].split()] for key in sorted(subsizes)]
-
                 pixels = metadata.get('Image', {}).get('Pixels', {})
                 pixel_size = [(float(pixels.get('PhysicalSizeX', 0)), pixels.get('PhysicalSizeXUnit', 'µm')),
                               (float(pixels.get('PhysicalSizeY', 0)), pixels.get('PhysicalSizeYUnit', 'µm'))]
+                plane = pixels.get('Plane', {})
+                if 'PositionX' in plane and 'PositionY' in plane:
+                    position = [(float(plane['PositionX']), plane.get('PositionXUnit', 'µm')),
+                                (float(plane['PositionY']), plane.get('PositionYUnit', 'µm'))]
             else:
                 tags = {tag.name: tag.value for tag in tif.pages[0].tags.values()}
                 xres = tags['XResolution']
@@ -76,11 +80,10 @@ def imread_metadata(path):
                             yres = yres[0] / yres[1]
                         if yres != 0:
                             pixel_size.append((1 / yres, units))
-            if len(sizes) == 1:
-                if hasattr(tif, 'series'):
-                    series0 = tif.series[0]
-                    if hasattr(series0, 'levels'):
-                        sizes = [(level.shape[1], level.shape[0]) for level in series0.levels]
+                xpos = tags['XPosition']
+                ypos = tags['YPosition']
+                if xpos is not None and ypos is not None:
+                    position = xpos, ypos
     else:
         properties = imageio.v3.improps(path)
         size = properties.shape[1], properties.shape[0]
@@ -93,9 +96,12 @@ def imread_metadata(path):
 
     all_metadata['size'] = size
     all_metadata['sizes'] = sizes
-    pixel_size_um = convert_units_micrometer(pixel_size)
-    if len(pixel_size_um) > 0:
+    if len(pixel_size) > 0:
+        pixel_size_um = convert_units_micrometer(pixel_size)
         all_metadata['pixel_size'] = pixel_size_um
+    if len(position) > 0:
+        position_um = convert_units_micrometer(position)
+        all_metadata['position'] = position_um
     return all_metadata
 
 
