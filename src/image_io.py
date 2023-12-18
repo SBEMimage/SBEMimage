@@ -66,24 +66,20 @@ def imread_metadata(path):
                                 (float(plane['PositionY']), plane.get('PositionYUnit', 'µm'))]
             else:
                 tags = {tag.name: tag.value for tag in tif.pages[0].tags.values()}
-                xres = tags['XResolution']
-                yres = tags['YResolution']
-                units = tags['ResolutionUnit'].name
-                if units.lower() not in ['', 'none', 'inch']:
-                    if xres is not None:
-                        if isinstance(xres, tuple):
-                            xres = xres[0] / xres[1]
-                        if xres != 0:
+                units = tags.get('ResolutionUnit')
+                if units is not None:
+                    units = units.name
+                    xres = convert_rational_value(tags.get('XResolution'))
+                    yres = convert_rational_value(tags.get('YResolution'))
+                    if units.lower() not in ['', 'none', 'inch']:
+                        if xres is not None and xres != 0:
                             pixel_size.append((1 / xres, units))
-                    if yres is not None:
-                        if isinstance(yres, tuple):
-                            yres = yres[0] / yres[1]
-                        if yres != 0:
+                        if yres is not None and yres != 0:
                             pixel_size.append((1 / yres, units))
-                xpos = tags['XPosition']
-                ypos = tags['YPosition']
-                if xpos is not None and ypos is not None:
-                    position = xpos, ypos
+                    xpos = convert_rational_value(tags.get('XPosition'))
+                    ypos = convert_rational_value(tags.get('YPosition'))
+                    if xpos is not None and ypos is not None:
+                        position = [(xpos, units), (ypos, units)]
     else:
         properties = imageio.v3.improps(path)
         size = properties.shape[1], properties.shape[0]
@@ -111,12 +107,14 @@ def create_tiff_metadata(metadata, is_ome=False):
     resolution_unit = None
 
     pixel_size = metadata.get('pixel_size')
+    position = metadata.get('position')
     if pixel_size is not None:
         pixel_size_um = convert_units_micrometer(pixel_size)
         resolution_unit = 'CENTIMETER'
         resolution = [1e4 / size for size in pixel_size_um]
     else:
         pixel_size_um = None
+
     if is_ome:
         ome_metadata = {}
         if pixel_size_um is not None:
@@ -124,7 +122,6 @@ def create_tiff_metadata(metadata, is_ome=False):
             ome_metadata['PhysicalSizeXUnit'] = 'µm'
             ome_metadata['PhysicalSizeY'] = pixel_size_um[1]
             ome_metadata['PhysicalSizeYUnit'] = 'µm'
-        position = metadata.get('position')
         if position is not None:
             plane_metadata = {}
             plane_metadata['PositionX'] = position[0]
@@ -185,3 +182,9 @@ def convert_units_micrometer(value_units0: list):
         else:
             value_units.append(value_unit)
     return value_units
+
+
+def convert_rational_value(value):
+    if value is not None and isinstance(value, tuple):
+        value = value[0] / value[1]
+    return value

@@ -142,8 +142,8 @@ class ImageInspector:
             # Was complete image grabbed? Test if first or final line of image
             # is black/white/uniform greyscale
             height = img.shape[0]
-            first_line = img[0:1,:]
-            final_line = img[height-1:height,:]
+            first_line = img[0:1, :]
+            final_line = img[height-1:height, :]
             grab_incomplete = (np.min(first_line) == np.max(first_line) or
                                np.min(final_line) == np.max(final_line))
 

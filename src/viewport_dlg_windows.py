@@ -138,13 +138,18 @@ class StubOVDlg(QDialog):
     def update_dimension_and_duration_display(self):
         rows = self.spinBox_rows.value()
         cols = self.spinBox_cols.value()
-        tile_width = self.ovm['stub'].frame_size[0]
-        tile_height = self.ovm['stub'].frame_size[1]
-        overlap = self.ovm['stub'].overlap
-        pixel_size = self.ovm['stub'].pixel_size
-        cycle_time = self.ovm['stub'].tile_cycle_time()
-        motor_move_time = self.stage.stage_move_duration(
-            *self.ovm['stub'][0].sx_sy, *self.ovm['stub'][1].sx_sy)
+        stub_ovm = self.ovm['stub']
+        tile_width = stub_ovm.frame_size[0]
+        tile_height = stub_ovm.frame_size[1]
+        overlap = stub_ovm.overlap
+        pixel_size = stub_ovm.pixel_size
+        cycle_time = stub_ovm.tile_cycle_time()
+        ov0 = stub_ovm[0]
+        ov1 = stub_ovm[1]
+        if ov0 is not None and ov1 is not None:
+            motor_move_time = self.stage.stage_move_duration(*ov0.sx_sy, *ov1.sx_sy)
+        else:
+            motor_move_time = 0
         width = int(
             (cols * tile_width - (cols - 1) * overlap) * pixel_size / 1000)
         height = int(

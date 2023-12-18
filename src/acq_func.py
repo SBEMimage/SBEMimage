@@ -134,7 +134,8 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
     """
     success = True      # Set to False if an error occurs during acq process
     aborted = False     # Set to True when user clicks the 'Abort' button
-    prev_vp_file_path = ovm['stub'].vp_file_path
+    stub_ovm = ovm['stub']
+    prev_vp_file_path = stub_ovm.vp_file_path
 
     # Update current XY position and display it in Main Controls GUI
     stage.get_xy()
@@ -148,23 +149,23 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
     if success:
         image_counter = 0
         first_tile = True
-        number_cols = ovm['stub'].size[1]
-        tile_width = ovm['stub'].tile_width_p()
-        tile_height = ovm['stub'].tile_height_p()
-        overlap = ovm['stub'].overlap
+        number_cols = stub_ovm.size[1]
+        tile_width = stub_ovm.tile_width_p()
+        tile_height = stub_ovm.tile_height_p()
+        overlap = stub_ovm.overlap
         metadata = None
 
         # Activate all tiles, which will automatically sort active tiles to
         # minimize motor move durations
-        ovm['stub'].activate_all_tiles()
+        stub_ovm.activate_all_tiles()
 
         # NumPy array for final stitched image
         temp_save_path = os.path.join(
-            acq.base_dir, 'workspace', 'temp_stub_ov' + constants.STUBOV_IMAGE_FORMAT)
-        ovm['stub'].vp_file_path = temp_save_path
-        is_single_tile = (len(ovm['stub'].active_tiles) == 1)
+            acq.base_dir, 'workspace', 'temp_stub_ov' + constants.TEMP_IMAGE_FORMAT)
+        stub_ovm.vp_file_path = temp_save_path
+        is_single_tile = (len(stub_ovm.active_tiles) == 1)
         if not is_single_tile:
-            width, height = ovm['stub'].width_p(), ovm['stub'].height_p()
+            width, height = stub_ovm.width_p(), stub_ovm.height_p()
             full_stub_image = np.zeros((height, width), dtype=np.uint8)
             # Save current stub image to temp_save_path to show live preview
             # during the acquisition
@@ -172,9 +173,7 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
         else:
             full_stub_image = None
 
-        positions = []
-        for tile_index in ovm['stub'].active_tiles:
-            positions.append(ovm['stub'][tile_index].sx_sy)
+        for tile_index in stub_ovm.active_tiles:
             if not abort_queue.empty():
                 # Check if user has clicked 'Abort' button in dialog GUI
                 if abort_queue.get() == 'ABORT':
@@ -183,7 +182,7 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
                     success = False
                     aborted = True
                     break
-            target_x, target_y = ovm['stub'][tile_index].sx_sy
+            target_x, target_y = stub_ovm[tile_index].sx_sy
             # Only acquire tile if it is within stage limits
             if stage.pos_within_limits((target_x, target_y)):
                 stage.move_to_xy((target_x, target_y))
@@ -209,16 +208,16 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
                     stub_dlg_trigger.transmit('DRAW VP')
                     save_path = os.path.join(
                         acq.base_dir, 'workspace',
-                        'stub' + str(tile_index).zfill(2) + constants.STUBOV_IMAGE_FORMAT)
+                        'stub' + str(tile_index).zfill(2) + constants.TEMP_IMAGE_FORMAT)
                     if first_tile:
                         # Set acquisition parameters
                         sem.apply_frame_settings(
-                            ovm['stub'].frame_size_selector,
-                            ovm['stub'].pixel_size,
-                            ovm['stub'].dwell_time)
-                        sem.set_bit_depth(ovm['stub'].bit_depth_selector)
+                            stub_ovm.frame_size_selector,
+                            stub_ovm.pixel_size,
+                            stub_ovm.dwell_time)
+                        sem.set_bit_depth(stub_ovm.bit_depth_selector)
                         first_tile = False
-                    if ovm['stub'].lm_mode:
+                    if stub_ovm.lm_mode:
                         success = sem.acquire_frame_lm(save_path)
                     else:
                         success = sem.acquire_frame(save_path)
@@ -228,7 +227,7 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
                     if load_error or grab_incomplete:
                         # Try again
                         sem.reset_error_state()
-                        if ovm['stub'].lm_mode:
+                        if stub_ovm.lm_mode:
                             success = sem.acquire_frame_lm(save_path)
                         else:
                             success = sem.acquire_frame(save_path)
@@ -261,11 +260,11 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
                                             x_pos:x_pos+tile_width] = tile_img
                         # Save current stitched image and show it in Viewport
                         metadata = imread_metadata(save_path)   # get metadata from last acquisition
-                        metadata['position'] = np.mean(positions, 0)
+                        metadata['position'] = stub_ovm.centre_sx_sy
                         imwrite(temp_save_path, full_stub_image, metadata=metadata)
                         # Setting vp_file_path to temp_save_path reloads the
                         # current png file as a QPixmap
-                        ovm['stub'].vp_file_path = temp_save_path
+                        stub_ovm.vp_file_path = temp_save_path
                         stub_dlg_trigger.transmit('DRAW VP')
                         sleep(0.1)
 
@@ -275,7 +274,7 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
             # Update progress bar in dialog window
             image_counter += 1
             percentage_done = int(
-                image_counter / ovm['stub'].number_tiles * 100)
+                image_counter / stub_ovm.number_tiles * 100)
             stub_dlg_trigger.transmit(
                 'UPDATE PROGRESS' + str(percentage_done))
 
@@ -294,10 +293,10 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
                 + '_' + timestamp + constants.STUBOV_IMAGE_FORMAT)
 
             imwrite(stub_overview_file_name, full_stub_image, metadata=metadata, npyramid_add=4, pyramid_downsample=2)
-            ovm['stub'].vp_file_path = stub_overview_file_name
+            stub_ovm.vp_file_path = stub_overview_file_name
         else:
             # Restore previous stub OV
-            ovm['stub'].vp_file_path = prev_vp_file_path
+            stub_ovm.vp_file_path = prev_vp_file_path
             stub_dlg_trigger.transmit('DRAW VP')
 
     if success:
