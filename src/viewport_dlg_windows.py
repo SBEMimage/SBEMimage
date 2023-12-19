@@ -23,7 +23,7 @@ from qtpy.QtWidgets import QApplication, QDialog, QMessageBox, QFileDialog, \
                            QDialogButtonBox
 
 import acq_func
-from image_io import imread, imwrite
+from image_io import imread, imwrite, imread_metadata
 import utils
 
 
@@ -480,11 +480,18 @@ class ImportImageDlg(QDialog):
             start_path,
             'Images (*.tif *.tiff *.png *.bmp *.jpg)'
             )[0])
+        self.doubleSpinBox_pixelSize.setEnabled(True)
         if len(selected_file) > 0:
             selected_file = os.path.normpath(selected_file)
             self.lineEdit_fileName.setText(selected_file)
             self.lineEdit_name.setText(
                 os.path.splitext(os.path.basename(selected_file))[0])
+            metadata = imread_metadata(selected_file)
+            pixel_size = metadata.get('pixel_size')
+            if pixel_size is not None and len(pixel_size) > 0:
+                pxel_size_nm = pixel_size[0] * 1000
+                self.doubleSpinBox_pixelSize.setValue(pxel_size_nm)
+                self.doubleSpinBox_pixelSize.setEnabled(False)
 
     def accept(self):
         selection_success = True

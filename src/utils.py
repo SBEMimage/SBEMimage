@@ -424,8 +424,15 @@ def round_floats(input_var, precision=3):
 
 
 def image_to_QPixmap(image):
+    image = np.require(uint8_image(image), np.uint8, 'C')
     height, width = image.shape[:2]
-    return QPixmap(QImage(color_image(uint8_image(image)), width, height, QImage.Format_RGB888))
+    nchannels = image.shape[2] if image.ndim > 2 else 1
+    bytes_per_line = nchannels * width
+    if nchannels == 1:
+        channel_format = QImage.Format_Grayscale8
+    else:
+        channel_format = QImage.Format_RGB888
+    return QPixmap(QImage(image, width, height, bytes_per_line, channel_format))
 
 
 def grayscale_image(image):

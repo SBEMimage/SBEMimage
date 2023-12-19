@@ -355,6 +355,7 @@ class SEM_Phenom(SEM):
             return False
 
     def save_frame(self, save_path_filename):
+        """Only supports (re)acquiring frame, requiring providing acquisition parameters"""
         return self.acquire_frame(save_path_filename)
 
     def get_wd(self):

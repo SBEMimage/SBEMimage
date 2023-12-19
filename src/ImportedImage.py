@@ -41,7 +41,7 @@ class ImportedImage:
         # Load image as QPixmap
         if os.path.isfile(self.image_src):
             try:
-                image = color_image(uint8_image(norm_image_quantiles(imread(self.image_src))))
+                image = norm_image_quantiles(imread(self.image_src))
                 height, width = image.shape[:2]
                 self.size = [width, height]
                 self.image = image_to_QPixmap(image)
