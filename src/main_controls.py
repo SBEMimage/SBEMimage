@@ -2657,7 +2657,7 @@ class MainControls(QMainWindow):
     def closeEvent(self, event):
         if self.microtome is not None and self.microtome.error_state == Error.configuration:
             if (self.sem.device_name.startswith('ZEISS')
-                    and self.sem.sem_api is not None):
+                    and self.sem is not None):
                 self.sem.disconnect()
             print('\n\nError in configuration file. Aborted.\n')
             event.accept()
@@ -2677,7 +2677,7 @@ class MainControls(QMainWindow):
                         and self.microtome.device_name == 'ConnectomX katana'):
                         self.microtome.disconnect()
                     if (self.sem.device_name.startswith('ZEISS')
-                            and self.sem.sem_api is not None):
+                            and self.sem is not None):
                         self.sem.disconnect()
                 if self.plc_initialized:
                     plasma_log_msg = self.plasma_cleaner.close_port()

@@ -76,10 +76,6 @@ def imread_metadata(path):
                             pixel_size.append((1 / xres, units))
                         if yres is not None and yres != 0:
                             pixel_size.append((1 / yres, units))
-                    xpos = convert_rational_value(tags.get('XPosition'))
-                    ypos = convert_rational_value(tags.get('YPosition'))
-                    if xpos is not None and ypos is not None:
-                        position = [(xpos, units), (ypos, units)]
     else:
         properties = imageio.v3.improps(path)
         size = properties.shape[1], properties.shape[0]
@@ -132,7 +128,7 @@ def create_tiff_metadata(metadata, is_ome=False):
     return ome_metadata, resolution, resolution_unit
 
 
-def imwrite(path, data, tile_size=None, compression=None, metadata=None,
+def imwrite(path, data, tile_size=None, compression='LZW', metadata=None,
             npyramid_add=0, pyramid_downsample=2):
     resolution = None
     resolution_unit = None

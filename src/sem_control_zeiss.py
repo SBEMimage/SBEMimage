@@ -467,6 +467,11 @@ class SEM_SmartSEM(SEM):
         may be necessary. The delay specified in syscfg (self.DEFAULT_DELAY)
         is added by default for cycle times > 0.5 s."""
 
+        if self.simulation_mode:
+            self.error_state = Error.grab_image
+            self.error_info = f'sem.save_frame: simulation mode'
+            return False
+
         self.sem_execute('CMD_UNFREEZE_ALL')
 
         if (
@@ -493,6 +498,16 @@ class SEM_SmartSEM(SEM):
             sleep(0.1)
             self.additional_cycle_time += 0.1
 
+        return self.save_frame(save_path_filename)
+
+    def save_frame(self, save_path_filename):
+        """Save the frame currently displayed in SmartSEM."""
+
+        if self.simulation_mode:
+            self.error_state = Error.grab_image
+            self.error_info = f'sem.save_frame: simulation mode'
+            return False
+
         # for (ome).tif write to temp file, then rewrite with metadata
         ext = os.path.splitext(save_path_filename)[1].lower()
         rewrite_file = ext in ['.tif', '.tiff']
@@ -508,19 +523,7 @@ class SEM_SmartSEM(SEM):
                     'position': [self.last_known_x, self.last_known_y]
                 }
                 image = imread(grab_filename)
-                imwrite(image, metadata)
-            return True
-        else:
-            self.error_state = Error.grab_image
-            self.error_info = (
-                f'sem.acquire_frame: command failed (ret_val: {ret_val})')
-            return False
-
-    def save_frame(self, save_path_filename):
-        """Save the frame currently displayed in SmartSEM."""
-        ret_val = self.sem_api.Grab(0, 0, 1024, 768, 0,
-                                    save_path_filename)
-        if ret_val == 0:
+                imwrite(save_path_filename, image, metadata)
             return True
         else:
             self.error_state = Error.grab_image
@@ -816,7 +819,11 @@ class SEM_SmartSEM(SEM):
         self.sem_api.AboutBox()
 
     def disconnect(self):
-        ret_val = self.sem_api.ClosingControl()
+        if not self.simulation_mode:
+            ret_val = self.sem_api.ClosingControl()
+        else:
+            ret_val = 0
+
         if ret_val == 0:
             utils.log_info('SEM', 'Disconnected from SmartSEM.')
             return True

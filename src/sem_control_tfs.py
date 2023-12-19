@@ -302,14 +302,14 @@ class SEM_Phenom(SEM):
                 sleep(extra_delay)
 
             acq = self.sem_api.SemAcquireImageEx(scan_params)
-            metadata = acq.metadata
-            metadata_dct = {
-                'pixel_size': [metadata.pixelSize.width * 1e6, metadata.pixelSize.height * 1e6],
-                'position': [metadata.position.x * 1e6, metadata.position.y * 1e6]
+            acq_metadata = acq.metadata
+            metadata = {
+                'pixel_size': [acq_metadata.pixelSize.width * 1e6, acq_metadata.pixelSize.height * 1e6],
+                'position': [acq_metadata.position.x * 1e6, acq_metadata.position.y * 1e6]
             }
             # ppi.Save(acq, save_path_filename, conversion)   # saves metadata inside tiff image (in FeiImage tiff tag)
             data = np.asarray(acq.image)
-            imwrite(save_path_filename, data, metadata=metadata_dct)
+            imwrite(save_path_filename, data, metadata=metadata)
             return True
         except Exception as e:
             self.error_state = Error.grab_image
@@ -330,21 +330,23 @@ class SEM_Phenom(SEM):
                 #self.move_stage_to_xy((self.last_known_x, self.last_known_y))
                 #self.set_pixel_size(self.pixel_size)
 
+            # TODO: check if stage position is always 0,0
+
             if extra_delay > 0:
                 sleep(extra_delay)
 
             acq = self.sem_api.NavCamAcquireImage(scan_params)
-            metadata = acq.metadata
-            metadata_dct = {
-                'pixel_size': [metadata.pixelSize.width * 1e6, metadata.pixelSize.height * 1e6],
-                'position': [metadata.position.x * 1e6, metadata.position.y * 1e6]
+            acq_metadata = acq.metadata
+            metadata = {
+                'pixel_size': [acq_metadata.pixelSize.width * 1e6, acq_metadata.pixelSize.height * 1e6],
+                'position': [acq_metadata.position.x * 1e6, acq_metadata.position.y * 1e6]
             }
             # ppi.Save(acq, save_path_filename)   # saves metadata inside tiff image (in FeiImage tiff tag)
             data = np.asarray(acq.image)
             if acq.image.encoding == ppi.PixelType.RGB:
                 # API returns multi-type array; convert to simple type
                 data = np.asarray(data.tolist(), dtype=np.uint8)
-            imwrite(save_path_filename, data, metadata=metadata_dct)
+            imwrite(save_path_filename, data, metadata=metadata)
             return True
         except Exception as e:
             self.error_state = Error.grab_image
