@@ -487,6 +487,10 @@ def norm_image_quantiles(image0, quantile=0.999):
 
 
 def resize_image(image, new_size):
+    if not isinstance(new_size, (tuple, list, np.ndarray)):
+        # use single value for width; apply aspect ratio
+        size = np.flip(image.shape[:2])
+        new_size = new_size, new_size * size[1] // size[0]
     return cv2.resize(image, new_size)
 
 

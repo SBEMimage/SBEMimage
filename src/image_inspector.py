@@ -18,17 +18,11 @@ import numpy as np
 
 from scipy.signal import medfilt2d
 from collections import deque
-from PIL import Image
-from PIL.ImageQt import ImageQt
-from qtpy.QtGui import QPixmap
 
 import constants
 from image_io import imread, imwrite
 import utils
 
-
-# Remove image size limit in PIL (Pillow) to prevent DecompressionBombError
-Image.MAX_IMAGE_PIXELS = None
 
 # Preview image width in pixels
 PREVIEW_IMG_WIDTH = 512
@@ -185,17 +179,9 @@ class ImageInspector:
 
             # Save preview image
             height, width = img.shape[0], img.shape[1]
-            img_tostring = img.tostring()
-            preview_img = Image.frombytes(
-                'L', (width, height),
-                img_tostring).resize((
-                    PREVIEW_IMG_WIDTH,
-                    int(PREVIEW_IMG_WIDTH * height / width)),
-                    resample=Image.BILINEAR)
-
+            preview_img = utils.resize_image(img, PREVIEW_IMG_WIDTH)
             # Convert to QPixmap and save in grid_manager
-            self.gm[grid_index][tile_index].preview_img = QPixmap.fromImage(
-                ImageQt(preview_img))
+            self.gm[grid_index][tile_index].preview_img = utils.image_to_QPixmap(preview_img)
 
             # Compare with previous mean and std to check for frozen frame
             # error in SmartSEM
@@ -256,7 +242,6 @@ class ImageInspector:
             # ...
             tile_selected = True
 
-            del img_tostring
             del preview_img
 
         return (img, mean, stddev,
@@ -301,7 +286,7 @@ class ImageInspector:
             # Open reslice file if it exists and save updated reslice
             try:
                 if os.path.isfile(reslice_filename):
-                    reslice_img = np.array(Image.open(reslice_filename))
+                    reslice_img = imread(reslice_filename)
                 if reslice_img is not None and reslice_img.shape[1] == 400:
                     new_reslice_img = np.concatenate(
                         (reslice_img, self.tile_reslice_line[tile_key]))
@@ -396,7 +381,7 @@ class ImageInspector:
             # Open reslice file if it exists and save updated reslice
             try:
                 if os.path.isfile(reslice_filename):
-                    reslice_img = np.array(Image.open(reslice_filename))
+                    reslice_img = imread(reslice_filename)
                 if reslice_img is not None and reslice_img.shape[1] == 400:
                     new_reslice_img = np.concatenate(
                         (reslice_img, self.ov_reslice_line[ov_index]))

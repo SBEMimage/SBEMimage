@@ -20,7 +20,6 @@ import shutil
 import numpy as np
 import scipy
 from time import time, sleep
-from PIL import Image
 from math import log, sqrt, sin, cos, radians
 from statistics import mean
 
@@ -3476,7 +3475,7 @@ class Viewport(QWidget):
                                 img.setPixel(x, y, blue_pixel)
                             if pixel_value in white_pixels:
                                 img.setPixel(x, y, red_pixel)
-                    display_img = QPixmap.fromImage(img)
+                    display_img = QPixmap(img)
 
                 self.sv_qp.drawPixmap(cropped_vx, cropped_vy, display_img)
         # Measuring tool:
@@ -4107,7 +4106,7 @@ class Viewport(QWidget):
             self.m_tab_populated = False
 
         if os.path.isfile(selected_file):
-            img = np.array(Image.open(selected_file))
+            img = imread(selected_file)
 
             # calculate mean and SD:
             mean = np.mean(img)

@@ -130,7 +130,7 @@ class TemplateManager:
         out_scores = np.zeros_like(stubov).astype(np.float32)
         # make stubov rotatable without losing pixels by padding to square extent of c^2 = X^2 + Y^2
         # maybe can be solved more elegant by bordermode / value in warpAffine
-        pad_extent = ((np.sqrt(stubov.shape[0]**2 + stubov.shape[1]**2) - np.array(stubov.shape)) / 2).astype(np.int)
+        pad_extent = ((np.sqrt(stubov.shape[0]**2 + stubov.shape[1]**2) - np.array(stubov.shape)) / 2).astype(int)
         stubov = np.pad(stubov, ((pad_extent[0], pad_extent[0]), (pad_extent[1], pad_extent[1])), constant_values=0)
         # get center in pixels relative to stub ov origin
         center = tuple((stubov.shape[0] // 2, stubov.shape[1] // 2))
