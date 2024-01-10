@@ -14,7 +14,7 @@ class RemoteControlTCP:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as self.server_socket:
             self.server_socket.bind((self.host, self.port))
             self.server_socket.listen()
-            utils.log_info("TCPRemote", f"Listening on {self.host} port {self.port}...")
+            utils.log_info("RemoteTCP", f"Listening on {self.host} port {self.port}...")
 
             while True:
                 try:
@@ -29,10 +29,10 @@ class RemoteControlTCP:
                                 msg = request['msg']
                                 self.main_controls_trigger.transmit(msg)
                             except json.decoder.JSONDecodeError:
-                                utils.log_error("TCPRemote", "JSON decode error.")
+                                utils.log_error("RemoteTCP", "JSON decode error.")
                                 
                 except ConnectionAbortedError:
-                    utils.log_info("TCPRemote", "Connection aborted.")
+                    utils.log_info("RemoteTCP", "Connection aborted.")
                     return
     
     def close(self):

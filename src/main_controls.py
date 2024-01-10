@@ -206,8 +206,7 @@ class MainControls(QMainWindow):
         self.gm = GridManager(self.cfg, self.sem, self.cs)
         self.tm = TemplateManager(self.ovm)
         self.imported = ImportedImages(self.cfg)
-        self.remote_tcp = RemoteControlTCP('localhost', 8881, self.trigger)
-        utils.run_log_thread(self.remote_tcp.run)
+        self.remote_tcp = None
 
         # Notify user if imported images could not be loaded
         for i in range(self.imported.number_imported):
@@ -702,6 +701,8 @@ class MainControls(QMainWindow):
             # self.tabWidget.setTabEnabled(4, False)
             # self.tabWidget.setTabToolTip(4, 'MultiSEM mode under development')
         # #----------------------#
+        
+        self.initialize_tcp_remote_gui()
 
     def activate_array_mode(self, tabIndex):
         if tabIndex != 3:
@@ -1484,7 +1485,27 @@ class MainControls(QMainWindow):
         if dialog.exec():
             pass
     # --------------------------- End of Array tab ----------------------------------
-
+    
+    def initialize_tcp_remote_gui(self):
+        self.pushButton_tcp_startServer.clicked.connect(
+            self.tcp_start_server)
+        self.pushButton_tcp_stopServer.clicked.connect(
+            self.tcp_stop_server)
+    
+    def tcp_start_server(self):
+        host = self.lineEdit_tcp_host.text()
+        port = self.spinBox_tcp_port.value()
+        if host == '' or port == '':
+            return
+        self.remote_tcp = RemoteControlTCP(host, port, self.trigger)
+        utils.run_log_thread(self.remote_tcp.run)
+        self.pushButton_tcp_startServer.setEnabled(False)
+        self.pushButton_tcp_stopServer.setEnabled(True)
+    
+    def tcp_stop_server(self):
+        self.remote_tcp.close()
+        self.pushButton_tcp_startServer.setEnabled(True)
+        self.pushButton_tcp_stopServer.setEnabled(False)
 
     # =============== Below: all methods that open dialog windows ==================
 
@@ -2682,7 +2703,8 @@ class MainControls(QMainWindow):
                         QMessageBox.Yes| QMessageBox.No)
                     if result == QMessageBox.Yes:
                         self.save_acq_notes()
-                self.remote_tcp.close()
+                if self.remote_tcp is not None:
+                    self.remote_tcp.close()
                 if self.acq.acq_paused:
                     if self.cfg_file != 'default.ini':
                         QMessageBox.information(
