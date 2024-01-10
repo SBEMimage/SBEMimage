@@ -20,7 +20,7 @@ from PyQt5.QtGui import QImage
 from qtpy.QtGui import QPixmap, QImage, QTransform
 
 from image_io import imread_metadata, imread
-import utils
+from utils import round_xy, norm_image_minmax, uint8_image, color_image
 
 
 class ImportedImage:
@@ -35,17 +35,20 @@ class ImportedImage:
         self.transparency = transparency
         self._load_image()
 
+    def __del__(self):
+        os.remove(self._image_src)
+
     def _load_image(self):
         # Load image as QPixmap
         if os.path.isfile(self.image_src):
             try:
-                image = utils.color_image(imread(self.image_src))
+                image = color_image(uint8_image(norm_image_minmax(imread(self.image_src))))
                 height, width = image.shape[0], image.shape[1]
-                self.size = width, height
+                self.size = [width, height]
                 self.image = QPixmap(QImage(image, width, height, QImage.Format_RGB888))
-                pixel_size0 = imread_metadata(self.image_src)
-                if len(pixel_size0) > 0:
-                    self.pixel_size = pixel_size0[0]
+                pixel_size_um = imread_metadata(self.image_src).get('pixel_size', [])
+                if len(pixel_size_um) > 0:
+                    self.pixel_size = pixel_size_um[0] * 1000     # [um] -> [nm]
                 if self.rotation != 0:
                     trans = QTransform()
                     trans.rotate(self.rotation)
@@ -95,8 +98,9 @@ class ImportedImages:
 
     def __init__(self, config):
         self.cfg = config
+        self.number_imported = 0
         imported = self.cfg['imported']
-        self.number_imported = int(imported['number_imported'])
+        number_imported = int(imported['number_imported'])
 
         # Load parameters from session configuration
         image_src = json.loads(imported['image_src'])
@@ -109,11 +113,9 @@ class ImportedImages:
 
         # Create ImportedImage objects
         self.__imported_images = []
-        for i in range(self.number_imported):
-            self.add_image(image_src[i], description[i],
-                           centre_sx_sy[i], rotation[i],
-                           size[i], pixel_size[i],
-                           transparency[i])
+        for i in range(number_imported):
+            self.add_image(image_src[i], description[i], centre_sx_sy[i], rotation[i],
+                           size[i], pixel_size[i], transparency[i])
 
     def __getitem__(self, index):
         """Return the ImportedImage object selected by index."""
@@ -129,7 +131,7 @@ class ImportedImages:
         self.cfg['imported']['description'] = json.dumps(
             [image.description for image in self.__imported_images])
         self.cfg['imported']['centre_sx_sy'] = str(
-            [utils.round_xy(img.centre_sx_sy)
+            [round_xy(img.centre_sx_sy)
              for img in self.__imported_images])
         self.cfg['imported']['rotation'] = str(
             [img.rotation for img in self.__imported_images])
@@ -150,11 +152,10 @@ class ImportedImages:
 
     def delete_image(self, index):
         """Delete the imported image at index"""
-        self.number_imported -= 1
         del self.__imported_images[index]
+        self.number_imported -= 1
 
     def delete_all_images(self):
         """Delete all imported images"""
-        if self.number_imported>0:
-            for id in range(self.number_imported):
-                self.delete_image(self.number_imported - id - 1)
+        while self.__imported_images:
+            self.delete_image(-1)

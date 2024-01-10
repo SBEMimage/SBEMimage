@@ -13,7 +13,6 @@ Viewport."""
 
 import datetime
 import os
-import shutil
 from queue import Queue
 from time import time, sleep
 
@@ -24,6 +23,7 @@ from qtpy.QtWidgets import QApplication, QDialog, QMessageBox, QFileDialog, \
                            QDialogButtonBox
 
 import acq_func
+from image_io import imread, imwrite
 import utils
 
 
@@ -475,13 +475,19 @@ class ImportImageDlg(QDialog):
         timestamp = str(datetime.datetime.now())
         # Remove extra characters from timestamp:
         timestamp = timestamp[:19].translate({ord(c): None for c in ' :-.'})
-        paths = selected_filename.split('.', 1)
+        filename, ext = selected_filename.split('.', 1)
+        if ext.lower() == 'zarr':
+            ext = 'ome.zarr'
+        elif not ext.lower() == 'ome.zarr':
+            ext = 'ome.tif'
         target_path = os.path.join(
             self.target_dir,
-            paths[0] + '_' + timestamp + '.' + paths[1])
+            filename + '_' + timestamp + '.' + ext)
         if os.path.isfile(selected_path):
             try:
-                shutil.copy2(selected_path, target_path)
+                pixel_size_um = [1, 1]
+                image = imread(selected_path, target_pixel_size_um=pixel_size_um)
+                imwrite(target_path, image, pixel_size_um=pixel_size_um)
             except Exception as e:
                 QMessageBox.warning(
                     self, 'Error',

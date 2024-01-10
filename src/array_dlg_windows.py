@@ -71,7 +71,7 @@ class ArrayImportCDlg(QDialog):
         data_path = os.path.normpath(self.lineEdit_fileName.text())
         ext = os.path.splitext(data_path)[-1].lower()
         if not os.path.isfile(data_path):
-            msg = (f'The file could not be found with the following path: {data_path}')
+            msg = f'The file could not be found with the following path: {data_path}'
             utils.log_info(
                 'Array-CTRL',
                 msg)
@@ -260,8 +260,7 @@ class ImportWaferImageDlg(QDialog):
 
         # pre-filling the ImportImageDialog if wafer image (unique) present
         image_names = [image_name for image_name in os.listdir(self.wafer_image_dir)
-                       if ('wafer' in image_name.lower())
-                       and (os.path.splitext(image_name)[1] in ['.tif', '.tiff', '.png', '.jpg'])]
+                       if (os.path.splitext(image_name)[1] in ['.tif', '.tiff', '.png', '.jpg'])]
         if len(image_names) == 0:
             utils.log_info(
                 'Array-CTRL',
@@ -292,8 +291,9 @@ class ImportWaferImageDlg(QDialog):
                     + 'You can still do it by selecting "Import Image"'
                     + 'in the Array tab.'))
         else:
-            wafer_image = self.imported[-1]
-            wafer_image.centre_sx_sy = np.divide(wafer_image.size, 2).astype(int)
+            if self.acq.magc_mode:
+                wafer_image = self.imported[-1]
+                wafer_image.centre_sx_sy = np.divide(wafer_image.size, 2).astype(int)
             self.main_controls_trigger.transmit('SHOW IMPORTED')
             self.main_controls_trigger.transmit('DRAW VP')
             utils.log_info(
@@ -433,7 +433,7 @@ class WaferCalibrationDlg(QDialog):
 
     def set_landmark(self, row):
         def callback_set_landmark():
-            x,y = self.stage.get_xy()
+            x, y = self.stage.get_xy()
             utils.log_info(
                 'Array-CTRL',
                 f'Adding landmark ({x},{y})')
@@ -594,10 +594,10 @@ class WaferCalibrationDlg(QDialog):
             utils.log_info(
                 'Array-STAGE',
                 f'Landmark: moving stage to ({x},{y})')
-            self.stage.move_to_xy([x,y])
+            self.stage.move_to_xy([x, y])
 
             # move viewport to landmark
-            self.cs.vp_centre_dx_dy = self.cs.convert_s_to_d([x,y])
+            self.cs.vp_centre_dx_dy = self.cs.convert_s_to_d([x, y])
             self.main_controls_trigger.transmit('DRAW VP')
 
         return callback_goto_landmark
@@ -677,9 +677,9 @@ class WaferCalibrationDlg(QDialog):
                 self.gm.array_data.transform,
                 flip_x=flip_x)
 
-            transformAngle = -ArrayData.get_affine_rotation(
+            transform_angle = -ArrayData.get_affine_rotation(
                 self.gm.array_data.transform)
-            angles_target = (angles_source + transformAngle) % 360
+            angles_target = (angles_source + transform_angle) % 360
 
             # update grids
             for grid_number in range(self.gm.number_grids):
