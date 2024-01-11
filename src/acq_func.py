@@ -259,7 +259,7 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
             percentage_done = int(
                 image_counter / ovm['stub'].number_tiles * 100)
             stub_dlg_trigger.transmit(
-                'UPDATE PROGRESS' + str(percentage_done))
+                'UPDATE PROGRESS', percentage_done)
 
         # Write final full stub overview image and downsampled copies to disk unless acq aborted
         if not aborted:
