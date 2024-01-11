@@ -1817,7 +1817,6 @@ class MainControls(QMainWindow):
         msg = cmd['msg']
         args = cmd['args']
         kwargs = cmd['kwargs']
-        # msg = self.trigger.queue.get()
         if msg == 'STATUS IDLE':
             self.set_status('', 'Ready.', False)
         elif msg == 'STATUS BUSY APPROACH':
@@ -1860,7 +1859,7 @@ class MainControls(QMainWindow):
             self.acq_not_in_progress_update_gui()
         elif msg == 'SAVE CFG':
             self.save_config_to_disk()
-        elif msg.startswith('ACQ IND OV'):
+        elif msg == 'ACQ IND OV':
             self.viewport.vp_toggle_ov_acq_indicator(*args, **kwargs)
         elif msg == 'ACQ IND TILE':
             self.viewport.vp_toggle_tile_acq_indicator(*args, **kwargs)
@@ -1971,6 +1970,15 @@ class MainControls(QMainWindow):
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.Yes)
             self.acq.user_reply = reply
+        elif msg == 'ADD GRID':
+            self.gm.draw_grid(*args, **kwargs)
+            self.viewport.vp_draw()
+        elif msg == 'DEACTIVATE GRID':
+            self.gm.deactivate_grid(*args, **kwargs)
+            self.viewport.vp_draw()
+        elif msg == 'ACTIVATE GRID':
+            self.gm.activate_grid(*args, **kwargs)
+            self.viewport.vp_draw()
         else:
             # If msg is not a command, show it in log:
             self.textarea_log.appendPlainText(msg)

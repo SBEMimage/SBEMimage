@@ -1305,6 +1305,15 @@ class GridManager:
             for t in self.__grids[g].active_tiles:
                 self._autofocus_ref_tiles.append(str(g) + '.' + str(t))
                 self.__grids[g][t].autofocus_active = True
+                
+    def deactivate_grid(self, grid_index):
+        """Deactivate grid with grid_index."""
+        print(grid_index)
+        self.__grids[grid_index].active = False
+        
+    def activate_grid(self, grid_index):
+        """Activate grid with grid_index."""
+        self.__grids[grid_index].active = True
 
     # ----------------------------- Array functions ---------------------------------
     def array_read(self, path):

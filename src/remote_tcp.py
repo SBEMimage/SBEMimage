@@ -22,12 +22,21 @@ class RemoteControlTCP:
                     with conn:
                         print(f"Connected by {addr}")
                         data = conn.recv(1024)
-
                         if data:
                             try:
                                 request = json.loads(data)
-                                msg = request['msg']
-                                self.main_controls_trigger.transmit(msg)
+                                msg = request.get('msg')
+                                args = request.get('args', [])
+                                kwargs = request.get('kwargs', {})
+                                
+                                # Check if request is valid
+                                if 'msg' not in request or not isinstance(msg, str) or not isinstance(args, list) or not isinstance(kwargs, dict):
+                                    utils.log_error("RemoteTCP", "Invalid request.")
+                                    continue
+                                
+                                # Transmit request to main controls
+                                self.main_controls_trigger.transmit(request['msg'], *request.get('args', []), **request.get('kwargs', {}))
+                                
                             except json.decoder.JSONDecodeError:
                                 utils.log_error("RemoteTCP", "JSON decode error.")
                                 
