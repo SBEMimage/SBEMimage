@@ -19,7 +19,7 @@ import re
 # master branch (for example, '2020.07 R2020-07-28'). For the current version
 # in the dev (development) branch, it must contain the tag 'dev'.
 # Following https://www.python.org/dev/peps/pep-0440/#public-version-identifiers
-VERSION = '2023.12 dev'
+VERSION = '2024.01 dev'
 
 
 # Default and minimum size of the Viewport canvas.
@@ -120,6 +120,7 @@ class Error(Enum):
     aperture_size = 316
     high_current = 317
     mode_normal = 318
+    brightness_contrast = 319
 
     # I/O error
     primary_drive = 401

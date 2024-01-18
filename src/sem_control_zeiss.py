@@ -550,13 +550,13 @@ class SEM_SmartSEM(SEM):
         """Return XY stigmation parameters in %, as a tuple."""
         stig_x = self.sem_get('AP_STIG_X')
         stig_y = self.sem_get('AP_STIG_Y')
-        return (float(stig_x), float(stig_y))
+        return float(stig_x), float(stig_y)
 
     def set_stig_xy(self, target_stig_x, target_stig_y):
         """Set X and Y stigmation parameters (in %)."""
         ret_val1 = self.sem_set('AP_STIG_X', target_stig_x)
         ret_val2 = self.sem_set('AP_STIG_Y', target_stig_y)
-        if (ret_val1 == 0) and (ret_val2 == 0):
+        if ret_val1 == 0 and ret_val2 == 0:
             return True
         else:
             self.error_state = Error.stig_xy
@@ -1115,6 +1115,50 @@ class SEM_MultiSEM(SEM):
         # ret_val2 = self.set_beam_current(self.target_beam_current)
         return ret_val1 == 0
 
+    def has_brightness(self):
+        """Return True if supports brightness control."""
+        return True
+
+    def has_contrast(self):
+        """Return True if supports contrast control."""
+        return True
+
+    def get_brightness(self):
+        """Read SmartSEM brightness (0-1)."""
+        return self.sem_api.Get_ReturnTypeDouble('AP_BRIGHTNESS') / 100
+
+    def get_contrast(self):
+        """Read SmartSEM contrast (0-1)."""
+        return self.sem_api.Get_ReturnTypeDouble('AP_CONTRAST') / 100
+
+    def set_brightness(self, brightness):
+        """Write SmartSEM brightness (0-1)."""
+        ret_val = self.sem_api.Set_ReturnTypeDouble(
+            'AP_BRIGHTNESS',
+            brightness * 100)
+        if ret_val == 0:
+            return True
+        else:
+            self.error_state = Error.brightness_contrast
+            self.error_info = (
+                f'sem.set_brightness: command failed (ret_val: {ret_val})'
+            )
+            return False
+
+    def set_contrast(self, contrast):
+        """Write SmartSEM contrast (0-1)."""
+        ret_val = self.sem_api.Set_ReturnTypeDouble(
+            'AP_CONTRAST',
+            contrast * 100)
+        if ret_val == 0:
+            return True
+        else:
+            self.error_state = Error.brightness_contrast
+            self.error_info = (
+                f'sem.set_contrast: command failed (ret_val: {ret_val})'
+            )
+            return False
+
     def apply_grab_settings(self):
         """Set the SEM to the current grab settings."""
         self.apply_frame_settings(
@@ -1190,7 +1234,7 @@ class SEM_MultiSEM(SEM):
         """Return XY stigmation parameters in %, as a tuple."""
         stig_x = self.sem_api.Get_ReturnTypeDouble('AP_STIG_X')
         stig_y = self.sem_api.Get_ReturnTypeDouble('AP_STIG_Y')
-        return (float(stig_x), float(stig_y))
+        return float(stig_x), float(stig_y)
 
     def set_stig_xy(self, target_stig_x, target_stig_y):
         """Set X and Y stigmation parameters (in %)."""
@@ -1200,7 +1244,7 @@ class SEM_MultiSEM(SEM):
         ret_val2 = self.sem_api.Set_ReturnTypeDouble(
             'AP_STIG_Y',
             target_stig_y)
-        if (ret_val1 == 0) and (ret_val2 == 0):
+        if ret_val1 == 0 and ret_val2 == 0:
             return True
         else:
             self.error_state = Error.stig_xy
