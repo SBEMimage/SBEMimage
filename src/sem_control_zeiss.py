@@ -330,7 +330,7 @@ class SEM_SmartSEM(SEM):
         ret_val2 = self.set_beam_current(self.target_beam_current)
         ret_val3 = self.set_aperture_size(self.APERTURE_SIZE.index(self.target_aperture_size))
         ret_val4 = self.set_high_current(self.target_high_current)
-        return (ret_val1 and ret_val2 and ret_val3 and ret_val4)
+        return ret_val1 and ret_val2 and ret_val3 and ret_val4
 
     def apply_grab_settings(self):
         """Set the SEM to the current grab settings."""
@@ -355,7 +355,7 @@ class SEM_SmartSEM(SEM):
             self.CYCLE_TIME[frame_size_selector][scan_speed] + 0.3)
         if self.current_cycle_time < 0.8:
             self.current_cycle_time = 0.8
-        return (ret_val1 and ret_val2 and ret_val3)
+        return ret_val1 and ret_val2 and ret_val3
 
     def get_frame_size_selector(self):
         """Read the current store resolution from the SEM and return the
