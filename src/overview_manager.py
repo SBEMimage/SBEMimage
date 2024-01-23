@@ -29,7 +29,7 @@ from grid_manager import Grid
 from image_io import imread
 import numpy as np
 import utils
-from src import constants
+import constants
 
 
 class Overview(Grid):
