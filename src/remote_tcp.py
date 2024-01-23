@@ -4,10 +4,11 @@ import utils
 
 
 class RemoteControlTCP:
-    def __init__(self, host, port, main_controls_trigger):
+    def __init__(self, host, port, command_trigger, response_queue):
         self.host = host
         self.port = port
-        self.main_controls_trigger = main_controls_trigger
+        self.command_trigger = command_trigger
+        self.response_queue = response_queue
         self.server_socket = None
 
     def run(self):
@@ -35,7 +36,11 @@ class RemoteControlTCP:
                                     continue
                                 
                                 # Transmit request to main controls
-                                self.main_controls_trigger.transmit(request['msg'], *request.get('args', []), **request.get('kwargs', {}))
+                                self.command_trigger.transmit(request['msg'], *request.get('args', []), **request.get('kwargs', {}))
+                                
+                                # Block until the main process processes the data and sends back the result
+                                response = self.response_queue.get()
+                                conn.sendall(json.dumps(response).encode('utf-8'))
                                 
                             except json.decoder.JSONDecodeError:
                                 utils.log_error("RemoteTCP", "JSON decode error.")

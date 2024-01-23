@@ -117,6 +117,12 @@ class MainControls(QMainWindow):
         # acquisition thread or dialog windows.
         self.trigger = utils.Trigger()
         self.trigger.signal.connect(self.process_signal)
+        
+        # Set up trigger and queue to process remote commands to and from the TCP server
+        self.tcp_command_trigger = utils.Trigger()
+        self.tcp_command_trigger.signal.connect(self.process_tcp_signal)
+        self.tcp_response_queue = utils.Queue()
+        self.remote_tcp = None
 
         utils.show_progress_in_console(10)
 
@@ -206,7 +212,6 @@ class MainControls(QMainWindow):
         self.gm = GridManager(self.cfg, self.sem, self.cs)
         self.tm = TemplateManager(self.ovm)
         self.imported = ImportedImages(self.cfg)
-        self.remote_tcp = None
 
         # Notify user if imported images could not be loaded
         for i in range(self.imported.number_imported):
@@ -1491,7 +1496,7 @@ class MainControls(QMainWindow):
         port = self.spinBox_tcp_port.value()
         if host == '' or port == '':
             return
-        self.remote_tcp = RemoteControlTCP(host, port, self.trigger)
+        self.remote_tcp = RemoteControlTCP(host, port, self.tcp_command_trigger, self.tcp_response_queue)
         utils.run_log_thread(self.remote_tcp.run)
         self.pushButton_tcp_startServer.setEnabled(False)
         self.pushButton_tcp_stopServer.setEnabled(True)
@@ -1970,19 +1975,37 @@ class MainControls(QMainWindow):
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.Yes)
             self.acq.user_reply = reply
-        elif msg == 'ADD GRID':
-            self.gm.draw_grid(*args, **kwargs)
-            self.viewport.vp_draw()
-        elif msg == 'DEACTIVATE GRID':
-            self.gm.deactivate_grid(*args, **kwargs)
-            self.viewport.vp_draw()
-        elif msg == 'ACTIVATE GRID':
-            self.gm.activate_grid(*args, **kwargs)
-            self.viewport.vp_draw()
         else:
             # If msg is not a command, show it in log:
             self.textarea_log.appendPlainText(msg)
             self.textarea_log.ensureCursorVisible()
+        
+        
+    def process_tcp_signal(self):
+        cmd = self.tcp_command_trigger.queue.get()
+        msg = cmd['msg']
+        args = cmd['args']
+        kwargs = cmd['kwargs']
+        
+        if msg == 'START':
+            response = self.start_acquisition_headless()
+        elif msg == 'PAUSE':
+            response = self.pause_acquisition_headless(*args, **kwargs)
+        elif msg == 'ADD GRID':
+            response = self.gm.draw_grid(*args, **kwargs)
+            self.viewport.vp_draw()
+        elif msg == 'DEACTIVATE GRID':
+            response = self.gm.deactivate_grid(*args, **kwargs)
+            self.viewport.vp_draw()
+        elif msg == 'ACTIVATE GRID':
+            response = self.gm.activate_grid(*args, **kwargs)
+            self.viewport.vp_draw()
+        elif msg == 'DELETE GRID':
+            response = self.gm.delete_grid()
+        else:
+            response = 'Unknown command'
+        self.tcp_response_queue.put({'response': True})
+            
             
     def ask_debris_first_ov(self, ov_index):
         self.viewport.vp_show_overview_for_user_inspection(ov_index)
@@ -2515,6 +2538,19 @@ class MainControls(QMainWindow):
                     'Please wait until the pause status is confirmed in '
                     'the log before interacting with the program.',
                     QMessageBox.Ok)
+                
+    def pause_acquisition_headless(self, pause_type):
+        if not self.acq.acq_paused:
+            if pause_type == 1 or pause_type == 2:
+                utils.log_info('CTRL', 'PAUSE command received.')
+                self.pushButton_pauseAcq.setEnabled(False)
+                self.acq.pause_acquisition(pause_type)
+                self.pushButton_startAcq.setText('CONTINUE')
+                QMessageBox.information(
+                    self, 'Acquisition being paused',
+                    'Please wait until the pause status is confirmed in '
+                    'the log before interacting with the program.',
+                    QMessageBox.Ok)
 
     def reset_acquisition(self):
         """Reset the acquisition status."""
@@ -2554,6 +2590,29 @@ class MainControls(QMainWindow):
         QMessageBox.information(
             self, 'Acquisition complete',
             'The stack has been acquired.',
+            QMessageBox.Ok)
+        
+    def start_acquisition_headless(self):
+        utils.log_info('CTRL', 'START command received remotely.')
+        self.pushButton_resetAcq.setEnabled(False)
+        self.pushButton_pauseAcq.setEnabled(True)
+        self.pushButton_startAcq.setEnabled(False)
+        self.pushButton_startAcq.setText('START')
+        
+        self.restrict_gui(True)
+        self.viewport.restrict_gui(True)
+        self.show_stack_acq_estimates()
+        # Indicate in GUI that stack is running now
+        self.set_status(
+            'Acquisition in progress', 'Acquisition in progress.', True)
+
+        # Start the thread running the stack acquisition
+        # All source code in stack_acquisition.py
+        # Thread is stopped by either stop or pause button
+        utils.run_log_thread(self.acq.run)
+        QMessageBox.information(
+            self, 'Acquisition started',
+            'Acquisition was started remotely.',
             QMessageBox.Ok)
 
     def remote_stop(self):
