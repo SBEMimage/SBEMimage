@@ -9,19 +9,21 @@ class RemoteControlTCP:
         self.port = port
         self.command_trigger = command_trigger
         self.response_queue = response_queue
-        self.server_socket = None
+        self.is_running = False
 
     def run(self):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as self.server_socket:
-            self.server_socket.bind((self.host, self.port))
-            self.server_socket.listen()
+        self.is_running = True
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind((self.host, self.port))
+            s.listen()
+            s.settimeout(1.0)
             utils.log_info("RemoteTCP", f"Listening on {self.host} port {self.port}...")
 
-            while True:
+            while self.is_running:
                 try:
-                    conn, addr = self.server_socket.accept()
+                    conn, addr = s.accept()
                     with conn:
-                        print(f"Connected by {addr}")
+                        utils.log_info("RemoteTCP", f"Connected by {addr}")
                         data = conn.recv(1024)
                         if data:
                             try:
@@ -45,10 +47,15 @@ class RemoteControlTCP:
                             except json.decoder.JSONDecodeError:
                                 utils.log_error("RemoteTCP", "JSON decode error.")
                                 
-                except ConnectionAbortedError:
-                    utils.log_info("RemoteTCP", "Connection aborted.")
-                    return
+                except socket.timeout:
+                    # Check the flag periodically
+                    if not self.is_running:
+                        utils.log_info("RemoteTCP", "Connection closed.")
+                        
+                        # Alert the main thread that the connection is closed
+                        self.command_trigger.transmit("STOP SERVER")
+                        break
     
     def close(self):
-        if self.server_socket:
-            self.server_socket.close()
+        self.is_running = False
+

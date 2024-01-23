@@ -1522,7 +1522,6 @@ class MainControls(QMainWindow):
     
     def tcp_stop_server(self):
         self.remote_tcp.close()
-        self.pushButton_tcp_startServer.setEnabled(True)
         self.pushButton_tcp_stopServer.setEnabled(False)
 
     # =============== Below: all methods that open dialog windows ==================
@@ -2021,6 +2020,8 @@ class MainControls(QMainWindow):
             self.viewport.vp_draw()
         elif msg == 'DELETE GRID':
             response = self.gm.delete_grid()
+        elif msg == 'STOP SERVER':
+            self.pushButton_tcp_startServer.setEnabled(True)
         else:
             response = 'Unknown command'
         self.tcp_response_queue.put({'response': True})
