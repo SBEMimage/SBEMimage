@@ -271,7 +271,10 @@ class Viewport(QWidget):
     def _process_signal(self):
         """Process signals from the acquisition thread or from dialog windows.
         """
-        msg = self.viewport_trigger.queue.get()
+        cmd = self.viewport_trigger.queue.get()
+        msg = cmd['msg']
+        args = cmd['args']
+        kwargs = cmd['kwargs']
         if msg == 'DRAW VP':
             self.vp_draw()
         elif msg == 'DRAW VP NO LABELS':
@@ -285,8 +288,7 @@ class Viewport(QWidget):
         elif msg == 'STATUS BUSY OV':
             self.main_controls_trigger.transmit(msg)
         elif msg.startswith('ACQ IND OV'):
-            self.vp_toggle_ov_acq_indicator(
-                int(msg[len('ACQ IND OV'):]))
+            self.vp_toggle_ov_acq_indicator(*args, **kwargs)
         elif msg == 'MANUAL MOVE SUCCESS':
             self._vp_manual_stage_move_success(True)
         elif msg == 'MANUAL MOVE FAILURE':
@@ -2717,7 +2719,7 @@ class Viewport(QWidget):
 
     def _vp_open_grid_settings(self):
         self.main_controls_trigger.transmit(
-            'OPEN GRID SETTINGS' + str(self.selected_grid))
+            'OPEN GRID SETTINGS', self.selected_grid)
 
     def _vp_move_grid_to_current_stage_position(self):
         """Move the selected grid to the current stage position (MagC)."""

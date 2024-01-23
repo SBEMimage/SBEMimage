@@ -85,10 +85,10 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
             #main_controls_trigger.transmit(utils.format_log_entry('SEM: Acquiring OV %d.' % ov_index))
             utils.log_info('SEM', f'Acquiring OV {ov_index}.')
             # Indicate the overview being acquired in the viewport
-            viewport_trigger.transmit('ACQ IND OV' + str(ov_index))
+            viewport_trigger.transmit('ACQ IND OV', ov_index)
             success = sem.acquire_frame(save_path)
             # Remove indicator colour
-            viewport_trigger.transmit('ACQ IND OV' + str(ov_index))
+            viewport_trigger.transmit('ACQ IND OV', ov_index)
             _, _, _, load_error, _, grab_incomplete = (
                 img_inspector.load_and_inspect(save_path))
             if load_error or grab_incomplete and check_ov_acceptance:
@@ -96,9 +96,9 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
                 sleep(0.5)
                 #main_controls_trigger.transmit(utils.format_log_entry('SEM: Second attempt: Acquiring OV %d.' % ov_index))
                 utils.log_info('SEM', f'Second attempt: Acquiring OV {ov_index}.')
-                viewport_trigger.transmit('ACQ IND OV' + str(ov_index))
+                viewport_trigger.transmit('ACQ IND OV', ov_index)
                 success = sem.acquire_frame(save_path)
-                viewport_trigger.transmit('ACQ IND OV' + str(ov_index))
+                viewport_trigger.transmit('ACQ IND OV', ov_index)
                 sleep(1)
                 _, _, _, load_error, _, grab_incomplete = (
                     img_inspector.load_and_inspect(save_path))
@@ -276,7 +276,7 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
             percentage_done = int(
                 image_counter / stub_ovm.number_tiles * 100)
             stub_dlg_trigger.transmit(
-                'UPDATE PROGRESS' + str(percentage_done))
+                'UPDATE PROGRESS', percentage_done)
 
         # Write final full stub overview image and downsampled copies to disk unless acq aborted
         if not aborted:

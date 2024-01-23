@@ -2360,6 +2360,118 @@ Green: acquired</string>
         </property>
        </widget>
       </widget>
+      <widget class="QWidget" name="tab_RemoteTCP">
+       <attribute name="title">
+        <string>Remote TCP</string>
+       </attribute>
+       <widget class="QGroupBox" name="groupBox_SEM_3">
+        <property name="geometry">
+         <rect>
+          <x>20</x>
+          <y>20</y>
+          <width>231</width>
+          <height>131</height>
+         </rect>
+        </property>
+        <property name="title">
+         <string>TCP Server</string>
+        </property>
+        <widget class="QLabel" name="label_tcp_host">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>30</y>
+           <width>121</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Host:</string>
+         </property>
+        </widget>
+        <widget class="QLabel" name="label_tcp_port">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>60</y>
+           <width>41</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Port:</string>
+         </property>
+        </widget>
+        <widget class="QLineEdit" name="lineEdit_tcp_host">
+         <property name="geometry">
+          <rect>
+           <x>70</x>
+           <y>30</y>
+           <width>151</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>localhost</string>
+         </property>
+        </widget>
+        <widget class="QSpinBox" name="spinBox_tcp_port">
+         <property name="geometry">
+          <rect>
+           <x>70</x>
+           <y>60</y>
+           <width>151</width>
+           <height>22</height>
+          </rect>
+         </property>
+         <property name="maximum">
+          <number>99999</number>
+         </property>
+         <property name="value">
+          <number>8888</number>
+         </property>
+        </widget>
+        <widget class="QPushButton" name="pushButton_tcp_startServer">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>90</y>
+           <width>101</width>
+           <height>31</height>
+          </rect>
+         </property>
+         <property name="font">
+          <font>
+           <bold>false</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>Start Server</string>
+         </property>
+        </widget>
+        <widget class="QPushButton" name="pushButton_tcp_stopServer">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="geometry">
+          <rect>
+           <x>120</x>
+           <y>90</y>
+           <width>101</width>
+           <height>31</height>
+          </rect>
+         </property>
+         <property name="font">
+          <font>
+           <bold>false</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>Stop Server</string>
+         </property>
+        </widget>
+       </widget>
+      </widget>
       <widget class="QWidget" name="comTests">
        <attribute name="title">
         <string>Tests</string>

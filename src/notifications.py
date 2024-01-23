@@ -156,7 +156,7 @@ class Notifications:
         if self.send_logfile:
             # Generate log file from current content of log in Main Controls
             self.main_controls_trigger.transmit(
-                'GET CURRENT LOG' + recent_main_log)
+                'GET CURRENT LOG', recent_main_log)
             sleep(0.5)  # wait for file to be written
             if not os.path.isfile(recent_main_log):
                 sleep(1)
@@ -280,7 +280,7 @@ class Notifications:
         status_msg1, status_msg2 = '', ''
          # Generate log file from current content of log in Main Controls
         self.main_controls_trigger.transmit(
-            'GET CURRENT LOG' + recent_main_log)
+            'GET CURRENT LOG', recent_main_log)
         sleep(0.5)  # wait for file to be written
         if not os.path.isfile(recent_main_log):
             sleep(1)

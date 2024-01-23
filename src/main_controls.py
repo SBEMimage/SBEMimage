@@ -54,6 +54,7 @@ from coordinate_system import CoordinateSystem
 from viewport import Viewport
 from image_inspector import ImageInspector
 from autofocus import Autofocus
+from remote_tcp import RemoteControlTCP
 from main_controls_dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                                       GridSettingsDlg, OVSettingsDlg, \
                                       AcqSettingsDlg, PreStackDlg, PauseDlg, \
@@ -115,6 +116,12 @@ class MainControls(QMainWindow):
         # acquisition thread or dialog windows.
         self.trigger = utils.Trigger()
         self.trigger.signal.connect(self.process_signal)
+        
+        # Set up trigger and queue to process remote commands to and from the TCP server
+        self.tcp_command_trigger = utils.Trigger()
+        self.tcp_command_trigger.signal.connect(self.process_tcp_signal)
+        self.tcp_response_queue = utils.Queue()
+        self.remote_tcp = None
 
         utils.show_progress_in_console(10)
 
@@ -688,6 +695,8 @@ class MainControls(QMainWindow):
             # self.tabWidget.setTabEnabled(4, False)
             # self.tabWidget.setTabToolTip(4, 'MultiSEM mode under development')
         # #----------------------#
+        
+        self.initialize_tcp_remote_gui()
 
     # deprecated
     def activate_array_mode(self, tabIndex):
@@ -1494,7 +1503,27 @@ class MainControls(QMainWindow):
                                      self.gm, self.imported, self.trigger)
         dialog.exec()
     # --------------------------- End of Array tab ----------------------------------
-
+    
+    def initialize_tcp_remote_gui(self):
+        self.pushButton_tcp_startServer.clicked.connect(
+            self.tcp_start_server)
+        self.pushButton_tcp_stopServer.clicked.connect(
+            self.tcp_stop_server)
+    
+    def tcp_start_server(self):
+        host = self.lineEdit_tcp_host.text()
+        port = self.spinBox_tcp_port.value()
+        if host == '' or port == '':
+            return
+        self.remote_tcp = RemoteControlTCP(host, port, self.tcp_command_trigger, self.tcp_response_queue)
+        utils.run_log_thread(self.remote_tcp.run)
+        self.pushButton_tcp_startServer.setEnabled(False)
+        self.pushButton_tcp_stopServer.setEnabled(True)
+    
+    def tcp_stop_server(self):
+        self.remote_tcp.close()
+        self.pushButton_tcp_startServer.setEnabled(True)
+        self.pushButton_tcp_stopServer.setEnabled(False)
 
     # =============== Below: all methods that open dialog windows ==================
 
@@ -1808,7 +1837,10 @@ class MainControls(QMainWindow):
         information between threads and to allow the GUI to be updated from a
         thread.
         """
-        msg = self.trigger.queue.get()
+        cmd = self.trigger.queue.get()
+        msg = cmd['msg']
+        args = cmd['args']
+        kwargs = cmd['kwargs']
         if msg == 'STATUS IDLE':
             self.set_status('', 'Ready.', False)
         elif msg == 'STATUS BUSY APPROACH':
@@ -1851,30 +1883,28 @@ class MainControls(QMainWindow):
             self.acq_not_in_progress_update_gui()
         elif msg == 'SAVE CFG':
             self.save_config_to_disk()
-        elif msg.startswith('ACQ IND OV'):
-            self.viewport.vp_toggle_ov_acq_indicator(
-                int(msg[len('ACQ IND OV'):]))
-        elif msg[:12] == 'ACQ IND TILE':
-            position = msg[12:].split('.')
-            self.viewport.vp_toggle_tile_acq_indicator(
-                int(position[0]), int(position[1]))
+        elif msg == 'ACQ IND OV':
+            self.viewport.vp_toggle_ov_acq_indicator(*args, **kwargs)
+        elif msg == 'ACQ IND TILE':
+            self.viewport.vp_toggle_tile_acq_indicator(*args, **kwargs)
         elif msg == 'RESTRICT GUI':
             self.restrict_gui(True)
         elif msg == 'RESTRICT VP GUI':
             self.viewport.restrict_gui(True)
         elif msg == 'UNRESTRICT GUI':
             self.restrict_gui(False)
-        elif msg[:8] == 'SHOW MSG':
+        elif msg == 'SHOW MSG':
+            text = args[0] if args else ''
             QMessageBox.information(self,
                 'Message received from remote server',
-                'Message text: ' + msg[8:],
+                'Message text: ' + text,
                  QMessageBox.Ok)
         elif msg == 'GRID SETTINGS CHANGED':
             self.update_from_grid_dlg()
         elif msg == 'OV SETTINGS CHANGED':
             self.update_from_ov_dlg()
-        elif msg[:18] == 'GRAB VP SCREENSHOT':
-            self.viewport.grab_viewport_screenshot(msg[18:])
+        elif msg == 'GRAB VP SCREENSHOT':
+            self.viewport.grab_viewport_screenshot(*args, **kwargs)
         elif msg == 'DRAW VP':
             self.viewport.vp_draw()
         elif msg == 'DRAW VP NO LABELS':
@@ -1882,11 +1912,11 @@ class MainControls(QMainWindow):
         elif msg == 'SHOW IMPORTED':
             self.viewport.checkBox_showImported.setChecked(True)
             self.viewport.vp_toggle_show_imported()
-        elif msg[:12] == 'INCIDENT LOG':
-            self.viewport.show_in_incident_log(msg[12:])
-        elif msg[:15] == 'GET CURRENT LOG':
+        elif msg == 'INCIDENT LOG':
+            self.viewport.show_in_incident_log(*args, **kwargs)
+        elif msg == 'GET CURRENT LOG':
             try:
-                self.write_current_log_to_file(msg[15:])
+                self.write_current_log_to_file(*args, **kwargs)
             except Exception as e:
                 utils.log_error('CTRL', 'Could not write current log to disk: '
                                 + str(e))
@@ -1924,17 +1954,14 @@ class MainControls(QMainWindow):
             self.add_tile_folder()
         elif msg == 'IMPORT IMG':
             self.open_import_image_dlg()
-        elif msg[:19] == 'ADJUST IMPORTED IMG':
-            selected_img = int(msg[19:])
-            self.open_adjust_image_dlg(selected_img)
+        elif msg == 'ADJUST IMPORTED IMG':
+            self.open_adjust_image_dlg(*args, **kwargs)
         elif msg == 'DELETE IMPORTED IMG':
             self.open_delete_image_dlg()
-        elif msg[:20] == 'CHANGE GRID ROTATION':
-            selected_grid = int(msg[20:])
-            self.open_change_grid_rotation_dlg(selected_grid)
-        elif 'OPEN GRID SETTINGS' in msg:
-            grid_index = int(msg.split('INGS')[1])
-            self.open_grid_dlg(grid_index)
+        elif msg == 'CHANGE GRID ROTATION':
+            self.open_change_grid_rotation_dlg(*args, **kwargs)
+        elif msg == 'OPEN GRID SETTINGS':
+            self.open_grid_dlg(*args, **kwargs)
         elif msg == 'Z WARNING':
             QMessageBox.warning(
                 self, 'Z position mismatch',
@@ -1955,50 +1982,10 @@ class MainControls(QMainWindow):
                 'SBEMimage has detected an unexpected change in '
                 'magnification. Target setting has been restored.',
                 QMessageBox.Ok)
-        elif msg.startswith('ASK DEBRIS FIRST OV'):
-            ov_index = int(msg[len('ASK DEBRIS FIRST OV'):])
-            self.viewport.vp_show_overview_for_user_inspection(ov_index)
-            msgBox = QMessageBox(self)
-            msgBox.setIcon(QMessageBox.Question)
-            msgBox.setWindowTitle('Please inspect overview image quality')
-            msgBox.setText(
-                f'Is the overview image OV {ov_index} now shown in the '
-                f'Viewport clean and of good quality (no debris or other image '
-                f'defects)?\n\n'
-                f'(This confirmation is required for the first slice to be '
-                f'imaged after (re)starting an acquisition.)')
-            msgBox.addButton(QPushButton('  Image is fine!  '),
-                             QMessageBox.YesRole)
-            msgBox.addButton(QPushButton('  There is debris.  '),
-                             QMessageBox.NoRole)
-            msgBox.addButton(QPushButton('Abort'),
-                             QMessageBox.RejectRole)
-            reply = msgBox.exec()
-            # Redraw with previous settings
-            self.viewport.vp_draw()
-            self.acq.user_reply = reply
-        elif msg.startswith('ASK DEBRIS CONFIRMATION'):
-            ov_index = int(msg[len('ASK DEBRIS CONFIRMATION'):])
-            self.viewport.vp_show_overview_for_user_inspection(ov_index)
-            msgBox = QMessageBox(self)
-            msgBox.setIcon(QMessageBox.Question)
-            msgBox.setWindowTitle('Potential debris detected - please confirm')
-            msgBox.setText(
-                f'Is debris visible in the detection area of OV {ov_index} now '
-                f'shown in the Viewport?\n\n'
-                f'(Potential debris has been detected in this overview image. '
-                f'If you get several false positives in a row, you may need to '
-                f'adjust your detection thresholds.)')
-            msgBox.addButton(QPushButton('  Yes, there is debris.  '),
-                             QMessageBox.YesRole)
-            msgBox.addButton(QPushButton('  No debris, continue!  '),
-                             QMessageBox.NoRole)
-            msgBox.addButton(QPushButton('Abort'),
-                             QMessageBox.RejectRole)
-            reply = msgBox.exec()
-            # Redraw with previous settings
-            self.viewport.vp_draw()
-            self.acq.user_reply = reply
+        elif msg == 'ASK DEBRIS FIRST OV':
+            self.ask_debris_first_ov(*args, **kwargs)
+        elif msg == 'ASK DEBRIS CONFIRMATION':
+            self.ask_debris_confirmation(*args, **kwargs)
         elif msg == 'ASK IMAGE ERROR OVERRIDE':
             reply = QMessageBox.question(
                 self, 'Image inspector',
@@ -2011,6 +1998,77 @@ class MainControls(QMainWindow):
             # If msg is not a command, show it in log:
             self.textarea_log.appendPlainText(msg)
             self.textarea_log.ensureCursorVisible()
+        
+        
+    def process_tcp_signal(self):
+        cmd = self.tcp_command_trigger.queue.get()
+        msg = cmd['msg']
+        args = cmd['args']
+        kwargs = cmd['kwargs']
+        
+        if msg == 'START':
+            response = self.start_acquisition_headless()
+        elif msg == 'PAUSE':
+            response = self.pause_acquisition_headless(*args, **kwargs)
+        elif msg == 'ADD GRID':
+            response = self.gm.draw_grid(*args, **kwargs)
+            self.viewport.vp_draw()
+        elif msg == 'DEACTIVATE GRID':
+            response = self.gm.deactivate_grid(*args, **kwargs)
+            self.viewport.vp_draw()
+        elif msg == 'ACTIVATE GRID':
+            response = self.gm.activate_grid(*args, **kwargs)
+            self.viewport.vp_draw()
+        elif msg == 'DELETE GRID':
+            response = self.gm.delete_grid()
+        else:
+            response = 'Unknown command'
+        self.tcp_response_queue.put({'response': True})
+            
+            
+    def ask_debris_first_ov(self, ov_index):
+        self.viewport.vp_show_overview_for_user_inspection(ov_index)
+        msgBox = QMessageBox(self)
+        msgBox.setIcon(QMessageBox.Question)
+        msgBox.setWindowTitle('Please inspect overview image quality')
+        msgBox.setText(
+            f'Is the overview image OV {ov_index} now shown in the '
+            f'Viewport clean and of good quality (no debris or other image '
+            f'defects)?\n\n'
+            f'(This confirmation is required for the first slice to be '
+            f'imaged after (re)starting an acquisition.)')
+        msgBox.addButton(QPushButton('  Image is fine!  '),
+                            QMessageBox.YesRole)
+        msgBox.addButton(QPushButton('  There is debris.  '),
+                            QMessageBox.NoRole)
+        msgBox.addButton(QPushButton('Abort'),
+                            QMessageBox.RejectRole)
+        reply = msgBox.exec()
+        # Redraw with previous settings
+        self.viewport.vp_draw()
+        self.acq.user_reply = reply
+            
+    def ask_debris_confirmation(self, ov_index):
+        self.viewport.vp_show_overview_for_user_inspection(ov_index)
+        msgBox = QMessageBox(self)
+        msgBox.setIcon(QMessageBox.Question)
+        msgBox.setWindowTitle('Potential debris detected - please confirm')
+        msgBox.setText(
+            f'Is debris visible in the detection area of OV {ov_index} now '
+            f'shown in the Viewport?\n\n'
+            f'(Potential debris has been detected in this overview image. '
+            f'If you get several false positives in a row, you may need to '
+            f'adjust your detection thresholds.)')
+        msgBox.addButton(QPushButton('  Yes, there is debris.  '),
+                            QMessageBox.YesRole)
+        msgBox.addButton(QPushButton('  No debris, continue!  '),
+                            QMessageBox.NoRole)
+        msgBox.addButton(QPushButton('Abort'),
+                            QMessageBox.RejectRole)
+        reply = msgBox.exec()
+        # Redraw with previous settings
+        self.viewport.vp_draw()
+        self.acq.user_reply = reply 
 
     def add_tile_folder(self):
         """Add a folder for a new tile to be acquired while the acquisition
@@ -2499,6 +2557,19 @@ class MainControls(QMainWindow):
                     'Please wait until the pause status is confirmed in '
                     'the log before interacting with the program.',
                     QMessageBox.Ok)
+                
+    def pause_acquisition_headless(self, pause_type):
+        if not self.acq.acq_paused:
+            if pause_type == 1 or pause_type == 2:
+                utils.log_info('CTRL', 'PAUSE command received.')
+                self.pushButton_pauseAcq.setEnabled(False)
+                self.acq.pause_acquisition(pause_type)
+                self.pushButton_startAcq.setText('CONTINUE')
+                QMessageBox.information(
+                    self, 'Acquisition being paused',
+                    'Please wait until the pause status is confirmed in '
+                    'the log before interacting with the program.',
+                    QMessageBox.Ok)
 
     def reset_acquisition(self):
         """Reset the acquisition status."""
@@ -2538,6 +2609,29 @@ class MainControls(QMainWindow):
         QMessageBox.information(
             self, 'Acquisition complete',
             'The stack has been acquired.',
+            QMessageBox.Ok)
+        
+    def start_acquisition_headless(self):
+        utils.log_info('CTRL', 'START command received remotely.')
+        self.pushButton_resetAcq.setEnabled(False)
+        self.pushButton_pauseAcq.setEnabled(True)
+        self.pushButton_startAcq.setEnabled(False)
+        self.pushButton_startAcq.setText('START')
+        
+        self.restrict_gui(True)
+        self.viewport.restrict_gui(True)
+        self.show_stack_acq_estimates()
+        # Indicate in GUI that stack is running now
+        self.set_status(
+            'Acquisition in progress', 'Acquisition in progress.', True)
+
+        # Start the thread running the stack acquisition
+        # All source code in stack_acquisition.py
+        # Thread is stopped by either stop or pause button
+        utils.run_log_thread(self.acq.run)
+        QMessageBox.information(
+            self, 'Acquisition started',
+            'Acquisition was started remotely.',
             QMessageBox.Ok)
 
     def remote_stop(self):
@@ -2692,6 +2786,8 @@ class MainControls(QMainWindow):
                         QMessageBox.Yes| QMessageBox.No)
                     if result == QMessageBox.Yes:
                         self.save_acq_notes()
+                if self.remote_tcp is not None:
+                    self.remote_tcp.close()
                 if self.acq.acq_paused:
                     if self.cfg_file != 'default.ini':
                         QMessageBox.information(

@@ -51,8 +51,9 @@ class Trigger(QObject):
     signal = Signal()
     queue = Queue()
 
-    def transmit(self, cmd):
+    def transmit(self, cmd, *args, **kwargs):
         """Transmit a single command."""
+        cmd = {'msg': cmd, 'args': args, 'kwargs': kwargs}
         self.queue.put(cmd)
         self.signal.emit()
 

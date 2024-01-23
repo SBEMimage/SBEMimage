@@ -78,13 +78,16 @@ class StubOVDlg(QDialog):
         """Process commands from the queue when a trigger signal occurs
         while the acquisition of the stub overview is running.
         """
-        msg = self.stub_dlg_trigger.queue.get()
+        cmd = self.stub_dlg_trigger.queue.get()
+        msg = cmd['msg']
+        args = cmd['args']
+        kwargs = cmd['kwargs']
         if msg == 'UPDATE XY':
             self.viewport_trigger.transmit('UPDATE XY')
         elif msg == 'DRAW VP':
             self.viewport_trigger.transmit('DRAW VP')
-        elif msg[:15] == 'UPDATE PROGRESS':
-            percentage = int(msg[15:])
+        elif msg == 'UPDATE PROGRESS':
+            percentage = int(str(args[0]))
             self.progressBar.setValue(percentage)
         elif msg == 'STUB OV SUCCESS':
             self.viewport_trigger.transmit('STUB OV SUCCESS')
