@@ -874,8 +874,12 @@ class GridManager:
         dwell_time = json.loads(self.cfg['grids']['dwell_time'])
         dwell_time_selector = json.loads(
             self.cfg['grids']['dwell_time_selector'])
-        bit_depth_selector = json.loads(
-            self.cfg['grids']['bit_depth_selector'])
+        # * backward compatibility:
+        if 'bit_depth_selector' in self.cfg['grids']:
+            bit_depth_selector = json.loads(
+                self.cfg['grids']['bit_depth_selector'])
+        else:
+            bit_depth_selector = 0
         display_colour = json.loads(self.cfg['grids']['display_colour'])
         wd_stig_xy = json.loads(self.cfg['grids']['wd_stig_xy'])
         acq_interval = json.loads(self.cfg['grids']['acq_interval'])
