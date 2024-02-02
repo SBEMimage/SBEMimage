@@ -118,12 +118,18 @@ def create_tiff_metadata(metadata, is_ome=False):
             ome_metadata['PhysicalSizeXUnit'] = 'µm'
             ome_metadata['PhysicalSizeY'] = pixel_size_um[1]
             ome_metadata['PhysicalSizeYUnit'] = 'µm'
+            if len(pixel_size_um) > 2:
+                ome_metadata['PhysicalSizeZ'] = pixel_size_um[2]
+                ome_metadata['PhysicalSizeZUnit'] = 'µm'
         if position is not None:
             plane_metadata = {}
             plane_metadata['PositionX'] = position[0]
             plane_metadata['PositionXUnit'] = 'µm'
             plane_metadata['PositionY'] = position[1]
             plane_metadata['PositionYUnit'] = 'µm'
+            if len(position) > 2:
+                ome_metadata['PositionZ'] = position[2]
+                ome_metadata['PositionZUnit'] = 'µm'
             ome_metadata['Plane'] = plane_metadata
     return ome_metadata, resolution, resolution_unit
 
