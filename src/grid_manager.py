@@ -1119,7 +1119,7 @@ class GridManager:
                         wd_gradient_ref_tiles=wd_gradient_ref_tiles,
                         wd_gradient_params=wd_gradient_params)
 
-        if index < self.number_grids:
+        if index is not None and index < self.number_grids:
             self.__grids[index] = new_grid
         else:
             self.__grids.append(new_grid)
