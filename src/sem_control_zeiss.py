@@ -268,7 +268,7 @@ class SEM_SmartSEM(SEM):
 
     def get_beam_current(self):
         """Read beam current (in pA) from SmartSEM."""
-        return int(round(self.sem_get('AP_IPROBE') * 10**12))
+        return int(round(self.sem_get('AP_IPROBE') * 1e12))
 
     def set_beam_current(self, target_current):
         """Save the target beam current (in pA) and set the SEM's beam to this
@@ -276,7 +276,7 @@ class SEM_SmartSEM(SEM):
         # Call method in parent class
         super().set_beam_current(target_current)
         # target_current given in pA
-        ret_val = self.sem_set('AP_IPROBE', target_current * 10**(-12))
+        ret_val = self.sem_set('AP_IPROBE', target_current * 1e-12)
         if ret_val == 0:
             return True
         else:
@@ -307,7 +307,7 @@ class SEM_SmartSEM(SEM):
 
     def get_aperture_size(self):
         """Read aperture size (in μm) from SmartSEM."""
-        return round(self.sem_get('AP_APERTURESIZE') * 10**6, 1)
+        return round(self.sem_get('AP_APERTURESIZE') * 1e6, 1)
 
     def set_aperture_size(self, aperture_size_index):
         """Save the aperture size (in μm) and set the SEM's beam to this
@@ -520,7 +520,7 @@ class SEM_SmartSEM(SEM):
             if rewrite_file:
                 metadata = {
                     'pixel_size': [self.grab_pixel_size, self.grab_pixel_size],
-                    'position': [self.last_known_x, self.last_known_y]
+                    'position': [self.last_known_x, self.last_known_y, self.last_known_z]
                 }
                 image = imread(grab_filename)
                 imwrite(save_path_filename, image, metadata)
@@ -665,30 +665,30 @@ class SEM_SmartSEM(SEM):
 
     def get_stage_x(self):
         """Read X stage position (in micrometres) from SEM."""
-        self.last_known_x = self.sem_api.GetStagePosition()[1] * 10**6
+        self.last_known_x = self.sem_api.GetStagePosition()[1] * 1e6
         return self.last_known_x
 
     def get_stage_y(self):
         """Read Y stage position (in micrometres) from SEM."""
-        self.last_known_y = self.sem_api.GetStagePosition()[2] * 10**6
+        self.last_known_y = self.sem_api.GetStagePosition()[2] * 1e6
         return self.last_known_y
 
     def get_stage_z(self):
         """Read Z stage position (in micrometres) from SEM."""
-        self.last_known_z = self.sem_api.GetStagePosition()[3] * 10**6
+        self.last_known_z = self.sem_api.GetStagePosition()[3] * 1e6
         return self.last_known_z
 
     def get_stage_xy(self):
         """Read XY stage position (in micrometres) from SEM."""
         x, y = self.sem_api.GetStagePosition()[1:3]
-        self.last_known_x, self.last_known_y = x * 10**6, y * 10**6
+        self.last_known_x, self.last_known_y = x * 1e6, y * 1e6
         return self.last_known_x, self.last_known_y
 
     def get_stage_xyz(self):
         """Read XYZ stage position (in micrometres) from SEM."""
         x, y, z = self.sem_api.GetStagePosition()[1:4]
         self.last_known_x, self.last_known_y, self.last_known_z = (
-            x * 10**6, y * 10**6, z * 10**6)
+            x * 1e6, y * 1e6, z * 1e6)
         return self.last_known_x, self.last_known_y, self.last_known_z
 
     def get_stage_xyztr(self):
@@ -696,7 +696,7 @@ class SEM_SmartSEM(SEM):
         rotation angles (in degree) from SEM."""
         x, y, z, t, r = self.sem_api.GetStagePosition()[1:6]
         self.last_known_x, self.last_known_y, self.last_known_z = (
-            x * 10**6, y * 10**6, z * 10**6)
+            x * 1e6, y * 1e6, z * 1e6)
         return self.last_known_x, self.last_known_y, self.last_known_z, t, r
 
     def get_stage_t(self):
@@ -713,47 +713,47 @@ class SEM_SmartSEM(SEM):
         """Read tilt (degrees) and stage rotation (degrees) from SEM
         as a tuple"""
         x, y, z, t, r = self.sem_api.GetStagePosition()[1:6]
-        return t,r
+        return t, r
 
     def move_stage_to_x(self, x):
         """Move stage to coordinate x, provided in microns"""
-        x /= 10**6   # convert to metres
-        y = self.get_stage_y() / 10**6
-        z = self.get_stage_z() / 10**6
+        x /= 1e6   # convert to metres
+        y = self.get_stage_y() / 1e6
+        z = self.get_stage_z() / 1e6
         self.sem_api.MoveStage(x, y, z, 0, self.stage_rotation, 0)
         while self.sem_stage_busy():
             sleep(self.stage_move_check_interval)
         sleep(self.stage_move_wait_interval)
-        self.last_known_x = self.sem_api.GetStagePosition()[1] * 10**6
+        self.last_known_x = self.sem_api.GetStagePosition()[1] * 1e6
 
     def move_stage_to_y(self, y):
         """Move stage to coordinate y, provided in microns"""
-        y /= 10**6   # convert to metres
-        x = self.get_stage_x() / 10**6
-        z = self.get_stage_z() / 10**6
+        y /= 1e6   # convert to metres
+        x = self.get_stage_x() / 1e6
+        z = self.get_stage_z() / 1e6
         self.sem_api.MoveStage(x, y, z, 0, self.stage_rotation, 0)
         while self.sem_stage_busy():
             sleep(self.stage_move_check_interval)
         sleep(self.stage_move_wait_interval)
-        self.last_known_y = self.sem_api.GetStagePosition()[2] * 10**6
+        self.last_known_y = self.sem_api.GetStagePosition()[2] * 1e6
 
     def move_stage_to_z(self, z):
         """Move stage to coordinate z, provided in microns"""
-        z /= 10**6   # convert to metres
-        x = self.get_stage_x() / 10**6
-        y = self.get_stage_y() / 10**6
+        z /= 1e6   # convert to metres
+        x = self.get_stage_x() / 1e6
+        y = self.get_stage_y() / 1e6
         self.sem_api.MoveStage(x, y, z, 0, self.stage_rotation, 0)
         while self.sem_stage_busy():
             sleep(self.stage_move_check_interval)
         sleep(self.stage_move_wait_interval)
-        self.last_known_z = self.sem_api.GetStagePosition()[3] * 10**6
+        self.last_known_z = self.sem_api.GetStagePosition()[3] * 1e6
 
     def move_stage_to_xy(self, coordinates):
         """Move stage to coordinates x and y, provided in microns"""
         x, y = coordinates
-        x /= 10**6   # convert to metres
-        y /= 10**6
-        z = self.get_stage_z() / 10**6
+        x /= 1e6   # convert to metres
+        y /= 1e6
+        z = self.get_stage_z() / 1e6
 
         # adding a magc_mode as precaution
         # should this not be the standard way to make a stage movement:
@@ -770,7 +770,7 @@ class SEM_SmartSEM(SEM):
             sleep(self.stage_move_check_interval)
         sleep(self.stage_move_wait_interval)
         new_x, new_y = self.sem_api.GetStagePosition()[1:3]
-        self.last_known_x, self.last_known_y = new_x * 10**6, new_y * 10**6
+        self.last_known_x, self.last_known_y = new_x * 1e6, new_y * 1e6
 
     def move_stage_to_r(self, new_r, no_wait=False):
         """Move stage to rotation angle r (in degrees)"""
@@ -796,9 +796,9 @@ class SEM_SmartSEM(SEM):
 
     def move_stage_to_xyzt(self, x, y, z, t):
         """Move stage to coordinates x and y, z (in microns) and tilt angle t (in degrees)."""
-        x /= 10**6   # convert to metres
-        y /= 10**6
-        z /= 10**6
+        x /= 1e6   # convert to metres
+        y /= 1e6
+        z /= 1e6
         self.sem_api.MoveStage(x, y, z, t, self.stage_rotation, 0)
         while self.sem_stage_busy():
             sleep(self.stage_move_check_interval)
@@ -806,9 +806,9 @@ class SEM_SmartSEM(SEM):
 
     def move_stage_to_xyztr(self, x, y, z, t, r):
         """Move stage to coordinates x and y, z (in microns), tilt and rotation angles t, r (in degrees)."""
-        x /= 10**6   # convert to metres
-        y /= 10**6
-        z /= 10**6
+        x /= 1e6   # convert to metres
+        y /= 1e6
+        z /= 1e6
         self.sem_api.MoveStage(x, y, z, t, r, 0)
         while self.sem_stage_busy():
             sleep(self.stage_move_check_interval)

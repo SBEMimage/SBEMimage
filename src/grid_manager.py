@@ -874,8 +874,12 @@ class GridManager:
         dwell_time = json.loads(self.cfg['grids']['dwell_time'])
         dwell_time_selector = json.loads(
             self.cfg['grids']['dwell_time_selector'])
-        bit_depth_selector = json.loads(
-            self.cfg['grids']['bit_depth_selector'])
+        # * backward compatibility:
+        if 'bit_depth_selector' in self.cfg['grids']:
+            bit_depth_selector = json.loads(
+                self.cfg['grids']['bit_depth_selector'])
+        else:
+            bit_depth_selector = []
         display_colour = json.loads(self.cfg['grids']['display_colour'])
         wd_stig_xy = json.loads(self.cfg['grids']['wd_stig_xy'])
         acq_interval = json.loads(self.cfg['grids']['acq_interval'])
@@ -897,6 +901,8 @@ class GridManager:
             wd_gradient_params = [[0, 0, 0]] * self.number_grids
         if len(sw_sh) < self.number_grids:
             sw_sh = [(0, 0)] * self.number_grids
+        if len(bit_depth_selector) < self.number_grids:
+            bit_depth_selector = [0] * self.number_grids
 
         # Create a list of grid objects with the parameters read from
         # the session configuration.
