@@ -2350,7 +2350,7 @@ class Acquisition:
                     'CTRL',
                     f'Tile {tile_id}: Image file already exists!')
                 self.add_to_main_log(
-                    'CTRL: Tile %s: Image file already exists!' %tile_id)
+                    'CTRL: Tile %s: Image file already exists!' % tile_id)
 
             if self.magc_mode:
                 # set wd,stig calculated at the beginning of the grid
@@ -2411,7 +2411,7 @@ class Acquisition:
                 # undo the change.
                 self.lock_mag()
 
-            if not self.error_state in [
+            if self.error_state not in [
                 Error.autofocus_smartsem,
                 Error.autofocus_heuristic,
                 Error.wd_stig_difference,

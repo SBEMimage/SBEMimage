@@ -1147,6 +1147,7 @@ class GridManager:
             del self.__grids[grid_index + 1:]
             self.number_grids = len(self.__grids)
 
+    # TODO: support drawing rotated grids
     def draw_grid(self, x, y, w, h):
         """Draw grid/tiles rectangle using mouse"""
         # Use attributes of grid at template_grid_index for new grid
@@ -1366,8 +1367,8 @@ class GridManager:
             template_index = 0
         grid = self.__grids[template_index]
 
-        tile_width = grid.frame_size[0] * grid.pixel_size / 1000
-        tile_height = grid.frame_size[1] * grid.pixel_size / 1000
+        tile_width = grid.tile_width_d()
+        tile_height = grid.tile_height_d()
 
         w, h = size
         origin_sx_sy = self.cs.convert_d_to_s(center)
