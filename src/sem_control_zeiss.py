@@ -523,7 +523,7 @@ class SEM_SmartSEM(SEM):
                     'position': [self.last_known_x, self.last_known_y, self.last_known_z]
                 }
                 image = imread(grab_filename)
-                imwrite(save_path_filename, image, metadata)
+                imwrite(save_path_filename, image, metadata=metadata)
             return True
         else:
             self.error_state = Error.grab_image
