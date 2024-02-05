@@ -520,10 +520,11 @@ class SEM_SmartSEM(SEM):
             if rewrite_file:
                 metadata = {
                     'pixel_size': [self.grab_pixel_size, self.grab_pixel_size],
-                    'position': [self.last_known_x, self.last_known_y, self.last_known_z]
+                    'position': list(self.get_stage_xyz())
                 }
                 image = imread(grab_filename)
                 imwrite(save_path_filename, image, metadata=metadata)
+                os.remove(grab_filename)
             return True
         else:
             self.error_state = Error.grab_image

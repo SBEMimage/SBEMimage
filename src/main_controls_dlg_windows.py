@@ -4116,7 +4116,7 @@ class GrabFrameDlg(QDialog):
         time and GUI should not freeze.
         """
         self.scan_success = self.sem.acquire_frame(
-            self.acq.base_dir + '/' + self.file_name + constants.FRAME_IMAGE_FORMAT)
+            os.path.join(self.acq.base_dir, self.file_name + constants.FRAME_IMAGE_FORMAT))
         self.finish_trigger.signal.emit()
 
     def scan_complete(self):
@@ -4132,8 +4132,8 @@ class GrabFrameDlg(QDialog):
             QMessageBox.information(
                 self, 'Frame acquired',
                 'The image was acquired and saved as '
-                + self.file_name +
-                '.tif in the current base directory.',
+                + self.file_name + constants.FRAME_IMAGE_FORMAT +
+                ' in the current base directory.',
                 QMessageBox.Ok)
         else:
             QMessageBox.warning(

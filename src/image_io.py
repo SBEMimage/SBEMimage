@@ -134,7 +134,7 @@ def create_tiff_metadata(metadata, is_ome=False):
     return ome_metadata, resolution, resolution_unit
 
 
-def imwrite(path, data, tile_size=None, compression='LZW', metadata=None,
+def imwrite(path, data, metadata=None, tile_size=None, compression='LZW',
             npyramid_add=0, pyramid_downsample=2):
     resolution = None
     resolution_unit = None
