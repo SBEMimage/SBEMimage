@@ -47,8 +47,7 @@ def lm_test(api, saveFolderFinal):
 
     acq = api.NavCamAcquireImage(acqCamParams)
     ppi.Save(acq, os.path.join(saveFolderFinal, "image_navcam.tiff"))
-    print("metadata")
-    print(acq.metadata)
+    print("metadata:", acq.metadata)
 
     print("finished LM imaging")
 
@@ -92,8 +91,7 @@ def em_test(api, saveFolderFinal):
 
             acq = api.SemAcquireImageEx(scanParams)
             ppi.Save(acq, os.path.join(saveFolderFinal, "image_x_" + str(x) + "_y_" + str(y) + ".tiff"))
-            print("metadata")
-            print(acq.metadata)
+            print("metadata:", acq.metadata)
             #acq.image = acq.image.__invert__()
             #ppi.Save(acq, os.path.join(saveFolderFinal, "image_x_" + str(x) + "_y_" + str(y) + "inv.tiff"))
 
@@ -101,31 +99,20 @@ def em_test(api, saveFolderFinal):
     
 
 def print_info(api):
-    print("GetStageStroke")
-    dump_object(api.GetStageStroke())
-    print("GetStageModeAndPosition")
-    dump_object(api.GetStageModeAndPosition())
+    print("GetStageStroke:", dump_object(api.GetStageStroke()))
+    print("GetStageModeAndPosition:", dump_object(api.GetStageModeAndPosition()))
     
-    print("GetHFWRange")
-    dump_object(api.GetHFWRange())
-    print("GetHFW")
-    dump_object(api.GetHFW())
+    print("GetHFWRange:", dump_object(api.GetHFWRange()))
+    print("GetHFW:", dump_object(api.GetHFW()))
 
-    print("GetSemWDRange")
-    dump_object(api.GetSemWDRange())
-    print("GetSemWD")
-    dump_object(api.GetSemWD())
+    print("GetSemWDRange:", dump_object(api.GetSemWDRange()))
+    print("GetSemWD:", dump_object(api.GetSemWD()))
 
-    print("GetNavCamWDRange")
-    dump_object(api.GetNavCamWDRange())
-    print("GetNavCamWD")
-    dump_object(api.GetNavCamWD())
+    print("GetNavCamWDRange:", dump_object(api.GetNavCamWDRange()))
+    print("GetNavCamWD:", dump_object(api.GetNavCamWD()))
 
-    print("GetSemHighTensionRange")
-    dump_object(api.GetSemHighTensionRange())
-    print("GetSemHighTension")
-    dump_object(api.GetSemHighTension())
-
+    print("GetSemHighTensionRange:", dump_object(api.GetSemHighTensionRange()))
+    print("GetSemHighTension:", dump_object(api.GetSemHighTension()))
 
 
 def load_csv(file_name):
@@ -141,20 +128,17 @@ def load_csv(file_name):
     return content
 
 
+def print_object(obj):
+    print(dump_object(obj))
+
+
 def dump_object(obj):
-    # TODO: add hierarchical indentation
-    s = ''
-    if hasattr(obj, '__str__'):
-        s += str(obj)
-    else:
+    s = str(obj)
+    if s.startswith('<'):
+        s = ''
         for attr in dir(obj):
             if not attr.startswith('_'):
-                s += 'attr: '
-                if isinstance(obj, object):
-                    s += dump_object(obj)
-                else:
-                    s += getattr(obj, attr)
-                s += '\n'
+                s += f'{attr}: ' + dump_object(getattr(obj, attr)) + ' '
     return s
 
 
