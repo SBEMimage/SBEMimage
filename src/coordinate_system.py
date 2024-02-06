@@ -112,10 +112,10 @@ class CoordinateSystem:
         else:
             # Fallback option: nearest among the available EHT calibrations
             closest_eht = 1500  # default if no other closer EHT found.
-            min_diff = abs(eht - closest_eht)
+            min_diff = None
             for eht_choice in available_eht_keys:
                 diff = abs(eht - eht_choice)
-                if diff < min_diff:
+                if min_diff is None or diff < min_diff:
                     min_diff = diff
                     closest_eht = eht_choice
             self.stage_calibration = calibration_params[str(closest_eht)]
