@@ -37,6 +37,8 @@ def lm_test(api, saveFolderFinal):
         api.Load()
     if mode != OperationalMode.LiveNavCam:
         api.MoveToNavCam()
+    
+    print_info(api)
 
     acqCamParams = ppi.CamParams()  # use default size
     acqCamParams.nFrames = 1
@@ -45,6 +47,8 @@ def lm_test(api, saveFolderFinal):
 
     acq = api.NavCamAcquireImage(acqCamParams)
     ppi.Save(acq, os.path.join(saveFolderFinal, "image_navcam.tiff"))
+    print("metadata")
+    print(acq.metadata)
 
     print("finished LM imaging")
 
@@ -57,6 +61,8 @@ def em_test(api, saveFolderFinal):
         api.Load()
     if mode != OperationalMode.LiveSem:
         api.MoveToSem()
+        
+    print_info(api)
 
     scanParams = ppi.ScanParamsEx()
     scanParams.dwellTime = dwell_time
@@ -86,10 +92,40 @@ def em_test(api, saveFolderFinal):
 
             acq = api.SemAcquireImageEx(scanParams)
             ppi.Save(acq, os.path.join(saveFolderFinal, "image_x_" + str(x) + "_y_" + str(y) + ".tiff"))
+            print("metadata")
+            print(acq.metadata)
             #acq.image = acq.image.__invert__()
             #ppi.Save(acq, os.path.join(saveFolderFinal, "image_x_" + str(x) + "_y_" + str(y) + "inv.tiff"))
 
     print("finished EM imaging")
+    
+
+def print_info(api):
+    print("GetStageStroke")
+    dump_object(api.GetStageStroke())
+    print("GetStageModeAndPosition")
+    dump_object(api.GetStageModeAndPosition())
+    
+    print("GetHFWRange")
+    dump_object(api.GetHFWRange())
+    print("GetHFW")
+    dump_object(api.GetHFW())
+
+    print("GetSemWDRange")
+    dump_object(api.GetSemWDRange())
+    print("GetSemWD")
+    dump_object(api.GetSemWD())
+
+    print("GetNavCamWDRange")
+    dump_object(api.GetNavCamWDRange())
+    print("GetNavCamWD")
+    dump_object(api.GetNavCamWD())
+
+    print("GetSemHighTensionRange")
+    dump_object(api.GetSemHighTensionRange())
+    print("GetSemHighTension")
+    dump_object(api.GetSemHighTension())
+
 
 
 def load_csv(file_name):
