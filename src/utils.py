@@ -90,7 +90,7 @@ def run_log_thread(thread_function, *args):
         except Exception as e:
             print('\nEXCEPTION occurred: See /SBEMimage/log/SBEMimage.log '
                   'and output in console window for details.\n')
-            log_exception(e)
+            log_exception(str(e))
 
     thread = threading.Thread(target=run_log)
     thread.start()
@@ -110,7 +110,7 @@ def logging_init(*message):
     logger.setLevel(logging.INFO)   # important: anything below this will be filtered irrespective of handler level
     # logging_add_handler(StreamHandler(), level=logging.ERROR)   # filter messages to console log handler
     logging_add_handler(RotatingFileHandler(
-        LOG_FILENAME, maxBytes=LOG_MAX_FILESIZE, backupCount=LOG_MAX_FILECOUNT))
+        LOG_FILENAME, maxBytes=LOG_MAX_FILESIZE, backupCount=LOG_MAX_FILECOUNT, encoding='utf-8'))
     logging_add_handler(qt_text_handler, format=LOG_FORMAT_SCREEN)
 
     # logger.propagate = False
