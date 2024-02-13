@@ -454,6 +454,22 @@ def color_image(image):
         return image
 
 
+def int2float_image(image):
+    if image.dtype.kind != 'f':
+        maxval = 2 ** (8 * image.dtype.itemsize) - 1
+        return image / np.float32(maxval)
+    else:
+        return image
+
+
+def float2int_image(image, dtype=np.dtype(np.uint8)):
+    if not (image.dtype.kind == 'i' or image.dtype.kind == 'u') and not dtype.kind == 'f':
+        maxval = 2 ** (8 * dtype.itemsize) - 1
+        return (image * maxval).astype(dtype)
+    else:
+        return image
+
+
 def uint8_image(image):
     if image.dtype.kind == 'f':
         image *= 255

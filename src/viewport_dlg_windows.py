@@ -492,7 +492,7 @@ class ImportImageDlg(QDialog):
             metadata = imread_metadata(selected_file)
             pixel_size = metadata.get('pixel_size')
             if pixel_size is not None and len(pixel_size) > 0:
-                pxel_size_nm = pixel_size[0] * 1000
+                pxel_size_nm = pixel_size[0] * 1e3
                 self.doubleSpinBox_pixelSize.setValue(pxel_size_nm)
                 self.doubleSpinBox_pixelSize.setEnabled(False)
 
@@ -521,7 +521,7 @@ class ImportImageDlg(QDialog):
             except Exception as e:
                 QMessageBox.warning(
                     self, 'Error',
-                    'Could not load image file: ' + str(e),
+                    'Error importing image file: ' + str(e),
                      QMessageBox.Ok)
                 selection_success = False
 

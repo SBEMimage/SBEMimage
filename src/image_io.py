@@ -4,7 +4,7 @@ import os
 import tifffile
 from tifffile import TiffWriter
 
-from utils import resize_image
+from utils import resize_image, int2float_image, float2int_image
 
 
 # TODO: add ome.zarr support
@@ -16,6 +16,7 @@ def imread(path, level=None, target_pixel_size_um=None):
     ext = paths[-1].lower()
     is_tiff = ext in ['.tif', '.tiff']
     metadata = imread_metadata(path)
+    dimension_order = metadata['dimension_order']
     size = metadata['size']
     nlevels = len(metadata['sizes'])
     source_pixel_size = metadata.get('pixel_size')
@@ -29,12 +30,53 @@ def imread(path, level=None, target_pixel_size_um=None):
                 if np.all(size1 > target_size):
                     level = level1
         if level is None or level < nlevels:
-            data = tifffile.imread(path, level=level)
+            image = tifffile.imread(path, level=level)
+            if 'c' in dimension_order:
+                c_index = dimension_order.index('c')
+                if c_index < len(dimension_order) - 1:
+                    image = np.moveaxis(image, c_index, -1)
             if scale_by_pixel_size:
-                data = resize_image(data, target_size)
+                image = resize_image(image, target_size)
     else:
-        data = imageio.v3.imread(path)
-    return data
+        image = imageio.v3.imread(path)
+    if 'channels' in metadata:
+        image = render_image(image, metadata['channels'])
+    return image
+
+
+def render_image(image, channels):
+    # TODO: split into separate RGB images for each channel?
+    # TODO: normalise value ranges?
+    new_image = np.zeros(list(image.shape[:2]) + [3], dtype=np.float32)
+    nchannels = image.shape[-1] if image.ndim >= 3 else 1
+    n = len(channels)
+    is_rgb = (nchannels == 3 and n <= 1)
+    tot_alpha = 0
+    if not is_rgb and channels:
+        for channeli, channel in enumerate(channels):
+            if n == 1:
+                channel_values = image
+            else:
+                channel_values = image[..., channeli]
+            #window = get_channel_window(channeli)
+            #channel_values = normalise_values(channel_values, window['min'], window['max'])
+            channel_values = int2float_image(channel_values)
+            color = channel.get('color')
+            if color:
+                rgba = color
+            else:
+                rgba = [1, 1, 1, 1]
+            color = rgba[:3]
+            alpha = rgba[3]
+            if alpha == 0:
+                alpha = 1
+            alpha_color = np.multiply(color, alpha).astype(np.float32)
+            new_image += np.atleast_3d(channel_values) * alpha_color
+            tot_alpha += alpha
+        new_image = float2int_image(new_image / tot_alpha)
+    else:
+        new_image = image
+    return new_image
 
 
 def imread_metadata(path):
@@ -44,6 +86,8 @@ def imread_metadata(path):
     is_tiff = ext in ['.tif', '.tiff']
     pixel_size = []
     position = []
+    dimension_order = 'yxc'
+    channels = []
 
     if is_tiff:
         with tifffile.TiffFile(path) as tif:
@@ -51,8 +95,11 @@ def imread_metadata(path):
             sizes = [size]
             if hasattr(tif, 'series'):
                 series0 = tif.series[0]
+                dimension_order = series0.axes.lower()
+                x_index = dimension_order.index('x')
+                y_index = dimension_order.index('y')
                 if hasattr(series0, 'levels'):
-                    sizes = [(level.shape[1], level.shape[0]) for level in series0.levels]
+                    sizes = [(level.shape[x_index], level.shape[y_index]) for level in series0.levels]
             if tif.is_ome:
                 metadata = tifffile.xml2dict(tif.ome_metadata)
                 if 'OME' in metadata:
@@ -64,6 +111,19 @@ def imread_metadata(path):
                 if 'PositionX' in plane and 'PositionY' in plane:
                     position = [(float(plane['PositionX']), plane.get('PositionXUnit', 'µm')),
                                 (float(plane['PositionY']), plane.get('PositionYUnit', 'µm'))]
+                channels0 = pixels.get('Channel', [])
+                if not isinstance(channels0, list):
+                    channels0 = [channels0]
+                for channeli, channel0 in enumerate(channels0):
+                    channel = {}
+                    label = channel0.get('Name', '')
+                    if not label:
+                        label = f'#{channeli}'
+                    channel['label'] = label
+                    color = channel0.get('Color')
+                    if color is not None:
+                        channel['color'] = color_int_to_rgba(color)
+                    channels.append(channel)
             else:
                 tags = {tag.name: tag.value for tag in tif.pages[0].tags.values()}
                 units = tags.get('ResolutionUnit')
@@ -86,6 +146,7 @@ def imread_metadata(path):
             units = metadata.get('unit')
             pixel_size = [(1 / res, units) for res in resolution]
 
+    all_metadata['dimension_order'] = dimension_order
     all_metadata['size'] = size
     all_metadata['sizes'] = sizes
     if len(pixel_size) > 0:
@@ -94,6 +155,8 @@ def imread_metadata(path):
     if len(position) > 0:
         position_um = convert_units_micrometer(position)
         all_metadata['position'] = position_um
+    if len(channels) > 0:
+        all_metadata['channels'] = channels
     return all_metadata
 
 
@@ -190,3 +253,11 @@ def convert_rational_value(value):
     if value is not None and isinstance(value, tuple):
         value = value[0] / value[1]
     return value
+
+
+def color_int_to_rgba(intrgba: int) -> list:
+    signed = (intrgba < 0)
+    rgba = [x / 255 for x in intrgba.to_bytes(4, signed=signed, byteorder="big")]
+    if rgba[-1] == 0:
+        rgba[-1] = 1
+    return rgba

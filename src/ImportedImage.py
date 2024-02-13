@@ -19,7 +19,7 @@ import json
 from qtpy.QtGui import QTransform
 
 from image_io import imread_metadata, imread
-from utils import round_xy, uint8_image, color_image, norm_image_quantiles, image_to_QPixmap
+from utils import round_xy, norm_image_quantiles, image_to_QPixmap
 
 
 class ImportedImage:
@@ -47,7 +47,7 @@ class ImportedImage:
                 self.image = image_to_QPixmap(image)
                 pixel_size_um = imread_metadata(self.image_src).get('pixel_size', [])
                 if len(pixel_size_um) > 0:
-                    self.pixel_size = pixel_size_um[0] * 1000     # [um] -> [nm]
+                    self.pixel_size = pixel_size_um[0] * 1e3     # [um] -> [nm]
                 if self.rotation != 0:
                     trans = QTransform()
                     trans.rotate(self.rotation)
