@@ -11,7 +11,7 @@ from utils import resize_image, int2float_image, float2int_image
 
 
 def imread(path, level=None, target_pixel_size_um=None):
-    data = None
+    image = None
     paths = os.path.splitext(path)
     ext = paths[-1].lower()
     is_tiff = ext in ['.tif', '.tiff']

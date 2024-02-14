@@ -208,7 +208,7 @@ class Grid:
         to update the coordinates.
         """
         rows, cols = self.size
-        width_p, height_p = self.frame_size
+        width_p, height_p = self.frame_size[0], self.frame_size[1]
         theta = radians(self.rotation)
 
         for y_pos in range(rows):
@@ -496,6 +496,10 @@ class Grid:
     def tile_height_p(self):
         """Return tile height in pixels."""
         return self.frame_size[1]
+
+    def tile_depth(self):
+        """Return tile height in pixels."""
+        return self.frame_size[2] if len(self.frame_size) > 2 else 1
 
     def tile_width_d(self):
         """Return tile width in microns."""

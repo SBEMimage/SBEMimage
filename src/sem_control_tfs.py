@@ -327,10 +327,8 @@ class SEM_Phenom(SEM):
                 self.sem_api.Load()
             if mode != OperationalMode.LiveNavCam:
                 self.sem_api.MoveToNavCam()
-                #self.move_stage_to_xy((self.last_known_x, self.last_known_y))
-                #self.set_pixel_size(self.pixel_size)
-
-            # TODO: check if stage position is always 0,0
+                self.move_stage_to_xy((self.last_known_x, self.last_known_y))
+                self.set_pixel_size(self.pixel_size)
 
             if extra_delay > 0:
                 sleep(extra_delay)

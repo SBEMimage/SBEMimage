@@ -50,7 +50,6 @@ class StubOVDlg(QDialog):
         self.viewport_trigger = viewport_trigger
         self.acq_in_progress = False
         self.error_msg_from_acq_thread = ''
-        self.lm_mode = False
 
         # Set up trigger and queue to update dialog GUI during acquisition
         self.stub_dlg_trigger = utils.Trigger()
@@ -58,21 +57,21 @@ class StubOVDlg(QDialog):
         self.abort_queue = Queue()
         self.pushButton_acquire.clicked.connect(self.start_stub_ov_acquisition)
         self.pushButton_abort.clicked.connect(self.abort)
-        self.checkBox_LmMode.stateChanged.connect(self.lm_mode_changed)
         self.checkBox_LmMode.setEnabled(self.sem.has_lm_mode())
+        self.checkBox_LmMode.stateChanged.connect(self.update_settings_from_ovm)
+        self.update_settings_from_ovm()
         self.spinBox_X.setValue(int(round(centre_sx_sy[0])))
         self.spinBox_Y.setValue(int(round(centre_sx_sy[1])))
-        self.spinBox_rows.setValue(ovm['stub'].size[0])
-        self.spinBox_cols.setValue(ovm['stub'].size[1])
         self.spinBox_rows.valueChanged.connect(
             self.update_dimension_and_duration_display)
         self.spinBox_cols.valueChanged.connect(
             self.update_dimension_and_duration_display)
-        self.update_dimension_and_duration_display()
         # Save previous settings. If user aborts the stub OV acquisition
         # revert to these settings.
-        self.previous_centre_sx_sy = ovm['stub'].centre_sx_sy
-        self.previous_grid_size = ovm['stub'].size
+        stub_ovm = self.get_selected_stub_ovm()
+        self.previous_lm_mode = self.checkBox_LmMode.isChecked()
+        self.previous_centre_sx_sy = stub_ovm.centre_sx_sy
+        self.previous_grid_size = stub_ovm.size
 
     def process_thread_signal(self):
         """Process commands from the queue when a trigger signal occurs
@@ -117,8 +116,9 @@ class StubOVDlg(QDialog):
         elif msg == 'STUB OV ABORT':
             self.viewport_trigger.transmit('STATUS IDLE')
             # Restore previous grid size and grid position
-            self.ovm['stub'].size = self.previous_grid_size
-            self.ovm['stub'].centre_sx_sy = self.previous_centre_sx_sy
+            stub_ovm = self.get_selected_stub_ovm(self.previous_lm_mode)
+            stub_ovm.size = self.previous_grid_size
+            stub_ovm.centre_sx_sy = self.previous_centre_sx_sy
             QMessageBox.information(
                 self, 'Stub Overview acquisition aborted',
                 'The stub overview acquisition was aborted.',
@@ -129,19 +129,25 @@ class StubOVDlg(QDialog):
             # Use as error message
             self.error_msg_from_acq_thread = msg
 
-    def lm_mode_changed(self):
-        self.lm_mode = self.checkBox_LmMode.isChecked()
-        if self.lm_mode:
-            self.spinBox_rows.setValue(1)
-            self.spinBox_cols.setValue(1)
+    def get_selected_stub_ovm(self, lm_mode=None):
+        if lm_mode is None:
+            lm_mode = self.checkBox_LmMode.isChecked()
+        if lm_mode:
+            stub_ovm = self.ovm['stub_lm']
         else:
-            self.spinBox_rows.setValue(self.ovm['stub'].size[0])
-            self.spinBox_cols.setValue(self.ovm['stub'].size[1])
+            stub_ovm = self.ovm['stub']
+        return stub_ovm
+
+    def update_settings_from_ovm(self):
+        stub_ovm = self.get_selected_stub_ovm()
+        self.spinBox_rows.setValue(stub_ovm.size[0])
+        self.spinBox_cols.setValue(stub_ovm.size[1])
+        self.update_dimension_and_duration_display()
 
     def update_dimension_and_duration_display(self):
         rows = self.spinBox_rows.value()
         cols = self.spinBox_cols.value()
-        stub_ovm = self.ovm['stub']
+        stub_ovm = self.get_selected_stub_ovm()
         tile_width = stub_ovm.frame_size[0]
         tile_height = stub_ovm.frame_size[1]
         overlap = stub_ovm.overlap
@@ -173,9 +179,9 @@ class StubOVDlg(QDialog):
             centre_sx_sy = self.spinBox_X.value(), self.spinBox_Y.value()
             grid_size = [self.spinBox_rows.value(), self.spinBox_cols.value()]
             # Change the Stub Overview to the requested grid size and centre
-            self.ovm['stub'].lm_mode = self.lm_mode
-            self.ovm['stub'].size = grid_size
-            self.ovm['stub'].centre_sx_sy = centre_sx_sy
+            stub_ovm = self.get_selected_stub_ovm()
+            stub_ovm.size = grid_size
+            stub_ovm.centre_sx_sy = centre_sx_sy
             self.viewport_trigger.transmit(
                 'CTRL: Acquisition of stub overview image started.')
             self.pushButton_acquire.setEnabled(False)
@@ -190,7 +196,7 @@ class StubOVDlg(QDialog):
             QApplication.processEvents()
             utils.run_log_thread(acq_func.acquire_stub_ov,
                                  self.sem, self.stage,
-                                 self.ovm, self.acq,
+                                 stub_ovm, self.acq,
                                  self.img_inspector,
                                  self.stub_dlg_trigger,
                                  self.abort_queue)

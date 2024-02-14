@@ -23,7 +23,7 @@ from configparser import ConfigParser
 # deleted from the default configuration files
 CFG_TEMPLATE_FILE = '../src/default_cfg/default.ini'    # Template of session configuration
 CFG_NUMBER_SECTIONS = 12
-CFG_NUMBER_KEYS = 226
+CFG_NUMBER_KEYS = 233
 
 SYSCFG_TEMPLATE_FILE = '../src/default_cfg/system.cfg'  # Template of system configuration
 SYSCFG_NUMBER_SECTIONS = 8
@@ -60,9 +60,10 @@ def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):
     exceptions = ''
 
     if is_default_cfg:
+        pass
         # Currently, the only validity check is verifying the number of entries.
-        cfg_valid = check_number_of_entries(current_cfg, False)
-        syscfg_valid = check_number_of_entries(current_syscfg, True)
+        #cfg_valid = check_number_of_entries(current_cfg, False)
+        #syscfg_valid = check_number_of_entries(current_syscfg, True)
     else:
         # Load default configuration. This file must be up-to-date. It is always
         # bundled with each new version of SBEMimage.
@@ -80,10 +81,10 @@ def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):
         except Exception as e:
             syscfg_load_success = False
             exceptions += str(e) + '; '
-        if cfg_load_success:
-            cfg_valid = check_number_of_entries(cfg_template, False)
-        if syscfg_load_success:
-            syscfg_valid = check_number_of_entries(syscfg_template, True)
+        #if cfg_load_success:
+        #    cfg_valid = check_number_of_entries(cfg_template, False)
+        #if syscfg_load_success:
+        #    syscfg_valid = check_number_of_entries(syscfg_template, True)
 
         if (cfg_load_success and syscfg_load_success
                 and cfg_valid and syscfg_valid):

@@ -1349,8 +1349,9 @@ class Viewport(QWidget):
         # Begin painting on canvas
         self.vp_qp.begin(self.vp_canvas)
         # First, show stub OV if option selected and stub OV image exists:
-        if self.show_stub_ov and self.ovm['stub'].image is not None:
-            self._vp_place_stub_overview()
+        if self.show_stub_ov:
+            self._vp_place_stub_overview(self.ovm['stub_lm'])
+            self._vp_place_stub_overview(self.ovm['stub'])
             # self._place_template()
         # For MagC mode: show imported images before drawing grids
         # TODO: Think about more general solution to organize display layers.
@@ -1612,34 +1613,38 @@ class Viewport(QWidget):
             return False
         return True
 
-    def _vp_place_stub_overview(self):
+    def _vp_place_stub_overview(self, stub_ovm):
         """Place stub overview image onto the Viewport canvas. Crop and resize
         the image before placing it. QPainter object self.vp_qp must be active
         when calling this method."""
+
+        if stub_ovm.image is None:
+            return
+
         viewport_pixel_size = 1000 / self.cs.vp_scale
-        resize_ratio = self.ovm['stub'].pixel_size / viewport_pixel_size
+        resize_ratio = stub_ovm.pixel_size / viewport_pixel_size
         mag_level = np.round(np.log2(resize_ratio))
         # set to 1 for resize_ratio >= 1 else store 2^-x down sizing
         mag_level = int(1 if mag_level >= 0 else 2**(-mag_level))
         mag_level = min(mag_level, 16)
         # Compute position of stub overview (upper left corner) and its
         # width and height
-        dx, dy = self.ovm['stub'].origin_dx_dy
-        dx -= self.ovm['stub'].tile_width_d() / 2
-        dy -= self.ovm['stub'].tile_height_d() / 2
+        dx, dy = stub_ovm.origin_dx_dy
+        dx -= stub_ovm.tile_width_d() / 2
+        dy -= stub_ovm.tile_height_d() / 2
         vx, vy = self.cs.convert_d_to_v((dx, dy))
 
-        width_px = self.ovm['stub'].width_p() // mag_level
-        height_px = self.ovm['stub'].height_p() // mag_level
-        resize_ratio = self.ovm['stub'].pixel_size * mag_level / viewport_pixel_size
+        width_px = stub_ovm.width_p() // mag_level
+        height_px = stub_ovm.height_p() // mag_level
+        resize_ratio = stub_ovm.pixel_size * mag_level / viewport_pixel_size
         # Crop and resize stub OV before placing it
         visible, crop_area, vx_cropped, vy_cropped = self._vp_visible_area(
             vx, vy, width_px, height_px, resize_ratio)
         if visible:
-            img = self.ovm['stub'].image(mag=mag_level)
-            if img is None:
+            image = stub_ovm.image(mag=mag_level)
+            if image is None:
                 return
-            cropped_img = img.copy(crop_area)
+            cropped_img = image.copy(crop_area)
             v_width = cropped_img.size().width()
             cropped_resized_img = cropped_img.scaledToWidth(
                 int(v_width * resize_ratio))

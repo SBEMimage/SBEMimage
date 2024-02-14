@@ -124,7 +124,7 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
         viewport_trigger.transmit('REFRESH OV FAILURE')
 
 
-def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
+def acquire_stub_ov(sem, stage, stub_ovm, acq, img_inspector,
                     stub_dlg_trigger, abort_queue):
     """Acquire a large tiled overview image of user-defined size that covers a
     part of or the entire stub (SEM sample holder).
@@ -134,7 +134,6 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
     """
     success = True      # Set to False if an error occurs during acq process
     aborted = False     # Set to True when user clicks the 'Abort' button
-    stub_ovm = ovm['stub']
     prev_vp_file_path = stub_ovm.vp_file_path
 
     # Update current XY position and display it in Main Controls GUI
@@ -150,8 +149,7 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
         image_counter = 0
         first_tile = True
         number_cols = stub_ovm.size[1]
-        tile_width = stub_ovm.tile_width_p()
-        tile_height = stub_ovm.tile_height_p()
+        tile_width, tile_height = stub_ovm.tile_width_p(), stub_ovm.tile_height_p()
         overlap = stub_ovm.overlap
         metadata = None
 
@@ -165,11 +163,14 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
         stub_ovm.vp_file_path = temp_save_path
         is_single_tile = (len(stub_ovm.active_tiles) == 1)
         if not is_single_tile:
-            width, height = stub_ovm.width_p(), stub_ovm.height_p()
-            full_stub_image = np.zeros((height, width), dtype=np.uint8)
+            shape = [stub_ovm.height_p(), stub_ovm.width_p()]
+            depth = stub_ovm.tile_depth()
+            if depth > 1:
+                shape += [depth]
+            full_stub_image = np.zeros(shape, dtype=np.uint8)
             # Save current stub image to temp_save_path to show live preview
             # during the acquisition
-            imwrite(temp_save_path, full_stub_image)
+            imwrite(temp_save_path, full_stub_image, npyramid_add=4, pyramid_downsample=2)
         else:
             full_stub_image = None
 
@@ -256,14 +257,13 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
                         if is_single_tile:
                             full_stub_image = tile_img
                         else:
-                            full_stub_image[y_pos:y_pos+tile_height,
-                                            x_pos:x_pos+tile_width] = tile_img
+                            full_stub_image[y_pos:y_pos + tile_height,
+                                            x_pos:x_pos + tile_width] = tile_img
                         # Save current stitched image and show it in Viewport
                         metadata = imread_metadata(save_path)   # get metadata from last acquisition
                         metadata['position'] = stub_ovm.centre_sx_sy
-                        imwrite(temp_save_path, full_stub_image, metadata=metadata)
-                        # Setting vp_file_path to temp_save_path reloads the
-                        # current png file as a QPixmap
+                        imwrite(temp_save_path, full_stub_image, metadata=metadata, npyramid_add=4, pyramid_downsample=2)
+                        # Setting vp_file_path to temp_save_path reloads the current file
                         stub_ovm.vp_file_path = temp_save_path
                         stub_dlg_trigger.transmit('DRAW VP')
                         sleep(0.1)

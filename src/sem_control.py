@@ -161,6 +161,10 @@ class SEM:
         self.STORE_RES_DEFAULT_INDEX_OV = int(self.syscfg['sem']['store_res_default_index_ov'])
         # self.STORE_RES_DEFAULT_INDEX_STUB_OV: default store resolution for stub OV tiles
         self.STORE_RES_DEFAULT_INDEX_STUB_OV = int(self.syscfg['sem']['store_res_default_index_stub_ov'])
+        if 'store_res_default_index_stub_ov_lm' in self.syscfg['sem']:
+            self.STORE_RES_DEFAULT_INDEX_STUB_OV_LM = int(self.syscfg['sem']['store_res_default_index_stub_ov_lm'])
+        else:
+            self.STORE_RES_DEFAULT_INDEX_STUB_OV_LM = self.STORE_RES_DEFAULT_INDEX_STUB_OV
         # self.DWELL_TIME: available dwell times in microseconds
         self.DWELL_TIME = json.loads(self.syscfg['sem']['dwell_time'])
         # self.DWELL_TIME_DEFAULT_INDEX: default dwell time

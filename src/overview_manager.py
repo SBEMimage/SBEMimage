@@ -331,10 +331,45 @@ class OverviewManager:
                                             stub_ov_dwell_time_selector,
                                             stub_ov_file_path)
 
+        # Load stub OV LM settings
+        # The acq parameters (frame size, pixel size, dwell time) can at the
+        # moment only be changed manually in the config file.
+
+        stub_ov_lm_centre_sx_sy = json.loads(
+            self.cfg['overviews']['stub_ov_lm_centre_sx_sy'])
+        stub_ov_lm_grid_size = json.loads(
+            self.cfg['overviews']['stub_ov_lm_grid_size'])
+        stub_ov_lm_overlap = int(self.cfg['overviews']['stub_ov_lm_overlap'])
+        if self.cfg['overviews']['stub_ov_lm_frame_size_selector'] == 'None':
+            stub_ov_lm_frame_size_selector = self.sem.STORE_RES_DEFAULT_INDEX_STUB_OV_LM
+        else:
+            stub_ov_lm_frame_size_selector = int(
+                self.cfg['overviews']['stub_ov_lm_frame_size_selector'])
+        stub_ov_lm_pixel_size = float(self.cfg['overviews']['stub_ov_lm_pixel_size'])
+        if self.cfg['overviews']['stub_ov_lm_dwell_time_selector'] == 'None':
+            stub_ov_lm_dwell_time_selector = self.sem.DWELL_TIME_DEFAULT_INDEX
+        else:
+            stub_ov_lm_dwell_time_selector = int(
+                self.cfg['overviews']['stub_ov_lm_dwell_time_selector'])
+        stub_ov_lm_file_path = (
+            self.cfg['overviews']['stub_ov_lm_viewport_image'])
+
+        self.__stub_overview_lm = StubOverview(self.cs, self.sem,
+                                               stub_ov_lm_centre_sx_sy,
+                                               stub_ov_lm_grid_size,
+                                               stub_ov_lm_overlap,
+                                               stub_ov_lm_frame_size_selector,
+                                               stub_ov_lm_pixel_size,
+                                               stub_ov_lm_dwell_time_selector,
+                                               stub_ov_lm_file_path)
+        self.__stub_overview_lm.lm_mode = True
+
     def __getitem__(self, ov_index):
         """Return the Overview object selected by index."""
         if ov_index == 'stub':
             return self.__stub_overview
+        elif ov_index == 'stub_lm':
+            return self.__stub_overview_lm
         elif ov_index < self.number_ov:
             return self.__overviews[ov_index]
         else:
@@ -391,6 +426,21 @@ class OverviewManager:
             self.__stub_overview.dwell_time)
         self.cfg['overviews']['stub_ov_viewport_image'] = str(
             self.__stub_overview.vp_file_path)
+        # Stub OV LM
+        self.cfg['overviews']['stub_ov_lm_centre_sx_sy'] = str(
+            utils.round_xy(self.__stub_overview_lm.centre_sx_sy))
+        self.cfg['overviews']['stub_ov_lm_grid_size'] = json.dumps(
+            self.__stub_overview_lm.size)
+        self.cfg['overviews']['stub_ov_lm_overlap'] = str(
+            self.__stub_overview_lm.overlap)
+        self.cfg['overviews']['stub_ov_lm_frame_size_selector'] = str(
+            self.__stub_overview_lm.frame_size_selector)
+        self.cfg['overviews']['stub_ov_lm_pixel_size'] = str(
+            self.__stub_overview_lm.pixel_size)
+        self.cfg['overviews']['stub_ov_lm_dwell_time'] = str(
+            self.__stub_overview_lm.dwell_time)
+        self.cfg['overviews']['stub_ov_lm_viewport_image'] = str(
+            self.__stub_overview_lm.vp_file_path)
 
     def add_new_overview(self, ov_active=True, centre_sx_sy=None,
                          frame_size=None, frame_size_selector=None, pixel_size=None,
