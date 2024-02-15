@@ -319,6 +319,7 @@ class SEM_Phenom(SEM):
 
     def acquire_frame_lm(self, save_path_filename, extra_delay=0):
         scan_params = ppi.CamParams()  # use default size
+        scan_params.size = ppi.Size(self.frame_size[0], self.frame_size[1])
         scan_params.nFrames = 1
 
         try:
