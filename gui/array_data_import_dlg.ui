@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>importMagCDlg</class>
- <widget class="QDialog" name="importMagCDlg">
+ <class>importArrayDlg</class>
+ <widget class="QDialog" name="importArrayDlg">
   <property name="windowModality">
    <enum>Qt::ApplicationModal</enum>
   </property>
@@ -20,7 +20,7 @@
    </sizepolicy>
   </property>
   <property name="windowTitle">
-   <string>Import MagC metadata</string>
+   <string>Import Array data</string>
   </property>
   <property name="layoutDirection">
    <enum>Qt::RightToLeft</enum>

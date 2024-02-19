@@ -43,7 +43,7 @@ class ArrayImportCDlg(QDialog):
         self.main_controls_trigger = main_controls_trigger
         self.target_dir = os.path.join(self.acq.base_dir, 'overviews', 'imported')
         loadUi(os.path.join('..', 'gui', 'array_data_import_dlg.ui'), self)
-        self.default_array_path = os.path.join('..', 'array', 'example_v1', 'example1.json')
+        self.default_array_path = os.path.join('..', 'array', 'example', 'wafer_example1.mass.json')
         self.lineEdit_fileName.setText(self.default_array_path)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(utils.get_window_icon())
@@ -69,7 +69,7 @@ class ArrayImportCDlg(QDialog):
             self.accept()
             return
         elif ext not in ['.json', '.yml', '.yaml', '.magc']:
-            msg = 'The file chosen should be in the correct format (json/yml/yaml/magc).'
+            msg = 'The file chosen should be in the correct format (mass/magc).'
             utils.log_info(
                 'Array-CTRL',
                 msg)
@@ -138,7 +138,7 @@ class ArrayImportCDlg(QDialog):
         selected_file = str(QFileDialog.getOpenFileName(
                 self, 'Select Array data file',
                 start_path,
-                'Sections files (*.json;*.yml;*.yaml);;MagC files (*.magc)'
+                'MASS files (*.mass.*);;MagC files (*.magc)'
                 )[0])
         if len(selected_file) > 0:
             selected_file = os.path.normpath(selected_file)
