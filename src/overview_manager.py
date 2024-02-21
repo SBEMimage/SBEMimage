@@ -174,13 +174,13 @@ class Overview(Grid):
                 bottom_right_py = int(
                     bottom_right_dy_max * 1000 / ov_pixel_size)
                 # Add/subract margin and must fit in OV image:
-                top_left_px = utils.fit_in_range(
+                top_left_px = np.clip(
                     top_left_px - margin, 0, self.width_p())
-                top_left_py = utils.fit_in_range(
+                top_left_py = np.clip(
                     top_left_py - margin, 0, self.height_p())
-                bottom_right_px = utils.fit_in_range(
+                bottom_right_px = np.clip(
                     bottom_right_px + margin, 0, self.width_p())
-                bottom_right_py = utils.fit_in_range(
+                bottom_right_py = np.clip(
                     bottom_right_py + margin, 0, self.height_p())
             # set calculated detection area:
             self.debris_detection_area = [

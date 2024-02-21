@@ -35,7 +35,8 @@ class ImportedImage:
         self._load_image()
 
     def __del__(self):
-        os.remove(self._image_src)
+        if os.path.exists(self._image_src):
+            os.remove(self._image_src)
 
     def _load_image(self):
         # Load image as QPixmap
@@ -45,9 +46,6 @@ class ImportedImage:
                 height, width = image.shape[:2]
                 self.size = [width, height]
                 self.image = image_to_QPixmap(image)
-                pixel_size_um = imread_metadata(self.image_src).get('pixel_size', [])
-                if len(pixel_size_um) > 0:
-                    self.pixel_size = pixel_size_um[0] * 1e3     # [um] -> [nm]
                 if self.rotation != 0:
                     trans = QTransform()
                     trans.rotate(self.rotation)
@@ -122,6 +120,9 @@ class ImportedImages:
             return self.__imported_images[index]
         else:
             return None
+
+    def __len__(self):
+        return self.number_imported
 
     def save_to_cfg(self):
         self.cfg['imported']['number_imported'] = str(self.number_imported)

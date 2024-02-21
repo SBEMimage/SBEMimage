@@ -176,7 +176,7 @@ class SEM:
         # cycle_time[frame_size_selector][scan_rate] -> duration in sec
         cycle_time = json.loads(self.syscfg['sem']['cycle_time'])
         # Convert string keys to int
-        self.CYCLE_TIME = {int(k): v for k, v in cycle_time.items()}
+        self.CYCLE_TIME = {int(index): values for index, values in cycle_time.items()}
         # self.DEFAULT_DELAY: delay in seconds after cycle time before
         # image is grabbed by SBEMimage
         self.DEFAULT_DELAY = float(self.syscfg['sem']['delay_after_cycle_time'])
@@ -184,10 +184,18 @@ class SEM:
         # as a function of frame resolution and pixel size (in nm):
         # M = MAG_PX_SIZE_FACTOR / (STORE_RES_X * PX_SIZE)
         self.MAG_PX_SIZE_FACTOR = int(self.syscfg['sem']['mag_px_size_factor'])
+        # self.FIELD_WIDTH_RANGE is the valid range of horizontal field width (FW / HFW / FOV)
+        # for the instrument in microns; HFW = pixel size * horizontal resolution
+        # This is used to set (UI) Zoom/scale ranges
+        if 'field_width_range' in self.syscfg['sem']:
+            self.FIELD_WIDTH_RANGE = json.loads(self.syscfg['sem']['field_width_range'])
+        else:
+            self.FIELD_WIDTH_RANGE = []
 
     def save_to_cfg(self):
         """Save current values of attributes to config and sysconfig objects."""
         self.syscfg['sem']['mag_px_size_factor'] = str(self.MAG_PX_SIZE_FACTOR)
+        self.syscfg['sem']['field_width_range'] = str(self.FIELD_WIDTH_RANGE)
         self.cfg['sem']['stage_min_x'] = str(self.stage_limits[0])
         self.cfg['sem']['stage_max_x'] = str(self.stage_limits[1])
         self.cfg['sem']['stage_min_y'] = str(self.stage_limits[2])

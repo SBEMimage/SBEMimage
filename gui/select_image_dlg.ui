@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>deleteImage</class>
- <widget class="QDialog" name="deleteImage">
+ <class>selectImage</class>
+ <widget class="QDialog" name="selectImage">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -34,12 +34,12 @@
     <rect>
      <x>10</x>
      <y>10</y>
-     <width>211</width>
+     <width>251</width>
      <height>16</height>
     </rect>
    </property>
    <property name="text">
-    <string>Select imported image to be deleted:</string>
+    <string>Select imported image:</string>
    </property>
   </widget>
   <widget class="QListWidget" name="listWidget_imagelist">
@@ -58,7 +58,7 @@
   <connection>
    <sender>buttonBox</sender>
    <signal>accepted()</signal>
-   <receiver>deleteImage</receiver>
+   <receiver>selectImage</receiver>
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
@@ -74,7 +74,7 @@
   <connection>
    <sender>buttonBox</sender>
    <signal>rejected()</signal>
-   <receiver>deleteImage</receiver>
+   <receiver>selectImage</receiver>
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">

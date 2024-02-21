@@ -489,18 +489,25 @@ class ImportImageDlg(QDialog):
             start_path,
             'Images (*.tif *.tiff *.png *.bmp *.jpg)'
             )[0])
-        self.doubleSpinBox_pixelSize.setEnabled(True)
+
         if len(selected_file) > 0:
             selected_file = os.path.normpath(selected_file)
+            self.start_path = selected_file
             self.lineEdit_fileName.setText(selected_file)
             self.lineEdit_name.setText(
                 os.path.splitext(os.path.basename(selected_file))[0])
             metadata = imread_metadata(selected_file)
             pixel_size = metadata.get('pixel_size')
-            if pixel_size is not None and len(pixel_size) > 0:
+            if pixel_size:
                 pxel_size_nm = pixel_size[0] * 1e3
                 self.doubleSpinBox_pixelSize.setValue(pxel_size_nm)
-                self.doubleSpinBox_pixelSize.setEnabled(False)
+            position = metadata.get('position')
+            if position:
+                self.doubleSpinBox_posX.setValue(position[0])
+                self.doubleSpinBox_posY.setValue(position[1])
+            rotation = metadata.get('rotation')
+            if rotation is not None:
+                self.spinBox_rotation.setValue(rotation)
 
     def accept(self):
         selection_success = True
@@ -521,9 +528,16 @@ class ImportImageDlg(QDialog):
             filename + '_' + timestamp + '.' + ext)
         if os.path.isfile(selected_path):
             try:
-                pixel_size_um = [1, 1]
-                image = imread(selected_path, target_pixel_size_um=pixel_size_um)
-                imwrite(target_path, image, metadata={'pixel_size': pixel_size_um})
+                metadata = imread_metadata(selected_path)
+                size = metadata['size'][0] * metadata['size'][1]
+                if size > 10*1e6:
+                    # if image dimension > 10MP scale down
+                    target_pixel_size_um = [1, 1]
+                    metadata['pixel_size'] = target_pixel_size_um
+                else:
+                    target_pixel_size_um = None
+                image = imread(selected_path, target_pixel_size_um=target_pixel_size_um)
+                imwrite(target_path, image, metadata=metadata)
             except Exception as e:
                 QMessageBox.warning(
                     self, 'Error',
@@ -552,6 +566,33 @@ class ImportImageDlg(QDialog):
 
         if selection_success:
             super().accept()
+
+
+# ------------------------------------------------------------------------------
+
+class SelectImageDlg(QDialog):
+    """Select an imported image from the viewport."""
+
+    def __init__(self, imported_images, on_success=None):
+        self.imported = imported_images
+        self.on_success = on_success
+        super().__init__()
+        loadUi('../gui/select_image_dlg.ui', self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(utils.get_window_icon())
+        self.setFixedSize(self.size())
+        self.show()
+        # Populate the list widget with existing imported images:
+        img_list = []
+        for i in range(self.imported.number_imported):
+            img_list.append(str(i) + ' - ' + self.imported[i].description)
+        self.listWidget_imagelist.addItems(img_list)
+
+    def accept(self):
+        selected_img = self.listWidget_imagelist.currentRow()
+        if selected_img is not None and self.on_success is not None:
+            self.on_success(selected_img)
+        super().accept()
 
 
 # ------------------------------------------------------------------------------
@@ -614,29 +655,3 @@ class AdjustImageDlg(QDialog):
             self.spinBox_transparency.value())
         # Emit signals to redraw Viewport:
         self.viewport_trigger.transmit('DRAW VP')
-
-
-# ------------------------------------------------------------------------------
-
-class DeleteImageDlg(QDialog):
-    """Delete an imported image from the viewport."""
-
-    def __init__(self, imported_images):
-        self.imported = imported_images
-        super().__init__()
-        loadUi('../gui/delete_image_dlg.ui', self)
-        self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(utils.get_window_icon())
-        self.setFixedSize(self.size())
-        self.show()
-        # Populate the list widget with existing imported images:
-        img_list = []
-        for i in range(self.imported.number_imported):
-            img_list.append(str(i) + ' - ' + self.imported[i].description)
-        self.listWidget_imagelist.addItems(img_list)
-
-    def accept(self):
-        selected_img = self.listWidget_imagelist.currentRow()
-        if selected_img is not None:
-            self.imported.delete_image(selected_img)
-        super().accept()

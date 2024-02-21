@@ -86,6 +86,7 @@ def imread_metadata(path):
     is_tiff = ext in ['.tif', '.tiff']
     pixel_size = []
     position = []
+    rotation = None
     dimension_order = 'yxc'
     channels = []
 
@@ -126,16 +127,31 @@ def imread_metadata(path):
                     channels.append(channel)
             else:
                 tags = {tag.name: tag.value for tag in tif.pages[0].tags.values()}
-                units = tags.get('ResolutionUnit')
-                if units is not None:
-                    units = units.name
-                    xres = convert_rational_value(tags.get('XResolution'))
-                    yres = convert_rational_value(tags.get('YResolution'))
-                    if units.lower() not in ['', 'none', 'inch']:
-                        if xres is not None and xres != 0:
-                            pixel_size.append((1 / xres, units))
-                        if yres is not None and yres != 0:
-                            pixel_size.append((1 / yres, units))
+                if 'FEI_TITAN' in tags:
+                    metadata = tifffile.xml2dict(tags.pop('FEI_TITAN'))
+                    if 'FeiImage' in metadata:
+                        metadata = metadata['FeiImage']
+                        pixel_info = metadata.get('pixelWidth')
+                        if pixel_info:
+                            pixel_size.append((pixel_info['value'], pixel_info['unit']))
+                        pixel_info = metadata.get('pixelHeight')
+                        if pixel_info:
+                            pixel_size.append((pixel_info['value'], pixel_info['unit']))
+                        position = metadata.get('samplePosition')
+                        if position:
+                            position = [(position['x'], 'm'), (position['y'], 'm')]
+                        rotation = metadata.get('acquisition', {}).get('frame', {}).get('rotation')
+                if not pixel_size:
+                    units = tags.get('ResolutionUnit')
+                    if units is not None:
+                        units = units.name
+                        xres = convert_rational_value(tags.get('XResolution'))
+                        yres = convert_rational_value(tags.get('YResolution'))
+                        if units.lower() not in ['', 'none', 'inch']:
+                            if xres is not None and xres != 0:
+                                pixel_size.append((1 / xres, units))
+                            if yres is not None and yres != 0:
+                                pixel_size.append((1 / yres, units))
     else:
         properties = imageio.v3.improps(path)
         size = properties.shape[1], properties.shape[0]
@@ -155,6 +171,8 @@ def imread_metadata(path):
     if len(position) > 0:
         position_um = convert_units_micrometer(position)
         all_metadata['position'] = position_um
+    if rotation is not None:
+        all_metadata['rotation'] = rotation
     if len(channels) > 0:
         all_metadata['channels'] = channels
     return all_metadata

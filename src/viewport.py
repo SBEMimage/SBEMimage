@@ -35,8 +35,8 @@ import constants
 import utils
 from image_io import imread
 from viewport_dlg_windows import StubOVDlg, FocusGradientTileSelectionDlg, \
-                                 GridRotationDlg, TemplateRotationDlg, ImportImageDlg, \
-                                 AdjustImageDlg, DeleteImageDlg
+    GridRotationDlg, TemplateRotationDlg, ImportImageDlg, \
+    SelectImageDlg, AdjustImageDlg
 from main_controls_dlg_windows import MotorStatusDlg
 
 
@@ -62,9 +62,9 @@ class Viewport(QWidget):
 
         # Set Viewport zoom parameters depending on which stage is used for XY
         if self.stage.use_microtome_xy:
-            self.VP_ZOOM = constants.VP_ZOOM_MICROTOME_STAGE
+            self.VP_SCALING = constants.VP_SCALING_MICROTOME_STAGE
         else:
-            self.VP_ZOOM = constants.VP_ZOOM_SEM_STAGE
+            self.VP_SCALING = constants.VP_SCALING_SEM_STAGE
         # Set limits for viewport panning.
         self.VC_MIN_X, self.VC_MAX_X, self.VC_MIN_Y, self.VC_MAX_Y = (
             self.vp_dx_dy_range())
@@ -507,7 +507,7 @@ class Viewport(QWidget):
             and (self.tabWidget.currentIndex() == 2)
             and mouse_pos_within_plot_area
             and self.m_tab_populated):
-            self.m_selected_plot_slice = utils.fit_in_range(
+            self.m_selected_plot_slice = np.clip(
                 int((px - 445)/3), 0, 164)
             self.m_draw_plots()
             if self.m_selected_slice_number is not None:
@@ -1778,8 +1778,8 @@ class Viewport(QWidget):
 
         if show_debris_area:
             # w3, w4 are fudge factors for clearer display
-            w3 = utils.fit_in_range(self.cs.vp_scale/2, 1, 3)
-            w4 = utils.fit_in_range(self.cs.vp_scale, 5, 9)
+            w3 = np.clip(self.cs.vp_scale/2, 1, 3)
+            w4 = np.clip(self.cs.vp_scale, 5, 9)
 
             area = self.ovm[ov_index].debris_detection_area
             if area:
@@ -1913,9 +1913,9 @@ class Viewport(QWidget):
         tile_height_v = self.gm[grid_index].tile_height_d() * self.cs.vp_scale
 
         font_size1 = int(tile_width_v/5)
-        font_size1 = utils.fit_in_range(font_size1, 2, 120)
+        font_size1 = np.clip(font_size1, 2, 120)
         font_size2 = int(tile_width_v/11)
-        font_size2 = utils.fit_in_range(font_size2, 1, 40)
+        font_size2 = np.clip(font_size2, 1, 40)
 
         if (show_previews
                 and not self.fov_drag_active
@@ -2277,7 +2277,7 @@ class Viewport(QWidget):
         viewport scaling."""
         self.horizontalSlider_VP.blockSignals(True)
         self.horizontalSlider_VP.setValue(
-            int(log(self.cs.vp_scale / self.VP_ZOOM[0], self.VP_ZOOM[1])))
+            int(log(self.cs.vp_scale / self.VP_SCALING[0], self.VP_SCALING[1])))
         self.horizontalSlider_VP.blockSignals(False)
 
     def _vp_adjust_scale_from_slider(self):
@@ -2292,8 +2292,8 @@ class Viewport(QWidget):
             utils.run_log_thread(self._vp_draw_zoom_delay)
         # Recalculate scaling factor.
         self.cs.vp_scale = (
-            self.VP_ZOOM[0]
-            * (self.VP_ZOOM[1])**self.horizontalSlider_VP.value())
+                self.VP_SCALING[0]
+                * (self.VP_SCALING[1]) ** self.horizontalSlider_VP.value())
         # Redraw viewport with labels and previews suppressed.
         self.vp_draw(suppress_labels=True, suppress_previews=True)
 
@@ -2307,10 +2307,10 @@ class Viewport(QWidget):
             utils.run_log_thread(self._vp_draw_zoom_delay)
         # Recalculate scaling factor.
         old_vp_scale = self.cs.vp_scale
-        self.cs.vp_scale = utils.fit_in_range(
+        self.cs.vp_scale = np.clip(
             factor * old_vp_scale,
-            self.VP_ZOOM[0],
-            self.VP_ZOOM[0] * (self.VP_ZOOM[1])**99)  # 99 is max slider value
+            self.VP_SCALING[0],
+            self.VP_SCALING[0] * (self.VP_SCALING[1]) ** 99)  # 99 is max slider value
         self.vp_adjust_zoom_slider()
         # Recentre, so that mouse position is preserved.
         current_centre_dx, current_centre_dy = self.cs.vp_centre_dx_dy
@@ -2319,9 +2319,9 @@ class Viewport(QWidget):
         scale_diff = 1 / self.cs.vp_scale - 1 / old_vp_scale
         new_centre_dx = current_centre_dx - x_shift * scale_diff
         new_centre_dy = current_centre_dy - y_shift * scale_diff
-        new_centre_dx = utils.fit_in_range(
+        new_centre_dx = np.clip(
             new_centre_dx, self.VC_MIN_X, self.VC_MAX_X)
-        new_centre_dy = utils.fit_in_range(
+        new_centre_dy = np.clip(
             new_centre_dy, self.VC_MIN_Y, self.VC_MAX_Y)
         # Set new vp_centre coordinates.
         self.cs.vp_centre_dx_dy = [new_centre_dx, new_centre_dy]
@@ -2340,9 +2340,9 @@ class Viewport(QWidget):
         current_centre_dx, current_centre_dy = self.cs.vp_centre_dx_dy
         new_centre_dx = current_centre_dx + dx / self.cs.vp_scale
         new_centre_dy = current_centre_dy + dy / self.cs.vp_scale
-        new_centre_dx = utils.fit_in_range(
+        new_centre_dx = np.clip(
             new_centre_dx, self.VC_MIN_X, self.VC_MAX_X)
-        new_centre_dy = utils.fit_in_range(
+        new_centre_dy = np.clip(
             new_centre_dy, self.VC_MIN_Y, self.VC_MAX_Y)
         self.cs.vp_centre_dx_dy = [new_centre_dx, new_centre_dy]
         self.vp_draw()
@@ -2931,14 +2931,28 @@ class Viewport(QWidget):
             self.vp_draw()
 
     def _vp_open_adjust_image_dlg(self):
-        dialog = AdjustImageDlg(self.imported, self.selected_imported,
-                                self.sem.magc_mode, self.viewport_trigger)
-        dialog.exec()
+        def adjust_image(selected_image):
+            self.selected_imported = selected_image
+            dialog = AdjustImageDlg(self.imported, self.selected_imported,
+                                    self.sem.magc_mode, self.viewport_trigger)
+            dialog.exec()
+
+        if len(self.imported) > 1:
+            dialog = SelectImageDlg(self.imported, adjust_image)
+            dialog.exec()
+        elif len(self.imported) > 0:
+            adjust_image(0)
 
     def _vp_open_delete_image_dlg(self):
-        dialog = DeleteImageDlg(self.imported)
-        if dialog.exec():
+        def delete_image(selected_image):
+            self.imported.delete_image(selected_image)
             self.vp_draw()
+
+        if len(self.imported) > 1:
+            dialog = SelectImageDlg(self.imported, delete_image)
+            dialog.exec()
+        elif len(self.imported) > 0:
+            delete_image(0)
 
     def vp_show_new_stub_overview(self):
         self.checkBox_showStubOV.setChecked(True)
@@ -3191,12 +3205,12 @@ class Viewport(QWidget):
         # This depends on whether OV or a tile is displayed.
         if self.sv_current_ov >= 0:
             self.cs.sv_scale_ov = (
-                constants.SV_ZOOM_OV[0]
-                * constants.SV_ZOOM_OV[1] ** self.horizontalSlider_SV.value())
+                    constants.SV_SCALING_OV[0]
+                    * constants.SV_SCALING_OV[1] ** self.horizontalSlider_SV.value())
         else:
             self.cs.sv_scale_tile = (
-                constants.SV_ZOOM_TILE[0]
-                * constants.SV_ZOOM_TILE[1] ** self.horizontalSlider_SV.value())
+                    constants.SV_SCALING_TILE[0]
+                    * constants.SV_SCALING_TILE[1] ** self.horizontalSlider_SV.value())
         self.sv_disable_saturated_pixels()
         self.sv_draw()
 
@@ -3204,12 +3218,12 @@ class Viewport(QWidget):
         self.horizontalSlider_SV.blockSignals(True)
         if self.sv_current_ov >= 0:
             self.horizontalSlider_SV.setValue(
-                int(log(self.cs.sv_scale_ov / constants.SV_ZOOM_OV[0],
-                        constants.SV_ZOOM_OV[1])))
+                int(log(self.cs.sv_scale_ov / constants.SV_SCALING_OV[0],
+                        constants.SV_SCALING_OV[1])))
         else:
             self.horizontalSlider_SV.setValue(
-                int(log(self.cs.sv_scale_tile / constants.SV_ZOOM_TILE[0],
-                        constants.SV_ZOOM_TILE[1])))
+                int(log(self.cs.sv_scale_tile / constants.SV_SCALING_TILE[0],
+                        constants.SV_SCALING_TILE[1])))
         self.horizontalSlider_SV.blockSignals(False)
 
     def _sv_mouse_zoom(self, px, py, factor):
@@ -3219,10 +3233,10 @@ class Viewport(QWidget):
             old_sv_scale_ov = self.cs.sv_scale_ov
             current_vx, current_vy = self.cs.sv_ov_vx_vy
             # Recalculate scaling factor.
-            self.cs.sv_scale_ov = utils.fit_in_range(
+            self.cs.sv_scale_ov = np.clip(
                 factor * old_sv_scale_ov,
-                constants.SV_ZOOM_OV[0],
-                constants.SV_ZOOM_OV[0] * constants.SV_ZOOM_OV[1] ** 99)
+                constants.SV_SCALING_OV[0],
+                constants.SV_SCALING_OV[0] * constants.SV_SCALING_OV[1] ** 99)
                 # 99 is max slider value
             ratio = self.cs.sv_scale_ov / old_sv_scale_ov
             # Preserve mouse click position.
@@ -3232,10 +3246,10 @@ class Viewport(QWidget):
         elif self.sv_current_tile >= 0:
             old_sv_scale_tile = self.cs.sv_scale_tile
             current_vx, current_vy = self.cs.sv_tile_vx_vy
-            self.cs.sv_scale_tile = utils.fit_in_range(
+            self.cs.sv_scale_tile = np.clip(
                 factor * old_sv_scale_tile,
-                constants.SV_ZOOM_TILE[0],
-                constants.SV_ZOOM_TILE[0] * constants.SV_ZOOM_TILE[1] ** 99)
+                constants.SV_SCALING_TILE[0],
+                constants.SV_SCALING_TILE[0] * constants.SV_SCALING_TILE[1] ** 99)
             ratio = self.cs.sv_scale_tile / old_sv_scale_tile
             # Preserve mouse click position.
             new_vx = int(ratio * current_vx - (ratio - 1) * px)
@@ -3568,7 +3582,7 @@ class Viewport(QWidget):
     def sv_reset_view(self):
         """Zoom out completely and centre current image."""
         if self.sv_current_ov >= 0:
-            self.cs.sv_scale_ov = constants.SV_ZOOM_OV[0]
+            self.cs.sv_scale_ov = constants.SV_SCALING_OV[0]
             width, height = self.ovm[self.sv_current_ov].frame_size
             viewport_pixel_size = 1000 / self.cs.sv_scale_ov
             ov_pixel_size = self.ovm[self.sv_current_ov].pixel_size
@@ -3576,7 +3590,7 @@ class Viewport(QWidget):
             new_vx = int(self.cs.vp_width // 2 - (width // 2) * resize_ratio)
             new_vy = int(self.cs.vp_height // 2 - (height // 2) * resize_ratio)
         elif self.sv_current_tile >= 0:
-            self.cs.sv_scale_tile = constants.SV_ZOOM_TILE[0]
+            self.cs.sv_scale_tile = constants.SV_SCALING_TILE[0]
             width, height = self.gm[self.sv_current_grid].frame_size
             viewport_pixel_size = 1000 / self.cs.sv_scale_tile
             tile_pixel_size = self.gm[self.sv_current_grid].pixel_size
@@ -4015,9 +4029,9 @@ class Viewport(QWidget):
             for entry in mean_list:
                 if previous_entry > -1:
                     d1 = (previous_entry - mean_avg) * mean_scaling
-                    d1 = utils.fit_in_range(d1, -60, 60)
+                    d1 = np.clip(d1, -60, 60)
                     d2 = (entry - mean_avg) * mean_scaling
-                    d2 = utils.fit_in_range(d2, -60, 60)
+                    d2 = np.clip(d2, -60, 60)
                     self.m_qp.drawLine(x_pos, mean_y_offset - d1,
                                        x_pos + x_delta, mean_y_offset - d2)
                     x_pos += x_delta
@@ -4031,9 +4045,9 @@ class Viewport(QWidget):
             for entry in stddev_list:
                 if previous_entry > -1:
                     d1 = (previous_entry - stddev_avg) * stddev_scaling
-                    d1 = utils.fit_in_range(d1, -60, 60)
+                    d1 = np.clip(d1, -60, 60)
                     d2 = (entry - stddev_avg) * stddev_scaling
-                    d2 = utils.fit_in_range(d2, -60, 60)
+                    d2 = np.clip(d2, -60, 60)
                     self.m_qp.drawLine(x_pos, stddev_y_offset - d1,
                                        x_pos + x_delta, stddev_y_offset - d2)
                     x_pos += x_delta
@@ -4045,9 +4059,9 @@ class Viewport(QWidget):
             x_pos = 4
             for i in range(1, N-1):
                 d1 = mean_diff_list[i-1] * mean_diff_scaling
-                d1 = utils.fit_in_range(d1, -60, 60)
+                d1 = np.clip(d1, -60, 60)
                 d2 = mean_diff_list[i] * mean_diff_scaling
-                d2 = utils.fit_in_range(d2, -60, 60)
+                d2 = np.clip(d2, -60, 60)
                 self.m_qp.drawLine(x_pos, mean_diff_y_offset - d1,
                                    x_pos + x_delta, mean_diff_y_offset - d2)
                 x_pos += x_delta
@@ -4058,9 +4072,9 @@ class Viewport(QWidget):
             x_pos = 4
             for i in range(1, N-1):
                 d1 = stddev_diff_list[i-1] * stddev_diff_scaling
-                d1 = utils.fit_in_range(d1, -60, 60)
+                d1 = np.clip(d1, -60, 60)
                 d2 = stddev_diff_list[i] * stddev_diff_scaling
-                d2 = utils.fit_in_range(d2, -60, 60)
+                d2 = np.clip(d2, -60, 60)
                 self.m_qp.drawLine(x_pos, stddev_diff_y_offset - d1,
                                    x_pos + x_delta, stddev_diff_y_offset - d2)
                 x_pos += x_delta

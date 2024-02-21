@@ -37,14 +37,29 @@ VP_MARGIN_Y = 40
 VP_WINDOW_DIFF_X = 50
 VP_WINDOW_DIFF_Y = 150
 
-# Zoom parameters to convert between the scale factors and the position
+# Scaling parameters to convert between the scale factors and the position
 # of the zoom sliders in the Viewport (VP) and the Slice-by-Slice viewer
-# (SV). Zoom settings for tiles and for OVs are stored separately because
+# (SV). Settings for tiles and for OVs are stored separately because
 # tiles and OVs usually differ in pixel size by an order of magnitude.
-VP_ZOOM_MICROTOME_STAGE = (0.2, 1.05)
-VP_ZOOM_SEM_STAGE = (0.0055, 1.085)
-SV_ZOOM_OV = (0.1, 1.055)
-SV_ZOOM_TILE = (0.5, 1.065)
+
+
+def fov_to_slider_scaling(fov, max_scale=99):
+    scale_min, scale_max = 1000 / fov[1], 1000 / fov[0]
+    slider_factor = scale_min
+    slider_power = (scale_max / scale_min) ** (1 / max_scale)
+    return slider_factor, slider_power
+
+
+VP_FOV_RANGE_MICROTOME_STAGE = (40, 5000)
+VP_FOV_RANGE_SEM_STAGE = (50, 200000)
+SV_FOV_RANGE_OV = (50, 1000)
+SV_FOV_RANGE_TILE = (4, 200)
+
+VP_SCALING_MICROTOME_STAGE = fov_to_slider_scaling(VP_FOV_RANGE_MICROTOME_STAGE)
+VP_SCALING_SEM_STAGE = fov_to_slider_scaling(VP_FOV_RANGE_SEM_STAGE)
+SV_SCALING_OV = fov_to_slider_scaling(SV_FOV_RANGE_OV)
+SV_SCALING_TILE = fov_to_slider_scaling(SV_FOV_RANGE_TILE)
+
 
 # Number of digits used to format image file names.
 OV_DIGITS = 3         # up to 999 overview images

@@ -223,15 +223,6 @@ def create_subdirectories(base_dir, dir_list):
         return False, str(e)
 
 
-def fit_in_range(value, min_value, max_value):
-    """Make the given value fit into the range min_value..max_value"""
-    if value < min_value:
-        value = min_value
-    elif value > max_value:
-        value = max_value
-    return value
-
-
 # TODO (BT): Remove format_log_entry, run through standard logging instead
 def format_log_entry(msg):
     """Add timestamp and align msg for logging purposes"""
