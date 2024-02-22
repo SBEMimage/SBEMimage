@@ -290,11 +290,11 @@ class SEM_Phenom(SEM):
                 self.move_stage_to_xy((self.last_known_x, self.last_known_y))
                 self.set_pixel_size(self.pixel_size)
 
-            if save_path_filename.lower().endswith('.bmp'):
-                conversion = ppi.SaveConversion.ToCompatibleFormat
-                scan_params.hdr = False     # bmp does not support 16-bit images
-            else:
-                conversion = ppi.SaveConversion.NoConversion
+            #if save_path_filename.lower().endswith('.bmp'):
+            #    conversion = ppi.SaveConversion.ToCompatibleFormat
+            #    scan_params.hdr = False     # bmp does not support 16-bit images
+            #else:
+            #    conversion = ppi.SaveConversion.NoConversion
 
             self.sem_api.SemUnblankBeam()
 
@@ -302,14 +302,9 @@ class SEM_Phenom(SEM):
                 sleep(extra_delay)
 
             acq = self.sem_api.SemAcquireImageEx(scan_params)
-            acq_metadata = acq.metadata
-            metadata = {
-                'pixel_size': [acq_metadata.pixelSize.width * 1e6, acq_metadata.pixelSize.height * 1e6],
-                'position': [acq_metadata.position.x * 1e6, acq_metadata.position.y * 1e6]
-            }
             # ppi.Save(acq, save_path_filename, conversion)   # saves metadata inside tiff image (in FeiImage tiff tag)
-            data = np.asarray(acq.image)
-            imwrite(save_path_filename, data, metadata=metadata)
+            image = np.asarray(acq.image)
+            imwrite(save_path_filename, image, metadata=self.get_grab_metadata())
             return True
         except Exception as e:
             self.error_state = Error.grab_image

@@ -238,6 +238,17 @@ class SEM:
         self.syscfg['stage']['sem_maintenance_move_interval'] = str(int(
             self.maintenance_move_interval))
 
+    def get_grab_metadata(self):
+        # TODO: add (scan) rotation
+        position = [self.last_known_x, self.last_known_y]
+        if self.last_known_z is not None:
+            position += [self.last_known_z]
+        metadata = {
+            'pixel_size': [self.grab_pixel_size, self.grab_pixel_size],
+            'position': position
+        }
+        return metadata
+
     def has_lm_mode(self):
         """Return True if supports LM mode."""
         return False

@@ -518,12 +518,8 @@ class SEM_SmartSEM(SEM):
         ret_val = self.sem_api.Grab(0, 0, 1024, 768, 0, grab_filename)
         if ret_val == 0:
             if rewrite_file:
-                metadata = {
-                    'pixel_size': [self.grab_pixel_size, self.grab_pixel_size],
-                    'position': list(self.get_stage_xyz())
-                }
                 image = imread(grab_filename)
-                imwrite(save_path_filename, image, metadata=metadata)
+                imwrite(save_path_filename, image, metadata=self.get_grab_metadata())
                 os.remove(grab_filename)
             return True
         else:
