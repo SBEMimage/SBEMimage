@@ -1330,38 +1330,18 @@ class GridManager:
         nrois = array_data.get_nrois()
         self.delete_all_grids_above_index(nrois - 1)
 
-        sections = array_data.sections
-        if not isinstance(sections, dict):
-            sections = {index: section for index, section in enumerate(sections)}
-
         grid_index = 0
-        for section_index, section0 in sections.items():
-            rois = section0.get('rois', [])
-            if len(rois) > 0:
-                sections2 = rois
-            else:
-                sections2 = {0: section0['sample']}
-
-            for roi_index, section in sections2.items():
-                center_um0, size, angle0 = utils.calc_rotated_rect(section['polygon'])
-                center = section['center']
-                rotation = -section['angle'] % 360
+        for section_index, rois in self.array_data.get_rois().items():
+            for roi_index, roi in rois.items():
+                center_um0, size, angle0 = utils.calc_rotated_rect(roi['polygon'])
+                center = roi['center']
+                rotation = -roi['angle'] % 360
                 self.add_new_grid_from_roi(section_index, roi_index, grid_index, center, size, rotation)
 
-                # load autofocus points
-                if 'focus' in section and roi_index == 0:
-                    # only add to first ROI
-                    grid_index = self.number_grids - 1
-                    for point in section['focus'].values():
-                        self.array_add_autofocus_point(
-                            grid_index,
-                            point['location'])
-
-                # self.gm[key].magc_polyroi_points_source = [
-                    # (-10, 0),
-                    # ( 10, 0),
-                    # ( 10, 20),
-                    # (-10, 20)]
+                for point in self.array_data.get_focus_points_in_roi(section_index, roi):
+                    self.array_add_autofocus_point(
+                        grid_index,
+                        point['location'])
 
                 grid_index += 1
 

@@ -511,6 +511,7 @@ class ImportImageDlg(QDialog):
 
     def accept(self):
         selection_success = True
+        pixel_size = self.doubleSpinBox_pixelSize.value()
         selected_path = os.path.normpath(
             self.lineEdit_fileName.text())
         selected_filename = os.path.basename(selected_path)
@@ -530,13 +531,18 @@ class ImportImageDlg(QDialog):
             try:
                 metadata = imread_metadata(selected_path)
                 size = metadata['size'][0] * metadata['size'][1]
-                if size > 10*1e6:
+                if size > 10 * 1e6:
                     # if image dimension > 10MP scale down
                     target_pixel_size_um = [1, 1]
                     metadata['pixel_size'] = target_pixel_size_um
                 else:
                     target_pixel_size_um = None
                 image = imread(selected_path, target_pixel_size_um=target_pixel_size_um)
+                new_source_pixel_size = metadata.get('pixel_size')
+                if new_source_pixel_size:
+                    pixel_size = new_source_pixel_size[0] * 1e3         # um -> nm
+                else:
+                    metadata['pixel_size'] = [pixel_size * 1e-3] * 2    # nm -> um
                 imwrite(target_path, image, metadata=metadata)
             except Exception as e:
                 QMessageBox.warning(
@@ -546,7 +552,6 @@ class ImportImageDlg(QDialog):
                 selection_success = False
 
             if selection_success:
-                pixel_size = self.doubleSpinBox_pixelSize.value()
                 centre_sx_sy = [self.doubleSpinBox_posX.value(), self.doubleSpinBox_posY.value()]
                 rotation = self.spinBox_rotation.value()
                 transparency = self.spinBox_transparency.value()

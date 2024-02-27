@@ -282,6 +282,25 @@ class ArrayData:
             nrois = max(len(section.get('rois', [])), nrois)
         return nrois
 
+    def get_rois(self):
+        rois = {}
+        for section_index, section in self.sections.items():
+            if section:
+                rois0 = section.get('rois', [])
+                if len(rois0) > 0:
+                    rois1 = rois0
+                else:
+                    rois1 = {0: section['sample']}
+                rois[section_index] = rois1
+        return rois
+
+    def get_focus_points_in_roi(self, section_index, roi):
+        focus_points = []
+        for focus_point in self.sections[section_index].get('focus', []).values():
+            if is_point_inside_polygon(focus_point['location'], roi['polygon']):
+                focus_points.append(focus_point)
+        return focus_points
+
     def get_landmarks(self, device_name):
         landmarks = {index: landmark['source']['location'] for index, landmark in self.landmarks.items()}
         if self.calibrated:
