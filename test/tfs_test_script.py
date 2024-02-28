@@ -37,7 +37,17 @@ def lm_test(api, saveFolderFinal):
         api.Load()
     if mode != OperationalMode.LiveNavCam:
         api.MoveToNavCam()
-    
+
+    api.MoveTo(0, 0)
+    pixel_size = 2500 * 1e-9    # nm -> m
+    width = 912
+    hfw = width * pixel_size
+    print('HFW set:', hfw)
+    api.SetHFW(hfw)
+
+    hfw = api.GetHFW()
+    print('HFW get:', hfw)
+
     print_info(api)
 
     acqCamParams = ppi.CamParams()  # use default size
@@ -46,8 +56,8 @@ def lm_test(api, saveFolderFinal):
     print("starting LM imaging")
 
     acq = api.NavCamAcquireImage(acqCamParams)
-    ppi.Save(acq, os.path.join(saveFolderFinal, "image_navcam.tiff"))
     print("metadata:", acq.metadata)
+    ppi.Save(acq, os.path.join(saveFolderFinal, "image_navcam.tiff"))
 
     print("finished LM imaging")
 
@@ -90,8 +100,8 @@ def em_test(api, saveFolderFinal):
             api.MoveTo(xPos, yPos)
 
             acq = api.SemAcquireImageEx(scanParams)
-            ppi.Save(acq, os.path.join(saveFolderFinal, "image_x_" + str(x) + "_y_" + str(y) + ".tiff"))
             print("metadata:", acq.metadata)
+            ppi.Save(acq, os.path.join(saveFolderFinal, "image_x_" + str(x) + "_y_" + str(y) + ".tiff"))
             #acq.image = acq.image.__invert__()
             #ppi.Save(acq, os.path.join(saveFolderFinal, "image_x_" + str(x) + "_y_" + str(y) + "inv.tiff"))
 

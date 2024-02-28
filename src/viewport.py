@@ -3002,7 +3002,7 @@ class Viewport(QWidget):
             ' have been propagated to the selected sections')
 
     def array_vp_propagate_grid_to_all_sections(self):
-        # TODO
+        # TODO: find all grids matching current ROI!
         clicked_section_number = self.selected_grid
 
         if self.gm.array_data.path:

@@ -302,6 +302,8 @@ class ArrayData:
         return focus_points
 
     def get_landmarks(self, device_name):
+        # TODO: check if this flipping actually depends on reversal of the stage axis
+        #       as defined in stage_sem_calibration_params in the config
         landmarks = {index: landmark['source']['location'] for index, landmark in self.landmarks.items()}
         if self.calibrated:
             transformed_landmarks = apply_affine_t(
