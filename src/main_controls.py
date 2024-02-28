@@ -977,8 +977,8 @@ class MainControls(QMainWindow):
             self.array_open_import_dlg)
 
         # initialize the section_table (QTableView)
-        model = QStandardItemModel(0, 0)
-        self.tableView_array_sections.setModel(model)
+        array_table_model = QStandardItemModel(0, 0)
+        self.tableView_array_sections.setModel(array_table_model)
         (self.tableView_array_sections.selectionModel()
          .selectionChanged
          .connect(self.array_actions_selected_sections_changed))
@@ -1186,9 +1186,23 @@ class MainControls(QMainWindow):
             roi_index = column_index
         return section_index, roi_index
 
+    def get_selection_from_section_index(self, section_index, roi_index):
+        array_table_model = self.tableView_array_sections.model()
+        selection_model = self.tableView_array_sections.selectionModel().model()
+        hor_headers = [array_table_model.horizontalHeaderItem(i).text() for i in range(array_table_model.columnCount())]
+        ver_headers = [array_table_model.verticalHeaderItem(i).text() for i in range(array_table_model.rowCount())]
+        column_index = hor_headers.index(str(roi_index))
+        row_index = ver_headers.index(str(section_index))
+        return selection_model.index(row_index, column_index)
+
     def find_grid_from_selection(self, selection):
         section_index, roi_index = self.find_indices_from_selection(selection)
         return self.gm.find_roi_grid(section_index, roi_index)
+
+    def find_table_index_from_grid(self, grid_index):
+        grid = self.gm[grid_index]
+        section_index, roi_index = grid.section_index, grid.roi_index
+        return self.get_selection_from_section_index(section_index, roi_index)
 
     def array_select_all(self):
         self.tableView_array_sections.selectAll()
@@ -1198,58 +1212,54 @@ class MainControls(QMainWindow):
 
     def array_check_selected(self):
         selected_rows = [
-            id.row() for id
-                in self.tableView_array_sections
-                    .selectedIndexes()]
+            index.row() for index
+            in self.tableView_array_sections.selectedIndexes()]
         self.array_set_check_rows(selected_rows, Qt.Checked)
         self.array_update_checked_sections_to_config()
 
     def array_uncheck_selected(self):
         selected_rows = [
-            id.row() for id
-                in self.tableView_array_sections
-                    .selectedIndexes()]
+            index.row() for index
+            in self.tableView_array_sections.selectedIndexes()]
         self.array_set_check_rows(selected_rows, Qt.Unchecked)
         self.array_update_checked_sections_to_config()
 
     def array_invert_selection(self):
         selected_rows = [
-            id.row() for id
-                in self.tableView_array_sections
-                    .selectedIndexes()]
-        model = self.tableView_array_sections.model()
-        rows_to_select = set(range(model.rowCount())) - set(selected_rows)
+            index.row() for index
+            in self.tableView_array_sections.selectedIndexes()]
+        array_table_model = self.tableView_array_sections.model()
+        rows_to_select = set(range(array_table_model.rowCount())) - set(selected_rows)
         self.array_select_rows(rows_to_select)
 
-    def array_toggle_selection(self, section_numbers):
+    def array_toggle_selection(self, indices):
         # ctrl+click in viewport: select or deselect clicked
         # section without changing existing selected sections
         selected_rows = [
-            id.row() for id
-                in self.tableView_array_sections
-                    .selectedIndexes()]
+            selection.row() for selection
+            in self.tableView_array_sections.selectedIndexes()]
         rows_to_select = set(selected_rows)
 
         # input is a single int or a list of int
-        if isinstance(section_numbers, int):
-            section_numbers = [section_numbers]
+        if isinstance(indices, int):
+            indices = [indices]
 
-        for section_number in section_numbers:
-            if section_number in selected_rows:
-                rows_to_select.remove(section_number)
+        for index in indices:
+            if index in selected_rows:
+                rows_to_select.remove(index)
             else:
-                rows_to_select.add(section_number)
+                rows_to_select.add(index)
 
         rows_to_select = list(rows_to_select)
         self.array_select_rows(rows_to_select)
 
     def array_select_checked(self):
-        model = self.tableView_array_sections.model()
+        array_table_model = self.tableView_array_sections.model()
         checked_rows = []
-        for r in range(model.rowCount()):
-            item = model.item(r, 0)
+        for row in range(array_table_model.rowCount()):
+            item = array_table_model.item(row, 0)
             if item.checkState() == Qt.Checked:
-                checked_rows.append(r)
+                checked_rows.append(row)
         self.array_select_rows(checked_rows)
 
     def array_select_string_sections(self):
@@ -1269,23 +1279,26 @@ class MainControls(QMainWindow):
                 'Something wrong in the input. Use 2,5,3 or 2-30 or 2-30-5')
 
     def array_set_check_rows(self, rows, check_state):
-        model = self.tableView_array_sections.model()
-        model.blockSignals(True) # prevent slowness
+        array_table_model = self.tableView_array_sections.model()
+        array_table_model.blockSignals(True) # prevent slowness
         for row in rows:
-            item = model.item(row, 0)
+            item = array_table_model.item(row, 0)
             if item is not None:
                 item.setCheckState(check_state)
-        model.blockSignals(False)
+        array_table_model.blockSignals(False)
         self.tableView_array_sections.setFocus()
 
     def array_select_rows(self, rows):
         table_view = self.tableView_array_sections
         table_view.clearSelection()
         selection_model = table_view.selectionModel()
-        model = table_view.model()
+        array_table_model = table_view.model()
         selection = QItemSelection()
         for row in rows:
-            index = model.index(row, 0)
+            if isinstance(row, int):
+                index = array_table_model.index(row, 0)
+            else:
+                index = row
             if index.isValid():
                 selection.merge(
                     QItemSelection(index, index),
@@ -1307,15 +1320,15 @@ class MainControls(QMainWindow):
         self.viewport.vp_draw()
         indexes = self.tableView_array_sections.selectedIndexes()
         self.gm.array_data.selected_sections = [
-            id.row() for id in indexes]
+            index.row() for index in indexes]
 
     def array_update_checked_sections_to_config(self):
         checked_sections = []
-        model = self.tableView_array_sections.model()
-        for r in range(model.rowCount()):
-            item = model.item(r, 0)
+        array_table_model = self.tableView_array_sections.model()
+        for row in range(array_table_model.rowCount()):
+            item = array_table_model.item(row, 0)
             if item.checkState() == Qt.Checked:
-                checked_sections.append(r)
+                checked_sections.append(row)
         self.gm.array_data.checked_sections = checked_sections
 
     def array_clicked_section(self, selection):
@@ -1351,48 +1364,46 @@ class MainControls(QMainWindow):
                 ' has been double-clicked. Wafer is not'
                 ' calibrated, therefore no stage movement.'))
 
-    def array_set_section_state_in_table(self, msg):
-        model = self.tableView_array_sections.model()
-        # number can be a single int or a list 1,2,3
-        if ',' in msg:
-            section_number = [
-                int(x)
-                for x in msg.split('-')[-2].split(',')]
-            index = model.index(section_number[0], 1)
+    def array_set_section_state_in_table(self, action, grid_indices):
+        array_table_model = self.tableView_array_sections.model()
+        # grid_index can be a single int or a list 1,2,3
+        if not isinstance(grid_indices, int):
+            table_indices = [self.find_table_index_from_grid(grid_index)
+                             for grid_index in grid_indices]
+            table_index0 = table_indices[0]
         else:
-            section_number = int(msg.split('-')[-2])
-            index = model.index(section_number, 1)
+            table_indices = [self.find_table_index_from_grid(grid_indices)]
+            table_index0 = table_indices
 
-        state = msg.split('-')[-1]
-        if 'acquir' in state:
-            if state == 'acquiring':
+        if 'acquir' in action:
+            if action == 'acquiring':
                 state_color = QColor(Qt.yellow)
-            elif state == 'acquired':
+            elif action == 'acquired':
                 state_color = QColor(Qt.green)
             else:
                 state_color = QColor(Qt.lightGray)
-            item = model.item(section_number, 1)
+            item = array_table_model.item(table_index0, 1)
             item.setBackground(state_color)
             self.tableView_array_sections.scrollTo(
-                index,
+                table_index0,
                 QAbstractItemView.PositionAtCenter)
-        if state == 'select':
-            self.array_select_rows([section_number])
+        if action == 'select':
+            self.array_select_rows(table_indices)
             self.tableView_array_sections.scrollTo(
-                index,
+                table_index0,
                 QAbstractItemView.PositionAtCenter)
-        if state == 'toggle':
-            self.array_toggle_selection(section_number)
-            if section_number in self.gm.array_data.selected_sections:
+        if action == 'toggle':
+            self.array_toggle_selection(table_indices)
+            if table_index0 in self.gm.array_data.selected_sections:
                 self.tableView_array_sections.scrollTo(
-                    index,
+                    table_index0,
                     QAbstractItemView.PositionAtCenter)
-        if state == 'deselectall':
+        if action == 'deselectall':
             self.array_deselect_all()
 
     def array_reset(self):
-        model = self.tableView_array_sections.model()
-        model.clear()
+        array_table_model = self.tableView_array_sections.model()
+        array_table_model.clear()
         self.array_trigger_wafer_uncalibrated()
         self.array_trigger_wafer_uncalibratable()
         self.gm.array_reset()
@@ -1460,15 +1471,15 @@ class MainControls(QMainWindow):
         item2.setBackground(QColor(Qt.lightGray))
         item2.setCheckable(False)
         item2.setSelectable(False)
-        model = self.tableView_array_sections.model()
-        model.appendRow([item1, item2])
+        array_table_model = self.tableView_array_sections.model()
+        array_table_model.appendRow([item1, item2])
 
     def array_delete_last_section(self):
         # remove section from list
-        model = self.tableView_array_sections.model()
-        lastSectionNumber = model.rowCount()-1
+        array_table_model = self.tableView_array_sections.model()
+        lastSectionNumber = array_table_model.rowCount()-1
         if lastSectionNumber > 1:
-            model.removeRow(lastSectionNumber)
+            array_table_model.removeRow(lastSectionNumber)
             # unselect and uncheck section
             if lastSectionNumber in self.gm.array_data.selected_sections:
                 self.gm.array_data.selected_sections.remove(lastSectionNumber)
@@ -1932,7 +1943,7 @@ class MainControls(QMainWindow):
         elif msg == 'ARRAY ENABLE IMAGE IMPORT':
             self.pushButton_array_importWaferImage.setEnabled(True)
         elif 'ARRAY SET SECTION STATE' in msg:
-            self.array_set_section_state_in_table(msg)
+            self.array_set_section_state_in_table(*args, **kwargs)
         elif 'ACTIVATE SHOW STAGE' in msg:
             self.viewport.show_stage_pos = True
             self.viewport.vp_activate_checkbox_show_stage_pos()

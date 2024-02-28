@@ -1977,7 +1977,7 @@ class Acquisition:
             self.cs.vp_centre_dx_dy = self.gm[grid_index].centre_dx_dy
             self.main_controls_trigger.transmit('DRAW VP')
             self.main_controls_trigger.transmit(
-                f'MAGC SET SECTION STATE GUI-{grid_index}-acquiring'
+                'ARRAY SET SECTION STATE', 'acquiring', grid_index
             )
 
             # # the acq parameters stay the same across grids in magc
@@ -2222,9 +2222,9 @@ class Acquisition:
                 self.cs.vp_centre_dx_dy = self.gm[grid_index].centre_dx_dy
                 self.main_controls_trigger.transmit('DRAW VP')
                 self.main_controls_trigger.transmit(
-                    'MAGC SET SECTION STATE GUI-'
-                    f'{grid_index}'
-                    '-acquired')
+                    'ARRAY SET SECTION STATE',
+                    'acquired',
+                    grid_index)
 
     def acquire_tile(self, grid_index, tile_index,
                      adjust_wd_stig=False, adjust_acq_settings=False):

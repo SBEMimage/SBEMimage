@@ -755,11 +755,9 @@ class Viewport(QWidget):
                                 contained_grid_indexes.append(grid_index)
                         if len(contained_grid_indexes)>0:
                             self.main_controls_trigger.transmit(
-                                'MAGC SET SECTION STATE-'
-                                + ','.join(
-                                    [str(x) for x in contained_grid_indexes])
-                                + '-toggle')
-
+                                'ARRAY SET SECTION STATE',
+                                'toggle',
+                                contained_grid_indexes)
                     else:
                         if self.selected_grid is None:
                             # ctrl+click in background: deselect all
@@ -773,15 +771,15 @@ class Viewport(QWidget):
                                     QMessageBox.Ok | QMessageBox.Cancel)
                                 if user_reply == QMessageBox.Ok:
                                     self.main_controls_trigger.transmit(
-                                        'MAGC SET SECTION STATE-99999-deselectall')
+                                        'ARRAY SET SECTION STATE', 'deselectall')
                             else:
                                 self.main_controls_trigger.transmit(
-                                    'MAGC SET SECTION STATE-99999-deselectall')
+                                    'ARRAY SET SECTION STATE', 'deselectall')
                         else:
                             self.main_controls_trigger.transmit(
-                                'MAGC SET SECTION STATE-'
-                                + str(self.selected_grid)
-                                + '-toggle')
+                                'ARRAY SET SECTION STATE',
+                                'toggle',
+                                self.selected_grid)
 
             if self.tile_paint_mode_active:
                 self.vp_update_after_active_tile_selection()
@@ -3023,12 +3021,6 @@ class Viewport(QWidget):
     def array_vp_revert_grid_to_file(self):
         clicked_section_number = self.selected_grid
 
-        # ROI has priority over section:
-        # if a ROI is defined:
-            # use the ROI
-        # else:
-            # use the section
-
         section = self.gm.array_data.sections[clicked_section_number]
         if len(section.get('rois', [])) > 0:
             source_location = section['rois'][0]['center']
@@ -3071,8 +3063,7 @@ class Viewport(QWidget):
         self.gm.array_write()
         self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS') # update statistics in GUI
 
-    # -------------------- End of MagC methods in Viewport ---------------------
-
+    # -------------------- End of Array methods in Viewport ---------------------
 
     # ================= Below: Slice-by-Slice Viewer (sv) methods ==================
 

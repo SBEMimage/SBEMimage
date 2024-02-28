@@ -1487,36 +1487,37 @@ class GridManager:
 
     def array_propagate_source_grid_to_target_grid(
         self,
-        source_grid_number,
-        target_grid_number,
+        source_gridi,
+        target_gridi,
     ):
+        source_grid = self.__grids[source_gridi]
+        target_grid = self.__grids[target_gridi]
+        roi_index = source_grid.roi_index
 
-        # TODO (TT): Test and refactor the following
-        s = source_grid_number
-        t = target_grid_number
-        if s == t:
+        if source_gridi == target_gridi or target_grid.roi_index != roi_index:
             return
 
-        sections = self.array_data.sections
-        source_section = sections[s]
-        target_section = sections[t]
+        source_section = self.array_data.sections[source_grid.section_index]
+        target_section = self.array_data.sections[target_grid.section_index]
 
-        if 'rois' in source_section and len(source_section['rois']) > 0:
-            source = source_section['rois'][0]
+        rois = source_section.get('rois')
+        if rois:
+            source = rois[roi_index]
         else:
             source = source_section['sample']
         source_section_center = np.array(source['center'])
         source_section_angle = source['angle'] % 360
 
-        if 'rois' in target_section and len(target_section['rois']) > 0:
-            target = target_section['rois'][0]
+        rois = target_section.get('rois')
+        if rois:
+            target = rois[roi_index]
         else:
             target = target_section['sample']
         target_section_center = np.array(target['center'])
         target_section_angle = target['angle'] % 360
 
-        source_grid_center = np.array(self.__grids[s].centre_sx_sy)
-        source_grid_rotation = self.__grids[s].rotation
+        source_grid_center = np.array(source_grid.centre_sx_sy)
+        source_grid_rotation = source_grid.rotation
 
         flip_x = self.sem.device_name.lower() in [
                         'zeiss merlin',
@@ -1529,13 +1530,13 @@ class GridManager:
 
             wafer_transform_inverse = ArrayData.invert_affine_t(self.array_data.transform)
 
-            result = ArrayData.apply_affine_t(
+            center = ArrayData.apply_affine_t(
                 [source_grid_center[0]],
                 [source_grid_center[1]],
                 wafer_transform_inverse,
                 flip_x=False)
 
-            source_grid_center = [-result[0][0] if flip_x else result[0][0], result[1][0]]
+            source_grid_center = [-center[0][0] if flip_x else center[0][0], center[1][0]]
 
         source_section_grid = source_grid_center - source_section_center
         source_section_grid_distance = np.linalg.norm(source_section_grid)
@@ -1555,24 +1556,24 @@ class GridManager:
                 - source_section_angle
                 + target_section_angle
             )
-        target_grid_rotation = target_grid_rotation % 360
+        target_grid_rotation %= 360
 
-        self.__grids[t].rotation = target_grid_rotation
-        self.__grids[t].size = self.__grids[s].size
-        self.__grids[t].overlap = self.__grids[s].overlap
-        self.__grids[t].row_shift = self.__grids[s].row_shift
-        self.__grids[t].active_tiles = self.__grids[s].active_tiles
-        self.__grids[t].frame_size_selector = (
-            self.__grids[s].frame_size_selector)
-        self.__grids[t].pixel_size = self.__grids[s].pixel_size
-        self.__grids[t].dwell_time_selector = (
-            self.__grids[s].dwell_time_selector)
-        self.__grids[t].acq_interval = self.__grids[s].acq_interval
+        target_grid.rotation = target_grid_rotation
+        target_grid.size = source_grid.size
+        target_grid.overlap = source_grid.overlap
+        target_grid.row_shift = source_grid.row_shift
+        target_grid.active_tiles = source_grid.active_tiles
+        target_grid.frame_size_selector = (
+            source_grid.frame_size_selector)
+        target_grid.pixel_size = source_grid.pixel_size
+        target_grid.dwell_time_selector = (
+            source_grid.dwell_time_selector)
+        target_grid.acq_interval = source_grid.acq_interval
 
-        self.__grids[t].acq_interval_offset = self.__grids[s].acq_interval_offset
-        self.__grids[t].autofocus_ref_tiles = self.__grids[s].autofocus_ref_tiles
-        self.__grids[t].array_autofocus_points_source = copy.deepcopy(
-            self.__grids[s].array_autofocus_points_source)
+        target_grid.acq_interval_offset = source_grid.acq_interval_offset
+        target_grid.autofocus_ref_tiles = source_grid.autofocus_ref_tiles
+        target_grid.array_autofocus_points_source = copy.deepcopy(
+            source_grid.array_autofocus_points_source)
         # xxx self.set_adaptive_focus_enabled(t, self.get_adaptive_focus_enabled(s))
         # xxx self.set_adaptive_focus_tiles(t, self.get_adaptive_focus_tiles(s))
         # xxx self.set_adaptive_focus_gradient(t, self.get_adaptive_focus_gradient(s))
@@ -1590,7 +1591,7 @@ class GridManager:
 
         if self.array_data.calibrated:
             # transform the grid coordinates to wafer coordinates
-            result = ArrayData.apply_affine_t(
+            center = ArrayData.apply_affine_t(
                 [target_grid_center[0]],
                 [target_grid_center[1]],
                 self.array_data.transform,
@@ -1598,10 +1599,10 @@ class GridManager:
                         'zeiss merlin',
                         'zeiss sigma',
                 ])
-            target_grid_center = [result[0][0], result[1][0]]
+            target_grid_center = [center[0][0], center[1][0]]
 
-        self.__grids[t].update_tile_positions()
-        self.__grids[t].centre_sx_sy = target_grid_center
+        target_grid.update_tile_positions()
+        target_grid.centre_sx_sy = target_grid_center
 
 
 # ------------------------- End of Array functions ------------------------------
