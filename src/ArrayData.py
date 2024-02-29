@@ -317,6 +317,10 @@ class ArrayData:
         else:
             return landmarks
 
+    def adjust_imported_array_image(self, acq, array_image):
+        if acq.magc_mode:
+            array_image.centre_sx_sy = np.divide(array_image.size, 2).astype(int)
+
 
 def json_keys_to_int(data0):
     if isinstance(data0, dict):
@@ -344,6 +348,7 @@ def points_to_flat_string(points):
     points_string = ','.join(
         [str(round(x, 3)) for x in points_flat])
     return points_string
+
 
 #####################
 # geometric functions

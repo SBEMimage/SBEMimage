@@ -464,8 +464,8 @@ class TemplateRotationDlg(QDialog):
 class ImportImageDlg(QDialog):
     """Import an image into the viewport."""
 
-    def __init__(self, imported_images, target_dir):
-        self.start_path = None
+    def __init__(self, imported_images, target_dir, start_path=None):
+        self.start_path = start_path
         self.imported = imported_images
         self.target_dir = target_dir
         super().__init__()
@@ -480,17 +480,17 @@ class ImportImageDlg(QDialog):
 
     def select_file(self):
         # Let user select image to be imported:
-        if self.start_path is not None:
+        if self.start_path:
             start_path = self.start_path
         else:
             start_path = 'C:/'
         selected_file = str(QFileDialog.getOpenFileName(
             self, 'Select image',
             start_path,
-            'Images (*.tif *.tiff *.png *.bmp *.jpg)'
+            filter='Images (*)'
             )[0])
 
-        if len(selected_file) > 0:
+        if selected_file:
             selected_file = os.path.normpath(selected_file)
             self.start_path = selected_file
             self.lineEdit_fileName.setText(selected_file)

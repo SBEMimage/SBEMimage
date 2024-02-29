@@ -1182,7 +1182,7 @@ class Viewport(QWidget):
 
             menu.addSeparator()
             action_import = menu.addAction('Import and place image')
-            action_import.triggered.connect(self._vp_open_import_image_dlg)
+            action_import.triggered.connect(self.vp_open_import_image_dlg)
             action_adjustImported = menu.addAction('Adjust imported image')
             action_adjustImported.triggered.connect(
                 self._vp_open_adjust_image_dlg)
@@ -1193,11 +1193,6 @@ class Viewport(QWidget):
             # ----- MagC items -----
             if self.sem.magc_mode:
                 menu.addSeparator()
-                # in MagC you only import wafer images from the MagC tab
-                action_import.setEnabled(False)
-                # in MagC you cannot remove the wafer image, the only
-                # way is to Reset MagC
-                action_deleteImported.setEnabled(False)
                 # get closest grid
                 self._closest_grid_number = self._vp_get_closest_grid_id(
                     self.selected_stage_pos)
@@ -2911,7 +2906,7 @@ class Viewport(QWidget):
                 self.ovm.update_all_debris_detections_areas(self.gm)
                 self.vp_draw()
 
-    def _vp_open_import_image_dlg(self):
+    def vp_open_import_image_dlg(self, start_path=None, on_success_function=None):
         target_dir = os.path.join(self.acq.base_dir, 'imported')
         if not os.path.exists(target_dir):
             try:
@@ -2924,8 +2919,10 @@ class Viewport(QWidget):
                     f'write access. {str(e)}',
                     QMessageBox.Ok)
                 return
-        dialog = ImportImageDlg(self.imported, target_dir)
+        dialog = ImportImageDlg(self.imported, target_dir, start_path=start_path)
         if dialog.exec():
+            if on_success_function:
+                on_success_function()
             self.vp_draw()
 
     def _vp_open_adjust_image_dlg(self):

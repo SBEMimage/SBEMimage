@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MagC | Wafer Calibration</string>
+   <string>Array image calibration</string>
   </property>
   <widget class="QTableView" name="tableView_array_landmarkTable">
    <property name="enabled">
@@ -124,7 +124,7 @@
     </font>
    </property>
    <property name="text">
-    <string>Validate Calibration</string>
+    <string>Validate calibration</string>
    </property>
   </widget>
  </widget>

@@ -2066,12 +2066,12 @@ Green: acquired</string>
          <string>Select checked</string>
         </property>
        </widget>
-       <widget class="Line" name="line_2">
+       <widget class="Line" name="line_1">
         <property name="geometry">
          <rect>
-          <x>550</x>
-          <y>220</y>
-          <width>118</width>
+          <x>20</x>
+          <y>210</y>
+          <width>111</width>
           <height>3</height>
          </rect>
         </property>
@@ -2079,42 +2079,11 @@ Green: acquired</string>
          <enum>Qt::Horizontal</enum>
         </property>
        </widget>
-       <widget class="QPushButton" name="pushButton_array_importData">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>10</y>
-          <width>131</width>
-          <height>31</height>
-         </rect>
-        </property>
-        <property name="font">
-         <font>
-          <bold>false</bold>
-         </font>
-        </property>
-        <property name="text">
-         <string>Import array data</string>
-        </property>
-       </widget>
-       <widget class="QPushButton" name="pushButton_array_importWaferImage">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>130</y>
-          <width>131</width>
-          <height>31</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Import wafer Image</string>
-        </property>
-       </widget>
        <widget class="QPushButton" name="pushButton_array_reset">
         <property name="geometry">
          <rect>
           <x>10</x>
-          <y>210</y>
+          <y>260</y>
           <width>131</width>
           <height>31</height>
          </rect>
@@ -2175,11 +2144,11 @@ Green: acquired</string>
          <enum>Qt::Horizontal</enum>
         </property>
        </widget>
-       <widget class="QPushButton" name="pushButton_array_waferCalibration">
+       <widget class="QPushButton" name="pushButton_array_imageCalibration">
         <property name="geometry">
          <rect>
           <x>10</x>
-          <y>170</y>
+          <y>220</y>
           <width>131</width>
           <height>31</height>
          </rect>
@@ -2190,14 +2159,14 @@ Green: acquired</string>
          </font>
         </property>
         <property name="text">
-         <string>Wafer calibration</string>
+         <string>Image calibration</string>
         </property>
        </widget>
        <widget class="QPushButton" name="pushButton_array_createGrids">
         <property name="geometry">
          <rect>
           <x>10</x>
-          <y>90</y>
+          <y>170</y>
           <width>131</width>
           <height>31</height>
          </rect>
@@ -2215,7 +2184,7 @@ Green: acquired</string>
         <property name="geometry">
          <rect>
           <x>10</x>
-          <y>50</y>
+          <y>130</y>
           <width>131</width>
           <height>31</height>
          </rect>
@@ -2227,6 +2196,103 @@ Green: acquired</string>
         </property>
         <property name="text">
          <string>Grid settings</string>
+        </property>
+       </widget>
+       <widget class="QToolButton" name="toolButton_array_dataFile">
+        <property name="geometry">
+         <rect>
+          <x>110</x>
+          <y>10</y>
+          <width>31</width>
+          <height>21</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>...</string>
+        </property>
+       </widget>
+       <widget class="QLineEdit" name="lineEdit_array_dataFile">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>40</y>
+          <width>131</width>
+          <height>21</height>
+         </rect>
+        </property>
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+       </widget>
+       <widget class="QLabel" name="label_array_dataFile">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>10</y>
+          <width>91</width>
+          <height>21</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Array data file</string>
+        </property>
+       </widget>
+       <widget class="QLineEdit" name="lineEdit_array_imageFile">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>100</y>
+          <width>131</width>
+          <height>21</height>
+         </rect>
+        </property>
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+       </widget>
+       <widget class="QToolButton" name="toolButton_array_imageFile">
+        <property name="geometry">
+         <rect>
+          <x>110</x>
+          <y>70</y>
+          <width>31</width>
+          <height>21</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>...</string>
+        </property>
+       </widget>
+       <widget class="QLabel" name="label_array_imageFile">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>70</y>
+          <width>91</width>
+          <height>21</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Array image file</string>
+        </property>
+       </widget>
+       <widget class="Line" name="line_2">
+        <property name="geometry">
+         <rect>
+          <x>550</x>
+          <y>220</y>
+          <width>118</width>
+          <height>3</height>
+         </rect>
+        </property>
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
         </property>
        </widget>
       </widget>

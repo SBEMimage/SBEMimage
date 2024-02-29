@@ -24,6 +24,8 @@ import os
 import sys
 from typing import Optional
 from time import sleep
+
+from PyQt5.QtWidgets import QFileDialog
 #import json
 #import copy
 #import xml.etree.ElementTree as ET
@@ -71,8 +73,7 @@ from main_controls_dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                                       MotorTestDlg, MotorStatusDlg, AboutBox, \
                                       GCIBSettingsDlg, RunAutofocusDlg
 
-from array_dlg_windows import ArrayImportCDlg, ImportWaferImageDlg, \
-                          WaferCalibrationDlg #, ImportZENExperimentDlg
+from array_dlg_windows import ArrayCalibrationDlg #, ImportZENExperimentDlg
 
 
 class MainControls(QMainWindow):
@@ -991,16 +992,16 @@ class MainControls(QMainWindow):
             self.array_clicked_section)
 
         # initialize other Array GUI items
-        self.pushButton_array_importData.clicked.connect(
+        self.toolButton_array_dataFile.clicked.connect(
             self.array_open_import_dlg)
         self.pushButton_array_gridSettings.clicked.connect(
             self.array_grid_settings)
         self.pushButton_array_createGrids.clicked.connect(
             self.array_create_grids)
-        self.pushButton_array_importWaferImage.clicked.connect(
-            self.array_open_import_wafer_image)
-        self.pushButton_array_waferCalibration.clicked.connect(
-            self.array_open_wafer_calibration_dlg)
+        self.toolButton_array_imageFile.clicked.connect(
+            self.array_open_import_image)
+        self.pushButton_array_imageCalibration.clicked.connect(
+            self.array_open_image_calibration_dlg)
         self.pushButton_array_reset.clicked.connect(self.array_reset)
 
         self.pushButton_array_selectAll.clicked.connect(self.array_select_all)
@@ -1020,10 +1021,9 @@ class MainControls(QMainWindow):
         self.pushButton_array_deleteLastSection.clicked.connect(
             self.array_delete_last_section)
 
-        self.pushButton_array_importWaferImage.setEnabled(False)
-        self.pushButton_array_waferCalibration.setStyleSheet(
+        self.pushButton_array_imageCalibration.setStyleSheet(
             'background-color: yellow')
-        self.pushButton_array_waferCalibration.setEnabled(False)
+        self.pushButton_array_imageCalibration.setEnabled(False)
 
         # deactivate/activate some core SBEMimage functions
         self.pushButton_microtomeSettings.setEnabled(False)
@@ -1189,11 +1189,15 @@ class MainControls(QMainWindow):
     def get_selection_from_section_index(self, section_index, roi_index):
         array_table_model = self.tableView_array_sections.model()
         selection_model = self.tableView_array_sections.selectionModel().model()
-        hor_headers = [array_table_model.horizontalHeaderItem(i).text() for i in range(array_table_model.columnCount())]
         ver_headers = [array_table_model.verticalHeaderItem(i).text() for i in range(array_table_model.rowCount())]
-        column_index = hor_headers.index(str(roi_index))
-        row_index = ver_headers.index(str(section_index))
-        return selection_model.index(row_index, column_index)
+        hor_headers = [array_table_model.horizontalHeaderItem(i).text() for i in range(array_table_model.columnCount())]
+        section_label, roi_label = str(section_index), str(roi_index)
+        if section_label in ver_headers and roi_label in hor_headers:
+            row_index = ver_headers.index(section_label)
+            column_index = hor_headers.index(roi_label)
+            return selection_model.index(row_index, column_index)
+        else:
+            return None
 
     def find_grid_from_selection(self, selection):
         section_index, roi_index = self.find_indices_from_selection(selection)
@@ -1361,21 +1365,23 @@ class MainControls(QMainWindow):
             utils.log_warning(
                 'Array-CTRL',
                 (f'Section/ROI {section_index}/{roi_index}'
-                ' has been double-clicked. Wafer is not'
+                ' has been double-clicked. Image is not'
                 ' calibrated, therefore no stage movement.'))
 
-    def array_set_section_state_in_table(self, action, grid_indices):
+    def array_set_section_state_in_table(self, action, grid_indices=None):
         array_table_model = self.tableView_array_sections.model()
         # grid_index can be a single int or a list 1,2,3
-        if not isinstance(grid_indices, int):
+        if isinstance(grid_indices, int):
+            table_indices = [self.find_table_index_from_grid(grid_indices)]
+            table_index0 = table_indices[0]
+        elif grid_indices:
             table_indices = [self.find_table_index_from_grid(grid_index)
                              for grid_index in grid_indices]
             table_index0 = table_indices[0]
         else:
-            table_indices = [self.find_table_index_from_grid(grid_indices)]
-            table_index0 = table_indices
+            table_index0 = None
 
-        if 'acquir' in action:
+        if 'acquir' in action and table_index0:
             if action == 'acquiring':
                 state_color = QColor(Qt.yellow)
             elif action == 'acquired':
@@ -1387,12 +1393,12 @@ class MainControls(QMainWindow):
             self.tableView_array_sections.scrollTo(
                 table_index0,
                 QAbstractItemView.PositionAtCenter)
-        if action == 'select':
+        if action == 'select' and table_index0:
             self.array_select_rows(table_indices)
             self.tableView_array_sections.scrollTo(
                 table_index0,
                 QAbstractItemView.PositionAtCenter)
-        if action == 'toggle':
+        if action == 'toggle' and table_index0:
             self.array_toggle_selection(table_indices)
             if table_index0 in self.gm.array_data.selected_sections:
                 self.tableView_array_sections.scrollTo(
@@ -1404,49 +1410,34 @@ class MainControls(QMainWindow):
     def array_reset(self):
         array_table_model = self.tableView_array_sections.model()
         array_table_model.clear()
-        self.array_trigger_wafer_uncalibrated()
-        self.array_trigger_wafer_uncalibratable()
+        self.array_trigger_image_uncalibrated()
+        self.array_trigger_image_uncalibratable()
         self.gm.array_reset()
         self.gm.delete_all_grids_above_index(0)
         self.gm.array_delete_autofocus_points(0)
         # self.gm[0].array_delete_polyroi()
         self.viewport.update_grids()
-        # disable wafer image import
-        self.pushButton_array_importWaferImage.setEnabled(False)
-        # delete all imported images in viewport
-        self.imported.delete_all_images()
         self.viewport.vp_draw()
 
-    def array_trigger_wafer_calibrated(self):
-        (self.pushButton_array_waferCalibration
+    def array_trigger_image_calibrated(self):
+        (self.pushButton_array_imageCalibration
             .setStyleSheet('background-color: green'))
         # self.pushButton_msem_transferToZen.setEnabled(True)
 
-    def array_trigger_wafer_uncalibrated(self):
-        # change wafer flag
-        (self.pushButton_array_waferCalibration
+    def array_trigger_image_uncalibrated(self):
+        # change array image flag
+        (self.pushButton_array_imageCalibration
             .setStyleSheet('background-color: yellow'))
         # inactivate msem transfer to ZEN
         # self.pushButton_msem_transferToZen.setEnabled(False)
 
-    def array_trigger_wafer_calibratable(self):
-        # the wafer can be calibrated
-        self.pushButton_array_waferCalibration.setEnabled(True)
+    def array_trigger_image_calibratable(self):
+        # the array image can be calibrated
+        self.pushButton_array_imageCalibration.setEnabled(True)
 
-    def array_trigger_wafer_uncalibratable(self):
-        # the wafer cannot be calibrated
-        self.pushButton_array_waferCalibration.setEnabled(False)
-
-    def array_open_import_wafer_image(self):
-        target_dir = os.path.join(
-            self.acq.base_dir,
-            'overviews', 'imported')
-        if not os.path.exists(target_dir):
-            self.try_to_create_directory(target_dir)
-        import_wafer_dlg = ImportWaferImageDlg(
-            self.acq, self.imported,
-            self.gm.array_data.path,
-            self.trigger)
+    def array_trigger_image_uncalibratable(self):
+        # the array image cannot be calibrated
+        self.pushButton_array_imageCalibration.setEnabled(False)
 
     def array_add_section(self):
         self.gm.add_new_grid()
@@ -1494,9 +1485,67 @@ class MainControls(QMainWindow):
             self.array_reset()
 
     def array_open_import_dlg(self):
-        dialog = ArrayImportCDlg(self.acq, self.gm, self.sem, self.imported,
-                                 self.cs, self.tableView_array_sections, self.trigger)
-        dialog.exec()
+        start_path = self.lineEdit_array_dataFile.text()
+        selected_file = str(QFileDialog.getOpenFileName(
+            self, 'Select Array data file',
+            start_path,
+            filter='MASS files (*.mass.*);;MagC files (*.magc)'
+        )[0])
+        if selected_file:
+            selected_file = os.path.normpath(selected_file)
+            self.lineEdit_array_dataFile.setText(selected_file)
+            # load array data and create grids
+            self.array_reset()
+            self.gm.array_read(selected_file)
+            utils.log_info(
+                'Array-CTRL',
+                f'{len(self.gm.array_data.sections)} Array sections have been loaded.')
+            self.gm.array_create_grids()
+
+            nsections = len(self.gm.array_data.sections)
+            nrois = self.gm.array_data.get_nrois()
+            table_model = self.tableView_array_sections.model()
+            table_model.clear()
+
+            for section_index in range(nsections):
+                row_items = []
+                for roi_index in range(nrois):
+                    roi_item = QStandardItem()
+                    roi_item.setCheckable(True)
+                    row_items.append(roi_item)
+                    # self.table_view.setIndexWidget(table_model.index(0, index), QPushButton('Configure'))
+
+                row_index = table_model.rowCount()
+                table_model.appendRow(row_items)
+                table_model.setVerticalHeaderItem(row_index, QStandardItem(str(section_index)))
+
+            for index in range(nrois):
+                table_model.setHorizontalHeaderItem(index, QStandardItem(str(index)))
+            # self.table_view.horizontalHeader().sectionClicked.connect(self.header_clicked)  # not working - needs to update table from model first?
+
+            self.viewport.show_stage_pos = True
+            self.viewport.vp_activate_checkbox_show_stage_pos()
+
+            if len(self.gm.array_data.landmarks) > 2:
+                self.array_trigger_image_calibratable()
+
+            self.viewport.vp_draw()
+
+    def array_open_import_image(self):
+        if self.lineEdit_array_imageFile.text():
+            start_path = os.path.dirname(self.lineEdit_array_imageFile.text())
+        else:
+            start_path = os.path.dirname(self.lineEdit_array_dataFile.text())
+
+        def on_success_function():
+            array_image = self.imported[-1]
+            self.lineEdit_array_imageFile.setText(array_image.image_src)
+            self.gm.array_data.adjust_imported_array_image(self.acq, array_image)
+
+        self.viewport.vp_open_import_image_dlg(
+            start_path=start_path,
+            on_success_function=on_success_function
+        )
 
     def array_grid_settings(self):
         indexes = self.tableView_array_sections.selectedIndexes()
@@ -1509,8 +1558,8 @@ class MainControls(QMainWindow):
         self.gm.array_create_grids()
         self.update_from_grid_dlg()
 
-    def array_open_wafer_calibration_dlg(self):
-        dialog = WaferCalibrationDlg(self.cfg, self.stage, self.ovm, self.cs,
+    def array_open_image_calibration_dlg(self):
+        dialog = ArrayCalibrationDlg(self.cfg, self.stage, self.ovm, self.cs,
                                      self.gm, self.imported, self.trigger)
         dialog.exec()
     # --------------------------- End of Array tab ----------------------------------
@@ -1932,21 +1981,16 @@ class MainControls(QMainWindow):
                                 + str(e))
         elif msg == 'ARRAY RESET':
             self.array_reset()
-        elif msg == 'ARRAY WAFER CALIBRATED':
-            self.array_trigger_wafer_calibrated()
-        elif msg == 'ARRAY WAFER NOT CALIBRATED':
-            self.array_trigger_wafer_uncalibrated()
+        elif msg == 'ARRAY IMAGE CALIBRATED':
+            self.array_trigger_image_calibrated()
+        elif msg == 'ARRAY IMAGE NOT CALIBRATED':
+            self.array_trigger_image_uncalibrated()
         elif msg == 'ARRAY ENABLE CALIBRATION':
-            self.array_trigger_wafer_calibratable()
+            self.array_trigger_image_calibratable()
         elif msg == 'ARRAY DISABLE CALIBRATION':
-            self.array_trigger_wafer_uncalibratable()
-        elif msg == 'ARRAY ENABLE IMAGE IMPORT':
-            self.pushButton_array_importWaferImage.setEnabled(True)
-        elif 'ARRAY SET SECTION STATE' in msg:
+            self.array_trigger_image_uncalibratable()
+        elif msg == 'ARRAY SET SECTION STATE':
             self.array_set_section_state_in_table(*args, **kwargs)
-        elif 'ACTIVATE SHOW STAGE' in msg:
-            self.viewport.show_stage_pos = True
-            self.viewport.vp_activate_checkbox_show_stage_pos()
         # elif 'MSEM GUI' in msg:
             # self.msem_update_gui(msg)
         elif msg == 'REFRESH OV':
@@ -2037,7 +2081,7 @@ class MainControls(QMainWindow):
             response = 'Unknown command'
         self.tcp_response_queue.put({'response': True})
             
-            
+
     def ask_debris_first_ov(self, ov_index):
         self.viewport.vp_show_overview_for_user_inspection(ov_index)
         msgBox = QMessageBox(self)
@@ -2192,11 +2236,6 @@ class MainControls(QMainWindow):
         self.pushButton_testGetMillPos.setEnabled(False)
         self.pushButton_testMillMov.setEnabled(False)
         self.pushButton_testMilling.setEnabled(False)
-
-    #TODO: remove
-    def add_to_log(self, text):
-        """Update the log from the main thread."""
-        self.textarea_log.appendPlainText(utils.format_log_entry(text))
 
     def write_current_log_to_file(self, filename):
         with open(filename, 'w') as f:
@@ -3536,4 +3575,3 @@ class MainControls(QMainWindow):
                 self.ft_move_up()
             elif event.angleDelta().y() < 0:
                 self.ft_move_down()
-

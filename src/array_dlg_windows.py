@@ -28,200 +28,8 @@ GREEN = QColor(Qt.green)
 YELLOW = QColor(Qt.yellow)
 
 
-class ArrayImportCDlg(QDialog):
-    """Import Array data."""
-
-    def __init__(self, acq, grid_manager, sem, imported,
-                 coordinate_system, table_view, main_controls_trigger):
-        super().__init__()
-        self.acq = acq
-        self.gm = grid_manager
-        self.sem = sem
-        self.imported = imported
-        self.cs = coordinate_system
-        self.table_view = table_view
-        self.main_controls_trigger = main_controls_trigger
-        self.target_dir = os.path.join(self.acq.base_dir, 'overviews', 'imported')
-        loadUi(os.path.join('..', 'gui', 'array_data_import_dlg.ui'), self)
-        self.default_array_path = os.path.join('..', 'array', 'example', 'wafer_example1.mass.json')
-        self.lineEdit_fileName.setText(self.default_array_path)
-        self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(utils.get_window_icon())
-        self.pushButton_selectFile.clicked.connect(self.select_file)
-        self.pushButton_selectFile.setIcon(QIcon(os.path.join('..', 'img', 'selectdir.png')))
-        self.pushButton_selectFile.setIconSize(QSize(16, 16))
-        self.setFixedSize(self.size())
-        self.pushButton_import.accepted.connect(self.import_data)
-        self.pushButton_import.rejected.connect(self.accept)
-        self.show()
-
-    def import_data(self):
-        #-----------------------------
-        # read sections from data file
-        data_path = os.path.normpath(self.lineEdit_fileName.text())
-        ext = os.path.splitext(data_path)[-1].lower()
-        if not os.path.isfile(data_path):
-            msg = f'The file could not be found with the following path: {data_path}'
-            utils.log_info(
-                'Array-CTRL',
-                msg)
-            QMessageBox.critical(self, 'Warning', msg)
-            self.accept()
-            return
-        elif ext not in ['.json', '.yml', '.yaml', '.magc']:
-            msg = 'The file chosen should be in the correct format (mass/magc).'
-            utils.log_info(
-                'Array-CTRL',
-                msg)
-            QMessageBox.critical(self, 'Warning', msg)
-            self.accept()
-            return
-
-        self.main_controls_trigger.transmit('ARRAY RESET')
-
-        gm = self.gm
-        gm.array_read(data_path)
-        array_data = gm.array_data
-        utils.log_info(
-            'Array-CTRL',
-            f'{len(array_data.sections)} Array sections have been loaded.')
-        #-----------------------------
-
-        #-----------------------------------------
-        # load data and create
-
-        gm.array_create_grids()
-
-        nsections = len(array_data.sections)
-        nrois = array_data.get_nrois()
-        table_model = self.table_view.model()
-        table_model.clear()
-
-        for section_index in range(nsections):
-            row_items = []
-            for roi_index in range(nrois):
-                roi_item = QStandardItem()
-                roi_item.setCheckable(True)
-                row_items.append(roi_item)
-                #self.table_view.setIndexWidget(table_model.index(0, index), QPushButton('Configure'))
-
-            row_index = table_model.rowCount()
-            table_model.appendRow(row_items)
-            table_model.setVerticalHeaderItem(row_index, QStandardItem(str(section_index)))
-
-        for index in range(nrois):
-            table_model.setHorizontalHeaderItem(index, QStandardItem(str(index)))
-        #self.table_view.horizontalHeader().sectionClicked.connect(self.header_clicked)  # not working - needs to update table from model first?
-
-        #-----------------------------------------
-
-        #------------------------------
-        # todo: does importing a new data file always require
-        # a wafer_calibration ?
-        #------------------------------
-
-        # enable wafer configuration buttons
-        self.main_controls_trigger.transmit('ARRAY WAFER NOT CALIBRATED')
-        self.main_controls_trigger.transmit('ARRAY ENABLE IMAGE IMPORT')
-
-        # activate stage show
-        self.main_controls_trigger.transmit('ACTIVATE SHOW STAGE')
-
-        if len(array_data.landmarks) > 2:
-            self.main_controls_trigger.transmit('ARRAY ENABLE CALIBRATION')
-
-        self.main_controls_trigger.transmit('DRAW VP')
-        self.accept()
-
-    def select_file(self):
-        start_path = self.lineEdit_fileName.text()
-        selected_file = str(QFileDialog.getOpenFileName(
-                self, 'Select Array data file',
-                start_path,
-                'MASS files (*.mass.*);;MagC files (*.magc)'
-                )[0])
-        if len(selected_file) > 0:
-            selected_file = os.path.normpath(selected_file)
-            self.lineEdit_fileName.setText(selected_file)
-
-    def accept(self):
-        super().accept()
-
-
-#------------------------------------------------------------------------------
-
-class ImportWaferImageDlg(QDialog):
-    """Import a wafer image into the viewport for Array."""
-
-    def __init__(self, acq, imported, data_path,
-                 main_controls_trigger):
-        super().__init__()
-        self.acq = acq
-        self.imported = imported
-        self.main_controls_trigger = main_controls_trigger
-        self.imported_dir = os.path.join(
-            self.acq.base_dir, 'overviews', 'imported')
-        if data_path is None:
-            data_path = 'C:/'
-        self.wafer_image_dir = os.path.dirname(data_path)
-
-        import_image_dialog = ImportImageDlg(
-            self.imported,
-            self.imported_dir)
-        import_image_dialog.doubleSpinBox_pixelSize.setEnabled(False)
-        import_image_dialog.doubleSpinBox_pixelSize.setValue(1000)
-        import_image_dialog.doubleSpinBox_posX.setEnabled(False)
-        import_image_dialog.doubleSpinBox_posY.setEnabled(False)
-        import_image_dialog.spinBox_rotation.setEnabled(False)
-        import_image_dialog.start_path = self.wafer_image_dir
-
-        # pre-filling the ImportImageDialog if wafer image (unique) present
-        image_names = [image_name for image_name in os.listdir(self.wafer_image_dir)
-                       if (os.path.splitext(image_name)[1] in ['.tif', '.tiff', '.png', '.jpg'])]
-        if len(image_names) == 0:
-            utils.log_info(
-                'Array-CTRL',
-                ('No wafer picture was found. '
-                    + 'Select the wafer image manually.'))
-        elif len(image_names) > 1:
-            utils.log_info(
-                'Array-CTRL',
-                ('There is more than one image available in the folder '
-                    + 'containing the array section file.'
-                    + 'Select the wafer image manually'))
-        elif len(image_names) == 1:
-            # pre-fill the import dialog
-            image_path = os.path.normpath(
-                os.path.join(self.wafer_image_dir, image_names[0]))
-            import_image_dialog.lineEdit_fileName.setText(image_path)
-            import_image_dialog.lineEdit_name.setText(
-                os.path.splitext(
-                    os.path.basename(image_path))[0])
-
-        current_imported_number = self.imported.number_imported
-        import_image_dialog.exec()
-
-        if self.imported.number_imported == current_imported_number:
-            utils.log_info(
-                'Array-CTRL',
-                ('No wafer image overview was added.'
-                    + 'You can still do it by selecting "Import Image"'
-                    + 'in the Array tab.'))
-        else:
-            if self.acq.magc_mode:
-                wafer_image = self.imported[-1]
-                wafer_image.centre_sx_sy = np.divide(wafer_image.size, 2).astype(int)
-            self.main_controls_trigger.transmit('SHOW IMPORTED')
-            self.main_controls_trigger.transmit('DRAW VP')
-            utils.log_info(
-                'Array-CTRL',
-                'Image successfully imported.')
-
-
-#------------------------------------------------------------------------------
-
-class WaferCalibrationDlg(QDialog):
-    """Wafer calibration."""
+class ArrayCalibrationDlg(QDialog):
+    """Array calibration."""
 
     def __init__(self, config, stage, ovm, cs, gm, imported, main_controls_trigger):
         super().__init__()
@@ -232,7 +40,7 @@ class WaferCalibrationDlg(QDialog):
         self.gm = gm
         self.imported = imported
         self.main_controls_trigger = main_controls_trigger
-        loadUi(os.path.join('..', 'gui', 'wafer_calibration_dlg.ui'), self)
+        loadUi(os.path.join('..', 'gui', 'array_calibration_dlg.ui'), self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
@@ -641,7 +449,7 @@ class WaferCalibrationDlg(QDialog):
 
             # update calibration flag
             self.gm.array_data.calibrated = True
-            self.main_controls_trigger.transmit('ARRAY WAFER CALIBRATED')
+            self.main_controls_trigger.transmit('ARRAY IMAGE CALIBRATED')
 
             self.accept()
 
@@ -717,9 +525,9 @@ class ImportZENExperimentDlg(QDialog):
         selected_file = str(QFileDialog.getOpenFileName(
                 self, 'Select ZEN experiment file',
                 start_path,
-                'ZEN experiment setup (*.json)'
+                filter='ZEN experiment setup (*.json)'
                 )[0])
-        if len(selected_file) > 0:
+        if selected_file:
             selected_file = os.path.normpath(selected_file)
             if os.path.splitext(selected_file)[1] == '.json':
                 self.lineEdit_fileName.setText(selected_file)
