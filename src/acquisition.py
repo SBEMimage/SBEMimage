@@ -2224,7 +2224,7 @@ class Acquisition:
                 self.main_controls_trigger.transmit(
                     'ARRAY SET SECTION STATE',
                     'acquired',
-                    grid_index)
+                    [grid_index])
 
     def acquire_tile(self, grid_index, tile_index,
                      adjust_wd_stig=False, adjust_acq_settings=False):

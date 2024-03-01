@@ -779,7 +779,7 @@ class Viewport(QWidget):
                             self.main_controls_trigger.transmit(
                                 'ARRAY SET SECTION STATE',
                                 'toggle',
-                                self.selected_grid)
+                                [self.selected_grid])
 
             if self.tile_paint_mode_active:
                 self.vp_update_after_active_tile_selection()
@@ -1075,6 +1075,7 @@ class Viewport(QWidget):
         if px in range(self.cs.vp_width) and py in range(self.cs.vp_height):
             self.selected_grid, self.selected_tile = \
                 self._vp_grid_tile_mouse_selection(px, py)
+            grid_index, tile_index = self.selected_grid, self.selected_tile
             self.selected_ov = self._vp_ov_mouse_selection(px, py)
             self.selected_imported = (
                 self._vp_imported_img_mouse_selection(px, py))
@@ -1087,31 +1088,31 @@ class Viewport(QWidget):
                                + 'Y: {0:.3f}'.format(sy))
             self.selected_stage_pos = (sx, sy)
             grid_str = ''
-            if self.selected_grid is not None:
-                grid_str = f'in grid {self.selected_grid}'
+            if grid_index is not None:
+                grid_str = f'in grid {grid_index}'
             selected_for_autofocus = 'Select/deselect as'
             selected_for_gradient = 'Select/deselect as'
-            if (self.selected_grid is not None
-                and self.selected_tile is not None):
-                selected = f'tile {self.selected_grid}.{self.selected_tile}'
-                if self.gm[self.selected_grid][
-                           self.selected_tile].autofocus_active:
+            if (grid_index is not None
+                and tile_index is not None):
+                selected = f'tile {grid_index}.{tile_index}'
+                if self.gm[grid_index][
+                           tile_index].autofocus_active:
                     selected_for_autofocus = (
-                        f'Deselect tile {self.selected_grid}.'
-                        f'{self.selected_tile} as')
+                        f'Deselect tile {grid_index}.'
+                        f'{tile_index} as')
                 else:
                     selected_for_autofocus = (
-                        f'Select tile {self.selected_grid}.'
-                        f'{self.selected_tile} as')
-                if self.gm[self.selected_grid][
-                           self.selected_tile].wd_grad_active:
+                        f'Select tile {grid_index}.'
+                        f'{tile_index} as')
+                if self.gm[grid_index][
+                           tile_index].wd_grad_active:
                     selected_for_gradient = (
-                        f'Deselect tile {self.selected_grid}.'
-                        f'{self.selected_tile} as')
+                        f'Deselect tile {grid_index}.'
+                        f'{tile_index} as')
                 else:
                     selected_for_gradient = (
-                        f'Select tile {self.selected_grid}.'
-                        f'{self.selected_tile} as')
+                        f'Select tile {grid_index}.'
+                        f'{tile_index} as')
             elif self.selected_ov is not None:
                 selected = f'OV {self.selected_ov}'
             else:
@@ -1127,9 +1128,9 @@ class Viewport(QWidget):
             action_statistics.triggered.connect(self.m_load_selected)
 
             menu.addSeparator()
-            if self.selected_grid is not None:
+            if grid_index is not None:
                 action_openGridSettings = menu.addAction(
-                    f'Open settings of grid {self.selected_grid}'
+                    f'Open settings of grid {grid_index}'
                     ' | Shortcut &G')
             else:
                 action_openGridSettings = menu.addAction(
@@ -1141,7 +1142,7 @@ class Viewport(QWidget):
             action_deselectAll = menu.addAction(
                 'Deselect all tiles ' + grid_str)
             action_deselectAll.triggered.connect(self.vp_deactivate_all_tiles)
-            if self.selected_grid is not None:
+            if grid_index is not None:
                 action_changeRotation = menu.addAction(
                     f'Change rotation of {grid_str[3:]} | Shortcut &R')
                 action_changeRotation.triggered.connect(
@@ -1149,10 +1150,10 @@ class Viewport(QWidget):
 
             if self.sem.magc_mode:
                 action_moveGridCurrentStage = menu.addAction(
-                    f'Move grid {self.selected_grid} to current stage position')
+                    f'Move grid {grid_index} to current stage position')
                 action_moveGridCurrentStage.triggered.connect(
                     self._vp_manual_stage_move)
-                if not ((self.selected_grid is not None)
+                if not ((grid_index is not None)
                     and self.gm.array_data.calibrated):
                     action_moveGridCurrentStage.setEnabled(False)
 
@@ -1190,35 +1191,42 @@ class Viewport(QWidget):
             action_deleteImported.triggered.connect(
                 self._vp_open_delete_image_dlg)
 
-            # ----- MagC items -----
+            # ----- Array items -----
             if self.sem.magc_mode:
                 menu.addSeparator()
                 # get closest grid
                 self._closest_grid_number = self._vp_get_closest_grid_id(
                     self.selected_stage_pos)
                 if len(self.gm.array_data.selected_sections) > 0:
-                    magc_selected_section = self.gm.array_data.selected_sections[0]
+                    array_selected_section = self.gm.array_data.selected_sections[0]
 
             if (self.sem.magc_mode
-                and self.selected_grid is not None):
+                and grid_index is not None):
+
+                section_index = self.gm[grid_index].section_index
+                roi_index = self.gm[grid_index].roi_index
+                if section_index is not None and roi_index is not None:
+                    grid_id = f'section {section_index} roi {roi_index}'
+                else:
+                    grid_id = f'grid {grid_index}'
 
                 # propagate to all sections
                 action_propagateToAll = menu.addAction(
-                    f'Array | Propagate properties of grid {self.selected_grid}'
-                    ' to all grids | Shortcut &P')
+                    f'Array | Propagate properties of {grid_id}'
+                    ' to all sections | Shortcut &P')
                 action_propagateToAll.triggered.connect(
                     self.array_vp_propagate_grid_to_all_sections)
 
                 # propagate to selected sections
                 action_propagateToSelected = menu.addAction(
-                    f'Array | Propagate properties of grid {self.selected_grid}'
-                    ' to selected grids | Shortcut &O')
+                    f'Array | Propagate properties of {grid_id}'
+                    ' to selected sections | Shortcut &O')
                 action_propagateToSelected.triggered.connect(
                     self.array_vp_propagate_grid_to_selected_sections)
 
                 # revert location to file-defined location
                 action_revertLocation = menu.addAction(
-                    f'Array | Revert location of grid {self.selected_grid}'
+                    f'Array | Revert location of {grid_id}'
                     ' to original file-defined location | Shortcut &Z')
                 action_revertLocation.triggered.connect(
                     self.array_vp_revert_grid_to_file)
@@ -1233,39 +1241,39 @@ class Viewport(QWidget):
             if (self.sem.magc_mode
                 and len(self.gm.array_data.selected_sections) == 1):
 
-                if self.gm.array_autofocus_points(magc_selected_section):
+                if self.gm.array_autofocus_points(array_selected_section):
 
                     action_removeAutofocusPoint = menu.addAction(
                         'MagC | Remove last autofocus point of grid '
-                        f' {magc_selected_section} | Shortcut &E')
+                        f' {array_selected_section} | Shortcut &E')
                     action_removeAutofocusPoint.triggered.connect(
                         self.vp_remove_autofocus_point)
 
                     action_removeAllAutofocusPoint = menu.addAction(
                         'MagC | Remove all autofocus points of grid '
-                        f' {magc_selected_section} | Shortcut &W')
+                        f' {array_selected_section} | Shortcut &W')
                     action_removeAllAutofocusPoint.triggered.connect(
                         self.vp_remove_all_autofocus_point)
 
                 action_addAutofocusPoint = menu.addAction(
                     'MagC | Add autofocus point to grid '
-                    f' {magc_selected_section} | Shortcut &T')
+                    f' {array_selected_section} | Shortcut &T')
                 action_addAutofocusPoint.triggered.connect(
                     self.vp_add_autofocus_point)
             #----------------------#
-            # ----- End of MagC items -----
+            # ----- End of Array items -----
 
-            if (self.selected_tile is None) and (self.selected_ov is None):
+            if (tile_index is None) and (self.selected_ov is None):
                 action_sliceViewer.setEnabled(False)
                 action_focusTool.setEnabled(False)
                 action_statistics.setEnabled(False)
-            if self.selected_grid is None:
+            if grid_index is None:
                 action_openGridSettings.setEnabled(False)
                 action_selectAll.setEnabled(False)
                 action_deselectAll.setEnabled(False)
-            if self.selected_template is None and self.selected_grid is None:
+            if self.selected_template is None and grid_index is None:
                 action_changeRotation.setEnabled(False)
-            if self.selected_tile is None:
+            if tile_index is None:
                 action_selectAutofocus.setEnabled(False)
                 action_selectGradient.setEnabled(False)
             if self.autofocus.tracking_mode == 1:
