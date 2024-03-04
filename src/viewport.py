@@ -301,6 +301,8 @@ class Viewport(QWidget):
             self._vp_stub_overview_acq_success(True)
         elif msg == 'STUB OV FAILURE':
             self._vp_stub_overview_acq_success(False)
+        elif msg == 'SHOW IMPORTED':
+            self.checkBox_showImported.setChecked(True)
         else:
             self._add_to_main_log(msg)
 
@@ -2927,7 +2929,7 @@ class Viewport(QWidget):
                     f'write access. {str(e)}',
                     QMessageBox.Ok)
                 return
-        dialog = ImportImageDlg(self.imported, target_dir, start_path=start_path)
+        dialog = ImportImageDlg(self.imported, target_dir, self.viewport_trigger, start_path=start_path)
         if dialog.exec():
             if on_success_function:
                 on_success_function()

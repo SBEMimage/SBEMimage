@@ -1391,6 +1391,8 @@ class MainControls(QMainWindow):
             self.array_deselect_all()
 
     def array_reset(self):
+        self.lineEdit_array_dataFile.clear()
+        self.lineEdit_array_imageFile.clear()
         array_table_model = self.tableView_array_sections.model()
         array_table_model.clear()
         self.array_trigger_image_uncalibrated()
@@ -1398,7 +1400,6 @@ class MainControls(QMainWindow):
         self.gm.array_reset()
         self.gm.delete_all_grids_above_index(0)
         self.gm.array_delete_autofocus_points(0)
-        # self.gm[0].array_delete_polyroi()
         self.viewport.update_grids()
         self.viewport.vp_draw()
 
@@ -1430,10 +1431,10 @@ class MainControls(QMainWindow):
             filter='MASS files (*.mass.*);;MagC files (*.magc)'
         )[0])
         if selected_file:
+            self.array_reset()
             selected_file = os.path.normpath(selected_file)
             self.lineEdit_array_dataFile.setText(selected_file)
             # load array data and create grids
-            self.array_reset()
             self.gm.array_read(selected_file)
             utils.log_info(
                 'Array-CTRL',

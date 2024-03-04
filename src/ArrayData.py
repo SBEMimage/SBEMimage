@@ -296,7 +296,7 @@ class ArrayData:
 
     def get_focus_points_in_roi(self, section_index, roi):
         focus_points = []
-        for focus_point in self.sections[section_index].get('focus', []).values():
+        for focus_point in self.sections[section_index].get('focus', {}).values():
             if is_point_inside_polygon(focus_point['location'], roi['polygon']):
                 focus_points.append(focus_point)
         return focus_points

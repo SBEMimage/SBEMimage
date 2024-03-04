@@ -1,16 +1,16 @@
-import imageio.v3
+import imageio.v3 as iio
 import numpy as np
 import os
 import tifffile
-from tifffile import TiffWriter
+from tifffile import TiffWriter, PHOTOMETRIC
 
-from utils import resize_image, int2float_image, float2int_image
+from utils import resize_image, int2float_image, float2int_image, norm_image_quantiles
 
 
 # TODO: add ome.zarr support
 
 
-def imread(path, level=None, target_pixel_size_um=None):
+def imread(path, level=None, target_pixel_size_um=None, render=True):
     image = None
     paths = os.path.splitext(path)
     ext = paths[-1].lower()
@@ -38,19 +38,21 @@ def imread(path, level=None, target_pixel_size_um=None):
             if scale_by_pixel_size:
                 image = resize_image(image, target_size)
     else:
-        image = imageio.v3.imread(path)
-    if 'channels' in metadata:
+        try:
+            image = iio.imread(path)
+        except Exception as e:
+            raise TypeError(f'Error reading image {path}\n{e}')
+    if render:
         image = render_image(image, metadata['channels'])
     return image
 
 
 def render_image(image, channels):
-    # TODO: split into separate RGB images for each channel?
-    # TODO: normalise value ranges?
     new_image = np.zeros(list(image.shape[:2]) + [3], dtype=np.float32)
     nchannels = image.shape[-1] if image.ndim >= 3 else 1
+    needs_normalisation = (image.dtype.itemsize == 2)
     n = len(channels)
-    is_rgb = (nchannels == 3 and n <= 1)
+    is_rgb = (nchannels in (3, 4) and (n <= 1 or n == 3))
     tot_alpha = 0
     if not is_rgb and channels:
         for channeli, channel in enumerate(channels):
@@ -58,9 +60,9 @@ def render_image(image, channels):
                 channel_values = image
             else:
                 channel_values = image[..., channeli]
-            #window = get_channel_window(channeli)
-            #channel_values = normalise_values(channel_values, window['min'], window['max'])
             channel_values = int2float_image(channel_values)
+            if needs_normalisation:
+                channel_values = norm_image_quantiles(channel_values)
             color = channel.get('color')
             if color:
                 rgba = color
@@ -73,10 +75,14 @@ def render_image(image, channels):
             alpha_color = np.multiply(color, alpha).astype(np.float32)
             new_image += np.atleast_3d(channel_values) * alpha_color
             tot_alpha += alpha
-        new_image = float2int_image(new_image / tot_alpha)
+        new_image /= tot_alpha
+        needs_normalisation = False
     else:
-        new_image = image
-    return new_image
+        new_image = int2float_image(image)
+    if needs_normalisation:
+        new_image = norm_image_quantiles(new_image)
+    final_image = float2int_image(new_image)
+    return final_image
 
 
 def imread_metadata(path):
@@ -153,14 +159,17 @@ def imread_metadata(path):
                             if yres is not None and yres != 0:
                                 pixel_size.append((1 / yres, units))
     else:
-        properties = imageio.v3.improps(path)
-        size = properties.shape[1], properties.shape[0]
-        sizes = [size]
-        resolution = properties.spacing
-        if resolution:
-            metadata = imageio.v3.immeta(path)
-            units = metadata.get('unit')
-            pixel_size = [(1 / res, units) for res in resolution]
+        try:
+            properties = iio.improps(path)
+            size = properties.shape[1], properties.shape[0]
+            sizes = [size]
+            resolution = properties.spacing
+            if resolution:
+                metadata = iio.immeta(path)
+                units = metadata.get('unit')
+                pixel_size = [(1 / res, units) for res in resolution]
+        except Exception as e:
+            raise TypeError(f'Error reading image {path}\n{e}')
 
     all_metadata['dimension_order'] = dimension_order
     all_metadata['size'] = size
@@ -182,6 +191,7 @@ def create_tiff_metadata(metadata, is_ome=False):
     ome_metadata = None
     resolution = None
     resolution_unit = None
+    pixel_size_um = None
 
     pixel_size = metadata.get('pixel_size')
     position = metadata.get('position')
@@ -189,11 +199,11 @@ def create_tiff_metadata(metadata, is_ome=False):
         pixel_size_um = convert_units_micrometer(pixel_size)
         resolution_unit = 'CENTIMETER'
         resolution = [1e4 / size for size in pixel_size_um]
-    else:
-        pixel_size_um = None
+    channels = metadata.get('channels', [])
 
     if is_ome:
         ome_metadata = {}
+        ome_channels = []
         if pixel_size_um is not None:
             ome_metadata['PhysicalSizeX'] = pixel_size_um[0]
             ome_metadata['PhysicalSizeXUnit'] = 'µm'
@@ -212,6 +222,13 @@ def create_tiff_metadata(metadata, is_ome=False):
                 ome_metadata['PositionZ'] = position[2]
                 ome_metadata['PositionZUnit'] = 'µm'
             ome_metadata['Plane'] = plane_metadata
+        for channel in channels:
+            ome_channel = {'Name': channel.get('label', '')}
+            if 'color' in channel:
+                ome_channel['Color'] = color_rgba_to_int(channel['color'])
+            ome_channels.append(ome_channel)
+        if ome_channels:
+            ome_metadata['Channel'] = ome_channels
     return ome_metadata, resolution, resolution_unit
 
 
@@ -226,27 +243,34 @@ def imwrite(path, data, metadata=None, tile_size=None, compression='LZW',
     is_ome = paths[-1].lower().startswith('ome')
 
     if is_tiff:
+        if data.ndim <= 3 and data.shape[-1] in (3, 4):
+            photometric = PHOTOMETRIC.RGB
+        else:
+            photometric = PHOTOMETRIC.MINISBLACK
+            if data.ndim >= 3 and data.shape[-1] < data.shape[0]:
+                data = np.moveaxis(data, -1, 0)
+
         if metadata is not None:
             tiff_metadata, resolution, resolution_unit = create_tiff_metadata(metadata, is_ome)
         else:
             tiff_metadata = None
         with TiffWriter(path) as writer:
-            writer.write(data, subifds=npyramid_add,
+            writer.write(data, photometric=photometric, subifds=npyramid_add,
                          tile=tile_size, compression=compression,
                          resolution=resolution, resolutionunit=resolution_unit,
                          metadata=tiff_metadata)
             new_size = np.flip(data.shape[:2])
             for i in range(npyramid_add):
-                new_size = new_size / 2
+                new_size /= pyramid_downsample
                 if resolution is not None:
                     resolution = tuple(np.divide(resolution, pyramid_downsample))
-                int_size = new_size.astype(int)
+                int_size = np.round(new_size).astype(int)
                 resized_data = resize_image(data, int_size)
                 writer.write(resized_data, subfiletype=1,
                              tile=tile_size, compression=compression,
                              resolution=resolution, resolutionunit=resolution_unit)
     else:
-        imageio.v3.imwrite(path, data)
+        iio.imwrite(path, data)
 
 
 def convert_units_micrometer(value_units0: list):
@@ -279,3 +303,7 @@ def color_int_to_rgba(intrgba: int) -> list:
     if rgba[-1] == 0:
         rgba[-1] = 1
     return rgba
+
+def color_rgba_to_int(rgba: list) -> int:
+    intrgba = int.from_bytes([int(x * 255) for x in rgba], signed=True, byteorder="big")
+    return intrgba

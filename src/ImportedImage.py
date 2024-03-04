@@ -15,11 +15,10 @@ future.
 
 import os
 import json
-
 from qtpy.QtGui import QTransform
 
-from image_io import imread_metadata, imread
-from utils import round_xy, norm_image_quantiles, image_to_QPixmap
+from image_io import imread
+from utils import round_xy, image_to_QPixmap
 
 
 class ImportedImage:
@@ -42,7 +41,7 @@ class ImportedImage:
         # Load image as QPixmap
         if os.path.isfile(self.image_src):
             try:
-                image = norm_image_quantiles(imread(self.image_src))
+                image = imread(self.image_src)
                 height, width = image.shape[:2]
                 self.size = [width, height]
                 self.image = image_to_QPixmap(image)

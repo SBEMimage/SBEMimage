@@ -464,10 +464,11 @@ class TemplateRotationDlg(QDialog):
 class ImportImageDlg(QDialog):
     """Import an image into the viewport."""
 
-    def __init__(self, imported_images, target_dir, start_path=None):
+    def __init__(self, imported_images, target_dir, viewport_trigger, start_path=None):
         self.start_path = start_path
         self.imported = imported_images
         self.target_dir = target_dir
+        self.viewport_trigger = viewport_trigger
         super().__init__()
         loadUi('../gui/import_image_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
@@ -537,7 +538,7 @@ class ImportImageDlg(QDialog):
                     metadata['pixel_size'] = target_pixel_size_um
                 else:
                     target_pixel_size_um = None
-                image = imread(selected_path, target_pixel_size_um=target_pixel_size_um)
+                image = imread(selected_path, target_pixel_size_um=target_pixel_size_um, render=False)
                 new_source_pixel_size = metadata.get('pixel_size')
                 if new_source_pixel_size:
                     pixel_size = new_source_pixel_size[0] * 1e3         # um -> nm
@@ -558,7 +559,9 @@ class ImportImageDlg(QDialog):
                 description = self.lineEdit_name.text()
                 imported_image = self.imported.add_image(target_path, description, centre_sx_sy, rotation,
                                                          [], pixel_size, transparency)
-                if imported_image.image is None:
+                if imported_image.image is not None:
+                    self.viewport_trigger.transmit('SHOW IMPORTED')
+                else:
                     QMessageBox.warning(
                         self, 'Error',
                         'Could not load image.',
