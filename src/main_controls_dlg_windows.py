@@ -1764,10 +1764,6 @@ class GridSettingsDlg(QDialog):
         self.update_buttons()
         self.show_current_settings()
         self.show_frame_size_and_dose()
-        # Inactivate 'add grid' button in magc_mode
-        # (should be done in MagC panel instead)
-        if self.magc_mode:
-            self.pushButton_addGrid.setEnabled(False)
         if 'multisem' in self.sem.device_name.lower():
             # in multisem ROIs are used instead of grids
             # the smallest possible grid is kept for compatibility

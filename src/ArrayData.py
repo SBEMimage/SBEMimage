@@ -284,14 +284,14 @@ class ArrayData:
 
     def get_rois(self):
         rois = {}
-        for section_index, section in self.sections.items():
+        for array_index, section in self.sections.items():
             if section:
                 rois0 = section.get('rois', [])
                 if len(rois0) > 0:
                     rois1 = rois0
                 else:
                     rois1 = {0: section['sample']}
-                rois[section_index] = rois1
+                rois[array_index] = rois1
         return rois
 
     def get_focus_points_in_roi(self, section_index, roi):

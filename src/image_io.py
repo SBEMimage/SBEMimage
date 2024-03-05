@@ -43,7 +43,7 @@ def imread(path, level=None, target_pixel_size_um=None, render=True):
         except Exception as e:
             raise TypeError(f'Error reading image {path}\n{e}')
     if render:
-        image = render_image(image, metadata['channels'])
+        image = render_image(image, metadata.get('channels', []))
     return image
 
 

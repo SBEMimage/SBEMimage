@@ -446,7 +446,7 @@ class Viewport(QWidget):
                     # Save coordinates in case user wants to undo
                     self.stage_pos_backup = (
                         self.gm[self.selected_grid].origin_sx_sy)
-                elif not self.sem.magc_mode:
+                else:
                     # Draw grid
                     self.grid_draw_active = True
                     self.drag_origin = px, py
@@ -663,12 +663,6 @@ class Viewport(QWidget):
                         self.stage_pos_backup)
                 else:
                     self.ovm.update_all_debris_detections_areas(self.gm)
-                    # ------ MagC ------#
-                    if self.sem.magc_mode:
-                        # in magc_mode, save the new grid location back
-                        # to the source magc sections
-                        self.gm.array_write()
-                    #------------------------#
 
             if self.ov_drag_active:
                 user_reply = QMessageBox.question(
@@ -1205,10 +1199,10 @@ class Viewport(QWidget):
             if (self.sem.magc_mode
                 and grid_index is not None):
 
-                section_index = self.gm[grid_index].section_index
+                array_index = self.gm[grid_index].array_index
                 roi_index = self.gm[grid_index].roi_index
-                if section_index is not None and roi_index is not None:
-                    grid_id = f'section {section_index} roi {roi_index}'
+                if array_index is not None and roi_index is not None:
+                    grid_id = f'array {array_index} roi {roi_index}'
                 else:
                     grid_id = f'grid {grid_index}'
 

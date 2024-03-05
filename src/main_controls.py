@@ -1167,9 +1167,9 @@ class MainControls(QMainWindow):
         row_index = selection.row()
         header = selection.model().verticalHeaderItem(row_index)
         if header is not None:
-            section_index = int(header.text())
+            array_index = int(header.text())
         else:
-            section_index = row_index
+            array_index = row_index
 
         column_index = selection.column()
         header = selection.model().horizontalHeaderItem(column_index)
@@ -1177,14 +1177,14 @@ class MainControls(QMainWindow):
             roi_index = int(header.text())
         else:
             roi_index = column_index
-        return section_index, roi_index
+        return array_index, roi_index
 
-    def get_selection_from_section_index(self, section_index, roi_index):
+    def get_selection_from_array_index(self, array_index, roi_index):
         array_table_model = self.tableView_array_sections.model()
         selection_model = self.tableView_array_sections.selectionModel().model()
         ver_headers = [array_table_model.verticalHeaderItem(i).text() for i in range(array_table_model.rowCount())]
         hor_headers = [array_table_model.horizontalHeaderItem(i).text() for i in range(array_table_model.columnCount())]
-        section_label, roi_label = str(section_index), str(roi_index)
+        section_label, roi_label = str(array_index), str(roi_index)
         if section_label in ver_headers and roi_label in hor_headers:
             row_index = ver_headers.index(section_label)
             column_index = hor_headers.index(roi_label)
@@ -1193,13 +1193,13 @@ class MainControls(QMainWindow):
             return None
 
     def find_grid_from_selection(self, selection):
-        section_index, roi_index = self.find_indices_from_selection(selection)
-        return self.gm.find_roi_grid(section_index, roi_index)
+        array_index, roi_index = self.find_indices_from_selection(selection)
+        return self.gm.find_roi_grid(array_index, roi_index)
 
     def find_table_index_from_grid(self, grid_index):
         grid = self.gm[grid_index]
-        section_index, roi_index = grid.section_index, grid.roi_index
-        return self.get_selection_from_section_index(section_index, roi_index)
+        array_index, roi_index = grid.array_index, grid.roi_index
+        return self.get_selection_from_array_index(array_index, roi_index)
 
     def array_select_all(self):
         self.tableView_array_sections.selectAll()
@@ -1325,7 +1325,7 @@ class MainControls(QMainWindow):
         self.array_update_checked_sections_to_config()
 
     def array_double_clicked_section(self, selection):
-        section_index, roi_index = self.find_indices_from_selection(selection)
+        array_index, roi_index = self.find_indices_from_selection(selection)
         grid = self.find_grid_from_selection(selection)
 
         self.cs.vp_centre_dx_dy = grid.centre_dx_dy
@@ -1334,7 +1334,7 @@ class MainControls(QMainWindow):
         if self.gm.array_data.calibrated:
             utils.log_info(
                 'Array-CTRL',
-                f'Section {section_index} / ROI {roi_index} has been double-clicked. Moving to section...')
+                f'Array {array_index} / ROI {roi_index} has been double-clicked. Moving to section...')
 
             # set scan rotation
             self.sem.set_scan_rotation(grid.rotation % 360)
@@ -1344,13 +1344,13 @@ class MainControls(QMainWindow):
             self.stage.move_to_xy(grid_center_s)
             utils.log_info(
                 'Array-CTRL',
-                f'Moved to section {section_index} / ROI {roi_index}.')
+                f'Moved to section {array_index} / ROI {roi_index}.')
             # to update the stage position cursor
             self.viewport.vp_draw()
         else:
             utils.log_warning(
                 'Array-CTRL',
-                (f'Section {section_index} / ROI {roi_index}'
+                (f'Array {array_index} / ROI {roi_index}'
                 ' has been double-clicked. Image is not'
                 ' calibrated, therefore no stage movement.'))
 
@@ -1446,7 +1446,7 @@ class MainControls(QMainWindow):
             table_model = self.tableView_array_sections.model()
             table_model.clear()
 
-            for section_index in range(nsections):
+            for array_index in range(nsections):
                 row_items = []
                 for roi_index in range(nrois):
                     roi_item = QStandardItem()
@@ -1456,7 +1456,7 @@ class MainControls(QMainWindow):
 
                 row_index = table_model.rowCount()
                 table_model.appendRow(row_items)
-                table_model.setVerticalHeaderItem(row_index, QStandardItem(str(section_index)))
+                table_model.setVerticalHeaderItem(row_index, QStandardItem(str(array_index)))
 
             for index in range(nrois):
                 table_model.setHorizontalHeaderItem(index, QStandardItem(str(index)))

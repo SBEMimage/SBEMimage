@@ -184,7 +184,7 @@ class Grid:
         # used in Array: these autofocus locations are defined relative to the
         # center of the non-rotated grid.
         self.array_autofocus_points_source = []
-        self.section_index = None
+        self.array_index = None
         self.roi_index = None
 
         #--------------------------#
@@ -858,43 +858,54 @@ class GridManager:
         self.cs = coordinate_system
         self.template_grid_index = 0
         # Load grid parameters stored as lists in configuration.
-        self.number_grids = int(self.cfg['grids']['number_grids'])
-        grid_active = json.loads(self.cfg['grids']['grid_active'])
-        origin_sx_sy = json.loads(self.cfg['grids']['origin_sx_sy'])
+        grids_data = self.cfg['grids']
+        self.number_grids = int(grids_data['number_grids'])
+        grid_active = json.loads(grids_data['grid_active'])
+        origin_sx_sy = json.loads(grids_data['origin_sx_sy'])
         # * backward compatibility:
-        if 'sw_sh' in self.cfg['grids']:
-            sw_sh = json.loads(self.cfg['grids']['sw_sh'])
+        if 'sw_sh' in grids_data:
+            sw_sh = json.loads(grids_data['sw_sh'])
         else:
             sw_sh = []
-        rotation = json.loads(self.cfg['grids']['rotation'])
-        size = json.loads(self.cfg['grids']['size'])
-        overlap = json.loads(self.cfg['grids']['overlap'])
-        row_shift = json.loads(self.cfg['grids']['row_shift'])
-        active_tiles = json.loads(self.cfg['grids']['active_tiles'])
-        frame_size = json.loads(self.cfg['grids']['tile_size'])
+        rotation = json.loads(grids_data['rotation'])
+        size = json.loads(grids_data['size'])
+        overlap = json.loads(grids_data['overlap'])
+        row_shift = json.loads(grids_data['row_shift'])
+        active_tiles = json.loads(grids_data['active_tiles'])
+        frame_size = json.loads(grids_data['tile_size'])
         frame_size_selector = json.loads(
-            self.cfg['grids']['tile_size_selector'])
-        pixel_size = json.loads(self.cfg['grids']['pixel_size'])
-        dwell_time = json.loads(self.cfg['grids']['dwell_time'])
+            grids_data['tile_size_selector'])
+        pixel_size = json.loads(grids_data['pixel_size'])
+        dwell_time = json.loads(grids_data['dwell_time'])
         dwell_time_selector = json.loads(
-            self.cfg['grids']['dwell_time_selector'])
+            grids_data['dwell_time_selector'])
         # * backward compatibility:
-        if 'bit_depth_selector' in self.cfg['grids']:
+        if 'bit_depth_selector' in grids_data:
             bit_depth_selector = json.loads(
-                self.cfg['grids']['bit_depth_selector'])
+                grids_data['bit_depth_selector'])
         else:
             bit_depth_selector = []
-        display_colour = json.loads(self.cfg['grids']['display_colour'])
-        wd_stig_xy = json.loads(self.cfg['grids']['wd_stig_xy'])
-        acq_interval = json.loads(self.cfg['grids']['acq_interval'])
+        display_colour = json.loads(grids_data['display_colour'])
+        wd_stig_xy = json.loads(grids_data['wd_stig_xy'])
+        acq_interval = json.loads(grids_data['acq_interval'])
         acq_interval_offset = json.loads(
-            self.cfg['grids']['acq_interval_offset'])
+            grids_data['acq_interval_offset'])
         use_wd_gradient = json.loads(
-            self.cfg['grids']['use_wd_gradient'])
+            grids_data['use_wd_gradient'])
         wd_gradient_ref_tiles = json.loads(
-            self.cfg['grids']['wd_gradient_ref_tiles'])
+            grids_data['wd_gradient_ref_tiles'])
         wd_gradient_params = json.loads(
-            self.cfg['grids']['wd_gradient_params'])
+            grids_data['wd_gradient_params'])
+        if 'array_index' in grids_data:
+            array_index = json.loads(
+                grids_data['array_index'])
+        else:
+            array_index = None
+        if 'roi_index' in grids_data:
+            roi_index = json.loads(
+                grids_data['roi_index'])
+        else:
+            roi_index = None
 
         # Backward compatibility for loading older config files
         if len(grid_active) < self.number_grids:
@@ -921,10 +932,14 @@ class GridManager:
                         acq_interval_offset[i], wd_stig_xy[i],
                         use_wd_gradient[i] == 1, wd_gradient_ref_tiles[i],
                         wd_gradient_params[i])
+            if isinstance(array_index, list):
+                grid.array_index = array_index[i]
+            if isinstance(roi_index, list):
+                grid.roi_index = roi_index[i]
             self.__grids.append(grid)
 
         # Load working distance and stigmation parameters
-        wd_stig_dict = json.loads(self.cfg['grids']['wd_stig_params'])
+        wd_stig_dict = json.loads(grids_data['wd_stig_params'])
         for tile_key, wd_stig_xy in wd_stig_dict.items():
             g, t = (int(s) for s in tile_key.split('.'))
             if (g < self.number_grids) and (t < self.__grids[g].number_tiles):
@@ -1008,49 +1023,54 @@ class GridManager:
         """Save current grid configuration to ConfigParser object self.cfg.
         The reasons why all grid parameters are saved as lists in the user
         configuration are backward compatibility and readability."""
-        self.cfg['grids']['number_grids'] = str(self.number_grids)
-        self.cfg['grids']['grid_active'] = str(
+        grids_data = self.cfg['grids']
+        grids_data['number_grids'] = str(self.number_grids)
+        grids_data['grid_active'] = str(
             [int(grid.active) for grid in self.__grids])
-        self.cfg['grids']['origin_sx_sy'] = str(
+        grids_data['origin_sx_sy'] = str(
             [utils.round_xy(grid.origin_sx_sy) for grid in self.__grids])
-        self.cfg['grids']['sw_sh'] = str(
+        grids_data['sw_sh'] = str(
             [utils.round_xy(grid.sw_sh) for grid in self.__grids])
-        self.cfg['grids']['rotation'] = str(
+        grids_data['rotation'] = str(
             [grid.rotation for grid in self.__grids])
-        self.cfg['grids']['size'] = str(
+        grids_data['size'] = str(
             [grid.size for grid in self.__grids])
-        self.cfg['grids']['overlap'] = str(
+        grids_data['overlap'] = str(
             [grid.overlap for grid in self.__grids])
-        self.cfg['grids']['row_shift'] = str(
+        grids_data['row_shift'] = str(
             [grid.row_shift for grid in self.__grids])
-        self.cfg['grids']['active_tiles'] = str(
+        grids_data['active_tiles'] = str(
             [grid.active_tiles for grid in self.__grids])
-        self.cfg['grids']['tile_size'] = str(
+        grids_data['tile_size'] = str(
             [grid.frame_size for grid in self.__grids])
-        self.cfg['grids']['tile_size_selector'] = str(
+        grids_data['tile_size_selector'] = str(
             [grid.frame_size_selector for grid in self.__grids])
-        self.cfg['grids']['pixel_size'] = str(
+        grids_data['pixel_size'] = str(
             [grid.pixel_size for grid in self.__grids])
-        self.cfg['grids']['dwell_time'] = str(
+        grids_data['dwell_time'] = str(
             [grid.dwell_time for grid in self.__grids])
-        self.cfg['grids']['dwell_time_selector'] = str(
+        grids_data['dwell_time_selector'] = str(
             [grid.dwell_time_selector for grid in self.__grids])
-        self.cfg['grids']['bit_depth_selector'] = str(
+        grids_data['bit_depth_selector'] = str(
             [grid.bit_depth_selector for grid in self.__grids])
-        self.cfg['grids']['display_colour'] = str(
+        grids_data['display_colour'] = str(
             [grid.display_colour for grid in self.__grids])
-        self.cfg['grids']['wd_stig_xy'] = str(
+        grids_data['wd_stig_xy'] = str(
             [grid.wd_stig_xy for grid in self.__grids])
-        self.cfg['grids']['acq_interval'] = str(
+        grids_data['acq_interval'] = str(
             [grid.acq_interval for grid in self.__grids])
-        self.cfg['grids']['acq_interval_offset'] = str(
+        grids_data['acq_interval_offset'] = str(
             [grid.acq_interval_offset for grid in self.__grids])
-        self.cfg['grids']['use_wd_gradient'] = str(
+        grids_data['use_wd_gradient'] = str(
             [int(grid.use_wd_gradient) for grid in self.__grids])
-        self.cfg['grids']['wd_gradient_ref_tiles'] = str(
+        grids_data['wd_gradient_ref_tiles'] = str(
             [grid.wd_gradient_ref_tiles for grid in self.__grids])
-        self.cfg['grids']['wd_gradient_params'] = str(
+        grids_data['wd_gradient_params'] = str(
             [grid.wd_gradient_params for grid in self.__grids])
+        grids_data['array_index'] = str(
+            [grid.array_index for grid in self.__grids])
+        grids_data['roi_index'] = str(
+            [grid.roi_index for grid in self.__grids])
 
         # Save the working distances and stigmation parameters of those tiles
         # that are active and/or selected for the autofocus and/or the
@@ -1071,7 +1091,7 @@ class GridManager:
                         round(self.__grids[g][t].stig_xy[1], 6)
                     ]
         # Save as JSON string in config:
-        self.cfg['grids']['wd_stig_params'] = json.dumps(wd_stig_dict)
+        grids_data['wd_stig_params'] = json.dumps(wd_stig_dict)
         # Also save list of autofocus reference tiles.
         self.cfg['autofocus']['ref_tiles'] = json.dumps(
             self.autofocus_ref_tiles)
@@ -1168,16 +1188,17 @@ class GridManager:
         size = [int(np.ceil(h / tile_height)), int(np.ceil(w / tile_width))]
 
         # do not use rotation of previous grid!
-        self.add_new_grid(origin_sx_sy=origin_sx_sy, sw_sh=(w, h), active=grid.active,
-                          frame_size=grid.frame_size, frame_size_selector=grid.frame_size_selector,
-                          overlap=grid.overlap, pixel_size=grid.pixel_size,
-                          dwell_time=grid.dwell_time, dwell_time_selector=grid.dwell_time_selector,
-                          bit_depth_selector=grid.bit_depth_selector, 
-                          rotation=0, row_shift=grid.row_shift,
-                          acq_interval=grid.acq_interval, acq_interval_offset=grid.acq_interval_offset,
-                          wd_stig_xy=grid.wd_stig_xy, use_wd_gradient=grid.use_wd_gradient,
-                          wd_gradient_ref_tiles=grid.wd_gradient_ref_tiles, wd_gradient_params=grid.wd_gradient_params,
-                          size=size)
+        new_grid = self.add_new_grid(origin_sx_sy=origin_sx_sy, sw_sh=(w, h), active=grid.active,
+                                      frame_size=grid.frame_size, frame_size_selector=grid.frame_size_selector,
+                                      overlap=grid.overlap, pixel_size=grid.pixel_size,
+                                      dwell_time=grid.dwell_time, dwell_time_selector=grid.dwell_time_selector,
+                                      bit_depth_selector=grid.bit_depth_selector,
+                                      rotation=0, row_shift=grid.row_shift,
+                                      acq_interval=grid.acq_interval, acq_interval_offset=grid.acq_interval_offset,
+                                      wd_stig_xy=grid.wd_stig_xy, use_wd_gradient=grid.use_wd_gradient,
+                                      wd_gradient_ref_tiles=grid.wd_gradient_ref_tiles, wd_gradient_params=grid.wd_gradient_params,
+                                      size=size)
+        new_grid.roi_index = grid.roi_index
 
     def tile_position_for_registration(self, grid_index, tile_index):
         """Provide tile location (upper left corner of tile) in nanometres.
@@ -1331,21 +1352,21 @@ class GridManager:
         self.delete_all_grids_above_index(nrois - 1)
 
         grid_index = 0
-        for section_index, rois in self.array_data.get_rois().items():
+        for array_index, rois in self.array_data.get_rois().items():
             for roi_index, roi in rois.items():
                 center_um0, size, angle0 = utils.calc_rotated_rect(roi['polygon'])
                 center = roi['center']
                 rotation = -roi['angle'] % 360
-                self.add_new_grid_from_roi(section_index, roi_index, grid_index, center, size, rotation)
+                self.add_new_grid_from_roi(array_index, roi_index, grid_index, center, size, rotation)
 
-                for point in self.array_data.get_focus_points_in_roi(section_index, roi):
+                for point in self.array_data.get_focus_points_in_roi(array_index, roi):
                     self.array_add_autofocus_point(
                         grid_index,
                         point['location'])
 
                 grid_index += 1
 
-    def add_new_grid_from_roi(self, section_index, roi_index, grid_index, center, size, rotation):
+    def add_new_grid_from_roi(self, array_index, roi_index, grid_index, center, size, rotation):
         template_index = roi_index
         if template_index >= self.number_grids:
             template_index = 0
@@ -1371,22 +1392,22 @@ class GridManager:
                                      wd_gradient_ref_tiles=grid.wd_gradient_ref_tiles,
                                      wd_gradient_params=grid.wd_gradient_params, index=grid_index)
 
-        new_grid.section_index = section_index
+        new_grid.array_index = array_index
         new_grid.roi_index = roi_index
         # centre must be finally set after updating tile positions
         new_grid.auto_update_tile_positions = True
         new_grid.centre_sx_sy = center
         return new_grid
 
-    def find_roi_index(self, section_index, roi_index):
+    def find_roi_index(self, array_index, roi_index):
         for index, grid in enumerate(self.__grids):
-            if grid.section_index == section_index and grid.roi_index == roi_index:
+            if grid.array_index == array_index and grid.roi_index == roi_index:
                 return index
         return None
 
-    def find_roi_grid(self, section_index, roi_index):
+    def find_roi_grid(self, array_index, roi_index):
         for grid in self.__grids:
-            if grid.section_index == section_index and grid.roi_index == roi_index:
+            if grid.array_index == array_index and grid.roi_index == roi_index:
                 return grid
         return None
 
@@ -1497,8 +1518,8 @@ class GridManager:
         if source_gridi == target_gridi or target_grid.roi_index != roi_index:
             return
 
-        source_section = self.array_data.sections[source_grid.section_index]
-        target_section = self.array_data.sections[target_grid.section_index]
+        source_section = self.array_data.sections[source_grid.array_index]
+        target_section = self.array_data.sections[target_grid.array_index]
 
         rois = source_section.get('rois')
         if rois:
