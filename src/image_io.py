@@ -15,40 +15,42 @@ CONVERSIONS = {'nm': 1e-3, 'nanometer': 1e-3,
 
 # TODO: add ome.zarr support
 
+
 def imread(path, level=None, target_pixel_size_um=None, render=True):
     image = None
-    paths = os.path.splitext(path)
-    ext = paths[-1].lower()
-    is_tiff = ext in ['.tif', '.tiff']
-    metadata = imread_metadata(path)
-    dimension_order = metadata['dimension_order']
-    size = metadata['size']
-    nlevels = len(metadata['sizes'])
-    source_pixel_size = metadata.get('pixel_size')
-    scale_by_pixel_size = (target_pixel_size_um is not None and source_pixel_size is not None)
-    target_size = 1
+    if os.path.exists(path):
+        paths = os.path.splitext(path)
+        ext = paths[-1].lower()
+        is_tiff = ext in ['.tif', '.tiff']
+        metadata = imread_metadata(path)
+        dimension_order = metadata['dimension_order']
+        size = metadata['size']
+        nlevels = len(metadata['sizes'])
+        source_pixel_size = metadata.get('pixel_size')
+        scale_by_pixel_size = (target_pixel_size_um is not None and source_pixel_size is not None)
+        target_size = 1
 
-    if is_tiff:
-        if scale_by_pixel_size:
-            target_size = (np.divide(source_pixel_size, target_pixel_size_um) * size).astype(int)
-            for level1, size1 in enumerate(metadata['sizes']):
-                if np.all(size1 > target_size):
-                    level = level1
-        if level is None or level < nlevels:
-            image = tifffile.imread(path, level=level)
-            if 'c' in dimension_order:
-                c_index = dimension_order.index('c')
-                if c_index < len(dimension_order) - 1:
-                    image = np.moveaxis(image, c_index, -1)
+        if is_tiff:
             if scale_by_pixel_size:
-                image = resize_image(image, target_size)
-    else:
-        try:
-            image = iio.imread(path)
-        except Exception as e:
-            raise TypeError(f'Error reading image {path}\n{e}')
-    if render:
-        image = render_image(image, metadata.get('channels', []))
+                target_size = (np.divide(source_pixel_size, target_pixel_size_um) * size).astype(int)
+                for level1, size1 in enumerate(metadata['sizes']):
+                    if np.all(size1 > target_size):
+                        level = level1
+            if level is None or level < nlevels:
+                image = tifffile.imread(path, level=level)
+                if 'c' in dimension_order:
+                    c_index = dimension_order.index('c')
+                    if c_index < len(dimension_order) - 1:
+                        image = np.moveaxis(image, c_index, -1)
+                if scale_by_pixel_size:
+                    image = resize_image(image, target_size)
+        else:
+            try:
+                image = iio.imread(path)
+            except Exception as e:
+                raise TypeError(f'Error reading image {path}\n{e}')
+        if render and image is not None:
+            image = render_image(image, metadata.get('channels', []))
     return image
 
 
