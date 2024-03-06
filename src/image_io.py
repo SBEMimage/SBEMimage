@@ -7,8 +7,13 @@ from tifffile import TiffWriter, PHOTOMETRIC
 from utils import resize_image, int2float_image, float2int_image, norm_image_quantiles
 
 
-# TODO: add ome.zarr support
+CONVERSIONS = {'nm': 1e-3, 'nanometer': 1e-3,
+               'µm': 1, 'um': 1, 'micrometer': 1,
+               'mm': 1e3, 'millimeter': 1e3,
+               'cm': 1e4, 'centimeter': 1e4,
+               'm': 1e6, 'meter': 1e6}
 
+# TODO: add ome.zarr support
 
 def imread(path, level=None, target_pixel_size_um=None, render=True):
     image = None
@@ -261,7 +266,7 @@ def imwrite(path, data, metadata=None, tile_size=None, compression='LZW',
                          metadata=tiff_metadata)
             new_size = np.flip(data.shape[:2])
             for i in range(npyramid_add):
-                new_size /= pyramid_downsample
+                new_size = new_size / pyramid_downsample    # implicit int -> float conversion
                 if resolution is not None:
                     resolution = tuple(np.divide(resolution, pyramid_downsample))
                 int_size = np.round(new_size).astype(int)
@@ -275,17 +280,12 @@ def imwrite(path, data, metadata=None, tile_size=None, compression='LZW',
 
 def convert_units_micrometer(value_units0: list):
     value_units = []
-    conversions = {'nm': 1e-3, 'nanometer': 1e-3,
-                   'µm': 1, 'um': 1, 'micrometer': 1,
-                   'mm': 1e3, 'millimeter': 1e3,
-                   'cm': 1e4, 'centimeter': 1e4,
-                   'm': 1e6, 'meter': 1e6}
     if value_units0 is None:
         return None
 
     for value_unit in value_units0:
         if (isinstance(value_unit, tuple) or isinstance(value_unit, list)) and len(value_unit) > 1:
-            value_units.append(value_unit[0] * conversions.get(value_unit[1].lower()))
+            value_units.append(value_unit[0] * CONVERSIONS.get(value_unit[1].lower()))
         else:
             value_units.append(value_unit)
     return value_units
@@ -303,6 +303,7 @@ def color_int_to_rgba(intrgba: int) -> list:
     if rgba[-1] == 0:
         rgba[-1] = 1
     return rgba
+
 
 def color_rgba_to_int(rgba: list) -> int:
     intrgba = int.from_bytes([int(x * 255) for x in rgba], signed=True, byteorder="big")
