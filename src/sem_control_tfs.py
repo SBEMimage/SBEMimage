@@ -286,6 +286,7 @@ class SEM_Phenom(SEM):
             if mode == OperationalMode.Loadpos:
                 self.sem_api.Load()
             if mode != OperationalMode.LiveSem:
+                utils.log_info('SEM', 'Moving to EM mode')
                 self.sem_api.MoveToSem()
                 self.move_stage_to_xy((self.last_known_x, self.last_known_y))
                 self.set_pixel_size(self.pixel_size)
@@ -315,6 +316,7 @@ class SEM_Phenom(SEM):
             if mode == OperationalMode.Loadpos:
                 self.sem_api.Load()
             if mode != OperationalMode.LiveNavCam:
+                utils.log_info('SEM', 'Moving to LM mode')
                 self.sem_api.MoveToNavCam()
                 self.move_stage_to_xy((self.last_known_x, self.last_known_y))
                 self.set_pixel_size(self.pixel_size)

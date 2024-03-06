@@ -77,7 +77,10 @@ class Acquisition:
         self.stack_completed = False
         self.report_requested = False
         self.slice_counter = int(self.cfg['acq']['slice_counter'])
-        self.number_slices = int(self.cfg['acq']['number_slices'])
+        if microtome is None:
+            self.number_slices = 0
+        else:
+            self.number_slices = int(self.cfg['acq']['number_slices'])
         self.slice_thickness = int(self.cfg['acq']['slice_thickness'])
         # use_target_z_diff: Whether to use a target depth (true), or a target number of slices (false)
         self.use_target_z_diff = (

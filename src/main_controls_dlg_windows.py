@@ -2140,11 +2140,11 @@ class AcqSettingsDlg(QDialog):
         super().__init__()
         self.acq = acquisition
         self.notifications = notifications
-        if not isinstance(self.acq.sem, SEM_Mock):
-            loadUi('../gui/acq_settings_dlg.ui', self)
-        else:
+        if isinstance(self.acq.sem, SEM_Mock):
             loadUi('../gui/acq_settings_dlg_mock.ui', self)
             self.update_mock_settings()
+        else:
+            loadUi('../gui/acq_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
@@ -2463,6 +2463,8 @@ class PreStackDlg(QDialog):
         self.doubleSpinBox_brightness.setValue(self.sem.bsd_brightness)
         self.doubleSpinBox_contrast.setValue(self.sem.bsd_contrast)
         self.spinBox_bias.setValue(int(self.sem.bsd_bias))
+        if self.microtome is None:
+            self.groupBox_dmSettings.setEnabled(False)
         if self.microtome is not None and self.microtome.device_name != 'GCIB':
             self.checkBox_oscillation.setChecked(self.microtome.use_oscillation)
             self.doubleSpinBox_cutSpeed.setValue(
