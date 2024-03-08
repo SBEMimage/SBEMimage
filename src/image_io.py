@@ -7,13 +7,14 @@ from tifffile import TiffWriter, PHOTOMETRIC
 from utils import resize_image, int2float_image, float2int_image, norm_image_quantiles
 
 
+# TODO: add ome.zarr support
+
+
 CONVERSIONS = {'nm': 1e-3, 'nanometer': 1e-3,
                'µm': 1, 'um': 1, 'micrometer': 1,
                'mm': 1e3, 'millimeter': 1e3,
                'cm': 1e4, 'centimeter': 1e4,
                'm': 1e6, 'meter': 1e6}
-
-# TODO: add ome.zarr support
 
 
 def imread(path, level=None, target_pixel_size_um=None, render=True):
@@ -39,6 +40,7 @@ def imread(path, level=None, target_pixel_size_um=None, render=True):
             if level is None or level < nlevels:
                 image = tifffile.imread(path, level=level)
                 if 'c' in dimension_order:
+                    # ensure colour channel is at the end
                     c_index = dimension_order.index('c')
                     if c_index < len(dimension_order) - 1:
                         image = np.moveaxis(image, c_index, -1)
@@ -109,7 +111,7 @@ def imread_metadata(path):
             sizes = [size]
             if hasattr(tif, 'series'):
                 series0 = tif.series[0]
-                dimension_order = series0.axes.lower()
+                dimension_order = series0.axes.lower().replace('s', 'c')
                 x_index = dimension_order.index('x')
                 y_index = dimension_order.index('y')
                 if hasattr(series0, 'levels'):

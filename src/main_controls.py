@@ -1014,6 +1014,7 @@ class MainControls(QMainWindow):
         self.pushButton_array_okStringSections.clicked.connect(
             self.array_select_string_sections)
 
+        self.pushButton_array_createGrids.setEnabled(False)
         self.pushButton_array_imageCalibration.setStyleSheet(
             'background-color: yellow')
         self.pushButton_array_imageCalibration.setEnabled(False)
@@ -1392,7 +1393,6 @@ class MainControls(QMainWindow):
 
     def array_reset(self):
         self.lineEdit_array_dataFile.clear()
-        self.lineEdit_array_imageFile.clear()
         array_table_model = self.tableView_array_sections.model()
         array_table_model.clear()
         self.array_trigger_image_uncalibrated()
@@ -1439,7 +1439,7 @@ class MainControls(QMainWindow):
             utils.log_info(
                 'Array-CTRL',
                 f'{len(self.gm.array_data.sections)} Array sections have been loaded.')
-            self.gm.array_create_grids()
+            self.gm.array_ensure_template_grids()
 
             nsections = len(self.gm.array_data.sections)
             nrois = self.gm.array_data.get_nrois()
@@ -1468,6 +1468,7 @@ class MainControls(QMainWindow):
             if len(self.gm.array_data.landmarks) > 2:
                 self.array_trigger_image_calibratable()
 
+            self.update_from_grid_dlg()
             self.viewport.vp_draw()
 
     def array_open_import_image(self):
@@ -1478,8 +1479,10 @@ class MainControls(QMainWindow):
 
         def on_success_function():
             array_image = self.imported[-1]
+            array_image.is_array = True
             self.lineEdit_array_imageFile.setText(array_image.image_src)
             self.gm.array_data.adjust_imported_array_image(self.acq, array_image)
+            self.pushButton_array_createGrids.setEnabled(True)
 
         self.viewport.vp_open_import_image_dlg(
             start_path=start_path,
@@ -1490,11 +1493,12 @@ class MainControls(QMainWindow):
         indexes = self.tableView_array_sections.selectedIndexes()
         if len(indexes) > 0:
             indices = indexes[0]
-            section_id = self.gm.find_roi_index(indices.row(), indices.column())
-            self.open_grid_dlg(section_id)
+            roi_index = self.gm.find_roi_grid_index(None, indices.column())
+            self.open_grid_dlg(roi_index)
 
     def array_create_grids(self):
-        self.gm.array_create_grids()
+        imported_image = self.imported.find_array_image()
+        self.gm.array_create_grids(imported_image)
         self.update_from_grid_dlg()
 
     def array_open_image_calibration_dlg(self):

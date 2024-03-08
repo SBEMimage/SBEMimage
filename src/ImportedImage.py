@@ -23,7 +23,7 @@ from utils import round_xy, image_to_QPixmap
 
 class ImportedImage:
     def __init__(self, image_src, description, centre_sx_sy, rotation,
-                 size, pixel_size, transparency):
+                 size, pixel_size, transparency, is_array=False):
         self._image_src = image_src   # Path to image file
         self.description = description
         self.centre_sx_sy = centre_sx_sy
@@ -31,6 +31,7 @@ class ImportedImage:
         self.size = size
         self.pixel_size = pixel_size
         self.transparency = transparency
+        self.is_array = is_array
         self._load_image()
 
     def __del__(self):
@@ -106,12 +107,16 @@ class ImportedImages:
         size = json.loads(imported['size'])
         pixel_size = json.loads(imported['pixel_size'])
         transparency = json.loads(imported['transparency'])
+        if 'is_array' in imported:
+            is_array = json.loads(imported['is_array'])
+        else:
+            is_array = [False for _ in size]
 
         # Create ImportedImage objects
         self.__imported_images = []
         for i in range(number_imported):
             self.add_image(image_src[i], description[i], centre_sx_sy[i], rotation[i],
-                           size[i], pixel_size[i], transparency[i])
+                           size[i], pixel_size[i], transparency[i], is_array=is_array)
 
     def __getitem__(self, index):
         """Return the ImportedImage object selected by index."""
@@ -124,27 +129,30 @@ class ImportedImages:
         return self.number_imported
 
     def save_to_cfg(self):
-        self.cfg['imported']['number_imported'] = str(self.number_imported)
-        self.cfg['imported']['image_src'] = json.dumps(
+        imported = self.cfg['imported']
+        imported['number_imported'] = str(self.number_imported)
+        imported['image_src'] = json.dumps(
             [image.image_src for image in self.__imported_images])
-        self.cfg['imported']['description'] = json.dumps(
+        imported['description'] = json.dumps(
             [image.description for image in self.__imported_images])
-        self.cfg['imported']['centre_sx_sy'] = str(
+        imported['centre_sx_sy'] = str(
             [round_xy(img.centre_sx_sy)
              for img in self.__imported_images])
-        self.cfg['imported']['rotation'] = str(
+        imported['rotation'] = str(
             [img.rotation for img in self.__imported_images])
-        self.cfg['imported']['size'] = str(
+        imported['size'] = str(
             [img.size for img in self.__imported_images])
-        self.cfg['imported']['pixel_size'] = str(
+        imported['pixel_size'] = str(
             [img.pixel_size for img in self.__imported_images])
-        self.cfg['imported']['transparency'] = str(
+        imported['transparency'] = str(
             [img.transparency for img in self.__imported_images])
+        imported['is_array'] = json.dumps(
+            [image.is_array for image in self.__imported_images])
 
     def add_image(self, image_src, description, centre_sx_sy, rotation,
-                  size, pixel_size, transparency):
+                  size, pixel_size, transparency, is_array=False):
         new_imported_image = ImportedImage(image_src, description, centre_sx_sy, rotation,
-                                           size, pixel_size, transparency)
+                                           size, pixel_size, transparency, is_array=is_array)
         self.__imported_images.append(new_imported_image)
         self.number_imported += 1
         return new_imported_image
@@ -158,3 +166,9 @@ class ImportedImages:
         """Delete all imported images"""
         while self.__imported_images:
             self.delete_image(-1)
+
+    def find_array_image(self):
+        for imported_image in self.__imported_images:
+            if imported_image.is_array:
+                return imported_image
+        return None

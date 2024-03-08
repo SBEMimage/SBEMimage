@@ -1345,18 +1345,47 @@ class GridManager:
     def array_reset(self):
         self.array_data.reset()
 
-    def array_create_grids(self):
+    def array_ensure_template_grids(self):
+        nrois = self.array_data.get_nrois()
+
+        self.delete_all_grids_above_index(nrois - 1)
+        grid = self.__grids[self.number_grids - 1]
+
+        while self.number_grids < nrois:
+            self.add_new_grid(origin_sx_sy=grid.origin_sx_sy, sw_sh=grid.sw_sh, size=grid.size,
+                              rotation=grid.rotation, active=False,
+                              frame_size=grid.frame_size, frame_size_selector=grid.frame_size_selector,
+                              overlap=grid.overlap, pixel_size=grid.pixel_size,
+                              dwell_time=grid.dwell_time, dwell_time_selector=grid.dwell_time_selector,
+                              bit_depth_selector=grid.bit_depth_selector,
+                              row_shift=grid.row_shift,
+                              acq_interval=grid.acq_interval, acq_interval_offset=grid.acq_interval_offset,
+                              wd_stig_xy=grid.wd_stig_xy, use_wd_gradient=grid.use_wd_gradient,
+                              wd_gradient_ref_tiles=grid.wd_gradient_ref_tiles,
+                              wd_gradient_params=grid.wd_gradient_params)
+
+        for index in range(nrois):
+            new_grid = self.__grids[index]
+            new_grid.array_index = None
+            new_grid.roi_index = index
+            new_grid.auto_update_tile_positions = True
+
+    def array_create_grids(self, imported_image):
         array_data = self.array_data
 
         nrois = array_data.get_nrois()
         self.delete_all_grids_above_index(nrois - 1)
 
+        # TODO: apply stage scale and rotation
+        offset = np.array(imported_image.centre_sx_sy) - np.array(imported_image.size) / 2
+        angle_offset = imported_image.rotation
+
         grid_index = 0
         for array_index, rois in self.array_data.get_rois().items():
             for roi_index, roi in rois.items():
                 center_um0, size, angle0 = utils.calc_rotated_rect(roi['polygon'])
-                center = roi['center']
-                rotation = -roi['angle'] % 360
+                center = offset + roi['center']
+                rotation = (angle_offset - roi['angle']) % 360
                 self.add_new_grid_from_roi(array_index, roi_index, grid_index, center, size, rotation)
 
                 for point in self.array_data.get_focus_points_in_roi(array_index, roi):
@@ -1381,7 +1410,6 @@ class GridManager:
         tiles = [int(np.ceil(h / tile_height)), int(np.ceil(w / tile_width))]
 
         new_grid = self.add_new_grid(origin_sx_sy=origin_sx_sy, sw_sh=size, size=tiles, rotation=rotation,
-                                     active=grid.active,
                                      frame_size=grid.frame_size, frame_size_selector=grid.frame_size_selector,
                                      overlap=grid.overlap, pixel_size=grid.pixel_size,
                                      dwell_time=grid.dwell_time, dwell_time_selector=grid.dwell_time_selector,
@@ -1399,9 +1427,9 @@ class GridManager:
         new_grid.centre_sx_sy = center
         return new_grid
 
-    def find_roi_index(self, array_index, roi_index):
+    def find_roi_grid_index(self, array_index, roi_index):
         for index, grid in enumerate(self.__grids):
-            if grid.array_index == array_index and grid.roi_index == roi_index:
+            if (array_index is None or grid.array_index == array_index) and grid.roi_index == roi_index:
                 return index
         return None
 
