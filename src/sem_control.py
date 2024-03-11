@@ -239,13 +239,14 @@ class SEM:
             self.maintenance_move_interval))
 
     def get_grab_metadata(self):
-        # TODO: add (scan) rotation
-        position = [self.last_known_x, self.last_known_y]
-        if self.last_known_z is not None:
-            position += [self.last_known_z]
+        # Test: is metadata correct if microtome is used? alternatively should MainControls.stage be used instead?
+        position = self.get_stage_xyz()
+        if len(position) > 2 and position[2] is None:
+            position = position[:2]
         metadata = {
-            'pixel_size': [self.grab_pixel_size, self.grab_pixel_size],
-            'position': position
+            'pixel_size': [self.grab_pixel_size * 1e-3] * 2,
+            'position': position,
+            'rotation': self.stage_rotation
         }
         return metadata
 

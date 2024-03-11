@@ -1378,7 +1378,13 @@ class Viewport(QWidget):
         if suppress_previews:                # this parameter of vp_draw()
             show_previews = False            # overrides the tile preview mode
 
-        if self.vp_current_grid == -1:  # show all grids
+        if self.vp_current_grid >= 0:   # show only the selected grid
+            self._vp_place_grid(self.vp_current_grid,
+                                show_grid,
+                                show_previews,
+                                with_gaps,
+                                suppress_labels)
+        else:  # show all grids
             for grid_index in range(self.gm.number_grids):
                 self._vp_place_grid(grid_index,
                                     show_grid,
@@ -1386,12 +1392,6 @@ class Viewport(QWidget):
                                     with_gaps,
                                     suppress_labels)
 
-        if self.vp_current_grid >= 0:   # show only the selected grid
-            self._vp_place_grid(self.vp_current_grid,
-                                show_grid,
-                                show_previews,
-                                with_gaps,
-                                suppress_labels)
         # Finally, show imported images
         if (self.show_imported and self.imported.number_imported > 0
             and not self.sem.magc_mode):
@@ -1916,10 +1916,8 @@ class Viewport(QWidget):
 
         if (show_previews
                 and not self.fov_drag_active
-                and not self.grid_drag_active
-                and self.cs.vp_scale > 1.4):
-            # Previews are disabled when FOV or grid are being dragged or
-            # when sufficiently zoomed out.
+                and not self.grid_drag_active):
+            # Previews are disabled when FOV or grid are being dragged
             width_px = self.gm[grid_index].tile_width_p()
             height_px = self.gm[grid_index].tile_height_p()
 

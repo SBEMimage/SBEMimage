@@ -424,6 +424,7 @@ class SEM_SmartSEM(SEM):
         return self.MAG_PX_SIZE_FACTOR / (current_mag
                    * self.STORE_RES[current_frame_size_selector][0])
 
+    # TODO: unused - remove?
     def set_pixel_size(self, pixel_size):
         """Set SEM to the magnification corresponding to pixel_size."""
         frame_size_selector = self.get_frame_size_selector()

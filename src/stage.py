@@ -61,7 +61,7 @@ class Stage:
     def get_xyz(self):
         if self.use_microtome_z:
             x, y = self._stage.get_stage_xy()
-            z = self.microtome.get_stage_z()
+            z = self.get_z()
             return x, y, z
         else:
             return self._stage.get_stage_xyz()

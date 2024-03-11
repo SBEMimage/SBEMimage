@@ -60,7 +60,6 @@ class SEM_Phenom(SEM):
             if self.use_sem_stage:
                 # Read current SEM stage coordinates
                 self.last_known_x, self.last_known_y = self.get_stage_xy()
-                self.last_known_z = 0
         else:
             self.error_state = Error.smartsem_api
             self.error_info = ''
@@ -164,7 +163,7 @@ class SEM_Phenom(SEM):
 
     def set_vp_target(self, target_pressure):
         pass
- 
+
     def get_beam_current(self):
         return self.target_beam_current
 
@@ -233,7 +232,7 @@ class SEM_Phenom(SEM):
         return True
 
     def get_mag(self):
-        self.mag = int(self.MAG_PX_SIZE_FACTOR / (self.frame_size[0] * self.pixel_size))
+        self.mag = int(self.MAG_PX_SIZE_FACTOR / (self.frame_size[0] * self.grab_pixel_size))
         return self.mag
 
     def set_mag(self, target_mag):
@@ -246,7 +245,7 @@ class SEM_Phenom(SEM):
 
     def set_pixel_size(self, pixel_size):
         # pixel_size in [nm]
-        self.pixel_size = pixel_size
+        self.grab_pixel_size = pixel_size
         self.sem_api.SetHFW(self.frame_size[0] * pixel_size * 1e-9)
         self.mag = self.get_mag()
         return True
@@ -289,7 +288,7 @@ class SEM_Phenom(SEM):
                 utils.log_info('SEM', 'Moving to EM mode')
                 self.sem_api.MoveToSem()
                 self.move_stage_to_xy((self.last_known_x, self.last_known_y))
-                self.set_pixel_size(self.pixel_size)
+                self.set_pixel_size(self.grab_pixel_size)
 
             self.sem_api.SemUnblankBeam()
 
@@ -319,7 +318,7 @@ class SEM_Phenom(SEM):
                 utils.log_info('SEM', 'Moving to LM mode')
                 self.sem_api.MoveToNavCam()
                 self.move_stage_to_xy((self.last_known_x, self.last_known_y))
-                self.set_pixel_size(self.pixel_size)
+                self.set_pixel_size(self.grab_pixel_size)
 
             if extra_delay > 0:
                 sleep(extra_delay)

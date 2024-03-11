@@ -260,8 +260,9 @@ def acquire_stub_ov(sem, stage, stub_ovm, acq, img_inspector,
                             full_stub_image[y_pos:y_pos + tile_height,
                                             x_pos:x_pos + tile_width] = tile_img
                         # Save current stitched image and show it in Viewport
-                        metadata = imread_metadata(save_path)   # get metadata from last acquisition
-                        metadata['position'] = stub_ovm.centre_sx_sy
+                        metadata = {'pixel_size': [stub_ovm.pixel_size * 1e-3] * 2,
+                                    'position': stub_ovm.centre_sx_sy,
+                                    'rotation': stub_ovm.rotation}
                         imwrite(temp_save_path, full_stub_image, metadata=metadata, npyramid_add=4, pyramid_downsample=2)
                         # Setting vp_file_path to temp_save_path reloads the current file
                         stub_ovm.vp_file_path = temp_save_path
