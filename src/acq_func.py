@@ -86,7 +86,7 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
             utils.log_info('SEM', f'Acquiring OV {ov_index}.')
             # Indicate the overview being acquired in the viewport
             viewport_trigger.transmit('ACQ IND OV', ov_index)
-            success = sem.acquire_frame(save_path)
+            success = sem.acquire_frame(save_path, stage)
             # Remove indicator colour
             viewport_trigger.transmit('ACQ IND OV', ov_index)
             _, _, _, load_error, _, grab_incomplete = (
@@ -97,7 +97,7 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
                 #main_controls_trigger.transmit(utils.format_log_entry('SEM: Second attempt: Acquiring OV %d.' % ov_index))
                 utils.log_info('SEM', f'Second attempt: Acquiring OV {ov_index}.')
                 viewport_trigger.transmit('ACQ IND OV', ov_index)
-                success = sem.acquire_frame(save_path)
+                success = sem.acquire_frame(save_path, stage)
                 viewport_trigger.transmit('ACQ IND OV', ov_index)
                 sleep(1)
                 _, _, _, load_error, _, grab_incomplete = (
@@ -219,9 +219,9 @@ def acquire_stub_ov(sem, stage, stub_ovm, acq, img_inspector,
                         sem.set_bit_depth(stub_ovm.bit_depth_selector)
                         first_tile = False
                     if stub_ovm.lm_mode:
-                        success = sem.acquire_frame_lm(save_path)
+                        success = sem.acquire_frame_lm(save_path, stage)
                     else:
-                        success = sem.acquire_frame(save_path)
+                        success = sem.acquire_frame(save_path, stage)
                     sleep(0.5)
                     tile_img, _, _, load_error, _, grab_incomplete = (
                         img_inspector.load_and_inspect(save_path))
@@ -229,9 +229,9 @@ def acquire_stub_ov(sem, stage, stub_ovm, acq, img_inspector,
                         # Try again
                         sem.reset_error_state()
                         if stub_ovm.lm_mode:
-                            success = sem.acquire_frame_lm(save_path)
+                            success = sem.acquire_frame_lm(save_path, stage)
                         else:
-                            success = sem.acquire_frame(save_path)
+                            success = sem.acquire_frame(save_path, stage)
                         sleep(1.5)
                         tile_img, _, _, load_error, _, grab_incomplete = (
                             img_inspector.load_and_inspect(save_path))

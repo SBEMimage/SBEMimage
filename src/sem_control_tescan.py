@@ -196,11 +196,11 @@ class SEM_SharkSEM(SEM):
         """Return True if VP is fitted."""
         return self.sem_api.VacGetVPMode() == 1
 
-    def save_frame(self, save_path_filename):
+    def save_frame(self, save_path_filename, stage=None):
         """Save the frame currently displayed in SmartSEM."""
-        self.acquire_frame(save_path_filename)
+        self.acquire_frame(save_path_filename, stage=stage)
 
-    def acquire_frame(self, save_path_filename, extra_delay=0):
+    def acquire_frame(self, save_path_filename, stage=None, extra_delay=0):
         """Acquire a full frame and save it to save_path_filename.
         All imaging parameters must be applied BEFORE calling this function.
         To avoid grabbing the image before it is acquired completely, an
@@ -275,8 +275,8 @@ class SEM_SharkSEM(SEM):
         # we must stop the scanning even after single scan
         self.sem_api.ScStopScan()
 
-        # TODO: avoid image conversions (to string?)
-        # TODO: use generic image_io imwrite() instead
+        # TODO: avoid redundant image conversions (to string)
+        # TODO: *** use generic image_io.imwrite() instead, using self.get_grab_metadata(stage)
 
         # create and save the images (only here the 'Image' library is required)
         if bpp == 8:

@@ -4112,7 +4112,7 @@ class Viewport(QWidget):
             # Use current image from SEM
             selected_file = os.path.join(
                 self.acq.base_dir, 'workspace', 'current_frame' + constants.TEMP_IMAGE_FORMAT)
-            self.sem.save_frame(selected_file)
+            self.sem.save_frame(selected_file, self.acq.stage)
             self.m_reset_view()
             self.m_tab_populated = False
 

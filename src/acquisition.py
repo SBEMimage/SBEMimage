@@ -764,51 +764,51 @@ class Acquisition:
             self.add_to_main_log('SEM: Current ' + utils.format_wd_stig(
                 self.wd_default, self.stig_x_default, self.stig_y_default))
 
-            # Make sure DM script uses the correct motor speeds
-            # (When script crashes, default motor speeds are used.)
-            if (self.microtome is not None
-                    and self.microtome.device_name == 'Gatan 3View'):
-                success = self.microtome.update_motor_speeds_in_dm_script()
-                if not success:
-                    self.error_state = self.microtome.error_state
-                    self.error_info = self.microtome.error_info
-                    self.microtome.reset_error_state()
-                    self.pause_acquisition(1)
-                    utils.log_error(
-                        'STAGE',
-                        'ERROR: Could not update '
-                        'XY motor speeds.')
-                    self.add_to_main_log('STAGE: ERROR: Could not update '
-                                         'XY motor speeds.')
+            if self.microtome is not None:
+                # Make sure DM script uses the correct motor speeds
+                # (When script crashes, default motor speeds are used.)
+                if self.microtome.device_name == 'Gatan 3View':
+                    success = self.microtome.update_motor_speeds_in_dm_script()
+                    if not success:
+                        self.error_state = self.microtome.error_state
+                        self.error_info = self.microtome.error_info
+                        self.microtome.reset_error_state()
+                        self.pause_acquisition(1)
+                        utils.log_error(
+                            'STAGE',
+                            'ERROR: Could not update '
+                            'XY motor speeds.')
+                        self.add_to_main_log('STAGE: ERROR: Could not update '
+                                             'XY motor speeds.')
 
-            # Get current Z position of microtome/stage
-            self.stage_z_position = self.stage.get_z()
-            if self.stage_z_position is None or self.stage_z_position < 0:
-                # Try again
-                sleep(1)
+                # Get current Z position of microtome/stage
                 self.stage_z_position = self.stage.get_z()
                 if self.stage_z_position is None or self.stage_z_position < 0:
-                    self.error_state = Error.dm_comm_retval
-                    self.stage.reset_error_state()
-                    self.pause_acquisition(1)
-                    utils.log_error(
-                        'STAGE',
-                        'Error reading initial Z position.')
-                    utils.log_warning(
-                        'STAGE',
-                        'Please ensure that the Z position is positive.')
-                    self.add_to_main_log(
-                        'STAGE: Error reading initial Z position.')
-                    self.add_to_main_log(
-                        'STAGE: Please ensure that the Z position is positive.')
+                    # Try again
+                    sleep(1)
+                    self.stage_z_position = self.stage.get_z()
+                    if self.stage_z_position is None or self.stage_z_position < 0:
+                        self.error_state = Error.dm_comm_retval
+                        self.stage.reset_error_state()
+                        self.pause_acquisition(1)
+                        utils.log_error(
+                            'STAGE',
+                            'Error reading initial Z position.')
+                        utils.log_warning(
+                            'STAGE',
+                            'Please ensure that the Z position is positive.')
+                        self.add_to_main_log(
+                            'STAGE: Error reading initial Z position.')
+                        self.add_to_main_log(
+                            'STAGE: Please ensure that the Z position is positive.')
 
-            # Check for Z mismatch
-            if self.microtome is not None and self.microtome.error_state == Error.mismatch_z:
-                self.microtome.reset_error_state()
-                self.error_state = Error.mismatch_z
-                self.pause_acquisition(1)
-                # Show warning dialog in Main Controls GUI
-                self.main_controls_trigger.transmit('Z WARNING')
+                # Check for Z mismatch
+                if self.microtome.error_state == Error.mismatch_z:
+                    self.microtome.reset_error_state()
+                    self.error_state = Error.mismatch_z
+                    self.pause_acquisition(1)
+                    # Show warning dialog in Main Controls GUI
+                    self.main_controls_trigger.transmit('Z WARNING')
 
             # Show current stage position (Z and XY) in Main Controls GUI
             self.main_controls_trigger.transmit('UPDATE Z')
@@ -839,15 +839,17 @@ class Acquisition:
         while not (self.acq_paused or self.stack_completed):
             # Add line with stars in log file as a visual clue when a new
             # slice begins and show current slice counter and Z position.
+
+            msg = f'slice {self.slice_counter}'
+            if self.stage_z_position is not None:
+                msg += f', Z:{self.stage_z_position:6.3f}'
+
             utils.log_info('CTRL',
                            '****************************************')
-            utils.log_info('CTRL',
-                           f'slice {self.slice_counter}, '
-                           f'Z:{self.stage_z_position:6.3f}')
+            utils.log_info('CTRL', msg)
             self.add_to_main_log(
                 'CTRL: ****************************************')
-            self.add_to_main_log('CTRL: slice ' + str(self.slice_counter)
-                + ', Z:' + '{0:6.3f}'.format(self.stage_z_position))
+            self.add_to_main_log('CTRL: ' + msg)
 
             # Counter for maintenance moves
             interval_counter_before = ((
@@ -1627,7 +1629,7 @@ class Acquisition:
             # Indicate the overview being acquired in the viewport
             self.main_controls_trigger.transmit('ACQ IND OV', ov_index)
             # Acquire the image
-            self.sem.acquire_frame(ov_save_path)
+            self.sem.acquire_frame(ov_save_path, self.stage)
             # Remove indicator colour
             self.main_controls_trigger.transmit('ACQ IND OV', ov_index)
 
@@ -1962,12 +1964,13 @@ class Acquisition:
 
         if self.pause_state == 1:
             return
+
+        msg = f'Starting acquisition of active tiles in grid {grid_index}'
         utils.log_info(
             'CTRL',
-            f'Starting acquisition of active tiles in grid {grid_index}')
+            msg)
         self.add_to_main_log(
-            'CTRL: Starting acquisition of active tiles in grid %d'
-            % grid_index)
+            'CTRL: ' + msg)
 
         if self.magc_mode:
             # WD/stig is set elsewhere for magc
@@ -1996,7 +1999,7 @@ class Acquisition:
             # tiles_acquired list
             acq_tmp = list(self.tiles_acquired)
             for tile in acq_tmp:
-                if not (tile in active_tiles):
+                if tile not in active_tiles:
                     self.tiles_acquired.remove(tile)
 
         # Set WD and stig settings for the current grid
@@ -2440,7 +2443,7 @@ class Acquisition:
                 'ACQ IND TILE', grid_index, tile_index)
             start_time = time()
             # Acquire the frame
-            self.sem.acquire_frame(save_path)
+            self.sem.acquire_frame(save_path, self.stage)
             # Time how long it takes to acquire the frame. Display a warning in
             # the log if the overhead is larger than 1.5 seconds.
             end_time = time()

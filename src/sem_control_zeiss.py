@@ -460,7 +460,7 @@ class SEM_SmartSEM(SEM):
         sleep(0.5)  # how long of a delay is necessary?
         return ret_val1 == 0 and ret_val2 == 0
 
-    def acquire_frame(self, save_path_filename, extra_delay=0):
+    def acquire_frame(self, save_path_filename, stage=None, extra_delay=0):
         """Acquire a full frame and save it to save_path_filename.
         All imaging parameters must be applied BEFORE calling this function.
         To avoid grabbing the image before it is acquired completely, an
@@ -499,9 +499,9 @@ class SEM_SmartSEM(SEM):
             sleep(0.1)
             self.additional_cycle_time += 0.1
 
-        return self.save_frame(save_path_filename)
+        return self.save_frame(save_path_filename, stage=stage)
 
-    def save_frame(self, save_path_filename):
+    def save_frame(self, save_path_filename, stage=None):
         """Save the frame currently displayed in SmartSEM."""
 
         if self.simulation_mode:
@@ -520,7 +520,7 @@ class SEM_SmartSEM(SEM):
         if ret_val == 0:
             if rewrite_file:
                 image = imread(grab_filename)
-                imwrite(save_path_filename, image, metadata=self.get_grab_metadata())
+                imwrite(save_path_filename, image, metadata=self.get_grab_metadata(stage))
                 os.remove(grab_filename)
             return True
         else:

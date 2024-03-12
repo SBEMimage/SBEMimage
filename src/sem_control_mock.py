@@ -241,7 +241,7 @@ class SEM_Mock(SEM):
 
         return self._generate_random_image(width, height, bitsize)
 
-    def acquire_frame(self, save_path_filename, extra_delay=0):
+    def acquire_frame(self, save_path_filename, stage=None, extra_delay=0):
         width = self.STORE_RES[self.frame_size_selector][0]
         height = self.STORE_RES[self.frame_size_selector][1]
         bitsize = (self.bit_depth_selector + 1) * 8
@@ -252,11 +252,11 @@ class SEM_Mock(SEM):
             mock_image = self._grab_image_from_previous_acq_dir(save_path_filename, width, height, bitsize)
 
         sleep(self.current_cycle_time + self.additional_cycle_time)
-        imwrite(save_path_filename, mock_image)
+        imwrite(save_path_filename, mock_image, metadata=self.get_grab_metadata(stage))
         return True
 
-    def save_frame(self, save_path_filename):
-        self.acquire_frame(save_path_filename)
+    def save_frame(self, save_path_filename, stage=None):
+        self.acquire_frame(save_path_filename, stage=stage)
 
     def get_wd(self):
         return self.wd

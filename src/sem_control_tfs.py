@@ -263,7 +263,7 @@ class SEM_Phenom(SEM):
     def set_scan_rotation(self, angle):
         return True
 
-    def acquire_frame(self, save_path_filename, extra_delay=0):
+    def acquire_frame(self, save_path_filename, stage=None, extra_delay=0):
         """Acquire a full frame and save it to save_path_filename.
         All imaging parameters must be applied BEFORE calling this function.
         To avoid grabbing the image before it is acquired completely, an
@@ -283,6 +283,7 @@ class SEM_Phenom(SEM):
         try:
             mode = self.sem_api.GetOperationalMode()
             if mode == OperationalMode.Loadpos:
+                utils.log_info('SEM', 'Moving to load position')
                 self.sem_api.Load()
             if mode != OperationalMode.LiveSem:
                 utils.log_info('SEM', 'Moving to EM mode')
@@ -297,7 +298,7 @@ class SEM_Phenom(SEM):
 
             acq = self.sem_api.SemAcquireImageEx(scan_params)
             image = np.asarray(acq.image)
-            imwrite(save_path_filename, image, metadata=self.get_grab_metadata())
+            imwrite(save_path_filename, image, metadata=self.get_grab_metadata(stage))
             return True
         except Exception as e:
             self.error_state = Error.grab_image
@@ -305,7 +306,7 @@ class SEM_Phenom(SEM):
             utils.log_error('SEM', self.error_info)
             return False
 
-    def acquire_frame_lm(self, save_path_filename, extra_delay=0):
+    def acquire_frame_lm(self, save_path_filename, stage=None, extra_delay=0):
         scan_params = ppi.CamParams()  # use default size
         scan_params.size = ppi.Size(self.frame_size[0], self.frame_size[1])
         scan_params.nFrames = 1
@@ -313,6 +314,7 @@ class SEM_Phenom(SEM):
         try:
             mode = self.sem_api.GetOperationalMode()
             if mode == OperationalMode.Loadpos:
+                utils.log_info('SEM', 'Moving to load position')
                 self.sem_api.Load()
             if mode != OperationalMode.LiveNavCam:
                 utils.log_info('SEM', 'Moving to LM mode')
@@ -328,7 +330,7 @@ class SEM_Phenom(SEM):
             if acq.image.encoding == ppi.PixelType.RGB:
                 # API returns multi-type array; convert to simple type
                 data = np.asarray(data.tolist(), dtype=np.uint8)
-            imwrite(save_path_filename, data, metadata=self.get_grab_metadata())
+            imwrite(save_path_filename, data, metadata=self.get_grab_metadata(stage))
             return True
         except Exception as e:
             self.error_state = Error.grab_image
@@ -336,9 +338,9 @@ class SEM_Phenom(SEM):
             utils.log_error('SEM', self.error_info)
             return False
 
-    def save_frame(self, save_path_filename):
+    def save_frame(self, save_path_filename, stage=None):
         """Only supports (re)acquiring frame, requiring providing acquisition parameters"""
-        return self.acquire_frame(save_path_filename)
+        return self.acquire_frame(save_path_filename, stage=stage)
 
     def get_wd(self):
         """Return current working distance in metres."""

@@ -1026,6 +1026,17 @@ class MainControls(QMainWindow):
         self.actionAskUserModeSettings.setEnabled(False)
         self.checkBox_useAutofocus.setEnabled(True)
 
+        # check for existing array file
+        if 'array_file' in self.cfg['grids']:
+            array_filename = self.cfg['grids']['array_file']
+            if array_filename:
+                self.array_import_file(array_filename)
+
+        # check for existing imported array image
+        array_image = self.imported.find_array_image()
+        if array_image:
+            self.array_set_import_image(array_image)
+
         # # multisem
         # self.pushButton_msem_loadZen.clicked.connect(
             # self.msem_import_zen_experiment)
@@ -1318,9 +1329,16 @@ class MainControls(QMainWindow):
         for row in range(array_table_model.rowCount()):
             for column in range(array_table_model.columnCount()):
                 item = array_table_model.item(row, column)
+                grid = self.find_grid_from_selection(item)
                 if item.checkState() == Qt.Checked:
                     checked_sections.append((row, column))
+                    if grid:
+                        grid.activate_all_tiles()
+                else:
+                    if grid:
+                        grid.deactivate_all_tiles()
         self.gm.array_data.checked_sections = checked_sections
+        self.viewport.vp_draw()
 
     def array_checked_section(self, item):
         self.array_update_checked_sections_to_config()
@@ -1391,7 +1409,7 @@ class MainControls(QMainWindow):
         if action == 'deselectall':
             self.array_deselect_all()
 
-    def array_reset(self):
+    def array_reset(self, update_viewport=True):
         self.lineEdit_array_dataFile.clear()
         array_table_model = self.tableView_array_sections.model()
         array_table_model.clear()
@@ -1425,51 +1443,56 @@ class MainControls(QMainWindow):
 
     def array_open_import_dlg(self):
         start_path = self.lineEdit_array_dataFile.text()
-        selected_file = str(QFileDialog.getOpenFileName(
+        array_filename = str(QFileDialog.getOpenFileName(
             self, 'Select Array data file',
             start_path,
             filter='MASS files (*.mass.*);;MagC files (*.magc)'
         )[0])
-        if selected_file:
+        if array_filename:
             self.array_reset()
-            selected_file = os.path.normpath(selected_file)
-            self.lineEdit_array_dataFile.setText(selected_file)
-            # load array data and create grids
-            self.gm.array_read(selected_file)
-            utils.log_info(
-                'Array-CTRL',
-                f'{len(self.gm.array_data.sections)} Array sections have been loaded.')
-            self.gm.array_ensure_template_grids()
 
-            nsections = len(self.gm.array_data.sections)
-            nrois = self.gm.array_data.get_nrois()
-            table_model = self.tableView_array_sections.model()
-            table_model.clear()
+            self.cfg['grids']['array_file'] = array_filename
+            self.save_config_to_disk()
 
-            for array_index in range(nsections):
-                row_items = []
-                for roi_index in range(nrois):
-                    roi_item = QStandardItem()
-                    roi_item.setCheckable(True)
-                    row_items.append(roi_item)
-                    # self.table_view.setIndexWidget(table_model.index(0, index), QPushButton('Configure'))
-
-                row_index = table_model.rowCount()
-                table_model.appendRow(row_items)
-                table_model.setVerticalHeaderItem(row_index, QStandardItem(str(array_index)))
-
-            for index in range(nrois):
-                table_model.setHorizontalHeaderItem(index, QStandardItem(str(index)))
-            # self.table_view.horizontalHeader().sectionClicked.connect(self.header_clicked)  # not working - needs to update table from model first?
-
+            self.array_import_file(array_filename)
+            self.gm.set_template_grids()
+            self.update_from_grid_dlg()
             self.viewport.show_stage_pos = True
             self.viewport.vp_activate_checkbox_show_stage_pos()
-
-            if len(self.gm.array_data.landmarks) > 2:
-                self.array_trigger_image_calibratable()
-
-            self.update_from_grid_dlg()
             self.viewport.vp_draw()
+
+    def array_import_file(self, array_filename):
+        array_filename = os.path.normpath(array_filename)
+        self.lineEdit_array_dataFile.setText(array_filename)
+        # load array data and create grids
+        self.gm.array_read(array_filename)
+        utils.log_info(
+            'Array-CTRL',
+            f'{len(self.gm.array_data.sections)} Array sections have been loaded.')
+
+        nsections = len(self.gm.array_data.sections)
+        nrois = self.gm.array_data.get_nrois()
+        table_model = self.tableView_array_sections.model()
+        table_model.clear()
+
+        for array_index in range(nsections):
+            row_items = []
+            for roi_index in range(nrois):
+                roi_item = QStandardItem()
+                roi_item.setCheckable(True)
+                row_items.append(roi_item)
+                # self.table_view.setIndexWidget(table_model.index(0, index), QPushButton('Configure'))
+
+            row_index = table_model.rowCount()
+            table_model.appendRow(row_items)
+            table_model.setVerticalHeaderItem(row_index, QStandardItem(str(array_index)))
+
+        for index in range(nrois):
+            table_model.setHorizontalHeaderItem(index, QStandardItem(str(index)))
+        # self.table_view.horizontalHeader().sectionClicked.connect(self.header_clicked)  # not working - needs to update table from model first?
+
+        if len(self.gm.array_data.landmarks) > 2:
+            self.array_trigger_image_calibratable()
 
     def array_open_import_image(self):
         if self.lineEdit_array_imageFile.text():
@@ -1480,14 +1503,17 @@ class MainControls(QMainWindow):
         def on_success_function():
             array_image = self.imported[-1]
             array_image.is_array = True
-            self.lineEdit_array_imageFile.setText(array_image.image_src)
             self.gm.array_data.adjust_imported_array_image(self.acq, array_image)
-            self.pushButton_array_createGrids.setEnabled(True)
+            self.array_set_import_image(array_image)
 
         self.viewport.vp_open_import_image_dlg(
             start_path=start_path,
             on_success_function=on_success_function
         )
+
+    def array_set_import_image(self, array_image):
+        self.lineEdit_array_imageFile.setText(array_image.image_src)
+        self.pushButton_array_createGrids.setEnabled(True)
 
     def array_grid_settings(self):
         indexes = self.tableView_array_sections.selectedIndexes()

@@ -15,12 +15,11 @@ import os
 from qtpy.uic import loadUi
 from qtpy.QtCore import Qt, QSize
 from qtpy.QtGui import QIcon, QColor, QStandardItem, QStandardItemModel
-from qtpy.QtWidgets import QDialog, QMessageBox, QFileDialog, QHeaderView, QPushButton
+from qtpy.QtWidgets import QDialog, QFileDialog, QHeaderView, QPushButton
 from time import strftime, localtime
 import utils
 
 import ArrayData
-from viewport_dlg_windows import ImportImageDlg
 
 
 GRAY = QColor(Qt.lightGray)

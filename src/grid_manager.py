@@ -1345,11 +1345,12 @@ class GridManager:
     def array_reset(self):
         self.array_data.reset()
 
-    def array_ensure_template_grids(self):
+    def set_template_grids(self):
         nrois = self.array_data.get_nrois()
 
         self.delete_all_grids_above_index(nrois - 1)
         grid = self.__grids[self.number_grids - 1]
+        grid.active = False
 
         while self.number_grids < nrois:
             self.add_new_grid(origin_sx_sy=grid.origin_sx_sy, sw_sh=grid.sw_sh, size=grid.size,

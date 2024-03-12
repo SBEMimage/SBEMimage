@@ -238,9 +238,9 @@ class SEM:
         self.syscfg['stage']['sem_maintenance_move_interval'] = str(int(
             self.maintenance_move_interval))
 
-    def get_grab_metadata(self):
-        # Test: is metadata correct if microtome is used? alternatively should MainControls.stage be used instead?
-        position = self.get_stage_xyz()
+    def get_grab_metadata(self, stage):
+        #position = self.get_stage_xyz()
+        position = stage.get_xyz()
         if len(position) > 2 and position[2] is None:
             position = position[:2]
         metadata = {
@@ -492,11 +492,11 @@ class SEM:
         is added by default for cycle times > 0.5 s."""
         raise NotImplementedError
 
-    def acquire_frame_lm(self, save_path_filename, extra_delay=0):
+    def acquire_frame_lm(self, save_path_filename, stage=None, extra_delay=0):
         """Acquire LM frame"""
         raise NotImplementedError
 
-    def save_frame(self, save_path_filename):
+    def save_frame(self, save_path_filename, stage=None):
         """Save the frame currently displayed in SmartSEM."""
         raise NotImplementedError
 

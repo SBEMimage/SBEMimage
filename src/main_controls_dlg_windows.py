@@ -4114,7 +4114,8 @@ class GrabFrameDlg(QDialog):
         time and GUI should not freeze.
         """
         self.scan_success = self.sem.acquire_frame(
-            os.path.join(self.acq.base_dir, self.file_name + constants.FRAME_IMAGE_FORMAT))
+            os.path.join(self.acq.base_dir, self.file_name + constants.FRAME_IMAGE_FORMAT),
+            self.acq.stage)
         self.finish_trigger.signal.emit()
 
     def scan_complete(self):
@@ -4147,8 +4148,9 @@ class GrabFrameDlg(QDialog):
         if self.file_name_already_exists():
             return
         full_file_name = self.file_name + constants.FRAME_IMAGE_FORMAT
-        success = self.sem.save_frame(os.path.join(
-            self.acq.base_dir, full_file_name))
+        success = self.sem.save_frame(
+            os.path.join(self.acq.base_dir, full_file_name),
+            self.acq.stage)
         if success:
             utils.log_info('SEM', 'Single frame saved (Grab dialog).')
             QMessageBox.information(
