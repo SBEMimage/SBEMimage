@@ -17,14 +17,18 @@ CONVERSIONS = {'nm': 1e-3, 'nanometer': 1e-3,
                'm': 1e6, 'meter': 1e6}
 
 
-def imread(path, level=None, target_pixel_size_um=None, render=True):
+def imread(path, level=None, target_pixel_size_um=None, channeli=None, render=True):
     image = None
     if os.path.exists(path):
         paths = os.path.splitext(path)
         ext = paths[-1].lower()
         is_tiff = ext in ['.tif', '.tiff']
         metadata = imread_metadata(path)
-        dimension_order = metadata['dimension_order']
+        dimension_order = metadata.get('dimension_order', -1)
+        if 'c' in dimension_order:
+            c_index = dimension_order.index('c')
+        else:
+            c_index = -1
         size = metadata['size']
         nlevels = len(metadata['sizes'])
         source_pixel_size = metadata.get('pixel_size')
@@ -39,11 +43,11 @@ def imread(path, level=None, target_pixel_size_um=None, render=True):
                         level = level1
             if level is None or level < nlevels:
                 image = tifffile.imread(path, level=level)
-                if 'c' in dimension_order:
-                    # ensure colour channel is at the end
-                    c_index = dimension_order.index('c')
-                    if c_index < len(dimension_order) - 1:
-                        image = np.moveaxis(image, c_index, -1)
+                # ensure colour channel is at the end
+                if c_index < len(dimension_order) - 1:
+                    image = np.moveaxis(image, c_index, -1)
+                    if channeli is not None:
+                        image = image[..., channeli]
                 if scale_by_pixel_size:
                     image = resize_image(image, target_size)
         else:

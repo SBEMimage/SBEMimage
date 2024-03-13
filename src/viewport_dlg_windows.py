@@ -511,7 +511,8 @@ class ImportImageDlg(QDialog):
                 self.spinBox_rotation.setValue(rotation)
 
     def accept(self):
-        selection_success = True
+        import_success = False
+        error_msg = ''
         pixel_size = self.doubleSpinBox_pixelSize.value()
         selected_path = os.path.normpath(
             self.lineEdit_fileName.text())
@@ -525,12 +526,10 @@ class ImportImageDlg(QDialog):
             ext = 'ome.zarr'
         elif not ext.lower() == 'ome.zarr':
             ext = 'ome.tif'
-        target_path = os.path.join(
-            self.target_dir,
-            filename + '_' + timestamp + '.' + ext)
         if os.path.isfile(selected_path):
             try:
                 metadata = imread_metadata(selected_path)
+                channels = metadata.get('channels', [{}])
                 size = metadata['size'][0] * metadata['size'][1]
                 if size > 10 * 1e6:
                     # if image dimension > 10MP scale down
@@ -538,42 +537,55 @@ class ImportImageDlg(QDialog):
                     metadata['pixel_size'] = target_pixel_size_um
                 else:
                     target_pixel_size_um = None
-                image = imread(selected_path, target_pixel_size_um=target_pixel_size_um, render=False)
+
                 new_source_pixel_size = metadata.get('pixel_size')
                 if new_source_pixel_size:
-                    pixel_size = new_source_pixel_size[0] * 1e3         # um -> nm
+                    pixel_size = new_source_pixel_size[0] * 1e3  # um -> nm
                 else:
-                    metadata['pixel_size'] = [pixel_size * 1e-3] * 2    # nm -> um
-                imwrite(target_path, image, metadata=metadata)
+                    metadata['pixel_size'] = [pixel_size * 1e-3] * 2  # nm -> um
+
+                for channeli, channel in enumerate(channels):
+                    image = imread(selected_path, target_pixel_size_um=target_pixel_size_um,
+                                   channeli=channeli, render=False)
+                    target_path = os.path.join(
+                        self.target_dir,
+                        filename)
+
+                    if len(channels) > 1:
+                        target_path += '_' + channel.get('label', f'C{channeli}')
+                        metadata1 = metadata.copy()
+                        metadata1['channels'] = [channel]
+                    else:
+                        metadata1 = metadata
+
+                    target_path += '_' + timestamp + '.' + ext
+
+                    imwrite(target_path, image, metadata=metadata1)
+
+                    centre_sx_sy = [self.doubleSpinBox_posX.value(), self.doubleSpinBox_posY.value()]
+                    rotation = self.spinBox_rotation.value()
+                    transparency = self.spinBox_transparency.value()
+                    description = self.lineEdit_name.text()
+                    if len(channels) > 1:
+                        description += ' ' + channel.get('label', f'C{channeli}')
+                    if channeli > 0 and transparency == 0:
+                        transparency = 50
+                    imported_image = self.imported.add_image(target_path, description, centre_sx_sy, rotation,
+                                                             [], pixel_size, transparency)
+                    if imported_image.image is not None:
+                        import_success = True
+
             except Exception as e:
-                QMessageBox.warning(
-                    self, 'Error',
-                    'Error importing image file: ' + str(e),
-                     QMessageBox.Ok)
-                selection_success = False
+                error_msg = str(e)
 
-            if selection_success:
-                centre_sx_sy = [self.doubleSpinBox_posX.value(), self.doubleSpinBox_posY.value()]
-                rotation = self.spinBox_rotation.value()
-                transparency = self.spinBox_transparency.value()
-                description = self.lineEdit_name.text()
-                imported_image = self.imported.add_image(target_path, description, centre_sx_sy, rotation,
-                                                         [], pixel_size, transparency)
-                if imported_image.image is not None:
-                    self.viewport_trigger.transmit('SHOW IMPORTED')
-                else:
-                    QMessageBox.warning(
-                        self, 'Error',
-                        'Could not load image.',
-                         QMessageBox.Ok)
-        else:
-            QMessageBox.warning(self, 'Error',
-                                'Specified file not found.',
-                                QMessageBox.Ok)
-            selection_success = False
-
-        if selection_success:
+        if import_success:
+            self.viewport_trigger.transmit('SHOW IMPORTED')
             super().accept()
+        else:
+            QMessageBox.warning(
+                self, 'Error',
+                'Error importing image file: ' + error_msg,
+                QMessageBox.Ok)
 
 
 # ------------------------------------------------------------------------------
