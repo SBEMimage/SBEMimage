@@ -238,9 +238,11 @@ class SEM:
         self.syscfg['stage']['sem_maintenance_move_interval'] = str(int(
             self.maintenance_move_interval))
 
-    def get_grab_metadata(self, stage):
-        #position = self.get_stage_xyz()
-        position = stage.get_xyz()
+    def get_grab_metadata(self, stage=None):
+        if stage is not None:
+            position = stage.get_xyz()
+        else:
+            position = self.get_stage_xyz()
         if len(position) > 2 and position[2] is None:
             position = position[:2]
         metadata = {
