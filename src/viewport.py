@@ -36,7 +36,7 @@ import utils
 from image_io import imread
 from viewport_dlg_windows import StubOVDlg, FocusGradientTileSelectionDlg, \
     GridRotationDlg, TemplateRotationDlg, ImportImageDlg, \
-    SelectImageDlg, AdjustImageDlg
+    ModifyImagesDlg, AdjustImageDlg
 from main_controls_dlg_windows import MotorStatusDlg
 
 
@@ -1180,12 +1180,9 @@ class Viewport(QWidget):
             menu.addSeparator()
             action_import = menu.addAction('Import and place image')
             action_import.triggered.connect(self.vp_open_import_image_dlg)
-            action_adjustImported = menu.addAction('Adjust imported image')
-            action_adjustImported.triggered.connect(
-                self._vp_open_adjust_image_dlg)
-            action_deleteImported = menu.addAction('Delete imported image')
-            action_deleteImported.triggered.connect(
-                self._vp_open_delete_image_dlg)
+            action_modifyImported = menu.addAction('Modify imported images')
+            action_modifyImported.triggered.connect(
+                self._vp_open_modify_images_dlg)
 
             # ----- Array items -----
             if self.sem.magc_mode:
@@ -1275,9 +1272,7 @@ class Viewport(QWidget):
             if self.autofocus.tracking_mode == 1:
                 action_selectAutofocus.setEnabled(False)
             if self.selected_imported is None:
-                action_adjustImported.setEnabled(False)
-            if self.imported.number_imported == 0:
-                action_deleteImported.setEnabled(False)
+                action_modifyImported.setEnabled(False)
             if self.busy:
                 action_focusTool.setEnabled(False)
                 action_openGridSettings.setEnabled(False)
@@ -1352,9 +1347,9 @@ class Viewport(QWidget):
             # self._place_template()
         # For MagC mode: show imported images before drawing grids
         # TODO: Think about more general solution to organize display layers.
-        if (self.show_imported and self.imported.number_imported > 0
+        if (self.show_imported and len(self.imported) > 0
             and self.sem.magc_mode):
-            for imported_img_index in range(self.imported.number_imported):
+            for imported_img_index in range(len(self.imported)):
                 self._vp_place_imported_img(imported_img_index)
         # Place OV overviews over stub OV:
         if self.vp_current_ov == -1:  # show all
@@ -1393,9 +1388,9 @@ class Viewport(QWidget):
                                     suppress_labels)
 
         # Finally, show imported images
-        if (self.show_imported and self.imported.number_imported > 0
+        if (self.show_imported and len(self.imported) > 0
             and not self.sem.magc_mode):
-            for imported_img_index in range(self.imported.number_imported):
+            for imported_img_index in range(len(self.imported)):
                 self._vp_place_imported_img(imported_img_index)
         # Show stage boundaries (motor range limits)
         self._vp_draw_stage_boundaries()
@@ -1657,18 +1652,19 @@ class Viewport(QWidget):
 
     def _vp_place_imported_img(self, index):
         """Place imported image specified by index onto the viewport canvas."""
-        if self.imported[index].image is not None:
+        imported = self.imported[index]
+        if imported.enabled and imported.image is not None:
             viewport_pixel_size = 1000 / self.cs.vp_scale
-            image_pixel_size = self.imported[index].pixel_size
+            image_pixel_size = imported.pixel_size
             resize_ratio = image_pixel_size / viewport_pixel_size
 
             # Compute position of image in viewport:
             dx, dy = self.cs.convert_s_to_d(
-                self.imported[index].centre_sx_sy)
+                imported.centre_sx_sy)
             # Get width and height of the imported QPixmap:
-            width = self.imported[index].image.width()
-            height = self.imported[index].image.height()
-            pixel_size = self.imported[index].pixel_size
+            width = imported.image.width()
+            height = imported.image.height()
+            pixel_size = imported.pixel_size
             dx -= (width * pixel_size / 1000) / 2
             dy -= (height * pixel_size / 1000) / 2
             vx, vy = self.cs.convert_d_to_v((dx, dy))
@@ -1676,12 +1672,12 @@ class Viewport(QWidget):
             visible, crop_area, vx_cropped, vy_cropped = self._vp_visible_area(
                 vx, vy, width, height, resize_ratio)
             if visible:
-                cropped_img = self.imported[index].image.copy(crop_area)
+                cropped_img = imported.image.copy(crop_area)
                 v_width = cropped_img.size().width()
                 cropped_resized_img = cropped_img.scaledToWidth(
                     int(v_width * resize_ratio))
                 self.vp_qp.setOpacity(
-                    1 - self.imported[index].transparency / 100)
+                    1 - imported.transparency / 100)
                 self.vp_qp.drawPixmap(vx_cropped, vy_cropped,
                                       cropped_resized_img)
                 self.vp_qp.setOpacity(1)
@@ -2588,7 +2584,7 @@ class Viewport(QWidget):
         """Return the index of the imported image at the position in the
         viewport where user has clicked."""
         if self.show_imported:
-            for i in reversed(range(self.imported.number_imported)):
+            for i in reversed(range(len(self.imported))):
                 # Calculate origin of the image with respect to the viewport.
                 # Use width and heigh of the QPixmap (may be rotated
                 # and therefore larger than original image).
@@ -2909,47 +2905,15 @@ class Viewport(QWidget):
                 self.vp_draw()
 
     def vp_open_import_image_dlg(self, start_path=None, on_success_function=None):
-        target_dir = os.path.join(self.acq.base_dir, 'imported')
-        if not os.path.exists(target_dir):
-            try:
-                os.makedirs(target_dir)
-            except Exception as e:
-                QMessageBox.warning(
-                    self, 'Could not create directory',
-                    f'Could not create directory {target_dir} to save imported '
-                    f'images. Make sure the drive/folder is available for '
-                    f'write access. {str(e)}',
-                    QMessageBox.Ok)
-                return
-        dialog = ImportImageDlg(self.imported, target_dir, self.viewport_trigger, start_path=start_path)
+        dialog = ImportImageDlg(self.imported, self.viewport_trigger, start_path=start_path)
         if dialog.exec():
             if on_success_function:
                 on_success_function()
             self.vp_draw()
 
-    def _vp_open_adjust_image_dlg(self):
-        def adjust_image(selected_image):
-            self.selected_imported = selected_image
-            dialog = AdjustImageDlg(self.imported, self.selected_imported,
-                                    self.sem.magc_mode, self.viewport_trigger)
-            dialog.exec()
-
-        if len(self.imported) > 1:
-            dialog = SelectImageDlg(self.imported, adjust_image)
-            dialog.exec()
-        elif len(self.imported) > 0:
-            adjust_image(0)
-
-    def _vp_open_delete_image_dlg(self):
-        def delete_image(selected_image):
-            self.imported.delete_image(selected_image)
-            self.vp_draw()
-
-        if len(self.imported) > 1:
-            dialog = SelectImageDlg(self.imported, delete_image)
-            dialog.exec()
-        elif len(self.imported) > 0:
-            delete_image(0)
+    def _vp_open_modify_images_dlg(self):
+        dialog = ModifyImagesDlg(self.imported, self.viewport_trigger)
+        dialog.exec()
 
     def vp_show_new_stub_overview(self):
         self.checkBox_showStubOV.setChecked(True)

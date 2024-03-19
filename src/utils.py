@@ -415,6 +415,11 @@ def round_floats(input_var, precision=3):
     return input_var
 
 
+def get_image_file_title(filepath):
+    title = os.path.splitext(os.path.basename(filepath))[0].rstrip('.ome')
+    return title
+
+
 def image_to_QPixmap(image):
     image = np.require(uint8_image(image), np.uint8, 'C')
     height, width = image.shape[:2]

@@ -20,7 +20,7 @@ from qtpy.uic import loadUi
 from qtpy.QtCore import Qt, QSize
 from qtpy.QtGui import QPixmap, QIcon
 from qtpy.QtWidgets import QApplication, QDialog, QMessageBox, QFileDialog, \
-                           QDialogButtonBox
+                           QDialogButtonBox, QListWidgetItem
 
 import acq_func
 from image_io import imread, imwrite, imread_metadata
@@ -464,10 +464,9 @@ class TemplateRotationDlg(QDialog):
 class ImportImageDlg(QDialog):
     """Import an image into the viewport."""
 
-    def __init__(self, imported_images, target_dir, viewport_trigger, start_path=None):
+    def __init__(self, imported_images, viewport_trigger, start_path=None):
         self.start_path = start_path
         self.imported = imported_images
-        self.target_dir = target_dir
         self.viewport_trigger = viewport_trigger
         super().__init__()
         loadUi('../gui/import_image_dlg.ui', self)
@@ -496,7 +495,7 @@ class ImportImageDlg(QDialog):
             self.start_path = selected_file
             self.lineEdit_fileName.setText(selected_file)
             self.lineEdit_name.setText(
-                os.path.splitext(os.path.basename(selected_file))[0])
+                utils.get_image_file_title(selected_file))
             metadata = imread_metadata(selected_file)
             pixel_size = metadata.get('pixel_size')
             if pixel_size:
@@ -548,7 +547,7 @@ class ImportImageDlg(QDialog):
                     image = imread(selected_path, target_pixel_size_um=target_pixel_size_um,
                                    channeli=channeli, render=False)
                     target_path = os.path.join(
-                        self.target_dir,
+                        self.imported.target_dir,
                         filename)
 
                     if len(channels) > 1:
@@ -571,7 +570,7 @@ class ImportImageDlg(QDialog):
                     if channeli > 0 and transparency == 0:
                         transparency = 50
                     imported_image = self.imported.add_image(target_path, description, centre_sx_sy, rotation,
-                                                             [], pixel_size, transparency)
+                                                             [], pixel_size, True, transparency)
                     if imported_image.image is not None:
                         import_success = True
 
@@ -590,29 +589,59 @@ class ImportImageDlg(QDialog):
 
 # ------------------------------------------------------------------------------
 
-class SelectImageDlg(QDialog):
-    """Select an imported image from the viewport."""
+class ModifyImagesDlg(QDialog):
+    """Modify imported images from the viewport."""
 
-    def __init__(self, imported_images, on_success=None):
+    def __init__(self, imported_images, viewport_trigger):
         self.imported = imported_images
-        self.on_success = on_success
+        self.viewport_trigger = viewport_trigger
         super().__init__()
-        loadUi('../gui/select_image_dlg.ui', self)
+        loadUi('../gui/modify_images_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
+        self.pushButton_import.clicked.connect(self.import_image)
+        self.pushButton_delete.clicked.connect(self.delete_imported)
+        self.pushButton_adjust.clicked.connect(self.adjust_imported)
+        self.populate_image_list()
         self.show()
-        # Populate the list widget with existing imported images:
-        img_list = []
-        for i in range(self.imported.number_imported):
-            img_list.append(str(i) + ' - ' + self.imported[i].description)
-        self.listWidget_imagelist.addItems(img_list)
 
-    def accept(self):
-        selected_img = self.listWidget_imagelist.currentRow()
-        if selected_img is not None and self.on_success is not None:
-            self.on_success(selected_img)
-        super().accept()
+    def populate_image_list(self):
+        # Populate the list widget with existing imported images:
+        #self.listWidget_imagelist.itemChanged.disconnect()
+        self.listWidget_imagelist.clear()
+        for index, imported_image in enumerate(self.imported):
+            item = QListWidgetItem(str(index) + ' - ' + imported_image.description)
+            item.setCheckState(Qt.CheckState.Checked)
+            self.listWidget_imagelist.addItem(item)
+        self.listWidget_imagelist.itemChanged.connect(self.item_changed)
+
+    def item_changed(self, item):
+        index = self.listWidget_imagelist.row(item)
+        checked = (item.checkState() == Qt.CheckState.Checked)
+        self.imported[index].enabled = checked
+        self.viewport_trigger.transmit('DRAW VP')
+
+    def import_image(self):
+        dialog = ImportImageDlg(self.imported, self.viewport_trigger)
+        if dialog.exec():
+            self.populate_image_list()
+            self.viewport_trigger.transmit('DRAW VP')
+
+    def delete_imported(self):
+        index = self.listWidget_imagelist.currentRow()
+        if index is not None:
+            self.imported.delete_image(index)
+            self.populate_image_list()
+            self.viewport_trigger.transmit('DRAW VP')
+
+    def adjust_imported(self):
+        index = self.listWidget_imagelist.currentRow()
+        if index is not None:
+            selected_image = self.imported[index]
+            dialog = AdjustImageDlg(selected_image,
+                                    self.viewport_trigger)
+            dialog.exec()
 
 
 # ------------------------------------------------------------------------------
@@ -620,39 +649,28 @@ class SelectImageDlg(QDialog):
 class AdjustImageDlg(QDialog):
     """Adjust an imported image (size, rotation, transparency)"""
 
-    def __init__(self, imported_images, selected_img, magc_mode,
+    def __init__(self, selected_image,
                  viewport_trigger):
-        self.imported = imported_images
         self.viewport_trigger = viewport_trigger
-        self.selected_img = selected_img
-        self.magc_mode = magc_mode
+        self.selected_image = selected_image
         super().__init__()
         loadUi('../gui/adjust_imported_image_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
 
-        if self.magc_mode:
-            # magc_mode is restrictive about imported images
-            # the only imported image is a wafer image
-            # and should not be modified (except the transparency)
-            self.doubleSpinBox_posX.setEnabled(False)
-            self.doubleSpinBox_posY.setEnabled(False)
-            self.doubleSpinBox_pixelSize.setEnabled(False)
-            self.spinBox_rotation.setEnabled(False)
-
         self.show()
         self.lineEdit_selectedImage.setText(
-            self.imported[self.selected_img].description)
-        pos_x, pos_y = self.imported[self.selected_img].centre_sx_sy
+            self.selected_image.description)
+        pos_x, pos_y = self.selected_image.centre_sx_sy
         self.doubleSpinBox_posX.setValue(pos_x)
         self.doubleSpinBox_posY.setValue(pos_y)
         self.doubleSpinBox_pixelSize.setValue(
-            self.imported[self.selected_img].pixel_size)
+            self.selected_image.pixel_size)
         self.spinBox_rotation.setValue(
-            self.imported[self.selected_img].rotation)
+            self.selected_image.rotation)
         self.spinBox_transparency.setValue(
-            self.imported[self.selected_img].transparency)
+            self.selected_image.transparency)
         # Use "Apply" button to show changes in viewport
         apply_button = self.buttonBox.button(QDialogButtonBox.Apply)
         cancel_button = self.buttonBox.button(QDialogButtonBox.Cancel)
@@ -664,14 +682,14 @@ class AdjustImageDlg(QDialog):
 
     def apply_changes(self):
         """Apply the current settings and redraw the image in the viewport."""
-        self.imported[self.selected_img].centre_sx_sy = [
+        self.selected_image.centre_sx_sy = [
             self.doubleSpinBox_posX.value(),
             self.doubleSpinBox_posY.value()]
-        self.imported[self.selected_img].pixel_size = (
+        self.selected_image.pixel_size = (
             self.doubleSpinBox_pixelSize.value())
-        self.imported[self.selected_img].rotation = (
+        self.selected_image.rotation = (
             self.spinBox_rotation.value())
-        self.imported[self.selected_img].transparency = (
+        self.selected_image.transparency = (
             self.spinBox_transparency.value())
         # Emit signals to redraw Viewport:
         self.viewport_trigger.transmit('DRAW VP')

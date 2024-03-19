@@ -207,23 +207,10 @@ class MainControls(QMainWindow):
         # Initialize coordinate system object
         self.cs = CoordinateSystem(self.cfg, self.syscfg)
 
-        # Set up the objects to manage overviews, grids, and imported images
+        # Set up the objects to manage overviews, grids
         self.ovm = OverviewManager(self.cfg, self.sem, self.cs)
         self.gm = GridManager(self.cfg, self.sem, self.cs)
         self.tm = TemplateManager(self.ovm)
-        self.imported = ImportedImages(self.cfg)
-
-        # Notify user if imported images could not be loaded
-        for i in range(self.imported.number_imported):
-            if self.imported[i].image is None:
-                QMessageBox.warning(self, 'Error loading imported image',
-                                          f'Imported image number {i} could not '
-                                          f'be loaded. Check if the folder containing '
-                                          f'the image ({self.imported[i].image_src}) was deleted or '
-                                          f'moved, or if the image file is damaged or in '
-                                          f'the wrong format.', QMessageBox.Ok)
-                utils.log_error(
-                    'CTRL', f'Error loading imported image {i}')
 
         utils.show_progress_in_console(30)
 
@@ -341,6 +328,21 @@ class MainControls(QMainWindow):
             self.fcc_installed = self.sem.has_fcc()
         else:
             self.fcc_installed = False
+
+        # set up imported images
+        self.imported = ImportedImages(self.cfg, self.acq.base_dir)
+
+        # Notify user if imported images could not be loaded
+        for i in range(len(self.imported)):
+            if self.imported[i].image is None:
+                QMessageBox.warning(self, 'Error loading imported image',
+                                          f'Imported image number {i} could not '
+                                          f'be loaded. Check if the folder containing '
+                                          f'the image ({self.imported[i].image_src}) was deleted or '
+                                          f'moved, or if the image file is damaged or in '
+                                          f'the wrong format.', QMessageBox.Ok)
+                utils.log_error(
+                    'CTRL', f'Error loading imported image {i}')
 
         self.initialize_main_controls_gui()
 
