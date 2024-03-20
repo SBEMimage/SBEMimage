@@ -277,7 +277,7 @@ class SEM_Phenom(SEM):
             utils.log_info('SEM', 'Moving to LM mode')
             self.sem_api.MoveToNavCam()
             correct_mode = False
-        elif mode != OperationalMode.LiveSem:
+        elif not lm_mode and mode != OperationalMode.LiveSem:
             utils.log_info('SEM', 'Moving to EM mode')
             self.sem_api.MoveToSem()
             correct_mode = False
