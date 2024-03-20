@@ -186,6 +186,7 @@ class SEM_Phenom(SEM):
 
     def apply_beam_settings(self):
         """Set the SEM to the current target EHT voltage and beam current."""
+        self.set_em_mode()
         self.set_eht(self.target_eht)
 
     def get_detector_list(self):
@@ -262,8 +263,25 @@ class SEM_Phenom(SEM):
 
     def set_scan_rotation(self, angle):
         self.scan_rotation = angle
-        self.sem_api.SetSemRotation(-np.deg2rad(angle))
+        if angle is not None:
+            self.sem_api.SetSemRotation(-np.deg2rad(angle))
         return True
+
+    def set_em_mode(self, lm_mode=False):
+        correct_mode = True
+        mode = self.sem_api.GetOperationalMode()
+        if mode == OperationalMode.Loadpos:
+            utils.log_info('SEM', 'Moving to load position')
+            self.sem_api.Load()
+        if lm_mode and mode != OperationalMode.LiveNavCam:
+            utils.log_info('SEM', 'Moving to LM mode')
+            self.sem_api.MoveToNavCam()
+            correct_mode = False
+        elif mode != OperationalMode.LiveSem:
+            utils.log_info('SEM', 'Moving to EM mode')
+            self.sem_api.MoveToSem()
+            correct_mode = False
+        return correct_mode
 
     def acquire_frame(self, save_path_filename, stage=None, extra_delay=0):
         """Acquire a full frame and save it to save_path_filename.
@@ -283,13 +301,7 @@ class SEM_Phenom(SEM):
         scan_params.nFrames = 1
 
         try:
-            mode = self.sem_api.GetOperationalMode()
-            if mode == OperationalMode.Loadpos:
-                utils.log_info('SEM', 'Moving to load position')
-                self.sem_api.Load()
-            if mode != OperationalMode.LiveSem:
-                utils.log_info('SEM', 'Moving to EM mode')
-                self.sem_api.MoveToSem()
+            if not self.set_em_mode():
                 self.move_stage_to_xy((self.last_known_x, self.last_known_y))
                 self.set_scan_rotation(self.scan_rotation)
                 self.set_pixel_size(self.grab_pixel_size)
@@ -315,13 +327,7 @@ class SEM_Phenom(SEM):
         scan_params.nFrames = 1
 
         try:
-            mode = self.sem_api.GetOperationalMode()
-            if mode == OperationalMode.Loadpos:
-                utils.log_info('SEM', 'Moving to load position')
-                self.sem_api.Load()
-            if mode != OperationalMode.LiveNavCam:
-                utils.log_info('SEM', 'Moving to LM mode')
-                self.sem_api.MoveToNavCam()
+            if not self.set_em_mode(lm_mode=True):
                 self.move_stage_to_xy((self.last_known_x, self.last_known_y))
                 self.set_scan_rotation(self.scan_rotation)
                 self.set_pixel_size(self.grab_pixel_size)
@@ -384,6 +390,7 @@ class SEM_Phenom(SEM):
         return True
 
     def set_beam_blanking(self, enable_blanking):
+        self.set_em_mode()
         self.sem_api.SemBlankBeam()
         return True
 

@@ -121,6 +121,8 @@ class ImageInspector:
         load_exception = ''
         grab_incomplete = False
 
+        if not os.path.exists(filename):
+            load_error = True
         try:
             img = imread(filename)
         except Exception as e:
