@@ -32,6 +32,8 @@ class SEM:
         self.last_known_x = None
         self.last_known_y = None
         self.last_known_z = None
+        # Last known SEM scan rotation in degrees
+        self.scan_rotation = None
         # self.error_state: see list in utils.py; no error -> error_state = Error.none
         # self.error_info: further description / exception error message
         self.error_state = Error.none
@@ -245,10 +247,15 @@ class SEM:
             position = self.get_stage_xyz()
         if len(position) > 2 and position[2] is None:
             position = position[:2]
+        rotation = 0
+        if self.stage_rotation is not None:
+            rotation += self.stage_rotation
+        if self.scan_rotation is not None:
+            rotation += self.scan_rotation
         metadata = {
             'pixel_size': [self.grab_pixel_size * 1e-3] * 2,
             'position': position,
-            'rotation': self.stage_rotation
+            'rotation': rotation
         }
         return metadata
 

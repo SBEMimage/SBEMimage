@@ -261,6 +261,8 @@ class SEM_Phenom(SEM):
         return True
 
     def set_scan_rotation(self, angle):
+        self.scan_rotation = angle
+        self.sem_api.SetSemRotation(np.deg2rad(angle))
         return True
 
     def acquire_frame(self, save_path_filename, stage=None, extra_delay=0):
@@ -289,6 +291,7 @@ class SEM_Phenom(SEM):
                 utils.log_info('SEM', 'Moving to EM mode')
                 self.sem_api.MoveToSem()
                 self.move_stage_to_xy((self.last_known_x, self.last_known_y))
+                self.set_scan_rotation(self.scan_rotation)
                 self.set_pixel_size(self.grab_pixel_size)
 
             self.sem_api.SemUnblankBeam()
@@ -320,6 +323,7 @@ class SEM_Phenom(SEM):
                 utils.log_info('SEM', 'Moving to LM mode')
                 self.sem_api.MoveToNavCam()
                 self.move_stage_to_xy((self.last_known_x, self.last_known_y))
+                self.set_scan_rotation(self.scan_rotation)
                 self.set_pixel_size(self.grab_pixel_size)
 
             if extra_delay > 0:
