@@ -1377,15 +1377,16 @@ class GridManager:
         nrois = array_data.get_nrois()
         self.delete_all_grids_above_index(nrois - 1)
 
-        # TODO: apply stage scale and rotation
+        stage_scale = self.cs.stage_calibration[:2]
+        stage_rotation = np.rad2deg(np.sum(self.cs.stage_calibration[2:]))
         offset = np.array(imported_image.centre_sx_sy) - np.array(imported_image.size) / 2
-        angle_offset = imported_image.rotation
+        angle_offset = imported_image.rotation + stage_rotation
 
         grid_index = 0
         for array_index, rois in self.array_data.get_rois().items():
             for roi_index, roi in rois.items():
                 center_um0, size, angle0 = utils.calc_rotated_rect(roi['polygon'])
-                center = offset + roi['center']
+                center = np.multiply(stage_scale, offset + roi['center'])
                 rotation = (angle_offset - roi['angle']) % 360
                 self.add_new_grid_from_roi(array_index, roi_index, grid_index, center, size, rotation)
 

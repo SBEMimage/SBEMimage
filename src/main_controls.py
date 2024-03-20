@@ -1180,7 +1180,7 @@ class MainControls(QMainWindow):
     def find_indices_from_selection(self, selection):
         row_index = selection.row()
         header = selection.model().verticalHeaderItem(row_index)
-        if header is not None:
+        if header and header.text():
             array_index = int(header.text())
         else:
             array_index = row_index
@@ -1477,20 +1477,28 @@ class MainControls(QMainWindow):
         table_model = self.tableView_array_sections.model()
         table_model.clear()
 
+        #item = QStandardItem()
+        #item.setSelectable(False)
+        #table_model.appendRow([item] * nrois)
+        #table_model.setVerticalHeaderItem(0, QStandardItem())
+        #for roi_index in range(nrois):
+        #    button = QPushButton('Settings')
+        #    button.clicked.connect(self.get_open_grid_dlg(roi_index))
+        #    self.tableView_array_sections.setIndexWidget(table_model.index(0, roi_index), button)
+
         for array_index in range(nsections):
             row_items = []
             for roi_index in range(nrois):
                 roi_item = QStandardItem()
                 roi_item.setCheckable(True)
                 row_items.append(roi_item)
-                # self.table_view.setIndexWidget(table_model.index(0, index), QPushButton('Configure'))
 
             row_index = table_model.rowCount()
             table_model.appendRow(row_items)
             table_model.setVerticalHeaderItem(row_index, QStandardItem(str(array_index)))
 
-        for index in range(nrois):
-            table_model.setHorizontalHeaderItem(index, QStandardItem(str(index)))
+        for roi_index in range(nrois):
+            table_model.setHorizontalHeaderItem(roi_index, QStandardItem(str(roi_index)))
         # self.table_view.horizontalHeader().sectionClicked.connect(self.header_clicked)  # not working - needs to update table from model first?
 
         if len(self.gm.array_data.landmarks) > 2:
@@ -1664,6 +1672,11 @@ class MainControls(QMainWindow):
         self.show_current_settings()
         self.show_stack_acq_estimates()
         self.viewport.vp_draw()
+
+    def get_open_grid_dlg(self, index):
+        def callback_open_grid_dlg():
+            self.open_grid_dlg(index)
+        return callback_open_grid_dlg
 
     def open_grid_dlg(self, selected_grid):
         dialog = GridSettingsDlg(self.gm, self.sem, selected_grid,

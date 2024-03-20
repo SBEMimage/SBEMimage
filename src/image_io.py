@@ -28,7 +28,7 @@ def imread(path, level=None, target_pixel_size_um=None, channeli=None, render=Tr
         if 'c' in dimension_order:
             c_index = dimension_order.index('c')
         else:
-            c_index = -1
+            c_index = None
         size = metadata['size']
         nlevels = len(metadata['sizes'])
         source_pixel_size = metadata.get('pixel_size')
@@ -44,7 +44,7 @@ def imread(path, level=None, target_pixel_size_um=None, channeli=None, render=Tr
             if level is None or level < nlevels:
                 image = tifffile.imread(path, level=level)
                 # ensure colour channel is at the end
-                if c_index < len(dimension_order) - 1:
+                if c_index is not None and c_index < len(dimension_order) - 1:
                     image = np.moveaxis(image, c_index, -1)
                     if channeli is not None:
                         image = image[..., channeli]

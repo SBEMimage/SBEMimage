@@ -134,7 +134,7 @@ class ImportedImages(list):
 
         for i in range(number_imported):
             self.add_image(image_src[i], description[i], centre_sx_sy[i], rotation[i],
-                           size[i], pixel_size[i], enabled[i], transparency[i], is_array=is_array)
+                           size[i], pixel_size[i], enabled[i], transparency[i], is_array[i])
 
     def save_to_cfg(self):
         imported = self.cfg['imported']
@@ -162,7 +162,7 @@ class ImportedImages(list):
     def add_image(self, image_src, description, centre_sx_sy, rotation,
                   size, pixel_size, enabled, transparency, is_array=False):
         new_imported_image = ImportedImage(image_src, description, centre_sx_sy, rotation,
-                                           size, pixel_size, enabled, transparency, is_array=is_array)
+                                           size, pixel_size, enabled, transparency, is_array)
         self.append(new_imported_image)
         return new_imported_image
 
