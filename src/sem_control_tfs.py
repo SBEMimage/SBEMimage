@@ -262,7 +262,7 @@ class SEM_Phenom(SEM):
 
     def set_scan_rotation(self, angle):
         self.scan_rotation = angle
-        self.sem_api.SetSemRotation(np.deg2rad(angle))
+        self.sem_api.SetSemRotation(-np.deg2rad(angle))
         return True
 
     def acquire_frame(self, save_path_filename, stage=None, extra_delay=0):
