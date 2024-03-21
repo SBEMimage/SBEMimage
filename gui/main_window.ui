@@ -2133,24 +2133,6 @@ Green: acquired</string>
          <string>Create ROI grids</string>
         </property>
        </widget>
-       <widget class="QPushButton" name="pushButton_array_gridSettings">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>130</y>
-          <width>131</width>
-          <height>31</height>
-         </rect>
-        </property>
-        <property name="font">
-         <font>
-          <bold>false</bold>
-         </font>
-        </property>
-        <property name="text">
-         <string>Grid settings</string>
-        </property>
-       </widget>
        <widget class="QToolButton" name="toolButton_array_dataFile">
         <property name="geometry">
          <rect>

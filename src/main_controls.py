@@ -993,8 +993,6 @@ class MainControls(QMainWindow):
         # initialize other Array GUI items
         self.toolButton_array_dataFile.clicked.connect(
             self.array_open_import_dlg)
-        self.pushButton_array_gridSettings.clicked.connect(
-            self.array_grid_settings)
         self.pushButton_array_createGrids.clicked.connect(
             self.array_create_grids)
         self.toolButton_array_imageFile.clicked.connect(
@@ -1033,6 +1031,7 @@ class MainControls(QMainWindow):
             array_filename = self.cfg['grids']['array_file']
             if array_filename:
                 self.array_import_file(array_filename)
+                self.gm.set_template_grids()
 
         # check for existing imported array image
         array_image = self.imported.find_array_image()
@@ -1178,19 +1177,16 @@ class MainControls(QMainWindow):
             # self.pushButton_msem_exportZen.setEnabled(True)
 
     def find_indices_from_selection(self, selection):
+        array_index, roi_index = None, None
         row_index = selection.row()
         header = selection.model().verticalHeaderItem(row_index)
         if header and header.text():
             array_index = int(header.text())
-        else:
-            array_index = row_index
 
         column_index = selection.column()
         header = selection.model().horizontalHeaderItem(column_index)
         if header is not None:
             roi_index = int(header.text())
-        else:
-            roi_index = column_index
         return array_index, roi_index
 
     def get_selection_from_array_index(self, array_index, roi_index):
@@ -1208,7 +1204,10 @@ class MainControls(QMainWindow):
 
     def find_grid_from_selection(self, selection):
         array_index, roi_index = self.find_indices_from_selection(selection)
-        return self.gm.find_roi_grid(array_index, roi_index)
+        if array_index is not None and roi_index is not None:
+            return self.gm.find_roi_grid(array_index, roi_index)
+        else:
+            return None
 
     def find_table_index_from_grid(self, grid_index):
         grid = self.gm[grid_index]
@@ -1236,26 +1235,32 @@ class MainControls(QMainWindow):
         self.array_update_checked_sections_to_config()
 
     def array_invert_selection(self):
-        selection = [
+        new_selection = []
+        old_selection = [
             (index.row(), index.column()) for index
             in self.tableView_array_sections.selectedIndexes()]
         array_table_model = self.tableView_array_sections.model()
-        rows_to_select = set(range(array_table_model.rowCount())) - set(selection)
-        self.array_select_items(rows_to_select)
+        for row in range(array_table_model.rowCount()):
+            for column in range(array_table_model.columnCount()):
+                item = (row, column)
+                if item not in old_selection:
+                    new_selection.append(item)
+
+        self.array_select_items(new_selection)
 
     def array_toggle_selection(self, indices):
         # ctrl+click in viewport: select or deselect clicked
         # section without changing existing selected sections
-        selection = self.tableView_array_sections.selectedIndexes()
-        items_to_select = set(selection)
+        selection = [
+            (index.row(), index.column()) for index
+            in self.tableView_array_sections.selectedIndexes()]
         for index in indices:
             if index in selection:
-                items_to_select.remove(index)
+                selection.remove(index)
             else:
-                items_to_select.add(index)
+                selection.append(index)
 
-        items_to_select = list(items_to_select)
-        self.array_select_items(items_to_select)
+        self.array_select_items(selection)
 
     def array_select_checked(self):
         array_table_model = self.tableView_array_sections.model()
@@ -1263,7 +1268,7 @@ class MainControls(QMainWindow):
         for row in range(array_table_model.rowCount()):
             for column in range(array_table_model.columnCount()):
                 item = array_table_model.item(row, column)
-                if item.checkState() == Qt.Checked:
+                if item and item.checkState() == Qt.Checked:
                     checked_items.append((row, column))
         self.array_select_items(checked_items)
 
@@ -1331,14 +1336,15 @@ class MainControls(QMainWindow):
         for row in range(array_table_model.rowCount()):
             for column in range(array_table_model.columnCount()):
                 item = array_table_model.item(row, column)
-                grid = self.find_grid_from_selection(item)
-                if item.checkState() == Qt.Checked:
-                    checked_sections.append((row, column))
-                    if grid:
-                        grid.activate_all_tiles()
-                else:
-                    if grid:
-                        grid.deactivate_all_tiles()
+                if item:
+                    grid = self.find_grid_from_selection(item)
+                    if item.checkState() == Qt.Checked:
+                        checked_sections.append((row, column))
+                        if grid:
+                            grid.activate_all_tiles()
+                    else:
+                        if grid:
+                            grid.deactivate_all_tiles()
         self.gm.array_data.checked_sections = checked_sections
         self.viewport.vp_draw()
 
@@ -1347,33 +1353,34 @@ class MainControls(QMainWindow):
 
     def array_double_clicked_section(self, selection):
         array_index, roi_index = self.find_indices_from_selection(selection)
-        grid = self.find_grid_from_selection(selection)
+        if array_index is not None and roi_index is not None:
+            grid = self.find_grid_from_selection(selection)
 
-        self.cs.vp_centre_dx_dy = grid.centre_dx_dy
-        self.viewport.vp_draw()
-
-        if self.gm.array_data.calibrated:
-            utils.log_info(
-                'Array-CTRL',
-                f'Array {array_index} / ROI {roi_index} has been double-clicked. Moving to section...')
-
-            # set scan rotation
-            self.sem.set_scan_rotation(grid.rotation % 360)
-
-            # set stage
-            grid_center_s = grid.centre_sx_sy
-            self.stage.move_to_xy(grid_center_s)
-            utils.log_info(
-                'Array-CTRL',
-                f'Moved to section {array_index} / ROI {roi_index}.')
-            # to update the stage position cursor
+            self.cs.vp_centre_dx_dy = grid.centre_dx_dy
             self.viewport.vp_draw()
-        else:
-            utils.log_warning(
-                'Array-CTRL',
-                (f'Array {array_index} / ROI {roi_index}'
-                ' has been double-clicked. Image is not'
-                ' calibrated, therefore no stage movement.'))
+
+            if self.gm.array_data.calibrated:
+                utils.log_info(
+                    'Array-CTRL',
+                    f'Array {array_index} / ROI {roi_index} has been double-clicked. Moving to section...')
+
+                # set scan rotation
+                self.sem.set_scan_rotation(grid.rotation % 360)
+
+                # set stage
+                grid_center_s = grid.centre_sx_sy
+                self.stage.move_to_xy(grid_center_s)
+                utils.log_info(
+                    'Array-CTRL',
+                    f'Moved to section {array_index} / ROI {roi_index}.')
+                # to update the stage position cursor
+                self.viewport.vp_draw()
+            else:
+                utils.log_warning(
+                    'Array-CTRL',
+                    (f'Array {array_index} / ROI {roi_index}'
+                    ' has been double-clicked. Image is not'
+                    ' calibrated, therefore no stage movement.'))
 
     def array_set_section_state_in_table(self, action, grid_indices=None):
         array_table_model = self.tableView_array_sections.model()
@@ -1411,15 +1418,16 @@ class MainControls(QMainWindow):
         if action == 'deselectall':
             self.array_deselect_all()
 
-    def array_reset(self, update_viewport=True):
+    def array_reset(self):
         self.lineEdit_array_dataFile.clear()
         array_table_model = self.tableView_array_sections.model()
         array_table_model.clear()
         self.array_trigger_image_uncalibrated()
         self.array_trigger_image_uncalibratable()
         self.gm.array_reset()
-        self.gm.delete_all_grids_above_index(0)
+        self.gm.delete_array_grids()
         self.gm.array_delete_autofocus_points(0)
+        self.update_from_grid_dlg()
         self.viewport.update_grids()
         self.viewport.vp_draw()
 
@@ -1477,14 +1485,14 @@ class MainControls(QMainWindow):
         table_model = self.tableView_array_sections.model()
         table_model.clear()
 
-        #item = QStandardItem()
-        #item.setSelectable(False)
-        #table_model.appendRow([item] * nrois)
-        #table_model.setVerticalHeaderItem(0, QStandardItem())
-        #for roi_index in range(nrois):
-        #    button = QPushButton('Settings')
-        #    button.clicked.connect(self.get_open_grid_dlg(roi_index))
-        #    self.tableView_array_sections.setIndexWidget(table_model.index(0, roi_index), button)
+        item = QStandardItem()
+        item.setSelectable(False)
+        table_model.appendRow([item] * nrois)
+        table_model.setVerticalHeaderItem(0, QStandardItem())
+        for roi_index in range(nrois):
+            button = QPushButton('Settings')
+            button.clicked.connect(self.get_open_grid_dlg(roi_index))
+            self.tableView_array_sections.setIndexWidget(table_model.index(0, roi_index), button)
 
         for array_index in range(nsections):
             row_items = []
@@ -1499,7 +1507,6 @@ class MainControls(QMainWindow):
 
         for roi_index in range(nrois):
             table_model.setHorizontalHeaderItem(roi_index, QStandardItem(str(roi_index)))
-        # self.table_view.horizontalHeader().sectionClicked.connect(self.header_clicked)  # not working - needs to update table from model first?
 
         if len(self.gm.array_data.landmarks) > 2:
             self.array_trigger_image_calibratable()
@@ -1524,13 +1531,6 @@ class MainControls(QMainWindow):
     def array_set_import_image(self, array_image):
         self.lineEdit_array_imageFile.setText(array_image.image_src)
         self.pushButton_array_createGrids.setEnabled(True)
-
-    def array_grid_settings(self):
-        indexes = self.tableView_array_sections.selectedIndexes()
-        if len(indexes) > 0:
-            indices = indexes[0]
-            roi_index = self.gm.find_roi_grid_index(None, indices.column())
-            self.open_grid_dlg(roi_index)
 
     def array_create_grids(self):
         imported_image = self.imported.find_array_image()
@@ -1673,9 +1673,11 @@ class MainControls(QMainWindow):
         self.show_stack_acq_estimates()
         self.viewport.vp_draw()
 
-    def get_open_grid_dlg(self, index):
+    def get_open_grid_dlg(self, roi_index):
         def callback_open_grid_dlg():
-            self.open_grid_dlg(index)
+            grid_index = self.gm.find_roi_grid_index(None, roi_index, any_array_index=True)
+            if grid_index is not None:
+                self.open_grid_dlg(grid_index)
         return callback_open_grid_dlg
 
     def open_grid_dlg(self, selected_grid):
