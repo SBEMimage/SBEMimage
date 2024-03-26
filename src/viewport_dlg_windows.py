@@ -496,18 +496,24 @@ class ImportImageDlg(QDialog):
             self.lineEdit_fileName.setText(selected_file)
             self.lineEdit_name.setText(
                 utils.get_image_file_title(selected_file))
-            metadata = imread_metadata(selected_file)
-            pixel_size = metadata.get('pixel_size')
-            if pixel_size:
-                pxel_size_nm = pixel_size[0] * 1e3
-                self.doubleSpinBox_pixelSize.setValue(pxel_size_nm)
-            position = metadata.get('position')
-            if position:
-                self.doubleSpinBox_posX.setValue(position[0])
-                self.doubleSpinBox_posY.setValue(position[1])
-            rotation = metadata.get('rotation')
-            if rotation is not None:
-                self.spinBox_rotation.setValue(rotation)
+            try:
+                metadata = imread_metadata(selected_file)
+                pixel_size = metadata.get('pixel_size')
+                if pixel_size:
+                    pxel_size_nm = pixel_size[0] * 1e3
+                    self.doubleSpinBox_pixelSize.setValue(pxel_size_nm)
+                position = metadata.get('position')
+                if position:
+                    self.doubleSpinBox_posX.setValue(position[0])
+                    self.doubleSpinBox_posY.setValue(position[1])
+                rotation = metadata.get('rotation')
+                if rotation is not None:
+                    self.spinBox_rotation.setValue(rotation)
+            except TypeError:
+                QMessageBox.critical(self,
+                                     'SBEMimage error',
+                                     f'Unsupported image format: {selected_file}',
+                                     QMessageBox.Ok)
 
     def accept(self):
         import_success = False
@@ -528,11 +534,10 @@ class ImportImageDlg(QDialog):
         if os.path.isfile(selected_path):
             try:
                 metadata = imread_metadata(selected_path)
-                channels = metadata.get('channels', [{}])
                 size = metadata['size'][0] * metadata['size'][1]
                 if size > 10 * 1e6:
                     # if image dimension > 10MP scale down
-                    target_pixel_size_um = [1, 1]
+                    target_pixel_size_um = [2, 2]   # reduced pixel size
                     metadata['pixel_size'] = target_pixel_size_um
                 else:
                     target_pixel_size_um = None
@@ -543,36 +548,24 @@ class ImportImageDlg(QDialog):
                 else:
                     metadata['pixel_size'] = [pixel_size * 1e-3] * 2  # nm -> um
 
-                for channeli, channel in enumerate(channels):
-                    image = imread(selected_path, target_pixel_size_um=target_pixel_size_um,
-                                   channeli=channeli, render=False)
-                    target_path = os.path.join(
-                        self.imported.target_dir,
-                        filename)
+                image = imread(selected_path, target_pixel_size_um=target_pixel_size_um,
+                               render=False)
+                target_path = os.path.join(
+                    self.imported.target_dir,
+                    filename)
 
-                    if len(channels) > 1:
-                        target_path += '_' + channel.get('label', f'C{channeli}')
-                        metadata1 = metadata.copy()
-                        metadata1['channels'] = [channel]
-                    else:
-                        metadata1 = metadata
+                target_path += '_' + timestamp + '.' + ext
 
-                    target_path += '_' + timestamp + '.' + ext
+                imwrite(target_path, image, metadata=metadata)
 
-                    imwrite(target_path, image, metadata=metadata1)
-
-                    centre_sx_sy = [self.doubleSpinBox_posX.value(), self.doubleSpinBox_posY.value()]
-                    rotation = self.spinBox_rotation.value()
-                    transparency = self.spinBox_transparency.value()
-                    description = self.lineEdit_name.text()
-                    if len(channels) > 1:
-                        description += ' ' + channel.get('label', f'C{channeli}')
-                    if channeli > 0 and transparency == 0:
-                        transparency = 50
-                    imported_image = self.imported.add_image(target_path, description, centre_sx_sy, rotation,
-                                                             [], pixel_size, True, transparency)
-                    if imported_image.image is not None:
-                        import_success = True
+                centre_sx_sy = [self.doubleSpinBox_posX.value(), self.doubleSpinBox_posY.value()]
+                rotation = self.spinBox_rotation.value()
+                transparency = self.spinBox_transparency.value()
+                description = self.lineEdit_name.text()
+                imported_image = self.imported.add_image(target_path, description, centre_sx_sy, rotation,
+                                                         [], pixel_size, True, transparency)
+                if imported_image.image is not None:
+                    import_success = True
 
             except Exception as e:
                 error_msg = str(e)

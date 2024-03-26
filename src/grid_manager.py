@@ -1361,16 +1361,24 @@ class GridManager(list):
     def array_create_grids(self, imported_image):
         self.delete_array_grids(delete_template_grids=False)
 
-        stage_scale = self.cs.stage_calibration[:2]
-        stage_rotation = np.rad2deg(np.sum(self.cs.stage_calibration[2:]))
-        offset = np.array(imported_image.centre_sx_sy) - np.array(imported_image.size) / 2
-        angle_offset = imported_image.rotation + stage_rotation
+        image_center = np.multiply(imported_image.size, imported_image.image_pixel_size / 1e3 / 2)
+
+        transform = utils.create_transform(angle=imported_image.rotation,
+                                           translate=imported_image.centre_sx_sy,
+                                           scale=imported_image.scale)
 
         for array_index, rois in self.array_data.get_rois().items():
             for roi_index, roi in rois.items():
                 center_um0, size, angle0 = utils.calc_rotated_rect(roi['polygon'])
-                center = np.multiply(stage_scale, offset + roi['center'])
-                rotation = (angle_offset - roi['angle']) % 360
+                size = np.multiply(size, imported_image.scale)
+
+                # convert ROIs from image to common coordinates
+                center = (roi['center'][0] - image_center[0],
+                          -(roi['center'][1] - image_center[1]))
+                # apply image transformation to ROIs
+                center = utils.apply_transform(center, transform)
+
+                rotation = (imported_image.rotation - roi['angle']) % 360
                 self.add_new_grid_from_roi(array_index, roi_index, center, size, rotation)
 
                 grid_index = self.number_grids - 1
@@ -1380,8 +1388,7 @@ class GridManager(list):
                         point['location'])
 
     def add_new_grid_from_roi(self, array_index, roi_index, center, size, rotation):
-        # use last roi grid as template, if array_index == None, overwrite that
-
+        # use first matching roi grid as template
         template_index = self.find_roi_grid_index(None, roi_index)
         grid_index = None
 
@@ -1399,11 +1406,10 @@ class GridManager(list):
         tile_height = grid.tile_height_d()
 
         w, h = size
-        origin_sx_sy = self.cs.convert_d_to_s(center)
 
         tiles = [int(np.ceil(h / tile_height)), int(np.ceil(w / tile_width))]
 
-        new_grid = self.add_new_grid(origin_sx_sy=origin_sx_sy, sw_sh=size, size=tiles, rotation=rotation,
+        new_grid = self.add_new_grid(origin_sx_sy=center, sw_sh=size, size=tiles, rotation=rotation,
                                      frame_size=grid.frame_size, frame_size_selector=grid.frame_size_selector,
                                      overlap=grid.overlap, pixel_size=grid.pixel_size,
                                      dwell_time=grid.dwell_time, dwell_time_selector=grid.dwell_time_selector,

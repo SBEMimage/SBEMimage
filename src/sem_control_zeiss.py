@@ -868,6 +868,7 @@ class SEM_MultiSEM(SEM):
             self.cfg['sys']['use_microtome'].lower() == 'false')
         if not self.use_sem_stage:
             QMessageBox.critical(self,
+                'SBEMimage error',
                 'MultiSEM device error:'
                 '\nuse_microtome is set to True in the configuration file'
                 '\n Please set use_microtome to False in the configuration file'
@@ -1021,7 +1022,7 @@ class SEM_MultiSEM(SEM):
                     self.error_state = Error.eht
                     self.error_info = (
                         f'sem.turn_eht_on: command failed (wait_beam_on: {wait_beam_on})')
-                    QMessageBox.critical(self,
+                    QMessageBox.critical(self,'SBEMimage error',
                         'Failure to turn the beam on',
                         QMessageBox.Ok)
                     return False
@@ -1041,7 +1042,7 @@ class SEM_MultiSEM(SEM):
                 self.error_state = Error.eht
                 self.error_info = (
                     f'sem.turn_eht_off: command failed (wait_beam_off: {wait_beam_off})')
-                QMessageBox.critical(self,
+                QMessageBox.critical(self, 'SBEMimage error',
                     'Failure to turn the beam off',
                     QMessageBox.Ok)
                 return False
@@ -1051,7 +1052,7 @@ class SEM_MultiSEM(SEM):
             self.error_state = Error.eht
             self.error_info = (
                 f'sem.turn_eht_off: command failed (ret_val: {ret_val})')
-            QMessageBox.critical(self,
+            QMessageBox.critical(self, 'SBEMimage error',
                 'Failure to turn the beam on',
                 QMessageBox.Ok)
             return False

@@ -1682,6 +1682,42 @@ class Viewport(QWidget):
                                       cropped_resized_img)
                 self.vp_qp.setOpacity(1)
 
+    def _vp_place_imported_img2(self, index):
+        """Place imported image specified by index onto the viewport canvas."""
+        imported = self.imported[index]
+        if imported.enabled and imported.image is not None:
+            viewport_pixel_size = 1000 / self.cs.vp_scale
+            image_pixel_size = imported.pixel_size
+            resize_ratio = image_pixel_size / viewport_pixel_size
+
+            # Compute position of image in viewport:
+            transform_s_d = self.cs.get_s_to_d_transform()
+            center_position = utils.apply_transform(imported.centre_sx_sy, transform_s_d)
+            if self.sem.device_name.startswith('TFS'):
+                # work-around for Y-inverted SEM/stage
+                transform_s_d[1][1] = -transform_s_d[1][1]
+            image = imported.image.transformed(utils.transform_to_QTransform(transform_s_d))
+
+            width, height = image.width(), image.height()
+            position = center_position - np.array([width, height]) / 2 * image_pixel_size / 1000
+            transform_d_v = self.cs.get_d_to_v_transform()
+            vx, vy = utils.apply_transform(position, transform_d_v)
+
+            # Get width and height of the imported QPixmap:
+            # Crop and resize image before placing it into viewport:
+            visible, crop_area, vx_cropped, vy_cropped = self._vp_visible_area(
+                vx, vy, width, height, resize_ratio)
+            if visible:
+                cropped_img = image.copy(crop_area)
+                v_width = cropped_img.size().width()
+                cropped_resized_img = cropped_img.scaledToWidth(
+                    int(v_width * resize_ratio))
+                self.vp_qp.setOpacity(
+                    1 - imported.transparency / 100)
+                self.vp_qp.drawPixmap(vx_cropped, vy_cropped,
+                                      cropped_resized_img)
+                self.vp_qp.setOpacity(1)
+
     def _vp_place_overview(self, ov_index,
                            show_debris_area=False, suppress_labels=False):
         """Place OV overview image specified by ov_index onto the viewport

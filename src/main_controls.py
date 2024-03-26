@@ -1534,8 +1534,9 @@ class MainControls(QMainWindow):
 
     def array_create_grids(self):
         imported_image = self.imported.find_array_image()
-        self.gm.array_create_grids(imported_image)
-        self.update_from_grid_dlg()
+        if imported_image:
+            self.gm.array_create_grids(imported_image)
+            self.update_from_grid_dlg()
 
     def array_open_image_calibration_dlg(self):
         dialog = ArrayCalibrationDlg(self.cfg, self.stage, self.ovm, self.cs,

@@ -18,7 +18,7 @@ import json
 from qtpy.QtGui import QTransform
 
 import utils
-from image_io import imread
+from image_io import imread, imread_metadata
 from utils import round_xy, image_to_QPixmap
 
 
@@ -44,6 +44,12 @@ class ImportedImage:
         # Load image as QPixmap
         if os.path.isfile(self.image_src):
             try:
+                metadata = imread_metadata(self.image_src)
+                image_pixel_size = metadata.get('pixel_size')
+                if image_pixel_size is not None:
+                    self.image_pixel_size = image_pixel_size[0] * 1e3
+                else:
+                    self.image_pixel_size = 1e3
                 image = imread(self.image_src)
                 height, width = image.shape[:2]
                 self.size = [width, height]
@@ -82,6 +88,10 @@ class ImportedImage:
     def rotation(self, new_rotation):
         self._rotation = new_rotation
         self._load_image()
+
+    @property
+    def scale(self):
+        return self.pixel_size / self.image_pixel_size
 
     def flip_x(self):
         trans = QTransform()

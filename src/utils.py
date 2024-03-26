@@ -27,7 +27,7 @@ from skimage.transform import ProjectiveTransform
 from skimage.measure import ransac
 from serial.tools import list_ports
 from qtpy.QtCore import QObject, Signal, QSize
-from qtpy.QtGui import QIcon, QPixmap, QImage
+from qtpy.QtGui import QIcon, QPixmap, QImage, QTransform
 
 from constants import *
 
@@ -505,6 +505,55 @@ def resize_image(image, new_size):
         size = np.flip(image.shape[:2])
         new_size = new_size, new_size * size[1] // size[0]
     return cv2.resize(image, new_size)
+
+
+def transform_to_QTransform(t):
+    transform = QTransform()
+    t00, t01, t02 = t[0]
+    t10, t11, t12 = t[1]
+    if len(t) >= 3:
+        t20, t21, t22 = t[2]
+    else:
+        t20, t21, t22 = 0, 0, 1
+    transform.setMatrix(
+        t00, t01, t02,
+        t10, t11, t12,
+        t20, t21, t22
+        )
+    return transform
+
+
+def create_transform(center=(0, 0), angle=0, scale=1, translate=(0, 0), create3x3=False):
+    transform = cv2.getRotationMatrix2D(center, angle, scale)
+    transform[:, 2] += translate
+    if create3x3:
+        transform = np.vstack([transform, [0, 0, 1]])
+    return transform
+
+
+def combine_transforms(transforms):
+    combined_transform = None
+    for transform in transforms:
+        if len(transform) < 3:
+            transform = np.vstack([transform, [0, 0, 1]])
+        if combined_transform is None:
+            combined_transform = transform
+        else:
+            combined_transform = np.dot(transform, combined_transform)
+    return combined_transform
+
+
+def apply_transform(point, transform):
+    return np.dot(list(point) + [1], np.transpose(transform))[:2]
+
+
+def transform_image(image, transform):
+    (h, w) = image.shape[:2]
+    cos = np.abs(transform[0, 0])
+    sin = np.abs(transform[0, 1])
+    new_width = int((h * sin) + (w * cos))
+    new_height = int((h * cos) + (w * sin))
+    return cv2.warpAffine(image, transform, (new_width, new_height))
 
 
 class TranslationTransform(ProjectiveTransform):

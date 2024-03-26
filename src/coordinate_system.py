@@ -20,9 +20,9 @@
            _v, vx, vy, vx_vy
 """
 
-from math import sin, cos
 import json
 import numpy as np
+from math import sin, cos
 
 import constants
 import utils
@@ -181,12 +181,29 @@ class CoordinateSystem:
               / self.rot_mat_determinant)
         return np.array([dx, dy])
 
+    def get_s_to_d_transform(self):
+        transform = [
+            [self.rot_mat_a * self.scale_x, self.rot_mat_b * self.scale_x, 0],
+            [self.rot_mat_c * self.scale_y, self.rot_mat_d * self.scale_y, 0],
+            [0, 0, 1]
+        ]
+        return transform
+
     def convert_d_to_v(self, d_coordinates) -> np.ndarray:
         """Convert SEM XY coordinates into Viewport window coordinates.
         These coordinates in units of pixels specify an object's location
         relative to the Viewport origin.
         """
         return ((d_coordinates - self._vp_origin_dx_dy) * self._vp_scale).astype(int)
+
+    def get_d_to_v_transform(self):
+        scale = self._vp_scale
+        transform = [
+            [scale, 0, -self._vp_origin_dx_dy[0] * scale],
+            [0, scale, -self._vp_origin_dx_dy[1] * scale],
+            [0, 0, 1]
+        ]
+        return transform
 
     def convert_d_to_sv(self, d_coordinates, tile_display=True) -> np.ndarray:
         """Convert SEM coordinates in microns (relative to image origin) to
