@@ -976,7 +976,7 @@ class GridManager(list):
 
         # initialize Array settings
         self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
-        self.array_data = ArrayData.ArrayData()
+        self.array_data = ArrayData.ArrayData(self.sem.device_name)
 
     def fit_apply_aberration_gradient(self):
         dc_aberr = dict()
@@ -1327,7 +1327,7 @@ class GridManager(list):
     # ----------------------------- Array functions ---------------------------------
 
     def array_read(self, path):
-        self.array_data = ArrayData.ArrayData(path)
+        self.array_data = ArrayData.ArrayData(self.sem.device_name, path)
         self.array_data.read_data()
 
     # deprecated: save grids instead
@@ -1387,6 +1387,53 @@ class GridManager(list):
                         grid_index,
                         point['location'])
 
+    def array_update_grids(self):
+        array_data = self.array_data
+
+        source_landmarks = array_data.get_landmarks()
+        target_landmarks = array_data.get_landmarks(landmark_type='target')
+
+        x_landmarks_source = np.array([landmark[0] for landmark in source_landmarks.values()])
+        y_landmarks_source = np.array([landmark[1] for landmark in source_landmarks.values()])
+
+        x_landmarks_target = np.array([landmark[0] for landmark in target_landmarks.values()])
+        y_landmarks_target = np.array([landmark[1] for landmark in target_landmarks.values()])
+
+        flip_x = self.sem.device_name.lower() in [
+            'zeiss merlin',
+            'zeiss sigma',
+        ]
+
+        array_data.transform = ArrayData.affine_t(
+            x_landmarks_source,
+            y_landmarks_source,
+            x_landmarks_target,
+            y_landmarks_target,
+            flip_x=flip_x,
+        )
+
+        # compute new grid locations
+        # (always transform from reference source)
+        for array_index, rois in self.array_data.get_rois().items():
+            for roi_index, roi in rois.items():
+                grid = self.find_roi_grid(array_index, roi_index)
+                if grid:
+                    center = roi['center']
+                    #target_center = ArrayData.apply_affine_t(
+                    #    [center[0]], [center[1]],
+                    #    array_data.transform,
+                    #    flip_x=flip_x)
+                    target_center = utils.apply_transform(center, array_data.transform.T)
+                    transform_angle = -ArrayData.get_affine_rotation(
+                        array_data.transform)
+                    angle_target = (roi['angle'] + transform_angle) % 360
+
+                    grid.auto_update_tile_positions = False
+                    grid.rotation = angle_target
+                    grid.update_tile_positions()
+                    grid.auto_update_tile_positions = True
+                    grid.centre_sx_sy = target_center
+
     def add_new_grid_from_roi(self, array_index, roi_index, center, size, rotation):
         # use first matching roi grid as template
         template_index = self.find_roi_grid_index(None, roi_index)
@@ -1437,8 +1484,8 @@ class GridManager(list):
                 return grid
         return None
 
-    def array_landmarks(self):
-        return self.array_data.get_landmarks(self.sem.device_name)
+    def get_array_landmarks(self):
+        return self.array_data.get_landmarks()
 
     def array_autofocus_points(self, grid_index):
         """The magc_autofocus_points_source are in non-rotated grid coordinates

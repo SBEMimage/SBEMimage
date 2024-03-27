@@ -47,7 +47,6 @@ class ArrayCalibrationDlg(QDialog):
         self.init_landmarks()
         self.pushButton_cancel.clicked.connect(self.accept)
         self.pushButton_validateCalibration.clicked.connect(self.validate_calibration)
-        self.show()
 
     def init_landmarks(self):
         # initialize the landmarkTableModel (QTableView)
@@ -192,7 +191,7 @@ class ArrayCalibrationDlg(QDialog):
             item7.setEnabled(True)
 
             # update landmarks
-            self.gm.array_data.landmarks[row]['target'] = [x, y]
+            self.gm.array_data.landmarks[row]['target'] = {'location': [x, y]}
 
             # compute transform and update landmarks
             n_landmarks = len(self.gm.array_data.landmarks)
@@ -213,28 +212,19 @@ class ArrayCalibrationDlg(QDialog):
                 # Using all possible landmarks available in the target
                 # (minimum 2)
 
-                x_landmarks_source = np.array([
-                    self.gm.array_data.landmarks[i]['source'][0]
-                    for i in range(n_landmarks)])
-                y_landmarks_source = np.array([
-                    self.gm.array_data.landmarks[i]['source'][1]
-                    for i in range(n_landmarks)])
+                source_landmarks = self.gm.array_data.get_landmarks()
+                target_landmarks = self.gm.array_data.get_landmarks(landmark_type='target')
+
+                x_landmarks_source = np.array([landmark[0] for landmark in source_landmarks.values()])
+                y_landmarks_source = np.array([landmark[1] for landmark in source_landmarks.values()])
 
                 # taking only the source landmarks for which there is a
                 # corresponding target landmark
-                x_landmarks_source_partial = np.array(
-                    [self.gm.array_data.landmarks[i]['source'][0]
-                     for i in calibrated_landmark_ids])
-                y_landmarks_source_partial = np.array(
-                    [self.gm.array_data.landmarks[i]['source'][1]
-                     for i in calibrated_landmark_ids])
+                x_landmarks_source_partial = np.array([source_landmarks[index][0] for index in calibrated_landmark_ids])
+                y_landmarks_source_partial = np.array([source_landmarks[index][1] for index in calibrated_landmark_ids])
 
-                x_landmarks_target_partial = np.array(
-                    [self.gm.array_data.landmarks[i]['target'][0]
-                     for i in calibrated_landmark_ids])
-                y_landmarks_target_partial = np.array(
-                    [self.gm.array_data.landmarks[i]['target'][1]
-                     for i in calibrated_landmark_ids])
+                x_landmarks_target_partial = np.array([target_landmarks[index][0] for index in calibrated_landmark_ids])
+                y_landmarks_target_partial = np.array([target_landmarks[index][1] for index in calibrated_landmark_ids])
 
                 flip_x = self.gm.sem.device_name.lower() in [
                         'zeiss merlin',
@@ -271,7 +261,7 @@ class ArrayCalibrationDlg(QDialog):
                 for noncalibrated_landmark_id in noncalibrated_landmark_ids:
                     x = x_target_updated_landmarks[noncalibrated_landmark_id]
                     y = y_target_updated_landmarks[noncalibrated_landmark_id]
-                    self.gm.array_data.landmarks[noncalibrated_landmark_id]['target'] = [x, y]
+                    self.gm.array_data.landmarks[noncalibrated_landmark_id]['target'] = {'location': [x, y]}
 
                     item0 = self.lTable.model().item(
                         noncalibrated_landmark_id,
@@ -336,112 +326,15 @@ class ArrayCalibrationDlg(QDialog):
         if len(calibrated_landmark_ids) != n_landmarks:
             utils.log_info(
                 'Array-CTRL',
-                ('Cannot validate wafer calibration: all target landmarks '
-                    +'must first be validated.'))
+                'Cannot validate wafer calibration: all target landmarks '
+                'must first be validated.')
         else:
-            x_landmarks_source = [
-                self.gm.array_data.landmarks['source'][i][0]
-                for i in range(n_landmarks)]
-            y_landmarks_source = [
-                self.gm.array_data.landmarks['source'][i][1]
-                for i in range(n_landmarks)]
-
-            x_landmarks_target = [
-                self.gm.array_data.landmarks['target'][i][0]
-                for i in range(n_landmarks)]
-            y_landmarks_target = [
-                self.gm.array_data.landmarks['target'][i][1]
-                for i in range(n_landmarks)]
-
+            self.gm.array_update_grids()
             flip_x = self.gm.sem.device_name.lower() in [
-                    'zeiss merlin',
-                    'zeiss sigma',
-                    ]
-
-            self.gm.array_data.transform = ArrayData.affine_t(
-                x_landmarks_source,
-                y_landmarks_source,
-                x_landmarks_target,
-                y_landmarks_target,
-                flip_x=flip_x,
-                )
-
-            # compute new grid locations
-            # (always transform from reference source)
-            n_sections = len(self.gm.array_data.sections)
-
-            # ROI has priority over section:
-            # if a ROI is defined:
-                # use the ROI
-            # else:
-                # use the section
-            x_source = np.array([
-                self.gm.array_data.sections[k]['rois'][0]['center'][0]
-                    if 'rois' in self.gm.array_data.sections[k]
-                    else self.gm.array_data.sections[k]['sample']['center'][0]
-                    for k in sorted(self.gm.array_data.sections)
-                    ])
-            y_source = np.array([
-                self.gm.array_datasections[k]['rois'][0]['center'][1]
-                    if 'rois' in self.gm.array_data.sections[k]
-                    else self.gm.array_data.sections[k]['sample']['center'][1]
-                    for k in sorted(self.gm.array_data.sections)
-                    ])
-
-            angles_source = np.array([
-                self.gm.array_datasections[k]['rois'][0]['angle']
-                    if 'rois' in self.gm.array_data.sections[k]
-                    else self.gm.array_data.sections[k]['sample']['angle']
-                    for k in sorted(self.gm.array_data.sections)
-                    ])
-
-            x_target, y_target = ArrayData.apply_affine_t(
-                x_source,
-                y_source,
-                self.gm.array_data.transform,
-                flip_x=flip_x)
-
-            transform_angle = -ArrayData.get_affine_rotation(
-                self.gm.array_data.transform)
-            angles_target = (angles_source + transform_angle) % 360
-
-            # update grids
-            for grid_number in range(self.gm.number_grids):
-                self.gm[grid_number].auto_update_tile_positions = False
-                self.gm[grid_number].rotation = angles_target[grid_number]
-                self.gm[grid_number].update_tile_positions()
-                self.gm[grid_number].auto_update_tile_positions = True
-                self.gm[grid_number].centre_sx_sy = [
-                    x_target[grid_number],
-                    y_target[grid_number]]
-
-            self.main_controls_trigger.transmit('DRAW VP')
-
-            # update wafer picture
-            if self.imported[0] is not None:
-                waferTransformAngle = -ArrayData.get_affine_rotation(
-                    self.gm.array_data.transform)
-                waferTransformScaling = ArrayData.get_affine_scaling(
-                    self.gm.array_data.transform)
-
-                image_center_target_s = ArrayData.apply_affine_t(
-                    [self.imported[0].centre_sx_sy[0]],
-                    [self.imported[0].centre_sx_sy[1]],
-                    self.gm.array_data.transform,
-                    flip_x=flip_x)
-
-                image_center_target_s = [float(a[0]) for a in image_center_target_s]
-
-                # image_center_source_v = self.cs.convert_to_v(image_center_source_s)
-                # image_center_target_v = array_utils.applyRigidT(
-                    # [image_center_source_v[0]],
-                    # [image_center_source_v[1]],
-                    # waferTransform_v)
-
-                self.imported[0].rotation = (0 - waferTransformAngle) % 360
-                self.imported[0].pixel_size = 1000 * waferTransformScaling
-                self.imported[0].centre_sx_sy = image_center_target_s
-                self.imported[0].flip_x()
+                'zeiss merlin',
+                'zeiss sigma',
+            ]
+            self.imported.update_array_image(self.gm.array_data, flip_x)
 
             # update drawn image
             self.main_controls_trigger.transmit('DRAW VP')
@@ -476,7 +369,6 @@ class ImportZENExperimentDlg(QDialog):
         self.setFixedSize(self.size())
         self.buttonBox.accepted.connect(self.import_zen)
         self.buttonBox.rejected.connect(self.accept)
-        self.show()
 
     def import_zen(self):
         #-----------------------------

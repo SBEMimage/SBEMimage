@@ -19,7 +19,8 @@ warnings.filterwarnings("ignore")
 
 
 class ArrayData:
-    def __init__(self, path=None):
+    def __init__(self, device_name, path=None):
+        self.device_name = device_name
         self.path = path
 
     def reset(self):
@@ -301,21 +302,22 @@ class ArrayData:
                 focus_points.append(focus_point)
         return focus_points
 
-    def get_landmarks(self, device_name):
+    def get_landmarks(self, landmark_type='source'):
         # TODO: check if this flipping actually depends on reversal of the stage axis
         #       as defined in stage_sem_calibration_params in the config
-        landmarks = {index: landmark['source']['location'] for index, landmark in self.landmarks.items()}
+        landmarks = {index: landmark[landmark_type]['location']
+                     for index, landmark in self.landmarks.items()
+                     if landmark_type in landmark}
         if self.calibrated:
             transformed_landmarks = apply_affine_t(
                 [landmark[0] for landmark in landmarks.values()],
                 [landmark[1] for landmark in landmarks.values()],
                 self.transform,
                 # flip_x=False,
-                flip_x=device_name.lower() in ['zeiss merlin', 'zeiss sigma'],
+                flip_x=self.device_name in ['zeiss merlin', 'zeiss sigma'],
             )
-            return {index: [x, y] for index, (x, y) in enumerate(zip(*transformed_landmarks))}
-        else:
-            return landmarks
+            landmarks = {index: [x, y] for index, (x, y) in enumerate(zip(*transformed_landmarks))}
+        return dict(sorted(landmarks.items()))
 
     def adjust_imported_array_image(self, acq, array_image):
         if acq.magc_mode:

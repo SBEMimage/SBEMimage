@@ -1143,6 +1143,8 @@ class Viewport(QWidget):
                     f'Change rotation of {grid_str[3:]} | Shortcut &R')
                 action_changeRotation.triggered.connect(
                     self._vp_open_change_grid_rotation_dlg)
+            else:
+                action_changeRotation = None
 
             if self.sem.magc_mode:
                 action_moveGridCurrentStage = menu.addAction(
@@ -1264,7 +1266,8 @@ class Viewport(QWidget):
                 action_openGridSettings.setEnabled(False)
                 action_selectAll.setEnabled(False)
                 action_deselectAll.setEnabled(False)
-            if self.selected_template is None and grid_index is None:
+            if (self.selected_template is None and grid_index is None
+                    and action_changeRotation is not None):
                 action_changeRotation.setEnabled(False)
             if tile_index is None:
                 action_selectAutofocus.setEnabled(False)
@@ -1276,7 +1279,8 @@ class Viewport(QWidget):
             if self.busy:
                 action_focusTool.setEnabled(False)
                 action_openGridSettings.setEnabled(False)
-                action_changeRotation.setEnabled(False)
+                if action_changeRotation is not None:
+                    action_changeRotation.setEnabled(False)
                 action_selectAll.setEnabled(False)
                 action_deselectAll.setEnabled(False)
                 action_selectGradient.setEnabled(False)
@@ -1407,53 +1411,52 @@ class Viewport(QWidget):
             self._draw_rectangle(self.vp_qp, self.drag_origin, self.drag_current,
                                  constants.COLOUR_SELECTOR[8], line_style=Qt.DashLine)
 
-        # --- magc_mode ---
+        # --- array mode ---
         if self.grid_selection_or_draw_selection_box_active:
             self._draw_rectangle(self.vp_qp, self.drag_origin, self.drag_current,
                                  constants.COLOUR_SELECTOR[0], line_style=Qt.DashLine)
-        # magc landmarks
-        if self.sem.magc_mode:
-            self.vp_qp.setBrush(QBrush(
-                QColor(255, 255, 255, 100),
-                Qt.SolidPattern,
-            ))
-            for landmark_id, landmark in self.gm.array_landmarks().items():
-                landmark_v = self.cs.convert_d_to_v(landmark)
-                # draw cross
-                cross_length = 100 * self.cs.vp_scale
-                self.vp_qp.setPen(QColor(Qt.yellow))
-                self.vp_qp.drawLine(
-                    landmark_v[0] - cross_length,
-                    landmark_v[1],
-                    landmark_v[0] + cross_length,
-                    landmark_v[1],
-                )
-                self.vp_qp.drawLine(
-                    landmark_v[0],
-                    landmark_v[1] - cross_length,
-                    landmark_v[0],
-                    landmark_v[1] + cross_length,
-                )
-                # draw landmark label
-                font = QFont()
-                fontsize = int(self.cs.vp_scale * 8)
-                fontsize = max(fontsize, 10)
-                font.setPixelSize(fontsize)
-                self.vp_qp.setFont(font)
-                landmark_rect = QRect(
-                    int(landmark_v[0] - 50 * self.cs.vp_scale),
-                    int(landmark_v[1] - 12 * self.cs.vp_scale),
-                    int(6 * fontsize),
-                    int(4/3 * fontsize),
-                )
-                self.vp_qp.setPen(QColor(255, 255, 255, 100))
-                self.vp_qp.drawRect(landmark_rect)
-                self.vp_qp.setPen(QColor(Qt.black))
-                self.vp_qp.drawText(
-                    landmark_rect,
-                    Qt.AlignVCenter | Qt.AlignHCenter,
-                    f"landmark {landmark_id}",
-                )
+        # landmarks
+        self.vp_qp.setBrush(QBrush(
+            QColor(255, 255, 255, 100),
+            Qt.SolidPattern,
+        ))
+        for landmark_id, landmark in self.gm.get_array_landmarks().items():
+            landmark_v = self.cs.convert_d_to_v(landmark)
+            # draw cross
+            cross_length = 100 * self.cs.vp_scale
+            self.vp_qp.setPen(QColor(Qt.yellow))
+            self.vp_qp.drawLine(
+                landmark_v[0] - cross_length,
+                landmark_v[1],
+                landmark_v[0] + cross_length,
+                landmark_v[1],
+            )
+            self.vp_qp.drawLine(
+                landmark_v[0],
+                landmark_v[1] - cross_length,
+                landmark_v[0],
+                landmark_v[1] + cross_length,
+            )
+            # draw landmark label
+            font = QFont()
+            fontsize = int(self.cs.vp_scale * 8)
+            fontsize = max(fontsize, 10)
+            font.setPixelSize(fontsize)
+            self.vp_qp.setFont(font)
+            landmark_rect = QRect(
+                int(landmark_v[0] - 50 * self.cs.vp_scale),
+                int(landmark_v[1] - 12 * self.cs.vp_scale),
+                int(6 * fontsize),
+                int(4/3 * fontsize),
+            )
+            self.vp_qp.setPen(QColor(255, 255, 255, 100))
+            self.vp_qp.drawRect(landmark_rect)
+            self.vp_qp.setPen(QColor(Qt.black))
+            self.vp_qp.drawText(
+                landmark_rect,
+                Qt.AlignVCenter | Qt.AlignHCenter,
+                f"landmark {landmark_id}",
+            )
 
 
 

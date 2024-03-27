@@ -17,6 +17,7 @@ import os
 import json
 from qtpy.QtGui import QTransform
 
+import ArrayData
 import utils
 from image_io import imread, imread_metadata
 from utils import round_xy, image_to_QPixmap
@@ -190,3 +191,29 @@ class ImportedImages(list):
             if imported_image.is_array:
                 return imported_image
         return None
+
+    def update_array_image(self, array_data, flip_x):
+        array_image = self.find_array_image()
+        if array_image:
+            waferTransformAngle = -ArrayData.get_affine_rotation(
+                array_data.transform)
+            waferTransformScaling = ArrayData.get_affine_scaling(
+                array_data.transform)
+
+            #image_center_target_s = ArrayData.apply_affine_t(
+            #    [array_image.centre_sx_sy[0]],
+            #    [array_image.centre_sx_sy[1]],
+            #    array_data.transform,
+            #    flip_x=flip_x)
+            image_center_target_s = utils.apply_transform(array_image.centre_sx_sy, array_data.transform.T)
+
+            # image_center_source_v = self.cs.convert_to_v(image_center_source_s)
+            # image_center_target_v = array_utils.applyRigidT(
+            # [image_center_source_v[0]],
+            # [image_center_source_v[1]],
+            # waferTransform_v)
+
+            array_image.rotation = (0 - waferTransformAngle) % 360
+            array_image.pixel_size = 1000 * waferTransformScaling
+            array_image.centre_sx_sy = image_center_target_s
+            array_image.flip_x()
