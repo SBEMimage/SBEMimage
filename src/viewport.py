@@ -1650,7 +1650,7 @@ class Viewport(QWidget):
                                 int(width_px * resize_ratio + 1),
                                 int(height_px * resize_ratio + 1))
 
-    def _vp_place_imported_img(self, index):
+    def _vp_place_imported_img0(self, index):
         """Place imported image specified by index onto the viewport canvas."""
         imported = self.imported[index]
         if imported.enabled and imported.image is not None:
@@ -1682,7 +1682,7 @@ class Viewport(QWidget):
                                       cropped_resized_img)
                 self.vp_qp.setOpacity(1)
 
-    def _vp_place_imported_img2(self, index):
+    def _vp_place_imported_img(self, index):
         """Place imported image specified by index onto the viewport canvas."""
         imported = self.imported[index]
         if imported.enabled and imported.image is not None:
@@ -1693,15 +1693,16 @@ class Viewport(QWidget):
             # Compute position of image in viewport:
             transform_s_d = self.cs.get_s_to_d_transform()
             center_position = utils.apply_transform(imported.centre_sx_sy, transform_s_d)
-            if self.sem.device_name.startswith('TFS'):
+            if transform_s_d[0][0] * transform_s_d[1][1] < 0:
                 # work-around for Y-inverted SEM/stage
-                transform_s_d[1][1] = -transform_s_d[1][1]
+                transform_s_d[1][1] *= -1
             image = imported.image.transformed(utils.transform_to_QTransform(transform_s_d))
 
             width, height = image.width(), image.height()
             position = center_position - np.array([width, height]) / 2 * image_pixel_size / 1000
-            transform_d_v = self.cs.get_d_to_v_transform()
-            vx, vy = utils.apply_transform(position, transform_d_v)
+            #transform_d_v = self.cs.get_d_to_v_transform()
+            #vx, vy = utils.apply_transform(position, transform_d_v)
+            vx, vy = self.cs.convert_d_to_v(position)
 
             # Get width and height of the imported QPixmap:
             # Crop and resize image before placing it into viewport:

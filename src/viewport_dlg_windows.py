@@ -66,6 +66,8 @@ class StubOVDlg(QDialog):
             self.update_dimension_and_duration_display)
         self.spinBox_cols.valueChanged.connect(
             self.update_dimension_and_duration_display)
+        self.spinBox_magnification.valueChanged.connect(
+            self.set_magnification)
         # Save previous settings. If user aborts the stub OV acquisition
         # revert to these settings.
         stub_ovm = self.get_selected_stub_ovm()
@@ -138,8 +140,16 @@ class StubOVDlg(QDialog):
             stub_ovm = self.ovm['stub']
         return stub_ovm
 
+    def set_magnification(self):
+        stub_ovm = self.get_selected_stub_ovm()
+        magnification = self.spinBox_magnification.value()
+        stub_ovm.pixel_size = self.sem.MAG_PX_SIZE_FACTOR / (magnification * stub_ovm.frame_size[0])
+        self.update_dimension_and_duration_display()
+
     def update_settings_from_ovm(self):
         stub_ovm = self.get_selected_stub_ovm()
+        magnification = int(self.sem.MAG_PX_SIZE_FACTOR / (stub_ovm.frame_size[0] * stub_ovm.pixel_size))
+        self.spinBox_magnification.setValue(magnification)
         self.spinBox_rows.setValue(stub_ovm.size[0])
         self.spinBox_cols.setValue(stub_ovm.size[1])
         self.update_dimension_and_duration_display()
@@ -153,12 +163,11 @@ class StubOVDlg(QDialog):
         overlap = stub_ovm.overlap
         pixel_size = stub_ovm.pixel_size
         cycle_time = stub_ovm.tile_cycle_time()
-        ov0 = stub_ovm[0]
-        ov1 = stub_ovm[1]
-        if ov0 is not None and ov1 is not None:
-            motor_move_time = self.stage.stage_move_duration(*ov0.sx_sy, *ov1.sx_sy)
-        else:
-            motor_move_time = 0
+        motor_move_time = 0
+        if len(stub_ovm) >= 2:
+            ov0, ov1 = stub_ovm[0], stub_ovm[1]
+            if ov0 is not None and ov1 is not None:
+                motor_move_time = self.stage.stage_move_duration(*ov0.sx_sy, *ov1.sx_sy)
         width = int(
             (cols * tile_width - (cols - 1) * overlap) * pixel_size / 1000)
         height = int(
@@ -172,16 +181,21 @@ class StubOVDlg(QDialog):
 
     def start_stub_ov_acquisition(self):
         """Acquire the stub overview. Acquisition routine runs in a thread."""
-
+        lm_mode = self.checkBox_LmMode.isChecked()
         # Start acquisition if EHT is on
-        if self.sem.is_eht_on():
+        if lm_mode or self.sem.is_eht_on():
             self.acq_in_progress = True
             centre_sx_sy = self.spinBox_X.value(), self.spinBox_Y.value()
             grid_size = [self.spinBox_rows.value(), self.spinBox_cols.value()]
             # Change the Stub Overview to the requested grid size and centre
             stub_ovm = self.get_selected_stub_ovm()
-            stub_ovm.size = grid_size
-            stub_ovm.centre_sx_sy = centre_sx_sy
+            if lm_mode:
+                # get correct pixel size value for discrete LM FOV steps
+                self.sem.set_em_mode(lm_mode=True)
+                self.sem.apply_frame_settings(stub_ovm.frame_size_selector, stub_ovm.pixel_size, stub_ovm.dwell_time)
+                stub_ovm.pixel_size = self.sem.get_pixel_size()
+            stub_ovm.size = grid_size               # triggers tiles update
+            stub_ovm.centre_sx_sy = centre_sx_sy    # triggers tiles update
             self.viewport_trigger.transmit(
                 'CTRL: Acquisition of stub overview image started.')
             self.pushButton_acquire.setEnabled(False)

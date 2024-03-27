@@ -1401,12 +1401,10 @@ class GridManager(list):
             template_index = 0
 
         grid = self[template_index]
-
         tile_width = grid.tile_width_d()
         tile_height = grid.tile_height_d()
 
         w, h = size
-
         tiles = [int(np.ceil(h / tile_height)), int(np.ceil(w / tile_width))]
 
         new_grid = self.add_new_grid(origin_sx_sy=center, sw_sh=size, size=tiles, rotation=rotation,

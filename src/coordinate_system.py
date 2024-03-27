@@ -187,7 +187,7 @@ class CoordinateSystem:
             [self.rot_mat_c * self.scale_y, self.rot_mat_d * self.scale_y, 0],
             [0, 0, 1]
         ]
-        return transform
+        return np.linalg.inv(transform)
 
     def convert_d_to_v(self, d_coordinates) -> np.ndarray:
         """Convert SEM XY coordinates into Viewport window coordinates.
