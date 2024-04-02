@@ -701,57 +701,6 @@ class MainControls(QMainWindow):
         
         self.initialize_tcp_remote_gui()
 
-    # deprecated
-    def activate_array_mode(self, tabIndex):
-        if tabIndex != 3:
-            return
-
-        if self.cfg_file == 'default.ini':
-            QMessageBox.information(
-                self, 'Activating Array mode',
-                'Please activate Array mode from a configuration file other '
-                'than default.ini.',
-                QMessageBox.Ok)
-            return
-
-        answer = QMessageBox.question(
-            self, 'Activating Array mode',
-            'Do you want to activate the Array mode?'
-            '\n\nMake sure you have saved everything you need '
-            'in the current session. \nYou will be prompted to '
-            'enter a name for a new configuration file and '
-            'SBEMimage will close. \nThe Array mode will be active '
-            'at the next start if you select the new configuration file.',
-            QMessageBox.Yes|QMessageBox.No)
-        if answer != QMessageBox.Yes:
-            return
-
-        dialog = SaveConfigDlg(self.syscfg_file)
-        dialog.label.setText('Name of new config file')
-        dialog.label_line1.setText('Choose a name for the new configuration')
-        dialog.label_line2.setText('file. If the configuration file already exists,')
-        dialog.label_line3.setText('then it will be overwritten.')
-        dialog.label_line4.setText('Use only A-Z, a-z, 0-9, and hyphen/underscore.')
-        dialog.label_line5.setText('.ini will be added automatically')
-
-        if dialog.exec():
-            self.cfg_file = dialog.file_name
-            self.cfg['sys']['magc_mode'] = 'True'
-            self.cfg['sys']['use_microtome'] = 'False'
-            self.save_config_to_disk()
-
-            # close SBEMimage properly
-            self.viewport.active = False
-            self.viewport.close()
-            QApplication.processEvents()
-            sleep(1)
-            # Recreate status.dat to indicate that program was closed
-            # normally and didn't crash:
-            with open(os.path.join('..','cfg','status.dat'), 'w+') as f:
-                f.write(self.cfg_file)
-            print('Closed by user.\n')
-            sys.exit()
-
     def try_to_create_directory(self, new_directory):
         """Create directory. If not possible: error message"""
         try:

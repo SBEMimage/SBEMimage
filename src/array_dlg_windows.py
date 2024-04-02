@@ -191,13 +191,14 @@ class ArrayCalibrationDlg(QDialog):
             item7.setEnabled(True)
 
             # update landmarks
-            self.gm.array_data.landmarks[row]['target'] = {'location': [x, y]}
+            self.gm.set_array_landmark(row, [x, y])
 
             # compute transform and update landmarks
-            n_landmarks = len(self.gm.array_data.landmarks)
+            landmarks = self.gm.array_data.landmarks
+            n_landmarks = len(landmarks)
 
             calibrated_landmark_ids = [
-                id for id in self.gm.array_data.landmarks
+                id for id in landmarks
                 if self.lTable.model().item(id, 0).background().color() == GREEN]
 
                 # the green color shows that the landmark has been
@@ -261,7 +262,7 @@ class ArrayCalibrationDlg(QDialog):
                 for noncalibrated_landmark_id in noncalibrated_landmark_ids:
                     x = x_target_updated_landmarks[noncalibrated_landmark_id]
                     y = y_target_updated_landmarks[noncalibrated_landmark_id]
-                    self.gm.array_data.landmarks[noncalibrated_landmark_id]['target'] = {'location': [x, y]}
+                    self.gm.set_array_landmark(noncalibrated_landmark_id, [x, y])
 
                     item0 = self.lTable.model().item(
                         noncalibrated_landmark_id,
@@ -317,11 +318,11 @@ class ArrayCalibrationDlg(QDialog):
         return callback_goto_landmark
 
     def validate_calibration(self):
+        landmarks = self.gm.get_array_landmarks()
+        n_landmarks = len(landmarks)
         calibrated_landmark_ids = [
-            id for id in self.gm.array_data.landmarks
+            id for id in landmarks
             if self.lTable.model().item(id, 0).background().color() == GREEN]
-
-        n_landmarks = len(self.gm.array_data.landmarks)
 
         if len(calibrated_landmark_ids) != n_landmarks:
             utils.log_info(
@@ -329,12 +330,13 @@ class ArrayCalibrationDlg(QDialog):
                 'Cannot validate wafer calibration: all target landmarks '
                 'must first be validated.')
         else:
+            self.gm.array_landmark_calibration()
             self.gm.array_update_grids()
             flip_x = self.gm.sem.device_name.lower() in [
                 'zeiss merlin',
                 'zeiss sigma',
             ]
-            self.imported.update_array_image(self.gm.array_data, flip_x)
+            self.imported.update_array_image(self.gm.array_data.transform, flip_x)
 
             # update drawn image
             self.main_controls_trigger.transmit('DRAW VP')

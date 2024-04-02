@@ -1377,19 +1377,18 @@ class Viewport(QWidget):
         if suppress_previews:                # this parameter of vp_draw()
             show_previews = False            # overrides the tile preview mode
 
-        if self.vp_current_grid >= 0:   # show only the selected grid
-            self._vp_place_grid(self.vp_current_grid,
+        if self.vp_current_grid >= 0:
+            # show only the selected grid
+            grid_indices = [self.vp_current_grid]
+        else:
+            # show all grids
+            grid_indices = range(self.gm.number_grids)
+        for grid_index in grid_indices:
+            self._vp_place_grid(grid_index,
                                 show_grid,
                                 show_previews,
                                 with_gaps,
                                 suppress_labels)
-        else:  # show all grids
-            for grid_index in range(self.gm.number_grids):
-                self._vp_place_grid(grid_index,
-                                    show_grid,
-                                    show_previews,
-                                    with_gaps,
-                                    suppress_labels)
 
         # Finally, show imported images
         if (self.show_imported and len(self.imported) > 0
@@ -1415,13 +1414,44 @@ class Viewport(QWidget):
         if self.grid_selection_or_draw_selection_box_active:
             self._draw_rectangle(self.vp_qp, self.drag_origin, self.drag_current,
                                  constants.COLOUR_SELECTOR[0], line_style=Qt.DashLine)
-        # landmarks
+        self._place_landmarks()
+
+        #-----------------------------------------#
+
+        # ------
+        if self.vp_measure_active:
+            self._draw_measure_labels(self.vp_qp)
+        # Show help panel
+        if self.help_panel_visible:
+            self.vp_qp.drawPixmap(self.cs.vp_width - 200,
+                                  self.cs.vp_height - 550,
+                                  self.vp_help_panel_img)
+        # Simulation mode indicator
+        if self.sem.simulation_mode:
+            self._show_simulation_mode_indicator()
+        # Active user flag
+        if self.active_user_flag_enabled:
+            self._show_active_user_flag()
+        # Show current stage position
+        if self.show_stage_pos:
+            self._show_stage_position_indicator()
+        self.vp_qp.end()
+        # All elements have been drawn on the canvas, now show them in the
+        # Viewport window.
+        self.QLabel_ViewportCanvas.setPixmap(self.vp_canvas)
+        # Update text labels (bottom of the Viewport window)
+        self.label_FOVSize.setText(
+            '{0:.1f}'.format(self.cs.vp_width / self.cs.vp_scale)
+            + ' µm × '
+            + '{0:.1f}'.format(self.cs.vp_height / self.cs.vp_scale) + ' µm')
+
+    def _place_landmarks(self):
         self.vp_qp.setBrush(QBrush(
             QColor(255, 255, 255, 100),
             Qt.SolidPattern,
         ))
-        for landmark_id, landmark in self.gm.get_array_landmarks().items():
-            landmark_v = self.cs.convert_d_to_v(landmark)
+        for landmark_id, landmark in self.gm.get_array_landmarks('stage').items():
+            landmark_v = self.cs.convert_d_to_v(self.cs.convert_s_to_d(landmark))
             # draw cross
             cross_length = 100 * self.cs.vp_scale
             self.vp_qp.setPen(QColor(Qt.yellow))
@@ -1457,38 +1487,6 @@ class Viewport(QWidget):
                 Qt.AlignVCenter | Qt.AlignHCenter,
                 f"landmark {landmark_id}",
             )
-
-
-
-        #-----------------------------------------#
-
-
-        # ------
-        if self.vp_measure_active:
-            self._draw_measure_labels(self.vp_qp)
-        # Show help panel
-        if self.help_panel_visible:
-            self.vp_qp.drawPixmap(self.cs.vp_width - 200,
-                                  self.cs.vp_height - 550,
-                                  self.vp_help_panel_img)
-        # Simulation mode indicator
-        if self.sem.simulation_mode:
-            self._show_simulation_mode_indicator()
-        # Active user flag
-        if self.active_user_flag_enabled:
-            self._show_active_user_flag()
-        # Show current stage position
-        if self.show_stage_pos:
-            self._show_stage_position_indicator()
-        self.vp_qp.end()
-        # All elements have been drawn on the canvas, now show them in the
-        # Viewport window.
-        self.QLabel_ViewportCanvas.setPixmap(self.vp_canvas)
-        # Update text labels (bottom of the Viewport window)
-        self.label_FOVSize.setText(
-            '{0:.1f}'.format(self.cs.vp_width / self.cs.vp_scale)
-            + ' µm × '
-            + '{0:.1f}'.format(self.cs.vp_height / self.cs.vp_scale) + ' µm')
 
     def _show_simulation_mode_indicator(self):
         """Draw simulation mode indicator on viewport canvas.

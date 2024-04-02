@@ -13,8 +13,9 @@ be imported, but this could be extended to image stacks / 3D volumes in the
 future.
 """
 
-import os
 import json
+import numpy as np
+import os
 from qtpy.QtGui import QTransform
 
 import ArrayData
@@ -192,20 +193,19 @@ class ImportedImages(list):
                 return imported_image
         return None
 
-    def update_array_image(self, array_data, flip_x):
+    def update_array_image(self, transform, flip_x):
         array_image = self.find_array_image()
         if array_image:
-            waferTransformAngle = -ArrayData.get_affine_rotation(
-                array_data.transform)
-            waferTransformScaling = ArrayData.get_affine_scaling(
-                array_data.transform)
+            angle = ArrayData.get_affine_rotation(transform)
+            scale = ArrayData.get_affine_scaling(transform)
 
             #image_center_target_s = ArrayData.apply_affine_t(
             #    [array_image.centre_sx_sy[0]],
             #    [array_image.centre_sx_sy[1]],
-            #    array_data.transform,
+            #    transform,
             #    flip_x=flip_x)
-            image_center_target_s = utils.apply_transform(array_image.centre_sx_sy, array_data.transform.T)
+            center = np.array(array_image.size) * array_image.image_pixel_size / 1000 / 2
+            image_center_target_s = utils.apply_transform(center, transform.T)
 
             # image_center_source_v = self.cs.convert_to_v(image_center_source_s)
             # image_center_target_v = array_utils.applyRigidT(
@@ -213,7 +213,11 @@ class ImportedImages(list):
             # [image_center_source_v[1]],
             # waferTransform_v)
 
-            array_image.rotation = (0 - waferTransformAngle) % 360
-            array_image.pixel_size = 1000 * waferTransformScaling
+            if transform[0][0] * transform[1][1] < 0:
+                # work-around for Y-inversion
+                angle += 180
+
+            array_image.rotation = angle % 360
+            array_image.pixel_size = array_image.image_pixel_size * scale
             array_image.centre_sx_sy = image_center_target_s
-            array_image.flip_x()
+            #array_image.flip_x()

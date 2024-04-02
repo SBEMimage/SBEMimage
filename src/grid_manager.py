@@ -1363,34 +1363,39 @@ class GridManager(list):
 
         image_center = np.multiply(imported_image.size, imported_image.image_pixel_size / 1e3 / 2)
 
-        transform = utils.create_transform(angle=imported_image.rotation,
+        transform1 = utils.create_transform(translate=-image_center)
+        transform2 = utils.create_transform(scale=[1, -1])
+        transform3 = utils.create_transform(angle=imported_image.rotation,
                                            translate=imported_image.centre_sx_sy,
                                            scale=imported_image.scale)
+        transform = utils.combine_transforms([transform1, transform2, transform3])
 
         for array_index, rois in self.array_data.get_rois().items():
             for roi_index, roi in rois.items():
                 center_um0, size, angle0 = utils.calc_rotated_rect(roi['polygon'])
                 size = np.multiply(size, imported_image.scale)
-
-                # convert ROIs from image to common coordinates
-                center = (roi['center'][0] - image_center[0],
-                          -(roi['center'][1] - image_center[1]))
                 # apply image transformation to ROIs
-                center = utils.apply_transform(center, transform)
-
+                center = utils.apply_transform(roi['center'], transform)
                 rotation = (imported_image.rotation - roi['angle']) % 360
                 self.add_new_grid_from_roi(array_index, roi_index, center, size, rotation)
-
+                # add focus points to grid
                 grid_index = self.number_grids - 1
                 for point in self.array_data.get_focus_points_in_roi(array_index, roi):
                     self.array_add_autofocus_point(
                         grid_index,
                         point['location'])
 
-    def array_update_grids(self):
+        for landmark_id, landmark in self.get_array_landmarks().items():
+            # apply image transformation to landmarks
+            location = utils.apply_transform(landmark, transform)
+            self.set_array_landmark(landmark_id, location, landmark_type='stage')
+            if landmark_id not in self.get_array_landmarks('target'):
+                self.set_array_landmark(landmark_id, location, landmark_type='target')
+
+    def array_landmark_calibration(self):
         array_data = self.array_data
 
-        source_landmarks = array_data.get_landmarks()
+        source_landmarks = array_data.get_landmarks(landmark_type='source')
         target_landmarks = array_data.get_landmarks(landmark_type='target')
 
         x_landmarks_source = np.array([landmark[0] for landmark in source_landmarks.values()])
@@ -1404,6 +1409,8 @@ class GridManager(list):
             'zeiss sigma',
         ]
 
+        #transform = cv2.getAffineTransform(np.float32([l for l in source_landmarks.values()])[:3],
+        #                                   np.float32([l for l in target_landmarks.values()])[:3])
         array_data.transform = ArrayData.affine_t(
             x_landmarks_source,
             y_landmarks_source,
@@ -1412,24 +1419,24 @@ class GridManager(list):
             flip_x=flip_x,
         )
 
+    def array_update_grids(self):
+        transform = self.array_data.transform
         # compute new grid locations
         # (always transform from reference source)
         for array_index, rois in self.array_data.get_rois().items():
             for roi_index, roi in rois.items():
                 grid = self.find_roi_grid(array_index, roi_index)
                 if grid:
-                    center = roi['center']
                     #target_center = ArrayData.apply_affine_t(
                     #    [center[0]], [center[1]],
-                    #    array_data.transform,
+                    #    transform,
                     #    flip_x=flip_x)
-                    target_center = utils.apply_transform(center, array_data.transform.T)
-                    transform_angle = -ArrayData.get_affine_rotation(
-                        array_data.transform)
-                    angle_target = (roi['angle'] + transform_angle) % 360
+                    target_center = utils.apply_transform(roi['center'], transform.T)
+                    transform_angle = ArrayData.get_affine_rotation(transform)
+                    target_angle = (transform_angle - roi['angle']) % 360
 
                     grid.auto_update_tile_positions = False
-                    grid.rotation = angle_target
+                    grid.rotation = target_angle
                     grid.update_tile_positions()
                     grid.auto_update_tile_positions = True
                     grid.centre_sx_sy = target_center
@@ -1484,8 +1491,11 @@ class GridManager(list):
                 return grid
         return None
 
-    def get_array_landmarks(self):
-        return self.array_data.get_landmarks()
+    def get_array_landmarks(self, landmark_type='source'):
+        return self.array_data.get_landmarks(landmark_type)
+
+    def set_array_landmark(self, landmark_id, location, landmark_type='target'):
+        self.array_data.set_landmark(landmark_id, location, landmark_type)
 
     def array_autofocus_points(self, grid_index):
         """The magc_autofocus_points_source are in non-rotated grid coordinates

@@ -192,16 +192,16 @@ class ArrayData:
             if ext == '.magc':
                 self.write_data_magc(gm)
             elif ext == '.json':
-                self.write_data_json(gm)
+                self.write_data_json()
             else:
-                self.write_data_yaml(gm)
+                self.write_data_yaml()
 
-    def write_data_json(self, gm):
+    def write_data_json(self):
         if self.path:
             with open(self.path, 'w') as outfile:
                 json.dump(self.sections, outfile, indent=4)
 
-    def write_data_yaml(self, gm):
+    def write_data_yaml(self):
         if self.path:
             with open(self.path, 'w') as outfile:
                 yaml.dump(self.sections, outfile, sort_keys=False, default_flow_style=None)
@@ -232,13 +232,13 @@ class ArrayData:
             target_ROI = gm[grid_index].centre_sx_sy
             target_ROI_angle = gm[grid_index].rotation
 
-            if gm.array_data.calibrated:
+            if self.calibrated:
                 # transform back the grid coordinates
                 # in non-transformed coordinates
                 result = apply_affine_t(
                     [target_ROI[0]],
                     [target_ROI[1]],
-                    gm.array_data.transform)
+                    self.transform)
                 source_ROI = [result[0][0], result[1][0]]
                 source_ROI_angle = (
                     (-90 + target_ROI_angle - transform_angle) % 360)
@@ -264,7 +264,7 @@ class ArrayData:
                     'focus',
                     points_to_flat_string(af_points_source))
 
-        with open(gm.array_data.path, 'w') as f:
+        with open(self.path, 'w') as f:
             for line in lines[:sbemimage_line_index]:
                 f.write(line)
             # f.write('\n')
@@ -308,16 +308,19 @@ class ArrayData:
         landmarks = {index: landmark[landmark_type]['location']
                      for index, landmark in self.landmarks.items()
                      if landmark_type in landmark}
-        if self.calibrated:
-            transformed_landmarks = apply_affine_t(
-                [landmark[0] for landmark in landmarks.values()],
-                [landmark[1] for landmark in landmarks.values()],
-                self.transform,
-                # flip_x=False,
-                flip_x=self.device_name in ['zeiss merlin', 'zeiss sigma'],
-            )
-            landmarks = {index: [x, y] for index, (x, y) in enumerate(zip(*transformed_landmarks))}
+        #if self.calibrated:
+        #    transformed_landmarks = apply_affine_t(
+        #        [landmark[0] for landmark in landmarks.values()],
+        #        [landmark[1] for landmark in landmarks.values()],
+        #        self.transform,
+        #        # flip_x=False,
+        #        flip_x=self.device_name in ['zeiss merlin', 'zeiss sigma'],
+        #    )
+        #    landmarks = {index: [x, y] for index, (x, y) in enumerate(zip(*transformed_landmarks))}
         return dict(sorted(landmarks.items()))
+
+    def set_landmark(self, landmark_id, location, landmark_type='target'):
+        self.landmarks[landmark_id][landmark_type] = {'location': location}
 
     def adjust_imported_array_image(self, acq, array_image):
         if acq.magc_mode:

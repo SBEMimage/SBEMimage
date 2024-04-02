@@ -194,7 +194,8 @@ class CoordinateSystem:
         These coordinates in units of pixels specify an object's location
         relative to the Viewport origin.
         """
-        return ((d_coordinates - self._vp_origin_dx_dy) * self._vp_scale).astype(int)
+        #return ((d_coordinates - self._vp_origin_dx_dy) * self._vp_scale).astype(int)
+        return (d_coordinates - self._vp_origin_dx_dy) * self._vp_scale
 
     def get_d_to_v_transform(self):
         scale = self._vp_scale

@@ -523,11 +523,15 @@ def transform_to_QTransform(t):
     return transform
 
 
-def create_transform(center=(0, 0), angle=0, scale=1, translate=(0, 0), create3x3=False):
-    transform = cv2.getRotationMatrix2D(center, angle, scale)
+def create_transform(center=(0, 0), angle=0, scale=1, translate=(0, 0)):
+    if isinstance(scale, (list, tuple)):
+        scale1 = scale[0]
+    else:
+        scale1 = scale
+    transform = cv2.getRotationMatrix2D(center, angle, scale1)
+    if isinstance(scale, (list, tuple)):
+        transform[1, :] *= scale[1] / scale[0]
     transform[:, 2] += translate
-    if create3x3:
-        transform = np.vstack([transform, [0, 0, 1]])
     return transform
 
 
