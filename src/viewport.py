@@ -1326,10 +1326,16 @@ class Viewport(QWidget):
         self.main_controls_trigger.transmit('LOAD IN FOCUS TOOL')
 
     def _vp_image_grid(self):
-        print(self.selected_grid)
+        self.acq.init_acquisition()
+        self.acq.set_up_acq_subdirectories()
+        self.acq.set_up_acq_logs()
+        self.acq.pause_acquisition(2)
+        self.acq.acquire_grid(self.selected_grid)
 
     def _vp_image_tile(self):
-        print(self.selected_grid, self.selected_tile)
+        self.acq.init_acquisition()
+        self.acq.set_up_acq_subdirectories()
+        self.acq.acquire_tile(self.selected_grid, self.selected_tile, adjust_acq_settings=True)
 
     def _vp_set_stub_ov_centre(self):
         self.stub_ov_centre = self.selected_stage_pos

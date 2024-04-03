@@ -151,6 +151,60 @@ class Acquisition:
         if not os.path.isfile(notes_file):
             open(notes_file, 'a').close()
 
+    def init_acquisition(self):
+        # autofocus and autostig status for the current slice
+        self.autofocus_stig_current_slice = False, False
+
+        # Focus parameters and magnification can be locked to certain
+        # values while a grid is being acquired. If SBEMimage detects a
+        # change (for example when the user accidentally touches a knob),
+        # the correct values can be restored.
+        self.wd_stig_locked = False
+        self.mag_locked = False
+        self.locked_wd = None
+        self.locked_stig_x, self.locked_stig_y = None, None
+        self.locked_mag = None
+
+        # Global default settings for working distance and stimation,
+        # initialized with the current settings read from the SEM
+        self.wd_default = self.sem.get_wd()
+        self.stig_x_default, self.stig_y_default = (
+            self.sem.get_stig_xy())
+        # The following variables store the current tile settings,
+        # initialized with the defaults
+        self.tile_wd = self.wd_default
+        self.tile_stig_x = self.stig_x_default
+        self.tile_stig_y = self.stig_y_default
+
+        # Alternating plus/minus deltas for wd and stig, needed for
+        # heuristic autofocus, otherwise set to 0
+        self.wd_delta, self.stig_x_delta, self.stig_y_delta = 0, 0, 0
+        # List of tiles to be processed for heuristic autofocus
+        # during the cut cycle
+        self.heuristic_af_queue = []
+        # Reset current estimators and corrections
+        self.autofocus.reset_heuristic_corrections()
+
+        # Discard previous tile statistics in image inspector that are
+        # used for tile-by-tile comparisons and quality checks.
+        self.img_inspector.reset_tile_stats()
+
+        # Variable used for user response from Main Controls
+        self.user_reply = None
+
+        # first_ov[index] is True for each overview image index for which
+        # the user will be asked to confirm that the first acquired image
+        # is free from debris. After confirmation, first_ov[index] is set
+        # to False.
+        self.first_ov = [True] * self.ovm.number_ov
+
+        # Track the durations for grabbing, mirroring and inspecting tiles.
+        # If the durations deviate too much from expected values,
+        # warnings are shown in the log.
+        self.tile_grab_durations = []
+        self.tile_mirror_durations = []
+        self.tile_inspect_durations = []
+
     @property
     def base_dir(self):
         return self._base_dir
@@ -599,58 +653,7 @@ class Acquisition:
 
         # Proceed if no error has occurred during setup of folders and logs
         if self.error_state == Error.none:
-            # autofocus and autostig status for the current slice
-            self.autofocus_stig_current_slice = False, False
-
-            # Focus parameters and magnification can be locked to certain
-            # values while a grid is being acquired. If SBEMimage detects a
-            # change (for example when the user accidentally touches a knob),
-            # the correct values can be restored.
-            self.wd_stig_locked = False
-            self.mag_locked = False
-            self.locked_wd = None
-            self.locked_stig_x, self.locked_stig_y = None, None
-            self.locked_mag = None
-
-            # Global default settings for working distance and stimation,
-            # initialized with the current settings read from the SEM
-            self.wd_default = self.sem.get_wd()
-            self.stig_x_default, self.stig_y_default = (
-                self.sem.get_stig_xy())
-            # The following variables store the current tile settings,
-            # initialized with the defaults
-            self.tile_wd = self.wd_default
-            self.tile_stig_x = self.stig_x_default
-            self.tile_stig_y = self.stig_y_default
-
-            # Alternating plus/minus deltas for wd and stig, needed for
-            # heuristic autofocus, otherwise set to 0
-            self.wd_delta, self.stig_x_delta, self.stig_y_delta = 0, 0, 0
-            # List of tiles to be processed for heuristic autofocus
-            # during the cut cycle
-            self.heuristic_af_queue = []
-            # Reset current estimators and corrections
-            self.autofocus.reset_heuristic_corrections()
-
-            # Discard previous tile statistics in image inspector that are
-            # used for tile-by-tile comparisons and quality checks.
-            self.img_inspector.reset_tile_stats()
-
-            # Variable used for user response from Main Controls
-            self.user_reply = None
-
-            # first_ov[index] is True for each overview image index for which
-            # the user will be asked to confirm that the first acquired image
-            # is free from debris. After confirmation, first_ov[index] is set
-            # to False.
-            self.first_ov = [True] * self.ovm.number_ov
-
-            # Track the durations for grabbing, mirroring and inspecting tiles.
-            # If the durations deviate too much from expected values,
-            # warnings are shown in the log.
-            self.tile_grab_durations = []
-            self.tile_mirror_durations = []
-            self.tile_inspect_durations = []
+            self.init_acquisition()
 
             # Start log for this run
             self.main_log_file.write('*** SBEMimage log for acquisition '

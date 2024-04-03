@@ -522,7 +522,7 @@ class ImportImageDlg(QDialog):
                     self.doubleSpinBox_posY.setValue(position[1])
                 rotation = metadata.get('rotation')
                 if rotation is not None:
-                    self.spinBox_rotation.setValue(rotation)
+                    self.doubleSpinBox_rotation.setValue(rotation)
             except TypeError:
                 QMessageBox.critical(self,
                                      'SBEMimage error',
@@ -573,8 +573,8 @@ class ImportImageDlg(QDialog):
                 imwrite(target_path, image, metadata=metadata)
 
                 centre_sx_sy = [self.doubleSpinBox_posX.value(), self.doubleSpinBox_posY.value()]
-                rotation = self.spinBox_rotation.value()
-                transparency = self.spinBox_transparency.value()
+                rotation = self.doubleSpinBox_rotation.value()
+                transparency = self.doubleSpinBox_transparency.value()
                 description = self.lineEdit_name.text()
                 imported_image = self.imported.add_image(target_path, description, centre_sx_sy, rotation,
                                                          [], pixel_size, True, transparency)
@@ -674,9 +674,9 @@ class AdjustImageDlg(QDialog):
         self.doubleSpinBox_posY.setValue(pos_y)
         self.doubleSpinBox_pixelSize.setValue(
             self.selected_image.pixel_size)
-        self.spinBox_rotation.setValue(
+        self.doubleSpinBox_rotation.setValue(
             self.selected_image.rotation)
-        self.spinBox_transparency.setValue(
+        self.doubleSpinBox_transparency.setValue(
             self.selected_image.transparency)
         # Use "Apply" button to show changes in viewport
         apply_button = self.buttonBox.button(QDialogButtonBox.Apply)
@@ -695,8 +695,8 @@ class AdjustImageDlg(QDialog):
         self.selected_image.pixel_size = (
             self.doubleSpinBox_pixelSize.value())
         self.selected_image.rotation = (
-            self.spinBox_rotation.value())
+            self.doubleSpinBox_rotation.value())
         self.selected_image.transparency = (
-            self.spinBox_transparency.value())
+            self.doubleSpinBox_transparency.value())
         # Emit signals to redraw Viewport:
         self.viewport_trigger.transmit('DRAW VP')

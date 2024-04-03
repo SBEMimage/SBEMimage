@@ -186,25 +186,6 @@
     <string>Transparency (0-100%):</string>
    </property>
   </widget>
-  <widget class="QSpinBox" name="spinBox_transparency">
-   <property name="geometry">
-    <rect>
-     <x>180</x>
-     <y>230</y>
-     <width>81</width>
-     <height>22</height>
-    </rect>
-   </property>
-   <property name="layoutDirection">
-    <enum>Qt::LeftToRight</enum>
-   </property>
-   <property name="maximum">
-    <number>100</number>
-   </property>
-   <property name="singleStep">
-    <number>10</number>
-   </property>
-  </widget>
   <widget class="QLabel" name="label_4">
    <property name="geometry">
     <rect>
@@ -228,28 +209,6 @@
     </rect>
    </property>
   </widget>
-  <widget class="QSpinBox" name="spinBox_rotation">
-   <property name="geometry">
-    <rect>
-     <x>180</x>
-     <y>200</y>
-     <width>81</width>
-     <height>22</height>
-    </rect>
-   </property>
-   <property name="layoutDirection">
-    <enum>Qt::LeftToRight</enum>
-   </property>
-   <property name="minimum">
-    <number>-360</number>
-   </property>
-   <property name="maximum">
-    <number>360</number>
-   </property>
-   <property name="singleStep">
-    <number>1</number>
-   </property>
-  </widget>
   <widget class="QLabel" name="label_st_5">
    <property name="geometry">
     <rect>
@@ -263,6 +222,50 @@
     <string>Rotation (degrees):</string>
    </property>
   </widget>
+  <widget class="QDoubleSpinBox" name="doubleSpinBox_rotation">
+   <property name="geometry">
+    <rect>
+     <x>180</x>
+     <y>200</y>
+     <width>81</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="layoutDirection">
+    <enum>Qt::LeftToRight</enum>
+   </property>
+   <property name="minimum">
+    <double>-360.000000000000000</double>
+   </property>
+   <property name="maximum">
+    <double>360.000000000000000</double>
+   </property>
+   <property name="singleStep">
+    <double>1.000000000000000</double>
+   </property>
+  </widget>
+  <widget class="QDoubleSpinBox" name="doubleSpinBox_transparency">
+   <property name="geometry">
+    <rect>
+     <x>180</x>
+     <y>230</y>
+     <width>81</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="layoutDirection">
+    <enum>Qt::LeftToRight</enum>
+   </property>
+   <property name="minimum">
+    <double>0.000000000000000</double>
+   </property>
+   <property name="maximum">
+    <double>100.000000000000000</double>
+   </property>
+   <property name="singleStep">
+    <double>10.000000000000000</double>
+   </property>
+  </widget>
  </widget>
  <tabstops>
   <tabstop>lineEdit_fileName</tabstop>
@@ -271,8 +274,6 @@
   <tabstop>doubleSpinBox_pixelSize</tabstop>
   <tabstop>doubleSpinBox_posX</tabstop>
   <tabstop>doubleSpinBox_posY</tabstop>
-  <tabstop>spinBox_rotation</tabstop>
-  <tabstop>spinBox_transparency</tabstop>
  </tabstops>
  <resources/>
  <connections>

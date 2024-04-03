@@ -1434,9 +1434,12 @@ class MainControls(QMainWindow):
         table_model = self.tableView_array_sections.model()
         table_model.clear()
 
-        item = QStandardItem()
-        item.setSelectable(False)
-        table_model.appendRow([item] * nrois)
+        placeholder = []
+        for roi in range(nrois):
+            item = QStandardItem()
+            item.setSelectable(False)
+            placeholder.append(item)
+        table_model.appendRow(placeholder)
         table_model.setVerticalHeaderItem(0, QStandardItem())
         for roi_index in range(nrois):
             button = QPushButton('Settings')
