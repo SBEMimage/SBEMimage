@@ -1159,6 +1159,15 @@ class GridManager(list):
 
     def delete_array_grids(self, delete_template_grids=True):
         """Delete all array grids"""
+        if not delete_template_grids:
+            # preserve template grids
+            nrois = self.array_data.get_nrois()
+            for roi in range(nrois):
+                if self.find_roi_grid_index(None, roi) is None:
+                    template_index = self.find_roi_grid_index(0, roi)
+                    if template_index is not None:
+                        self[template_index].array_index = None
+        # delete all array grids
         for grid in reversed(self):
             if grid.roi_index is not None and (grid.array_index is not None or delete_template_grids):
                 self.remove(grid)
@@ -1343,7 +1352,7 @@ class GridManager(list):
         nrois = self.array_data.get_nrois()
         for roi_index in range(nrois):
             new_grid = self.add_new_grid(origin_sx_sy=grid.origin_sx_sy, sw_sh=grid.sw_sh, size=grid.size,
-                                         rotation=grid.rotation, active=False,
+                                         rotation=grid.rotation,
                                          frame_size=grid.frame_size, frame_size_selector=grid.frame_size_selector,
                                          overlap=grid.overlap, pixel_size=grid.pixel_size,
                                          dwell_time=grid.dwell_time, dwell_time_selector=grid.dwell_time_selector,

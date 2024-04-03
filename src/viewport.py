@@ -1170,6 +1170,10 @@ class Viewport(QWidget):
                 self._vp_toggle_wd_gradient_ref_tile)
 
             menu.addSeparator()
+            action_image = menu.addAction('Image Grid')
+            action_image.triggered.connect(self._vp_image_grid)
+            action_image = menu.addAction('Image Tile')
+            action_image.triggered.connect(self._vp_image_tile)
             action_move = menu.addAction(current_pos_str)
             action_move.triggered.connect(self._vp_manual_stage_move)
             action_stub = menu.addAction('Acquire stub OV at this position')
@@ -1320,6 +1324,12 @@ class Viewport(QWidget):
 
     def _vp_load_selected_in_ft(self):
         self.main_controls_trigger.transmit('LOAD IN FOCUS TOOL')
+
+    def _vp_image_grid(self):
+        print(self.selected_grid)
+
+    def _vp_image_tile(self):
+        print(self.selected_grid, self.selected_tile)
 
     def _vp_set_stub_ov_centre(self):
         self.stub_ov_centre = self.selected_stage_pos
