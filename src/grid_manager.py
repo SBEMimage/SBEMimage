@@ -1363,12 +1363,15 @@ class GridManager(list):
 
         image_center = np.multiply(imported_image.size, imported_image.image_pixel_size / 1e3 / 2)
 
-        transform1 = utils.create_transform(translate=-image_center)
-        transform2 = utils.create_transform(scale=[1, -1])
-        transform3 = utils.create_transform(angle=imported_image.rotation,
-                                           translate=imported_image.centre_sx_sy,
-                                           scale=imported_image.scale)
-        transform = utils.combine_transforms([transform1, transform2, transform3])
+        transform = self.array_data.transform
+        if len(transform) == 0:
+            transform1 = utils.create_transform(translate=-image_center)
+            transform2 = utils.create_transform(scale=[1, -1])
+            transform3 = utils.create_transform(angle=imported_image.rotation,
+                                               translate=imported_image.centre_sx_sy,
+                                               scale=imported_image.scale)
+            transform = utils.combine_transforms([transform1, transform2, transform3])
+            self.array_data.transform = transform
 
         for array_index, rois in self.array_data.get_rois().items():
             for roi_index, roi in rois.items():
@@ -1417,7 +1420,7 @@ class GridManager(list):
             x_landmarks_target,
             y_landmarks_target,
             flip_x=flip_x,
-        )
+        ).T
 
     def array_update_grids(self):
         transform = self.array_data.transform
@@ -1429,10 +1432,10 @@ class GridManager(list):
                 if grid:
                     #target_center = ArrayData.apply_affine_t(
                     #    [center[0]], [center[1]],
-                    #    transform,
+                    #    transform.T,
                     #    flip_x=flip_x)
-                    target_center = utils.apply_transform(roi['center'], transform.T)
-                    transform_angle = ArrayData.get_affine_rotation(transform)
+                    target_center = utils.apply_transform(roi['center'], transform)
+                    transform_angle = ArrayData.get_affine_rotation(transform.T)
                     target_angle = (transform_angle - roi['angle']) % 360
 
                     grid.auto_update_tile_positions = False
@@ -1513,7 +1516,7 @@ class GridManager(list):
         grid = self[grid_index]
         transformed_points = []
         scale_factor = (
-            ArrayData.get_affine_scaling(self.array_data.transform)
+            ArrayData.get_affine_scaling(self.array_data.transform.T)
             if self.array_data.calibrated
             else 1
         )
@@ -1544,7 +1547,7 @@ class GridManager(list):
         transformed_points = []
 
         scale_factor = (
-            1 / float(ArrayData.get_affine_scaling(self.array_data.transform))
+            1 / float(ArrayData.get_affine_scaling(self.array_data.transform.T))
             if self.array_data.calibrated
             else 1
         )
@@ -1632,7 +1635,7 @@ class GridManager(list):
             # transform back the grid coordinates in non-transformed coordinates
             # inefficient but ok for now:
 
-            wafer_transform_inverse = ArrayData.invert_affine_t(self.array_data.transform)
+            wafer_transform_inverse = ArrayData.invert_affine_t(self.array_data.transform.T)
 
             center = ArrayData.apply_affine_t(
                 [source_grid_center[0]],
@@ -1698,7 +1701,7 @@ class GridManager(list):
             center = ArrayData.apply_affine_t(
                 [target_grid_center[0]],
                 [target_grid_center[1]],
-                self.array_data.transform,
+                self.array_data.transform.T,
                 flip_x=self.sem.device_name.lower() in [
                         'zeiss merlin',
                         'zeiss sigma',

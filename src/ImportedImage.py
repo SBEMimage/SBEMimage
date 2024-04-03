@@ -196,8 +196,8 @@ class ImportedImages(list):
     def update_array_image(self, transform, flip_x):
         array_image = self.find_array_image()
         if array_image:
-            angle = ArrayData.get_affine_rotation(transform)
-            scale = ArrayData.get_affine_scaling(transform)
+            angle = ArrayData.get_affine_rotation(transform.T)
+            scale = ArrayData.get_affine_scaling(transform.T)
 
             #image_center_target_s = ArrayData.apply_affine_t(
             #    [array_image.centre_sx_sy[0]],
@@ -205,7 +205,7 @@ class ImportedImages(list):
             #    transform,
             #    flip_x=flip_x)
             center = np.array(array_image.size) * array_image.image_pixel_size / 1000 / 2
-            image_center_target_s = utils.apply_transform(center, transform.T)
+            image_center_target_s = utils.apply_transform(center, transform)
 
             # image_center_source_v = self.cs.convert_to_v(image_center_source_s)
             # image_center_target_v = array_utils.applyRigidT(

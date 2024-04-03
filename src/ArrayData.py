@@ -169,7 +169,7 @@ class ArrayData:
             elif header == 'transform':
                 value = config.get('transform', 'transform')
                 if value != '[]':
-                    self.transform = [int(x) for x in value.split(',')]
+                    self.transform = np.transpose([int(x) for x in value.split(',')])
 
             # deprecated
             if header0 == 'sbemimage_sections':
@@ -218,8 +218,7 @@ class ArrayData:
             str(gm.number_grids))
 
         if self.calibrated:
-            wafer_transform_inverse = invert_affine_t(self.transform)
-            transform_angle = -get_affine_rotation(self.transform)
+            transform_angle = -get_affine_rotation(self.transform.T)
 
         with open(self.path, 'r') as f:
             lines = f.readlines()
@@ -238,7 +237,7 @@ class ArrayData:
                 result = apply_affine_t(
                     [target_ROI[0]],
                     [target_ROI[1]],
-                    self.transform)
+                    self.transform.T)
                 source_ROI = [result[0][0], result[1][0]]
                 source_ROI_angle = (
                     (-90 + target_ROI_angle - transform_angle) % 360)

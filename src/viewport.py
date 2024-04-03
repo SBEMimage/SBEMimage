@@ -1195,8 +1195,8 @@ class Viewport(QWidget):
                 if len(self.gm.array_data.selected_sections) > 0:
                     array_selected_section = self.gm.array_data.selected_sections[0]
 
-            if (self.sem.magc_mode
-                and grid_index is not None):
+            if (grid_index is not None
+                and self.gm[grid_index].roi_index is not None):
 
                 array_index = self.gm[grid_index].array_index
                 roi_index = self.gm[grid_index].roi_index
@@ -3045,11 +3045,11 @@ class Viewport(QWidget):
             result = ArrayData.apply_affine_t(
                 [source_location[0]],
                 [source_location[1]],
-                self.gm.array_data.transform,
+                self.gm.array_data.transform.T,
                 flip_x=flip_x)
 
             transform_angle = -ArrayData.get_affine_rotation(
-                self.gm.array_data.transform)
+                self.gm.array_data.transform.T)
             target_angle = (source_angle + transform_angle) % 360
             self.gm[clicked_section_number].rotation = target_angle
             self.gm[clicked_section_number].update_tile_positions()

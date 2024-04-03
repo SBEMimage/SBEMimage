@@ -244,14 +244,14 @@ class ArrayCalibrationDlg(QDialog):
                     y_landmarks_source_partial,
                     x_landmarks_target_partial,
                     y_landmarks_target_partial,
-                    flip_x=flip_x)
+                    flip_x=flip_x).T
 
                 # compute all targetLandmarks
                 x_target_updated_landmarks, y_target_updated_landmarks = (
                     apply_transform(
                         x_landmarks_source,
                         y_landmarks_source,
-                        self.gm.array_data.transform,
+                        self.gm.array_data.transform.T,
                         flip_x=flip_x,
                         ))
 
