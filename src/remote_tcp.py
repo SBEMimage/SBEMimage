@@ -23,7 +23,6 @@ class RemoteControlTCP:
                 try:
                     conn, addr = s.accept()
                     with conn:
-                        utils.log_info("RemoteTCP", f"Connected by {addr}")
                         data = conn.recv(1024)
                         if data:
                             try:
@@ -36,6 +35,8 @@ class RemoteControlTCP:
                                 if 'msg' not in request or not isinstance(msg, str) or not isinstance(args, list) or not isinstance(kwargs, dict):
                                     utils.log_error("RemoteTCP", "Invalid request.")
                                     continue
+                                
+                                utils.log_info("RemoteTCP", f"Received: {request}")
                                 
                                 # Transmit request to main controls
                                 self.command_trigger.transmit(request['msg'], *request.get('args', []), **request.get('kwargs', {}))
