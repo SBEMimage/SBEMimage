@@ -56,7 +56,7 @@ from coordinate_system import CoordinateSystem
 from viewport import Viewport
 from image_inspector import ImageInspector
 from autofocus import Autofocus
-from remote_tcp import RemoteControlTCP
+from tcp_remote import TCPRemote
 from main_controls_dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                                       GridSettingsDlg, OVSettingsDlg, \
                                       AcqSettingsDlg, PreStackDlg, PauseDlg, \
@@ -71,7 +71,7 @@ from main_controls_dlg_windows import SEMSettingsDlg, MicrotomeSettingsDlg, \
                                       AskUserDlg, UpdateDlg, CutDurationDlg, \
                                       KatanaSettingsDlg, SendCommandDlg, \
                                       MotorTestDlg, MotorStatusDlg, AboutBox, \
-                                      GCIBSettingsDlg, RunAutofocusDlg
+                                      GCIBSettingsDlg, RunAutofocusDlg, TCPSettingsDlg
 
 from array_dlg_windows import ArrayCalibrationDlg #, ImportZENExperimentDlg
 
@@ -118,12 +118,6 @@ class MainControls(QMainWindow):
         self.trigger = utils.Trigger()
         self.trigger.signal.connect(self.process_signal)
         
-        # Set up trigger and queue to process remote commands to and from the TCP server
-        self.tcp_command_trigger = utils.Trigger()
-        self.tcp_command_trigger.signal.connect(self.process_tcp_signal)
-        self.tcp_response_queue = utils.Queue()
-        self.remote_tcp = None
-
         utils.show_progress_in_console(10)
 
         # Initialize SEM
@@ -302,11 +296,13 @@ class MainControls(QMainWindow):
         self.autofocus = Autofocus(self.cfg, self.sem, self.gm)
 
         self.notifications = Notifications(self.cfg, self.syscfg, self.trigger)
+        
+        self.tcp_remote = TCPRemote(self.cfg)
 
-        self.acq = Acquisition(self.cfg, self.syscfg,
-                               self.sem, self.microtome, self.stage,
-                               self.ovm, self.gm, self.cs, self.img_inspector,
-                               self.autofocus, self.notifications, self.trigger)
+        self.acq = Acquisition(self.cfg, self.syscfg, self.sem, self.microtome,
+                               self.stage, self.ovm, self.gm, self.cs, 
+                               self.img_inspector, self.autofocus, 
+                               self.notifications, self.tcp_remote, self.trigger)
         # enable pause while milling
         if self.use_microtome and (self.syscfg['device']['microtome'] == '6'):
             self.microtome.acq = self.acq
@@ -552,6 +548,7 @@ class MainControls(QMainWindow):
         self.toolButton_plasmaCleaner.clicked.connect(
             self.initialize_plasma_cleaner)
         self.toolButton_askUserMode.clicked.connect(self.open_ask_user_dlg)
+        self.toolButton_TCPSettings.clicked.connect(self.open_tcp_settings_dlg)
         # Menu bar
         self.actionSEMSettings.triggered.connect(self.open_sem_dlg)
         self.actionMicrotomeSettings.triggered.connect(self.open_microtome_dlg)
@@ -566,6 +563,8 @@ class MainControls(QMainWindow):
             self.open_debris_dlg)
         self.actionAskUserModeSettings.triggered.connect(
             self.open_ask_user_dlg)
+        self.actionTCPRemote.triggered.connect(
+            self.open_tcp_settings_dlg)
         self.actionDiskMirroringSettings.triggered.connect(
             self.open_mirror_drive_dlg)
         self.actionTileMonitoringSettings.triggered.connect(
@@ -636,6 +635,7 @@ class MainControls(QMainWindow):
         self.checkBox_useDebrisDetection.setChecked(
             self.acq.use_debris_detection)
         self.checkBox_askUser.setChecked(self.acq.ask_user_mode)
+        self.checkBox_useTCP.setChecked(self.acq.use_tcp)
         self.checkBox_mirrorDrive.setChecked(self.acq.use_mirror_drive)
         self.checkBox_monitorTiles.setChecked(self.acq.monitor_images)
         self.checkBox_useAutofocus.setChecked(self.acq.use_autofocus)
@@ -650,6 +650,7 @@ class MainControls(QMainWindow):
         self.checkBox_useDebrisDetection.stateChanged.connect(
             self.update_acq_options)
         self.checkBox_askUser.stateChanged.connect(self.update_acq_options)
+        self.checkBox_useTCP.stateChanged.connect(self.update_acq_options)
         self.checkBox_mirrorDrive.stateChanged.connect(self.update_acq_options)
         self.checkBox_monitorTiles.stateChanged.connect(
             self.update_acq_options)
@@ -699,8 +700,6 @@ class MainControls(QMainWindow):
             # self.tabWidget.setTabToolTip(4, 'MultiSEM mode under development')
         # #----------------------#
         
-        self.initialize_tcp_remote_gui()
-
     def try_to_create_directory(self, new_directory):
         """Create directory. If not possible: error message"""
         try:
@@ -872,6 +871,7 @@ class MainControls(QMainWindow):
         self.acq.use_debris_detection = (
             self.checkBox_useDebrisDetection.isChecked())
         self.acq.ask_user_mode = self.checkBox_askUser.isChecked()
+        self.acq.use_tcp = self.checkBox_useTCP.isChecked()
         self.acq.use_mirror_drive = self.checkBox_mirrorDrive.isChecked()
         if (self.acq.use_mirror_drive
                 and not os.path.exists(self.acq.mirror_drive_dir)):
@@ -1497,26 +1497,7 @@ class MainControls(QMainWindow):
                                      self.gm, self.imported, self.trigger)
         dialog.exec()
     # --------------------------- End of Array tab ----------------------------------
-    
-    def initialize_tcp_remote_gui(self):
-        self.pushButton_tcp_startServer.clicked.connect(
-            self.tcp_start_server)
-        self.pushButton_tcp_stopServer.clicked.connect(
-            self.tcp_stop_server)
-    
-    def tcp_start_server(self):
-        host = self.lineEdit_tcp_host.text()
-        port = self.spinBox_tcp_port.value()
-        if host == '' or port == '':
-            return
-        self.remote_tcp = RemoteControlTCP(host, port, self.tcp_command_trigger, self.tcp_response_queue)
-        utils.run_log_thread(self.remote_tcp.run)
-        self.pushButton_tcp_startServer.setEnabled(False)
-        self.pushButton_tcp_stopServer.setEnabled(True)
-    
-    def tcp_stop_server(self):
-        self.remote_tcp.close()
-        self.pushButton_tcp_stopServer.setEnabled(False)
+
 
     # =============== Below: all methods that open dialog windows ==================
 
@@ -1699,6 +1680,10 @@ class MainControls(QMainWindow):
 
     def open_ask_user_dlg(self):
         dialog = AskUserDlg()
+        dialog.exec()
+        
+    def open_tcp_settings_dlg(self):
+        dialog = TCPSettingsDlg(self.tcp_remote)
         dialog.exec()
 
     def open_mirror_drive_dlg(self):
@@ -1995,36 +1980,7 @@ class MainControls(QMainWindow):
             # If msg is not a command, show it in log:
             self.textarea_log.appendPlainText(msg)
             self.textarea_log.ensureCursorVisible()
-        
-        
-    def process_tcp_signal(self):
-        cmd = self.tcp_command_trigger.queue.get()
-        msg = cmd['msg']
-        args = cmd['args']
-        kwargs = cmd['kwargs']
-        
-        if msg == 'START':
-            response = self.start_acquisition_headless()
-        elif msg == 'PAUSE':
-            response = self.pause_acquisition_headless(*args, **kwargs)
-        elif msg == 'ADD GRID':
-            response = self.gm.draw_grid(*args, **kwargs)
-            self.viewport.vp_draw()
-        elif msg == 'DEACTIVATE GRID':
-            response = self.gm.deactivate_grid(*args, **kwargs)
-            self.viewport.vp_draw()
-        elif msg == 'ACTIVATE GRID':
-            response = self.gm.activate_grid(*args, **kwargs)
-            self.viewport.vp_draw()
-        elif msg == 'DELETE GRID':
-            response = self.gm.delete_grid()
-        elif msg == 'STOP SERVER':
-            self.pushButton_tcp_startServer.setEnabled(True)
-        else:
-            response = 'Unknown command'
-        self.tcp_response_queue.put({'response': True})
-            
-
+    
     def ask_debris_first_ov(self, ov_index):
         self.viewport.vp_show_overview_for_user_inspection(ov_index)
         msgBox = QMessageBox(self)
@@ -2535,7 +2491,6 @@ class MainControls(QMainWindow):
             # All source code in stack_acquisition.py
             # Thread is stopped by either stop or pause button
             utils.run_log_thread(self.acq.run)
-            return True
 
     def pause_acquisition(self):
         """Pause the acquisition after user has clicked 'Pause' button. Let
@@ -2546,21 +2501,6 @@ class MainControls(QMainWindow):
             dialog = PauseDlg()
             dialog.exec()
             pause_type = dialog.pause_type
-            if pause_type == 1 or pause_type == 2:
-                utils.log_info('CTRL', 'PAUSE command received.')
-                self.pushButton_pauseAcq.setEnabled(False)
-                self.acq.pause_acquisition(pause_type)
-                self.pushButton_startAcq.setText('CONTINUE')
-                QMessageBox.information(
-                    self, 'Acquisition being paused',
-                    'Please wait until the pause status is confirmed in '
-                    'the log before interacting with the program.',
-                    QMessageBox.Ok)
-            return True
-        return False
-                
-    def pause_acquisition_headless(self, pause_type):
-        if not self.acq.acq_paused:
             if pause_type == 1 or pause_type == 2:
                 utils.log_info('CTRL', 'PAUSE command received.')
                 self.pushButton_pauseAcq.setEnabled(False)
@@ -2611,37 +2551,6 @@ class MainControls(QMainWindow):
             self, 'Acquisition complete',
             'The stack has been acquired.',
             QMessageBox.Ok)
-        
-    def start_acquisition_headless(self):
-        utils.log_info('CTRL', 'START command received remotely.')
-        # if self.cfg.debris_detection == False:
-        #     QMessageBox.warning(
-        #         self, 'Missing stage calibration',
-        #         'No stage calibration settings were found for the currently '
-        #         'selected EHT. Please calibrate the stage:'
-        #         '\nMenu  →  Calibration  →  Stage calibration',
-        #         QMessageBox.Ok)
-        self.pushButton_resetAcq.setEnabled(False)
-        self.pushButton_pauseAcq.setEnabled(True)
-        self.pushButton_startAcq.setEnabled(False)
-        self.pushButton_startAcq.setText('START')
-        
-        self.restrict_gui(True)
-        self.viewport.restrict_gui(True)
-        self.show_stack_acq_estimates()
-        # Indicate in GUI that stack is running now
-        self.set_status(
-            'Acquisition in progress', 'Acquisition in progress.', True)
-
-        # Start the thread running the stack acquisition
-        # All source code in stack_acquisition.py
-        # Thread is stopped by either stop or pause button
-        utils.run_log_thread(self.acq.run)
-        QMessageBox.information(
-            self, 'Acquisition started',
-            'Acquisition was started remotely.',
-            QMessageBox.Ok)
-        return True
 
     def remote_stop(self):
         utils.log_info('CTRL', 'STOP/PAUSE command received remotely.')
@@ -2740,6 +2649,7 @@ class MainControls(QMainWindow):
         self.viewport.save_to_cfg()
         self.img_inspector.save_to_cfg()
         self.notifications.save_to_cfg()
+        self.tcp_remote.save_to_cfg()
         # Save settings from Main Controls
         self.cfg['sys']['simulation_mode'] = str(self.simulation_mode)
 
@@ -2795,8 +2705,6 @@ class MainControls(QMainWindow):
                         QMessageBox.Yes| QMessageBox.No)
                     if result == QMessageBox.Yes:
                         self.save_acq_notes()
-                if self.remote_tcp is not None:
-                    self.remote_tcp.close()
                 if self.acq.acq_paused:
                     if self.cfg_file != 'default.ini':
                         QMessageBox.information(

@@ -35,13 +35,13 @@
       <property name="minimumSize">
        <size>
         <width>691</width>
-        <height>535</height>
+        <height>560</height>
        </size>
       </property>
       <property name="maximumSize">
        <size>
         <width>691</width>
-        <height>535</height>
+        <height>560</height>
        </size>
       </property>
       <property name="toolTip">
@@ -297,7 +297,7 @@
           <x>10</x>
           <y>230</y>
           <width>661</width>
-          <height>271</height>
+          <height>291</height>
          </rect>
         </property>
         <property name="title">
@@ -307,7 +307,7 @@
          <property name="geometry">
           <rect>
            <x>10</x>
-           <y>235</y>
+           <y>260</y>
            <width>101</width>
            <height>23</height>
           </rect>
@@ -328,7 +328,7 @@
          <property name="geometry">
           <rect>
            <x>120</x>
-           <y>235</y>
+           <y>260</y>
            <width>101</width>
            <height>23</height>
           </rect>
@@ -349,7 +349,7 @@
          <property name="geometry">
           <rect>
            <x>230</x>
-           <y>235</y>
+           <y>260</y>
            <width>101</width>
            <height>23</height>
           </rect>
@@ -424,7 +424,7 @@
            <x>335</x>
            <y>22</y>
            <width>20</width>
-           <height>239</height>
+           <height>264</height>
           </rect>
          </property>
          <property name="orientation">
@@ -461,7 +461,7 @@
          <property name="geometry">
           <rect>
            <x>360</x>
-           <y>234</y>
+           <y>259</y>
            <width>281</width>
            <height>23</height>
           </rect>
@@ -617,7 +617,7 @@
          <property name="geometry">
           <rect>
            <x>360</x>
-           <y>200</y>
+           <y>225</y>
            <width>91</width>
            <height>16</height>
           </rect>
@@ -630,7 +630,7 @@
          <property name="geometry">
           <rect>
            <x>470</x>
-           <y>200</y>
+           <y>225</y>
            <width>181</width>
            <height>16</height>
           </rect>
@@ -729,7 +729,7 @@
          <property name="geometry">
           <rect>
            <x>10</x>
-           <y>200</y>
+           <y>225</y>
            <width>141</width>
            <height>20</height>
           </rect>
@@ -916,6 +916,32 @@
          </property>
          <property name="text">
           <string>00000.0 µm</string>
+         </property>
+        </widget>
+        <widget class="QCheckBox" name="checkBox_useTCP">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>195</y>
+           <width>101</width>
+           <height>17</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Use TCP</string>
+         </property>
+        </widget>
+        <widget class="QToolButton" name="toolButton_TCPSettings">
+         <property name="geometry">
+          <rect>
+           <x>120</x>
+           <y>195</y>
+           <width>25</width>
+           <height>19</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>...</string>
          </property>
         </widget>
        </widget>
@@ -2361,118 +2387,6 @@ Green: acquired</string>
         </property>
        </widget>
       </widget>
-      <widget class="QWidget" name="tab_RemoteTCP">
-       <attribute name="title">
-        <string>Remote TCP</string>
-       </attribute>
-       <widget class="QGroupBox" name="groupBox_SEM_3">
-        <property name="geometry">
-         <rect>
-          <x>20</x>
-          <y>20</y>
-          <width>231</width>
-          <height>131</height>
-         </rect>
-        </property>
-        <property name="title">
-         <string>TCP Server</string>
-        </property>
-        <widget class="QLabel" name="label_tcp_host">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>30</y>
-           <width>121</width>
-           <height>21</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Host:</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_tcp_port">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>60</y>
-           <width>41</width>
-           <height>21</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Port:</string>
-         </property>
-        </widget>
-        <widget class="QLineEdit" name="lineEdit_tcp_host">
-         <property name="geometry">
-          <rect>
-           <x>70</x>
-           <y>30</y>
-           <width>151</width>
-           <height>21</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>localhost</string>
-         </property>
-        </widget>
-        <widget class="QSpinBox" name="spinBox_tcp_port">
-         <property name="geometry">
-          <rect>
-           <x>70</x>
-           <y>60</y>
-           <width>151</width>
-           <height>22</height>
-          </rect>
-         </property>
-         <property name="maximum">
-          <number>99999</number>
-         </property>
-         <property name="value">
-          <number>8888</number>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_tcp_startServer">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>90</y>
-           <width>101</width>
-           <height>31</height>
-          </rect>
-         </property>
-         <property name="font">
-          <font>
-           <bold>false</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>Start Server</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_tcp_stopServer">
-         <property name="enabled">
-          <bool>false</bool>
-         </property>
-         <property name="geometry">
-          <rect>
-           <x>120</x>
-           <y>90</y>
-           <width>101</width>
-           <height>31</height>
-          </rect>
-         </property>
-         <property name="font">
-          <font>
-           <bold>false</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>Stop Server</string>
-         </property>
-        </widget>
-       </widget>
-      </widget>
       <widget class="QWidget" name="comTests">
        <attribute name="title">
         <string>Tests</string>
@@ -2861,7 +2775,7 @@ Green: acquired</string>
      <x>0</x>
      <y>0</y>
      <width>711</width>
-     <height>22</height>
+     <height>24</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -2884,6 +2798,7 @@ Green: acquired</string>
     <addaction name="actionMonitoringSettings"/>
     <addaction name="actionDebrisDetectionSettings"/>
     <addaction name="actionAskUserModeSettings"/>
+    <addaction name="actionTCPRemote"/>
     <addaction name="actionDiskMirroringSettings"/>
     <addaction name="actionTileMonitoringSettings"/>
     <addaction name="actionAutofocusSettings"/>
@@ -3088,6 +3003,11 @@ Green: acquired</string>
   <action name="actionVariablePressureSettings">
    <property name="text">
     <string>Variable pressure</string>
+   </property>
+  </action>
+  <action name="actionTCPRemote">
+   <property name="text">
+    <string>TCP remote</string>
    </property>
   </action>
  </widget>

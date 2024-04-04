@@ -3037,6 +3037,29 @@ class AskUserDlg(QDialog):
 
 # ------------------------------------------------------------------------------
 
+class TCPSettingsDlg(QDialog):
+    """Specify the host and port for TCP requests during acquisition.
+    Currently only used for remote control through the Napari SBEMViewer plugin.
+    """
+
+    def __init__(self, tcp_remote):
+        super().__init__()
+        loadUi('../gui/tcp_settings_dlg.ui', self)
+        self.tcp_remote = tcp_remote
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(utils.get_window_icon())
+        self.setFixedSize(self.size())
+        self.lineEdit_host.setText(tcp_remote.host)
+        self.spinBox_port.setValue(tcp_remote.port)
+        self.show()
+        
+    def accept(self):
+        self.tcp_remote.host = self.lineEdit_host.text()
+        self.tcp_remote.port = self.spinBox_port.value()
+        super().accept()
+
+# ------------------------------------------------------------------------------
+
 class MirrorDriveDlg(QDialog):
     """Select a mirror drive from all available drives."""
 

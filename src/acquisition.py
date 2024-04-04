@@ -36,8 +36,8 @@ class Acquisition:
 
     def __init__(self, config, sysconfig, sem, microtome, stage,
                  overview_manager, grid_manager, coordinate_system,
-                 image_inspector, autofocus, notifications,
-                 main_controls_trigger):
+                 image_inspector, autofocus, notifications, 
+                 tcp_remote, main_controls_trigger):
         self.cfg = config
         self.syscfg = sysconfig
         self.sem = sem
@@ -49,6 +49,7 @@ class Acquisition:
         self.img_inspector = image_inspector
         self.autofocus = autofocus
         self.notifications = notifications
+        self.tcp_remote = tcp_remote
         self.main_controls_trigger = main_controls_trigger
 
         # Error state (see full list: utils.Errors) and further info
@@ -130,6 +131,8 @@ class Acquisition:
             self.cfg['acq']['use_debris_detection'].lower() == 'true')
         self.ask_user_mode = (
             self.cfg['acq']['ask_user'].lower() == 'true')
+        self.use_tcp = (
+            self.cfg['acq']['use_tcp'].lower() == 'true')
         self.monitor_images = (
             self.cfg['acq']['monitor_images'].lower() == 'true')
         self.use_autofocus = (
@@ -241,6 +244,7 @@ class Acquisition:
         self.cfg['acq']['use_debris_detection'] = str(
             self.use_debris_detection)
         self.cfg['acq']['ask_user'] = str(self.ask_user_mode)
+        self.cfg['acq']['use_tcp'] = str(self.use_tcp)
         self.cfg['acq']['monitor_images'] = str(self.monitor_images)
         self.cfg['acq']['use_autofocus'] = str(self.use_autofocus)
         self.cfg['acq']['eht_off_after_stack'] = str(self.eht_off_after_stack)
@@ -966,6 +970,11 @@ class Acquisition:
                     // self.stage.maintenance_move_interval)
                 if interval_counter_after > interval_counter_before:
                     self.do_maintenance_moves()
+                    
+            # ======================= TCP Remote Control ===========================
+            utils.log_info('CTRL', 'Checking for TCP remote commands.')
+            if self.use_tcp:
+                self.process_tcp_remote_commands()
 
         # ===================== END OF ACQUISITION LOOP ========================
 
@@ -1127,6 +1136,53 @@ class Acquisition:
                 self.add_to_main_log('CTRL: ' + status_msg2)
         # Send signal to Main Controls that there was an error.
         self.main_controls_trigger.transmit('ERROR PAUSE')
+        
+    def process_tcp_remote_commands(self):
+        try:
+            res = self.tcp_remote.get_commands({
+                'status': 'SLICE COMPLETE'
+                'z_depth': self.total_z_diff,
+                'ov_coords': self.get_overview_coords(),
+            })
+            for cmd in res.get('commands', []):
+                utils.log_info('CTRL', 'Proccessing TCP command: ' + str(cmd['msg']))
+                self.process_tcp_remote_command(cmd)
+        except ConnectionRefusedError as e:
+            utils.log_info('CTRL', 'TCP Connection refused. Pausing acquisition.')
+            self.pause_acquisition(1)
+    
+    def process_tcp_remote_command(self, cmd):
+        msg = cmd['msg']
+        args = cmd['args']
+        kwargs = cmd['kwargs']
+            if msg == 'PAUSE':
+                self.pause_acquisition(*args, **kwargs)
+            elif msg == 'ADD GRID':
+                self.gm.draw_grid(*args, **kwargs)
+                self.main_controls_trigger.transmit('DRAW VP')
+            elif msg == 'ACTIVATE GRID':
+                self.gm.activate_grid(*args, **kwargs)
+                self.main_controls_trigger.transmit('DRAW VP')
+            elif msg == 'DEACTIVATE GRID':
+                self.gm.deactivate_grid(*args, **kwargs)
+                self.main_controls_trigger.transmit('DRAW VP')
+            elif msg == 'DELETE GRID':
+                self.gm.delete_grid()
+            elif msg == 'SET SLICE THICKNESS':
+                self.acq.slice_thickness = thickness
+                self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS')
+            elif msg == 'SET OV INTERVAL':
+                self.ovm[ov_idx].acq_interval = interval
+                self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS')
+            else:
+                utils.log_info('Unknown command')
+    
+    def get_overview_coords(self, ov_idx):
+        bboxes = []
+        for ov in self.ovm:
+            bbox = ov.bounding_box()
+            bboxes.append(bbox[:2])
+        return bboxes
 
     def do_cut(self):
         """Carry out a single cut. This function is called at the end of a slice
