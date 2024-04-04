@@ -2487,6 +2487,7 @@ class MainControls(QMainWindow):
                 'Slice counter is larger than maximum slice number. Please '
                 'adjust the slice counter.',
                 QMessageBox.Ok)
+            return False
         elif (self.acq.slice_counter == self.acq.number_slices
                 and self.acq.number_slices != 0):
             QMessageBox.information(
@@ -2494,12 +2495,14 @@ class MainControls(QMainWindow):
                 'The target number of slices has been acquired. Please click '
                 '"Reset" to start a new stack.',
                 QMessageBox.Ok)
+            return False
         elif self.cfg_file == 'default.ini':
             QMessageBox.information(
                 self, 'Save configuration under new name',
                 'Please save the current configuration file "default.ini" '
                 'under a new name before starting the stack.',
                 QMessageBox.Ok)
+            return False
         elif (self.acq.use_email_monitoring
                 and self.notifications.remote_commands_enabled
                 and not self.notifications.remote_cmd_email_pw):
@@ -2508,12 +2511,14 @@ class MainControls(QMainWindow):
                 'You have enabled remote commands via e-mail (see e-mail '
                 'monitoring settings), but have not provided a password!',
                 QMessageBox.Ok)
+            return False
         elif self.sem.is_eht_off():
             QMessageBox.information(
                 self, 'EHT off',
                 'EHT / high voltage is off. Please turn '
                 'it on before starting the acquisition.',
                 QMessageBox.Ok)
+            return False
         else:
             self.restrict_gui(True)
             self.viewport.restrict_gui(True)
@@ -2530,6 +2535,7 @@ class MainControls(QMainWindow):
             # All source code in stack_acquisition.py
             # Thread is stopped by either stop or pause button
             utils.run_log_thread(self.acq.run)
+            return True
 
     def pause_acquisition(self):
         """Pause the acquisition after user has clicked 'Pause' button. Let
@@ -2550,6 +2556,8 @@ class MainControls(QMainWindow):
                     'Please wait until the pause status is confirmed in '
                     'the log before interacting with the program.',
                     QMessageBox.Ok)
+            return True
+        return False
                 
     def pause_acquisition_headless(self, pause_type):
         if not self.acq.acq_paused:
@@ -2606,6 +2614,13 @@ class MainControls(QMainWindow):
         
     def start_acquisition_headless(self):
         utils.log_info('CTRL', 'START command received remotely.')
+        # if self.cfg.debris_detection == False:
+        #     QMessageBox.warning(
+        #         self, 'Missing stage calibration',
+        #         'No stage calibration settings were found for the currently '
+        #         'selected EHT. Please calibrate the stage:'
+        #         '\nMenu  →  Calibration  →  Stage calibration',
+        #         QMessageBox.Ok)
         self.pushButton_resetAcq.setEnabled(False)
         self.pushButton_pauseAcq.setEnabled(True)
         self.pushButton_startAcq.setEnabled(False)
@@ -2626,6 +2641,7 @@ class MainControls(QMainWindow):
             self, 'Acquisition started',
             'Acquisition was started remotely.',
             QMessageBox.Ok)
+        return True
 
     def remote_stop(self):
         utils.log_info('CTRL', 'STOP/PAUSE command received remotely.')
