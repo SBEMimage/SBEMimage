@@ -213,11 +213,7 @@ class ImportedImages(list):
             # [image_center_source_v[1]],
             # waferTransform_v)
 
-            if transform[0][0] * transform[1][1] < 0:
-                # work-around for Y-inversion
-                angle += 180
-
-            array_image.rotation = angle % 360
+            array_image.rotation = -angle % 360
             array_image.pixel_size = array_image.image_pixel_size * scale
             array_image.centre_sx_sy = image_center_target_s
             #array_image.flip_x()

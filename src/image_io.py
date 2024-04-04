@@ -110,18 +110,18 @@ def imread_metadata(path):
     channels = []
 
     if is_tiff:
-        with tifffile.TiffFile(path) as tif:
-            size = tif.pages.first.imagewidth, tif.pages.first.imagelength
+        with tifffile.TiffFile(path) as tiff:
+            size = tiff.pages.first.imagewidth, tiff.pages.first.imagelength
             sizes = [size]
-            if hasattr(tif, 'series'):
-                series0 = tif.series[0]
+            if hasattr(tiff, 'series'):
+                series0 = tiff.series[0]
                 dimension_order = series0.axes.lower().replace('s', 'c')
                 x_index = dimension_order.index('x')
                 y_index = dimension_order.index('y')
                 if hasattr(series0, 'levels'):
                     sizes = [(level.shape[x_index], level.shape[y_index]) for level in series0.levels]
-            if tif.is_ome:
-                metadata = tifffile.xml2dict(tif.ome_metadata)
+            if tiff.is_ome:
+                metadata = tifffile.xml2dict(tiff.ome_metadata)
                 if 'OME' in metadata:
                     metadata = metadata['OME']
                 pixels = metadata.get('Image', {}).get('Pixels', {})
@@ -145,8 +145,17 @@ def imread_metadata(path):
                         channel['color'] = color_int_to_rgba(color)
                     channels.append(channel)
             else:
-                tags = {tag.name: tag.value for tag in tif.pages[0].tags.values()}
-                if 'FEI_TITAN' in tags:
+                tags = {tag.name: tag.value for tag in tiff.pages[0].tags.values()}
+                if tiff.is_imagej:
+                    metadata = tiff.imagej_metadata
+                    unit = metadata.get('unit', '').encode().decode('unicode_escape')
+                    if unit == 'micron':
+                        unit = 'µm'
+                    for scale in metadata.get('scales', '').split(','):
+                        pixel_size.append((float(scale), unit))
+                    if len(pixel_size) == 0 and metadata is not None and 'spacing' in metadata:
+                        pixel_size_z = (metadata['spacing'], unit)
+                elif 'FEI_TITAN' in tags:
                     metadata = tifffile.xml2dict(tags.pop('FEI_TITAN'))
                     if 'FeiImage' in metadata:
                         metadata = metadata['FeiImage']

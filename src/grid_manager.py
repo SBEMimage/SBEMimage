@@ -1372,15 +1372,12 @@ class GridManager(list):
 
         image_center = np.multiply(imported_image.size, imported_image.image_pixel_size / 1e3 / 2)
 
-        transform = self.array_data.transform
-        if len(transform) == 0:
-            transform1 = utils.create_transform(translate=-image_center)
-            transform2 = utils.create_transform(scale=[1, -1])
-            transform3 = utils.create_transform(angle=imported_image.rotation,
-                                               translate=imported_image.centre_sx_sy,
-                                               scale=imported_image.scale)
-            transform = utils.combine_transforms([transform1, transform2, transform3])
-            self.array_data.transform = transform
+        transform1 = utils.create_transform(translate=-image_center)
+        transform2 = utils.create_transform(angle=-imported_image.rotation,
+                                           translate=imported_image.centre_sx_sy,
+                                           scale=imported_image.scale)
+        transform = utils.combine_transforms([transform1, transform2])
+        self.array_data.transform = transform
 
         for array_index, rois in self.array_data.get_rois().items():
             for roi_index, roi in rois.items():
@@ -1388,7 +1385,7 @@ class GridManager(list):
                 size = np.multiply(size, imported_image.scale)
                 # apply image transformation to ROIs
                 center = utils.apply_transform(roi['center'], transform)
-                rotation = (imported_image.rotation - roi['angle']) % 360
+                rotation = (roi['angle'] - imported_image.rotation + 90) % 360
                 self.add_new_grid_from_roi(array_index, roi_index, center, size, rotation)
                 # add focus points to grid
                 grid_index = self.number_grids - 1
@@ -1445,7 +1442,7 @@ class GridManager(list):
                     #    flip_x=flip_x)
                     target_center = utils.apply_transform(roi['center'], transform)
                     transform_angle = ArrayData.get_affine_rotation(transform.T)
-                    target_angle = (transform_angle - roi['angle']) % 360
+                    target_angle = (transform_angle + roi['angle'] + 90) % 360
 
                     grid.auto_update_tile_positions = False
                     grid.rotation = target_angle

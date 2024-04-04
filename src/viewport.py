@@ -1710,9 +1710,6 @@ class Viewport(QWidget):
             # Compute position of image in viewport:
             transform_s_d = self.cs.get_s_to_d_transform()
             center_position = utils.apply_transform(imported.centre_sx_sy, transform_s_d)
-            if transform_s_d[0][0] * transform_s_d[1][1] < 0:
-                # work-around for Y-inverted SEM/stage
-                transform_s_d[1][1] *= -1
             image = imported.image.transformed(utils.transform_to_QTransform(transform_s_d))
 
             width, height = image.width(), image.height()
