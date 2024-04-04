@@ -263,54 +263,11 @@ class SEM_Mock(SEM):
         self.acquire_frame(save_path_filename, stage=stage)
         
     def save_to_cfg(self):
-        """Save current values of attributes to config and sysconfig objects."""
-        self.syscfg['sem']['mag_px_size_factor'] = str(self.MAG_PX_SIZE_FACTOR)
-        self.cfg['sem']['stage_min_x'] = str(self.stage_limits[0])
-        self.cfg['sem']['stage_max_x'] = str(self.stage_limits[1])
-        self.cfg['sem']['stage_min_y'] = str(self.stage_limits[2])
-        self.cfg['sem']['stage_max_y'] = str(self.stage_limits[3])
-        self.syscfg['stage']['sem_stage_limits'] = str(self.stage_limits)
-        self.syscfg['stage']['sem_motor_speed'] = str(
-            [self.motor_speed_x, self.motor_speed_y])
-        self.cfg['sem']['motor_speed_x'] = str(self.motor_speed_x)
-        self.cfg['sem']['motor_speed_y'] = str(self.motor_speed_y)
-        self.cfg['sem']['stage_move_wait_interval'] = str(
-            self.stage_move_wait_interval)
-        self.cfg['sem']['stage_move_check_interval'] = str(
-            self.stage_move_check_interval)
-        self.cfg['sem']['eht'] = '{0:.2f}'.format(self.target_eht)
-        self.cfg['sem']['beam_current'] = str(int(self.target_beam_current))
-        self.cfg['sem']['aperture_size'] = str(self.target_aperture_size)
-        self.cfg['sem']['grab_frame_dwell_time'] = str(self.grab_dwell_time)
-        self.cfg['sem']['grab_frame_pixel_size'] = '{0:.1f}'.format(
-            self.grab_pixel_size)
-        self.cfg['sem']['grab_frame_size_selector'] = str(
-            self.grab_frame_size_selector)
-        self.cfg['sem']['grab_frame_size_xy'] = str(
-            self.STORE_RES[self.grab_frame_size_selector])
-        self.cfg['sem']['bsd_contrast'] = str(self.bsd_contrast)
-        self.cfg['sem']['bsd_brightness'] = str(self.bsd_brightness)
-        self.cfg['sem']['bsd_bias'] = str(self.bsd_bias)
-        self.cfg['sem']['auto_beam_blank'] = str(self.auto_beam_blank)
-        self.syscfg['stage']['sem_xy_tolerance'] = str(self.xy_tolerance)
-        self.syscfg['stage']['sem_z_tolerance'] = str(self.z_tolerance)
-        # Motor diagnostics
-        self.syscfg['stage']['sem_xyz_move_counter'] = json.dumps(
-            self.total_xyz_move_counter)
-        self.syscfg['stage']['sem_slow_xy_move_counter'] = str(
-            self.slow_xy_move_counter)
-        self.syscfg['stage']['sem_failed_xyz_move_counter'] = json.dumps(
-            self.failed_xyz_move_counter)
-        # Maintenance moves
-        self.syscfg['stage']['sem_use_maintenance_moves'] = str(
-            self.use_maintenance_moves)
-        self.syscfg['stage']['sem_maintenance_move_interval'] = str(int(
-            self.maintenance_move_interval))
         # Mock SEM settings
         self.cfg['acq']['mock_use_prev_acq'] = 'True' if self.mock_type == 'previous_acquisition' else 'False'
         self.cfg['acq']['mock_prev_acq_dir'] = self.previous_acq_dir
+        super().save_to_cfg()
     
-
     def get_wd(self):
         return self.wd
 
