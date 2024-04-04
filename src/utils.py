@@ -507,20 +507,21 @@ def resize_image(image, new_size):
     return cv2.resize(image, new_size)
 
 
-def transform_to_QTransform(t):
-    transform = QTransform()
-    t00, t01, t02 = t[0]
-    t10, t11, t12 = t[1]
-    if len(t) >= 3:
-        t20, t21, t22 = t[2]
+def transform_to_QTransform(transform0):
+    transform = np.transpose(transform0)
+    qtransform = QTransform()
+    t00, t01, t02 = transform[0]
+    t10, t11, t12 = transform[1]
+    if len(transform) >= 3:
+        t20, t21, t22 = transform[2]
     else:
         t20, t21, t22 = 0, 0, 1
-    transform.setMatrix(
+    qtransform.setMatrix(
         t00, t01, t02,
         t10, t11, t12,
         t20, t21, t22
         )
-    return transform
+    return qtransform
 
 
 def create_transform(center=(0, 0), angle=0, scale=1, translate=(0, 0)):
