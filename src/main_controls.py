@@ -1683,7 +1683,7 @@ class MainControls(QMainWindow):
         dialog.exec()
         
     def open_tcp_settings_dlg(self):
-        dialog = TCPSettingsDlg(self.tcp_remote)
+        dialog = TCPSettingsDlg(self.tcp_remote, self.acq)
         dialog.exec()
 
     def open_mirror_drive_dlg(self):

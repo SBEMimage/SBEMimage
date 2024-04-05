@@ -974,7 +974,12 @@ class Acquisition:
             # ======================= TCP Remote Control ===========================
             utils.log_info('CTRL', 'Checking for TCP remote commands.')
             if self.use_tcp:
-                self.process_tcp_remote_commands()
+                try:
+                    res = self.send_data_tcp()
+                    self.process_tcp_commands(res.get('commands', []))
+                except ConnectionRefusedError:
+                    utils.log_info('CTRL', 'TCP Connection refused. Pausing acquisition.')
+                    self.pause_acquisition(1)
 
         # ===================== END OF ACQUISITION LOOP ========================
 
@@ -1137,45 +1142,51 @@ class Acquisition:
         # Send signal to Main Controls that there was an error.
         self.main_controls_trigger.transmit('ERROR PAUSE')
         
-    def process_tcp_remote_commands(self):
-        try:
-            res = self.tcp_remote.get_commands({
-                'status': 'SLICE COMPLETE',
-                'z_depth': self.total_z_diff,
-                'ov_coords': self.get_overview_coords(),
+    def send_data_tcp(self):
+        res = self.tcp_remote.send({
+            'paused': self.pause_state,
+            'z_depth': self.total_z_diff,
+            'overviews': {'number_ov': self.ovm.number_ov,
+                          'ov_coords': self.get_ov_coords(),
+                          'ov_dirs': self.get_ov_dirs()},
+            'slice_thickness': self.slice_thickness
             })
-            for cmd in res.get('commands', []):
-                utils.log_info('CTRL', 'Proccessing TCP command: ' + str(cmd['msg']))
-                self.process_tcp_remote_command(cmd)
-        except ConnectionRefusedError as e:
-            utils.log_info('CTRL', 'TCP Connection refused. Pausing acquisition.')
-            self.pause_acquisition(1)
+        return res
+        
+    def process_tcp_commands(self, commands):
+        for cmd in commands:
+            utils.log_info('CTRL', 'Proccessing TCP command: ' + str(cmd['msg']))
+            msg = cmd['msg']
+            args = cmd['args']
+            kwargs = cmd['kwargs']
+            if msg == 'PAUSE':
+                self.pause_acquisition(*args, **kwargs)
+            elif msg == 'ADD GRID':
+                self.gm.draw_grid(*args, **kwargs)
+                self.main_controls_trigger.transmit('DRAW VP')
+            elif msg == 'ACTIVATE GRID':
+                self.gm.activate_grid(*args, **kwargs)
+                self.main_controls_trigger.transmit('DRAW VP')
+            elif msg == 'DEACTIVATE GRID':
+                self.gm.deactivate_grid(*args, **kwargs)
+                self.main_controls_trigger.transmit('DRAW VP')
+            elif msg == 'DELETE GRID':
+                self.gm.delete_grid()
+            elif msg == 'SET SLICE THICKNESS':
+                self.set_slice_thickness(*args, **kwargs)
+                self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS')
+            elif msg == 'SET OV INTERVAL':
+                self.set_ov_interval(*args, **kwargs)
+                self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS')
+            else:
+                utils.log_info('Unknown command')
     
-    def process_tcp_remote_command(self, cmd):
-        msg = cmd['msg']
-        args = cmd['args']
-        kwargs = cmd['kwargs']
-        if msg == 'PAUSE':
-            self.pause_acquisition(*args, **kwargs)
-        elif msg == 'ADD GRID':
-            self.gm.draw_grid(*args, **kwargs)
-            self.main_controls_trigger.transmit('DRAW VP')
-        elif msg == 'ACTIVATE GRID':
-            self.gm.activate_grid(*args, **kwargs)
-            self.main_controls_trigger.transmit('DRAW VP')
-        elif msg == 'DEACTIVATE GRID':
-            self.gm.deactivate_grid(*args, **kwargs)
-            self.main_controls_trigger.transmit('DRAW VP')
-        elif msg == 'DELETE GRID':
-            self.gm.delete_grid()
-        elif msg == 'SET SLICE THICKNESS':
-            self.set_slice_thickness(*args, **kwargs)
-            self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS')
-        elif msg == 'SET OV INTERVAL':
-            self.set_ov_interval(*args, **kwargs)
-            self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS')
-        else:
-            utils.log_info('Unknown command')
+    def get_ov_dirs(self):
+        overview_dirs = []
+        for ov_idx in range(self.ovm.number_ov):
+            ov_dir = utils.ov_save_path(self.base_dir, self.stack_name, ov_idx, 0)
+            overview_dirs.append(os.path.dirname(ov_dir))
+        return overview_dirs
             
     def set_ov_interval(self, ov_idx, interval):
         self.ovm[ov_idx].acq_interval = interval
@@ -1183,10 +1194,10 @@ class Acquisition:
     def set_slice_thickness(self, thickness):
         self.slice_thickness = thickness
     
-    def get_overview_coords(self, ov_idx):
+    def get_ov_coords(self):
         bboxes = []
-        for ov in self.ovm:
-            bbox = ov.bounding_box()
+        for ov_idx in range(self.ovm.number_ov):
+            bbox = self.ovm[ov_idx].bounding_box()
             bboxes.append(bbox[:2])
         return bboxes
 
