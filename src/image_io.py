@@ -86,7 +86,7 @@ def render_image(image, channels):
             if alpha == 0:
                 alpha = 1
             alpha_color = np.multiply(color, alpha).astype(np.float32)
-            new_image += np.atleast_3d(channel_values) * alpha_color
+            new_image = new_image + np.atleast_3d(channel_values) * alpha_color
             tot_alpha += alpha
         new_image /= tot_alpha
         needs_normalisation = False

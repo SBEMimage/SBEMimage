@@ -480,7 +480,7 @@ def norm_image_minmax(image0):
         image, alpha = image0[..., :3], image0[..., 3]
     else:
         image, alpha = image0, None
-    normimage = cv2.normalize(image, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+    normimage = cv2.normalize(np.array(image), None, alpha=0, beta=1, norm_type=cv.NORM_MINMAX, dtype=cv.CV_32F)
     if alpha is not None:
         normimage = np.dstack([normimage, alpha])
     return normimage
