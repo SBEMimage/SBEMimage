@@ -1140,7 +1140,7 @@ class Acquisition:
     def process_tcp_remote_commands(self):
         try:
             res = self.tcp_remote.get_commands({
-                'status': 'SLICE COMPLETE'
+                'status': 'SLICE COMPLETE',
                 'z_depth': self.total_z_diff,
                 'ov_coords': self.get_overview_coords(),
             })
@@ -1155,27 +1155,33 @@ class Acquisition:
         msg = cmd['msg']
         args = cmd['args']
         kwargs = cmd['kwargs']
-            if msg == 'PAUSE':
-                self.pause_acquisition(*args, **kwargs)
-            elif msg == 'ADD GRID':
-                self.gm.draw_grid(*args, **kwargs)
-                self.main_controls_trigger.transmit('DRAW VP')
-            elif msg == 'ACTIVATE GRID':
-                self.gm.activate_grid(*args, **kwargs)
-                self.main_controls_trigger.transmit('DRAW VP')
-            elif msg == 'DEACTIVATE GRID':
-                self.gm.deactivate_grid(*args, **kwargs)
-                self.main_controls_trigger.transmit('DRAW VP')
-            elif msg == 'DELETE GRID':
-                self.gm.delete_grid()
-            elif msg == 'SET SLICE THICKNESS':
-                self.acq.slice_thickness = thickness
-                self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS')
-            elif msg == 'SET OV INTERVAL':
-                self.ovm[ov_idx].acq_interval = interval
-                self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS')
-            else:
-                utils.log_info('Unknown command')
+        if msg == 'PAUSE':
+            self.pause_acquisition(*args, **kwargs)
+        elif msg == 'ADD GRID':
+            self.gm.draw_grid(*args, **kwargs)
+            self.main_controls_trigger.transmit('DRAW VP')
+        elif msg == 'ACTIVATE GRID':
+            self.gm.activate_grid(*args, **kwargs)
+            self.main_controls_trigger.transmit('DRAW VP')
+        elif msg == 'DEACTIVATE GRID':
+            self.gm.deactivate_grid(*args, **kwargs)
+            self.main_controls_trigger.transmit('DRAW VP')
+        elif msg == 'DELETE GRID':
+            self.gm.delete_grid()
+        elif msg == 'SET SLICE THICKNESS':
+            self.set_slice_thickness(*args, **kwargs)
+            self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS')
+        elif msg == 'SET OV INTERVAL':
+            self.set_ov_interval(*args, **kwargs)
+            self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS')
+        else:
+            utils.log_info('Unknown command')
+            
+    def set_ov_interval(self, ov_idx, interval):
+        self.ovm[ov_idx].acq_interval = interval
+    
+    def set_slice_thickness(self, thickness):
+        self.slice_thickness = thickness
     
     def get_overview_coords(self, ov_idx):
         bboxes = []
