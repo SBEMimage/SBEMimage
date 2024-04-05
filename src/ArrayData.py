@@ -307,7 +307,7 @@ class ArrayData:
                 rois = section.get('rois', [])
                 if len(rois) > 0:
                     roi = rois[roi_index]
-                else:
+                elif roi_index == 0:
                     roi = section['sample']
         return roi
 

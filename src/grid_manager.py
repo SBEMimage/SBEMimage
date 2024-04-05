@@ -387,7 +387,7 @@ class Grid(list):
             self._size = list(new_size)
             self.number_tiles = new_number_tiles
             # Save old tile objects
-            old_tiles = self
+            old_tiles = self.copy()
             # Initialize new tile list
             self.initialize_tiles()
             new_active_tiles = []
