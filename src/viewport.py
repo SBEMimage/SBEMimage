@@ -1191,7 +1191,7 @@ class Viewport(QWidget):
                 self._vp_open_modify_images_dlg)
 
             # ----- Array items -----
-            if self.sem.magc_mode:
+            if self.gm.array_mode:
                 menu.addSeparator()
                 # get closest grid
                 self._closest_grid_number = self._vp_get_closest_grid_id(
@@ -2998,83 +2998,35 @@ class Viewport(QWidget):
     # ---------------------- Array methods in Viewport --------------------------
 
     def array_vp_propagate_grid_to_selected_sections(self):
-        # TODO
-        clicked_section_number = self.selected_grid
-
-        for selected_section in self.gm.array_data.selected_sections:
-            self.gm.array_propagate_source_grid_to_target_grid(
-                clicked_section_number,
-                selected_section)
+        self.gm.array_propagate_source_grid_to_target_grid(
+            self.selected_grid,
+            self.gm.array_data.selected_sections)
         self.gm.array_write()
         self.vp_draw()
         self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS') # update statistics in GUI
         utils.log_info(
             'Array-CTRL',
-            f'Properties of grid {clicked_section_number}'
+            f'Properties of grid {self.selected_grid}'
             ' have been propagated to the selected sections')
 
     def array_vp_propagate_grid_to_all_sections(self):
-        # TODO: find all grids matching current ROI!
-        clicked_section_number = self.selected_grid
+        self.gm.array_propagate_source_grid_to_target_grid(
+            self.selected_grid,
+            range(self.gm.number_grids))
 
-        if self.gm.array_data.path:
-            for grid_index in range(self.gm.number_grids):
-                self.gm.array_propagate_source_grid_to_target_grid(
-                    clicked_section_number,
-                    grid_index)
-
-            self.gm.array_write()
-
-            self.vp_draw()
-            self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS') # update statistics in GUI
-            utils.log_info(
-                'Array-CTRL',
-                f'Properties of grid {clicked_section_number}'
-                ' have been propagated to all sections')
-
-    def array_vp_revert_grid_to_file(self):
-        clicked_section_number = self.selected_grid
-
-        section = self.gm.array_data.sections[clicked_section_number]
-        if len(section.get('rois', [])) > 0:
-            source_location = section['rois'][0]['center']
-            source_angle = section['rois'][0]['angle']
-        else:
-            source_location = section['sample']['center']
-            source_angle = section['sample']['angle']
-
-        flip_x = self.sem.device_name.lower() in [
-                    'zeiss merlin',
-                    'zeiss sigma',
-                    ]
-        # source_location is in LM image pixel coordinates
-        if not self.gm.array_data.calibrated:
-            (self.gm[clicked_section_number]
-                .rotation) = (0 - source_angle) % 360
-            (self.gm[clicked_section_number]
-                .centre_sx_sy) = source_location
-        else:
-            # transform into wafer coordinates
-            result = ArrayData.apply_affine_t(
-                [source_location[0]],
-                [source_location[1]],
-                self.gm.array_data.transform.T,
-                flip_x=flip_x)
-
-            transform_angle = -ArrayData.get_affine_rotation(
-                self.gm.array_data.transform.T)
-            target_angle = (source_angle + transform_angle) % 360
-            self.gm[clicked_section_number].rotation = target_angle
-            self.gm[clicked_section_number].update_tile_positions()
-
-            # set the center last
-            target_location = [
-                result[0][0],
-                result[1][0]]
-            self.gm[clicked_section_number].centre_sx_sy = target_location
+        self.gm.array_write()
 
         self.vp_draw()
+        self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS') # update statistics in GUI
+        utils.log_info(
+            'Array-CTRL',
+            f'Properties of grid {self.selected_grid}'
+            ' have been propagated to all sections')
+
+    def array_vp_revert_grid_to_file(self):
+        self.gm.array_revert_grid(self.selected_grid, self.imported.find_array_image())
         self.gm.array_write()
+        self.vp_draw()
         self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS') # update statistics in GUI
 
     # -------------------- End of Array methods in Viewport ---------------------

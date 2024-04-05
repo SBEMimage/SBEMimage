@@ -19,11 +19,14 @@ warnings.filterwarnings("ignore")
 
 
 class ArrayData:
-    def __init__(self, device_name, path=None):
+    # TODO: deprecate device_name / flipping
+    def __init__(self, device_name):
         self.device_name = device_name
-        self.path = path
+        self.reset()
 
     def reset(self):
+        self.active = False
+        self.path = None
         self.sections = {}
         self.landmarks = {}
         self.focus = {}
@@ -34,8 +37,10 @@ class ArrayData:
         self.transform = []
         self.calibrated = False
 
-    def read_data(self):
+    def read_data(self, path):
         self.reset()
+        self.active = True
+        self.path = path
         ext = os.path.splitext(self.path)[-1].lower()
         if ext == '.magc':
             self.read_data_magc()
@@ -293,6 +298,25 @@ class ArrayData:
                     rois1 = {0: section['sample']}
                 rois[array_index] = rois1
         return rois
+
+    def get_roi(self, array_index, roi_index):
+        roi = None
+        if array_index in self.sections:
+            section = self.sections[array_index]
+            if section:
+                rois = section.get('rois', [])
+                if len(rois) > 0:
+                    roi = rois[roi_index]
+                else:
+                    roi = section['sample']
+        return roi
+
+    def get_roi_stage_properties(self, source, imported_image):
+        size = np.multiply(utils.calc_rotated_rect(source['polygon'])[1],
+                           imported_image.scale)
+        center = utils.apply_transform(source['center'], self.transform)
+        rotation = (source['angle'] - imported_image.rotation + 90) % 360
+        return center, size, rotation
 
     def get_focus_points_in_roi(self, section_index, roi):
         focus_points = []

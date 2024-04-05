@@ -20,9 +20,10 @@ self.gm[grid_index].rotation  (rotation angle of specified grid)
 self.gm[grid_index][tile_index].sx_sy  (stage position of specified tile)
 """
 
-import os
-import json
+import cmath
 import copy
+import json
+import os
 
 import numpy as np
 from statistics import mean
@@ -1335,9 +1336,12 @@ class GridManager(list):
 
     # ----------------------------- Array functions ---------------------------------
 
+    @property
+    def array_mode(self):
+        return self.array_data.active
+
     def array_read(self, path):
-        self.array_data = ArrayData.ArrayData(self.sem.device_name, path)
-        self.array_data.read_data()
+        self.array_data.read_data(path)
 
     # deprecated: save grids instead
     def array_write(self):
@@ -1381,11 +1385,7 @@ class GridManager(list):
 
         for array_index, rois in self.array_data.get_rois().items():
             for roi_index, roi in rois.items():
-                center_um0, size, angle0 = utils.calc_rotated_rect(roi['polygon'])
-                size = np.multiply(size, imported_image.scale)
-                # apply image transformation to ROIs
-                center = utils.apply_transform(roi['center'], transform)
-                rotation = (roi['angle'] - imported_image.rotation + 90) % 360
+                center, size, rotation = self.array_data.get_roi_stage_properties(roi, imported_image)
                 self.add_new_grid_from_roi(array_index, roi_index, center, size, rotation)
                 # add focus points to grid
                 grid_index = self.number_grids - 1
@@ -1600,122 +1600,74 @@ class GridManager(list):
 
     def array_propagate_source_grid_to_target_grid(
         self,
-        source_gridi,
-        target_gridi,
+        source_grid_index,
+        target_grid_indices,
     ):
-        source_grid = self[source_gridi]
-        target_grid = self[target_gridi]
+        source_grid = self[source_grid_index]
         roi_index = source_grid.roi_index
-
-        if source_gridi == target_gridi or target_grid.roi_index != roi_index:
-            return
-
-        source_section = self.array_data.sections[source_grid.array_index]
-        target_section = self.array_data.sections[target_grid.array_index]
-
-        rois = source_section.get('rois')
-        if rois:
-            source = rois[roi_index]
-        else:
-            source = source_section['sample']
+        source = self.array_data.get_roi(source_grid.array_index, roi_index)
         source_section_center = np.array(source['center'])
         source_section_angle = source['angle'] % 360
 
-        rois = target_section.get('rois')
-        if rois:
-            target = rois[roi_index]
-        else:
-            target = target_section['sample']
-        target_section_center = np.array(target['center'])
-        target_section_angle = target['angle'] % 360
-
-        source_grid_center = np.array(source_grid.centre_sx_sy)
-        source_grid_rotation = source_grid.rotation
-
-        flip_x = self.sem.device_name.lower() in [
-                        'zeiss merlin',
-                        'zeiss sigma',
-                    ]
-
-        if self.array_data.calibrated:
-            # transform back the grid coordinates in non-transformed coordinates
-            # inefficient but ok for now:
-
-            wafer_transform_inverse = ArrayData.invert_affine_t(self.array_data.transform.T)
-
-            center = ArrayData.apply_affine_t(
-                [source_grid_center[0]],
-                [source_grid_center[1]],
-                wafer_transform_inverse,
-                flip_x=False)
-
-            source_grid_center = [-center[0][0] if flip_x else center[0][0], center[1][0]]
+        source_grid_center = utils.apply_transform(source_grid.centre_sx_sy, np.linalg.inv(self.array_data.transform))
 
         source_section_grid = source_grid_center - source_section_center
         source_section_grid_distance = np.linalg.norm(source_section_grid)
-        source_section_grid_angle = np.angle(
-            np.dot(source_section_grid, [1, 1j]), deg=True)
+        source_section_grid_angle = np.angle(complex(*source_section_grid), deg=True)
 
-        # set all parameters in target grid
-        if not self.array_data.calibrated:
-            target_grid_rotation = (
-                - target_section_angle
-                + source_grid_rotation
-                + source_section_angle
-            )
-        else:
-            target_grid_rotation = (
-                source_grid_rotation
-                - source_section_angle
-                + target_section_angle
-            )
-        target_grid_rotation %= 360
+        for target_grid_index in target_grid_indices:
+            target_grid = self[target_grid_index]
 
-        target_grid.rotation = target_grid_rotation
-        target_grid.size = source_grid.size
-        target_grid.overlap = source_grid.overlap
-        target_grid.row_shift = source_grid.row_shift
-        target_grid.active_tiles = source_grid.active_tiles
-        target_grid.frame_size_selector = (
-            source_grid.frame_size_selector)
-        target_grid.pixel_size = source_grid.pixel_size
-        target_grid.dwell_time_selector = (
-            source_grid.dwell_time_selector)
-        target_grid.acq_interval = source_grid.acq_interval
+            if target_grid.roi_index == roi_index and source_grid_index != target_grid_index:
+                target = self.array_data.get_roi(target_grid.array_index, roi_index)
+                target_section_center = np.array(target['center'])
+                target_section_angle = target['angle'] % 360
 
-        target_grid.acq_interval_offset = source_grid.acq_interval_offset
-        target_grid.autofocus_ref_tiles = source_grid.autofocus_ref_tiles
-        target_grid.array_autofocus_points_source = copy.deepcopy(
-            source_grid.array_autofocus_points_source)
-        # xxx self.set_adaptive_focus_enabled(t, self.get_adaptive_focus_enabled(s))
-        # xxx self.set_adaptive_focus_tiles(t, self.get_adaptive_focus_tiles(s))
-        # xxx self.set_adaptive_focus_gradient(t, self.get_adaptive_focus_gradient(s))
+                # set all parameters in target grid
+                target_grid_rotation = (source_grid.rotation - source_section_angle + target_section_angle) % 360
 
-        target_section_grid_angle = (
-            source_section_grid_angle + source_section_angle - target_section_angle)
+                target_grid.rotation = target_grid_rotation
+                target_grid.size = source_grid.size
+                target_grid.overlap = source_grid.overlap
+                target_grid.row_shift = source_grid.row_shift
+                target_grid.active_tiles = source_grid.active_tiles
+                target_grid.frame_size_selector = (
+                    source_grid.frame_size_selector)
+                target_grid.pixel_size = source_grid.pixel_size
+                target_grid.dwell_time_selector = (
+                    source_grid.dwell_time_selector)
+                target_grid.acq_interval = source_grid.acq_interval
 
-        target_grid_center_complex = (
-            np.dot(target_section_center, [1, 1j])
-            + source_section_grid_distance
-            * np.exp(1j * np.radians(target_section_grid_angle)))
-        target_grid_center = (
-            np.real(target_grid_center_complex),
-            np.imag(target_grid_center_complex))
+                target_grid.acq_interval_offset = source_grid.acq_interval_offset
+                target_grid.autofocus_ref_tiles = source_grid.autofocus_ref_tiles
+                target_grid.array_autofocus_points_source = copy.deepcopy(
+                    source_grid.array_autofocus_points_source)
+                # xxx self.set_adaptive_focus_enabled(t, self.get_adaptive_focus_enabled(s))
+                # xxx self.set_adaptive_focus_tiles(t, self.get_adaptive_focus_tiles(s))
+                # xxx self.set_adaptive_focus_gradient(t, self.get_adaptive_focus_gradient(s))
 
-        if self.array_data.calibrated:
-            # transform the grid coordinates to wafer coordinates
-            center = ArrayData.apply_affine_t(
-                [target_grid_center[0]],
-                [target_grid_center[1]],
-                self.array_data.transform.T,
-                flip_x=self.sem.device_name.lower() in [
-                        'zeiss merlin',
-                        'zeiss sigma',
-                ])
-            target_grid_center = [center[0][0], center[1][0]]
+                target_section_grid_angle = (source_section_grid_angle + source_section_angle - target_section_angle)
 
-        target_grid.update_tile_positions()
-        target_grid.centre_sx_sy = target_grid_center
+                target_grid_center_complex = (
+                    complex(*target_section_center)
+                    + source_section_grid_distance
+                    * cmath.rect(1, np.radians(target_section_grid_angle)))
+                target_grid_center = (
+                    np.real(target_grid_center_complex),
+                    np.imag(target_grid_center_complex))
 
+                target_grid_center = utils.apply_transform(target_grid_center, self.array_data.transform)
+
+                target_grid.update_tile_positions()
+                target_grid.centre_sx_sy = target_grid_center
+
+    def array_revert_grid(self, grid_index, imported_image):
+        grid = self[grid_index]
+        roi_index = grid.roi_index
+        source = self.array_data.get_roi(grid.array_index, roi_index)
+        center, size, rotation = self.array_data.get_roi_stage_properties(source, imported_image)
+
+        grid.centre_sx_sy = center
+        grid.rotation = rotation
 
 # ------------------------- End of Array functions ------------------------------
