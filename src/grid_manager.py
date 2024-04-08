@@ -1098,8 +1098,6 @@ class GridManager(list):
                 if img is not None:
                     img.save(preview_path)
 
-        # Save Array settings to config (currently none)
-
     def add_new_grid(self, origin_sx_sy=None, sw_sh=(0, 0), active=True,
                      frame_size=None, frame_size_selector=None, overlap=None,
                      pixel_size=10.0, dwell_time=None, dwell_time_selector=None,
@@ -1107,7 +1105,7 @@ class GridManager(list):
                      rotation=0, row_shift=0, acq_interval=1, acq_interval_offset=0,
                      wd_stig_xy=(0, 0, 0), use_wd_gradient=False,
                      wd_gradient_ref_tiles=None, wd_gradient_params=None,
-                     size=(5, 5), index=None):
+                     size=(5, 5)):
         """Add new grid with default parameters. A new grid is always added
         at the next available grid index, after all existing grids."""
         new_grid_index = self.number_grids
@@ -1141,11 +1139,8 @@ class GridManager(list):
                         wd_gradient_ref_tiles=wd_gradient_ref_tiles,
                         wd_gradient_params=wd_gradient_params)
 
-        if index is not None and index < self.number_grids:
-            self[index] = new_grid
-        else:
-            self.append(new_grid)
-            self.number_grids += 1
+        self.append(new_grid)
+        self.number_grids += 1
         return new_grid
 
     def delete_grid(self):
@@ -1158,19 +1153,10 @@ class GridManager(list):
             del grid
             self.number_grids -= 1
 
-    def delete_array_grids(self, delete_template_grids=True):
+    def delete_array_grids(self, keep_template_grids=False):
         """Delete all array grids"""
-        if not delete_template_grids:
-            # preserve template grids
-            nrois = self.array_data.get_nrois()
-            for roi in range(nrois):
-                if self.find_roi_grid_index(None, roi) is None:
-                    template_index = self.find_roi_grid_index(0, roi)
-                    if template_index is not None:
-                        self[template_index].array_index = None
-        # delete all array grids
         for grid in reversed(self):
-            if grid.roi_index is not None and (grid.array_index is not None or delete_template_grids):
+            if grid.roi_index is not None and (grid.array_index is not None or not keep_template_grids):
                 self.remove(grid)
                 del grid
         self.number_grids = len(self)
@@ -1356,7 +1342,7 @@ class GridManager(list):
         nrois = self.array_data.get_nrois()
         for roi_index in range(nrois):
             new_grid = self.add_new_grid(origin_sx_sy=grid.origin_sx_sy, sw_sh=grid.sw_sh, size=grid.size,
-                                         rotation=grid.rotation,
+                                         rotation=grid.rotation, active=False,
                                          frame_size=grid.frame_size, frame_size_selector=grid.frame_size_selector,
                                          overlap=grid.overlap, pixel_size=grid.pixel_size,
                                          dwell_time=grid.dwell_time, dwell_time_selector=grid.dwell_time_selector,
@@ -1372,15 +1358,19 @@ class GridManager(list):
             new_grid.auto_update_tile_positions = True
 
     def array_create_grids(self, imported_image):
-        self.delete_array_grids(delete_template_grids=False)
+        self.delete_array_grids(keep_template_grids=True)
 
         image_center = np.multiply(imported_image.size, imported_image.image_pixel_size / 1e3 / 2)
 
         transform1 = utils.create_transform(translate=-image_center)
-        transform2 = utils.create_transform(angle=-imported_image.rotation,
+        if imported_image.flipped:
+            transform2 = utils.create_transform(scale=[1, -1])
+        else:
+            transform2 = utils.create_transform(scale=[1, 1])
+        transform3 = utils.create_transform(angle=-imported_image.rotation,
                                            translate=imported_image.centre_sx_sy,
                                            scale=imported_image.scale)
-        transform = utils.combine_transforms([transform1, transform2])
+        transform = utils.combine_transforms([transform1, transform2, transform3])
         self.array_data.transform = transform
 
         for array_index, rois in self.array_data.get_rois().items():
@@ -1401,65 +1391,23 @@ class GridManager(list):
             if landmark_id not in self.get_array_landmarks('target'):
                 self.set_array_landmark(landmark_id, location, landmark_type='target')
 
-    def array_landmark_calibration(self):
-        array_data = self.array_data
-
-        source_landmarks = array_data.get_landmarks(landmark_type='source')
-        target_landmarks = array_data.get_landmarks(landmark_type='target')
-
-        x_landmarks_source = np.array([landmark[0] for landmark in source_landmarks.values()])
-        y_landmarks_source = np.array([landmark[1] for landmark in source_landmarks.values()])
-
-        x_landmarks_target = np.array([landmark[0] for landmark in target_landmarks.values()])
-        y_landmarks_target = np.array([landmark[1] for landmark in target_landmarks.values()])
-
-        flip_x = self.sem.device_name.lower() in [
-            'zeiss merlin',
-            'zeiss sigma',
-        ]
-
-        #transform = cv2.getAffineTransform(np.float32([l for l in source_landmarks.values()])[:3],
-        #                                   np.float32([l for l in target_landmarks.values()])[:3])
-        array_data.transform = ArrayData.affine_t(
-            x_landmarks_source,
-            y_landmarks_source,
-            x_landmarks_target,
-            y_landmarks_target,
-            flip_x=flip_x,
-        ).T
-
-    def array_update_grids(self):
-        transform = self.array_data.transform
+    def array_update_grids(self, imported_image):
         # compute new grid locations
         # (always transform from reference source)
         for array_index, rois in self.array_data.get_rois().items():
             for roi_index, roi in rois.items():
                 grid = self.find_roi_grid(array_index, roi_index)
                 if grid:
-                    #target_center = ArrayData.apply_affine_t(
-                    #    [center[0]], [center[1]],
-                    #    transform.T,
-                    #    flip_x=flip_x)
-                    target_center = utils.apply_transform(roi['center'], transform)
-                    transform_angle = ArrayData.get_affine_rotation(transform.T)
-                    target_angle = (transform_angle + roi['angle'] + 90) % 360
-
+                    center, _, rotation = self.array_data.get_roi_stage_properties(roi, imported_image)
                     grid.auto_update_tile_positions = False
-                    grid.rotation = target_angle
+                    grid.rotation = rotation
                     grid.update_tile_positions()
                     grid.auto_update_tile_positions = True
-                    grid.centre_sx_sy = target_center
+                    grid.centre_sx_sy = center
 
     def add_new_grid_from_roi(self, array_index, roi_index, center, size, rotation):
         # use first matching roi grid as template
-        template_index = self.find_roi_grid_index(None, roi_index)
-        grid_index = None
-
-        if template_index is not None:
-            grid_index = template_index
-        else:
-           template_index = self.find_roi_grid_index(0, roi_index)
-
+        template_index = self.find_template_grid_index(roi_index)
         if template_index is None:
             template_index = 0
 
@@ -1479,7 +1427,7 @@ class GridManager(list):
                                      acq_interval=grid.acq_interval, acq_interval_offset=grid.acq_interval_offset,
                                      wd_stig_xy=grid.wd_stig_xy, use_wd_gradient=grid.use_wd_gradient,
                                      wd_gradient_ref_tiles=grid.wd_gradient_ref_tiles,
-                                     wd_gradient_params=grid.wd_gradient_params, index=grid_index)
+                                     wd_gradient_params=grid.wd_gradient_params)
 
         new_grid.array_index = array_index
         new_grid.roi_index = roi_index
@@ -1488,9 +1436,28 @@ class GridManager(list):
         new_grid.centre_sx_sy = center
         return new_grid
 
-    def find_roi_grid_index(self, array_index, roi_index, any_array_index=False):
+    def array_landmark_calibration(self):
+        array_data = self.array_data
+
+        source_landmarks = array_data.get_landmarks(landmark_type='source')
+        target_landmarks = array_data.get_landmarks(landmark_type='target')
+
+        x_landmarks_source = np.array([landmark[0] for landmark in source_landmarks.values()])
+        y_landmarks_source = np.array([landmark[1] for landmark in source_landmarks.values()])
+
+        x_landmarks_target = np.array([landmark[0] for landmark in target_landmarks.values()])
+        y_landmarks_target = np.array([landmark[1] for landmark in target_landmarks.values()])
+
+        array_data.transform = ArrayData.affine_t(
+            x_landmarks_source,
+            y_landmarks_source,
+            x_landmarks_target,
+            y_landmarks_target
+        ).T
+
+    def find_template_grid_index(self, roi_index):
         for index, grid in enumerate(self):
-            if (grid.array_index == array_index or any_array_index) and grid.roi_index == roi_index:
+            if grid.roi_index == roi_index and grid.array_index is None:
                 return index
         return None
 
@@ -1597,6 +1564,7 @@ class GridManager(list):
     def array_delete_autofocus_points(self, grid_index):
         self[grid_index].array_autofocus_points_source = []
         # magc_utils.write_magc(self)
+
 
     def array_propagate_source_grid_to_target_grid(
         self,

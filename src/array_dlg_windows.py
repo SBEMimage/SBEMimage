@@ -227,11 +227,6 @@ class ArrayCalibrationDlg(QDialog):
                 x_landmarks_target_partial = np.array([target_landmarks[index][0] for index in calibrated_landmark_ids])
                 y_landmarks_target_partial = np.array([target_landmarks[index][1] for index in calibrated_landmark_ids])
 
-                flip_x = self.gm.sem.device_name.lower() in [
-                        'zeiss merlin',
-                        'zeiss sigma',
-                        ]
-
                 if len(calibrated_landmark_ids) < 3:
                     get_transform = ArrayData.rigid_t
                     apply_transform = ArrayData.apply_rigid_t
@@ -243,16 +238,14 @@ class ArrayCalibrationDlg(QDialog):
                     x_landmarks_source_partial,
                     y_landmarks_source_partial,
                     x_landmarks_target_partial,
-                    y_landmarks_target_partial,
-                    flip_x=flip_x).T
+                    y_landmarks_target_partial).T
 
                 # compute all targetLandmarks
                 x_target_updated_landmarks, y_target_updated_landmarks = (
                     apply_transform(
                         x_landmarks_source,
                         y_landmarks_source,
-                        self.gm.array_data.transform.T,
-                        flip_x=flip_x,
+                        self.gm.array_data.transform.T
                         ))
 
                 # x_target_updated_landmarks = -x_target_updated_landmarks
@@ -331,12 +324,8 @@ class ArrayCalibrationDlg(QDialog):
                 'must first be validated.')
         else:
             self.gm.array_landmark_calibration()
-            self.gm.array_update_grids()
-            flip_x = self.gm.sem.device_name.lower() in [
-                'zeiss merlin',
-                'zeiss sigma',
-            ]
-            self.imported.update_array_image(self.gm.array_data.transform, flip_x)
+            self.gm.array_update_grids(self.imported.find_array_image())
+            self.imported.update_array_image(self.gm.array_data.transform)
 
             # update drawn image
             self.main_controls_trigger.transmit('DRAW VP')

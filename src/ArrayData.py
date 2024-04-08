@@ -315,8 +315,11 @@ class ArrayData:
         size = np.multiply(utils.calc_rotated_rect(source['polygon'])[1],
                            imported_image.scale)
         center = utils.apply_transform(source['center'], self.transform)
-        rotation = (source['angle'] - imported_image.rotation + 90) % 360
-        return center, size, rotation
+        if imported_image.flipped:
+            rotation = -source['angle'] - imported_image.rotation + 90
+        else:
+            rotation = source['angle'] - imported_image.rotation + 90
+        return center, size, rotation % 360
 
     def get_focus_points_in_roi(self, section_index, roi):
         focus_points = []
@@ -326,20 +329,9 @@ class ArrayData:
         return focus_points
 
     def get_landmarks(self, landmark_type='source'):
-        # TODO: check if this flipping actually depends on reversal of the stage axis
-        #       as defined in stage_sem_calibration_params in the config
         landmarks = {index: landmark[landmark_type]['location']
                      for index, landmark in self.landmarks.items()
                      if landmark_type in landmark}
-        #if self.calibrated:
-        #    transformed_landmarks = apply_affine_t(
-        #        [landmark[0] for landmark in landmarks.values()],
-        #        [landmark[1] for landmark in landmarks.values()],
-        #        self.transform,
-        #        # flip_x=False,
-        #        flip_x=self.device_name in ['zeiss merlin', 'zeiss sigma'],
-        #    )
-        #    landmarks = {index: [x, y] for index, (x, y) in enumerate(zip(*transformed_landmarks))}
         return dict(sorted(landmarks.items()))
 
     def set_landmark(self, landmark_id, location, landmark_type='target'):

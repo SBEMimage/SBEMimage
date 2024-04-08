@@ -480,7 +480,7 @@ def norm_image_minmax(image0):
         image, alpha = image0[..., :3], image0[..., 3]
     else:
         image, alpha = image0, None
-    normimage = cv2.normalize(np.array(image), None, alpha=0, beta=1, norm_type=cv.NORM_MINMAX, dtype=cv.CV_32F)
+    normimage = cv2.normalize(np.array(image), None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
     if alpha is not None:
         normimage = np.dstack([normimage, alpha])
     return normimage
@@ -559,6 +559,10 @@ def transform_image(image, transform):
     new_width = int((h * sin) + (w * cos))
     new_height = int((h * cos) + (w * sin))
     return cv2.warpAffine(image, transform, (new_width, new_height))
+
+
+def get_transform_angle(transform):
+    return np.rad2deg(np.arctan2(transform[0][1], transform[0][0]))
 
 
 class TranslationTransform(ProjectiveTransform):

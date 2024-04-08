@@ -30,13 +30,11 @@ from qtpy.QtGui import QPixmap, QPainter, QColor, QFont, QIcon, QPen, \
 from qtpy.QtCore import Qt, QObject, QRect, QPoint, QSize
 
 import acq_func
-import ArrayData
 import constants
 import utils
 from image_io import imread
 from viewport_dlg_windows import StubOVDlg, FocusGradientTileSelectionDlg, \
-    GridRotationDlg, TemplateRotationDlg, ImportImageDlg, \
-    ModifyImagesDlg, AdjustImageDlg
+    GridRotationDlg, TemplateRotationDlg, ImportImageDlg, ModifyImagesDlg
 from main_controls_dlg_windows import MotorStatusDlg
 
 
@@ -1869,7 +1867,9 @@ class Viewport(QWidget):
 
         font = QFont()
         grid_colour_rgb = self.gm[grid_index].display_colour_rgb()
-        grid_colour = QColor(*grid_colour_rgb, 255)
+        if len(grid_colour_rgb) < 4:
+            grid_colour_rgb += [255]
+        grid_colour = QColor(*grid_colour_rgb)
         indicator_colour = QColor(*constants.COLOUR_SELECTOR[12])
 
         # Suppress labels when zoomed out or when user is moving a grid or
@@ -1986,7 +1986,9 @@ class Viewport(QWidget):
         # Display grid lines
         rows, cols = self.gm[grid_index].size
         grid_pen = QPen(grid_colour, 1, Qt.SolidLine)
-        grid_brush_active_tile = QBrush(QColor(*grid_colour_rgb, 40),
+        if len(grid_colour_rgb) < 4:
+            grid_colour_rgb += [40]
+        grid_brush_active_tile = QBrush(QColor(*grid_colour_rgb),
                                         Qt.SolidPattern)
         grid_brush_transparent = QBrush(QColor(255, 255, 255, 0),
                                         Qt.SolidPattern)
@@ -2146,7 +2148,9 @@ class Viewport(QWidget):
 
         font = QFont()
         grid_colour_rgb = self.tm.template.display_colour_rgb()
-        grid_colour = QColor(*grid_colour_rgb, 255)
+        if len(grid_colour_rgb) < 4:
+            grid_colour_rgb += [255]
+        grid_colour = QColor(*grid_colour_rgb)
 
         visible = self._vp_element_visible(
             topleft_vx, topleft_vy, width_px, height_px, resize_ratio,
@@ -2210,7 +2214,9 @@ class Viewport(QWidget):
         # Display grid lines
         rows, cols = self.tm.template.size
         grid_pen = QPen(grid_colour, 1, Qt.SolidLine)
-        grid_brush_active_tile = QBrush(QColor(*grid_colour_rgb, 40),
+        if len(grid_colour_rgb) < 4:
+            grid_colour_rgb += [40]
+        grid_brush_active_tile = QBrush(QColor(*grid_colour_rgb),
                                         Qt.SolidPattern)
         if tile_width_v * cols > 2 or tile_height_v * rows > 2:
             # Draw grid if at least 3 pixels wide or high.

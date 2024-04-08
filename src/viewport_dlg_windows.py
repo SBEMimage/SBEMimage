@@ -574,9 +574,10 @@ class ImportImageDlg(QDialog):
 
                 centre_sx_sy = [self.doubleSpinBox_posX.value(), self.doubleSpinBox_posY.value()]
                 rotation = self.doubleSpinBox_rotation.value()
+                flipped = self.checkBox_flipped.isChecked()
                 transparency = self.doubleSpinBox_transparency.value()
                 description = self.lineEdit_name.text()
-                imported_image = self.imported.add_image(target_path, description, centre_sx_sy, rotation,
+                imported_image = self.imported.add_image(target_path, description, centre_sx_sy, rotation, flipped,
                                                          [], pixel_size, True, transparency)
                 if imported_image.image is not None:
                     import_success = True
@@ -609,9 +610,8 @@ class ModifyImagesDlg(QDialog):
         self.setFixedSize(self.size())
         self.pushButton_import.clicked.connect(self.import_image)
         self.pushButton_delete.clicked.connect(self.delete_imported)
-        self.pushButton_adjust.clicked.connect(self.adjust_imported)
+        self.pushButton_modify.clicked.connect(self.modify_imported)
         self.populate_image_list()
-        self.show()
 
     def populate_image_list(self):
         # Populate the list widget with existing imported images:
@@ -642,31 +642,30 @@ class ModifyImagesDlg(QDialog):
             self.populate_image_list()
             self.viewport_trigger.transmit('DRAW VP')
 
-    def adjust_imported(self):
+    def modify_imported(self):
         index = self.listWidget_imagelist.currentRow()
         if index is not None:
             selected_image = self.imported[index]
-            dialog = AdjustImageDlg(selected_image,
+            dialog = ModifyImageDlg(selected_image,
                                     self.viewport_trigger)
             dialog.exec()
 
 
 # ------------------------------------------------------------------------------
 
-class AdjustImageDlg(QDialog):
-    """Adjust an imported image (size, rotation, transparency)"""
+class ModifyImageDlg(QDialog):
+    """Modify an imported image (size, rotation, transparency)"""
 
     def __init__(self, selected_image,
                  viewport_trigger):
         self.viewport_trigger = viewport_trigger
         self.selected_image = selected_image
         super().__init__()
-        loadUi('../gui/adjust_imported_image_dlg.ui', self)
+        loadUi('../gui/modify_image_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
 
-        self.show()
         self.lineEdit_selectedImage.setText(
             self.selected_image.description)
         pos_x, pos_y = self.selected_image.centre_sx_sy
@@ -676,6 +675,8 @@ class AdjustImageDlg(QDialog):
             self.selected_image.pixel_size)
         self.doubleSpinBox_rotation.setValue(
             self.selected_image.rotation)
+        self.checkBox_flipped.setChecked(
+            self.selected_image.flipped)
         self.doubleSpinBox_transparency.setValue(
             self.selected_image.transparency)
         # Use "Apply" button to show changes in viewport
@@ -696,7 +697,10 @@ class AdjustImageDlg(QDialog):
             self.doubleSpinBox_pixelSize.value())
         self.selected_image.rotation = (
             self.doubleSpinBox_rotation.value())
+        self.selected_image.flipped = (
+            self.checkBox_flipped.isChecked())
         self.selected_image.transparency = (
             self.doubleSpinBox_transparency.value())
+        self.selected_image.update_image()
         # Emit signals to redraw Viewport:
         self.viewport_trigger.transmit('DRAW VP')

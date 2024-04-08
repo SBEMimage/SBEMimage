@@ -980,7 +980,6 @@ class MainControls(QMainWindow):
             array_filename = self.cfg['grids']['array_file']
             if array_filename:
                 self.array_import_file(array_filename)
-                self.gm.set_template_grids()
 
         # check for existing imported array image
         array_image = self.imported.find_array_image()
@@ -1628,9 +1627,11 @@ class MainControls(QMainWindow):
 
     def get_open_grid_dlg(self, roi_index):
         def callback_open_grid_dlg():
-            grid_index = self.gm.find_roi_grid_index(None, roi_index, any_array_index=True)
+            grid_index = self.gm.find_template_grid_index(roi_index)
             if grid_index is not None:
+                self.gm.activate_grid(grid_index)
                 self.open_grid_dlg(grid_index)
+                self.gm.deactivate_grid(grid_index)
         return callback_open_grid_dlg
 
     def open_grid_dlg(self, selected_grid):
