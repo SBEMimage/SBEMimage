@@ -524,6 +524,13 @@ def transform_to_QTransform(transform0):
     return qtransform
 
 
+def create_point_transform(source, target):
+    source3d = np.array([x + [1] for x in source])
+    target3d = np.array([x + [1] for x in target])
+    solution, res, rank, s = np.linalg.lstsq(source3d, target3d, rcond=None)
+    return solution.T
+
+
 def create_transform(center=(0, 0), angle=0, scale=1, translate=(0, 0)):
     if isinstance(scale, (list, tuple)):
         scale1 = scale[0]

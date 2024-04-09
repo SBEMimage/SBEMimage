@@ -187,3 +187,4 @@ class ImportedImages(list):
             array_image.rotation = -angle % 360
             array_image.pixel_size = array_image.image_pixel_size * scale
             array_image.centre_sx_sy = image_center_target_s
+            array_image.update_image()

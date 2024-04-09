@@ -325,7 +325,8 @@ class ArrayCalibrationDlg(QDialog):
         else:
             self.gm.array_landmark_calibration()
             self.gm.array_update_grids(self.imported.find_array_image())
-            self.imported.update_array_image(self.gm.array_data.transform)
+            if self.gm.magc_mode:
+                self.imported.update_array_image(self.gm.array_data.transform)
 
             # update drawn image
             self.main_controls_trigger.transmit('DRAW VP')

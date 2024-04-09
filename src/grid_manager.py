@@ -1438,22 +1438,9 @@ class GridManager(list):
 
     def array_landmark_calibration(self):
         array_data = self.array_data
-
-        source_landmarks = array_data.get_landmarks(landmark_type='source')
-        target_landmarks = array_data.get_landmarks(landmark_type='target')
-
-        x_landmarks_source = np.array([landmark[0] for landmark in source_landmarks.values()])
-        y_landmarks_source = np.array([landmark[1] for landmark in source_landmarks.values()])
-
-        x_landmarks_target = np.array([landmark[0] for landmark in target_landmarks.values()])
-        y_landmarks_target = np.array([landmark[1] for landmark in target_landmarks.values()])
-
-        array_data.transform = ArrayData.affine_t(
-            x_landmarks_source,
-            y_landmarks_source,
-            x_landmarks_target,
-            y_landmarks_target
-        ).T
+        source_landmarks = array_data.get_landmarks(landmark_type='source').values()
+        target_landmarks = array_data.get_landmarks(landmark_type='target').values()
+        array_data.transform = utils.create_point_transform(source_landmarks, target_landmarks)
 
     def find_template_grid_index(self, roi_index):
         for index, grid in enumerate(self):
@@ -1564,7 +1551,6 @@ class GridManager(list):
     def array_delete_autofocus_points(self, grid_index):
         self[grid_index].array_autofocus_points_source = []
         # magc_utils.write_magc(self)
-
 
     def array_propagate_source_grid_to_target_grid(
         self,
