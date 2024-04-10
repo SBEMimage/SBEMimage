@@ -1162,7 +1162,7 @@ class Acquisition:
             if msg == 'PAUSE':
                 self.pause_acquisition(*args, **kwargs)
             elif msg == 'ADD GRID':
-                self.gm.draw_grid(*args, **kwargs)
+                self.gm.add_new_grid_from_roi(*args, **kwargs)
                 self.main_controls_trigger.transmit('DRAW VP')
             elif msg == 'ACTIVATE GRID':
                 self.gm.activate_grid(*args, **kwargs)
@@ -1171,13 +1171,20 @@ class Acquisition:
                 self.gm.deactivate_grid(*args, **kwargs)
                 self.main_controls_trigger.transmit('DRAW VP')
             elif msg == 'DELETE GRID':
-                self.gm.delete_grid()
+                self.gm.delete_grid(*args, **kwargs)
+            elif msg == 'DELETE ALL GRIDS':
+                self.gm.delete_all_grids_above_index(0)
+                self.main_controls_trigger.transmit('DRAW VP')
             elif msg == 'SET SLICE THICKNESS':
                 self.set_slice_thickness(*args, **kwargs)
                 self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS')
             elif msg == 'SET OV INTERVAL':
                 self.set_ov_interval(*args, **kwargs)
                 self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS')
+            elif msg == 'DELETE ALL ARRAY GRIDS':
+                self.gm.delete_array_grids(*args, **kwargs)
+            elif msg == 'UPDATE ARRAY GRID':
+                self.gm.update_array_grid(*args, **kwargs)
             else:
                 utils.log_info('Unknown command')
     
