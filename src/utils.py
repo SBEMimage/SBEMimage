@@ -572,6 +572,10 @@ def get_transform_angle(transform):
     return np.rad2deg(np.arctan2(transform[0][1], transform[0][0]))
 
 
+def get_transform_scale(transform):
+    return np.linalg.norm(transform[:, :2]) / np.linalg.norm([1, 1])
+
+
 class TranslationTransform(ProjectiveTransform):
     """
     Helper Transform class for pure translations.
