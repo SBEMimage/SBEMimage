@@ -1863,7 +1863,7 @@ class Viewport(QWidget):
         width_px = self.gm[grid_index].width_p()
         height_px = self.gm[grid_index].height_p()
         theta = self.gm[grid_index].rotation
-        use_rotation = theta > 0
+        use_rotation = (theta != 0)
 
         font = QFont()
         grid_colour_rgb = self.gm[grid_index].display_colour_rgb()
@@ -1872,15 +1872,12 @@ class Viewport(QWidget):
         grid_colour = QColor(*grid_colour_rgb)
         indicator_colour = QColor(*constants.COLOUR_SELECTOR[12])
 
-        # Suppress labels when zoomed out or when user is moving a grid or
-        # panning the view, under the condition that there are >10 grids.
-        # TODO: Revisit this restriction after refactoring and test with
-        # Array example grids.
-        if not suppress_labels:
-            suppress_labels = ((self.gm.number_grids + self.ovm.number_ov) > 10
-                               and (self.cs.vp_scale < 1.0
-                               or self.fov_drag_active
-                               or self.grid_drag_active))
+        # Suppress labels when moving a grid or panning the view
+        # or when in array mode unless zoomed in
+        if ((self.gm.array_mode and self.cs.vp_scale < 0.5)
+                or self.fov_drag_active
+                or self.grid_drag_active):
+            suppress_labels = True
 
         visible = self._vp_element_visible(
             topleft_vx, topleft_vy, width_px, height_px, resize_ratio,
@@ -1890,7 +1887,7 @@ class Viewport(QWidget):
         if not visible:
             return
 
-        # Rotate the painter if grid has a rotation angle > 0
+        # Rotate the painter if grid has a rotation angle <> 0
         if use_rotation:
             # Translate painter to coordinates of grid origin, then rotate
             self.vp_qp.translate(origin_vx, origin_vy)
@@ -1899,10 +1896,8 @@ class Viewport(QWidget):
             self.vp_qp.translate(
                 -self.gm[grid_index].tile_width_d() / 2 * self.cs.vp_scale,
                 -self.gm[grid_index].tile_height_d() / 2 * self.cs.vp_scale)
-            # Enable anti-aliasing in this case:
-            # self.vp_qp.setRenderHint(QPainter.Antialiasing)
-            # TODO: Try Antialiasing again - advantageous or not? What about
-            # Windows 7 vs Windows 10?
+            # Enable anti-aliasing
+            self.vp_qp.setRenderHint(QPainter.Antialiasing)
         else:
             # Translate painter to coordinates of top-left corner
             self.vp_qp.translate(topleft_vx, topleft_vy)
@@ -1993,18 +1988,15 @@ class Viewport(QWidget):
         grid_brush_transparent = QBrush(QColor(255, 255, 255, 0),
                                         Qt.SolidPattern)
 
-        # Suppress labels when zoomed out or when user is moving a grid or
-        # panning the view, under the condition that there are >10 grids.
-        # TODO: Revisit this restriction after refactoring and test with
-        # Array example grids.
-        if not suppress_labels:
-            suppress_labels = ((self.gm.number_grids + self.ovm.number_ov) > 10
-                               and (self.cs.vp_scale < 1.0
-                                   or self.fov_drag_active
-                                   or self.grid_drag_active))
+        # Suppress labels when moving a grid or panning the view
+        # or when in array mode unless zoomed in
+        if ((self.gm.array_mode and self.cs.vp_scale < 0.5)
+                or self.fov_drag_active
+                or self.grid_drag_active):
+            suppress_labels = True
 
         if ((tile_width_v * cols > 2 or tile_height_v * rows > 2)
-            and not 'multisem' in self.sem.device_name.lower()):
+                and 'multisem' not in self.sem.device_name.lower()):
             # Draw grid if at least 3 pixels wide or high.
             for tile_index in range(rows * cols):
                 self.vp_qp.setPen(grid_pen)
@@ -2144,7 +2136,7 @@ class Viewport(QWidget):
         width_px = self.tm.template.width_p()
         height_px = self.tm.template.height_p()
         theta = self.tm.template.rotation
-        use_rotation = theta > 0
+        use_rotation = (theta != 0)
 
         font = QFont()
         grid_colour_rgb = self.tm.template.display_colour_rgb()
@@ -2160,7 +2152,7 @@ class Viewport(QWidget):
         if not visible:
             return
 
-        # Rotate the painter if grid has a rotation angle > 0
+        # Rotate the painter if grid has a rotation angle <> 0
         if use_rotation:
             # Translate painter to coordinates of grid origin, then rotate
             self.vp_qp.translate(origin_vx, origin_vy)
@@ -2495,7 +2487,7 @@ class Viewport(QWidget):
             # Mouse click position relative to top-left corner of grid
             x, y = px - grid_topleft_vx, py - grid_topleft_vy
             theta = radians(self.gm[grid_index].rotation)
-            if theta > 0:
+            if theta != 0:
                 # Rotate the mouse click coordinates if grid is rotated.
                 # Use grid origin as pivot.
                 x, y = px - grid_origin_vx, py - grid_origin_vy
@@ -2694,7 +2686,7 @@ class Viewport(QWidget):
         # Mouse click position relative to top-left corner of grid
         x, y = px - grid_topleft_vx, py - grid_topleft_vy
         theta = radians(template.rotation)
-        if theta > 0:
+        if theta != 0:
             # Rotate the mouse click coordinates if grid is rotated.
             # Use grid origin as pivot.
             x, y = px - grid_origin_vx, py - grid_origin_vy

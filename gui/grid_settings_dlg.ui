@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>261</width>
-    <height>838</height>
+    <height>850</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -20,7 +20,7 @@
    <property name="geometry">
     <rect>
      <x>60</x>
-     <y>800</y>
+     <y>810</y>
      <width>191</width>
      <height>32</height>
     </rect>
@@ -46,7 +46,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>765</y>
+     <y>775</y>
      <width>111</width>
      <height>23</height>
     </rect>
@@ -59,7 +59,7 @@
    <property name="geometry">
     <rect>
      <x>130</x>
-     <y>765</y>
+     <y>775</y>
      <width>121</width>
      <height>23</height>
     </rect>
@@ -101,7 +101,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>735</y>
+     <y>745</y>
      <width>241</width>
      <height>23</height>
     </rect>
@@ -122,7 +122,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>50</y>
+     <y>60</y>
      <width>241</width>
      <height>405</height>
     </rect>
@@ -471,7 +471,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>460</y>
+     <y>470</y>
      <width>241</width>
      <height>231</height>
     </rect>
@@ -623,7 +623,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>705</y>
+     <y>715</y>
      <width>82</width>
      <height>17</height>
     </rect>
@@ -639,13 +639,26 @@
    <property name="geometry">
     <rect>
      <x>100</x>
-     <y>705</y>
+     <y>715</y>
      <width>82</width>
      <height>17</height>
     </rect>
    </property>
    <property name="text">
     <string>Grid inactive</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_array_roi">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>40</y>
+     <width>241</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Array: N ROI: M</string>
    </property>
   </widget>
  </widget>

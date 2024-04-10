@@ -1722,7 +1722,7 @@ class GridSettingsDlg(QDialog):
         for i in range(len(constants.COLOUR_SELECTOR)):
             rgb = constants.COLOUR_SELECTOR[i]
             colour_icon = QPixmap(20, 10)
-            colour_icon.fill(QColor(rgb[0], rgb[1], rgb[2]))
+            colour_icon.fill(QColor(*rgb))
             self.comboBox_colourSelector.addItem(QIcon(colour_icon), '')
         if self.gm[self.current_grid].active:
             self.radioButton_active.setChecked(True)
@@ -1731,7 +1731,7 @@ class GridSettingsDlg(QDialog):
         self.radioButton_active.toggled.connect(self.update_active_status)
         self.update_active_status()
         store_res_list = [
-            '%d × %d' % (res[0], res[1]) for res in self.sem.STORE_RES]
+            f'{res[0]} × {res[1]}' for res in self.sem.STORE_RES]
         self.comboBox_tileSize.addItems(store_res_list)
         self.comboBox_tileSize.currentIndexChanged.connect(
             self.show_frame_size_and_dose)
@@ -1805,28 +1805,36 @@ class GridSettingsDlg(QDialog):
         self.doubleSpinBox_pixelSize.setValue(current_pixel_size)
 
     def show_current_settings(self):
+        grid = self.gm[self.current_grid]
+        indices = []
+        if grid.array_index is not None:
+            indices.append(f'Array: {grid.array_index}')
+        if grid.roi_index is not None:
+            indices.append(f'ROI: {grid.roi_index}')
+        array_roi_text = '   '.join(indices)
+        self.label_array_roi.setText(array_roi_text)
         self.comboBox_colourSelector.setCurrentIndex(
-            self.gm[self.current_grid].display_colour)
+            grid.display_colour)
         self.checkBox_focusGradient.setChecked(
-            self.gm[self.current_grid].use_wd_gradient)
-        self.spinBox_rows.setValue(self.gm[self.current_grid].number_rows())
-        self.spinBox_cols.setValue(self.gm[self.current_grid].number_cols())
-        self.spinBox_overlap.setValue(self.gm[self.current_grid].overlap)
+            grid.use_wd_gradient)
+        self.spinBox_rows.setValue(grid.number_rows())
+        self.spinBox_cols.setValue(grid.number_cols())
+        self.spinBox_overlap.setValue(grid.overlap)
         self.doubleSpinBox_rotation.setValue(
-            self.gm[self.current_grid].rotation)
-        self.spinBox_shift.setValue(self.gm[self.current_grid].row_shift)
+            grid.rotation)
+        self.spinBox_shift.setValue(grid.row_shift)
         self.doubleSpinBox_pixelSize.setValue(
-            self.gm[self.current_grid].pixel_size)
+            grid.pixel_size)
         self.comboBox_tileSize.setCurrentIndex(
-            self.gm[self.current_grid].frame_size_selector)
+            grid.frame_size_selector)
         self.comboBox_dwellTime.setCurrentIndex(
-            self.gm[self.current_grid].dwell_time_selector)
+            grid.dwell_time_selector)
         self.comboBox_bitDepth.setCurrentIndex(
-            self.gm[self.current_grid].bit_depth_selector)
+            grid.bit_depth_selector)
         self.spinBox_acqInterval.setValue(
-            self.gm[self.current_grid].acq_interval)
+            grid.acq_interval)
         self.spinBox_acqIntervalOffset.setValue(
-            self.gm[self.current_grid].acq_interval_offset)
+            grid.acq_interval_offset)
 
     def show_frame_size_and_dose(self):
         """Calculate and display the tile size and the dose for the current
@@ -1837,8 +1845,7 @@ class GridSettingsDlg(QDialog):
         pixel_size = self.doubleSpinBox_pixelSize.value()
         width = self.sem.STORE_RES[frame_size_selector][0] * pixel_size / 1000
         height = self.sem.STORE_RES[frame_size_selector][1] * pixel_size / 1000
-        self.label_tileSize.setText('{0:.1f} × '.format(width)
-                                    + '{0:.1f}'.format(height))
+        self.label_tileSize.setText(f'{width:.1f} × {height:.1f}')
         current = self.sem.target_beam_current
         dwell_time = float(self.comboBox_dwellTime.currentText())
         pixel_size = self.doubleSpinBox_pixelSize.value()
