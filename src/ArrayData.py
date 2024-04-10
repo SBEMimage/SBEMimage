@@ -338,10 +338,6 @@ class ArrayData:
     def set_landmark(self, landmark_id, location, landmark_type='target'):
         self.landmarks[landmark_id][landmark_type] = {'location': location}
 
-    def adjust_imported_array_image(self, acq, array_image):
-        if acq.magc_mode:
-            array_image.centre_sx_sy = np.divide(array_image.size, 2).astype(int)
-
 
 def json_keys_to_int(data0):
     if isinstance(data0, dict):

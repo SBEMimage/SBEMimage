@@ -1471,7 +1471,8 @@ class MainControls(QMainWindow):
         def on_success_function():
             array_image = self.imported[-1]
             array_image.is_array = True
-            self.gm.array_data.adjust_imported_array_image(self.acq, array_image)
+            if self.magc_mode:
+                array_image.centre_sx_sy = array_image.size[0] / 2, array_image.size[1] / 2
             self.array_set_import_image(array_image)
 
         self.viewport.vp_open_import_image_dlg(
