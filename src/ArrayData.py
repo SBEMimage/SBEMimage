@@ -278,6 +278,9 @@ class ArrayData:
                 for line in g.getvalue().splitlines(True):
                     f.write(line)
 
+    def get_nsections(self):
+        return len(self.sections)
+
     def get_nrois(self):
         sections = self.sections
         if isinstance(sections, dict):

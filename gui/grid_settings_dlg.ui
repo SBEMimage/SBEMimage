@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>261</width>
-    <height>850</height>
+    <height>838</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -20,7 +20,7 @@
    <property name="geometry">
     <rect>
      <x>60</x>
-     <y>810</y>
+     <y>800</y>
      <width>191</width>
      <height>32</height>
     </rect>
@@ -37,7 +37,7 @@
     <rect>
      <x>10</x>
      <y>10</y>
-     <width>71</width>
+     <width>81</width>
      <height>22</height>
     </rect>
    </property>
@@ -46,7 +46,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>775</y>
+     <y>765</y>
      <width>111</width>
      <height>23</height>
     </rect>
@@ -59,7 +59,7 @@
    <property name="geometry">
     <rect>
      <x>130</x>
-     <y>775</y>
+     <y>765</y>
      <width>121</width>
      <height>23</height>
     </rect>
@@ -101,7 +101,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>745</y>
+     <y>735</y>
      <width>241</width>
      <height>23</height>
     </rect>
@@ -122,7 +122,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>60</y>
+     <y>50</y>
      <width>241</width>
      <height>405</height>
     </rect>
@@ -471,7 +471,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>470</y>
+     <y>460</y>
      <width>241</width>
      <height>231</height>
     </rect>
@@ -623,7 +623,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>715</y>
+     <y>705</y>
      <width>82</width>
      <height>17</height>
     </rect>
@@ -639,26 +639,13 @@
    <property name="geometry">
     <rect>
      <x>100</x>
-     <y>715</y>
+     <y>705</y>
      <width>82</width>
      <height>17</height>
     </rect>
    </property>
    <property name="text">
     <string>Grid inactive</string>
-   </property>
-  </widget>
-  <widget class="QLabel" name="label_array_roi">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>40</y>
-     <width>241</width>
-     <height>16</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Array: N ROI: M</string>
    </property>
   </widget>
  </widget>

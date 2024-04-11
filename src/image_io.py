@@ -4,8 +4,7 @@ import os
 import tifffile
 from tifffile import TiffWriter, PHOTOMETRIC
 
-from utils import resize_image, int2float_image, float2int_image, norm_image_quantiles
-
+from utils import resize_image, int2float_image, float2int_image, norm_image_quantiles, validate_output_path
 
 # TODO: add ome.zarr support
 
@@ -276,6 +275,7 @@ def imwrite(path, data, metadata=None, tile_size=None, compression='LZW',
             tiff_metadata, resolution, resolution_unit = create_tiff_metadata(metadata, is_ome)
         else:
             tiff_metadata = None
+        validate_output_path(path, is_file=True)
         with TiffWriter(path) as writer:
             writer.write(data, photometric=photometric, subifds=npyramid_add,
                          tile=tile_size, compression=compression,

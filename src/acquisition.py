@@ -450,16 +450,16 @@ class Acquisition:
         ]
         # Add subdirectories for overviews, grids, tiles
         for ov_index in range(self.ovm.number_ov):
-            ov_dir = os.path.join(
-                'overviews', 'ov' + str(ov_index).zfill(constants.OV_DIGITS))
+            ov_dir = os.path.join(*utils.get_ov_dirname('', ov_index))
             subdirectory_list.append(ov_dir)
         for grid_index in range(self.gm.number_grids):
-            grid_dir = os.path.join(
-                'tiles', 'g' + str(grid_index).zfill(constants.GRID_DIGITS))
-            subdirectory_list.append(grid_dir)
+            grid = self.gm[grid_index]
+            array_index, roi_index = grid.array_index, grid.roi_index
+            high_dir = os.path.join(*utils.get_tile_dirname('', grid_index, array_index, roi_index))
+            subdirectory_list.append(high_dir)
             for tile_index in self.gm[grid_index].active_tiles:
                 tile_dir = os.path.join(
-                    grid_dir, 't' + str(tile_index).zfill(constants.TILE_DIGITS))
+                    *utils.get_tile_dirname('', grid_index, array_index, roi_index, tile_index))
                 subdirectory_list.append(tile_dir)
         # Create the directories in the base directory and the mirror drive
         # (if applicable).
@@ -693,11 +693,12 @@ class Acquisition:
             pixel_size_list = []
             dwell_time_list = []
             for grid_index in range(self.gm.number_grids):
+                grid = self.gm[grid_index]
                 grid_list.append(str(grid_index).zfill(constants.GRID_DIGITS))
-                grid_origin_list.append(self.gm[grid_index].origin_sx_sy.tolist())
-                rotation_angle_list.append(self.gm[grid_index].rotation)
-                pixel_size_list.append(self.gm[grid_index].pixel_size)
-                dwell_time_list.append(self.gm[grid_index].dwell_time)
+                grid_origin_list.append(grid.origin_sx_sy.tolist())
+                rotation_angle_list.append(grid.rotation)
+                pixel_size_list.append(grid.pixel_size)
+                dwell_time_list.append(grid.dwell_time)
             session_metadata = {
                 'timestamp': timestamp,
                 'eht': self.sem.target_eht,
@@ -749,15 +750,15 @@ class Acquisition:
             # existing focus settings from a previous run that must not be
             # overwritten!)
             for grid_index in range(self.gm.number_grids):
-                if not self.gm[grid_index].use_wd_gradient:
-                    self.gm[grid_index].set_wd_stig_xy_for_uninitialized_tiles(
+                if not grid.use_wd_gradient:
+                    grid.set_wd_stig_xy_for_uninitialized_tiles(
                         self.wd_default,
                         [self.stig_x_default, self.stig_y_default])
                 else:
                     # Set stig values to defaults for each tile if focus
                     # gradient is used, but don't change working distance
                     # because wd is calculated with gradient parameters.
-                    self.gm[grid_index].set_stig_xy_for_all_tiles(
+                    grid.set_stig_xy_for_all_tiles(
                         [self.stig_x_default, self.stig_y_default])
 
             # Show current focus/stig settings in the log
@@ -1844,24 +1845,26 @@ class Acquisition:
                 self.do_autofocus_before_grid_acq(grid_index)
             self.gm.fit_apply_aberration_gradient()
         for grid_index in range(self.gm.number_grids):
+            grid = self.gm[grid_index]
+            grid_label = grid.get_label(grid_index)
             if self.error_state != Error.none or self.pause_state == 1:
                 break
-            if not self.gm[grid_index].active:
+            if not grid.active:
                 utils.log_info(
                     'CTRL',
-                    f'Grid {grid_index} inactive, skipped.')
+                    f'{grid_label} inactive, skipped.')
                 self.add_to_main_log(
-                    f'CTRL: Grid {grid_index} inactive, skipped.')
+                    f'CTRL: {grid_label} inactive, skipped.')
                 continue
-            if self.gm[grid_index].slice_active(self.slice_counter):
-                num_active_tiles = self.gm[grid_index].number_active_tiles()
+            if grid.slice_active(self.slice_counter):
+                num_active_tiles = grid.number_active_tiles()
                 utils.log_info('CTRL',
-                               f'Grid {grid_index}, '
+                               f'{grid_label}, '
                                f'number of active tiles: '
                                f'{num_active_tiles}')
-                self.add_to_main_log('CTRL: Grid ' + str(grid_index)
-                                     + ', number of active tiles: '
-                                     + str(num_active_tiles))
+                self.add_to_main_log(f'CTRL: {grid_label}, '
+                                     f'number of active tiles: '
+                                     f'{num_active_tiles}')
 
                 # In MagC mode, use the grid index for autostig delay
                 if self.magc_mode:
@@ -1878,10 +1881,10 @@ class Acquisition:
                     if grid_index in self.grids_acquired:
                         utils.log_info(
                             'CTRL',
-                            f'Grid {grid_index} already acquired. '
+                            f'{grid_label} already acquired. '
                             f'Skipping.')
                         self.add_to_main_log(
-                            f'CTRL: Grid {grid_index} already acquired. '
+                            f'CTRL: {grid_label} already acquired. '
                             f'Skipping.')
                     elif (
                             self.magc_mode
@@ -1889,7 +1892,7 @@ class Acquisition:
                         ):
                             utils.log_info(
                                 'Array-CTRL',
-                                f'Grid {grid_index} not checked. Skipping.')
+                                f'{grid_label} not checked. Skipping.')
                             self.add_to_main_log(
                                 f'MagC-CTRL: Grid {grid_index} not checked. Skipping.')
                             # there are two termination checkpoints in magc
@@ -1921,9 +1924,9 @@ class Acquisition:
             else:
                 utils.log_info(
                     'CTRL',
-                    f'Skip grid {grid_index} (intervallic acquisition)')
+                    f'Skip {grid_label} (intervallic acquisition)')
                 self.add_to_main_log(
-                    'CTRL: Skip grid %d (intervallic acquisition)' % grid_index)
+                    f'CTRL: Skip {grid_label} (intervallic acquisition)')
 
             if (self.magc_mode
                 and len(self.grids_acquired) == len(self.gm.array_data.checked_sections)
@@ -1942,21 +1945,23 @@ class Acquisition:
         if not self.acq_interrupted:
             self.grids_acquired = []
 
-    def acquire_grid(self, grid_index):
+    def acquire_grid(self, grid_index, overwrite=False):
         """Acquire all active tiles of grid specified by grid_index"""
 
         # Get current active tiles (using list() to get a copy).
         # If the user changes the active tiles in this grid while the grid
         # is being acquired, the changes will take effect the next time
         # the grid is acquired.
-        active_tiles = list(self.gm[grid_index].active_tiles)
+        grid = self.gm[grid_index]
+        grid_label = grid.get_label(grid_index)
+        active_tiles = list(grid.active_tiles)
 
         # Focus parameters must be adjusted for each tile individually if focus
         # gradient is active or if autofocus/tracked focus is used with
         # "track all" or "best fit" option.
         # Otherwise wd_default, stig_x_default, and stig_y_default are used.
         adjust_wd_stig = (
-            self.gm[grid_index].use_wd_gradient
+            grid.use_wd_gradient
             or (self.use_autofocus and self.autofocus.tracking_mode < 2))
         self.tile_wd, self.tile_stig_x, self.tile_stig_y = 0, 0, 0
 
@@ -1968,7 +1973,7 @@ class Acquisition:
         if self.pause_state == 1:
             return
 
-        msg = f'Starting acquisition of active tiles in grid {grid_index}'
+        msg = f'Starting acquisition of active tiles in {grid_label}'
         utils.log_info(
             'CTRL',
             msg)
@@ -1983,7 +1988,7 @@ class Acquisition:
             adjust_wd_stig = False
 
             # In MagC mode: Track grid being acquired in Viewport
-            self.cs.vp_centre_dx_dy = self.gm[grid_index].centre_dx_dy
+            self.cs.vp_centre_dx_dy = grid.centre_dx_dy
             self.main_controls_trigger.transmit('DRAW VP')
             self.main_controls_trigger.transmit(
                 'ARRAY SET SECTION STATE', 'acquiring', grid_index
@@ -2012,7 +2017,7 @@ class Acquisition:
                 self.set_default_wd_stig()
                 self.lock_wd_stig()
 
-        theta = self.gm[grid_index].rotation
+        theta = grid.rotation
         # TODO: Whether theta or (360 - theta) must be used here may be
         # device-specific. Look into that!
         if not self.magc_mode:
@@ -2025,7 +2030,7 @@ class Acquisition:
             # be OK for non-magc applications
             if theta == 0:
                 theta = 0.01
-        if theta > 0:
+        if theta != 0:
             # Enable scan rotation
             self.sem.set_scan_rotation(theta)
 
@@ -2047,7 +2052,8 @@ class Acquisition:
                     tile_accepted, tile_skipped, tile_selected,
                     rejected_by_user) = (
                     self.acquire_tile(grid_index, tile_index,
-                                        adjust_wd_stig, adjust_acq_settings))
+                                      adjust_wd_stig, adjust_acq_settings,
+                                      overwrite=overwrite))
                 if not tile_skipped:
                     adjust_acq_settings = False
 
@@ -2135,7 +2141,7 @@ class Acquisition:
                 if (
                     self.use_autofocus
                     and self.autofocus.method==1
-                    and self.gm[grid_index][tile_index].autofocus_active
+                    and grid[tile_index].autofocus_active
                 ):
 
                     tile_key = str(grid_index) + '.' + str(tile_index)
@@ -2207,7 +2213,7 @@ class Acquisition:
         if self.use_mirror_drive and self.tile_mirror_durations:
             utils.log_info(
                 'CTRL',
-                f'Grid {grid_index}: avg. time to copy tile to '
+                f'{grid_label}: avg. time to copy tile to '
                 f'mirror drive: {mean(self.tile_mirror_durations):.1f} s')
             self.add_to_main_log(
                 f'CTRL: Grid {grid_index}: avg. time to copy tile to '
@@ -2217,7 +2223,7 @@ class Acquisition:
         self.tile_inspect_durations = []
         self.tile_mirror_durations = []
 
-        if theta > 0:
+        if theta != 0:
             # Disable scan rotation
             self.sem.set_scan_rotation(0)
 
@@ -2228,7 +2234,7 @@ class Acquisition:
             self.tiles_acquired = []
 
             if self.magc_mode:
-                self.cs.vp_centre_dx_dy = self.gm[grid_index].centre_dx_dy
+                self.cs.vp_centre_dx_dy = grid.centre_dx_dy
                 self.main_controls_trigger.transmit('DRAW VP')
                 self.main_controls_trigger.transmit(
                     'ARRAY SET SECTION STATE',
@@ -2236,14 +2242,16 @@ class Acquisition:
                     [grid_index])
 
     def acquire_tile(self, grid_index, tile_index,
-                     adjust_wd_stig=False, adjust_acq_settings=False):
+                     adjust_wd_stig=False, adjust_acq_settings=False,
+                     overwrite=False):
         """Acquire the specified tile with error handling and inspection.
         If adjust_wd_stig is True, the working distance and stigmation
         parameters will be adjusted for this tile. If adjust_acq_settings
         is True, the pixel size, dwell time and frame size will be adjusted
         according to the settings of the grid at grid_index.
         """
-
+        grid = self.gm[grid_index]
+        tile_label = grid.get_label(grid_index) + f'.{tile_index}'
         tile_img = None  # NumPy array of acquired image (from img_inspector)
         tile_accepted = False  # if True: tile passed img_inspector checks
         tile_selected = False  # if True: tile selected to be saved to disk
@@ -2251,10 +2259,10 @@ class Acquisition:
                                # acquired or marked as acquired
         rejected_by_user = False   # if True: rejected by user (Ask user mode)
 
+        slice_index = self.slice_counter if grid.roi_index is None else None
         relative_save_path = utils.tile_relative_save_path(
-            self.stack_name, grid_index, tile_index, self.slice_counter)
+            self.stack_name, grid_index, grid.array_index, grid.roi_index, tile_index, slice_index)
         save_path = os.path.join(self.base_dir, relative_save_path)
-        tile_id = str(grid_index) + '.' + str(tile_index)
 
         # If tile is at the interruption point and not in the list
         # self.tiles_acquired, retake it even if the image file already exists.
@@ -2271,20 +2279,20 @@ class Acquisition:
             tile_skipped = True
             utils.log_info(
                 'CTRL',
-                f'Tile {tile_id} already acquired. Skipping.')
+                f'Tile {tile_label} already acquired. Skipping.')
             self.add_to_main_log(
-                'CTRL: Tile %s already acquired. Skipping.' % tile_id)
+                f'CTRL: Tile {tile_label} already acquired. Skipping.')
 
         if not tile_skipped:
-            if not os.path.isfile(save_path) or retake_img:
+            if not os.path.isfile(save_path) or retake_img or overwrite:
                 # If current tile has different focus settings from previous
                 # tile, adjust working distance and stigmation for this tile
                 if adjust_wd_stig:
-                    new_wd = (self.gm[grid_index][tile_index].wd
+                    new_wd = (grid[tile_index].wd
                               + self.wd_delta)
-                    new_stig_x = (self.gm[grid_index][tile_index].stig_xy[0]
+                    new_stig_x = (grid[tile_index].stig_xy[0]
                                   + self.stig_x_delta)
-                    new_stig_y = (self.gm[grid_index][tile_index].stig_xy[1]
+                    new_stig_y = (grid[tile_index].stig_xy[1]
                                   + self.stig_y_delta)
                     if any([
                         new_wd != self.tile_wd,
@@ -2308,13 +2316,13 @@ class Acquisition:
                         self.tile_stig_y = new_stig_y
 
                 # Read target coordinates for current tile
-                stage_x, stage_y = self.gm[grid_index][tile_index].sx_sy
+                stage_x, stage_y = grid[tile_index].sx_sy
                 # Move to that position
                 utils.log_info(
                     'STAGE',
-                    f'Moving to position of tile {tile_id}')
+                    f'Moving to position of Tile {tile_label}')
                 self.add_to_main_log(
-                    'STAGE: Moving to position of tile %s' % tile_id)
+                    f'STAGE: Moving to position of Tile {tile_label}')
                 self.stage.move_to_xy((stage_x, stage_y))
                 # The move function waits for the motor move duration and the
                 # specified stage move wait interval.
@@ -2329,16 +2337,16 @@ class Acquisition:
                         f'STAGE: Problem with XY move (error '
                         f'{self.stage.error_state}). Trying again.')
                     # Add warning to incident log
-                    self.add_to_incident_log(f'WARNING (XY move to {tile_id}, '
+                    self.add_to_incident_log(f'WARNING (XY move to {tile_label}, '
                                              f'error {self.stage.error_state})')
                     self.stage.reset_error_state()
                     sleep(2)
                     # Try to move to tile position again
                     utils.log_info(
                         'STAGE',
-                        'Moving to position of tile ' + tile_id)
+                        f'Moving to position of Tile {tile_label}')
                     self.add_to_main_log(
-                        'STAGE: Moving to position of tile ' + tile_id)
+                        f'STAGE: Moving to position of Tile {tile_label}')
                     self.stage.move_to_xy((stage_x, stage_y))
                     # Check again if there is an error
                     self.error_state = self.stage.error_state
@@ -2357,14 +2365,14 @@ class Acquisition:
                 self.error_state = Error.file_overwrite
                 utils.log_warning(
                     'CTRL',
-                    f'Tile {tile_id}: Image file already exists!')
+                    f'Tile {tile_label}: Image file already exists!')
                 self.add_to_main_log(
-                    'CTRL: Tile %s: Image file already exists!' % tile_id)
+                    f'CTRL: Tile {tile_label}: Image file already exists!')
 
             if self.magc_mode:
                 # set wd,stig calculated at the beginning of the grid
-                self.sem.set_wd(self.gm[grid_index][tile_index].wd)
-                self.sem.set_stig_xy(*self.gm[grid_index][tile_index].stig_xy)
+                self.sem.set_wd(grid[tile_index].wd)
+                self.sem.set_stig_xy(*grid[tile_index].stig_xy)
 
 
         # Proceed if no error has ocurred and tile not skipped:
@@ -2381,7 +2389,7 @@ class Acquisition:
             if (
                 self.use_autofocus
                 and self.autofocus.method in [0, 3]
-                and self.gm[grid_index][tile_index].autofocus_active
+                and grid[tile_index].autofocus_active
                 and (
                     self.autofocus_stig_current_slice[0]
                     or self.autofocus_stig_current_slice[1]
@@ -2406,12 +2414,12 @@ class Acquisition:
             if adjust_acq_settings:
                 # Switch to specified acquisition settings of the current grid
                 self.sem.apply_frame_settings(
-                    self.gm[grid_index].frame_size_selector,
-                    self.gm[grid_index].pixel_size,
-                    self.gm[grid_index].dwell_time)
+                    grid.frame_size_selector,
+                    grid.pixel_size,
+                    grid.dwell_time)
 
                 # Set image bit depth for current grid
-                self.sem.set_bit_depth(self.gm[grid_index].bit_depth_selector)
+                self.sem.set_bit_depth(grid.bit_depth_selector)
 
                 # Delay necessary for Gemini? (change of mag)
                 sleep(0.2)
@@ -2510,10 +2518,10 @@ class Acquisition:
                     # Assume tile_accepted, check against various errors below
                     tile_accepted = True
                     utils.log_info('CTRL',
-                                   f'Tile {tile_id}: '
+                                   f'Tile {tile_label}: '
                                    f'M:{mean:.2f}, '
                                    f'SD:{stddev:.2f}')
-                    self.add_to_main_log('CTRL: Tile ' + tile_id
+                    self.add_to_main_log(f'CTRL: Tile {tile_label}'
                                          + ': M:' + '{0:.2f}'.format(mean)
                                          + ', SD:' + '{0:.2f}'.format(stddev))
                     # New preview available, show it (if tile previews active)
@@ -2533,21 +2541,21 @@ class Acquisition:
                             self.error_state = Error.frame_frozen
                             utils.log_error(
                                 'SEM',
-                                'Tile ' + tile_id
-                                + ': SmartSEM frozen frame error!')
+                                f'Tile {tile_label}'
+                                ': SmartSEM frozen frame error!')
                             self.add_to_main_log(
-                                'SEM: Tile ' + tile_id
-                                + ': SmartSEM frozen frame error!')
+                                f'SEM: Tile {tile_label}'
+                                ': SmartSEM frozen frame error!')
                         elif grab_incomplete:
                             tile_accepted = False
                             self.error_state = Error.grab_incomplete
                             utils.log_error(
                                 'SEM',
-                                'Tile ' + tile_id
-                                + ': SmartSEM grab incomplete error!')
+                                f'Tile {tile_label}'
+                                ': SmartSEM grab incomplete error!')
                             self.add_to_main_log(
-                                'SEM: Tile ' + tile_id
-                                + ': SmartSEM grab incomplete error!')
+                                f'SEM: Tile {tile_label}'
+                                ': SmartSEM grab incomplete error!')
                         elif self.monitor_images:
                             # Two additional checks if 'image monitoring'
                             # option is active
@@ -2620,6 +2628,7 @@ class Acquisition:
         """Register the tile image in the image list file and the metadata
         file. Send metadata to remote server.
         """
+        grid = self.gm[grid_index]
         timestamp = int(time())
         tile_id = utils.tile_id(grid_index, tile_index,
                                 self.slice_counter)
@@ -2637,15 +2646,15 @@ class Acquisition:
         if self.use_mirror_drive:
             self.mirror_imagelist_file.write(tileinfo_str)
         self.tiles_acquired.append(tile_index)
-        tile_width, tile_height = self.gm[grid_index].frame_size
+        tile_width, tile_height = grid.frame_size
         tile_metadata = {
             'tileid': tile_id,
             'timestamp': timestamp,
             'filename': relative_save_path.replace('\\', '/'),
             'tile_width': tile_width,
             'tile_height': tile_height,
-            'wd_stig_xy': [self.gm[grid_index][tile_index].wd,
-                           *self.gm[grid_index][tile_index].stig_xy],
+            'wd_stig_xy': [grid[tile_index].wd,
+                           *grid[tile_index].stig_xy],
             'glob_x': global_x,
             'glob_y': global_y,
             'glob_z': global_z,
@@ -2805,17 +2814,21 @@ class Acquisition:
         """Run SEM autofocus at current stage position if do_move == False,
         otherwise move to grid_index.tile_index position beforehand.
         """
+        grid = self.gm[grid_index]
+        grid_label = grid.get_label(grid_index)
         if do_move:
             # Read target coordinates for specified tile
-            stage_x, stage_y = self.gm[grid_index][tile_index].sx_sy
+            stage_x, stage_y = grid[tile_index].sx_sy
             # Move to that position
             utils.log_info(
                 'STAGE',
                 'Moving to position of tile '
-                + str(grid_index) + '.' + str(tile_index) + ' for autofocus')
+                f'{grid_label}.{tile_index}'
+                ' for autofocus')
             self.add_to_main_log(
                 'STAGE: Moving to position of tile '
-                + str(grid_index) + '.' + str(tile_index) + ' for autofocus')
+                f'{grid_label}.{tile_index}'
+                ' for autofocus')
             self.stage.move_to_xy((stage_x, stage_y))
             if self.stage.error_state != Error.none:
                 self.stage.reset_error_state()
@@ -2830,10 +2843,10 @@ class Acquisition:
                 utils.log_info(
                     'STAGE',
                     'Moving to position of tile '
-                    + str(grid_index) + '.' + str(tile_index))
+                    f'{grid_label}.{tile_index}')
                 self.add_to_main_log(
                     'STAGE: Moving to position of tile '
-                    + str(grid_index) + '.' + str(tile_index))
+                    f'{grid_label}.{tile_index}')
                 self.stage.move_to_xy((stage_x, stage_y))
                 # Check again if there is an error
                 self.error_state = self.stage.error_state
@@ -2855,9 +2868,9 @@ class Acquisition:
         wd = self.sem.get_wd()
         sx, sy = self.sem.get_stig_xy()
         # added to adjust WD and stig values to tiles which are just used for autofocus!
-        tile_wd = self.gm[grid_index][tile_index].wd
-        tile_stig_x = self.gm[grid_index][tile_index].stig_xy[0]
-        tile_stig_y = self.gm[grid_index][tile_index].stig_xy[1]
+        tile_wd = grid[tile_index].wd
+        tile_stig_x = grid[tile_index].stig_xy[0]
+        tile_stig_y = grid[tile_index].stig_xy[1]
         if (tile_wd != wd) or (tile_stig_x != sx) or (tile_stig_y != sy):
             self.sem.set_wd(tile_wd)
             self.sem.set_stig_xy(tile_stig_x, tile_stig_y)
@@ -2865,11 +2878,11 @@ class Acquisition:
         if self.autofocus.method == 0:
             utils.log_info('SEM',
                            'Running SEM AF procedure '
-                           + af_type + ' for tile '
-                           + str(grid_index) + '.' + str(tile_index))
+                           f'{af_type} for tile '
+                           f'{grid_label}.{tile_index}')
             self.add_to_main_log('SEM: Running SEM AF procedure '
-                                 + af_type + ' for tile '
-                                 + str(grid_index) + '.' + str(tile_index))
+                                 f'{af_type} for tile '
+                                 f'{grid_label}.{tile_index}')
             autofocus_msg = 'SEM', self.autofocus.run_sem_af(do_focus, do_stig)
         elif self.autofocus.method == 3:
             msg = f'Running MAPFoSt AF procedure for tile {grid_index}.{tile_index} with initial WD/STIG_X/Y: ' \
@@ -2901,12 +2914,12 @@ class Acquisition:
             self.error_state = Error.wd_stig_difference
         else:
             # Save settings for specified tile
-            self.gm[grid_index][tile_index].wd = self.sem.get_wd()
-            self.gm[grid_index][tile_index].stig_xy = list(
+            grid[tile_index].wd = self.sem.get_wd()
+            grid[tile_index].stig_xy = list(
                 self.sem.get_stig_xy())
             msg = f'Finished autofocus procedure for tile {grid_index}.{tile_index} with final WD/STIG_X/Y: ' \
-                  f'{self.gm[grid_index][tile_index].wd*1000:.4f}, {self.gm[grid_index][tile_index].stig_xy[0]:.4f},' \
-                  f' {self.gm[grid_index][tile_index].stig_xy[1]:.4f}'
+                  f'{grid[tile_index].wd*1000:.4f}, {grid[tile_index].stig_xy[0]:.4f},' \
+                  f' {grid[tile_index].stig_xy[1]:.4f}'
             utils.log_info('SEM', msg)
             self.add_to_main_log(f'SEM: {msg}')
             # Show updated WD label(s) in Viewport
@@ -2916,15 +2929,15 @@ class Acquisition:
         utils.log_info(header, msg)
         self.add_to_main_log(f'{header}: {msg}')
 
-
     def do_autofocus_before_grid_acq(self, grid_index):
         """If non-active tiles are selected for the SEM autofocus, call the
         autofocus on them one by one before the grid acquisition starts.
         """
+        grid = self.gm[grid_index]
         if self.magc_mode:
             return self.magc_do_autofocus_before_grid_acq(grid_index)
-        autofocus_ref_tiles = self.gm[grid_index].autofocus_ref_tiles()
-        active_tiles = self.gm[grid_index].active_tiles
+        autofocus_ref_tiles = grid.autofocus_ref_tiles()
+        active_tiles = grid.active_tiles
         # Perform SEM autofocus for non-active autofocus tiles
         for tile_index in autofocus_ref_tiles:
             if tile_index not in active_tiles:
@@ -2938,7 +2951,6 @@ class Acquisition:
                         self.pause_acquisition(1)
                     self.set_interruption_point(grid_index, tile_index)
                     break
-
 
     def magc_do_autofocus_before_grid_acq(self, grid_index):
         """

@@ -1627,8 +1627,9 @@ class OVSettingsDlg(QDialog):
                 self.current_ov == self.ovm.number_ov - 1)
         # Show current OV number on delete and save buttons
         self.pushButton_save.setText(
-            'Save settings for OV %d' % self.current_ov)
-        self.pushButton_deleteOV.setText('Delete OV %d' % self.current_ov)
+            f'Save settings for OV {self.current_ov}')
+        self.pushButton_deleteOV.setText(
+            f'Delete OV {self.current_ov}')
 
     def clear_viewport_image(self):
         self.ovm[self.current_ov].vp_file_path = ''
@@ -1806,13 +1807,6 @@ class GridSettingsDlg(QDialog):
 
     def show_current_settings(self):
         grid = self.gm[self.current_grid]
-        indices = []
-        if grid.array_index is not None:
-            indices.append(f'Array: {grid.array_index}')
-        if grid.roi_index is not None:
-            indices.append(f'ROI: {grid.roi_index}')
-        array_roi_text = '   '.join(indices)
-        self.label_array_roi.setText(array_roi_text)
         self.comboBox_colourSelector.setCurrentIndex(
             grid.display_colour)
         self.checkBox_focusGradient.setChecked(
@@ -1870,14 +1864,16 @@ class GridSettingsDlg(QDialog):
         Only the last grid can be deleted. Reason: preserve identities of
         grids and tiles within grids.
         """
+        grid_label = self.gm.get_grid_label(self.current_grid)
         if self.current_grid == 0:
             self.pushButton_deleteGrid.setEnabled(False)
         else:
             self.pushButton_deleteGrid.setEnabled(
                 self.current_grid == (self.gm.number_grids - 1))
         self.pushButton_save.setText(
-            'Save settings for grid %d' % self.current_grid)
-        self.pushButton_deleteGrid.setText('Delete grid %d' % self.current_grid)
+            f'Save settings for {grid_label}')
+        self.pushButton_deleteGrid.setText(
+            f'Delete {grid_label}')
 
     def add_grid(self):
         active = self.radioButton_active.isChecked()
@@ -1933,7 +1929,7 @@ class GridSettingsDlg(QDialog):
         user_reply = QMessageBox.question(
             self, 'Reset tile previews',
             f'This will clear all tile preview images in the Viewport for '
-            f'grid {self.current_grid}.\n',
+            f'{self.gm.get_grid_label(self.current_grid)}',
             QMessageBox.Ok | QMessageBox.Cancel)
         if user_reply == QMessageBox.Ok:
             self.gm[self.current_grid].clear_all_tile_previews()
@@ -2038,7 +2034,7 @@ class FocusGradientSettingsDlg(QDialog):
         self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
-        self.lineEdit_currentGrid.setText('Grid ' + str(current_grid))
+        self.lineEdit_currentGrid.setText(self.gm.get_grid_label(current_grid))
         self.grid_illustration.setPixmap(QPixmap('../img/grid.png'))
         self.ref_tiles = self.gm[self.current_grid].wd_gradient_ref_tiles
         # Backup variable for currently selected reference tiles:
@@ -4311,9 +4307,10 @@ class FTMoveDlg(QDialog):
         self.pushButton_move.clicked.connect(self.start_move)
         if ov_index >= 0:
             self.label_moveTarget.setText('OV ' + str(ov_index))
-        elif (grid_index >= 0) and (tile_index >= 0):
+        elif grid_index >= 0 and tile_index >= 0:
+            grid_label = grid_manager.get_grid_label(grid_index)
             self.label_moveTarget.setText(
-                'Grid: %d, Tile: %d' % (grid_index, tile_index))
+                f'{grid_label} Tile: {tile_index}' % (grid_index, tile_index))
 
     def start_move(self):
         self.error = False

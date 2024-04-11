@@ -25,7 +25,7 @@ import sys
 from typing import Optional
 from time import sleep
 
-from PyQt5.QtWidgets import QFileDialog
+from PyQt5.QtWidgets import QFileDialog, QHeaderView
 #import json
 #import copy
 #import xml.etree.ElementTree as ET
@@ -1428,7 +1428,7 @@ class MainControls(QMainWindow):
             'Array-CTRL',
             f'{len(self.gm.array_data.sections)} Array sections have been loaded.')
 
-        nsections = len(self.gm.array_data.sections)
+        nsections = self.gm.array_data.get_nsections()
         nrois = self.gm.array_data.get_nrois()
         table_model = self.tableView_array_sections.model()
         table_model.clear()
@@ -1441,7 +1441,7 @@ class MainControls(QMainWindow):
         table_model.appendRow(placeholder)
         table_model.setVerticalHeaderItem(0, QStandardItem())
         for roi_index in range(nrois):
-            button = QPushButton('Settings')
+            button = QPushButton('Set')
             button.clicked.connect(self.get_open_grid_dlg(roi_index))
             self.tableView_array_sections.setIndexWidget(table_model.index(0, roi_index), button)
 
@@ -1458,6 +1458,8 @@ class MainControls(QMainWindow):
 
         for roi_index in range(nrois):
             table_model.setHorizontalHeaderItem(roi_index, QStandardItem(str(roi_index)))
+            self.tableView_array_sections.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+            #self.tableView_array_sections.setColumnWidth(roi_index, 40)
 
         if len(self.gm.array_data.landmarks) > 2:
             self.array_trigger_image_calibratable()
@@ -2070,12 +2072,11 @@ class MainControls(QMainWindow):
     def add_tile_folder(self):
         """Add a folder for a new tile to be acquired while the acquisition
         is running."""
-        grid = self.viewport.selected_grid
-        tile = self.viewport.selected_tile
-        tile_folder = os.path.join(
-            self.acq.base_dir, 'tiles',
-            'g' + str(grid).zfill(constants.GRID_DIGITS),
-            't' + str(tile).zfill(constants.TILE_DIGITS))
+        grid_index = self.viewport.selected_grid
+        grid = self.gm[grid_index]
+        tile_index = self.viewport.selected_tile
+        tile_folder = utils.get_tile_dirname('tiles', grid_index, grid.array_index, grid.roi_index, tile_index)
+        tile_folder = os.path.join(self.acq.base_dir, tile_folder)
         if not os.path.exists(tile_folder):
             self.try_to_create_directory(tile_folder)
         if self.acq.use_mirror_drive:

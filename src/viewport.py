@@ -1070,6 +1070,7 @@ class Viewport(QWidget):
             self.selected_grid, self.selected_tile = \
                 self._vp_grid_tile_mouse_selection(px, py)
             grid_index, tile_index = self.selected_grid, self.selected_tile
+            grid_label = self.gm.get_grid_label(grid_index)
             self.selected_ov = self._vp_ov_mouse_selection(px, py)
             self.selected_imported = (
                 self._vp_imported_img_mouse_selection(px, py))
@@ -1083,34 +1084,34 @@ class Viewport(QWidget):
             self.selected_stage_pos = (sx, sy)
             grid_str = ''
             if grid_index is not None:
-                grid_str = f'in grid {grid_index}'
+                grid_str = f'in {grid_label}'
             selected_for_autofocus = 'Select/deselect as'
             selected_for_gradient = 'Select/deselect as'
             if (grid_index is not None
                 and tile_index is not None):
-                selected = f'tile {grid_index}.{tile_index}'
+                selected = f'tile {grid_label}.{tile_index}'
                 if self.gm[grid_index][
                            tile_index].autofocus_active:
                     selected_for_autofocus = (
-                        f'Deselect tile {grid_index}.'
+                        f'Deselect Tile {grid_label}.'
                         f'{tile_index} as')
                 else:
                     selected_for_autofocus = (
-                        f'Select tile {grid_index}.'
+                        f'Select Tile {grid_label}.'
                         f'{tile_index} as')
                 if self.gm[grid_index][
                            tile_index].wd_grad_active:
                     selected_for_gradient = (
-                        f'Deselect tile {grid_index}.'
+                        f'Deselect Tile {grid_label}.'
                         f'{tile_index} as')
                 else:
                     selected_for_gradient = (
-                        f'Select tile {grid_index}.'
+                        f'Select Tile {grid_label}.'
                         f'{tile_index} as')
             elif self.selected_ov is not None:
                 selected = f'OV {self.selected_ov}'
             else:
-                selected = 'tile/OV'
+                selected = 'Tile/OV'
 
             menu = QMenu()
             action_sliceViewer = menu.addAction(
@@ -1138,7 +1139,7 @@ class Viewport(QWidget):
             action_deselectAll.triggered.connect(self.vp_deactivate_all_tiles)
             if grid_index is not None:
                 action_changeRotation = menu.addAction(
-                    f'Change rotation of {grid_str[3:]} | Shortcut &R')
+                    f'Change rotation of Tile {grid_label} | Shortcut &R')
                 action_changeRotation.triggered.connect(
                     self._vp_open_change_grid_rotation_dlg)
             else:
@@ -1168,10 +1169,10 @@ class Viewport(QWidget):
                 self._vp_toggle_wd_gradient_ref_tile)
 
             menu.addSeparator()
-            action_image = menu.addAction('Image Grid')
-            action_image.triggered.connect(self._vp_image_grid)
-            action_image = menu.addAction('Image Tile')
-            action_image.triggered.connect(self._vp_image_tile)
+            action_image = menu.addAction(f'Acquire {grid_label}')
+            action_image.triggered.connect(self._vp_acquire_grid)
+            action_image = menu.addAction(f'Acquire Tile {grid_label}.{tile_index}')
+            action_image.triggered.connect(self._vp_acquire_tile)
             action_move = menu.addAction(current_pos_str)
             action_move.triggered.connect(self._vp_manual_stage_move)
             action_stub = menu.addAction('Acquire stub OV at this position')
@@ -1200,30 +1201,23 @@ class Viewport(QWidget):
             if (grid_index is not None
                 and self.gm[grid_index].roi_index is not None):
 
-                array_index = self.gm[grid_index].array_index
-                roi_index = self.gm[grid_index].roi_index
-                if array_index is not None and roi_index is not None:
-                    grid_id = f'array {array_index} roi {roi_index}'
-                else:
-                    grid_id = f'grid {grid_index}'
-
                 # propagate to all sections
                 action_propagateToAll = menu.addAction(
-                    f'Array | Propagate properties of {grid_id}'
+                    f'Array | Propagate properties of {grid_label}'
                     ' to all sections | Shortcut &P')
                 action_propagateToAll.triggered.connect(
                     self.array_vp_propagate_grid_to_all_sections)
 
                 # propagate to selected sections
                 action_propagateToSelected = menu.addAction(
-                    f'Array | Propagate properties of {grid_id}'
+                    f'Array | Propagate properties of {grid_label}'
                     ' to selected sections | Shortcut &O')
                 action_propagateToSelected.triggered.connect(
                     self.array_vp_propagate_grid_to_selected_sections)
 
                 # revert location to file-defined location
                 action_revertLocation = menu.addAction(
-                    f'Array | Revert location of {grid_id}'
+                    f'Array | Revert location of {grid_label}'
                     ' to original file-defined location | Shortcut &Z')
                 action_revertLocation.triggered.connect(
                     self.array_vp_revert_grid_to_file)
@@ -1323,17 +1317,18 @@ class Viewport(QWidget):
     def _vp_load_selected_in_ft(self):
         self.main_controls_trigger.transmit('LOAD IN FOCUS TOOL')
 
-    def _vp_image_grid(self):
+    def _vp_acquire_grid(self):
         self.acq.init_acquisition()
         self.acq.set_up_acq_subdirectories()
         self.acq.set_up_acq_logs()
         self.acq.pause_acquisition(2)
-        self.acq.acquire_grid(self.selected_grid)
+        self.acq.acquire_grid(self.selected_grid, overwrite=True)
 
-    def _vp_image_tile(self):
+    def _vp_acquire_tile(self):
         self.acq.init_acquisition()
         self.acq.set_up_acq_subdirectories()
-        self.acq.acquire_tile(self.selected_grid, self.selected_tile, adjust_acq_settings=True)
+        self.acq.acquire_tile(self.selected_grid, self.selected_tile,
+                              adjust_acq_settings=True, overwrite=True)
 
     def _vp_set_stub_ov_centre(self):
         self.stub_ov_centre = self.selected_stage_pos
@@ -1847,6 +1842,7 @@ class Viewport(QWidget):
         """Place grid specified by grid_index onto the viewport canvas
         (including tile previews if option selected).
         """
+        grid_label = self.gm.get_grid_label(grid_index)
         viewport_pixel_size = 1000 / self.cs.vp_scale
         grid_pixel_size = self.gm[grid_index].pixel_size
         resize_ratio = grid_pixel_size / viewport_pixel_size
@@ -1927,10 +1923,9 @@ class Viewport(QWidget):
                 self.vp_qp.setPen(QColor(255, 255, 255))
             # Show the grid label in different versions, depending on
             # whether grid is active
-            if self.gm[grid_index].active:
-                grid_label_text = 'GRID %d' % grid_index
-            else:
-                grid_label_text = 'GRID %d (inactive)' % grid_index
+            grid_label_text = grid_label
+            if not self.gm[grid_index].active:
+                grid_label_text += ' (inactive)'
             self.vp_qp.drawText(grid_label_rect,
                                 Qt.AlignVCenter | Qt.AlignHCenter,
                                 grid_label_text)
@@ -3311,27 +3306,36 @@ class Viewport(QWidget):
         self.lcdNumber_sliceIndicator.display(0)
         start_slice = self.acq.slice_counter
 
-        if self.sv_current_ov >= 0:
-            for i in range(self.max_slices):
-                filename = utils.ov_save_path(
-                    self.acq.base_dir, self.acq.stack_name,
-                    self.sv_current_ov, start_slice - i)
-                if os.path.isfile(filename):
-                    self.slice_view_images.append(utils.image_to_QPixmap(imread(filename)))
-                    utils.suppress_console_warning()
-            self.sv_set_native_resolution()
-            self.sv_draw()
-        elif self.sv_current_tile >= 0:
-            for i in range(self.max_slices):
+        if self.gm.array_mode:
+            n = self.gm.array_data.get_nsections()
+            # TODO: this needs to be selected by the user
+            self.sv_current_roi = 0
+        else:
+            n = self.max_slices
+
+        for index in range(n):
+            filename = None
+            if self.gm.array_mode:
                 filename = os.path.join(
                     self.acq.base_dir, utils.tile_relative_save_path(
                         self.acq.stack_name, self.sv_current_grid,
-                        self.sv_current_tile, start_slice - i))
-                if os.path.isfile(filename):
-                    self.slice_view_images.append(utils.image_to_QPixmap(imread(filename)))
-                    utils.suppress_console_warning()
-            self.sv_set_native_resolution()
-            self.sv_draw()
+                        n - index, self.sv_current_roi,
+                        self.sv_current_tile))
+            elif self.sv_current_ov >= 0:
+                filename = utils.ov_save_path(
+                    self.acq.base_dir, self.acq.stack_name,
+                    self.sv_current_ov, start_slice - index)
+            elif self.sv_current_tile >= 0:
+                filename = os.path.join(
+                    self.acq.base_dir, utils.tile_relative_save_path(
+                        self.acq.stack_name, self.sv_current_grid,
+                        None, None,
+                        self.sv_current_tile, start_slice - index))
+            if os.path.isfile(filename):
+                self.slice_view_images.append(utils.image_to_QPixmap(imread(filename)))
+                utils.suppress_console_warning()
+        self.sv_set_native_resolution()
+        self.sv_draw()
 
         if not self.slice_view_images:
             self.sv_qp.begin(self.sv_canvas)

@@ -102,10 +102,7 @@ qt_text_handler = QtTextHandler()
 
 def logging_init(*message):
     global logger
-    dirtree = os.path.dirname(LOG_FILENAME)
-    if not os.path.exists(dirtree):
-        os.makedirs(dirtree)
-
+    validate_output_path(LOG_FILENAME, is_file=True)
     logger = logging.getLogger("SBEMimage")
     logger.setLevel(logging.INFO)   # important: anything below this will be filtered irrespective of handler level
     # logging_add_handler(StreamHandler(), level=logging.ERROR)   # filter messages to console log handler
@@ -164,6 +161,13 @@ def log_exception(message=""):
     logger.exception(message, extra={'category': 'EXC'})
 
 
+def validate_output_path(path, is_file=False):
+    if is_file:
+        path = os.path.dirname(path)
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+
 def try_to_open(file_name, mode):
     """Try to open file and retry twice if unsuccessful."""
     file_handle = None
@@ -215,9 +219,7 @@ def create_subdirectories(base_dir, dir_list):
     """Create subdirectories given in dir_list in the base folder base_dir."""
     try:
         for dir_name in dir_list:
-            new_dir = os.path.join(base_dir, dir_name)
-            if not os.path.exists(new_dir):
-                os.makedirs(new_dir)
+            validate_output_path(os.path.join(base_dir, dir_name))
         return True, ''
     except Exception as e:
         return False, str(e)
@@ -251,15 +253,39 @@ def show_progress_in_console(progress):
 def calc_rotated_rect(polygon):
     return cv2.minAreaRect(np.array(polygon, dtype=np.float32))
 
+def get_ov_basepath(stack_name, ov_index, slice_counter=None):
+    ov_string = 'ov' + str(ov_index).zfill(OV_DIGITS)
+    slice_string = 's' + str(slice_counter).zfill(SLICE_DIGITS) if slice_counter is not None else None
+
+    path = [
+        'overviews',
+        ov_string
+    ]
+
+    file = []
+    if stack_name:
+        file.append(stack_name)
+    file.append(ov_string)
+    if slice_string:
+        file.append(slice_string)
+    file = '_'.join(file) + OV_IMAGE_FORMAT
+    return path, file
+
+def get_ov_dirname(stack_name, ov_index):
+    return get_ov_basepath(stack_name, ov_index)[0]
+
+def get_ov_filename(stack_name, ov_index, slice_counter=None):
+    return get_ov_basepath(stack_name, ov_index, slice_counter)[1]
+
 def ov_save_path(base_dir, stack_name, ov_index, slice_counter):
     return os.path.join(
-        base_dir, ov_relative_save_path(stack_name, ov_index, slice_counter))
+        base_dir,
+        str(ov_relative_save_path(stack_name, ov_index, slice_counter)))
 
 def ov_relative_save_path(stack_name, ov_index, slice_counter):
-    return os.path.join(
-        'overviews', 'ov' + str(ov_index).zfill(OV_DIGITS),
-        stack_name + '_ov' + str(ov_index).zfill(OV_DIGITS)
-        + '_s' + str(slice_counter).zfill(SLICE_DIGITS) + OV_IMAGE_FORMAT)
+    paths = get_ov_dirname(stack_name, ov_index)
+    paths.append(get_ov_filename(stack_name, ov_index, slice_counter))
+    return os.path.join(*paths)
 
 def ov_debris_save_path(base_dir, stack_name, ov_index, slice_counter,
                         sweep_counter):
@@ -269,13 +295,50 @@ def ov_debris_save_path(base_dir, stack_name, ov_index, slice_counter,
         + '_s' + str(slice_counter).zfill(SLICE_DIGITS)
         + '_' + str(sweep_counter) + TEMP_IMAGE_FORMAT)
 
-def tile_relative_save_path(stack_name, grid_index, tile_index, slice_counter):
-    return os.path.join(
-        'tiles', 'g' + str(grid_index).zfill(GRID_DIGITS),
-        't' + str(tile_index).zfill(TILE_DIGITS),
-        stack_name + '_g' + str(grid_index).zfill(GRID_DIGITS)
-        + '_t' + str(tile_index).zfill(TILE_DIGITS)
-        + '_s' + str(slice_counter).zfill(SLICE_DIGITS) + GRIDTILE_IMAGE_FORMAT)
+def ov_reslice_save_path(base_dir, ov_index):
+    filename = get_ov_filename('r', ov_index)
+    return os.path.join(base_dir, 'workspace', 'reslices', filename)
+
+def get_tile_basepath(stack_name, grid_index, array_index=None, roi_index=None, tile_index=None, slice_counter=None):
+    grid_string = 'g' + str(grid_index).zfill(GRID_DIGITS)
+    array_string = 'a' + str(array_index).zfill(GRID_DIGITS) if array_index is not None else None
+    roi_string = 'roi' + str(roi_index).zfill(GRID_DIGITS) if roi_index is not None else None
+    tile_string = 't' + str(tile_index).zfill(TILE_DIGITS) if tile_index is not None else None
+    slice_string = 's' + str(slice_counter).zfill(SLICE_DIGITS) if slice_counter is not None else None
+
+    path = ['tiles']
+    file = []
+    if stack_name:
+        file.append(stack_name)
+    if array_index is not None or roi_index is not None:
+        if array_index is not None:
+            path.append(array_string)
+            file.append(array_string)
+        if roi_index is not None:
+            path.append(roi_string)
+            file.append(roi_string)
+    else:
+        path.append(grid_string)
+        file.append(grid_string)
+
+    if tile_string:
+        path.append(tile_string)
+        file.append(tile_string)
+    if slice_string:
+        file.append(slice_string)
+    file = '_'.join(file) + GRIDTILE_IMAGE_FORMAT
+    return path, file
+
+def get_tile_dirname(stack_name, grid_index, array_index=None, roi_index=None, tile_index=None):
+    return get_tile_basepath(stack_name, grid_index, array_index, roi_index, tile_index)[0]
+
+def get_tile_filename(stack_name, grid_index, array_index=None, roi_index=None, tile_index=None, slice_counter=None):
+    return get_tile_basepath(stack_name, grid_index, array_index, roi_index, tile_index, slice_counter)[1]
+
+def tile_relative_save_path(stack_name, grid_index, array_index=None, roi_index=None, tile_index=None, slice_counter=None):
+    paths = get_tile_dirname(stack_name, grid_index, array_index, roi_index, tile_index)
+    paths.append(get_tile_filename(stack_name, grid_index, array_index, roi_index, tile_index, slice_counter))
+    return os.path.join(*paths)
 
 def rejected_tile_save_path(base_dir, stack_name, grid_index, tile_index,
                             slice_counter, fail_counter):
@@ -286,21 +349,13 @@ def rejected_tile_save_path(base_dir, stack_name, grid_index, tile_index,
         + '_s' + str(slice_counter).zfill(SLICE_DIGITS)
         + '_'  + str(fail_counter) + GRIDTILE_IMAGE_FORMAT)
 
-def tile_preview_save_path(base_dir, grid_index, tile_index):
-    return os.path.join(
-        base_dir, 'workspace', 'g' + str(grid_index).zfill(GRID_DIGITS)
-         + '_t' + str(tile_index).zfill(TILE_DIGITS) + GRIDTILE_IMAGE_FORMAT)
+def tile_preview_save_path(base_dir, grid_index, array_index=None, roi_index=None, tile_index=None):
+    filename = get_tile_filename('', grid_index, array_index, roi_index, tile_index)
+    return os.path.join(base_dir, 'workspace', filename)
 
-def tile_reslice_save_path(base_dir, grid_index, tile_index):
-    return os.path.join(
-        base_dir, 'workspace', 'reslices',
-        'r_g' + str(grid_index).zfill(GRID_DIGITS)
-        + '_t' + str(tile_index).zfill(TILE_DIGITS) + GRIDTILE_IMAGE_FORMAT)
-
-def ov_reslice_save_path(base_dir, ov_index):
-    return os.path.join(
-        base_dir, 'workspace', 'reslices',
-        'r_OV' + str(ov_index).zfill(OV_DIGITS) + OV_IMAGE_FORMAT)
+def tile_reslice_save_path(base_dir, grid_index, array_index=None, roi_index=None, tile_index=None):
+    filename = get_tile_filename('r', grid_index, array_index, roi_index, tile_index)
+    return os.path.join(base_dir, 'workspace', 'reslices', filename)
 
 def tile_id(grid_index, tile_index, slice_counter):
     return (str(grid_index).zfill(GRID_DIGITS)

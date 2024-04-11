@@ -113,7 +113,7 @@ class TemplateManager:
 
         Returns:
             Locations of connected components of high matching scores in relative SEM (d) coordinates
-            (distances as shown in SEM images) with grid rotation applied (if theta > 0).
+            (distances as shown in SEM images) with grid rotation applied (if theta <> 0).
         """
         temp = self.img_arr.astype(np.float32)
         stubov = self.stub_ov_arr.astype(np.float32)

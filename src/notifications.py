@@ -180,17 +180,18 @@ class Notifications:
             for ov_index in self.status_report_ov_list:
                 ov_path = os.path.join(
                     base_dir, 'workspace',
-                    'OV' + str(ov_index).zfill(constants.OV_DIGITS) + constants.OV_IMAGE_FORMAT)
+                    utils.get_ov_filename('', ov_index))
                 if os.path.isfile(ov_path):
                     attachment_list.append(ov_path)
                 else:
                     missing_list.append(ov_path)
         if self.send_tiles:
+            # TODO: not well supported; suggest deprecation
             for tile_key in self.status_report_tile_list:
                 grid_index, tile_index = tile_key.split('.')
                 save_path = os.path.join(
                     base_dir, utils.tile_relative_save_path(
-                        stack_name, grid_index, tile_index, slice_counter))
+                        stack_name, grid_index, None, None, tile_index, slice_counter))
                 if os.path.isfile(save_path):
                     # If it exists, load image and crop it
                     tile_image = Image.open(save_path)

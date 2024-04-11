@@ -80,8 +80,8 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
             # Set bit depth
             sem.set_bit_depth(ovm[ov_index].bit_depth_selector)
             save_path = os.path.join(
-                base_dir, 'workspace', 'OV'
-                + str(ov_index).zfill(3) + constants.OV_IMAGE_FORMAT)
+                base_dir, 'workspace',
+                utils.get_ov_filename(None, ov_index))
             #main_controls_trigger.transmit(utils.format_log_entry('SEM: Acquiring OV %d.' % ov_index))
             utils.log_info('SEM', f'Acquiring OV {ov_index}.')
             # Indicate the overview being acquired in the viewport
