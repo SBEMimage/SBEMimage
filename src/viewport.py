@@ -1225,7 +1225,9 @@ class Viewport(QWidget):
                     self.array_vp_revert_grid_to_file)
 
                 # if self.gm.magc['path'] == '':
-                if not self.gm.array_data:
+                if (self.gm.array_data is None
+                        or self.gm.array_data.transform is None
+                        or len(self.gm.array_data.transform) == 0):
                     action_propagateToAll.setEnabled(False)
                     action_propagateToSelected.setEnabled(False)
                     action_revertLocation.setEnabled(False)

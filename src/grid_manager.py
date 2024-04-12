@@ -1600,46 +1600,47 @@ class GridManager(list):
 
             if target_grid.roi_index == roi_index and source_grid_index != target_grid_index:
                 target = self.array_data.get_roi(target_grid.array_index, roi_index)
-                target_section_center = np.array(target['center'])
-                target_section_angle = target['angle'] % 360
+                if target is not None:
+                    target_section_center = np.array(target['center'])
+                    target_section_angle = target['angle'] % 360
 
-                # set all parameters in target grid
-                target_grid_rotation = (source_grid.rotation - source_section_angle + target_section_angle) % 360
+                    # set all parameters in target grid
+                    target_grid_rotation = (source_grid.rotation - source_section_angle + target_section_angle) % 360
 
-                target_grid.rotation = target_grid_rotation
-                target_grid.size = source_grid.size
-                target_grid.overlap = source_grid.overlap
-                target_grid.row_shift = source_grid.row_shift
-                target_grid.active_tiles = source_grid.active_tiles
-                target_grid.frame_size_selector = (
-                    source_grid.frame_size_selector)
-                target_grid.pixel_size = source_grid.pixel_size
-                target_grid.dwell_time_selector = (
-                    source_grid.dwell_time_selector)
-                target_grid.acq_interval = source_grid.acq_interval
+                    target_grid.rotation = target_grid_rotation
+                    target_grid.size = source_grid.size
+                    target_grid.overlap = source_grid.overlap
+                    target_grid.row_shift = source_grid.row_shift
+                    target_grid.active_tiles = source_grid.active_tiles
+                    target_grid.frame_size_selector = (
+                        source_grid.frame_size_selector)
+                    target_grid.pixel_size = source_grid.pixel_size
+                    target_grid.dwell_time_selector = (
+                        source_grid.dwell_time_selector)
+                    target_grid.acq_interval = source_grid.acq_interval
 
-                target_grid.acq_interval_offset = source_grid.acq_interval_offset
-                target_grid.autofocus_ref_tiles = source_grid.autofocus_ref_tiles
-                target_grid.array_autofocus_points_source = copy.deepcopy(
-                    source_grid.array_autofocus_points_source)
-                # xxx self.set_adaptive_focus_enabled(t, self.get_adaptive_focus_enabled(s))
-                # xxx self.set_adaptive_focus_tiles(t, self.get_adaptive_focus_tiles(s))
-                # xxx self.set_adaptive_focus_gradient(t, self.get_adaptive_focus_gradient(s))
+                    target_grid.acq_interval_offset = source_grid.acq_interval_offset
+                    target_grid.autofocus_ref_tiles = source_grid.autofocus_ref_tiles
+                    target_grid.array_autofocus_points_source = copy.deepcopy(
+                        source_grid.array_autofocus_points_source)
+                    # xxx self.set_adaptive_focus_enabled(t, self.get_adaptive_focus_enabled(s))
+                    # xxx self.set_adaptive_focus_tiles(t, self.get_adaptive_focus_tiles(s))
+                    # xxx self.set_adaptive_focus_gradient(t, self.get_adaptive_focus_gradient(s))
 
-                target_section_grid_angle = (source_section_grid_angle + source_section_angle - target_section_angle)
+                    target_section_grid_angle = (source_section_grid_angle + source_section_angle - target_section_angle)
 
-                target_grid_center_complex = (
-                    complex(*target_section_center)
-                    + source_section_grid_distance
-                    * cmath.rect(1, np.radians(target_section_grid_angle)))
-                target_grid_center = (
-                    np.real(target_grid_center_complex),
-                    np.imag(target_grid_center_complex))
+                    target_grid_center_complex = (
+                        complex(*target_section_center)
+                        + source_section_grid_distance
+                        * cmath.rect(1, np.radians(target_section_grid_angle)))
+                    target_grid_center = (
+                        np.real(target_grid_center_complex),
+                        np.imag(target_grid_center_complex))
 
-                target_grid_center = utils.apply_transform(target_grid_center, self.array_data.transform)
+                    target_grid_center = utils.apply_transform(target_grid_center, self.array_data.transform)
 
-                target_grid.update_tile_positions()
-                target_grid.centre_sx_sy = target_grid_center
+                    target_grid.update_tile_positions()
+                    target_grid.centre_sx_sy = target_grid_center
 
     def array_revert_grid(self, grid_index, imported_image):
         grid = self[grid_index]
