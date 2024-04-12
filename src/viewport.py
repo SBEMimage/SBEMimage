@@ -1874,8 +1874,10 @@ class Viewport(QWidget):
         font = QFont()
         grid_colour_rgb = self.gm[grid_index].display_colour_rgb()
         if len(grid_colour_rgb) < 4:
-            grid_colour_rgb += [255]
-        grid_colour = QColor(*grid_colour_rgb)
+            grid_colour_rgba = grid_colour_rgb + [255]
+        else:
+            grid_colour_rgba = grid_colour_rgb
+        grid_colour = QColor(*grid_colour_rgba)
         indicator_colour = QColor(*constants.COLOUR_SELECTOR[12])
 
         # Suppress labels when moving a grid or panning the view
@@ -1987,8 +1989,10 @@ class Viewport(QWidget):
         rows, cols = self.gm[grid_index].size
         grid_pen = QPen(grid_colour, 1, Qt.SolidLine)
         if len(grid_colour_rgb) < 4:
-            grid_colour_rgb += [40]
-        grid_brush_active_tile = QBrush(QColor(*grid_colour_rgb),
+            grid_colour_rgba = grid_colour_rgb + [40]
+        else:
+            grid_colour_rgba = grid_colour_rgb
+        grid_brush_active_tile = QBrush(QColor(*grid_colour_rgba),
                                         Qt.SolidPattern)
         grid_brush_transparent = QBrush(QColor(255, 255, 255, 0),
                                         Qt.SolidPattern)
@@ -2146,8 +2150,10 @@ class Viewport(QWidget):
         font = QFont()
         grid_colour_rgb = self.tm.template.display_colour_rgb()
         if len(grid_colour_rgb) < 4:
-            grid_colour_rgb += [255]
-        grid_colour = QColor(*grid_colour_rgb)
+            grid_colour_rgba = grid_colour_rgb + [255]
+        else:
+            grid_colour_rgba = grid_colour_rgb
+        grid_colour = QColor(*grid_colour_rgba)
 
         visible = self._vp_element_visible(
             topleft_vx, topleft_vy, width_px, height_px, resize_ratio,
@@ -2212,8 +2218,10 @@ class Viewport(QWidget):
         rows, cols = self.tm.template.size
         grid_pen = QPen(grid_colour, 1, Qt.SolidLine)
         if len(grid_colour_rgb) < 4:
-            grid_colour_rgb += [40]
-        grid_brush_active_tile = QBrush(QColor(*grid_colour_rgb),
+            grid_colour_rgba = grid_colour_rgb + [40]
+        else:
+            grid_colour_rgba = grid_colour_rgb
+        grid_brush_active_tile = QBrush(QColor(*grid_colour_rgba),
                                         Qt.SolidPattern)
         if tile_width_v * cols > 2 or tile_height_v * rows > 2:
             # Draw grid if at least 3 pixels wide or high.
