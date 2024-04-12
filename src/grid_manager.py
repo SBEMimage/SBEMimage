@@ -1646,5 +1646,15 @@ class GridManager(list):
 
         grid.centre_sx_sy = center
         grid.rotation = rotation
+        
+    def array_activate_grids(self, roi_index):
+        for grid in self:
+            if grid.roi_index == roi_index:
+                grid.active = True
+        
+    def array_deactivate_grids(self, roi_index):
+        for grid in self:
+            if grid.roi_index == roi_index:
+                grid.active = False
 
 # ------------------------- End of Array functions ------------------------------

@@ -1144,7 +1144,7 @@ class Acquisition:
         
     def send_data_tcp(self):
         res = self.tcp_remote.send({
-            'paused': self.pause_state,
+            'paused': self.pause_state != 0,
             'z_depth': self.total_z_diff,
             'overviews': {'number_ov': self.ovm.number_ov,
                           'ov_coords': self.get_ov_coords(),
@@ -1161,19 +1161,11 @@ class Acquisition:
             kwargs = cmd['kwargs']
             if msg == 'PAUSE':
                 self.pause_acquisition(*args, **kwargs)
-            elif msg == 'ADD GRID':
-                self.gm.add_new_grid_from_roi(*args, **kwargs)
+            elif msg == 'ACTIVATE ARRAY GRID':
+                self.gm.array_activate_grids(*args, **kwargs)
                 self.main_controls_trigger.transmit('DRAW VP')
-            elif msg == 'ACTIVATE GRID':
-                self.gm.activate_grid(*args, **kwargs)
-                self.main_controls_trigger.transmit('DRAW VP')
-            elif msg == 'DEACTIVATE GRID':
-                self.gm.deactivate_grid(*args, **kwargs)
-                self.main_controls_trigger.transmit('DRAW VP')
-            elif msg == 'DELETE GRID':
-                self.gm.delete_grid(*args, **kwargs)
-            elif msg == 'DELETE ALL GRIDS':
-                self.gm.delete_all_grids_above_index(0)
+            elif msg == 'DEACTIVATE ARRAY GRID':
+                self.gm.array_deactivate_grids(*args, **kwargs)
                 self.main_controls_trigger.transmit('DRAW VP')
             elif msg == 'SET SLICE THICKNESS':
                 self.set_slice_thickness(*args, **kwargs)
@@ -1181,10 +1173,12 @@ class Acquisition:
             elif msg == 'SET OV INTERVAL':
                 self.set_ov_interval(*args, **kwargs)
                 self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS')
+            elif msg == 'ADD ARRAY GRID':
+                self.gm.add_new_grid_from_roi(*args, **kwargs)
+                self.main_controls_trigger.transmit('DRAW VP')
             elif msg == 'DELETE ALL ARRAY GRIDS':
                 self.gm.delete_array_grids(*args, **kwargs)
-            elif msg == 'UPDATE ARRAY GRID':
-                self.gm.update_array_grid(*args, **kwargs)
+                self.main_controls_trigger.transmit('DRAW VP')
             else:
                 utils.log_info('Unknown command')
     

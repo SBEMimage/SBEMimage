@@ -48,7 +48,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>Test connection</string>
+    <string>Sync data</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_port">
