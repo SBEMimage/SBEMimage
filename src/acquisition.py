@@ -2267,7 +2267,7 @@ class Acquisition:
         # If tile is at the interruption point and not in the list
         # self.tiles_acquired, retake it even if the image file already exists.
         retake_img = (
-            (self.acq_interrupted_at == [grid_index, tile_index])
+            (self.acq_interrupted_at == [grid_index, tile_index] or overwrite)
             and not (tile_index in self.tiles_acquired))
 
         # Skip the tile if it is in the interrupted grid and already listed
@@ -2284,7 +2284,7 @@ class Acquisition:
                 f'CTRL: Tile {tile_label} already acquired. Skipping.')
 
         if not tile_skipped:
-            if not os.path.isfile(save_path) or retake_img or overwrite:
+            if not os.path.isfile(save_path) or retake_img:
                 # If current tile has different focus settings from previous
                 # tile, adjust working distance and stigmation for this tile
                 if adjust_wd_stig:
@@ -2447,8 +2447,8 @@ class Acquisition:
                 f'Acquiring tile at X:{stage_x:.3f}, '
                 f'Y:{stage_y:.3f}')
             self.add_to_main_log('SEM: Acquiring tile at X:'
-                                 + '{0:.3f}'.format(stage_x)
-                                 + ', Y:' + '{0:.3f}'.format(stage_y))
+                                 f'{stage_x:.3f}, '
+                                 f'Y:{stage_y:.3f}')
             # Indicate current tile in Viewport
             self.main_controls_trigger.transmit(
                 'ACQ IND TILE', grid_index, tile_index)
@@ -2467,7 +2467,7 @@ class Acquisition:
                     'Warning: Grab overhead too large '
                     f'({grab_overhead:.1f} s).')
                 self.add_to_main_log(
-                    f'SEM: Warning: Grab overhead too large '
+                    'SEM: Warning: Grab overhead too large '
                     f'({grab_overhead:.1f} s).')
             # Remove indication in Viewport
             self.main_controls_trigger.transmit(

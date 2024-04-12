@@ -774,7 +774,7 @@ class Grid(list):
         rows, cols = self.size
         ordered_active_tiles = []
         for row_pos in range(rows):
-            if (row_pos % 2 == 0):
+            if row_pos % 2 == 0:
                 start_col, end_col, step = 0, cols, 1
             else:
                 start_col, end_col, step = cols-1, -1, -1
@@ -994,7 +994,10 @@ class GridManager(list):
         self.array_data = ArrayData.ArrayData(self.sem.device_name)
 
     def get_grid_label(self, grid_index):
-        return self[grid_index].get_label(grid_index)
+        if grid_index is not None:
+            return self[grid_index].get_label(grid_index)
+        else:
+            return ''
 
     def fit_apply_aberration_gradient(self):
         dc_aberr = dict()
@@ -1373,7 +1376,7 @@ class GridManager(list):
             new_grid.array_index = None
             new_grid.roi_index = roi_index
             new_grid.auto_update_tile_positions = True
-            new_grid.set_display_colour(11)
+            new_grid.set_display_colour(roi_index % 10)
 
     def array_create_grids(self, imported_image):
         self.delete_array_grids(keep_template_grids=True)

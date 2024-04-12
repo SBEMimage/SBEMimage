@@ -1169,10 +1169,12 @@ class Viewport(QWidget):
                 self._vp_toggle_wd_gradient_ref_tile)
 
             menu.addSeparator()
-            action_image = menu.addAction(f'Acquire {grid_label}')
-            action_image.triggered.connect(self._vp_acquire_grid)
-            action_image = menu.addAction(f'Acquire Tile {grid_label}.{tile_index}')
-            action_image.triggered.connect(self._vp_acquire_tile)
+            if grid_index is not None:
+                action_image = menu.addAction(f'Acquire Grid {grid_label}')
+                action_image.triggered.connect(self._vp_acquire_grid)
+                if tile_index is not None:
+                    action_image = menu.addAction(f'Acquire Tile {grid_label}.{tile_index}')
+                    action_image.triggered.connect(self._vp_acquire_tile)
             action_move = menu.addAction(current_pos_str)
             action_move.triggered.connect(self._vp_manual_stage_move)
             action_stub = menu.addAction('Acquire stub OV at this position')
@@ -1318,6 +1320,11 @@ class Viewport(QWidget):
         self.main_controls_trigger.transmit('LOAD IN FOCUS TOOL')
 
     def _vp_acquire_grid(self):
+        if len(self.gm[self.selected_grid].active_tiles) == 0:
+            QMessageBox.warning(
+                self, 'No active tiles',
+                'The currently selected grid has no active tiles',
+                QMessageBox.Ok)
         self.acq.init_acquisition()
         self.acq.set_up_acq_subdirectories()
         self.acq.set_up_acq_logs()
@@ -1325,6 +1332,9 @@ class Viewport(QWidget):
         self.acq.acquire_grid(self.selected_grid, overwrite=True)
 
     def _vp_acquire_tile(self):
+        active_tiles = self.gm[self.selected_grid].active_tiles
+        if self.selected_tile not in active_tiles:
+            active_tiles.append(self.selected_tile)
         self.acq.init_acquisition()
         self.acq.set_up_acq_subdirectories()
         self.acq.acquire_tile(self.selected_grid, self.selected_tile,
@@ -3246,6 +3256,11 @@ class Viewport(QWidget):
             self.sv_draw()
 
     def sv_load_selected(self):
+        if self.gm.array_mode:
+            roi_index = self.gm[self.selected_grid].roi_index
+            template_grid_index = self.gm.find_template_grid_index(roi_index)
+            if template_grid_index is not None:
+                self.selected_grid = template_grid_index
         if self.selected_grid is not None and self.selected_tile is not None:
             self.sv_current_grid = self.selected_grid
             self.sv_current_tile = self.selected_tile
@@ -3308,18 +3323,17 @@ class Viewport(QWidget):
 
         if self.gm.array_mode:
             n = self.gm.array_data.get_nsections()
-            # TODO: this needs to be selected by the user
-            self.sv_current_roi = 0
         else:
             n = self.max_slices
 
         for index in range(n):
             filename = None
-            if self.gm.array_mode:
+            if self.gm.array_mode and self.sv_current_tile >= 0:
+                grid = self.gm[self.sv_current_grid]
                 filename = os.path.join(
                     self.acq.base_dir, utils.tile_relative_save_path(
                         self.acq.stack_name, self.sv_current_grid,
-                        n - index, self.sv_current_roi,
+                        n - 1 - index, grid.roi_index,
                         self.sv_current_tile))
             elif self.sv_current_ov >= 0:
                 filename = utils.ov_save_path(
@@ -3373,7 +3387,8 @@ class Viewport(QWidget):
             # Todo:
             # Check if out of bounds.
             self.horizontalSlider_SV.setValue(
-                int(log(self.cs.sv_scale_tile / 5.0, 1.04)))
+                int(log(self.cs.sv_scale_tile / constants.SV_SCALING_TILE[0],
+                        constants.SV_SCALING_TILE[1])))
         self._sv_adjust_zoom_slider()
         self.sv_draw()
 
@@ -3794,18 +3809,12 @@ class Viewport(QWidget):
         """Draw the reslice of the selected tile or OV."""
         filename = None
         if self.m_current_ov >= 0:
-            filename = os.path.join(
-                self.acq.base_dir, 'workspace', 'reslices',
-                'r_OV' + str(self.m_current_ov).zfill(constants.OV_DIGITS) + constants.OV_IMAGE_FORMAT)
+            filename = utils.ov_reslice_save_path(self.acq.base_dir, self.m_current_ov)
         elif self.m_current_tile >= 0:
-            tile_key = ('g' + str(self.m_current_grid).zfill(constants.GRID_DIGITS)
-                        + '_t'
-                        + str(self.m_current_tile).zfill(constants.TILE_DIGITS))
-            filename = os.path.join(
-                self.acq.base_dir, 'workspace', 'reslices',
-                'r_' + tile_key + constants.GRIDTILE_IMAGE_FORMAT)
-        else:
-            filename = None
+            grid = self.gm[self.m_current_grid]
+            filename = utils.tile_reslice_save_path(self.acq.base_dir, self.m_current_grid,
+                                                    grid.array_index, grid.roi_index,
+                                                    self.m_current_tile)
         canvas = self.reslice_canvas_template.copy()
         if filename is not None and os.path.isfile(filename):
             current_reslice = utils.image_to_QPixmap(imread(filename))

@@ -1400,6 +1400,7 @@ class MainControls(QMainWindow):
         self.pushButton_array_imageCalibration.setEnabled(False)
 
     def array_open_import_dlg(self):
+        self.tabWidget.setCurrentIndex(3)
         start_path = self.lineEdit_array_dataFile.text()
         array_filename = str(QFileDialog.getOpenFileName(
             self, 'Select Array data file',

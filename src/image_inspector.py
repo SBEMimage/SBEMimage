@@ -180,7 +180,7 @@ class ImageInspector:
             tile_key_short = str(grid_index) + '.' + str(tile_index)
 
             # Save preview image
-            height, width = img.shape[0], img.shape[1]
+            height, width = img.shape[:2]
             preview_img = utils.resize_image(img, PREVIEW_IMG_WIDTH)
             # Convert to QPixmap and save in grid_manager
             self.gm[grid_index][tile_index].preview_img = utils.image_to_QPixmap(preview_img)
@@ -197,10 +197,10 @@ class ImageInspector:
             # of the image. This works for all frame resolutions.
             img_reslice_line = img[int(height/2):int(height/2)+1,
                 int(width/2)-200:int(width/2)+200]
-            self.tile_reslice_line[tile_key] = (img_reslice_line)
+            self.tile_reslice_line[tile_key] = img_reslice_line
 
             # Save mean and std in memory. Add key to dictionary if tile is new.
-            if not tile_key in self.tile_means:
+            if tile_key not in self.tile_means:
                 self.tile_means[tile_key] = []
             # Save mean and stddev in tile list
             if len(self.tile_means[tile_key]) > 1:
@@ -209,7 +209,7 @@ class ImageInspector:
             # Add the newest
             self.tile_means[tile_key].append((slice_counter, mean))
 
-            if not tile_key in self.tile_stddevs:
+            if tile_key not in self.tile_stddevs:
                 self.tile_stddevs[tile_key] = []
             if len(self.tile_stddevs[tile_key]) > 1:
                 self.tile_stddevs[tile_key].pop(0)
@@ -281,7 +281,7 @@ class ImageInspector:
         success = True
         error_msg = ''
         if (tile_key in self.tile_reslice_line
-            and self.tile_reslice_line[tile_key].shape[1] == 400):
+                and self.tile_reslice_line[tile_key].shape[1] == 400):
             reslice_filename = os.path.join(
                 base_dir, 'workspace', 'reslices', 'r_' + tile_key + constants.GRIDTILE_IMAGE_FORMAT)
             reslice_img = None
