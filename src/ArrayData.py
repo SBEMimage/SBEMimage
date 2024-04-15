@@ -19,10 +19,10 @@ warnings.filterwarnings("ignore")
 
 
 class ArrayData:
-    # TODO: deprecate device_name / flipping
-    def __init__(self, device_name):
-        self.device_name = device_name
+    def __init__(self, path=None):
         self.reset()
+        if path:
+            self.read_data(path)
 
     def reset(self):
         self.active = False

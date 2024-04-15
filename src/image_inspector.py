@@ -274,7 +274,7 @@ class ImageInspector:
             error_msg = 'Mean/StdDev of specified tile not found.'
         return success, error_msg
 
-    def save_tile_reslice(self, base_dir, grid_index, tile_index):
+    def save_tile_reslice(self, base_dir, grid_index, array_index, roi_index, tile_index):
         """Write reslice line of specified tile to disk."""
         tile_key = ('g' + str(grid_index).zfill(constants.GRID_DIGITS)
                     + '_' + 't' + str(tile_index).zfill(constants.TILE_DIGITS))
@@ -282,11 +282,11 @@ class ImageInspector:
         error_msg = ''
         if (tile_key in self.tile_reslice_line
                 and self.tile_reslice_line[tile_key].shape[1] == 400):
-            reslice_filename = os.path.join(
-                base_dir, 'workspace', 'reslices', 'r_' + tile_key + constants.GRIDTILE_IMAGE_FORMAT)
-            reslice_img = None
+            reslice_filename = utils.tile_reslice_save_path(
+                base_dir, grid_index, array_index, roi_index, tile_index)
             # Open reslice file if it exists and save updated reslice
             try:
+                reslice_img = None
                 if os.path.isfile(reslice_filename):
                     reslice_img = imread(reslice_filename)
                 if reslice_img is not None and reslice_img.shape[1] == 400:

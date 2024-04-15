@@ -813,12 +813,19 @@ class MainControls(QMainWindow):
             str(grid.number_active_tiles()))
         # Acquisition parameters
         self.lineEdit_baseDir.setText(self.acq.base_dir)
-        if self.acq.use_target_z_diff:
-            self.label_t.setText("Target Z depth (μm):")
-            self.label_target.setText(str(self.acq.target_z_diff))
+
+        if self.gm.array_mode:
+            label = "Target number of ROIs:"
+            n = self.acq.grid_total_active
+        elif self.acq.use_target_z_diff:
+            label = "Target Z depth (μm):"
+            n = self.acq.target_z_diff
         else:
-            self.label_t.setText("Target number of slices:")
-            self.label_target.setText(str(self.acq.number_slices))
+            label = "Target number of slices:"
+            n = self.acq.number_slices
+        self.label_t.setText(label)
+        self.label_target.setText(str(n))
+
         if self.use_microtome:
             self.label_sliceThickness.setText(
                 str(self.acq.slice_thickness) + ' nm')
@@ -924,7 +931,6 @@ class MainControls(QMainWindow):
     # ----------------------------- Array tab ---------------------------------------
 
     def initialize_array_gui(self):
-        self.gm.array_reset()
         self.actionImportArrayData.triggered.connect(
             self.array_open_import_dlg)
 
@@ -976,10 +982,8 @@ class MainControls(QMainWindow):
         self.checkBox_useAutofocus.setEnabled(True)
 
         # check for existing array file
-        if 'array_file' in self.cfg['grids']:
-            array_filename = self.cfg['grids']['array_file']
-            if array_filename:
-                self.array_import_file(array_filename)
+        if self.gm.array_mode:
+            self.array_init_gui()
 
         # check for existing imported array image
         array_image = self.imported.find_array_image()
@@ -1268,11 +1272,11 @@ class MainControls(QMainWindow):
         for changed_selected_index in changed_selected.indexes():
             grid = self.find_grid_from_selection(changed_selected_index)
             if grid is not None:
-                grid.display_colour = 0
+                grid.set_display_colour(13)
         for changed_deselected_index in changed_deselected.indexes():
             grid = self.find_grid_from_selection(changed_deselected_index)
             if grid is not None:
-                grid.display_colour = 1
+                grid.set_array_display_colour()
         self.viewport.vp_draw()
         indexes = self.tableView_array_sections.selectedIndexes()
         self.gm.array_data.selected_sections = [
@@ -1303,6 +1307,7 @@ class MainControls(QMainWindow):
         array_index, roi_index = self.find_indices_from_selection(selection)
         if array_index is not None and roi_index is not None:
             grid = self.find_grid_from_selection(selection)
+            label = f'ROI {array_index}.{roi_index}'
 
             self.cs.vp_centre_dx_dy = grid.centre_dx_dy
             self.viewport.vp_draw()
@@ -1310,7 +1315,7 @@ class MainControls(QMainWindow):
             if self.gm.array_data.calibrated:
                 utils.log_info(
                     'Array-CTRL',
-                    f'Array {array_index} / ROI {roi_index} has been double-clicked. Moving to section...')
+                    f'{label} has been double-clicked. Moving to section...')
 
                 # set scan rotation
                 self.sem.set_scan_rotation(grid.rotation % 360)
@@ -1320,13 +1325,13 @@ class MainControls(QMainWindow):
                 self.stage.move_to_xy(grid_center_s)
                 utils.log_info(
                     'Array-CTRL',
-                    f'Moved to section {array_index} / ROI {roi_index}.')
+                    f'Moved to {label}.')
                 # to update the stage position cursor
                 self.viewport.vp_draw()
             else:
                 utils.log_warning(
                     'Array-CTRL',
-                    (f'Array {array_index} / ROI {roi_index}'
+                    (f'{label}'
                     ' has been double-clicked. Image is not'
                     ' calibrated, therefore no stage movement.'))
 
@@ -1409,26 +1414,29 @@ class MainControls(QMainWindow):
         )[0])
         if array_filename:
             self.array_reset()
-
-            self.cfg['grids']['array_file'] = array_filename
-            self.save_config_to_disk()
-
-            self.array_import_file(array_filename)
+            self.array_init_gui(array_filename)
             self.gm.set_template_grids()
             self.update_from_grid_dlg()
             self.viewport.show_stage_pos = True
             self.viewport.vp_activate_checkbox_show_stage_pos()
             self.viewport.vp_draw()
 
-    def array_import_file(self, array_filename):
-        array_filename = os.path.normpath(array_filename)
+    def array_init_gui(self, array_filename=None):
+        if array_filename:
+            # load array data
+            array_filename = os.path.normpath(array_filename)
+            self.gm.array_read(array_filename)
+        else:
+            array_filename = self.gm.array_data.path
         self.lineEdit_array_dataFile.setText(array_filename)
-        # load array data and create grids
-        self.gm.array_read(array_filename)
+        array_image = self.imported.find_array_image()
+        if array_image is not None:
+            self.gm.array_update_data_image_properties(array_image)
         utils.log_info(
             'Array-CTRL',
             f'{len(self.gm.array_data.sections)} Array sections have been loaded.')
 
+        # populate table
         nsections = self.gm.array_data.get_nsections()
         nrois = self.gm.array_data.get_nrois()
         table_model = self.tableView_array_sections.model()
@@ -1483,9 +1491,17 @@ class MainControls(QMainWindow):
             on_success_function=on_success_function
         )
 
-    def array_set_import_image(self, array_image):
-        self.lineEdit_array_imageFile.setText(array_image.image_src)
-        self.pushButton_array_createGrids.setEnabled(True)
+    def array_set_import_image(self, array_image=None):
+        if array_image:
+            path = array_image.image_src
+            enabled = True
+        else:
+            path = ''
+            enabled = False
+        self.lineEdit_array_imageFile.setText(path)
+        self.pushButton_array_createGrids.setEnabled(enabled)
+        if enabled and self.gm.array_data.path:
+            self.gm.array_update_data_image_properties(array_image)
 
     def array_create_grids(self):
         imported_image = self.imported.find_array_image()
@@ -1769,27 +1785,45 @@ class MainControls(QMainWindow):
     # ============ Below: stack progress update and signal processing ==============
 
     def show_stack_progress(self):
-        current_slice = self.acq.slice_counter
-        total_z_diff = self.acq.total_z_diff
+        progress_value = None
 
-        if self.acq.use_target_z_diff:
-            self.label_cp.setText("Current Z depth:")
-            self.label_currentPosition.setText(
+        if self.gm.array_mode:
+            progress_type = "ROI:"
+            label = self.acq.grid_current_label
+            array_current_index = self.acq.grid_current_index
+            total = self.acq.grid_total_active
+            progress_position = (
+                f'{label}')
+            if total:
+                progress_value = (
+                    array_current_index / total)
+        elif self.acq.use_target_z_diff:
+            progress_type = "Current Z depth:"
+            current_slice = self.acq.slice_counter
+            total_z_diff = self.acq.total_z_diff
+            progress_position = (
                 '{0:.3f}'.format(total_z_diff) + ' µm' + '      (slice no. = '
                 + str(current_slice) + ")")
-            self.progressBar.setValue(
-                int(total_z_diff / self.acq.target_z_diff * 100))
+            progress_value = (
+                total_z_diff / self.acq.target_z_diff)
         else:
-            self.label_cp.setText("Current slice:")
+            progress_type = "Current slice:"
+            current_slice = self.acq.slice_counter
             if self.acq.number_slices > 0:
-                self.label_currentPosition.setText(
+                progress_position = (
                     str(current_slice) + '      (' + chr(8710) + 'Z = '
                     + '{0:.3f}'.format(self.acq.total_z_diff) + ' µm)')
-                self.progressBar.setValue(
-                    int(current_slice / self.acq.number_slices * 100))
+                progress_value = (
+                    current_slice / self.acq.number_slices)
             else:
-                self.label_currentPosition.setText(
-                    str(current_slice) + "      (no cut after acq.)")
+                progress_position = (
+                        str(current_slice) + "      (no cut after acq.)")
+
+
+        self.label_cp.setText(progress_type)
+        self.label_currentPosition.setText(progress_position)
+        if progress_value is not None:
+            self.progressBar.setValue(int(progress_value * 100))
 
     def show_current_stage_xy(self):
         xy_pos = self.stage.last_known_xy
@@ -1925,6 +1959,8 @@ class MainControls(QMainWindow):
                                 + str(e))
         elif msg == 'ARRAY RESET':
             self.array_reset()
+        elif msg == 'ARRAY REMOVE IMAGE':
+            self.array_set_import_image(None)
         elif msg == 'ARRAY IMAGE CALIBRATED':
             self.array_trigger_image_calibrated()
         elif msg == 'ARRAY IMAGE NOT CALIBRATED':

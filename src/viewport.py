@@ -301,6 +301,8 @@ class Viewport(QWidget):
             self._vp_stub_overview_acq_success(False)
         elif msg == 'SHOW IMPORTED':
             self.checkBox_showImported.setChecked(True)
+        elif msg == 'ARRAY REMOVE IMAGE':
+            self.main_controls_trigger.transmit(msg)
         else:
             self._add_to_main_log(msg)
 
@@ -2976,7 +2978,7 @@ class Viewport(QWidget):
             self.vp_draw()
 
     def _vp_open_modify_images_dlg(self):
-        dialog = ModifyImagesDlg(self.imported, self.viewport_trigger)
+        dialog = ModifyImagesDlg(self.imported, self.gm, self.viewport_trigger)
         dialog.exec()
 
     def vp_show_new_stub_overview(self):

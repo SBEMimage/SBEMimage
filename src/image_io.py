@@ -262,14 +262,16 @@ def imwrite(path, data, metadata=None, tile_size=None, compression='LZW',
     ext = paths[-1].lower()
     is_tiff = 'tif' in ext
     is_ome = paths[-1].lower().startswith('ome')
+    size = np.flip(data.shape[:2])
 
     if is_tiff:
         if data.ndim <= 3 and data.shape[-1] in (3, 4):
             photometric = PHOTOMETRIC.RGB
+            move_channel = False
         else:
             photometric = PHOTOMETRIC.MINISBLACK
-            if data.ndim >= 3 and data.shape[-1] < data.shape[0]:
-                data = np.moveaxis(data, -1, 0)
+            # move channel axis to front
+            move_channel = (data.ndim >= 3 and data.shape[-1] < data.shape[0])
 
         if metadata is not None:
             tiff_metadata, resolution, resolution_unit = create_tiff_metadata(metadata, is_ome)
@@ -277,18 +279,20 @@ def imwrite(path, data, metadata=None, tile_size=None, compression='LZW',
             tiff_metadata = None
         validate_output_path(path, is_file=True)
         with TiffWriter(path) as writer:
-            writer.write(data, photometric=photometric, subifds=npyramid_add,
+            new_size = size
+            ordered_data = np.moveaxis(data, -1, 0) if move_channel else data
+            writer.write(ordered_data, photometric=photometric, subifds=npyramid_add,
                          tile=tile_size, compression=compression,
                          resolution=resolution, resolutionunit=resolution_unit,
                          metadata=tiff_metadata)
-            new_size = np.flip(data.shape[:2])
             for i in range(npyramid_add):
                 new_size = new_size / pyramid_downsample    # implicit int -> float conversion
                 if resolution is not None:
                     resolution = tuple(np.divide(resolution, pyramid_downsample))
                 int_size = np.round(new_size).astype(int)
                 resized_data = resize_image(data, int_size)
-                writer.write(resized_data, subfiletype=1,
+                ordered_data = np.moveaxis(resized_data, -1, 0) if move_channel else resized_data
+                writer.write(ordered_data, subfiletype=1,
                              tile=tile_size, compression=compression,
                              resolution=resolution, resolutionunit=resolution_unit)
     else:

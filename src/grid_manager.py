@@ -473,6 +473,12 @@ class Grid(list):
     def set_display_colour(self, colour):
         self.display_colour = colour
 
+    def set_array_display_colour(self):
+        if self.roi_index is not None:
+            self.set_display_colour(self.roi_index % 10)
+        elif self.array_index is not None:
+            self.set_display_colour(self.array_index % 10)
+
     # Note: At the moment, all supported SEMs use a frame size selector that
     # determines the frame size. Changing the frame size selector automatically
     # updates the frame size (width, height), which is stored separately.
@@ -990,8 +996,9 @@ class GridManager(list):
                     grid[tile_index].preview_img = None
 
         # initialize Array settings
+        array_path = grids_data.get('array_file')
+        self.array_data = ArrayData.ArrayData(array_path)
         self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
-        self.array_data = ArrayData.ArrayData(self.sem.device_name)
 
     def get_grid_label(self, grid_index):
         if grid_index is not None:
@@ -1083,6 +1090,11 @@ class GridManager(list):
         grids_data['roi_index'] = (str(
             [grid.roi_index for grid in self])
             .replace('None', 'null'))
+        if self.array_mode:
+            array_path = self.array_data.path
+        else:
+            array_path = ''
+        grids_data['array_file'] = array_path
 
         # Save the working distances and stigmation parameters of those tiles
         # that are active and/or selected for the autofocus and/or the
@@ -1138,13 +1150,8 @@ class GridManager(list):
             x_pos, y_pos = origin_sx_sy
 
         # Set grid colour
-        if self.sem.syscfg['device']['microtome'] == '6':  # or GCIB in use
-            # Cycle through available colours.
-            display_colour = (
-                (self[new_grid_index - 1].display_colour + 1) % 10)
-        else:
-            # Use green by default in magc_mode.
-            display_colour = 1
+        # Cycle through available colours.
+        display_colour = (self[new_grid_index - 1].display_colour + 1) % 10
 
         new_grid = Grid(self.cs, self.sem,
                         active=active, origin_sx_sy=[x_pos, y_pos], sw_sh=sw_sh,
@@ -1376,13 +1383,10 @@ class GridManager(list):
             new_grid.array_index = None
             new_grid.roi_index = roi_index
             new_grid.auto_update_tile_positions = True
-            new_grid.set_display_colour(roi_index % 10)
+            new_grid.set_array_display_colour()
 
-    def array_create_grids(self, imported_image):
-        self.delete_array_grids(keep_template_grids=True)
-
+    def array_update_data_image_properties(self, imported_image):
         image_center = np.multiply(imported_image.size, imported_image.image_pixel_size / 1e3 / 2)
-
         transform1 = utils.create_transform(translate=-image_center)
         if imported_image.flipped:
             transform2 = utils.create_transform(scale=[1, -1])
@@ -1394,6 +1398,14 @@ class GridManager(list):
         transform = utils.combine_transforms([transform1, transform2, transform3])
         self.array_data.transform = transform
 
+        for landmark_id, landmark in self.get_array_landmarks().items():
+            # apply image transformation to landmarks
+            location = utils.apply_transform(landmark, transform)
+            self.set_array_landmark(landmark_id, location, landmark_type='stage')
+            self.set_array_landmark(landmark_id, location, landmark_type='target')
+
+    def array_create_grids(self, imported_image):
+        self.delete_array_grids(keep_template_grids=True)
         for array_index, rois in self.array_data.get_rois().items():
             for roi_index, roi in rois.items():
                 center, size, rotation = self.array_data.get_roi_stage_properties(roi, imported_image)
@@ -1404,13 +1416,6 @@ class GridManager(list):
                     self.array_add_autofocus_point(
                         grid_index,
                         point['location'])
-
-        for landmark_id, landmark in self.get_array_landmarks().items():
-            # apply image transformation to landmarks
-            location = utils.apply_transform(landmark, transform)
-            self.set_array_landmark(landmark_id, location, landmark_type='stage')
-            if landmark_id not in self.get_array_landmarks('target'):
-                self.set_array_landmark(landmark_id, location, landmark_type='target')
 
     def array_update_grids(self, imported_image):
         # compute new grid locations
@@ -1452,11 +1457,7 @@ class GridManager(list):
 
         new_grid.array_index = array_index
         new_grid.roi_index = roi_index
-        if roi_index is not None:
-            new_grid.set_display_colour(roi_index % 10)
-        elif array_index is not None:
-            new_grid.set_display_colour(array_index % 10)
-
+        new_grid.set_array_display_colour()
         # centre must be finally set after updating tile positions
         new_grid.auto_update_tile_positions = True
         new_grid.centre_sx_sy = center

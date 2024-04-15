@@ -600,8 +600,9 @@ class ImportImageDlg(QDialog):
 class ModifyImagesDlg(QDialog):
     """Modify imported images from the viewport."""
 
-    def __init__(self, imported_images, viewport_trigger):
+    def __init__(self, imported_images, grid_manager, viewport_trigger):
         self.imported = imported_images
+        self.gm = grid_manager
         self.viewport_trigger = viewport_trigger
         super().__init__()
         loadUi('../gui/modify_images_dlg.ui', self)
@@ -638,6 +639,8 @@ class ModifyImagesDlg(QDialog):
     def delete_imported(self):
         index = self.listWidget_imagelist.currentRow()
         if index is not None:
+            if self.imported[index].is_array:
+                self.viewport_trigger.transmit('ARRAY REMOVE IMAGE')
             self.imported.delete_image(index)
             self.populate_image_list()
             self.viewport_trigger.transmit('DRAW VP')
@@ -646,7 +649,7 @@ class ModifyImagesDlg(QDialog):
         index = self.listWidget_imagelist.currentRow()
         if index is not None:
             selected_image = self.imported[index]
-            dialog = ModifyImageDlg(selected_image,
+            dialog = ModifyImageDlg(selected_image, self.gm,
                                     self.viewport_trigger)
             dialog.exec()
 
@@ -656,9 +659,10 @@ class ModifyImagesDlg(QDialog):
 class ModifyImageDlg(QDialog):
     """Modify an imported image (size, rotation, transparency)"""
 
-    def __init__(self, selected_image,
+    def __init__(self, selected_image, grid_manager,
                  viewport_trigger):
         self.viewport_trigger = viewport_trigger
+        self.gm = grid_manager
         self.selected_image = selected_image
         super().__init__()
         loadUi('../gui/modify_image_dlg.ui', self)
@@ -690,17 +694,20 @@ class ModifyImageDlg(QDialog):
 
     def apply_changes(self):
         """Apply the current settings and redraw the image in the viewport."""
-        self.selected_image.centre_sx_sy = [
+        imported = self.selected_image
+        imported.centre_sx_sy = [
             self.doubleSpinBox_posX.value(),
             self.doubleSpinBox_posY.value()]
-        self.selected_image.pixel_size = (
+        imported.pixel_size = (
             self.doubleSpinBox_pixelSize.value())
-        self.selected_image.rotation = (
+        imported.rotation = (
             self.doubleSpinBox_rotation.value())
-        self.selected_image.flipped = (
+        imported.flipped = (
             self.checkBox_flipped.isChecked())
-        self.selected_image.transparency = (
+        imported.transparency = (
             self.doubleSpinBox_transparency.value())
-        self.selected_image.update_image()
+        imported.update_image()
+        if imported.is_array:
+            self.gm.array_update_data_image_properties(imported)
         # Emit signals to redraw Viewport:
         self.viewport_trigger.transmit('DRAW VP')

@@ -340,15 +340,6 @@ def tile_relative_save_path(stack_name, grid_index, array_index=None, roi_index=
     paths.append(get_tile_filename(stack_name, grid_index, array_index, roi_index, tile_index, slice_counter))
     return os.path.join(*paths)
 
-def rejected_tile_save_path(base_dir, stack_name, grid_index, tile_index,
-                            slice_counter, fail_counter):
-    return os.path.join(
-        base_dir, 'tiles', 'rejected',
-        stack_name + '_g' + str(grid_index).zfill(GRID_DIGITS)
-        + '_t' + str(tile_index).zfill(TILE_DIGITS)
-        + '_s' + str(slice_counter).zfill(SLICE_DIGITS)
-        + '_'  + str(fail_counter) + GRIDTILE_IMAGE_FORMAT)
-
 def tile_preview_save_path(base_dir, grid_index, array_index=None, roi_index=None, tile_index=None):
     filename = get_tile_filename('', grid_index, array_index, roi_index, tile_index)
     return os.path.join(base_dir, 'workspace', filename)

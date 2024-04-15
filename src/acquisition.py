@@ -145,6 +145,9 @@ class Acquisition:
         self.continue_after_max_sweeps = (
             self.cfg['debris']['continue_after_max_sweeps'].lower() == 'true')
 
+        self.grid_current_label = ''
+        self.grid_current_index = 0
+        self.grid_total_active = 0
         self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
         # Create text file for notes
         notes_file = os.path.join(self.base_dir, self.stack_name + '_notes.txt')
@@ -204,6 +207,8 @@ class Acquisition:
         self.tile_grab_durations = []
         self.tile_mirror_durations = []
         self.tile_inspect_durations = []
+
+        self.grid_total_active = sum([grid.active for grid in self.gm])
 
     @property
     def base_dir(self):
@@ -1847,6 +1852,8 @@ class Acquisition:
         for grid_index in range(self.gm.number_grids):
             grid = self.gm[grid_index]
             grid_label = grid.get_label(grid_index)
+            self.grid_current_index = grid_index
+            self.grid_current_label = grid_label
             if self.error_state != Error.none or self.pause_state == 1:
                 break
             if not grid.active:
@@ -2067,8 +2074,7 @@ class Acquisition:
                     and not rejected_by_user
                 ):
 
-                    self.save_rejected_tile(save_path, grid_index,
-                                            tile_index, fail_counter)
+                    self.save_rejected_tile(save_path, fail_counter)
                     # Try again
                     fail_counter += 1
                     if fail_counter == 2:
@@ -2124,7 +2130,7 @@ class Acquisition:
                     self.add_to_main_log(
                         'CTRL: ' + error_msg)
                 success, error_msg = self.img_inspector.save_tile_reslice(
-                    self.base_dir, grid_index, tile_index)
+                    self.base_dir, grid_index, grid.array_index, grid.roi_index, tile_index)
                 if not success:
                     utils.log_error(
                         'CTRL',
@@ -2716,12 +2722,12 @@ class Acquisition:
                 self.add_to_main_log('CTRL: Error sending overview metadata '
                                      'to server. ' + exc_str)
 
-    def save_rejected_tile(self, tile_save_path, grid_index, tile_index,
-                           fail_counter):
+    def save_rejected_tile(self, tile_save_path, fail_counter):
         """Save rejected tile image in the 'rejected' subfolder."""
-        rejected_tile_save_path = utils.rejected_tile_save_path(
-            self.base_dir, self.stack_name, grid_index, tile_index,
-            self.slice_counter, fail_counter)
+        filename = (utils.get_image_file_title(tile_save_path)
+                    + '_' + str(fail_counter)
+                    + constants.GRIDTILE_IMAGE_FORMAT)
+        rejected_tile_save_path = os.path.join(self.base_dir, 'tiles', 'rejected', filename)
         # Copy tile to folder 'rejected'
         try:
             shutil.copy(tile_save_path, rejected_tile_save_path)
