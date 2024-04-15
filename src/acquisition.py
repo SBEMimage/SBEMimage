@@ -847,6 +847,18 @@ class Acquisition:
         while not (self.acq_paused or self.stack_completed):
             # Add line with stars in log file as a visual clue when a new
             # slice begins and show current slice counter and Z position.
+            
+            # ======================= TCP Remote Control ===========================
+            utils.log_info('CTRL', 'Checking for TCP remote commands.')
+            if self.use_tcp:
+                try:
+                    res = self.send_data_tcp()
+                    self.process_tcp_commands(res.get('commands', []))
+                except ConnectionRefusedError:
+                    utils.log_info('CTRL', 'TCP Connection refused. Pausing acquisition.')
+                    self.pause_acquisition(1)
+                    
+            # ===================== End of TCP Remote Control ======================
 
             msg = f'slice {self.slice_counter}'
             if self.stage_z_position is not None:
@@ -970,16 +982,6 @@ class Acquisition:
                     // self.stage.maintenance_move_interval)
                 if interval_counter_after > interval_counter_before:
                     self.do_maintenance_moves()
-                    
-            # ======================= TCP Remote Control ===========================
-            utils.log_info('CTRL', 'Checking for TCP remote commands.')
-            if self.use_tcp:
-                try:
-                    res = self.send_data_tcp()
-                    self.process_tcp_commands(res.get('commands', []))
-                except ConnectionRefusedError:
-                    utils.log_info('CTRL', 'TCP Connection refused. Pausing acquisition.')
-                    self.pause_acquisition(1)
 
         # ===================== END OF ACQUISITION LOOP ========================
 
