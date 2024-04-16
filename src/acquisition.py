@@ -147,7 +147,6 @@ class Acquisition:
 
         self.grid_current_label = ''
         self.grid_current_index = 0
-        self.grid_total_active = 0
         self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
         # Create text file for notes
         notes_file = os.path.join(self.base_dir, self.stack_name + '_notes.txt')
@@ -207,8 +206,6 @@ class Acquisition:
         self.tile_grab_durations = []
         self.tile_mirror_durations = []
         self.tile_inspect_durations = []
-
-        self.grid_total_active = sum([grid.active for grid in self.gm])
 
     @property
     def base_dir(self):
@@ -338,22 +335,22 @@ class Acquisition:
                                           * self.ovm[ov_index].height_p())
                             amount_of_data += frame_size
                 # Run through all grids
-                for grid_index in range(self.gm.number_grids):
-                    if (self.gm[grid_index].slice_active(slice_counter)
-                            and self.gm[grid_index].active):
-                        for tile_index in self.gm[grid_index].active_tiles:
-                            x1, y1 = self.gm[grid_index][tile_index].sx_sy
+                for grid_index, grid in enumerate(self.gm):
+                    if (grid.slice_active(slice_counter)
+                            and grid.active):
+                        for tile_index in grid.active_tiles:
+                            x1, y1 = grid[tile_index].sx_sy
                             stage_move_time += (
                                 self.stage.stage_move_duration(x0, y0, x1, y1))
                             x0, y0 = x1, y1
                         number_active_tiles = (
-                            self.gm[grid_index].number_active_tiles())
+                            grid.number_active_tiles())
                         imaging_time += (
-                            (self.gm[grid_index].tile_cycle_time()
+                            (grid.tile_cycle_time()
                             + overhead_per_frame)
                             * number_active_tiles)
-                        frame_size = (self.gm[grid_index].tile_width_p()
-                                      * self.gm[grid_index].tile_height_p())
+                        frame_size = (grid.tile_width_p()
+                                      * grid.tile_height_p())
                         amount_of_data += frame_size * number_active_tiles
                 # Add time to move back to starting position
                 if self.take_overviews:
@@ -393,13 +390,13 @@ class Acquisition:
         total_data = amount_of_data_0 + amount_of_data_1
 
         # Calculate grid area and electron dose range
-        for grid_index in range(self.gm.number_grids):
-            number_active_tiles = self.gm[grid_index].number_active_tiles()
+        for grid_index, grid in enumerate(self.gm):
+            number_active_tiles = grid.number_active_tiles()
             total_grid_area += (number_active_tiles
-                                * self.gm[grid_index].tile_width_d()
-                                * self.gm[grid_index].tile_height_d())
-            dwell_time = self.gm[grid_index].dwell_time
-            pixel_size = self.gm[grid_index].pixel_size
+                                * grid.tile_width_d()
+                                * grid.tile_height_d())
+            dwell_time = grid.dwell_time
+            pixel_size = grid.pixel_size
             dose = utils.calculate_electron_dose(
                 current, dwell_time, pixel_size)
             if (min_dose is None) or (dose < min_dose):
@@ -457,12 +454,11 @@ class Acquisition:
         for ov_index in range(self.ovm.number_ov):
             ov_dir = os.path.join(*utils.get_ov_dirname('', ov_index))
             subdirectory_list.append(ov_dir)
-        for grid_index in range(self.gm.number_grids):
-            grid = self.gm[grid_index]
+        for grid_index, grid in enumerate(self.gm):
             array_index, roi_index = grid.array_index, grid.roi_index
             high_dir = os.path.join(*utils.get_tile_dirname('', grid_index, array_index, roi_index))
             subdirectory_list.append(high_dir)
-            for tile_index in self.gm[grid_index].active_tiles:
+            for tile_index in grid.active_tiles:
                 tile_dir = os.path.join(
                     *utils.get_tile_dirname('', grid_index, array_index, roi_index, tile_index))
                 subdirectory_list.append(tile_dir)
@@ -549,9 +545,7 @@ class Acquisition:
                 self.base_dir, 'meta', 'logs', 'metadata_' + timestamp + '.txt')
             self.metadata_file = open(self.metadata_filename, 'w', buffer_size)
         except Exception as e:
-            utils.log_error('CTRL', 'Error while setting up log files: ' + str(e))
-            self.add_to_main_log(
-                'CTRL: Error while setting up log files: ' + str(e))
+            self.log('CTRL', f'Error while setting up log files: {e}', 'error')
             self.pause_acquisition(1)
             self.error_state = Error.primary_drive
         else:
@@ -576,13 +570,11 @@ class Acquisition:
                         self.mirror_drive, self.imagelist_ov_filename[2:]),
                         'w', buffer_size)
                 except Exception as e:
-                    utils.log_error(
+                    self.log(
                         'CTRL',
                         'Error while creating imagelist files on mirror '
-                        'drive: ' + str(e))
-                    self.add_to_main_log(
-                        'CTRL: Error while creating imagelist files on mirror '
-                        'drive: ' + str(e))
+                        f'drive: {e}',
+                        'error')
                     self.pause_acquisition(1)
                     self.error_state = Error.mirror_drive
 
@@ -603,11 +595,10 @@ class Acquisition:
                         self.mirror_drive, file_name[2:])
                     shutil.copy(file_name, dst_file_name)
             except Exception as e:
-                utils.log_error(
+                self.log(
                     'CTRL',
-                    'Copying file(s) to mirror drive failed: ' + str(e))
-                self.add_to_main_log(
-                    'CTRL: Copying file(s) to mirror drive failed: ' + str(e))
+                    f'Copying file(s) to mirror drive failed: {e}',
+                    'error')
                 self.pause_acquisition(1)
                 self.error_state = Error.mirror_drive
 
@@ -676,12 +667,10 @@ class Acquisition:
                 self.add_to_main_log('CTRL: Stack started.')
 
             if self.use_mirror_drive:
-                utils.log_info(
+                utils.log(
                     'CTRL',
                     'Mirror drive active: '
                     + self.mirror_drive_dir)
-                self.add_to_main_log(
-                    'CTRL: Mirror drive active: ' + self.mirror_drive_dir)
 
             # Save current configuration to disk:
             # Send signal to call save_settings() in main_controls.py
@@ -697,8 +686,7 @@ class Acquisition:
             rotation_angle_list = []
             pixel_size_list = []
             dwell_time_list = []
-            for grid_index in range(self.gm.number_grids):
-                grid = self.gm[grid_index]
+            for grid_index, grid in enumerate(self.gm):
                 grid_list.append(str(grid_index).zfill(constants.GRID_DIGITS))
                 grid_origin_list.append(grid.origin_sx_sy.tolist())
                 rotation_angle_list.append(grid.rotation)
@@ -729,19 +717,16 @@ class Acquisition:
                 if status == 100:
                     self.error_state = Error.metadata_server
                     self.pause_acquisition(1)
-                    utils.log_error(
+                    self.log(
                         'CTRL',
                         'Error sending session metadata '
-                        'to server. ' + exc_str)
-                    self.add_to_main_log('CTRL: Error sending session metadata '
-                                         'to server. ' + exc_str)
+                        f'to server. {exc_str}',
+                        'error')
                 elif status == 200:
-                    utils.log_info(
+                    self.log(
                         'CTRL',
                         'Session data sent. '
                         'Metadata server active.')
-                    self.add_to_main_log(
-                        'CTRL: Session data sent. Metadata server active.')
 
             # Set SEM to target high voltage and beam current.
             # EHT is assumed to be on at this point (PreStackDlg checks if EHT
@@ -754,7 +739,7 @@ class Acquisition:
             # for those tiles that have not yet been initialized (there may be
             # existing focus settings from a previous run that must not be
             # overwritten!)
-            for grid_index in range(self.gm.number_grids):
+            for grid_index, grid in enumerate(self.gm):
                 if not grid.use_wd_gradient:
                     grid.set_wd_stig_xy_for_uninitialized_tiles(
                         self.wd_default,
@@ -767,11 +752,9 @@ class Acquisition:
                         [self.stig_x_default, self.stig_y_default])
 
             # Show current focus/stig settings in the log
-            utils.log_info('SEM',
-                           'Current ' + utils.format_wd_stig(
-                            self.wd_default, self.stig_x_default, self.stig_y_default))
-            self.add_to_main_log('SEM: Current ' + utils.format_wd_stig(
-                self.wd_default, self.stig_x_default, self.stig_y_default))
+            self.log('SEM',
+                     'Current ' + utils.format_wd_stig(
+                      self.wd_default, self.stig_x_default, self.stig_y_default))
 
             if self.microtome is not None:
                 # Make sure DM script uses the correct motor speeds
@@ -783,12 +766,11 @@ class Acquisition:
                         self.error_info = self.microtome.error_info
                         self.microtome.reset_error_state()
                         self.pause_acquisition(1)
-                        utils.log_error(
+                        self.log(
                             'STAGE',
                             'ERROR: Could not update '
-                            'XY motor speeds.')
-                        self.add_to_main_log('STAGE: ERROR: Could not update '
-                                             'XY motor speeds.')
+                            'XY motor speeds.',
+                            'error')
 
                 # Get current Z position of microtome/stage
                 self.stage_z_position = self.stage.get_z()
@@ -800,16 +782,14 @@ class Acquisition:
                         self.error_state = Error.dm_comm_retval
                         self.stage.reset_error_state()
                         self.pause_acquisition(1)
-                        utils.log_error(
+                        self.log(
                             'STAGE',
-                            'Error reading initial Z position.')
-                        utils.log_warning(
+                            'Error reading initial Z position.',
+                            'error')
+                        self.log(
                             'STAGE',
-                            'Please ensure that the Z position is positive.')
-                        self.add_to_main_log(
-                            'STAGE: Error reading initial Z position.')
-                        self.add_to_main_log(
-                            'STAGE: Please ensure that the Z position is positive.')
+                            'Please ensure that the Z position is positive.'
+                            'warning')
 
                 # Check for Z mismatch
                 if self.microtome.error_state == Error.mismatch_z:
@@ -829,13 +809,11 @@ class Acquisition:
             # delete the interruption point.
             if (self.acq_interrupted
                     and self.acq_interrupted_at[0] >= self.gm.number_grids):
-                utils.log_warning(
+                self.log(
                     'CTRL',
                     f'Interruption point {str(self.acq_interrupted_at)} '
-                    'reset because affected grid has been deleted.')
-                self.add_to_main_log(
-                    f'CTRL: Interruption point {str(self.acq_interrupted_at)} '
-                    'reset because affected grid has been deleted.')
+                    'reset because affected grid has been deleted.',
+                    'warning')
                 self.acq_interrupted = False
                 self.interrupted_at = []
                 self.tiles_acquired = []
@@ -853,12 +831,9 @@ class Acquisition:
             if self.stage_z_position is not None:
                 msg += f', Z:{self.stage_z_position:6.3f}'
 
-            utils.log_info('CTRL',
-                           '****************************************')
-            utils.log_info('CTRL', msg)
-            self.add_to_main_log(
-                'CTRL: ****************************************')
-            self.add_to_main_log('CTRL: ' + msg)
+            self.log('CTRL',
+                     '****************************************')
+            self.log('CTRL', msg)
 
             # Counter for maintenance moves
             interval_counter_before = ((
@@ -892,8 +867,7 @@ class Acquisition:
             if (self.use_email_monitoring
                     and self.notifications.remote_commands_enabled
                     and self.slice_counter % self.remote_check_interval == 0):
-                utils.log_info('CTRL', 'Checking for remote commands.')
-                self.add_to_main_log('CTRL: Checking for remote commands.')
+                self.log('CTRL', 'Checking for remote commands.')
                 self.process_remote_commands()
 
             # Send status report if scheduled or requested by remote command
@@ -976,7 +950,7 @@ class Acquisition:
 
         if self.use_autofocus:
             # Do final autofocus adjustments and show updated working distances
-            for grid_index in range(self.gm.number_grids):
+            for grid_index, grid in enumerate(self.gm):
                 self.do_autofocus_adjustments(grid_index)
             self.main_controls_trigger.transmit('DRAW VP')
             if self.autofocus.method == 1:
@@ -990,8 +964,7 @@ class Acquisition:
             self.process_error_state()
 
         if self.stack_completed and not self.number_slices == 0:
-            utils.log_info('CTRL', 'Stack completed.')
-            self.add_to_main_log('CTRL: Stack completed.')
+            self.log('CTRL', 'Stack completed.')
             self.main_controls_trigger.transmit('COMPLETION STOP')
             if self.use_email_monitoring:
                 # Send notification email
@@ -999,24 +972,18 @@ class Acquisition:
                 success, error_msg = self.notifications.send_email(
                     msg_subject, '')
                 if success:
-                    utils.log_info('CTRL', 'Notification e-mail sent.')
-                    self.add_to_main_log('CTRL: Notification e-mail sent.')
+                    self.log('CTRL', 'Notification e-mail sent.')
                 else:
-                    utils.log_error('CTRL',
-                                    'ERROR sending notification email: '
-                                    + error_msg)
-                    self.add_to_main_log(
-                        'CTRL: ERROR sending notification email: ' + error_msg)
+                    self.log('CTRL',
+                             f'ERROR sending notification email: {error_msg}',
+                             'error')
             if self.eht_off_after_stack:
                 self.sem.turn_eht_off()
-                utils.log_info('SEM',
-                               'EHT turned off after stack completion.')
-                self.add_to_main_log(
-                    'SEM: EHT turned off after stack completion.')
+                self.log('SEM',
+                         'EHT turned off after stack completion.')
 
         if self.acq_paused:
-            utils.log_info('CTRL', 'Stack paused.')
-            self.add_to_main_log('CTRL: Stack paused.')
+            self.log('CTRL', 'Stack paused.')
 
         # Update acquisition status in Main Controls GUI
         self.main_controls_trigger.transmit('ACQ NOT IN PROGRESS')
@@ -1033,12 +1000,10 @@ class Acquisition:
             if status == 100:
                 self.error_state = Error.metadata_server
                 self.pause_acquisition(1)
-                utils.log_error('CTRL',
-                                'Error sending "session stopped" '
-                                'signal to VIME server. '
-                                + exc_str)
-                self.add_to_main_log('CTRL: Error sending "session stopped" '
-                                     'signal to VIME server. ' + exc_str)
+                self.log('CTRL',
+                         'Error sending "session stopped" '
+                         f'signal to VIME server. {exc_str}',
+                         'error')
 
         # Add last entry to main log
         self.main_log_file.write('*** END OF LOG ***\n')
@@ -1085,28 +1050,25 @@ class Acquisition:
             success, error_msg = self.notifications.send_email(
                 'Remote stop', 'The acquisition was paused remotely.')
             if not success:
-                utils.log_error(
+                self.log(
                     'CTRL',
-                    'Error sending confirmation email: '
-                    + error_msg)
-                self.add_to_main_log('CTRL: Error sending confirmation email: '
-                                     + error_msg)
+                    f'Error sending confirmation email: {error_msg}',
+                    'error')
             # Signal to Main Controls that acquisition paused remotely
             self.main_controls_trigger.transmit('REMOTE STOP')
         elif command in ['continue', 'start', 'restart']:
             pass
             # TODO: let user continue paused acq with remote command
         elif command == 'report':
-            utils.log_info('CTRL', 'REPORT remote command received.')
-            self.add_to_main_log('CTRL: REPORT remote command received.')
+            self.log('CTRL', 'REPORT remote command received.')
             self.notifications.send_email('Command received', '', [],
                                           [self.notifications.email_account])
             self.report_requested = True
         elif command == 'ERROR':
-            utils.log_error(
+            self.log(
                 'CTRL',
-                'ERROR checking for remote commands.')
-            self.add_to_main_log('CTRL: ERROR checking for remote commands.')
+                'ERROR checking for remote commands.',
+                'error')
 
     def process_error_state(self):
         """Add error messages to the main log and the incident log and send a
@@ -1114,22 +1076,20 @@ class Acquisition:
         Controls windows.
         """
         error_str = Errors[self.error_state]
-        utils.log_error(
+        self.log(
             'CTRL',
-            'ERROR (' + error_str + ')')
-        self.add_to_main_log('CTRL: ' + error_str)
-        self.add_to_incident_log('ERROR (' + error_str + ')')
+            f'ERROR ({error_str})',
+            'error')
+        self.add_to_incident_log(f'ERROR ({error_str})')
 
         # Send notification e-mail
         if self.use_email_monitoring:
             status_msg1, status_msg2 = self.notifications.send_error_report(
                 self.stack_name, self.slice_counter, self.error_state,
                 self.recent_log_filename, self.vp_screenshot_filename)
-            utils.log_info('CTRL', status_msg1)
-            self.add_to_main_log('CTRL: ' + status_msg1)
+            self.log('CTRL', status_msg1)
             if status_msg2:
-                utils.log_info('CTRL', status_msg2)
-                self.add_to_main_log('CTRL: ' + status_msg2)
+                self.log('CTRL', status_msg2)
         # Send signal to Main Controls that there was an error.
         self.main_controls_trigger.transmit('ERROR PAUSE')
 
@@ -1144,22 +1104,19 @@ class Acquisition:
         # slice_thickness is provided in nanometres!
         self.stage_z_position = (self.stage_z_position
                                  + (self.slice_thickness / 1000))
-        utils.log_info(
+        self.log(
             'STAGE',
-            'Move to new Z: ' + '{0:.3f}'.format(self.stage_z_position))
-        self.add_to_main_log(
-            'STAGE: Move to new Z: ' + '{0:.3f}'.format(self.stage_z_position))
+            f'Move to new Z: {self.stage_z_position:.3f}')
         self.microtome.move_stage_to_z(self.stage_z_position)
         # Show new Z position in Main Controls GUI
         self.main_controls_trigger.transmit('UPDATE Z')
         # Check if there were microtome errors
         self.error_state = self.microtome.error_state
         if self.error_state in [Error.dm_comm_response, Error.stage_z]:
-            utils.log_error(
+            self.log(
                 'STAGE',
-                'Problem during Z move. Trying again.')
-            self.add_to_main_log(
-                'STAGE: Problem during Z move. Trying again.')
+                'Problem during Z move. Trying again.',
+                'error')
             # Update incident log in Viewport with warning message
             self.add_to_incident_log(
                 f'WARNING (Z move, error {self.error_state})')
@@ -1174,50 +1131,39 @@ class Acquisition:
 
         start_cut = time()
         if self.error_state == Error.none:
-            utils.log_info(
+            self.log(
                 'KNIFE',
-                'Cutting in progress ('
-                + str(self.slice_thickness)
-                + ' nm cutting thickness).')
-            self.add_to_main_log('KNIFE: Cutting in progress ('
-                                 + str(self.slice_thickness)
-                                 + ' nm cutting thickness).')
+                f'Cutting in progress ({self.slice_thickness})'
+                ' nm cutting thickness).')
             # Do the full cut cycle (near, cut, retract, clear)
             self.microtome.do_full_cut()
             # Process tiles for heuristic autofocus during cut
             if self.heuristic_af_queue:
                 self.process_heuristic_af_queue()
                 # Apply all corrections to tiles
-                utils.log_info(
+                self.log(
                     'CTRL',
                     'Applying corrections to WD/STIG.')
-                self.add_to_main_log('CTRL: Applying corrections to WD/STIG.')
                 self.autofocus.apply_heuristic_tile_corrections()
                 # If there were jumps in WD/STIG above the allowed thresholds
                 # (error 507), add message to the log.
                 if self.error_state == Error.wd_stig_difference:
-                    utils.log_error(
+                    self.log(
                         'CTRL',
-                        'Error: Differences in WD/STIG too large.')
-                    self.add_to_main_log(
-                        'CTRL: Error: Differences in WD/STIG too large.')
+                        'Error: Differences in WD/STIG too large.',
+                        'error')
             else:
                 # TODO: why is that? all microtomes already wait for completion during do_full_cut.
                 if not self.microtome.device_name == 'GCIB':
                     sleep(self.microtome.full_cut_duration)
                 else:
-                    utils.log_info('GCIB', 'Omitting post-cut sleep.')
-                    self.add_to_main_log(
-                        'GCIB: Omitting post-cut sleep.')
+                    self.log('GCIB', 'Omitting post-cut sleep.')
             cut_cycle_delay = self.microtome.check_cut_cycle_status()
             if cut_cycle_delay is not None and cut_cycle_delay > 0:
-                utils.log_error(
+                self.log(
                     'KNIFE',
                     f'Warning: Cut cycle took {cut_cycle_delay} s '
                     'longer than specified.')
-                self.add_to_main_log(
-                    f'KNIFE: Warning: Cut cycle took {cut_cycle_delay} s '
-                    f'longer than specified.')
                 self.add_to_incident_log(
                     f'WARNING (Cut cycle took {cut_cycle_delay} s too long.)')
             if self.microtome.error_state != Error.none:
@@ -1228,15 +1174,12 @@ class Acquisition:
                 self.error_state = self.microtome.error_state
                 self.microtome.reset_error_state()
         if self.error_state != Error.none and self.error_state != Error.wd_stig_difference:
-            utils.log_error('CTRL', 'Error during cut cycle.')
-            utils.log_info(
+            self.log('CTRL', 'Error during cut cycle.', 'error')
+            self.log(
                 'STAGE',
                 'Attempt to move back to previous Z: '
                 f'{old_stage_z_position:.3f}')
-            self.add_to_main_log('CTRL: Error during cut cycle.')
             # Try to move back to previous Z position
-            self.add_to_main_log('STAGE: Attempt to move back to previous Z: '
-                                 + '{0:.3f}'.format(old_stage_z_position))
             self.microtome.move_stage_to_z(old_stage_z_position)
             self.main_controls_trigger.transmit('UPDATE Z')
             self.microtome.reset_error_state()
@@ -1247,11 +1190,10 @@ class Acquisition:
                 cut_duration_str = f'{cut_duration:.1f} s'
             else:
                 cut_duration_str = f'{cut_duration / 60:.2f} min'
-            utils.log_info(
+            self.log(
                 'KNIFE',
-                'Cut completed after ' + cut_duration_str)
-            self.add_to_main_log(f'KNIFE: Cut completed after '
-                                 f'{(time()-start_cut)/60:.2f} min.')
+                'Cut completed after '
+                + cut_duration_str)
             self.slice_counter += 1
             self.total_z_diff += self.slice_thickness/1000
         sleep(1)
@@ -1259,11 +1201,9 @@ class Acquisition:
     def do_maintenance_moves(self, manual_run=False):
         """Move XY motors over the entire XY range."""
         if not manual_run:
-            utils.log_info(
+            self.log(
                 'STAGE',
                 'Carrying out XY stage maintenance moves.')
-            self.add_to_main_log(
-                'STAGE: Carrying out XY stage maintenance moves.')
         # First move to origin
         self.stage.move_to_xy((0, 0))
         # Show new stage coordinates in GUI
@@ -1278,16 +1218,12 @@ class Acquisition:
         self.stage.move_to_xy((0, 0))
         self.main_controls_trigger.transmit('UPDATE XY')
         if not manual_run:
-            utils.log_info(
+            self.log(
                 'STAGE',
                 'XY stage maintenance moves completed.')
-            self.add_to_main_log('STAGE: XY stage maintenance moves completed.')
-            utils.log_info(
+            self.log(
                 'STAGE',
                 'Next maintenance cycle after '
-                f'{self.microtome.maintenance_move_interval} XY moves.')
-            self.add_to_main_log(
-                f'STAGE: Next maintenance cycle after '
                 f'{self.microtome.maintenance_move_interval} XY moves.')
         if manual_run:
             # Signal to Main Controls that run is complete
@@ -1313,11 +1249,10 @@ class Acquisition:
             if status == 100:
                 self.error_state = Error.metadata_server
                 self.pause_acquisition(1)
-                utils.log_error('CTRL',
-                                'Error sending "slice complete" '
-                                'signal to server. ' + exc_str)
-                self.add_to_main_log('CTRL: Error sending "slice complete" '
-                                     'signal to server. ' + exc_str)
+                self.log('CTRL',
+                         'Error sending "slice complete" '
+                         'signal to server. ' + exc_str,
+                         'error')
 
     def receive_msg_from_metadata_server(self):
         """Get commands or messages from the metadata server."""
@@ -1327,18 +1262,15 @@ class Acquisition:
         if status == 100:
             self.error_state = Error.metadata_server
             self.pause_acquisition(1)
-            utils.log_error('CTRL: Error during get request '
-                            'to server. ' + exc_str)
-            self.add_to_main_log('CTRL: Error during get request '
-                                 'to server. ' + exc_str)
+            self.log('CTRL: Error during get request '
+                     'to server. ' + exc_str,
+                     'error')
         elif status == 200:
             if command in ['STOP', 'PAUSE']:
                 self.pause_acquisition(1)
-                utils.log_info(
+                self.log(
                     'CTRL',
                     'Stop signal from metadata server received.')
-                self.add_to_main_log(
-                    'CTRL: Stop signal from metadata server received.')
                 if self.use_email_monitoring:
                     # Send notification email
                     msg_subject = ('Stack ' + self.stack_name
@@ -1347,29 +1279,24 @@ class Acquisition:
                         msg_subject,
                         'Pause command received from metadata server.')
                 if success:
-                    utils.log_info(
+                    self.log(
                         'CTRL',
                         'Notification e-mail sent.')
-                    self.add_to_main_log(
-                        'CTRL: Notification e-mail sent.')
                 else:
-                    utils.log_error(
+                    self.log(
                         'CTRL',
                         'ERROR sending notification email: '
-                        + error_msg)
-                    self.add_to_main_log(
-                        'CTRL: ERROR sending notification email: '
-                        + error_msg)
+                        + error_msg,
+                        'error')
                 self.main_controls_trigger.transmit('REMOTE STOP')
             if command == 'SHOWMESSAGE':
                 # Show message received from metadata server in GUI
                 self.main_controls_trigger.transmit('SHOW MSG', msg)
         else:
-            utils.log_warning(
+            self.log(
                 'CTRL',
-                'Unknown signal from metadata server received.')
-            self.add_to_main_log(
-                'CTRL: Unknown signal from metadata server received.')
+                'Unknown signal from metadata server received.',
+                'warning')
 
     def save_viewport_screenshot(self):
         """Save a screenshot of the current contents of the Viewport window."""
@@ -1411,11 +1338,10 @@ class Acquisition:
             if self.error_state != Error.none or self.pause_state == 1:
                 break
             if not self.ovm[ov_index].active:
-                utils.log_warning(
+                self.log(
                     'CTRL',
-                    f'OV {ov_index} inactive, skipped.')
-                self.add_to_main_log(
-                    f'CTRL: OV {ov_index} inactive, skipped.')
+                    f'OV {ov_index} inactive, skipped.',
+                    'warning')
                 continue
             if self.ovm[ov_index].slice_active(self.slice_counter):
                 ov_accepted = False
@@ -1437,13 +1363,11 @@ class Acquisition:
                         # Image incomplete or cannot be loaded, try again
                         fail_counter += 1
                         if fail_counter < 3:
-                            utils.log_error(
+                            self.log(
                                 'CTRL',
                                 f'Error {self.error_state} during '
-                                'OV acquisition. Trying again.')
-                            self.add_to_main_log(
-                                f'CTRL: Error {self.error_state} during '
-                                f'OV acquisition. Trying again.')
+                                'OV acquisition. Trying again.',
+                                'error')
                         self.img_inspector.discard_last_ov(ov_index)
                         sleep(1)
                         if fail_counter == 3:
@@ -1472,15 +1396,12 @@ class Acquisition:
                 cycle_time_diff = (
                     self.sem.additional_cycle_time - self.sem.DEFAULT_DELAY)
                 if cycle_time_diff > 0.15:
-                    utils.log_warning(
+                    self.log(
                         'CTRL',
                         f'Warning: OV {ov_index} cycle time was '
                         f'{cycle_time_diff:.2f} s longer than '
-                        'expected.')
-                    self.add_to_main_log(
-                        f'CTRL: Warning: OV {ov_index} cycle time was '
-                        f'{cycle_time_diff:.2f} s longer than '
-                        f'expected.')
+                        'expected.',
+                        'warning')
 
                 if (not ov_accepted
                         and self.error_state == Error.none
@@ -1489,20 +1410,15 @@ class Acquisition:
                         # Pause if maximum number of sweeps are reached
                         self.pause_acquisition(1)
                         self.error_state = Error.sweeps_max
-                        utils.log_info(
+                        self.log(
                             'CTRL',
                             'Max. number of sweeps reached.')
-                        self.add_to_main_log(
-                            'CTRL: Max. number of sweeps reached.')
                     else:
                         # If user has set continue_after_max_sweeps to True
                         # continue acquisition, but let user know.
                         ov_accepted = True
-                        utils.log_info(
+                        self.log(
                             'CTRL',
-                            'CTRL: Max. number of sweeps reached, '
-                            'but continuing as specified.')
-                        self.add_to_main_log(
                             'CTRL: Max. number of sweeps reached, '
                             'but continuing as specified.')
 
@@ -1518,24 +1434,20 @@ class Acquisition:
                             self.base_dir, ov_index,
                             self.slice_counter))
                     if not success:
-                        utils.log_error(
+                        self.log(
                             'CTRL',
                             'Warning: Could not save OV mean/SD to disk: '
-                            + error_msg)
-                        self.add_to_main_log(
-                            'CTRL: Warning: Could not save OV mean/SD to disk.')
-                        self.add_to_main_log('CTRL: ' + error_msg)
+                            + error_msg,
+                            'error')
                     success, error_msg = (
                         self.img_inspector.save_ov_reslice(
                             self.base_dir, ov_index))
                     if not success:
-                        utils.log_error(
+                        self.log(
                             'CTRL',
                             'Warning: Could not save OV reslice to disk: '
-                            + error_msg)
-                        self.add_to_main_log(
-                            'CTRL: Warning: Could not save OV reslice to disk.')
-                        self.add_to_main_log('CTRL: ' + error_msg)
+                            + error_msg,
+                            'error')
                     # Mirror the acquired overview
                     if self.use_mirror_drive:
                         self.mirror_files([ov_save_path])
@@ -1543,11 +1455,9 @@ class Acquisition:
                     self.add_to_incident_log(
                         'Debris, ' + str(sweep_counter) + ' sweep(s)')
             else:
-                utils.log_info(
+                self.log(
                     'CTRL',
                     f'Skip OV {ov_index} (intervallic acquisition)')
-                self.add_to_main_log(
-                    'CTRL: Skip OV %d (intervallic acquisition)' % ov_index)
 
     def acquire_overview(self, ov_index, move_required=True):
         """Acquire an overview image with error handling and image inspection"""
@@ -1561,20 +1471,16 @@ class Acquisition:
         # Move to OV stage coordinates if required (this method can be called
         # with move_required=False if the stage is already at the OV position.)
         if move_required:
-            utils.log_info(
+            self.log(
                 'STAGE',
-                'Moving to OV %d position.' % ov_index)
-            self.add_to_main_log(
-                'STAGE: Moving to OV %d position.' % ov_index)
+                f'Moving to OV {ov_index} position.')
             self.stage.move_to_xy(ov_stage_position)
             if self.stage.error_state != Error.none:
-                utils.log_error(
+                self.log(
                     'STAGE',
                     'Problem with XY move (error '
-                    f'{self.stage.error_state}). Trying again.')
-                self.add_to_main_log(
-                    f'STAGE: Problem with XY move (error '
-                    f'{self.stage.error_state}). Trying again.')
+                    f'{self.stage.error_state}). Trying again.',
+                    'error')
                 # Update incident log in Viewport with warning message
                 self.add_to_incident_log(
                     f'WARNING (XY move to OV{ov_index}, '
@@ -1585,11 +1491,10 @@ class Acquisition:
                 self.stage.move_to_xy(ov_stage_position)
                 self.error_state = self.stage.error_state
                 if self.error_state != Error.none:
-                    utils.log_error(
+                    self.log(
                         'STAGE',
-                        'Failed to move to OV position.')
-                    self.add_to_main_log(
-                        'STAGE: Failed to move to OV position.')
+                        'Failed to move to OV position.',
+                        'error')
                     self.pause_acquisition(1)
                     self.stage.reset_error_state()
                     move_success = False
@@ -1613,27 +1518,20 @@ class Acquisition:
                 self.sem.set_wd(ov_wd)
                 stig_x, stig_y = self.ovm[ov_index].wd_stig_xy[1:3]
                 self.sem.set_stig_xy(stig_x, stig_y)
-                utils.log_info(
+                self.log(
                     'SEM',
                     'Using specified '
-                    + utils.format_wd_stig(ov_wd, stig_x, stig_y))
-                self.add_to_main_log(
-                    'SEM: Using specified '
                     + utils.format_wd_stig(ov_wd, stig_x, stig_y))
 
             # Path and filename of overview image to be acquired
             relative_ov_save_path = utils.ov_relative_save_path(self.stack_name, ov_index, self.slice_counter)
             ov_save_path = os.path.join(self.base_dir, relative_ov_save_path)
 
-            utils.log_info(
+            self.log(
                 'SEM',
                 'Acquiring OV at '
                 f'X:{ov_stage_position[0]:.3f}, '
                 f'Y:{ov_stage_position[1]:.3f}')
-            self.add_to_main_log(
-                'SEM: Acquiring OV at X:'
-                + '{0:.3f}'.format(ov_stage_position[0])
-                + ', Y:' + '{0:.3f}'.format(ov_stage_position[1]))
 
             # Indicate the overview being acquired in the viewport
             self.main_controls_trigger.transmit('ACQ IND OV', ov_index)
@@ -1655,14 +1553,10 @@ class Acquisition:
                 # Show OV in viewport and display mean and stddev
                 # if no load error
                 if not load_error:
-                    utils.log_info(
+                    self.log(
                         'CTRL',
                         f'OV: M:{mean:.2f}, '
                         f'SD:{stddev:.2f}')
-                    self.add_to_main_log(
-                        'CTRL: OV: M:'
-                        + '{0:.2f}'.format(mean)
-                        + ', SD:' + '{0:.2f}'.format(stddev))
                     # Save the acquired image in the workspace folder
                     workspace_save_path = os.path.join(
                         self.base_dir, 'workspace',
@@ -1686,11 +1580,10 @@ class Acquisition:
                     ov_accepted = False
                     self.error_state = Error.overview_image    # OV image error
                     self.pause_acquisition(1)
-                    utils.log_error(
+                    self.log(
                         'CTRL',
-                        'OV outside of mean/stddev limits.')
-                    self.add_to_main_log(
-                        'CTRL: OV outside of mean/stddev limits. ')
+                        'OV outside of mean/stddev limits.',
+                        'error')
                 else:
                     # OV has passed all tests, but now check for debris
                     ov_accepted = True
@@ -1717,8 +1610,7 @@ class Acquisition:
                         # Detect potential debris
                         debris_detected, msg = self.img_inspector.detect_debris(
                             ov_index)
-                        utils.log_info('CTRL', msg)
-                        self.add_to_main_log('CTRL: ' + msg)
+                        self.log('CTRL', msg)
                         if debris_detected:
                             ov_accepted = False
                             # If 'Ask User' mode is active, ask user to
@@ -1738,10 +1630,10 @@ class Acquisition:
                                     self.pause_acquisition(1)
                                 self.user_reply = None
             else:
-                utils.log_error(
+                self.log(
                     'SEM',
-                    'OV acquisition failure.')
-                self.add_to_main_log('SEM: OV acquisition failure.')
+                    'OV acquisition failure.',
+                    'error')
                 self.error_state = Error.grab_image
                 self.pause_acquisition(1)
                 ov_accepted = False
@@ -1766,17 +1658,16 @@ class Acquisition:
         """Try to remove detected debris by sweeping the surface. Microtome must
         be active for this function.
         """
-        utils.log_info(
+        self.log(
             'KNIFE',
             'Sweeping to remove debris.')
-        self.add_to_main_log('KNIFE: Sweeping to remove debris.')
         self.microtome.do_sweep(self.stage_z_position)
         if self.microtome.error_state != Error.none:
             self.microtome.reset_error_state()
-            utils.log_error(
+            self.log(
                 'KNIFE',
-                'Problem during sweep. Trying again.')
-            self.add_to_main_log('KNIFE: Problem during sweep. Trying again.')
+                'Problem during sweep. Trying again.',
+                'error')
             self.add_to_incident_log('WARNING (Problem during sweep)')
             # Trying again after 3 sec
             sleep(3)
@@ -1786,11 +1677,10 @@ class Acquisition:
                 self.microtome.reset_error_state()
                 self.error_state = Error.sweeping
                 self.pause_acquisition(1)
-                utils.log_error(
+                self.log(
                     'KNIFE',
-                    'Error during second sweep attempt.')
-                self.add_to_main_log(
-                    'KNIFE: Error during second sweep attempt.')
+                    'Error during second sweep attempt.',
+                    'error')
 
     def save_debris_image(self, ov_file_name, ov_index, sweep_counter):
         debris_save_path = utils.ov_debris_save_path(
@@ -1800,11 +1690,10 @@ class Acquisition:
         try:
             shutil.copy(ov_file_name, debris_save_path)
         except Exception as e:
-            utils.log_error(
+            self.log(
                 'CTRL',
-                'Warning: Unable to save rejected OV image, ' + str(e))
-            self.add_to_main_log(
-                'CTRL: Warning: Unable to save rejected OV image, ' + str(e))
+                f'Warning: Unable to save rejected OV image, {e}',
+                'error')
             self.add_to_incident_log(
                 'WARNING: Unable to save rejected OV image.')
         if self.use_mirror_drive:
@@ -1831,47 +1720,36 @@ class Acquisition:
             self.wd_delta = sign * self.autofocus.wd_delta
             self.stig_x_delta = sign * self.autofocus.stig_x_delta
             self.stig_y_delta = sign * self.autofocus.stig_y_delta
-            utils.log_info('CTRL', 'Heuristic autofocus active.')
-            utils.log_info(
+            self.log('CTRL', 'Heuristic autofocus active.')
+            self.log(
                 'CTRL',
                 f'DELTA_WD: {(self.wd_delta * 1000):+.4f}, '
                 f'DELTA_STIG_X: {self.stig_x_delta:+.2f}, '
                 f'DELTA_STIG_Y: {self.stig_x_delta:+.2f}')
-            self.add_to_main_log('CTRL: Heuristic autofocus active.')
-            self.add_to_main_log(
-                'CTRL: DELTA_WD: {0:+.4f}'.format(self.wd_delta * 1000)
-                + ', DELTA_STIG_X: {0:+.2f}'.format(self.stig_x_delta)
-                + ', DELTA_STIG_Y: {0:+.2f}'.format(self.stig_x_delta))
         # fit a plane for
         if self.autofocus.tracking_mode == 3:  # global aberration gradient
-            for grid_index in range(self.gm.number_grids):
+            for grid_index, grid in enumerate(self.gm):
                 if self.error_state != Error.none or self.pause_state == 1:
                     break
                 self.do_autofocus_before_grid_acq(grid_index)
             self.gm.fit_apply_aberration_gradient()
-        for grid_index in range(self.gm.number_grids):
-            grid = self.gm[grid_index]
+        for grid_index, grid in enumerate(self.gm):
             grid_label = grid.get_label(grid_index)
             self.grid_current_index = grid_index
             self.grid_current_label = grid_label
             if self.error_state != Error.none or self.pause_state == 1:
                 break
             if not grid.active:
-                utils.log_info(
+                self.log(
                     'CTRL',
                     f'{grid_label} inactive, skipped.')
-                self.add_to_main_log(
-                    f'CTRL: {grid_label} inactive, skipped.')
                 continue
             if grid.slice_active(self.slice_counter):
                 num_active_tiles = grid.number_active_tiles()
-                utils.log_info('CTRL',
+                self.log('CTRL',
                                f'{grid_label}, '
                                f'number of active tiles: '
                                f'{num_active_tiles}')
-                self.add_to_main_log(f'CTRL: {grid_label}, '
-                                     f'number of active tiles: '
-                                     f'{num_active_tiles}')
 
                 # In MagC mode, use the grid index for autostig delay
                 if self.magc_mode:
@@ -1886,22 +1764,17 @@ class Acquisition:
                 ):
 
                     if grid_index in self.grids_acquired:
-                        utils.log_info(
+                        self.log(
                             'CTRL',
                             f'{grid_label} already acquired. '
-                            f'Skipping.')
-                        self.add_to_main_log(
-                            f'CTRL: {grid_label} already acquired. '
                             f'Skipping.')
                     elif (
                             self.magc_mode
                             and grid_index not in self.gm.array_data.checked_sections
                         ):
-                            utils.log_info(
+                            self.log(
                                 'Array-CTRL',
                                 f'{grid_label} not checked. Skipping.')
-                            self.add_to_main_log(
-                                f'MagC-CTRL: Grid {grid_index} not checked. Skipping.')
                             # there are two termination checkpoints in magc
                             # 1. here, when a grid is unchecked
                             # 2. after grid acquisition
@@ -1929,11 +1802,9 @@ class Acquisition:
 
 
             else:
-                utils.log_info(
+                self.log(
                     'CTRL',
                     f'Skip {grid_label} (intervallic acquisition)')
-                self.add_to_main_log(
-                    f'CTRL: Skip {grid_label} (intervallic acquisition)')
 
             if (self.magc_mode
                 and len(self.grids_acquired) == len(self.gm.array_data.checked_sections)
@@ -1981,11 +1852,9 @@ class Acquisition:
             return
 
         msg = f'Starting acquisition of active tiles in {grid_label}'
-        utils.log_info(
+        self.log(
             'CTRL',
             msg)
-        self.add_to_main_log(
-            'CTRL: ' + msg)
 
         if self.magc_mode:
             # WD/stig is set elsewhere for magc
@@ -2085,21 +1954,18 @@ class Acquisition:
                         try:
                             os.remove(save_path)
                         except Exception as e:
-                            utils.log_error(
+                            self.log(
                                 'CTRL',
                                 'Tile image file could not be '
-                                'removed: ' + str(e))
-                            self.add_to_main_log(
-                                'CTRL: Tile image file could not be '
-                                'removed: ' + str(e))
+                                f'removed: {e}',
+                                'error')
                         # TODO: Try to solve frozen frame problem:
                         # if self.error_state == Error.frame_frozen:
                         #    self.handle_frozen_frame(grid_index)
-                        utils.log_warning(
+                        self.log(
                             'SEM',
-                            'Trying again to image tile.')
-                        self.add_to_main_log(
-                            'SEM: Trying again to image tile.')
+                            'Trying again to image tile.',
+                            'warning')
                         # Reset error state
                         self.error_state = Error.none
                 elif self.error_state != Error.none:
@@ -2120,27 +1986,19 @@ class Acquisition:
                     self.base_dir, grid_index, tile_index,
                     self.slice_counter)
                 if not success:
-                    utils.log_error(
+                    self.log(
                         'CTRL',
                         'Warning: Could not save tile mean and SD '
-                        'to disk: ' + error_msg)
-                    self.add_to_main_log(
-                        'CTRL: Warning: Could not save tile mean and SD '
-                        'to disk.')
-                    self.add_to_main_log(
-                        'CTRL: ' + error_msg)
+                        f'to disk: {error_msg}',
+                        'error')
                 success, error_msg = self.img_inspector.save_tile_reslice(
                     self.base_dir, grid_index, grid.array_index, grid.roi_index, tile_index)
                 if not success:
-                    utils.log_error(
+                    self.log(
                         'CTRL',
                         'Warning: Could not save tile reslice to '
-                        'disk:' + utils.log_error())
-                    self.add_to_main_log(
-                        'CTRL: Warning: Could not save tile reslice to '
-                        'disk.')
-                    self.add_to_main_log(
-                        'CTRL: ' + error_msg)
+                        f'disk: {error_msg}',
+                        'error')
 
                 # If heuristic autofocus is enabled and tile is selected as
                 # a reference tile, prepare tile for processing:
@@ -2161,24 +2019,18 @@ class Acquisition:
                 and not tile_skipped
                 and self.error_state == Error.none
             ):
-                utils.log_info(
+                self.log(
                     'CTRL',
                     f'Tile {tile_id} was discarded by image '
-                    f'inspector.')
-                self.add_to_main_log(
-                    f'CTRL: Tile {tile_id} was discarded by image '
                     f'inspector.')
                 # Delete file
                 try:
                     os.remove(save_path)
                 except Exception as e:
-                    utils.log_error(
+                    self.log(
                         'CTRL',
-                        'Tile image file could not be deleted: '
-                        + str(e))
-                    self.add_to_main_log(
-                        'CTRL: Tile image file could not be deleted: '
-                        + str(e))
+                        f'Tile image file could not be deleted: {e}',
+                        'error')
             # Save current position if acquisition was paused by user
             # or interrupted by an error.
             if self.pause_state == 1:
@@ -2189,40 +2041,28 @@ class Acquisition:
         cycle_time_diff = (self.sem.additional_cycle_time
                             - self.sem.DEFAULT_DELAY)
         if cycle_time_diff > 0.15:
-            utils.log_warning(
+            self.log(
                 'CTRL',
                 f'Warning: Grid {grid_index} tile cycle time was '
-                f'{cycle_time_diff:.2f} s longer than expected.')
-            self.add_to_main_log(
-                f'CTRL: Warning: Grid {grid_index} tile cycle time was '
-                f'{cycle_time_diff:.2f} s longer than expected.')
+                f'{cycle_time_diff:.2f} s longer than expected.',
+                'warning')
 
         # Show the average durations for grabbing, inspecting and mirroring
         # tiles in the current grid
         if self.tile_grab_durations and self.tile_inspect_durations:
-            utils.log_info(
+            self.log(
                 'CTRL',
                 f'Grid {grid_index}: avg. tile grab duration: '
                 f'{mean(self.tile_grab_durations):.1f} s '
                 f'(cycle time: {self.sem.current_cycle_time:.1f})')
-            utils.log_info(
+            self.log(
                 'CTRL',
                 f'Grid {grid_index}: avg. tile inspect '
                 f'duration: {mean(self.tile_inspect_durations):.1f} s')
-            self.add_to_main_log(
-                f'CTRL: Grid {grid_index}: avg. tile grab duration: '
-                f'{mean(self.tile_grab_durations):.1f} s '
-                f'(cycle time: {self.sem.current_cycle_time:.1f})')
-            self.add_to_main_log(
-                f'CTRL: Grid {grid_index}: avg. tile inspect '
-                f'duration: {mean(self.tile_inspect_durations):.1f} s')
         if self.use_mirror_drive and self.tile_mirror_durations:
-            utils.log_info(
+            self.log(
                 'CTRL',
                 f'{grid_label}: avg. time to copy tile to '
-                f'mirror drive: {mean(self.tile_mirror_durations):.1f} s')
-            self.add_to_main_log(
-                f'CTRL: Grid {grid_index}: avg. time to copy tile to '
                 f'mirror drive: {mean(self.tile_mirror_durations):.1f} s')
         # Clear duration lists for the next grid
         self.tile_grab_durations = []
@@ -2257,7 +2097,7 @@ class Acquisition:
         according to the settings of the grid at grid_index.
         """
         grid = self.gm[grid_index]
-        tile_label = grid.get_label(grid_index) + f'.{tile_index}'
+        tile_label = f'{grid.get_label(grid_index)}.{tile_index}'
         tile_img = None  # NumPy array of acquired image (from img_inspector)
         tile_accepted = False  # if True: tile passed img_inspector checks
         tile_selected = False  # if True: tile selected to be saved to disk
@@ -2283,11 +2123,9 @@ class Acquisition:
             and tile_index in self.tiles_acquired):
 
             tile_skipped = True
-            utils.log_info(
+            self.log(
                 'CTRL',
                 f'Tile {tile_label} already acquired. Skipping.')
-            self.add_to_main_log(
-                f'CTRL: Tile {tile_label} already acquired. Skipping.')
 
         if not tile_skipped:
             if not os.path.isfile(save_path) or retake_img:
@@ -2308,13 +2146,9 @@ class Acquisition:
                         # Adjust and show new parameters in the main log
                         self.sem.set_wd(new_wd)
                         self.sem.set_stig_xy(new_stig_x, new_stig_y)
-                        utils.log_info(
+                        self.log(
                             'SEM',
                             'Adjusted '
-                            + utils.format_wd_stig(
-                                new_wd, new_stig_x, new_stig_y))
-                        self.add_to_main_log(
-                            'SEM: Adjusted '
                             + utils.format_wd_stig(
                                 new_wd, new_stig_x, new_stig_y))
                         self.tile_wd = new_wd
@@ -2324,56 +2158,48 @@ class Acquisition:
                 # Read target coordinates for current tile
                 stage_x, stage_y = grid[tile_index].sx_sy
                 # Move to that position
-                utils.log_info(
+                self.log(
                     'STAGE',
                     f'Moving to position of Tile {tile_label}')
-                self.add_to_main_log(
-                    f'STAGE: Moving to position of Tile {tile_label}')
                 self.stage.move_to_xy((stage_x, stage_y))
                 # The move function waits for the motor move duration and the
                 # specified stage move wait interval.
                 # Check if there were microtome problems:
                 # If yes, try one more time before pausing acquisition.
                 if self.stage.error_state != Error.none:
-                    utils.log_error(
+                    self.log(
                         'STAGE',
                         'Problem with XY move (error '
-                        f'{self.stage.error_state}). Trying again.')
-                    self.add_to_main_log(
-                        f'STAGE: Problem with XY move (error '
-                        f'{self.stage.error_state}). Trying again.')
+                        f'{self.stage.error_state}). Trying again.',
+                        'error')
                     # Add warning to incident log
                     self.add_to_incident_log(f'WARNING (XY move to {tile_label}, '
                                              f'error {self.stage.error_state})')
                     self.stage.reset_error_state()
                     sleep(2)
                     # Try to move to tile position again
-                    utils.log_info(
+                    self.log(
                         'STAGE',
                         f'Moving to position of Tile {tile_label}')
-                    self.add_to_main_log(
-                        f'STAGE: Moving to position of Tile {tile_label}')
                     self.stage.move_to_xy((stage_x, stage_y))
                     # Check again if there is an error
                     self.error_state = self.stage.error_state
                     self.stage.reset_error_state()
                     # If yes, pause stack
                     if self.error_state != Error.none:
-                        utils.log_error(
+                        self.log(
                             'STAGE',
-                            'XY move failed. Stack will be paused.')
-                        self.add_to_main_log(
-                            'STAGE: XY move failed. Stack will be paused.')
+                            'XY move failed. Stack will be paused.',
+                            'error')
             else:
                 # If tile image file already exists and tile not supposed to
                 # be reacquired (retake_img == False):
                 # Pause because risk of overwriting data!
                 self.error_state = Error.file_overwrite
-                utils.log_warning(
+                self.log(
                     'CTRL',
-                    f'Tile {tile_label}: Image file already exists!')
-                self.add_to_main_log(
-                    f'CTRL: Tile {tile_label}: Image file already exists!')
+                    f'Tile {tile_label}: Image file already exists!',
+                    'warning')
 
             if self.magc_mode:
                 # set wd,stig calculated at the beginning of the grid
@@ -2448,13 +2274,11 @@ class Acquisition:
 
             # After all preliminary checks complete, now acquire the frame!
             # (Even if error has been detected. May be helpful.)
-            utils.log_info(
+            self.log(
                 'SEM',
-                f'Acquiring tile at X:{stage_x:.3f}, '
-                f'Y:{stage_y:.3f}')
-            self.add_to_main_log('SEM: Acquiring tile at X:'
-                                 f'{stage_x:.3f}, '
-                                 f'Y:{stage_y:.3f}')
+                f'Acquiring tile at'
+                f' X:{stage_x:.3f},'
+                f' Y:{stage_y:.3f}')
             # Indicate current tile in Viewport
             self.main_controls_trigger.transmit(
                 'ACQ IND TILE', grid_index, tile_index)
@@ -2468,13 +2292,11 @@ class Acquisition:
             self.tile_grab_durations.append(grab_duration)
             grab_overhead = grab_duration - self.sem.current_cycle_time
             if grab_overhead > 1.5:
-                utils.log_error(
+                self.log(
                     'SEM',
                     'Warning: Grab overhead too large '
-                    f'({grab_overhead:.1f} s).')
-                self.add_to_main_log(
-                    'SEM: Warning: Grab overhead too large '
-                    f'({grab_overhead:.1f} s).')
+                    f'({grab_overhead:.1f} s).',
+                    'error')
             # Remove indication in Viewport
             self.main_controls_trigger.transmit(
                 'ACQ IND TILE', grid_index, tile_index)
@@ -2489,13 +2311,11 @@ class Acquisition:
                 mirror_duration = end_time - start_time
                 self.tile_mirror_durations.append(mirror_duration)
                 if mirror_duration > 1.5:
-                    utils.log_warning(
+                    self.log(
                         'CTRL',
                         'Warning: Copying tile to mirror drive took too '
-                        f'long ({mirror_duration:.1f} s).')
-                    self.add_to_main_log(
-                        f'CTRL: Warning: Copying tile to mirror drive took too '
-                        f'long ({mirror_duration:.1f} s).')
+                        f'long ({mirror_duration:.1f} s).',
+                        'warning')
 
             # Check if image was saved and process it
             if os.path.isfile(save_path):
@@ -2512,24 +2332,19 @@ class Acquisition:
                 inspect_duration = end_time - start_time
                 self.tile_inspect_durations.append(inspect_duration)
                 if inspect_duration > 1.5:
-                    utils.log_warning(
+                    self.log(
                         'CTRL',
                         'Warning: Inspecting tile took too '
-                        f'long ({inspect_duration:.1f} s).')
-                    self.add_to_main_log(
-                        f'CTRL: Warning: Inspecting tile took too '
-                        f'long ({inspect_duration:.1f} s).')
+                        f'long ({inspect_duration:.1f} s).',
+                        'warning')
 
                 if not load_error:
                     # Assume tile_accepted, check against various errors below
                     tile_accepted = True
-                    utils.log_info('CTRL',
-                                   f'Tile {tile_label}: '
-                                   f'M:{mean:.2f}, '
-                                   f'SD:{stddev:.2f}')
-                    self.add_to_main_log(f'CTRL: Tile {tile_label}'
-                                         + ': M:' + '{0:.2f}'.format(mean)
-                                         + ', SD:' + '{0:.2f}'.format(stddev))
+                    self.log('CTRL',
+                             f'Tile {tile_label}: '
+                             f'M:{mean:.2f}, '
+                             f'SD:{stddev:.2f}')
                     # New preview available, show it (if tile previews active)
                     self.main_controls_trigger.transmit('DRAW VP')
 
@@ -2545,64 +2360,55 @@ class Acquisition:
                         if frozen_frame_error:
                             tile_accepted = False
                             self.error_state = Error.frame_frozen
-                            utils.log_error(
+                            self.log(
                                 'SEM',
                                 f'Tile {tile_label}'
-                                ': SmartSEM frozen frame error!')
-                            self.add_to_main_log(
-                                f'SEM: Tile {tile_label}'
-                                ': SmartSEM frozen frame error!')
+                                ': SmartSEM frozen frame error!',
+                                'error')
                         elif grab_incomplete:
                             tile_accepted = False
                             self.error_state = Error.grab_incomplete
-                            utils.log_error(
+                            self.log(
                                 'SEM',
                                 f'Tile {tile_label}'
-                                ': SmartSEM grab incomplete error!')
-                            self.add_to_main_log(
-                                f'SEM: Tile {tile_label}'
-                                ': SmartSEM grab incomplete error!')
+                                ': SmartSEM grab incomplete error!',
+                                'error')
                         elif self.monitor_images:
                             # Two additional checks if 'image monitoring'
                             # option is active
                             if not range_test_passed:
                                 tile_accepted = False
                                 self.error_state = Error.tile_image_range
-                                utils.log_error(
+                                self.log(
                                     'CTRL',
                                     'Tile outside of permitted mean/SD '
-                                    'range!')
-                                self.add_to_main_log(
-                                    'CTRL: Tile outside of permitted mean/SD '
-                                    'range!')
+                                    'range!',
+                                    'error')
                             elif (
                                 slice_by_slice_test_passed is not None
                                 and not slice_by_slice_test_passed
                             ):
                                 tile_accepted = False
                                 self.error_state = Error.tile_image_compare
-                                utils.log_error(
+                                self.log(
                                     'CTRL',
                                     'Tile above mean/SD slice-by-slice '
-                                    'thresholds.')
-                                self.add_to_main_log(
-                                    'CTRL: Tile above mean/SD slice-by-slice '
-                                    'thresholds.')
+                                    'thresholds.',
+                                    'error')
                 else:
                     # Tile image file could not be loaded
-                    utils.log_error(
+                    self.log(
                         'CTRL',
                         'Error: Failed to load tile '
-                        'image file.')
-                    self.add_to_main_log('CTRL: Error: Failed to load tile '
-                                         'image file.')
+                        'image file.',
+                        'error')
                     self.error_state = Error.image_load
             else:
                 # File was not saved
-                utils.log_error(
+                self.log(
                     'SEM',
-                    'Tile image acquisition failure.')
-                self.add_to_main_log('SEM: Tile image acquisition failure. ')
+                    'Tile image acquisition failure.',
+                    'error')
                 self.error_state = Error.grab_image
 
         # Check for "Ask User" override
@@ -2642,11 +2448,11 @@ class Acquisition:
             self.gm.tile_position_for_registration(
                 grid_index, tile_index))
         global_z = int(self.total_z_diff * 1000)
-        tileinfo_str = (relative_save_path + ';'
-                        + str(global_x) + ';'
-                        + str(global_y) + ';'
-                        + str(global_z) + ';'
-                        + str(self.slice_counter) + '\n')
+        tileinfo_str = (f'{relative_save_path};'
+                        f'{global_x};'
+                        f'{global_y};'
+                        f'{global_z};'
+                        f'{self.slice_counter}\n')
         self.imagelist_file.write(tileinfo_str)
         # Write the same information to the imagelist on the mirror drive
         if self.use_mirror_drive:
@@ -2673,11 +2479,10 @@ class Acquisition:
             if status == 100:
                 self.error_state = Error.metadata_server
                 self.pause_acquisition(1)
-                utils.log_error('CTRL',
-                                'Error sending tile metadata '
-                                'to server. ' + exc_str)
-                self.add_to_main_log('CTRL: Error sending tile metadata '
-                                     'to server. ' + exc_str)
+                self.log('CTRL',
+                         'Error sending tile metadata '
+                         f'to server. {exc_str}',
+                         'error')
 
     def register_accepted_ov(self, relative_save_path, ov_index):
         """Register the overview image in the overview image list file and the metadata
@@ -2687,11 +2492,11 @@ class Acquisition:
         ov_id = utils.overview_id(ov_index, self.slice_counter)
         global_x, global_y = (self.ovm.overview_position_for_registration(ov_index))
         global_z = int(self.total_z_diff * 1000)
-        overviewinfo_str = (relative_save_path + ';'
-                        + str(global_x) + ';'
-                        + str(global_y) + ';'
-                        + str(global_z) + ';'
-                        + str(self.slice_counter) + '\n')
+        overviewinfo_str = (f'{relative_save_path};'
+                            f'{global_x};'
+                            f'{global_y};'
+                            f'{global_z};'
+                            f'{self.slice_counter}\n')
         self.imagelist_ov_file.write(overviewinfo_str)
         # Write the same information to the ov_imagelist on the mirror drive
         if self.use_mirror_drive:
@@ -2716,11 +2521,10 @@ class Acquisition:
             if status == 100:
                 self.error_state = Error.metadata_server
                 self.pause_acquisition(1)
-                utils.log_error('CTRL',
-                                'Error sending overview metadata '
-                                'to server. ' + exc_str)
-                self.add_to_main_log('CTRL: Error sending overview metadata '
-                                     'to server. ' + exc_str)
+                self.log('CTRL',
+                         'Error sending overview metadata '
+                         f'to server. {exc_str}',
+                         'error')
 
     def save_rejected_tile(self, tile_save_path, fail_counter):
         """Save rejected tile image in the 'rejected' subfolder."""
@@ -2732,11 +2536,10 @@ class Acquisition:
         try:
             shutil.copy(tile_save_path, rejected_tile_save_path)
         except Exception as e:
-            utils.log_error(
+            self.log(
                 'CTRL',
-                'Warning: Unable to save rejected tile image, ' + str(e))
-            self.add_to_main_log(
-                'CTRL: Warning: Unable to save rejected tile image, ' + str(e))
+                f'Warning: Unable to save rejected tile image, {e}',
+                'error')
         if self.use_mirror_drive:
             self.mirror_files([rejected_tile_save_path])
 
@@ -2764,25 +2567,25 @@ class Acquisition:
         """Run SmartSEM autofocus at given position"""
         do_focus, do_stig = self.autofocus_stig_current_slice
         move_msg = (
-            "STAGE-MagC",
+            "STAGE-Array",
             f"Moving to {position} for AFAS of grid {grid_index} at focus point {id_focus}",
         )
-        self.double_log(*move_msg)
+        self.log(*move_msg)
         self.stage.move_to_xy(position)
         if self.stage.error_state != Error.none:
             self.stage.reset_error_state()
-            self.double_log('STAGE', 'Problem with XY move. Trying again.')
+            self.log('STAGE', 'Problem with XY move. Trying again.')
             self.add_to_incident_log('WARNING (Problem with XY stage move)')
             sleep(2)
             # Try to move to tile position again
-            self.double_log(*move_msg)
+            self.log(*move_msg)
             self.stage.move_to_xy(position)
             # Check again if there is an error
             self.error_state = self.stage.error_state
             self.stage.reset_error_state()
             # If yes, pause stack
             if self.error_state != Error.none:
-                self.double_log("STAGE-MagC", "XY move for autofocus failed.")
+                self.log("STAGE-Array", "XY move for autofocus failed.")
 
         if self.error_state != Error.none:
             return None
@@ -2795,20 +2598,20 @@ class Acquisition:
             af_type = '(stig only)'
 
         if self.autofocus.method == 0:
-            self.double_log(
-                'SEM-MagC',
+            self.log(
+                'SEM-Array',
                 f'Running SmartSEM AF procedure {af_type} for grid {grid_index}'
             )
             autofocus_msg = 'SEM', self.autofocus.run_zeiss_af(do_focus, do_stig)
 
-        self.double_log(*autofocus_msg)
+        self.log(*autofocus_msg)
         if 'ERROR' in autofocus_msg[1]:
             self.error_state = Error.autofocus_smartsem
             return None
         else:
             wd = self.sem.get_wd()
             sx, sy = list(self.sem.get_stig_xy())
-            self.double_log(
+            self.log(
                 "SEM",
                 f"Result of {af_type.lstrip('(').rstrip(')')}: \nWD: {wd*1000:.4f}\n StigX: {sx}\nStigY: {sy}",
             )
@@ -2826,32 +2629,24 @@ class Acquisition:
             # Read target coordinates for specified tile
             stage_x, stage_y = grid[tile_index].sx_sy
             # Move to that position
-            utils.log_info(
+            self.log(
                 'STAGE',
                 'Moving to position of tile '
-                f'{grid_label}.{tile_index}'
-                ' for autofocus')
-            self.add_to_main_log(
-                'STAGE: Moving to position of tile '
                 f'{grid_label}.{tile_index}'
                 ' for autofocus')
             self.stage.move_to_xy((stage_x, stage_y))
             if self.stage.error_state != Error.none:
                 self.stage.reset_error_state()
-                utils.log_error(
+                self.log(
                     'STAGE',
-                    'Problem with XY move. Trying again.')
-                self.add_to_main_log(
-                    'STAGE: Problem with XY move. Trying again.')
+                    'Problem with XY move. Trying again.',
+                    'error')
                 self.add_to_incident_log('WARNING (Problem with XY stage move)')
                 sleep(2)
                 # Try to move to tile position again
-                utils.log_info(
+                self.log(
                     'STAGE',
                     'Moving to position of tile '
-                    f'{grid_label}.{tile_index}')
-                self.add_to_main_log(
-                    'STAGE: Moving to position of tile '
                     f'{grid_label}.{tile_index}')
                 self.stage.move_to_xy((stage_x, stage_y))
                 # Check again if there is an error
@@ -2859,10 +2654,10 @@ class Acquisition:
                 self.stage.reset_error_state()
                 # If yes, pause stack
                 if self.error_state != Error.none:
-                    utils.log_error(
+                    self.log(
                         'STAGE',
-                        'XY move for autofocus failed.')
-                    self.add_to_main_log('STAGE: XY move for autofocus failed.')
+                        'XY move for autofocus failed.',
+                        'error')
         if self.error_state != Error.none or not (do_focus or do_stig):
             return
         if do_focus and do_stig:
@@ -2882,19 +2677,15 @@ class Acquisition:
             self.sem.set_stig_xy(tile_stig_x, tile_stig_y)
         # TODO: Use enum for method:
         if self.autofocus.method == 0:
-            utils.log_info('SEM',
-                           'Running SEM AF procedure '
-                           f'{af_type} for tile '
-                           f'{grid_label}.{tile_index}')
-            self.add_to_main_log('SEM: Running SEM AF procedure '
-                                 f'{af_type} for tile '
-                                 f'{grid_label}.{tile_index}')
+            self.log('SEM',
+                     'Running SEM AF procedure '
+                     f'{af_type} for tile '
+                     f'{grid_label}.{tile_index}')
             autofocus_msg = 'SEM', self.autofocus.run_sem_af(do_focus, do_stig)
         elif self.autofocus.method == 3:
             msg = f'Running MAPFoSt AF procedure for tile {grid_index}.{tile_index} with initial WD/STIG_X/Y: ' \
                   f'{tile_wd*1000:.4f}, {tile_stig_x:.4f}, {tile_stig_y:.4f}'
-            utils.log_info('SEM', msg)
-            self.add_to_main_log(f'SEM: {msg}')
+            self.log('SEM', msg)
             autofocus_msg = self.autofocus.run_mapfost_af(aberr_mode_bools=[1, do_stig, do_stig],
                                                           pixel_size=self.autofocus.pixel_size,
                                                           large_aberrations=self.autofocus.mapfost_large_aberrations,
@@ -2914,8 +2705,7 @@ class Acquisition:
         elif not self.autofocus.wd_stig_diff_below_max(tile_wd, tile_stig_x, tile_stig_y):
             msg = (f'Autofocus for tile {grid_index}.{tile_index} out of range with new values: {self.sem.get_wd()*1000} (WD), '
                    f'{self.sem.get_stig_xy()} (stig_xy).')
-            utils.log_error('STAGE', msg)
-            self.add_to_main_log(msg)
+            self.log('STAGE', msg, 'error')
             self.add_to_incident_log(msg)
             self.error_state = Error.wd_stig_difference
         else:
@@ -2926,13 +2716,17 @@ class Acquisition:
             msg = f'Finished autofocus procedure for tile {grid_index}.{tile_index} with final WD/STIG_X/Y: ' \
                   f'{grid[tile_index].wd*1000:.4f}, {grid[tile_index].stig_xy[0]:.4f},' \
                   f' {grid[tile_index].stig_xy[1]:.4f}'
-            utils.log_info('SEM', msg)
-            self.add_to_main_log(f'SEM: {msg}')
+            self.log('SEM', msg)
             # Show updated WD label(s) in Viewport
             self.main_controls_trigger.transmit('DRAW VP')
 
-    def double_log(self, header, msg):
-        utils.log_info(header, msg)
+    def log(self, header, msg, msg_type='info'):
+        if msg_type == 'error':
+            utils.log_error(header, msg)
+        elif msg_type == 'warning':
+            utils.log_warning(header, msg)
+        else:
+            utils.log_info(header, msg)
         self.add_to_main_log(f'{header}: {msg}')
 
     def do_autofocus_before_grid_acq(self, grid_index):
@@ -2966,6 +2760,7 @@ class Acquisition:
             [xy, (wd, sx, sy)]
         ]
         """
+        grid = self.gm[grid_index]
         focus_positions = self.gm.array_autofocus_points(grid_index)
         AFAS_results = [] # results for each focus point
         for id_focus, focus_position in enumerate(focus_positions):
@@ -2978,8 +2773,8 @@ class Acquisition:
                     self.autofocus_stig_current_slice[0] * "Autostig "
                     + self.autofocus_stig_current_slice[1] * "Autofocus"
             )
-            self.double_log(
-                "MagC-CTRL",
+            self.log(
+                "Array-CTRL",
                 f"Performing {operation_str} in autofocus point #{id_focus} in grid {grid_index}")
             AFAS_results.append([
                 focus_position,
@@ -2997,69 +2792,56 @@ class Acquisition:
             if result[1]
         ]
         if AFAS_results:
-            self.gm[grid_index].AFAS_results = AFAS_results
+            grid.AFAS_results = AFAS_results
 
     def do_heuristic_autofocus(self, tile_key):
-        utils.log_info('CTRL',
+        self.log('CTRL',
                        f'Processing tile {tile_key} for '
                        f'heuristic autofocus ')
-        self.add_to_main_log('CTRL: Processing tile %s for '
-                             'heuristic autofocus ' %tile_key)
         self.autofocus.process_image_for_heuristic_af(tile_key)
         wd_corr, sx_corr, sy_corr, within_range = (
             self.autofocus.get_heuristic_corrections(tile_key))
         if wd_corr is not None:
-            utils.log_info('CTRL',
-                           'New corrections: '
-                           f'{wd_corr:.6f}, '
-                           f'{sx_corr:.6f}, '
-                           f'{sy_corr:.6f}')
-            self.add_to_main_log('CTRL: New corrections: '
-                                 + '{0:.6f}, '.format(wd_corr)
-                                 + '{0:.6f}, '.format(sx_corr)
-                                 + '{0:.6f}'.format(sy_corr))
+            self.log('CTRL',
+                     'New corrections: '
+                     f'{wd_corr:.6f}, '
+                     f'{sx_corr:.6f}, '
+                     f'{sy_corr:.6f}')
             if not within_range:
                 # The difference in WD/STIG was too large.
                 self.error_state = Error.wd_stig_difference
                 self.pause_acquisition(1)
         else:
-            utils.log_info(
+            self.log(
                 'CTRL',
                 'No estimates computed (need one additional slice) ')
-            self.add_to_main_log(
-                'CTRL: No estimates computed (need one additional slice) ')
 
 
     def do_autofocus_adjustments(self, grid_index):
         # Apply average WD/STIG from reference tiles
         # if tracking mode "Average" is selected.
+        grid = self.gm[grid_index]
         if self.magc_mode:
             self.magc_do_autofocus_adjustments(grid_index)
         if self.use_autofocus and self.autofocus.tracking_mode == 2:
             if self.autofocus.method == 0:
-                utils.log_info(
+                self.log(
                     'CTRL',
                     'Applying average WD/STIG parameters '
-                    '(SEM autofocus).')
-                self.add_to_main_log(
-                    'CTRL: Applying average WD/STIG parameters '
                     '(SEM autofocus).')
             elif self.autofocus.method == 1:
-                utils.log_info(
+                self.log(
                     'CTRL',
                     'Applying average WD/STIG parameters '
-                    '(heuristic autofocus).')
-                self.add_to_main_log(
-                    'CTRL: Applying average WD/STIG parameters '
                     '(heuristic autofocus).')
             # Compute new grid average for WD and STIG
             avg_grid_wd = (
-                self.gm[grid_index].average_wd_of_autofocus_ref_tiles())
+                grid.average_wd_of_autofocus_ref_tiles())
 
             avg_grid_stig_x, avg_grid_stig_y = (
-                self.gm[grid_index].average_stig_xy_of_autofocus_ref_tiles())
+                grid.average_stig_xy_of_autofocus_ref_tiles())
 
-            if not None in [avg_grid_wd, avg_grid_stig_x , avg_grid_stig_y]:
+            if None not in [avg_grid_wd, avg_grid_stig_x , avg_grid_stig_y]:
                 # Apply corrections. At the moment, all reference tiles are
                 # checked individually if the difference in wd/stig from
                 # the autofocus correction is within the permissable limit,
@@ -3071,15 +2853,15 @@ class Acquisition:
                 self.stig_x_default = avg_grid_stig_x
                 self.stig_y_default = avg_grid_stig_y
                 # Update grid
-                self.gm[grid_index].set_wd_for_all_tiles(avg_grid_wd)
-                self.gm[grid_index].set_stig_xy_for_all_tiles(
+                grid.set_wd_for_all_tiles(avg_grid_wd)
+                grid.set_stig_xy_for_all_tiles(
                     [avg_grid_stig_x, avg_grid_stig_y])
 
         # If "Individual + Approximate" mode selected - approximate the working
         # distances and stig parameters for all non-autofocus tiles that are
         # active:
         if (self.use_autofocus
-            and self.autofocus.tracking_mode == 0):
+                and self.autofocus.tracking_mode == 0):
             self.autofocus.approximate_wd_stig_in_grid(grid_index)
 
         # If focus gradient active, adjust focus for grid(s):
@@ -3088,14 +2870,15 @@ class Acquisition:
 
     def magc_do_autofocus_adjustments(self, grid_index):
         """Apply focus gradient on grid based on AFAS performed on the focus points"""
-        if not hasattr(self.gm[grid_index], "AFAS_results"):
-            self.double_log(
-                "MagC-CTRL",
+        grid = self.gm[grid_index]
+        if not hasattr(grid, "AFAS_results"):
+            self.log(
+                "Array-CTRL",
                 f"No grid autofocus adjustment for grid {grid_index}"
             )
             return
-        self.double_log("MagC-CTRL", "Applying WD/STIG to the grid")
-        self.gm[grid_index].set_wd_stig_from_calibrated_points()
+        self.log("Array-CTRL", "Applying WD/STIG to the grid")
+        grid.set_wd_stig_from_calibrated_points()
 
 
     def lock_wd_stig(self):
@@ -3107,21 +2890,17 @@ class Acquisition:
     def lock_mag(self):
         self.locked_mag = self.sem.get_mag()
         self.mag_locked = True
-        utils.log_info(
+        self.log(
             'SEM',
-            'Locked magnification: ' + str(self.locked_mag))
-        self.add_to_main_log(
-            'SEM: Locked magnification: ' + str(self.locked_mag))
+            f'Locked magnification: {self.locked_mag}')
 
     def set_default_wd_stig(self):
         """Set wd/stig to target default values."""
         self.sem.set_wd(self.wd_default)
         self.sem.set_stig_xy(self.stig_x_default, self.stig_y_default)
-        utils.log_info(
+        self.log(
             'SEM',
             'Adjusted ' + utils.format_wd_stig(
-            self.wd_default, self.stig_x_default, self.stig_y_default))
-        self.add_to_main_log('SEM: Adjusted ' + utils.format_wd_stig(
             self.wd_default, self.stig_x_default, self.stig_y_default))
 
     def check_locked_wd_stig(self):
@@ -3133,32 +2912,27 @@ class Acquisition:
 
         if diff_wd > 0.000001:
             change_detected = True
-            utils.log_warning(
+            self.log(
                 'SEM',
-                'Warning: Change in working distance detected.')
-            self.add_to_main_log(
-                'SEM: Warning: Change in working distance detected.')
+                'Warning: Change in working distance detected.',
+                'warning')
             # Restore previous working distance
             self.sem.set_wd(self.locked_wd)
-            utils.log_info(
+            self.log(
                 'SEM',
                 'Restored previous working distance.')
-            self.add_to_main_log('SEM: Restored previous working distance.')
 
         if (diff_stig_x > 0.000001 or diff_stig_y > 0.000001):
             change_detected = True
-            utils.log_warning(
+            self.log(
                 'SEM',
-                'Warning: Change in stigmation settings detected.')
-            self.add_to_main_log(
-                'SEM: Warning: Change in stigmation settings detected.')
+                'Warning: Change in stigmation settings detected.',
+                'warning')
             # Restore previous settings
             self.sem.set_stig_xy(self.locked_stig_x, self.locked_stig_y)
-            utils.log_info(
+            self.log(
                 'SEM',
                 'Restored previous stigmation settings.')
-            self.add_to_main_log(
-                'SEM: Restored previous stigmation parameters.')
         if change_detected:
             self.main_controls_trigger.transmit('FOCUS ALERT')
 
@@ -3166,24 +2940,19 @@ class Acquisition:
         """Check if mag was accidentally changed and restore target mag."""
         current_mag = self.sem.get_mag()
         if current_mag != self.locked_mag:
-            utils.log_warning(
+            self.log(
                 'SEM',
-                'Warning: Change in magnification detected.')
-            utils.log_info(
+                'Warning: Change in magnification detected.',
+                'warning')
+            self.log(
                 'SEM',
-                'Current mag: ' + str(current_mag)
-                + '; target mag: ' + str(self.locked_mag))
-            self.add_to_main_log(
-                'SEM: Warning: Change in magnification detected.')
-            self.add_to_main_log(
-                'SEM: Current mag: ' + str(current_mag)
-                + '; target mag: ' + str(self.locked_mag))
+                f'Current mag: {current_mag};'
+                f' target mag: {self.locked_mag}')
             # Restore previous magnification
             self.sem.set_mag(self.locked_mag)
-            utils.log_info(
+            self.log(
                 'SEM',
                 'Restored previous magnification.')
-            self.add_to_main_log('SEM: Restored previous magnification.')
             self.main_controls_trigger.transmit('MAG ALERT')
 
     def reset_acquisition(self):

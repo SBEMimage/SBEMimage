@@ -194,7 +194,7 @@ def main():
                     sysconfig, selected_sem, selected_microtome)
                 exceptions += '; ' + exc
                 if success:
-                    if device_presets_selection[1] == None:
+                    if device_presets_selection[1] is None:
                         config['sys']['use_microtome'] = 'False'
                     syscfg_changed = True
                     presets_loaded = True

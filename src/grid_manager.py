@@ -1405,10 +1405,12 @@ class GridManager(list):
             self.set_array_landmark(landmark_id, location, landmark_type='target')
 
     def array_create_grids(self, imported_image):
+        sem_stage_flipped = self.cs.get_sem_stage_flipped()
         self.delete_array_grids(keep_template_grids=True)
         for array_index, rois in self.array_data.get_rois().items():
             for roi_index, roi in rois.items():
-                center, size, rotation = self.array_data.get_roi_stage_properties(roi, imported_image)
+                center, size, rotation = (
+                    self.array_data.get_roi_stage_properties(roi, imported_image, sem_stage_flipped))
                 self.add_new_grid_from_roi(array_index, roi_index, center, size, rotation)
                 # add focus points to grid
                 grid_index = self.number_grids - 1
@@ -1420,11 +1422,13 @@ class GridManager(list):
     def array_update_grids(self, imported_image):
         # compute new grid locations
         # (always transform from reference source)
+        sem_stage_flipped = self.cs.get_sem_stage_flipped()
         for array_index, rois in self.array_data.get_rois().items():
             for roi_index, roi in rois.items():
                 grid = self.find_roi_grid(array_index, roi_index)
                 if grid:
-                    center, _, rotation = self.array_data.get_roi_stage_properties(roi, imported_image)
+                    center, _, rotation = (
+                        self.array_data.get_roi_stage_properties(roi, imported_image, sem_stage_flipped))
                     grid.auto_update_tile_positions = False
                     grid.rotation = rotation
                     grid.update_tile_positions()
@@ -1647,7 +1651,8 @@ class GridManager(list):
         grid = self[grid_index]
         roi_index = grid.roi_index
         source = self.array_data.get_roi(grid.array_index, roi_index)
-        center, size, rotation = self.array_data.get_roi_stage_properties(source, imported_image)
+        center, size, rotation = (
+            self.array_data.get_roi_stage_properties(source, imported_image, self.cs.get_sem_stage_flipped()))
 
         grid.centre_sx_sy = center
         grid.rotation = rotation

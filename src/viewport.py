@@ -785,10 +785,12 @@ class Viewport(QWidget):
                     'You have moved the selected imported image. Please '
                     'confirm the new position. Click "Cancel" to undo.',
                     QMessageBox.Ok | QMessageBox.Cancel)
+                imported = self.imported[self.selected_imported]
                 if user_reply == QMessageBox.Cancel:
                     # Restore centre coordinates
-                    self.imported[self.selected_imported].centre_sx_sy = (
-                        self.stage_pos_backup)
+                    imported.centre_sx_sy = self.stage_pos_backup
+                elif imported.is_array:
+                    self.gm.array_update_data_image_properties(imported)
 
             self.fov_drag_active = False
             self.grid_drag_active = False

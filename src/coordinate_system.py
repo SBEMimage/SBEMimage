@@ -189,6 +189,10 @@ class CoordinateSystem:
         ]
         return np.linalg.inv(transform)
 
+    def get_sem_stage_flipped(self):
+        yx_factor = self.rot_mat_d * self.scale_y / self.rot_mat_a * self.scale_x
+        return yx_factor < 0
+
     def convert_d_to_v(self, d_coordinates) -> np.ndarray:
         """Convert SEM XY coordinates into Viewport window coordinates.
         These coordinates in units of pixels specify an object's location

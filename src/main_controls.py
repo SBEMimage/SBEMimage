@@ -722,7 +722,7 @@ class MainControls(QMainWindow):
         for i in range(self.gm.number_grids):
             colour_icon = QPixmap(18, 9)
             rgb = self.gm[i].display_colour_rgb()
-            colour_icon.fill(QColor(rgb[0], rgb[1], rgb[2]))
+            colour_icon.fill(QColor(*rgb))
             self.comboBox_gridSelector.addItem(
                 QIcon(colour_icon), '   ' + grid_list_str[i])
         self.grid_index_dropdown = grid_index
@@ -816,7 +816,7 @@ class MainControls(QMainWindow):
 
         if self.gm.array_mode:
             label = "Target number of ROIs:"
-            n = self.acq.grid_total_active
+            n = self.gm.total_number_active_grids()
         elif self.acq.use_target_z_diff:
             label = "Target Z depth (μm):"
             n = self.acq.target_z_diff
@@ -1428,17 +1428,19 @@ class MainControls(QMainWindow):
             self.gm.array_read(array_filename)
         else:
             array_filename = self.gm.array_data.path
+        nsections = self.gm.array_data.get_nsections()
+        nrois = self.gm.array_data.get_nrois()
+
         self.lineEdit_array_dataFile.setText(array_filename)
         array_image = self.imported.find_array_image()
         if array_image is not None:
             self.gm.array_update_data_image_properties(array_image)
+
         utils.log_info(
             'Array-CTRL',
-            f'{len(self.gm.array_data.sections)} Array sections have been loaded.')
+            f'{nsections} Array sections x {nrois} ROIs have been loaded.')
 
         # populate table
-        nsections = self.gm.array_data.get_nsections()
-        nrois = self.gm.array_data.get_nrois()
         table_model = self.tableView_array_sections.model()
         table_model.clear()
 
@@ -1788,10 +1790,10 @@ class MainControls(QMainWindow):
         progress_value = None
 
         if self.gm.array_mode:
-            progress_type = "ROI:"
+            progress_type = "Grid:"
             label = self.acq.grid_current_label
             array_current_index = self.acq.grid_current_index
-            total = self.acq.grid_total_active
+            total = self.gm.total_number_active_grids()
             progress_position = (
                 f'{label}')
             if total:

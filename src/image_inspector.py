@@ -376,9 +376,7 @@ class ImageInspector:
         error_msg = ''
         if (ov_index in self.ov_reslice_line
             and self.ov_reslice_line[ov_index].shape[1] == 400):
-            reslice_filename = os.path.join(
-                base_dir, 'workspace', 'reslices',
-                'r_OV' + str(ov_index).zfill(constants.OV_DIGITS) + constants.OV_IMAGE_FORMAT)
+            reslice_filename = utils.ov_reslice_save_path(base_dir, ov_index)
             reslice_img = None
             # Open reslice file if it exists and save updated reslice
             try:

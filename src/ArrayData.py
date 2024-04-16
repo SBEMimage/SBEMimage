@@ -314,15 +314,18 @@ class ArrayData:
                     roi = section['sample']
         return roi
 
-    def get_roi_stage_properties(self, source, imported_image):
+    def get_roi_stage_properties(self, source, imported_image, sem_stage_flipped):
         # Get rectangle: use angle corresponding to rectangle size
         center0, size0, angle0 = utils.calc_rotated_rect(source['polygon'])
         size = np.multiply(size0, imported_image.scale)
         center = utils.apply_transform(source['center'], self.transform)
+        rotation = imported_image.rotation
         if imported_image.flipped:
-            rotation = angle0 - imported_image.rotation
+            rotation -= angle0
         else:
-            rotation = -angle0 - imported_image.rotation
+            rotation += angle0
+        if sem_stage_flipped:
+            rotation = -rotation
         return center, size, rotation % 360
 
     def get_focus_points_in_roi(self, section_index, roi):
