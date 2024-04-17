@@ -497,26 +497,29 @@ def color_image(image):
 
 
 def int2float_image(image):
-    if image.dtype.kind != 'f':
-        maxval = 2 ** (8 * image.dtype.itemsize) - 1
+    source_dtype = image.dtype
+    if not source_dtype.kind == 'f':
+        maxval = 2 ** (8 * source_dtype.itemsize) - 1
         return image / np.float32(maxval)
     else:
         return image
 
 
-def float2int_image(image, dtype=np.dtype(np.uint8)):
-    if not (image.dtype.kind == 'i' or image.dtype.kind == 'u') and not dtype.kind == 'f':
-        maxval = 2 ** (8 * dtype.itemsize) - 1
-        return (image * maxval).astype(dtype)
+def float2int_image(image, target_dtype=np.dtype(np.uint8)):
+    source_dtype = image.dtype
+    if source_dtype.kind not in ('i', 'u') and not target_dtype.kind == 'f':
+        maxval = 2 ** (8 * target_dtype.itemsize) - 1
+        return (image * maxval).astype(target_dtype)
     else:
         return image
 
 
 def uint8_image(image):
-    if image.dtype.kind == 'f':
+    source_dtype = image.dtype
+    if source_dtype.kind == 'f':
         image *= 255
-    elif image.dtype.itemsize != 1:
-        factor = 2 ** (8 * (image.dtype.itemsize - 1))
+    elif source_dtype.itemsize != 1:
+        factor = 2 ** (8 * (source_dtype.itemsize - 1))
         image //= factor
     return image.astype(np.uint8)
 

@@ -26,7 +26,6 @@ class SEM_Mock(SEM):
 
     def __init__(self, config, sysconfig):
         super().__init__(config, sysconfig)
-        self.eht_on = False
         self.mag = 1000
         self.dwell_time = 1
         self.frame_size_selector = self.STORE_RES_DEFAULT_INDEX_TILE
@@ -43,18 +42,16 @@ class SEM_Mock(SEM):
         self.set_detector(self.syscfg['sem']['default_detector'])
 
     def turn_eht_on(self):
-        self.eht_on = True
         return True
 
     def turn_eht_off(self):
-        self.eht_on = False
         return True
 
     def is_eht_on(self):
-        return self.eht_on
+        return True
 
     def is_eht_off(self):
-        return not self.eht_on
+        return False
 
     def get_eht(self):
         return self.target_eht
@@ -154,9 +151,7 @@ class SEM_Mock(SEM):
         self.set_frame_size(frame_size_selector)
         scan_speed = self.DWELL_TIME.index(dwell_time)
         self.current_cycle_time = (
-            self.CYCLE_TIME[frame_size_selector][scan_speed] + 0.3)
-        if self.current_cycle_time < 0.8:
-            self.current_cycle_time = 0.8
+            self.CYCLE_TIME[frame_size_selector][scan_speed])
         return True
 
     def get_frame_size_selector(self):
@@ -202,9 +197,9 @@ class SEM_Mock(SEM):
         """Create empty image with random grey values"""
         # TODO: Add location-dependent patterns
         max_val = 2 ** bitsize - 1
-        # mock_image = np.random.randint(0, max_val, size=(height, width), dtype=np.uint8)  # uniform distribution
-        gaussian_noise = np.clip(np.random.normal(loc=0.5, scale=0.5 / 3, size=(height, width)), 0, 1)
-        mock_image = (gaussian_noise * max_val).astype(np.dtype(f'u{bitsize // 8}'))   # gaussian distribution
+        mock_image = np.random.randint(0, max_val, size=(height, width), dtype=np.uint8)  # uniform distribution
+        #gaussian_noise = np.clip(np.random.normal(loc=0.5, scale=0.5 / 3, size=(height, width)), 0, 1)
+        #mock_image = (gaussian_noise * max_val).astype(np.dtype(f'u{bitsize // 8}'))   # gaussian distribution
         return mock_image
 
     def _grab_image_from_previous_acq_dir(self, save_path_filename, width, height, bitsize=8):

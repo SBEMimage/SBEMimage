@@ -60,13 +60,13 @@ def imread(path, level=None, target_pixel_size_um=None, channeli=None, render=Tr
 
 
 def render_image(image, channels):
-    new_image = np.zeros(list(image.shape[:2]) + [3], dtype=np.float32)
+    new_image = None
     nchannels = image.shape[-1] if image.ndim >= 3 else 1
-    needs_normalisation = (image.dtype.itemsize == 2)
     n = len(channels)
     is_rgb = (nchannels in (3, 4) and (n <= 1 or n == 3))
-    tot_alpha = 0
+    needs_normalisation = (image.dtype.itemsize == 2)
     if not is_rgb and channels:
+        tot_alpha = 0
         for channeli, channel in enumerate(channels):
             if n == 1:
                 channel_values = image
@@ -75,25 +75,29 @@ def render_image(image, channels):
             channel_values = int2float_image(channel_values)
             if needs_normalisation:
                 channel_values = norm_image_quantiles(channel_values)
+            new_channel_image = np.atleast_3d(channel_values)
             color = channel.get('color')
+            alpha = 1
             if color:
                 rgba = color
+                color = rgba[:3]
+                alpha = rgba[3]
+                if alpha == 0:
+                    alpha = 1
+                if not (color == [1, 1, 1] and alpha == 1):
+                    new_channel_image = new_channel_image * np.multiply(color, alpha).astype(np.float32)
+            if new_image is None:
+                new_image = new_channel_image
             else:
-                rgba = [1, 1, 1, 1]
-            color = rgba[:3]
-            alpha = rgba[3]
-            if alpha == 0:
-                alpha = 1
-            alpha_color = np.multiply(color, alpha).astype(np.float32)
-            new_image = new_image + np.atleast_3d(channel_values) * alpha_color
+                new_image = new_image + new_channel_image
             tot_alpha += alpha
-        new_image /= tot_alpha
-        needs_normalisation = False
+        if tot_alpha != 1:
+            new_image /= tot_alpha
+        final_image = float2int_image(new_image)
+    elif needs_normalisation:
+        final_image = float2int_image(norm_image_quantiles(int2float_image(image)))
     else:
-        new_image = int2float_image(image)
-    if needs_normalisation:
-        new_image = norm_image_quantiles(new_image)
-    final_image = float2int_image(new_image)
+        final_image = image
     return final_image
 
 
