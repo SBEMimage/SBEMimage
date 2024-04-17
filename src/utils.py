@@ -542,7 +542,7 @@ def norm_image_quantiles(image0, quantile=0.999):
         image, alpha = image0, None
     min_value = np.quantile(image, 1 - quantile)
     max_value = np.quantile(image, quantile)
-    normimage = np.clip((image - min_value) / (max_value - min_value), 0, 1).astype(np.float32)
+    normimage = np.clip((image.astype(np.float32) - min_value) / (max_value - min_value), 0, 1)
     if alpha is not None:
         normimage = np.dstack([normimage, alpha])
     return normimage

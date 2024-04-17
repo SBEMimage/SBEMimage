@@ -60,7 +60,7 @@ def imread(path, level=None, target_pixel_size_um=None, channeli=None, render=Tr
 
 
 def render_image(image, channels):
-    new_image = None
+    total_image = None
     nchannels = image.shape[-1] if image.ndim >= 3 else 1
     n = len(channels)
     is_rgb = (nchannels in (3, 4) and (n <= 1 or n == 3))
@@ -72,9 +72,10 @@ def render_image(image, channels):
                 channel_values = image
             else:
                 channel_values = image[..., channeli]
-            channel_values = int2float_image(channel_values)
             if needs_normalisation:
                 channel_values = norm_image_quantiles(channel_values)
+            else:
+                channel_values = int2float_image(channel_values)
             new_channel_image = np.atleast_3d(channel_values)
             color = channel.get('color')
             alpha = 1
@@ -86,16 +87,16 @@ def render_image(image, channels):
                     alpha = 1
                 if not (color == [1, 1, 1] and alpha == 1):
                     new_channel_image = new_channel_image * np.multiply(color, alpha).astype(np.float32)
-            if new_image is None:
-                new_image = new_channel_image
+            if total_image is None:
+                total_image = new_channel_image
             else:
-                new_image = new_image + new_channel_image
+                total_image = total_image + new_channel_image
             tot_alpha += alpha
         if tot_alpha != 1:
-            new_image /= tot_alpha
-        final_image = float2int_image(new_image)
+            total_image /= tot_alpha
+        final_image = float2int_image(total_image)
     elif needs_normalisation:
-        final_image = float2int_image(norm_image_quantiles(int2float_image(image)))
+        final_image = float2int_image(norm_image_quantiles(image))
     else:
         final_image = image
     return final_image
