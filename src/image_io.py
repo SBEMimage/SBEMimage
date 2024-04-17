@@ -78,19 +78,19 @@ def render_image(image, channels):
                 channel_values = int2float_image(channel_values)
             new_channel_image = np.atleast_3d(channel_values)
             color = channel.get('color')
-            alpha = 1
             if color:
                 rgba = color
-                color = rgba[:3]
-                alpha = rgba[3]
-                if alpha == 0:
-                    alpha = 1
-                if not (color == [1, 1, 1] and alpha == 1):
-                    new_channel_image = new_channel_image * np.multiply(color, alpha).astype(np.float32)
+            else:
+                rgba = [1, 1, 1, 1]
+            color = rgba[:3]
+            alpha = rgba[3]
+            if alpha == 0:
+                alpha = 1
+            new_channel_image = new_channel_image * np.multiply(color, alpha).astype(np.float32)
             if total_image is None:
                 total_image = new_channel_image
             else:
-                total_image = total_image + new_channel_image
+                total_image += new_channel_image
             tot_alpha += alpha
         if tot_alpha != 1:
             total_image /= tot_alpha
