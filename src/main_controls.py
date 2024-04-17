@@ -679,6 +679,10 @@ class MainControls(QMainWindow):
         self.pushButton_FCC.setEnabled(self.fcc_installed)
         self.actionChargeCompensatorSettings.setEnabled(self.fcc_installed)
 
+        # Detect if tab is changed
+        self.previous_tab_index = None
+        self.tabWidget.currentChanged.connect(self.tab_changed)
+
         #-------Array-------#
 
         self.initialize_array_gui()
@@ -700,6 +704,12 @@ class MainControls(QMainWindow):
         # #----------------------#
         
         self.initialize_tcp_remote_gui()
+
+    def tab_changed(self, index):
+        if self.previous_tab_index == 3:
+            # moved away from Array tab
+            self.array_deselect_all()
+        self.previous_tab_index = index
 
     def try_to_create_directory(self, new_directory):
         """Create directory. If not possible: error message"""
