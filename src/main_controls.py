@@ -708,7 +708,8 @@ class MainControls(QMainWindow):
     def tab_changed(self, index):
         if self.previous_tab_index == 3:
             # moved away from Array tab
-            self.array_deselect_all()
+            if self.gm.array_mode:
+                self.array_deselect_all()
         self.previous_tab_index = index
 
     def try_to_create_directory(self, new_directory):

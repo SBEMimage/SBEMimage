@@ -818,10 +818,11 @@ class Viewport(QWidget):
             mouse_pos_within_viewer = (
                 px in range(self.cs.vp_width) and py in range(self.cs.vp_height))
             if mouse_pos_within_viewer:
+                mouse_delta_factor = 1.1
                 if event.angleDelta().y() > 0:
-                    self._vp_mouse_zoom(px, py, 1.1)
+                    self._vp_mouse_zoom(px, py, mouse_delta_factor)
                 if event.angleDelta().y() < 0:
-                    self._vp_mouse_zoom(px, py, 0.9)
+                    self._vp_mouse_zoom(px, py, 1 / mouse_delta_factor)
 
     def keyPressEvent(self, event):
         # Move through slices in slice-by-slice viewer with PgUp/PgDn
@@ -1636,25 +1637,21 @@ class Viewport(QWidget):
         the image before placing it. QPainter object self.vp_qp must be active
         when calling this method."""
 
-        if stub_ovm.image is None:
+        if stub_ovm.image() is None:
             return
 
         viewport_pixel_size = 1000 / self.cs.vp_scale
-        resize_ratio = stub_ovm.pixel_size / viewport_pixel_size
-        mag_level = np.round(np.log2(resize_ratio))
-        # set to 1 for resize_ratio >= 1 else store 2^-x down sizing
-        mag_level = int(1 if mag_level >= 0 else 2**(-mag_level))
-        mag_level = min(mag_level, 16)
+        resize_ratio0 = stub_ovm.pixel_size / viewport_pixel_size
+        # calculate size pyramid level to power of 2 value
+        mag_level = np.clip(int(2 ** -np.round(np.log2(resize_ratio0))), 1, 16)
+
         # Compute position of stub overview (upper left corner) and its
         # width and height
-        dx, dy = stub_ovm.origin_dx_dy
-        dx -= stub_ovm.tile_width_d() / 2
-        dy -= stub_ovm.tile_height_d() / 2
+        dx, dy = np.array(stub_ovm.origin_dx_dy) - stub_ovm.tile_size_d() / 2
         vx, vy = self.cs.convert_d_to_v((dx, dy))
 
-        width_px = stub_ovm.width_p() // mag_level
-        height_px = stub_ovm.height_p() // mag_level
-        resize_ratio = stub_ovm.pixel_size * mag_level / viewport_pixel_size
+        width_px, height_px = np.array(stub_ovm.size_p()) // mag_level
+        resize_ratio = resize_ratio0 * mag_level
         # Crop and resize stub OV before placing it
         visible, crop_area, vx_cropped, vy_cropped = self._vp_visible_area(
             vx, vy, width_px, height_px, resize_ratio)

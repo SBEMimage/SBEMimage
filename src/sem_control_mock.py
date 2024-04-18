@@ -16,6 +16,7 @@ import numpy as np
 import os
 from time import sleep
 
+import utils
 from constants import Error
 from image_io import imread, imwrite
 from sem_control import SEM
@@ -35,7 +36,7 @@ class SEM_Mock(SEM):
         self.last_known_x = 0
         self.last_known_y = 0
         self.last_known_z = 0
-        self.mock_type = "noise"
+        self.mock_type = "uniform noise"
         self.previous_acq_dir = None
         self.detector = ''
         # Select default detector
@@ -193,56 +194,68 @@ class SEM_Mock(SEM):
     def set_scan_rotation(self, angle):
         return True
 
-    def _generate_random_image(self, width, height, bitsize=8):
+    def _generate_uniform_noise_image(self, width, height, bitsize=8):
         """Create empty image with random grey values"""
-        # TODO: Add location-dependent patterns
         max_val = 2 ** bitsize - 1
-        mock_image = np.random.randint(0, max_val, size=(height, width), dtype=np.uint8)  # uniform distribution
-        #gaussian_noise = np.clip(np.random.normal(loc=0.5, scale=0.5 / 3, size=(height, width)), 0, 1)
-        #mock_image = (gaussian_noise * max_val).astype(np.dtype(f'u{bitsize // 8}'))   # gaussian distribution
+        dtype = np.dtype(f'u{bitsize // 8}')
+        mock_image = np.random.randint(0, max_val, size=(height, width), dtype=dtype)  # uniform distribution
+        return mock_image
+
+    def _generate_gaussian_noise_image(self, width, height, bitsize=8):
+        """Create empty image with random grey values"""
+        max_val = 2 ** bitsize - 1
+        dtype = np.dtype(f'u{bitsize // 8}')
+        gaussian_noise = np.clip(np.random.normal(loc=0.5, scale=0.5 / 3, size=(height, width)), 0, 1)
+        mock_image = (gaussian_noise * max_val).astype(dtype)   # gaussian distribution
+        return mock_image
+
+    def _calc_shape(self, *args, **kwargs):
+        y, x = args
+        h, w = y.shape
+        xoffset, yoffset = kwargs.get('offsets', [0, 0])
+        image = np.abs(np.sin((x + xoffset) / w * np.pi) * np.sin((y + yoffset) / h * np.pi))
+        return image
+
+    def _generate_shape_pattern_image(self, save_path_filename, width, height, bitsize=8):
+        """Create empty image with shape grey values"""
+        # TODO add offsets based on indices
+        info = os.path.basename(save_path_filename).split('_')
+        offsets = [0, 0]
+        dtype = np.dtype(f'u{bitsize // 8}')
+        shape_image = np.fromfunction(self._calc_shape, (height, width), dtype=np.float32, offsets=offsets)
+        noise_image = np.random.random_sample((height, width))
+        mock_image = utils.float2int_image((0.8 * shape_image + 0.2 * noise_image), target_dtype=dtype)
         return mock_image
 
     def _grab_image_from_previous_acq_dir(self, save_path_filename, width, height, bitsize=8):
-        """Grab image with matching overview id / grid id and slice number from previous acquisition. If dimensions
-        don't match then generate a random noise image."""
+        """Grab image with matching overview / tile / slice number from previous acquisition.
+        If dimensions don't match then generate a random noise image."""
+        path_extension = os.path.splitext(save_path_filename)[1]
+        if path_extension in ('.tif', '.tiff'):
+            save_path = os.path.normpath(save_path_filename).replace('\\', '/')
+            start = save_path.find('/overviews/')
+            if start < 0:
+                start = save_path.find('/tiles/')
+            mock_image_path = os.path.join(self.previous_acq_dir, save_path[start + 1:])
 
-        if not (save_path_filename.endswith(".tif") or save_path_filename.endswith(".tiff")):
-            return self._generate_random_image(width, height)
+            if os.path.isfile(mock_image_path):
+                mock_image = imread(mock_image_path)
+                if mock_image.shape[:2] == (height, width):
+                    return mock_image
 
-        save_path = os.path.normpath(save_path_filename)
-        save_path = save_path.split(os.sep)
-        mock_path = os.path.normpath(self.previous_acq_dir)
-        mock_path = mock_path.split(os.sep)
-
-        slice_no = save_path[-1].split("_")[-1]
-        mock_stack_name = mock_path[-1]
-
-        if save_path[-2].startswith("ov"):
-            # path for overviews
-            overview_id = save_path[-2]
-            mock_image_name = "_".join([mock_stack_name, overview_id, slice_no])
-            mock_image_path = os.path.join(self.previous_acq_dir, "overviews", overview_id, mock_image_name)
-        else:
-            # path for tiles
-            grid_id = save_path[-3]
-            tile_id = save_path[-2]
-            mock_image_name = "_".join([mock_stack_name, grid_id, tile_id, slice_no])
-            mock_image_path = os.path.join(self.previous_acq_dir, "tiles", grid_id, tile_id, mock_image_name)
-
-        if os.path.isfile(mock_image_path):
-            mock_image = imread(mock_image_path)
-            if mock_image.shape == (height, width):
-                return mock_image
-
-        return self._generate_random_image(width, height, bitsize)
+        return self._generate_uniform_noise_image(width, height, bitsize)
 
     def acquire_frame(self, save_path_filename, stage=None, extra_delay=0):
         width = self.STORE_RES[self.frame_size_selector][0]
         height = self.STORE_RES[self.frame_size_selector][1]
         bitsize = (self.bit_depth_selector + 1) * 8
 
-        if self.mock_type == "noise":
-            mock_image = self._generate_random_image(width, height, bitsize)
+        if 'uniform' in self.mock_type:
+            mock_image = self._generate_uniform_noise_image(width, height, bitsize)
+        elif 'gaussian' in self.mock_type:
+            mock_image = self._generate_gaussian_noise_image(width, height, bitsize)
+        elif 'shape' in self.mock_type:
+            mock_image = self._generate_shape_pattern_image(save_path_filename, width, height, bitsize)
         else:
             mock_image = self._grab_image_from_previous_acq_dir(save_path_filename, width, height, bitsize)
 

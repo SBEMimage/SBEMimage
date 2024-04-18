@@ -422,6 +422,9 @@ class Grid(list):
             if self.auto_update_tile_positions:
                 self.update_tile_positions()
 
+    def size_p(self):
+        return self.width_p(), self.height_p()
+
     def width_p(self):
         """Return width of the grid in pixels."""
         columns = self.size[1]
@@ -500,6 +503,10 @@ class Grid(list):
         if self.auto_update_tile_positions:
             self.update_tile_positions()
 
+    def tile_size_p(self):
+        """Return tile size in pixels."""
+        return self.frame_size[:2]
+
     def tile_width_p(self):
         """Return tile width in pixels."""
         return self.frame_size[0]
@@ -511,6 +518,10 @@ class Grid(list):
     def tile_depth(self):
         """Return tile height in pixels."""
         return self.frame_size[2] if len(self.frame_size) > 2 else 1
+
+    def tile_size_d(self):
+        """Return tile size in microns."""
+        return np.array(self.frame_size[:2]) * self.pixel_size / 1000
 
     def tile_width_d(self):
         """Return tile width in microns."""

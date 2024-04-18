@@ -521,3 +521,4 @@ class ImageInspector:
         self.tile_means = {}
         self.tile_stddevs = {}
         self.tile_reslice_line = {}
+        self.prev_img_mean_stddev = [0, 0]
