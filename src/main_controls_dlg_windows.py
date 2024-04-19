@@ -2229,6 +2229,10 @@ class AcqSettingsDlg(QDialog):
         self.pushButton_selectMockDir.setIconSize(QSize(16, 16))
         if self.acq.sem.previous_acq_dir is not None:
             self.lineEdit_mockDir.setText(self.acq.sem.previous_acq_dir)
+        index = self.comboBox_mockType.findText(self.acq.sem.mock_type)
+        if index < 0:
+            index = 0
+        self.comboBox_mockType.setCurrentIndex(index)
 
     def update_target_z_diff(self):
         if self.slices_valid(self.acq.slice_counter, self.acq.number_slices):
@@ -2320,8 +2324,8 @@ class AcqSettingsDlg(QDialog):
                     'inaccessible: ' + str(e),
                     QMessageBox.Ok)
         if isinstance(self.acq.sem, SEM_Mock):
-            self.acq.sem.mock_type = self.comboBox_mockType.currentText().lower()
-            if self.acq.sem.mock_type.startswith("previous"):
+            self.acq.sem.mock_type = self.comboBox_mockType.currentText()
+            if 'previous' in self.acq.sem.mock_type.lower():
                 mock_dir = self.lineEdit_mockDir.text()
                 if os.path.exists(mock_dir) and os.path.isdir(mock_dir):
                     self.acq.sem.previous_acq_dir = mock_dir
