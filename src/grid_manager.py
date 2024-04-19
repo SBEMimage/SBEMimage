@@ -1430,8 +1430,11 @@ class GridManager(list):
             template_index = 0
 
         grid = self[template_index]
-        tile_width = grid.tile_width_d()
-        tile_height = grid.tile_height_d()
+        overlap_um = grid.overlap * grid.pixel_size * 1e-3
+        
+        # effective tile size is equivalent to tile size minus overlap
+        tile_width = grid.tile_width_d() - overlap_um
+        tile_height = grid.tile_height_d() - overlap_um
 
         w, h = size
         tiles = [int(np.ceil(h / tile_height)), int(np.ceil(w / tile_width))]
