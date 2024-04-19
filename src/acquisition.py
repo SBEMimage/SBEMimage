@@ -1181,6 +1181,12 @@ class Acquisition:
             elif msg == 'DELETE ALL ARRAY GRIDS':
                 self.gm.delete_array_grids(*args, **kwargs)
                 self.main_controls_trigger.transmit('DRAW VP')
+            elif msg == 'ACTIVATE OV':
+                self.ovm.activate_overview(*args, **kwargs)
+                self.main_controls_trigger.transmit('DRAW VP')
+            elif msg == 'DEACTIVATE OV':
+                self.ovm.deactivate_overview(*args, **kwargs)
+                self.main_controls_trigger.transmit('DRAW VP')
             else:
                 utils.log_info('Unknown command')
     
