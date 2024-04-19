@@ -1448,7 +1448,7 @@ class GridManager(list):
 
     def add_new_grid_from_roi(self, array_index, roi_index, center, size, rotation):
         # use first matching roi grid as template
-        template_index = self.find_template_grid_index(roi_index)
+        template_index = self.find_grid_index(roi_index)
         if template_index is None:
             template_index = 0
 
@@ -1484,9 +1484,10 @@ class GridManager(list):
         target_landmarks = array_data.get_landmarks(landmark_type='target').values()
         array_data.transform = utils.create_point_transform(source_landmarks, target_landmarks)
 
-    def find_template_grid_index(self, roi_index):
+    def find_grid_index(self, roi_index, array_index=None):
+        # leave array_index None for template grids
         for index, grid in enumerate(self):
-            if grid.roi_index == roi_index and grid.array_index is None:
+            if grid.roi_index == roi_index and grid.array_index == array_index:
                 return index
         return None
 

@@ -752,16 +752,7 @@ class SEM_SmartSEM(SEM):
         x /= 1e6   # convert to metres
         y /= 1e6
         z = self.get_stage_z() / 1e6
-
-        # adding a magc_mode as precaution
-        # should this not be the standard way to make a stage movement:
-        # keep the other parameters constant by reading them first?
-        if self.magc_mode:
-            t,r = self.get_stage_tr()
-        else:
-            r = self.stage_rotation
-            t = 0
-
+        t, r = self.get_stage_tr()
         self.sem_api.MoveStage(x, y, z, t, r, 0)
 
         while self.sem_stage_busy():

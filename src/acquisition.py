@@ -818,7 +818,7 @@ class Acquisition:
                 self.interrupted_at = []
                 self.tiles_acquired = []
 
-            if self.sem.magc_mode:
+            if self.gm.array_mode:
                 self.sem.set_mode_normal()
 
         # ========================= ACQUISITION LOOP ===========================
@@ -1706,7 +1706,7 @@ class Acquisition:
         # grid acquisition depending on whether MagC mode is active, and
         # on the slice number and current autofocus settings.
         # Perform mapfost also prior to first removal.
-        if self.magc_mode:
+        if self.gm.array_mode:
             self.autofocus_stig_current_slice = True, True
         else:
             self.autofocus_stig_current_slice = (
@@ -1751,8 +1751,8 @@ class Acquisition:
                                f'number of active tiles: '
                                f'{num_active_tiles}')
 
-                # In MagC mode, use the grid index for autostig delay
-                if self.magc_mode:
+                # In Array mode, use the grid index for autostig delay
+                if self.gm.array_mode:
                     self.autofocus_stig_current_slice = (
                         self.autofocus_stig_current_slice[0],
                         (grid_index % self.autofocus.autostig_delay == 0))
@@ -1768,18 +1768,6 @@ class Acquisition:
                             'CTRL',
                             f'{grid_label} already acquired. '
                             f'Skipping.')
-                    elif (
-                            self.magc_mode
-                            and grid_index not in self.gm.array_data.checked_sections
-                        ):
-                            self.log(
-                                'Array-CTRL',
-                                f'{grid_label} not checked. Skipping.')
-                            # there are two termination checkpoints in magc
-                            # 1. here, when a grid is unchecked
-                            # 2. after grid acquisition
-                            if grid_index==self.gm.number_grids-1:
-                                self.stack_completed = True
                     else:
                         # Do autofocus on non-active tiles before grid acq
                         if (
@@ -1800,14 +1788,13 @@ class Acquisition:
                         # autofocus on reference tiles)
                         self.acquire_grid(grid_index)
 
-
             else:
                 self.log(
                     'CTRL',
                     f'Skip {grid_label} (intervallic acquisition)')
 
-            if (self.magc_mode
-                and len(self.grids_acquired) == len(self.gm.array_data.checked_sections)
+            if (self.gm.array_mode
+                and len(self.grids_acquired) >= grid.number_active_tiles()
             ):
                 self.stack_completed = True
 
@@ -1856,21 +1843,23 @@ class Acquisition:
             'CTRL',
             msg)
 
-        if self.magc_mode:
-            # WD/stig is set elsewhere for magc
+        if self.gm.array_mode:
+            # for array mode WD/stig is set in acquire_tile()
             # 1. interpolative focus computed before grid acquisition
             # 2. or kept the same from the previous grid if current grid
             # does not have focus points
             adjust_wd_stig = False
 
-            # In MagC mode: Track grid being acquired in Viewport
             self.cs.vp_centre_dx_dy = grid.centre_dx_dy
             self.main_controls_trigger.transmit('DRAW VP')
+            # Update progress bar and slice counter in Main Controls GUI
+            self.main_controls_trigger.transmit('UPDATE PROGRESS')
+            # Track grid being acquired in Viewport
             self.main_controls_trigger.transmit(
-                'ARRAY SET SECTION STATE', 'acquiring', grid_index
+                'ARRAY SET SECTION STATE', 'acquiring', [grid_index]
             )
 
-            # # the acq parameters stay the same across grids in magc
+            # # the acq parameters stay the same across grids in array mode
             # # TODO: why is the very first tile acquisition failing?
             # # if this is solved, then this can be removed and
             # # custom grid settings can be used for each grid
@@ -1888,10 +1877,9 @@ class Acquisition:
 
         # Set WD and stig settings for the current grid
         # and lock the settings unless individual adjustment is required
-        if not adjust_wd_stig:
-            if not self.magc_mode:
-                self.set_default_wd_stig()
-                self.lock_wd_stig()
+        if not adjust_wd_stig and not self.gm.array_mode:
+            self.set_default_wd_stig()
+            self.lock_wd_stig()
 
         theta = grid.rotation
         # TODO: Whether theta or (360 - theta) must be used here may be
@@ -2079,7 +2067,7 @@ class Acquisition:
             # Empty the tile list since all tiles were acquired
             self.tiles_acquired = []
 
-            if self.magc_mode:
+            if self.gm.array_mode:
                 self.cs.vp_centre_dx_dy = grid.centre_dx_dy
                 self.main_controls_trigger.transmit('DRAW VP')
                 self.main_controls_trigger.transmit(
@@ -2201,7 +2189,7 @@ class Acquisition:
                     f'Tile {tile_label}: Image file already exists!',
                     'warning')
 
-            if self.magc_mode:
+            if self.gm.array_mode:
                 # set wd,stig calculated at the beginning of the grid
                 self.sem.set_wd(grid[tile_index].wd)
                 self.sem.set_stig_xy(*grid[tile_index].stig_xy)
@@ -2226,9 +2214,8 @@ class Acquisition:
                     self.autofocus_stig_current_slice[0]
                     or self.autofocus_stig_current_slice[1]
                 )
-                and not self.magc_mode
+                and not self.array_mode
             ):
-
                 do_move = False  # already at tile stage position
                 self.do_autofocus(*self.autofocus_stig_current_slice,
                                   do_move, grid_index, tile_index)
@@ -2734,8 +2721,8 @@ class Acquisition:
         autofocus on them one by one before the grid acquisition starts.
         """
         grid = self.gm[grid_index]
-        if self.magc_mode:
-            return self.magc_do_autofocus_before_grid_acq(grid_index)
+        if self.gm.array_mode:
+            return self.array_do_autofocus_before_grid_acq(grid_index)
         autofocus_ref_tiles = grid.autofocus_ref_tiles()
         active_tiles = grid.active_tiles
         # Perform SEM autofocus for non-active autofocus tiles
@@ -2752,7 +2739,7 @@ class Acquisition:
                     self.set_interruption_point(grid_index, tile_index)
                     break
 
-    def magc_do_autofocus_before_grid_acq(self, grid_index):
+    def array_do_autofocus_before_grid_acq(self, grid_index):
         """
         Perform AF/AS at focus positions for the grid
         Adds AFAS_Results to the grid
@@ -2821,8 +2808,8 @@ class Acquisition:
         # Apply average WD/STIG from reference tiles
         # if tracking mode "Average" is selected.
         grid = self.gm[grid_index]
-        if self.magc_mode:
-            self.magc_do_autofocus_adjustments(grid_index)
+        if self.gm.array_mode:
+            self.array_do_autofocus_adjustments(grid_index)
         if self.use_autofocus and self.autofocus.tracking_mode == 2:
             if self.autofocus.method == 0:
                 self.log(
@@ -2868,7 +2855,7 @@ class Acquisition:
         # TODO
 
 
-    def magc_do_autofocus_adjustments(self, grid_index):
+    def array_do_autofocus_adjustments(self, grid_index):
         """Apply focus gradient on grid based on AFAS performed on the focus points"""
         grid = self.gm[grid_index]
         if not hasattr(grid, "AFAS_results"):

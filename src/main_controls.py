@@ -1139,20 +1139,20 @@ class MainControls(QMainWindow):
         # if input_color == 'green':
             # self.pushButton_msem_exportZen.setEnabled(True)
 
-    def find_indices_from_selection(self, selection):
+    def find_array_from_model_index(self, modelindex):
         array_index, roi_index = None, None
-        row_index = selection.row()
-        header = selection.model().verticalHeaderItem(row_index)
+        row_index = modelindex.row()
+        header = modelindex.model().verticalHeaderItem(row_index)
         if header and header.text():
             array_index = int(header.text())
 
-        column_index = selection.column()
-        header = selection.model().horizontalHeaderItem(column_index)
+        column_index = modelindex.column()
+        header = modelindex.model().horizontalHeaderItem(column_index)
         if header is not None:
             roi_index = int(header.text())
         return array_index, roi_index
 
-    def get_selection_from_array_index(self, array_index, roi_index):
+    def find_model_from_array_index(self, array_index, roi_index):
         array_table_model = self.tableView_array_sections.model()
         selection_model = self.tableView_array_sections.selectionModel().model()
         ver_headers = [array_table_model.verticalHeaderItem(i).text() for i in range(array_table_model.rowCount())]
@@ -1165,17 +1165,12 @@ class MainControls(QMainWindow):
         else:
             return None
 
-    def find_grid_from_selection(self, selection):
-        array_index, roi_index = self.find_indices_from_selection(selection)
+    def find_grid_from_model_index(self, modelindex):
+        array_index, roi_index = self.find_array_from_model_index(modelindex)
         if array_index is not None and roi_index is not None:
             return self.gm.find_roi_grid(array_index, roi_index)
         else:
             return None
-
-    def find_table_index_from_grid(self, grid_index):
-        grid = self.gm[grid_index]
-        array_index, roi_index = grid.array_index, grid.roi_index
-        return self.get_selection_from_array_index(array_index, roi_index)
 
     def array_select_all(self):
         self.tableView_array_sections.selectAll()
@@ -1281,11 +1276,11 @@ class MainControls(QMainWindow):
             self, changed_selected, changed_deselected):
         # update color of selected/deselected sections
         for changed_selected_index in changed_selected.indexes():
-            grid = self.find_grid_from_selection(changed_selected_index)
+            grid = self.find_grid_from_model_index(changed_selected_index)
             if grid is not None:
                 grid.set_display_colour(13)
         for changed_deselected_index in changed_deselected.indexes():
-            grid = self.find_grid_from_selection(changed_deselected_index)
+            grid = self.find_grid_from_model_index(changed_deselected_index)
             if grid is not None:
                 grid.set_array_display_colour()
         self.viewport.vp_draw()
@@ -1300,7 +1295,7 @@ class MainControls(QMainWindow):
             for column in range(array_table_model.columnCount()):
                 item = array_table_model.item(row, column)
                 if item:
-                    grid = self.find_grid_from_selection(item)
+                    grid = self.find_grid_from_model_index(item)
                     if item.checkState() == Qt.Checked:
                         checked_sections.append((row, column))
                         if grid:
@@ -1315,9 +1310,9 @@ class MainControls(QMainWindow):
         self.array_update_checked_sections_to_config()
 
     def array_double_clicked_section(self, selection):
-        array_index, roi_index = self.find_indices_from_selection(selection)
+        array_index, roi_index = self.find_array_from_model_index(selection)
         if array_index is not None and roi_index is not None:
-            grid = self.find_grid_from_selection(selection)
+            grid = self.find_grid_from_model_index(selection)
             label = f'ROI {array_index}.{roi_index}'
 
             self.cs.vp_centre_dx_dy = grid.centre_dx_dy
@@ -1348,12 +1343,17 @@ class MainControls(QMainWindow):
 
     def array_set_section_state_in_table(self, action, grid_indices=None):
         array_table_model = self.tableView_array_sections.model()
-        # grid_index can be a single int or a list 1,2,3
+
         if grid_indices:
-            table_indices = [self.find_table_index_from_grid(grid_index)
-                             for grid_index in grid_indices]
-            table_index0 = table_indices[0]
+            model_indices = []
+            for grid_index in grid_indices:
+                grid = self.gm[grid_index]
+                model_index = self.find_model_from_array_index(grid.array_index, grid.roi_index)
+                model_indices.append(model_index)
+            model_index0 = model_indices[0]
+            table_index0 = (model_index0.row(), model_index0.column())
         else:
+            model_index0 = None
             table_index0 = None
 
         if 'acquir' in action and table_index0:
@@ -1363,21 +1363,22 @@ class MainControls(QMainWindow):
                 state_color = QColor(Qt.green)
             else:
                 state_color = QColor(Qt.lightGray)
-            item = array_table_model.item(table_index0, 1)
+            item = array_table_model.item(*table_index0)
             item.setBackground(state_color)
-            self.tableView_array_sections.scrollTo(
-                table_index0,
-                QAbstractItemView.PositionAtCenter)
+            if table_index0:
+                self.tableView_array_sections.scrollTo(
+                    model_index0,
+                    QAbstractItemView.PositionAtCenter)
         if action == 'select' and table_index0:
-            self.array_select_items(table_indices)
+            self.array_select_items(model_indices)
             self.tableView_array_sections.scrollTo(
-                table_index0,
+                model_index0,
                 QAbstractItemView.PositionAtCenter)
         if action == 'toggle' and table_index0:
-            self.array_toggle_selection(table_indices)
+            self.array_toggle_selection(model_indices)
             if table_index0 in self.gm.array_data.selected_sections:
                 self.tableView_array_sections.scrollTo(
-                    table_index0,
+                    model_index0,
                     QAbstractItemView.PositionAtCenter)
         if action == 'deselectall':
             self.array_deselect_all()
@@ -1660,7 +1661,7 @@ class MainControls(QMainWindow):
 
     def get_open_grid_dlg(self, roi_index):
         def callback_open_grid_dlg():
-            grid_index = self.gm.find_template_grid_index(roi_index)
+            grid_index = self.gm.find_grid_index(roi_index)
             if grid_index is not None:
                 self.gm.activate_grid(grid_index)
                 self.open_grid_dlg(grid_index)
@@ -1740,7 +1741,7 @@ class MainControls(QMainWindow):
         dialog.exec()
 
     def open_autofocus_settings_dlg(self):
-        dialog = AutofocusSettingsDlg(self.sem, self.autofocus, self.gm, self.magc_mode)
+        dialog = AutofocusSettingsDlg(self.sem, self.autofocus, self.gm)
         if dialog.exec():
             if self.autofocus.method == 2:
                 self.checkBox_useAutofocus.setText('Focus tracking')
@@ -2135,36 +2136,36 @@ class MainControls(QMainWindow):
             if not os.path.exists(mirror_tile_folder):
                 self.try_to_create_directory(mirror_tile_folder)
 
-    def restrict_gui(self, b):
+    def restrict_gui(self, busy):
         """Disable GUI elements during acq or when program is busy."""
         # Partially disable/enable the tests and the focus tool
-        self.restrict_focus_tool_gui(b)
-        self.restrict_tests_gui(b)
-        b ^= True
+        idle = not busy
+        self.restrict_focus_tool_gui(busy)
+        self.restrict_tests_gui(busy)
         # Settings buttons
-        self.pushButton_SEMSettings.setEnabled(b)
-        self.pushButton_microtomeSettings.setEnabled(b)
-        self.pushButton_OVSettings.setEnabled(b)
-        self.pushButton_gridSettings.setEnabled(b)
-        self.pushButton_acqSettings.setEnabled(b)
+        self.pushButton_SEMSettings.setEnabled(idle)
+        self.pushButton_microtomeSettings.setEnabled(idle)
+        self.pushButton_OVSettings.setEnabled(idle)
+        self.pushButton_gridSettings.setEnabled(idle)
+        self.pushButton_acqSettings.setEnabled(idle)
         # Other buttons
-        self.pushButton_doApproach.setEnabled(b)
-        self.pushButton_doSweep.setEnabled(b)
-        self.pushButton_grabFrame.setEnabled(b)
-        self.pushButton_EHTToggle.setEnabled(b)
+        self.pushButton_doApproach.setEnabled(idle)
+        self.pushButton_doSweep.setEnabled(idle)
+        self.pushButton_grabFrame.setEnabled(idle)
+        self.pushButton_EHTToggle.setEnabled(idle)
         # Checkboxes
-        self.checkBox_mirrorDrive.setEnabled(b)
-        self.toolButton_mirrorDrive.setEnabled(b)
-        self.checkBox_takeOV.setEnabled(b)
-        self.toolButton_OVSettings.setEnabled(b)
+        self.checkBox_mirrorDrive.setEnabled(idle)
+        self.toolButton_mirrorDrive.setEnabled(idle)
+        self.checkBox_takeOV.setEnabled(idle)
+        self.toolButton_OVSettings.setEnabled(idle)
         if self.plc_installed:
-            self.checkBox_plasmaCleaner.setEnabled(b)
-            self.toolButton_plasmaCleaner.setEnabled(b)
+            self.checkBox_plasmaCleaner.setEnabled(idle)
+            self.toolButton_plasmaCleaner.setEnabled(idle)
         # Start, reset buttons
-        self.pushButton_startAcq.setEnabled(b)
-        self.pushButton_resetAcq.setEnabled(b)
+        self.pushButton_startAcq.setEnabled(idle)
+        self.pushButton_resetAcq.setEnabled(idle)
         # Disable/enable menu
-        self.menubar.setEnabled(b)
+        self.menubar.setEnabled(idle)
         # Restrict GUI (microtome-specific functionality) if no microtome used
         if not self.use_microtome or self.syscfg['device']['microtome'] == '6':
             self.restrict_gui_for_sem_stage()
@@ -2172,33 +2173,33 @@ class MainControls(QMainWindow):
         if self.syscfg['device']['microtome'] != '6':
             self.restrict_gui_wo_gcib()
 
-    def restrict_focus_tool_gui(self, b):
-        b ^= True
-        self.pushButton_focusToolStart.setEnabled(b)
-        self.pushButton_focusToolMove.setEnabled(b)
-        self.pushButton_focusToolAutofocus.setEnabled(b)
-        self.checkBox_zoom.setEnabled(b)
+    def restrict_focus_tool_gui(self, busy):
+        idle = not busy
+        self.pushButton_focusToolStart.setEnabled(idle)
+        self.pushButton_focusToolMove.setEnabled(idle)
+        self.pushButton_focusToolAutofocus.setEnabled(idle)
+        self.checkBox_zoom.setEnabled(idle)
 
-    def restrict_tests_gui(self, b):
-        b ^= True
-        self.pushButton_testGetMag.setEnabled(b)
-        self.pushButton_testSetMag.setEnabled(b)
-        self.pushButton_testGetFocus.setEnabled(b)
-        self.pushButton_testSetFocus.setEnabled(b)
-        self.pushButton_testRunAutofocus.setEnabled(b)
-        self.pushButton_testZeissAPIVersion.setEnabled(b)
-        self.pushButton_testGetStage.setEnabled(b)
-        self.pushButton_testSetStage.setEnabled(b)
-        self.pushButton_testNearKnife.setEnabled(b)
-        self.pushButton_testClearKnife.setEnabled(b)
-        self.pushButton_testGetMillPos.setEnabled(b)
-        self.pushButton_testMillMov.setEnabled(b)
-        self.pushButton_testMilling.setEnabled(b)
-        self.pushButton_testStopDMScript.setEnabled(b)
-        self.pushButton_testPlasmaCleaner.setEnabled(b)
-        self.pushButton_testMotors.setEnabled(b)
-        self.pushButton_testSendCommand.setEnabled(b)
-        self.pushButton_testRunMaintenanceMoves.setEnabled(b)
+    def restrict_tests_gui(self, busy):
+        idle = not busy
+        self.pushButton_testGetMag.setEnabled(idle)
+        self.pushButton_testSetMag.setEnabled(idle)
+        self.pushButton_testGetFocus.setEnabled(idle)
+        self.pushButton_testSetFocus.setEnabled(idle)
+        self.pushButton_testRunAutofocus.setEnabled(idle)
+        self.pushButton_testZeissAPIVersion.setEnabled(idle)
+        self.pushButton_testGetStage.setEnabled(idle)
+        self.pushButton_testSetStage.setEnabled(idle)
+        self.pushButton_testNearKnife.setEnabled(idle)
+        self.pushButton_testClearKnife.setEnabled(idle)
+        self.pushButton_testGetMillPos.setEnabled(idle)
+        self.pushButton_testMillMov.setEnabled(idle)
+        self.pushButton_testMilling.setEnabled(idle)
+        self.pushButton_testStopDMScript.setEnabled(idle)
+        self.pushButton_testPlasmaCleaner.setEnabled(idle)
+        self.pushButton_testMotors.setEnabled(idle)
+        self.pushButton_testSendCommand.setEnabled(idle)
+        self.pushButton_testRunMaintenanceMoves.setEnabled(idle)
 
     def restrict_gui_for_simulation_mode(self):
         self.pushButton_SEMSettings.setEnabled(False)
@@ -3263,8 +3264,6 @@ class MainControls(QMainWindow):
         # Enable the other tabs
         self.tabWidget.setTabEnabled(0, True)
         self.tabWidget.setTabEnabled(2, True)
-        if self.magc_mode:
-            self.tabWidget.setTabEnabled(3, True)
         if self.multisem_mode:
             self.tabWidget.setTabEnabled(4, True)
         self.tabWidget.setTabEnabled(5, True)

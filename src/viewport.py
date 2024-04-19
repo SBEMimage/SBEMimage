@@ -143,17 +143,16 @@ class Viewport(QWidget):
             # Update motor status
             self.m_show_motor_status()
 
-    def restrict_gui(self, b):
+    def restrict_gui(self, busy):
         """Disable several GUI elements while SBEMimage is busy, for example
         when an acquisition is running."""
-        self.busy = b
-        b ^= True
-        if not self.sem.magc_mode:
-            self.pushButton_refreshOVs.setEnabled(b)
-            self.pushButton_acquireStubOV.setEnabled(b)
-        if not b:
-            self.radioButton_fromStack.setChecked(not b)
-        self.radioButton_fromSEM.setEnabled(b)
+        self.busy = busy
+        idle = not busy
+        self.pushButton_refreshOVs.setEnabled(idle)
+        self.pushButton_acquireStubOV.setEnabled(idle)
+        if idle:
+            self.radioButton_fromStack.setChecked(True)
+        self.radioButton_fromSEM.setEnabled(idle)
 
     def update_grids(self):
         """Update the grid selectors after grid is added or deleted."""
@@ -343,7 +342,7 @@ class Viewport(QWidget):
         mouse_pos_within_plot_area = (
             px in range(445, 940) and py in range(22, 850))
 
-        if self.sem.magc_mode and not self.sem.simulation_mode:
+        if self.sem.simulation_mode:
             # update stage position indicator at any click in VP
             self.stage.get_xy()
             self.vp_draw()
@@ -407,8 +406,7 @@ class Viewport(QWidget):
             elif ((self.tabWidget.currentIndex() == 0)
                 and (QApplication.keyboardModifiers() == Qt.ControlModifier)
                 and self.vp_current_ov >= -2
-                and not self.busy
-                and not self.sem.magc_mode):
+                and not self.busy):
                 if self.selected_ov is not None and self.selected_ov >= 0:
                     self.ov_drag_active = True
                     self.drag_origin = (px, py)
@@ -420,19 +418,19 @@ class Viewport(QWidget):
                     self.drag_origin = px, py
                     self.drag_current = self.drag_origin
 
-            #Ctrl pressed in magc_mode: select grid or draw selection box for grids
-            elif ((self.tabWidget.currentIndex() == 0)
-                and (QApplication.keyboardModifiers()==Qt.ControlModifier)
-                and not self.busy
-                and self.sem.magc_mode):
-                # Select grid or draw selection box for grids
-                self.grid_selection_or_draw_selection_box_active = True
-                self.drag_origin = px, py
-                # it is crucial to update drag_current
-                # otherwise when doing a simple click without dragging
-                # the drag_current value is taken from the last time
-                # a drag was performed
-                self.drag_current = self.drag_origin
+            # Ctrl pressed in Array mode: select grid or draw selection box for grids
+            #elif ((self.tabWidget.currentIndex() == 0)
+            #    and (QApplication.keyboardModifiers() == Qt.ControlModifier)
+            #    and not self.busy
+            #    and self.gm.array_mode):
+            #    # Select grid or draw selection box for grids
+            #    self.grid_selection_or_draw_selection_box_active = True
+            #    self.drag_origin = px, py
+            #    # it is crucial to update drag_current
+            #    # otherwise when doing a simple click without dragging
+            #    # the drag_current value is taken from the last time
+            #    # a drag was performed
+            #    self.drag_current = self.drag_origin
 
             # Check if Alt key is pressed -> Move grid
             elif ((self.tabWidget.currentIndex() == 0)
@@ -650,7 +648,7 @@ class Viewport(QWidget):
                     self._sv_mouse_zoom(px, py, 2)
             self.doubleclick_registered = False
 
-        elif (event.button() == Qt.LeftButton):
+        elif event.button() == Qt.LeftButton:
             if self.grid_drag_active:
                 user_reply = QMessageBox.question(
                     self, 'Repositioning grid',
@@ -695,7 +693,6 @@ class Viewport(QWidget):
                 or self.template_draw_active
                 or self.grid_selection_or_draw_selection_box_active
             ):
-
                 x0, y0 = self.cs.convert_mouse_to_v(self.drag_origin)
                 x1, y1 = self.cs.convert_mouse_to_v(self.drag_current)
                 if x0 > x1:
@@ -723,9 +720,8 @@ class Viewport(QWidget):
                     self.tm.draw_template(x0, y0, w, h)
                     self.main_controls_trigger.transmit('TEMPLATE SETTINGS CHANGED')
 
-            # ----magc_mode----
+            # ---- Array mode ----
             if self.grid_selection_or_draw_selection_box_active:
-
                 self.grid_selection_or_draw_selection_box_active = False
 
                 # checking whether no other action than
@@ -965,11 +961,6 @@ class Viewport(QWidget):
         self.checkBox_showStagePos.stateChanged.connect(
             self.vp_toggle_show_stage_pos)
 
-        if self.sem.magc_mode:
-            self.pushButton_refreshOVs.setEnabled(False)
-            self.pushButton_acquireStubOV.setEnabled(False)
-
-
     def vp_update_grid_selector(self):
         if self.vp_current_grid >= self.gm.number_grids:
             self.vp_current_grid = -1  # show all
@@ -1150,9 +1141,9 @@ class Viewport(QWidget):
             else:
                 action_changeRotation = None
 
-            if self.sem.magc_mode:
+            if self.gm.array_mode:
                 action_moveGridCurrentStage = menu.addAction(
-                    f'Move grid {grid_index} to current stage position')
+                    f'Move {grid_label} to current stage position')
                 action_moveGridCurrentStage.triggered.connect(
                     self._vp_manual_stage_move)
                 if not ((grid_index is not None)
@@ -1238,7 +1229,7 @@ class Viewport(QWidget):
                     action_revertLocation.setEnabled(False)
 
             #---autofocus points---#
-            if (self.sem.magc_mode
+            if (self.gm.array_mode
                 and len(self.gm.array_data.selected_sections) == 1):
 
                 if self.gm.array_autofocus_points(array_selected_section):
@@ -1375,10 +1366,10 @@ class Viewport(QWidget):
             self._vp_place_stub_overview(self.ovm['stub_lm'])
             self._vp_place_stub_overview(self.ovm['stub'])
             # self._place_template()
-        # For MagC mode: show imported images before drawing grids
+        # For Array mode: show imported images before drawing grids
         # TODO: Think about more general solution to organize display layers.
         if (self.show_imported and len(self.imported) > 0
-            and self.sem.magc_mode):
+            and self.gm.array_mode):
             for imported_img_index in range(len(self.imported)):
                 self._vp_place_imported_img(imported_img_index)
         # Place OV overviews over stub OV:
@@ -1418,7 +1409,7 @@ class Viewport(QWidget):
 
         # Finally, show imported images
         if (self.show_imported and len(self.imported) > 0
-            and not self.sem.magc_mode):
+            and not self.gm.array_mode):
             for imported_img_index in range(len(self.imported)):
                 self._vp_place_imported_img(imported_img_index)
         # Show stage boundaries (motor range limits)
@@ -2114,8 +2105,8 @@ class Viewport(QWidget):
         # Reset painter (undo translation and rotation).
         self.vp_qp.resetTransform()
 
-        # ---- Autofocus points in MagC mode ---- #
-        if self.sem.magc_mode:
+        # ---- Autofocus points in Array mode ---- #
+        if self.gm.array_mode:
             self.vp_qp.setBrush(QBrush(
                 QColor(Qt.red),
                 Qt.SolidPattern))
@@ -3269,7 +3260,7 @@ class Viewport(QWidget):
     def sv_load_selected(self):
         if self.gm.array_mode:
             roi_index = self.gm[self.selected_grid].roi_index
-            template_grid_index = self.gm.find_template_grid_index(roi_index)
+            template_grid_index = self.gm.find_grid_index(roi_index)
             if template_grid_index is not None:
                 self.selected_grid = template_grid_index
         if self.selected_grid is not None and self.selected_tile is not None:

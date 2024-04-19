@@ -3142,7 +3142,7 @@ class AutofocusSettingsDlg(QDialog):
     """Dialog to adjust settings for the SEM autofocus, the heuristic autofocus,
     MAPFoSt, and for tracking the focus/stig when refocusing manually.
     """
-    def __init__(self, sem, autofocus, grid_manager, magc_mode=False):
+    def __init__(self, sem, autofocus, grid_manager):
         super().__init__()
         self.sem = sem
         self.autofocus = autofocus
@@ -3221,8 +3221,8 @@ class AutofocusSettingsDlg(QDialog):
         self.doubleSpinBox_stigRot.setValue(self.autofocus.rot_angle)
         self.doubleSpinBox_stigScale.setValue(self.autofocus.scale_factor)
 
-        # Disable some settings if MagC mode is active
-        if magc_mode:
+        # Disable some settings if Array mode is active
+        if self.gm.array_mode:
             self.radioButton_useHeuristic.setEnabled(False)
             self.radioButton_useTrackingOnly.setEnabled(False)
             self.radioButton_useMAPFoSt.setEnabled(False)

@@ -386,6 +386,10 @@ class SEM:
         """Set the FCC to this target value."""
         raise NotImplementedError
 
+    def set_mode_normal(self):
+        """Sets mode NORMAL (not split, not reduced, not emission)"""
+        return False
+
     def get_beam_current(self):
         """Read beam current (in pA) from SmartSEM."""
         raise NotImplementedError

@@ -71,7 +71,7 @@ class Autofocus():
         self.wd_stig_corr = {}
         # If MagC mode active, enforce method and tracking mode
         self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
-        if self.magc_mode:
+        if self.gm.array_mode:
             self.method = 0         # SmartSEM autofocus
             self.tracking_mode = 0  # Track selected, approx. others
 
@@ -165,10 +165,10 @@ class Autofocus():
                 self.sem.apply_frame_settings(0, self.pixel_size, 0.8)
                 sleep(0.5)
             if autofocus and autostig:
-                if self.magc_mode:
+                if self.gm.array_mode:
                     # Run SmartSEM autofocus-autostig-autofocus sequence
-                    # TODO: Check compatibility of MagC with non-SmartSEM autofocus
-                    msg = 'SmartSEM autofocus-autostig-autofocus (MagC)'
+                    # TODO: Check compatibility of Array with non-SmartSEM autofocus
+                    msg = 'SmartSEM autofocus-autostig-autofocus (Array)'
                     success = self.sem.run_autofocus()
                     sleep(0.5)
                     if success:
