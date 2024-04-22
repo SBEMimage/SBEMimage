@@ -286,7 +286,7 @@ class SEM_Mock(SEM):
         
     def save_to_cfg(self):
         # Mock SEM settings
-        self.cfg['acq']['mock_use_prev_acq'] = 'True' if self.mock_type == 'previous_acquisition' else 'False'
+        self.cfg['acq']['mock_type'] = self.mock_type
         self.cfg['acq']['mock_prev_acq_dir'] = self.previous_acq_dir
         super().save_to_cfg()
     
