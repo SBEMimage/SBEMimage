@@ -247,13 +247,43 @@ class SEM_Mock(SEM):
     def _grab_image_from_previous_acq_dir(self, save_path_filename, width, height, bitsize=8):
         """Grab image with matching overview / tile / slice number from previous acquisition.
         If dimensions don't match then generate a random noise image."""
-        path_extension = os.path.splitext(save_path_filename)[1]
-        if path_extension in ('.tif', '.tiff'):
-            norm_save_path = os.path.normpath(save_path_filename).replace('\\', '/')
-            start = norm_save_path.find('/overviews/')
-            if start < 0:
-                start = norm_save_path.find('/tiles/')
-            mock_image_path = os.path.join(self.previous_acq_dir, norm_save_path[start + 1:])
+        save_path = os.path.normpath(save_path_filename)
+        save_path, save_extension = os.path.splitext(save_path)
+        if save_path.endswith('.ome'):
+            save_extension = '.ome' + save_extension
+            save_path = save_path.rstrip('.ome')
+        if '.tif' in save_extension:
+            save_path_parts = save_path.split(os.sep)
+            save_file = save_path_parts[-1]
+            save_path_parts = save_path_parts[:-1]
+            save_file_parts = save_file.split('_')
+            save_parts = save_path_parts + save_file_parts
+
+            is_overview = False
+            for part in save_parts:
+                if part.startswith('ov'):
+                    is_overview = True
+
+            mock_path = os.path.normpath(self.previous_acq_dir)
+            mock_path_parts = mock_path.split(os.sep)
+            mock_stack_name = mock_path_parts[-1]
+
+            if is_overview:
+                # overview
+                ov_index = utils.find_path_numeric_key(save_parts, 'ov')
+                slice_index = utils.find_path_numeric_key(save_parts, 's')
+                relative_path = utils.ov_relative_save_path(mock_stack_name, ov_index, slice_index)
+            else:
+                # grid tile
+                grid_index = utils.find_path_numeric_key(save_parts, 'g')
+                array_index = utils.find_path_numeric_key(save_parts, 'a')
+                roi_index = utils.find_path_numeric_key(save_parts, 'roi')
+                tile_index = utils.find_path_numeric_key(save_parts, 't')
+                slice_index = utils.find_path_numeric_key(save_parts, 's')
+                relative_path = utils.tile_relative_save_path(mock_stack_name, grid_index, array_index,
+                                                              roi_index, tile_index, slice_index)
+
+            mock_image_path = os.path.join(mock_path, relative_path)
 
             if os.path.isfile(mock_image_path):
                 mock_image = imread(mock_image_path)

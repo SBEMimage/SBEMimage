@@ -253,9 +253,9 @@ def show_progress_in_console(progress):
 def calc_rotated_rect(polygon):
     return cv2.minAreaRect(np.array(polygon, dtype=np.float32))
 
-def get_ov_basepath(stack_name, ov_index, slice_counter=None):
+def get_ov_basepath(stack_name, ov_index, slice_index=None):
     ov_string = 'ov' + str(ov_index).zfill(OV_DIGITS)
-    slice_string = 's' + str(slice_counter).zfill(SLICE_DIGITS) if slice_counter is not None else None
+    slice_string = 's' + str(slice_index).zfill(SLICE_DIGITS) if slice_index is not None else None
 
     path = [
         'overviews',
@@ -274,37 +274,36 @@ def get_ov_basepath(stack_name, ov_index, slice_counter=None):
 def get_ov_dirname(stack_name, ov_index):
     return get_ov_basepath(stack_name, ov_index)[0]
 
-def get_ov_filename(stack_name, ov_index, slice_counter=None):
-    return get_ov_basepath(stack_name, ov_index, slice_counter)[1]
+def get_ov_filename(stack_name, ov_index, slice_index=None):
+    return get_ov_basepath(stack_name, ov_index, slice_index)[1]
 
-def ov_save_path(base_dir, stack_name, ov_index, slice_counter):
+def ov_save_path(base_dir, stack_name, ov_index, slice_index):
     return os.path.join(
         base_dir,
-        str(ov_relative_save_path(stack_name, ov_index, slice_counter)))
+        str(ov_relative_save_path(stack_name, ov_index, slice_index)))
 
-def ov_relative_save_path(stack_name, ov_index, slice_counter):
+def ov_relative_save_path(stack_name, ov_index, slice_index):
     paths = get_ov_dirname(stack_name, ov_index)
-    paths.append(get_ov_filename(stack_name, ov_index, slice_counter))
+    paths.append(get_ov_filename(stack_name, ov_index, slice_index))
     return os.path.join(*paths)
 
-def ov_debris_save_path(base_dir, stack_name, ov_index, slice_counter,
-                        sweep_counter):
+def ov_debris_save_path(base_dir, stack_name, ov_index, slice_index, sweep_index):
     return os.path.join(
         base_dir, 'overviews', 'debris',
         stack_name + '_ov' + str(ov_index).zfill(OV_DIGITS)
-        + '_s' + str(slice_counter).zfill(SLICE_DIGITS)
-        + '_' + str(sweep_counter) + TEMP_IMAGE_FORMAT)
+        + '_s' + str(slice_index).zfill(SLICE_DIGITS)
+        + '_' + str(sweep_index) + TEMP_IMAGE_FORMAT)
 
 def ov_reslice_save_path(base_dir, ov_index):
     filename = get_ov_filename('r', ov_index)
     return os.path.join(base_dir, 'workspace', 'reslices', filename)
 
-def get_tile_basepath(stack_name, grid_index, array_index=None, roi_index=None, tile_index=None, slice_counter=None):
+def get_tile_basepath(stack_name, grid_index, array_index=None, roi_index=None, tile_index=None, slice_index=None):
     grid_string = 'g' + str(grid_index).zfill(GRID_DIGITS)
     array_string = 'a' + str(array_index).zfill(GRID_DIGITS) if array_index is not None else None
     roi_string = 'roi' + str(roi_index).zfill(GRID_DIGITS) if roi_index is not None else None
     tile_string = 't' + str(tile_index).zfill(TILE_DIGITS) if tile_index is not None else None
-    slice_string = 's' + str(slice_counter).zfill(SLICE_DIGITS) if slice_counter is not None else None
+    slice_string = 's' + str(slice_index).zfill(SLICE_DIGITS) if slice_index is not None else None
 
     path = ['tiles']
     file = []
@@ -332,12 +331,12 @@ def get_tile_basepath(stack_name, grid_index, array_index=None, roi_index=None, 
 def get_tile_dirname(stack_name, grid_index, array_index=None, roi_index=None, tile_index=None):
     return get_tile_basepath(stack_name, grid_index, array_index, roi_index, tile_index)[0]
 
-def get_tile_filename(stack_name, grid_index, array_index=None, roi_index=None, tile_index=None, slice_counter=None):
-    return get_tile_basepath(stack_name, grid_index, array_index, roi_index, tile_index, slice_counter)[1]
+def get_tile_filename(stack_name, grid_index, array_index=None, roi_index=None, tile_index=None, slice_index=None):
+    return get_tile_basepath(stack_name, grid_index, array_index, roi_index, tile_index, slice_index)[1]
 
-def tile_relative_save_path(stack_name, grid_index, array_index=None, roi_index=None, tile_index=None, slice_counter=None):
+def tile_relative_save_path(stack_name, grid_index, array_index=None, roi_index=None, tile_index=None, slice_index=None):
     paths = get_tile_dirname(stack_name, grid_index, array_index, roi_index, tile_index)
-    paths.append(get_tile_filename(stack_name, grid_index, array_index, roi_index, tile_index, slice_counter))
+    paths.append(get_tile_filename(stack_name, grid_index, array_index, roi_index, tile_index, slice_index))
     return os.path.join(*paths)
 
 def tile_preview_save_path(base_dir, grid_index, array_index=None, roi_index=None, tile_index=None):
@@ -348,14 +347,26 @@ def tile_reslice_save_path(base_dir, grid_index, array_index=None, roi_index=Non
     filename = get_tile_filename('r', grid_index, array_index, roi_index, tile_index)
     return os.path.join(base_dir, 'workspace', 'reslices', filename)
 
-def tile_id(grid_index, tile_index, slice_counter):
+def tile_id(grid_index, tile_index, slice_index):
     return (str(grid_index).zfill(GRID_DIGITS)
             + '.' + str(tile_index).zfill(TILE_DIGITS)
-            + '.' + str(slice_counter).zfill(SLICE_DIGITS))
+            + '.' + str(slice_index).zfill(SLICE_DIGITS))
 
-def overview_id(ov_index, slice_counter):
+def overview_id(ov_index, slice_index):
     return (str(ov_index).zfill(OV_DIGITS)
-            + '.' + str(slice_counter).zfill(SLICE_DIGITS))
+            + '.' + str(slice_index).zfill(SLICE_DIGITS))
+
+def find_path_numeric_key(paths, label):
+    for path in paths:
+        if path.startswith(label):
+            values = find_path_numeric(path)
+            if len(values) > 0:
+                return values[0]
+    return None
+
+def find_path_numeric(path):
+    matches = re.findall(r'\d+', path)
+    return [int(match) for match in matches]
 
 def validate_tile_list(input_str):
     input_str = input_str.strip()
