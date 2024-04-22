@@ -704,8 +704,6 @@ class MainControls(QMainWindow):
             # self.tabWidget.setTabToolTip(4, 'MultiSEM mode under development')
         # #----------------------#
         
-        self.initialize_tcp_remote_gui()
-
     def tab_changed(self, index):
         if self.previous_tab_index == 3:
             # moved away from Array tab
