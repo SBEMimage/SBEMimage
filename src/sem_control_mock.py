@@ -15,6 +15,7 @@ an SEM for testing purposes.
 import numpy as np
 import os
 from time import sleep
+import json
 
 import utils
 from constants import Error
@@ -36,8 +37,8 @@ class SEM_Mock(SEM):
         self.last_known_x = 0
         self.last_known_y = 0
         self.last_known_z = 0
-        self.mock_type = ''
-        self.previous_acq_dir = None
+        self.mock_type = self.cfg['acq']['mock_type']
+        self.previous_acq_dir = self.cfg['acq']['mock_prev_acq_dir']
         self.detector = ''
         # Select default detector
         self.set_detector(self.syscfg['sem']['default_detector'])
@@ -282,7 +283,13 @@ class SEM_Mock(SEM):
 
     def save_frame(self, save_path_filename, stage=None):
         self.acquire_frame(save_path_filename, stage=stage)
-
+        
+    def save_to_cfg(self):
+        # Mock SEM settings
+        self.cfg['acq']['mock_use_prev_acq'] = 'True' if self.mock_type == 'previous_acquisition' else 'False'
+        self.cfg['acq']['mock_prev_acq_dir'] = self.previous_acq_dir
+        super().save_to_cfg()
+    
     def get_wd(self):
         return self.wd
 

@@ -559,3 +559,11 @@ class OverviewManager:
                 grid_manager,
                 self.use_auto_debris_area,
                 self.auto_debris_area_margin)
+
+    def deactivate_overview(self, ov_idx):
+        """Deactivate overview with ov_idx."""
+        self.__overviews[ov_idx].active = False
+        
+    def activate_overview(self, ov_idx):
+        """Activate overview with ov_idx."""
+        self.__overviews[ov_idx].active = True
