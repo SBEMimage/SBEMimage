@@ -2031,7 +2031,7 @@ class Acquisition:
         if cycle_time_diff > 0.15:
             self.log(
                 'CTRL',
-                f'Warning: Grid {grid_index} tile cycle time was '
+                f'Warning: {grid_label} tile cycle time was '
                 f'{cycle_time_diff:.2f} s longer than expected.',
                 'warning')
 
@@ -2040,12 +2040,12 @@ class Acquisition:
         if self.tile_grab_durations and self.tile_inspect_durations:
             self.log(
                 'CTRL',
-                f'Grid {grid_index}: avg. tile grab duration: '
+                f'{grid_label}: avg. tile grab duration: '
                 f'{mean(self.tile_grab_durations):.1f} s '
                 f'(cycle time: {self.sem.current_cycle_time:.1f})')
             self.log(
                 'CTRL',
-                f'Grid {grid_index}: avg. tile inspect '
+                f'{grid_label}: avg. tile inspect '
                 f'duration: {mean(self.tile_inspect_durations):.1f} s')
         if self.use_mirror_drive and self.tile_mirror_durations:
             self.log(
@@ -2552,10 +2552,12 @@ class Acquisition:
 
     def do_autofocus_position(self, position, grid_index, id_focus):
         """Run SmartSEM autofocus at given position"""
+        grid = self.gm[grid_index]
+        grid_label = grid.get_label(grid_index)
         do_focus, do_stig = self.autofocus_stig_current_slice
         move_msg = (
             "STAGE-Array",
-            f"Moving to {position} for AFAS of grid {grid_index} at focus point {id_focus}",
+            f"Moving to {position} for AFAS of {grid_label} at focus point {id_focus}",
         )
         self.log(*move_msg)
         self.stage.move_to_xy(position)
@@ -2587,7 +2589,7 @@ class Acquisition:
         if self.autofocus.method == 0:
             self.log(
                 'SEM-Array',
-                f'Running SmartSEM AF procedure {af_type} for grid {grid_index}'
+                f'Running SmartSEM AF procedure {af_type} for {grid_label}'
             )
             autofocus_msg = 'SEM', self.autofocus.run_zeiss_af(do_focus, do_stig)
 
@@ -2714,7 +2716,8 @@ class Acquisition:
             utils.log_warning(header, msg)
         else:
             utils.log_info(header, msg)
-        self.add_to_main_log(f'{header}: {msg}')
+        if not self.main_log_file.closed:
+            self.add_to_main_log(f'{header}: {msg}')
 
     def do_autofocus_before_grid_acq(self, grid_index):
         """If non-active tiles are selected for the SEM autofocus, call the
@@ -2748,6 +2751,7 @@ class Acquisition:
         ]
         """
         grid = self.gm[grid_index]
+        grid_label = grid.get_label(grid_index)
         focus_positions = self.gm.array_autofocus_points(grid_index)
         AFAS_results = [] # results for each focus point
         for id_focus, focus_position in enumerate(focus_positions):
@@ -2762,7 +2766,7 @@ class Acquisition:
             )
             self.log(
                 "Array-CTRL",
-                f"Performing {operation_str} in autofocus point #{id_focus} in grid {grid_index}")
+                f"Performing {operation_str} in autofocus point #{id_focus} in {grid_label}")
             AFAS_results.append([
                 focus_position,
                 self.do_autofocus_position(focus_position, grid_index, id_focus)
@@ -2858,10 +2862,11 @@ class Acquisition:
     def array_do_autofocus_adjustments(self, grid_index):
         """Apply focus gradient on grid based on AFAS performed on the focus points"""
         grid = self.gm[grid_index]
+        grid_label = grid.get_label(grid_index)
         if not hasattr(grid, "AFAS_results"):
             self.log(
                 "Array-CTRL",
-                f"No grid autofocus adjustment for grid {grid_index}"
+                f"No grid autofocus adjustment for {grid_label}"
             )
             return
         self.log("Array-CTRL", "Applying WD/STIG to the grid")

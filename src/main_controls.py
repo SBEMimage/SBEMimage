@@ -1183,14 +1183,14 @@ class MainControls(QMainWindow):
             (index.row(), index.column()) for index
             in self.tableView_array_sections.selectedIndexes()]
         self.array_set_check_items(selection, Qt.Checked)
-        self.array_update_checked_sections_to_config()
+        self.array_activate_checked_sections()
 
     def array_uncheck_selected(self):
         selection = [
             (index.row(), index.column()) for index
             in self.tableView_array_sections.selectedIndexes()]
         self.array_set_check_items(selection, Qt.Unchecked)
-        self.array_update_checked_sections_to_config()
+        self.array_activate_checked_sections()
 
     def array_invert_selection(self):
         new_selection = []
@@ -1288,26 +1288,26 @@ class MainControls(QMainWindow):
         self.gm.array_data.selected_sections = [
             (index.row(), index.column()) for index in indexes]
 
-    def array_update_checked_sections_to_config(self):
-        checked_sections = []
+    def array_activate_checked_sections(self):
         array_table_model = self.tableView_array_sections.model()
         for row in range(array_table_model.rowCount()):
             for column in range(array_table_model.columnCount()):
                 item = array_table_model.item(row, column)
                 if item:
-                    grid = self.find_grid_from_model_index(item)
-                    if item.checkState() == Qt.Checked:
-                        checked_sections.append((row, column))
-                        if grid:
-                            grid.activate_all_tiles()
-                    else:
-                        if grid:
-                            grid.deactivate_all_tiles()
-        self.gm.array_data.checked_sections = checked_sections
+                    self.array_activate_checked_item(item)
         self.viewport.vp_draw()
 
+    def array_activate_checked_item(self, item):
+        grid = self.find_grid_from_model_index(item)
+        if grid:
+            if item.checkState() == Qt.Checked:
+                grid.activate_all_tiles()
+            else:
+                grid.deactivate_all_tiles()
+
     def array_checked_section(self, item):
-        self.array_update_checked_sections_to_config()
+        self.array_activate_checked_item(item)
+        self.viewport.vp_draw()
 
     def array_double_clicked_section(self, selection):
         array_index, roi_index = self.find_array_from_model_index(selection)
@@ -1357,14 +1357,15 @@ class MainControls(QMainWindow):
             table_index0 = None
 
         if 'acquir' in action and table_index0:
-            if action == 'acquiring':
-                state_color = QColor(Qt.yellow)
-            elif action == 'acquired':
-                state_color = QColor(Qt.green)
-            else:
-                state_color = QColor(Qt.lightGray)
-            item = array_table_model.item(*table_index0)
-            item.setBackground(state_color)
+            # Disabled as causing item change event (only way to trigger QStandardItem checkbox change)
+            #if action == 'acquiring':
+            #    state_color = QColor(Qt.yellow)
+            #elif action == 'acquired':
+            #    state_color = QColor(Qt.green)
+            #else:
+            #    state_color = QColor(Qt.lightGray)
+            #item = array_table_model.item(*table_index0)
+            #item.setBackground(state_color)
             if table_index0:
                 self.tableView_array_sections.scrollTo(
                     model_index0,

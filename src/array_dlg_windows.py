@@ -22,6 +22,16 @@ import utils
 import ArrayData
 
 
+LANDMARK_LABEL_INDEX = 0
+LANDMARK_SOURCEX_INDEX = 1
+LANDMARK_SOURCEY_INDEX = 2
+LANDMARK_TARGETX_INDEX = 3
+LANDMARK_TARGETY_INDEX = 4
+LANDMARK_BUTTON_SET_INDEX = 5
+LANDMARK_BUTTON_MOVE_INDEX = 6
+LANDMARK_BUTTON_CLEAR_INDEX = 7
+LANDMARK_TOTAL_ITEMS = 8
+
 GRAY = QColor(Qt.lightGray)
 GREEN = QColor(Qt.green)
 YELLOW = QColor(Qt.yellow)
@@ -51,28 +61,28 @@ class ArrayCalibrationDlg(QDialog):
     def init_landmarks(self):
         # initialize the landmarkTableModel (QTableView)
         landmark_model = QStandardItemModel(0, 0)
-        landmark_model.setHorizontalHeaderItem(0, QStandardItem(' Landmark '))
-        landmark_model.setHorizontalHeaderItem(1, QStandardItem(' Source X '))
-        landmark_model.setHorizontalHeaderItem(2, QStandardItem(' Source Y '))
-        landmark_model.setHorizontalHeaderItem(3, QStandardItem('Target X'))
-        landmark_model.setHorizontalHeaderItem(4, QStandardItem('Target Y'))
-        landmark_model.setHorizontalHeaderItem(5, QStandardItem('Set'))
-        landmark_model.setHorizontalHeaderItem(6, QStandardItem('Move'))
-        landmark_model.setHorizontalHeaderItem(7, QStandardItem('Clear'))
+        landmark_model.setHorizontalHeaderItem(LANDMARK_LABEL_INDEX, QStandardItem(' Landmark '))
+        landmark_model.setHorizontalHeaderItem(LANDMARK_SOURCEX_INDEX, QStandardItem(' Source X '))
+        landmark_model.setHorizontalHeaderItem(LANDMARK_SOURCEY_INDEX, QStandardItem(' Source Y '))
+        landmark_model.setHorizontalHeaderItem(LANDMARK_TARGETX_INDEX, QStandardItem('Target X'))
+        landmark_model.setHorizontalHeaderItem(LANDMARK_TARGETY_INDEX, QStandardItem('Target Y'))
+        landmark_model.setHorizontalHeaderItem(LANDMARK_BUTTON_SET_INDEX, QStandardItem('Set'))
+        landmark_model.setHorizontalHeaderItem(LANDMARK_BUTTON_MOVE_INDEX, QStandardItem('Move'))
+        landmark_model.setHorizontalHeaderItem(LANDMARK_BUTTON_CLEAR_INDEX, QStandardItem('Clear'))
         self.lTable.setModel(landmark_model)
 
         header = self.lTable.horizontalHeader()
-        for i in range(8):
-            if i not in [3, 4]:  # fixed width for target columns
-                header.setSectionResizeMode(i, QHeaderView.ResizeToContents)
+        for column_index in range(LANDMARK_TOTAL_ITEMS):
+            if column_index not in [LANDMARK_TARGETX_INDEX, LANDMARK_TARGETY_INDEX]:  # fixed width for target columns
+                header.setSectionResizeMode(column_index, QHeaderView.ResizeToContents)
 
-        self.lTable.setColumnWidth(3, 70)
-        self.lTable.setColumnWidth(4, 70)
+        self.lTable.setColumnWidth(LANDMARK_TARGETX_INDEX, 70)
+        self.lTable.setColumnWidth(LANDMARK_TARGETY_INDEX, 70)
         self.lTable.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
 
         landmark_model = self.lTable.model()
 
-        for index, (key, landmark) in enumerate(sorted(self.gm.array_data.landmarks.items())):
+        for landmark_index, (key, landmark) in enumerate(sorted(self.gm.array_data.landmarks.items())):
             # the target key does not exist until it is either
             # manually defined
             # or inferred when enough (>=2) other target landmarks
@@ -80,77 +90,84 @@ class ArrayCalibrationDlg(QDialog):
             source = landmark.get('source', {}).get('location')
             target = landmark.get('target', {}).get('location')
 
-            item0 = QStandardItem(f'{key}')
-            item1 = QStandardItem(f'{source[0]:.3f}')
-            item2 = QStandardItem(f'{source[1]:.3f}')
+            landmark_item_label = QStandardItem(f'{key}')
+            landmark_item_source_x = QStandardItem(f'{source[0]:.3f}')
+            landmark_item_source_y = QStandardItem(f'{source[1]:.3f}')
 
-            item5 = QPushButton('Set')
-            item5.setFixedSize(QSize(50, 40))
-            item5.clicked.connect(self.set_landmark(index))
+            landmark_item_button_set = QPushButton('Set')
+            landmark_item_button_set.setFixedSize(QSize(50, 40))
+            landmark_item_button_set.clicked.connect(self.set_landmark(landmark_index))
 
-            item6 = QPushButton('Go to')
-            item6.setFixedSize(QSize(60, 40))
-            item6.clicked.connect(self.goto_landmark(index))
+            landmark_item_button_move = QPushButton('Go to')
+            landmark_item_button_move.setFixedSize(QSize(60, 40))
+            landmark_item_button_move.clicked.connect(self.goto_landmark(landmark_index))
 
             if self.cfg['sys']['simulation_mode'] == 'True':
-                item5.setEnabled(False)
-                item6.setEnabled(False)
+                landmark_item_button_set.setEnabled(False)
+                landmark_item_button_move.setEnabled(False)
 
-            item7 = QPushButton('Clear')
-            item7.setFixedSize(QSize(60, 40))
-            item7.clicked.connect(self.clear_landmark(index))
+            landmark_item_button_clear = QPushButton('Clear')
+            landmark_item_button_clear.setFixedSize(QSize(60, 40))
+            landmark_item_button_clear.clicked.connect(self.clear_landmark(landmark_index))
 
             if target is not None:
-                item0.setBackground(GREEN)
+                landmark_item_label.setBackground(GREEN)
 
-                item3 = QStandardItem(f'{target[0]:.3f}')
-                item3.setBackground(GREEN)
+                landmark_item_target_x = QStandardItem(f'{target[0]:.3f}')
+                landmark_item_target_x.setBackground(GREEN)
 
-                item4 = QStandardItem(f'{target[1]:.3f}')
-                item4.setBackground(GREEN)
+                landmark_item_target_y = QStandardItem(f'{target[1]:.3f}')
+                landmark_item_target_y.setBackground(GREEN)
             else:
-                item0.setBackground(GRAY)
+                landmark_item_label.setBackground(GRAY)
 
-                item3 = QStandardItem('')
-                item3.setBackground(GRAY)
+                landmark_item_target_x = QStandardItem('')
+                landmark_item_target_x.setBackground(GRAY)
 
-                item4 = QStandardItem('')
-                item4.setBackground(GRAY)
+                landmark_item_target_y = QStandardItem('')
+                landmark_item_target_y.setBackground(GRAY)
 
-                item6.setEnabled(False)
-                item7.setEnabled(False)
+                landmark_item_button_move.setEnabled(False)
+                landmark_item_button_clear.setEnabled(False)
 
-            item3.setCheckable(False)
-            item4.setCheckable(False)
+            landmark_item_target_x.setCheckable(False)
+            landmark_item_target_y.setCheckable(False)
 
-            landmark_model.appendRow([item0, item1, item2, item3, item4])
-            self.lTable.setIndexWidget(landmark_model.index(index, 5), item5)
-            self.lTable.setIndexWidget(landmark_model.index(index, 6), item6)
-            self.lTable.setIndexWidget(landmark_model.index(index, 7), item7)
+            landmark_model.appendRow(
+                [landmark_item_label, landmark_item_source_x, landmark_item_source_y,
+                 landmark_item_target_x, landmark_item_target_y])
+            self.lTable.setIndexWidget(
+                landmark_model.index(landmark_index, LANDMARK_BUTTON_SET_INDEX), landmark_item_button_set)
+            (self.lTable.setIndexWidget
+             (landmark_model.index(landmark_index, LANDMARK_BUTTON_MOVE_INDEX), landmark_item_button_move))
+            self.lTable.setIndexWidget(
+                landmark_model.index(landmark_index, LANDMARK_BUTTON_CLEAR_INDEX), landmark_item_button_clear)
 
     def clear_landmark(self, row):
         def callback_clear_landmark():
             landmark_model = self.lTable.model()
 
-            item3 = self.lTable.model().item(row, 3)
-            item3.setData('', Qt.DisplayRole)
-            item3.setBackground(GRAY)
+            landmark_item_target_x = self.lTable.model().item(row, LANDMARK_TARGETX_INDEX)
+            landmark_item_target_x.setData('', Qt.DisplayRole)
+            landmark_item_target_x.setBackground(GRAY)
 
-            item4 = self.lTable.model().item(row, 4)
-            item4.setData('', Qt.DisplayRole)
-            item4.setBackground(GRAY)
+            landmark_item_target_y = self.lTable.model().item(row, LANDMARK_TARGETY_INDEX)
+            landmark_item_target_y.setData('', Qt.DisplayRole)
+            landmark_item_target_y.setBackground(GRAY)
 
             del self.gm.array_data.landmarks[row]['target']
 
             # update table
-            item0 = self.lTable.model().item(row, 0)
-            item0.setBackground(GRAY)
+            landmark_item_label = self.lTable.model().item(row, LANDMARK_LABEL_INDEX)
+            landmark_item_label.setBackground(GRAY)
 
-            item6 = self.lTable.indexWidget(landmark_model.index(row, 6))
-            item6.setEnabled(False)
+            landmark_item_button_move = (
+                self.lTable.indexWidget(landmark_model.index(row, LANDMARK_BUTTON_MOVE_INDEX)))
+            landmark_item_button_move.setEnabled(False)
 
-            item7 = self.lTable.indexWidget(landmark_model.index(row, 7))
-            item7.setEnabled(False)
+            landmark_item_button_clear = (
+                self.lTable.indexWidget(landmark_model.index(row, LANDMARK_BUTTON_CLEAR_INDEX)))
+            landmark_item_button_clear.setEnabled(False)
 
         return callback_clear_landmark
 
@@ -163,32 +180,32 @@ class ArrayCalibrationDlg(QDialog):
             landmark_model = self.lTable.model()
 
             # update table
-            item0 = self.lTable.model().item(row, 0)
-            item0.setBackground(GREEN)
+            landmark_item_label = self.lTable.model().item(row, LANDMARK_LABEL_INDEX)
+            landmark_item_label.setBackground(GREEN)
 
-            item3 = self.lTable.model().item(row, 3)
-            item3.setData(
+            landmark_item_target_x = self.lTable.model().item(row, LANDMARK_TARGETX_INDEX)
+            landmark_item_target_x.setData(
                 f'{x:.3f}',
                 Qt.DisplayRole)
-            item3.setBackground(GREEN)
+            landmark_item_target_x.setBackground(GREEN)
 
-            item4 = self.lTable.model().item(row, 4)
-            item4.setData(
+            landmark_item_target_y = self.lTable.model().item(row, LANDMARK_TARGETY_INDEX)
+            landmark_item_target_y.setData(
                 f'{y:.3f}',
                 Qt.DisplayRole)
-            item4.setBackground(GREEN)
+            landmark_item_target_y.setBackground(GREEN)
 
-            item6 = self.lTable.indexWidget(
+            landmark_item_button_move = self.lTable.indexWidget(
                         landmark_model.index(
                             row,
-                            6))
-            item6.setEnabled(True)
+                            LANDMARK_BUTTON_MOVE_INDEX))
+            landmark_item_button_move.setEnabled(True)
 
-            item7 = self.lTable.indexWidget(
+            landmark_item_button_clear = self.lTable.indexWidget(
                         landmark_model.index(
                             row,
-                            7))
-            item7.setEnabled(True)
+                            LANDMARK_BUTTON_CLEAR_INDEX))
+            landmark_item_button_clear.setEnabled(True)
 
             # update landmarks
             self.gm.set_array_landmark(row, [x, y])
@@ -198,8 +215,8 @@ class ArrayCalibrationDlg(QDialog):
             n_landmarks = len(landmarks)
 
             calibrated_landmark_ids = [
-                id for id in landmarks
-                if self.lTable.model().item(id, 0).background().color() == GREEN]
+                index for index in landmarks
+                if self.lTable.model().item(index, LANDMARK_LABEL_INDEX).background().color() == GREEN]
 
                 # the green color shows that the landmark has been
                 # manually calibrated by the user
@@ -257,47 +274,47 @@ class ArrayCalibrationDlg(QDialog):
                     y = y_target_updated_landmarks[noncalibrated_landmark_id]
                     self.gm.set_array_landmark(noncalibrated_landmark_id, [x, y])
 
-                    item0 = self.lTable.model().item(
+                    landmark_item_label = self.lTable.model().item(
                         noncalibrated_landmark_id,
-                        0)
-                    item0.setBackground(YELLOW)
+                        LANDMARK_LABEL_INDEX)
+                    landmark_item_label.setBackground(YELLOW)
 
-                    item3 = self.lTable.model().item(
+                    landmark_item_target_x = self.lTable.model().item(
                         noncalibrated_landmark_id,
-                        3)
-                    item3.setData(
+                        LANDMARK_TARGETX_INDEX)
+                    landmark_item_target_x.setData(
                         f'{x:.3f}',
                         Qt.DisplayRole)
-                    item3.setBackground(YELLOW)
+                    landmark_item_target_x.setBackground(YELLOW)
 
-                    item4 = self.lTable.model().item(
+                    landmark_item_target_y = self.lTable.model().item(
                         noncalibrated_landmark_id,
-                        4)
-                    item4.setData(
+                        LANDMARK_TARGETY_INDEX)
+                    landmark_item_target_y.setData(
                         f'{y:.3f}',
                         Qt.DisplayRole)
-                    item4.setBackground(YELLOW)
+                    landmark_item_target_y.setBackground(YELLOW)
 
-                    item6 = self.lTable.indexWidget(
+                    landmark_item_button_move = self.lTable.indexWidget(
                                 landmark_model.index(
                                     noncalibrated_landmark_id,
-                                    6))
-                    item6.setEnabled(True)
+                                    LANDMARK_BUTTON_MOVE_INDEX))
+                    landmark_item_button_move.setEnabled(True)
 
-                    item7 = self.lTable.indexWidget(
+                    landmark_item_button_clear = self.lTable.indexWidget(
                                 landmark_model.index(
                                     noncalibrated_landmark_id,
-                                    7))
-                    item7.setEnabled(True)
+                                    LANDMARK_BUTTON_CLEAR_INDEX))
+                    landmark_item_button_clear.setEnabled(True)
 
         return callback_set_landmark
 
     def goto_landmark(self, row):
         def callback_goto_landmark():
-            item3 = self.lTable.model().item(row, 3)
-            item4 = self.lTable.model().item(row, 4)
-            x = float(self.lTable.model().data(item3.index()))
-            y = float(self.lTable.model().data(item4.index()))
+            landmark_item_target_x = self.lTable.model().item(row, LANDMARK_TARGETX_INDEX)
+            landmark_item_target_y = self.lTable.model().item(row, LANDMARK_TARGETY_INDEX)
+            x = float(self.lTable.model().data(landmark_item_target_x.index()))
+            y = float(self.lTable.model().data(landmark_item_target_y.index()))
 
             utils.log_info(
                 'Array-STAGE',
@@ -314,8 +331,8 @@ class ArrayCalibrationDlg(QDialog):
         landmarks = self.gm.get_array_landmarks()
         n_landmarks = len(landmarks)
         calibrated_landmark_ids = [
-            id for id in landmarks
-            if self.lTable.model().item(id, 0).background().color() == GREEN]
+            index for index in landmarks
+            if self.lTable.model().item(index, LANDMARK_LABEL_INDEX).background().color() == GREEN]
 
         if len(calibrated_landmark_ids) != n_landmarks:
             utils.log_info(

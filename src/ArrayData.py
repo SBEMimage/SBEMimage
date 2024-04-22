@@ -30,10 +30,10 @@ class ArrayData:
         self.sections = {}
         self.landmarks = {}
         self.focus = {}
-        self.sbemimage_sections = {}
-        self.selected_sections = []
-        self.selected = []
-        self.checked_sections = []
+        self.sbemimage_sections = {}    # deprecated
+        self.selected_sections = []     # deprecated
+        self.selected = []              # deprecate
+        self.checked_sections = []      # deprecated
         self.transform = []
         self.calibrated = False
 

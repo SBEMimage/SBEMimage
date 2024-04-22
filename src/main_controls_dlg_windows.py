@@ -2538,19 +2538,23 @@ class SetStartTileDlg(QDialog):
             else:
                 grid_index, tile_index = 0, 0
 
-        self.label_acqstatus2.setText(
-            f'and will (re)start at tile {tile_index} in grid {grid_index}.')
+        if grid_index is not None:
+            grid = self.gm[grid_index]
+            grid_label = grid.get_label(grid_index)
 
-        # Populate grid selector
-        self.comboBox_gridSelector.clear()
-        self.comboBox_gridSelector.addItems(self.gm.grid_selector_list())
-        self.comboBox_gridSelector.setCurrentIndex(grid_index)
-        self.comboBox_gridSelector.currentIndexChanged.connect(
-            self.update_tile_selector)
-        # Populate tile selector
-        self.update_tile_selector()
-        # Select current tile (+1 to account for entry 'Select tile')
-        self.comboBox_tileSelector.setCurrentIndex(tile_index + 1)
+            self.label_acqstatus2.setText(
+                f'and will (re)start at tile {tile_index} in {grid_label}.')
+
+            # Populate grid selector
+            self.comboBox_gridSelector.clear()
+            self.comboBox_gridSelector.addItems(self.gm.grid_selector_list())
+            self.comboBox_gridSelector.setCurrentIndex(grid_index)
+            self.comboBox_gridSelector.currentIndexChanged.connect(
+                self.update_tile_selector)
+            # Populate tile selector
+            self.update_tile_selector()
+            # Select current tile (+1 to account for entry 'Select tile')
+            self.comboBox_tileSelector.setCurrentIndex(tile_index + 1)
 
     def update_tile_selector(self):
         """Populate the tile selector with the active tiles of the currently

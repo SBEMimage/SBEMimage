@@ -1121,7 +1121,7 @@ class Viewport(QWidget):
             menu.addSeparator()
             if grid_index is not None:
                 action_openGridSettings = menu.addAction(
-                    f'Open settings of grid {grid_index}'
+                    f'Open settings of {grid_label}'
                     ' | Shortcut &G')
             else:
                 action_openGridSettings = menu.addAction(

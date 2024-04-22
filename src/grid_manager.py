@@ -1131,12 +1131,14 @@ class GridManager(list):
         self.cfg['autofocus']['ref_tiles'] = json.dumps(
             self.autofocus_ref_tiles)
 
-        # Save tile previews currently held in memory as pngs
+        # Save tile previews currently held in memory
+        # TODO: store with image_io / metadata
         base_dir = self.cfg['acq']['base_dir']
         for grid_index in range(self.number_grids):
+            grid = self[grid_index]
             for tile_index in range(self[grid_index].number_tiles):
                 preview_path = utils.tile_preview_save_path(
-                    base_dir, grid_index, None, None, tile_index)
+                    base_dir, grid_index, grid.array_index, grid.roi_index, tile_index)
                 img = self[grid_index][tile_index].preview_img
                 if img is not None:
                     img.save(preview_path)
