@@ -1229,26 +1229,26 @@ class Viewport(QWidget):
                     action_revertLocation.setEnabled(False)
 
             #---autofocus points---#
-            if (self.gm.array_mode
-                and len(self.gm.array_data.selected_sections) == 1):
-
-                if self.gm.array_autofocus_points(array_selected_section):
+            if self.gm.array_mode and len(self.gm.array_data.selected_sections) == 1:
+                array_index, roi_index = array_selected_section
+                grid_selected_index = self.gm.find_grid_index(array_index, roi_index)
+                if self.gm.array_autofocus_points(grid_selected_index):
 
                     action_removeAutofocusPoint = menu.addAction(
-                        'MagC | Remove last autofocus point of grid '
-                        f' {array_selected_section} | Shortcut &E')
+                        'MagC | Remove last autofocus point of '
+                        f' {grid_label} | Shortcut &E')
                     action_removeAutofocusPoint.triggered.connect(
                         self.vp_remove_autofocus_point)
 
                     action_removeAllAutofocusPoint = menu.addAction(
-                        'MagC | Remove all autofocus points of grid '
-                        f' {array_selected_section} | Shortcut &W')
+                        'MagC | Remove all autofocus points of '
+                        f' {grid_label} | Shortcut &W')
                     action_removeAllAutofocusPoint.triggered.connect(
                         self.vp_remove_all_autofocus_point)
 
                 action_addAutofocusPoint = menu.addAction(
-                    'MagC | Add autofocus point to grid '
-                    f' {array_selected_section} | Shortcut &T')
+                    'MagC | Add autofocus point to '
+                    f' {grid_label} | Shortcut &T')
                 action_addAutofocusPoint.triggered.connect(
                     self.vp_add_autofocus_point)
             #----------------------#

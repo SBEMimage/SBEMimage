@@ -2716,7 +2716,7 @@ class Acquisition:
             utils.log_warning(header, msg)
         else:
             utils.log_info(header, msg)
-        if not self.main_log_file.closed:
+        if self.main_log_file and not self.main_log_file.closed:
             self.add_to_main_log(f'{header}: {msg}')
 
     def do_autofocus_before_grid_acq(self, grid_index):
