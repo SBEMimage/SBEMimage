@@ -394,6 +394,7 @@ def validate_ov_list(input_str):
             success = False
     return success, ov_list
 
+# TODO: deprecated
 def suppress_console_warning():
     # Suppress TIFFReadDirectory warnings that otherwise flood console window
     print('\x1b[19;1H' + 80*' ' + '\x1b[19;1H', end='')

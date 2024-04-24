@@ -3349,7 +3349,7 @@ class Viewport(QWidget):
                         self.sv_current_tile, start_slice - index))
             if os.path.isfile(filename):
                 self.slice_view_images.append(utils.image_to_QPixmap(imread(filename)))
-                utils.suppress_console_warning()
+                #utils.suppress_console_warning()
         self.sv_set_native_resolution()
         self.sv_draw()
 
