@@ -1342,19 +1342,20 @@ class MainControls(QMainWindow):
                     ' calibrated, therefore no stage movement.'))
 
     def array_set_section_state_in_table(self, action, grid_indices=None):
-        array_table_model = self.tableView_array_sections.model()
-
+        #array_table_model = self.tableView_array_sections.model()
+        model_index0 = None
+        table_index0 = None
         if grid_indices:
             model_indices = []
             for grid_index in grid_indices:
                 grid = self.gm[grid_index]
                 model_index = self.find_model_from_array_index(grid.array_index, grid.roi_index)
-                model_indices.append(model_index)
-            model_index0 = model_indices[0]
-            table_index0 = (model_index0.row(), model_index0.column())
-        else:
-            model_index0 = None
-            table_index0 = None
+                if model_index is not None:
+                    model_indices.append(model_index)
+            if len(model_indices) > 0:
+                model_index0 = model_indices[0]
+                if model_index0 is not None:
+                    table_index0 = (model_index0.row(), model_index0.column())
 
         if 'acquir' in action and table_index0:
             # Disabled as causing item change event (only way to trigger QStandardItem checkbox change)
