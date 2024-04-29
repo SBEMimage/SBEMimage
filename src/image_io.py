@@ -63,9 +63,13 @@ def render_image(image, channels):
     total_image = None
     nchannels = image.shape[-1] if image.ndim >= 3 else 1
     n = len(channels)
+    has_color_info = False
     is_rgb = (nchannels in (3, 4) and (n <= 1 or n == 3))
+    for channel in channels:
+        if channel.get('color'):
+            has_color_info = True
     needs_normalisation = (image.dtype.itemsize == 2)
-    if not is_rgb and channels:
+    if not is_rgb and (nchannels > 1 or has_color_info):
         tot_alpha = 0
         for channeli, channel in enumerate(channels):
             if n == 1:

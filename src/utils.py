@@ -282,7 +282,7 @@ def ov_save_path(base_dir, stack_name, ov_index, slice_index):
         base_dir,
         str(ov_relative_save_path(stack_name, ov_index, slice_index)))
 
-def ov_relative_save_path(stack_name, ov_index, slice_index):
+def ov_relative_save_path(stack_name, ov_index, slice_index=None):
     paths = get_ov_dirname(stack_name, ov_index)
     paths.append(get_ov_filename(stack_name, ov_index, slice_index))
     return os.path.join(*paths)
