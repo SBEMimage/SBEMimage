@@ -612,6 +612,8 @@ class ModifyImagesDlg(QDialog):
         self.pushButton_import.clicked.connect(self.import_image)
         self.pushButton_delete.clicked.connect(self.delete_imported)
         self.pushButton_modify.clicked.connect(self.modify_imported)
+        self.pushButton_move_up.clicked.connect(self.move_up)
+        self.pushButton_move_down.clicked.connect(self.move_down)
         self.populate_image_list()
 
     def populate_image_list(self):
@@ -638,20 +640,40 @@ class ModifyImagesDlg(QDialog):
 
     def delete_imported(self):
         index = self.listWidget_imagelist.currentRow()
-        if index is not None:
-            if self.imported[index].is_array:
-                self.viewport_trigger.transmit('ARRAY REMOVE IMAGE')
-            self.imported.delete_image(index)
-            self.populate_image_list()
-            self.viewport_trigger.transmit('DRAW VP')
+        if index >= 0:
+            imported = self.imported[index]
+            response = QMessageBox.question(
+                self, 'Delete imported image',
+                f'Are you sure you want to delete imported image?\n{imported.description}',
+                QMessageBox.Ok | QMessageBox.Cancel)
+            if response == QMessageBox.Ok:
+                if self.imported[index].is_array:
+                    self.viewport_trigger.transmit('ARRAY REMOVE IMAGE')
+                self.imported.delete_image(index)
+                self.populate_image_list()
+                self.viewport_trigger.transmit('DRAW VP')
 
     def modify_imported(self):
         index = self.listWidget_imagelist.currentRow()
-        if index is not None:
+        if index >= 0:
             selected_image = self.imported[index]
             dialog = ModifyImageDlg(selected_image, self.gm,
                                     self.viewport_trigger)
             dialog.exec()
+
+    def move_up(self):
+        index = self.listWidget_imagelist.currentRow()
+        if index > 0:
+            self.imported[index], self.imported[index - 1] = self.imported[index - 1], self.imported[index]
+            self.populate_image_list()
+            self.viewport_trigger.transmit('DRAW VP')
+
+    def move_down(self):
+        index = self.listWidget_imagelist.currentRow()
+        if 0 <= index < len(self.imported) - 1:
+            self.imported[index], self.imported[index + 1] = self.imported[index + 1], self.imported[index]
+            self.populate_image_list()
+            self.viewport_trigger.transmit('DRAW VP')
 
 
 # ------------------------------------------------------------------------------

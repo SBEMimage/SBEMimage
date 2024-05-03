@@ -965,7 +965,7 @@ class MainControls(QMainWindow):
             self.array_open_import_image)
         self.pushButton_array_imageCalibration.clicked.connect(
             self.array_open_image_calibration_dlg)
-        self.pushButton_array_reset.clicked.connect(self.array_reset)
+        self.pushButton_array_reset.clicked.connect(self.array_reset_dialog)
 
         self.pushButton_array_selectAll.clicked.connect(self.array_select_all)
         self.pushButton_array_deselectAll.clicked.connect(self.array_deselect_all)
@@ -1384,6 +1384,14 @@ class MainControls(QMainWindow):
                     QAbstractItemView.PositionAtCenter)
         if action == 'deselectall':
             self.array_deselect_all()
+
+    def array_reset_dialog(self):
+        response = QMessageBox.question(
+            self, 'Reset array data',
+            f'Are you sure you want to reset all Array/ROI data?',
+            QMessageBox.Ok | QMessageBox.Cancel)
+        if response == QMessageBox.Ok:
+            self.array_reset()
 
     def array_reset(self):
         self.lineEdit_array_dataFile.clear()
