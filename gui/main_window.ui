@@ -2109,7 +2109,7 @@ Green: acquired</string>
         <property name="geometry">
          <rect>
           <x>10</x>
-          <y>260</y>
+          <y>220</y>
           <width>131</width>
           <height>31</height>
          </rect>
@@ -2127,7 +2127,7 @@ Green: acquired</string>
         <property name="geometry">
          <rect>
           <x>10</x>
-          <y>220</y>
+          <y>130</y>
           <width>131</width>
           <height>31</height>
          </rect>
@@ -2775,7 +2775,7 @@ Green: acquired</string>
      <x>0</x>
      <y>0</y>
      <width>711</width>
-     <height>24</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
