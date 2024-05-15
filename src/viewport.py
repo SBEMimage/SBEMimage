@@ -2734,33 +2734,33 @@ class Viewport(QWidget):
     def vp_activate_all_tiles(self):
         """Activate all tiles in the selected grid (mouse selection)."""
         if self.selected_grid is not None:
+            grid_label = self.gm.get_grid_label(self.selected_grid)
             user_reply = QMessageBox.question(
                 self, 'Set all tiles in grid to "active"',
-                f'This will activate all tiles in grid {self.selected_grid}. '
+                f'This will activate all tiles in {grid_label}. '
                 f'Proceed?',
                 QMessageBox.Ok | QMessageBox.Cancel)
             if user_reply == QMessageBox.Ok:
                 self.gm[self.selected_grid].activate_all_tiles()
                 if self.autofocus.tracking_mode == 1:
                     self.gm.make_all_active_tiles_autofocus_ref_tiles()
-                self._add_to_main_log('CTRL: All tiles in grid %d activated.'
-                                     % self.selected_grid)
+                self._add_to_main_log(f'CTRL: All tiles in {grid_label} activated.')
                 self.vp_update_after_active_tile_selection()
 
     def vp_deactivate_all_tiles(self):
         """Deactivate all tiles in the selected grid (mouse selection)."""
         if self.selected_grid is not None:
+            grid_label = self.gm.get_grid_label(self.selected_grid)
             user_reply = QMessageBox.question(
                 self, 'Deactivating all tiles in grid',
-                f'This will deactivate all tiles in grid {self.selected_grid}. '
+                f'This will deactivate all tiles in {grid_label}. '
                 f'Proceed?',
                 QMessageBox.Ok | QMessageBox.Cancel)
             if user_reply == QMessageBox.Ok:
                 self.gm[self.selected_grid].deactivate_all_tiles()
                 if self.autofocus.tracking_mode == 1:
                     self.gm.delete_all_autofocus_ref_tiles()
-                self._add_to_main_log('CTRL: All tiles in grid %d deactivated.'
-                                     % self.selected_grid)
+                self._add_to_main_log(f'CTRL: All tiles in grid {grid_label} deactivated.')
                 self.vp_update_after_active_tile_selection()
 
     def _vp_open_grid_settings(self):
@@ -3341,7 +3341,7 @@ class Viewport(QWidget):
                         self.acq.stack_name, self.sv_current_grid,
                         None, None,
                         self.sv_current_tile, start_slice - index))
-            if os.path.isfile(filename):
+            if filename and os.path.isfile(filename):
                 self.slice_view_images.append(utils.image_to_QPixmap(imread(filename)))
                 #utils.suppress_console_warning()
         self.sv_set_native_resolution()
