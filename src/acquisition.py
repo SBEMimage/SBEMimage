@@ -1962,22 +1962,8 @@ class Acquisition:
             self.set_default_wd_stig()
             self.lock_wd_stig()
 
-        theta = grid.rotation
-        # TODO: Whether theta or (360 - theta) must be used here may be
-        # device-specific. Look into that!
-        if not self.magc_mode:
-            theta = 360 - theta
-        else:
-            theta = theta % 360
-            # workaround to make sure that the set_scan_rotation
-            # command is issued below. TT would suggest changing
-            # the check below to if theta >= 0: but it might not
-            # be OK for non-magc applications
-            if theta == 0:
-                theta = 0.01
-        if theta != 0:
-            # Enable scan rotation
-            self.sem.set_scan_rotation(theta)
+        # set scan rotation
+        self.sem.set_scan_rotation(grid.rotation % 360)
 
         # ============= Acquisition loop of all active tiles ===============
         for tile_index in active_tiles:
@@ -2198,6 +2184,10 @@ class Acquisition:
 
         if not tile_skipped:
             if not os.path.isfile(save_path) or retake_img:
+                if adjust_acq_settings:
+                    # set scan rotation
+                    self.sem.set_scan_rotation(grid.rotation % 360)
+
                 # If current tile has different focus settings from previous
                 # tile, adjust working distance and stigmation for this tile
                 if adjust_wd_stig:
