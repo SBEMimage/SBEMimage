@@ -1891,6 +1891,14 @@ class Acquisition:
         if not self.acq_interrupted:
             self.grids_acquired = []
 
+    def set_scan_rotation(self, grid_index):
+        if grid_index is not None:
+            grid = self.gm[grid_index]
+            theta = (360 - grid.rotation) % 360
+        else:
+            theta = 0
+        self.sem.set_scan_rotation(theta)
+
     def acquire_grid(self, grid_index, overwrite=False):
         """Acquire all active tiles of grid specified by grid_index"""
 
@@ -1962,8 +1970,8 @@ class Acquisition:
             self.set_default_wd_stig()
             self.lock_wd_stig()
 
-        # set scan rotation
-        self.sem.set_scan_rotation(grid.rotation % 360)
+        # Enable scan rotation
+        self.set_scan_rotation(grid_index)
 
         # ============= Acquisition loop of all active tiles ===============
         for tile_index in active_tiles:
@@ -2124,9 +2132,8 @@ class Acquisition:
         self.tile_inspect_durations = []
         self.tile_mirror_durations = []
 
-        if theta != 0:
-            # Disable scan rotation
-            self.sem.set_scan_rotation(0)
+        # Disable scan rotation
+        self.set_scan_rotation(None)
 
         if len(active_tiles) == len(self.tiles_acquired):
             # Grid is complete, add it to the grids_acquired list
@@ -2184,10 +2191,6 @@ class Acquisition:
 
         if not tile_skipped:
             if not os.path.isfile(save_path) or retake_img:
-                if adjust_acq_settings:
-                    # set scan rotation
-                    self.sem.set_scan_rotation(grid.rotation % 360)
-
                 # If current tile has different focus settings from previous
                 # tile, adjust working distance and stigmation for this tile
                 if adjust_wd_stig:
@@ -2291,7 +2294,7 @@ class Acquisition:
                     self.autofocus_stig_current_slice[0]
                     or self.autofocus_stig_current_slice[1]
                 )
-                and not self.array_mode
+                and not self.gm.array_mode
             ):
                 do_move = False  # already at tile stage position
                 self.do_autofocus(*self.autofocus_stig_current_slice,

@@ -1335,6 +1335,7 @@ class Viewport(QWidget):
             active_tiles.append(self.selected_tile)
         self.acq.init_acquisition()
         self.acq.set_up_acq_subdirectories()
+        self.acq.set_scan_rotation(self.selected_grid)
         self.acq.acquire_tile(self.selected_grid, self.selected_tile,
                               adjust_acq_settings=True, overwrite=True)
 
