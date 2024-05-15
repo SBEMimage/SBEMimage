@@ -2211,7 +2211,7 @@ class Acquisition:
                         new_wd != self.tile_wd,
                         new_stig_x != self.tile_stig_x,
                         new_stig_y != self.tile_stig_y,
-                        ]):
+                            ]):
                         # Adjust and show new parameters in the main log
                         self.sem.set_wd(new_wd)
                         self.sem.set_stig_xy(new_stig_x, new_stig_y)
@@ -2272,9 +2272,15 @@ class Acquisition:
 
             if self.gm.array_mode:
                 # set wd,stig calculated at the beginning of the grid
-                self.sem.set_wd(grid[tile_index].wd)
-                self.sem.set_stig_xy(*grid[tile_index].stig_xy)
-
+                new_wd = grid[tile_index].wd
+                new_stig_x, new_stig_y = grid[tile_index].stig_xy
+                if any([
+                    new_wd != self.tile_wd,
+                    new_stig_x != self.tile_stig_x,
+                    new_stig_y != self.tile_stig_y,
+                ]):
+                    self.sem.set_wd(new_wd)
+                    self.sem.set_stig_xy(new_stig_x, new_stig_y)
 
         # Proceed if no error has ocurred and tile not skipped:
         if (
