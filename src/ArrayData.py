@@ -39,19 +39,20 @@ class ArrayData:
 
     def read_data(self, path):
         self.reset()
-        self.active = True
-        self.path = path
-        ext = os.path.splitext(self.path)[-1].lower()
-        if ext == '.magc':
-            self.read_data_magc()
-        elif ext == '.json':
-            self.read_data_json()
-        else:
-            self.read_data_yaml()
+        if os.path.exists(path):
+            self.active = True
+            self.path = path
+            ext = os.path.splitext(self.path)[-1].lower()
+            if ext == '.magc':
+                self.read_data_magc()
+            elif ext == '.json':
+                self.read_data_json()
+            else:
+                self.read_data_yaml()
 
-        utils.log_info(
-            'Array-CTRL',
-            f'File successfully read from {self.path}')
+            utils.log_info(
+                'Array-CTRL',
+                f'File successfully read from {self.path}')
 
     def read_data_json(self):
         with open(self.path, 'r') as infile:

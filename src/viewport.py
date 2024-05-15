@@ -1366,12 +1366,6 @@ class Viewport(QWidget):
             self._vp_place_stub_overview(self.ovm['stub_lm'])
             self._vp_place_stub_overview(self.ovm['stub'])
             # self._place_template()
-        # For Array mode: show imported images before drawing grids
-        # TODO: Think about more general solution to organize display layers.
-        if (self.show_imported and len(self.imported) > 0
-            and self.gm.array_mode):
-            for imported_img_index in range(len(self.imported)):
-                self._vp_place_imported_img(imported_img_index)
         # Place OV overviews over stub OV:
         if self.vp_current_ov == -1:  # show all
             for ov_index in range(self.ovm.number_ov):
@@ -1408,8 +1402,7 @@ class Viewport(QWidget):
                                 suppress_labels)
 
         # Finally, show imported images
-        if (self.show_imported and len(self.imported) > 0
-            and not self.gm.array_mode):
+        if self.show_imported:
             for imported_img_index in range(len(self.imported)):
                 self._vp_place_imported_img(imported_img_index)
         # Show stage boundaries (motor range limits)
@@ -1876,7 +1869,7 @@ class Viewport(QWidget):
 
         # Suppress labels when moving a grid or panning the view
         # or when in array mode unless zoomed in
-        if ((self.gm.array_mode and self.cs.vp_scale < 0.5)
+        if ((self.gm.array_mode and self.cs.vp_scale < 0.1)
                 or self.fov_drag_active
                 or self.grid_drag_active):
             suppress_labels = True
