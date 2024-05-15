@@ -622,7 +622,11 @@ class ModifyImagesDlg(QDialog):
         self.listWidget_imagelist.clear()
         for index, imported_image in enumerate(self.imported):
             item = QListWidgetItem(str(index) + ' - ' + imported_image.description)
-            item.setCheckState(Qt.CheckState.Checked)
+            if imported_image.enabled:
+                state = Qt.CheckState.Checked
+            else:
+                state = Qt.CheckState.Unchecked
+            item.setCheckState(state)
             self.listWidget_imagelist.addItem(item)
         self.listWidget_imagelist.itemChanged.connect(self.item_changed)
 
