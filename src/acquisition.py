@@ -1867,7 +1867,7 @@ class Acquisition:
                         # Now acquire the grid (only active tiles, with
                         # image inspection and error handling, and with
                         # autofocus on reference tiles)
-                        self.acquire_grid(grid_index)
+                        self.acquire_grid(grid_index, overwrite=self.gm.array_mode)
 
             else:
                 self.log(
