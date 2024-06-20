@@ -23,13 +23,13 @@ self.ovm['stub'].size  (size of the stub overview grid)
 
 import os
 import json
+from qtpy.QtCore import QRectF
 from qtpy.QtGui import QPixmap, QPainter, QColor
 
 from grid_manager import Grid
 from image_io import imread
 import numpy as np
 import utils
-import constants
 
 
 class Overview(Grid):
@@ -106,7 +106,7 @@ class Overview(Grid):
             qp.begin(self.image)
             qp.setPen(QColor(0, 0, 255, 0))
             qp.setBrush(QColor(0, 0, 255, 70))
-            qp.drawRect(0, 0, self.width_p(), self.height_p())
+            qp.drawRect(QRectF(0, 0, self.width_p(), self.height_p()))
             qp.end()
 
     def bounding_box(self):

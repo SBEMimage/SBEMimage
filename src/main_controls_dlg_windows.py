@@ -1813,7 +1813,7 @@ class GridSettingsDlg(QDialog):
             grid.use_wd_gradient)
         self.spinBox_rows.setValue(grid.number_rows())
         self.spinBox_cols.setValue(grid.number_cols())
-        self.spinBox_overlap.setValue(grid.overlap)
+        self.spinBox_overlap.setValue(int(grid.overlap))
         self.doubleSpinBox_rotation.setValue(
             grid.rotation)
         self.spinBox_shift.setValue(grid.row_shift)

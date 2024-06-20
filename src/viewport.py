@@ -27,7 +27,7 @@ from qtpy.uic import loadUi
 from qtpy.QtWidgets import QWidget, QApplication, QMessageBox, QMenu
 from qtpy.QtGui import QPixmap, QPainter, QColor, QFont, QIcon, QPen, \
                        QBrush, QKeyEvent, QFontMetrics
-from qtpy.QtCore import Qt, QObject, QRect, QPoint, QSize
+from qtpy.QtCore import Qt, QObject, QRect, QRectF, QPoint, QPointF, QSize
 
 import acq_func
 import constants
@@ -206,15 +206,15 @@ class Viewport(QWidget):
         h = y1 - y0
         qp.setPen(QPen(QColor(*color), 1, line_style))
         qp.setBrush(QColor(255, 255, 255, 0))
-        qp.drawRect(x0, y0, w, h)
+        qp.drawRect(QRectF(x0, y0, w, h))
 
     def _draw_measure_labels(self, qp):
         """Draw measure labels QPainter qp. qp must be active when calling this
         method."""
         def draw_measure_point(qp, x, y):
-            qp.drawEllipse(QPoint(x, y), 4, 4)
-            qp.drawLine(x, y - 10, x, y + 10)
-            qp.drawLine(x - 10, y, x + 10, y)
+            qp.drawEllipse(QPointF(x, y), 4, 4)
+            qp.drawLine(QPointF(x, y - 10), QPointF(x, y + 10))
+            qp.drawLine(QPointF(x - 10, y), QPointF(x + 10, y))
 
         draw_in_vp = (self.tabWidget.currentIndex() == 0)
         tile_display = (self.sv_current_tile >= 0)
@@ -238,12 +238,12 @@ class Viewport(QWidget):
 
         if self.measure_p2[0] is not None:
             # Draw line between p1 and p2
-            qp.drawLine(p1_x, p1_y, p2_x, p2_y)
+            qp.drawLine(QPointF(p1_x, p1_y), QPointF(p2_x, p2_y))
             distance = sqrt((self.measure_p1[0] - self.measure_p2[0])**2
                             + (self.measure_p1[1] - self.measure_p2[1])**2)
             qp.setPen(QPen(QColor(0, 0, 0), 1, Qt.SolidLine))
             qp.setBrush(QColor(0, 0, 0, 255))
-            qp.drawRect(self.cs.vp_width - 80, self.cs.vp_height - 20, 80, 20)
+            qp.drawRect(QRectF(self.cs.vp_width - 80, self.cs.vp_height - 20, 80, 20))
             font = QFont()
             font.setPixelSize(12)
             qp.setFont(font)
@@ -1434,8 +1434,8 @@ class Viewport(QWidget):
             self._draw_measure_labels(self.vp_qp)
         # Show help panel
         if self.help_panel_visible:
-            self.vp_qp.drawPixmap(self.cs.vp_width - 200,
-                                  self.cs.vp_height - 550,
+            self.vp_qp.drawPixmap(QPointF(self.cs.vp_width - 200,
+                                  self.cs.vp_height - 550),
                                   self.vp_help_panel_img)
         # Simulation mode indicator
         if self.sem.simulation_mode:
@@ -1467,16 +1467,12 @@ class Viewport(QWidget):
             cross_length = 100 * self.cs.vp_scale
             self.vp_qp.setPen(QColor(Qt.yellow))
             self.vp_qp.drawLine(
-                landmark_v[0] - cross_length,
-                landmark_v[1],
-                landmark_v[0] + cross_length,
-                landmark_v[1],
+                QPointF(landmark_v[0] - cross_length, landmark_v[1]),
+                QPointF(landmark_v[0] + cross_length, landmark_v[1]),
             )
             self.vp_qp.drawLine(
-                landmark_v[0],
-                landmark_v[1] - cross_length,
-                landmark_v[0],
-                landmark_v[1] + cross_length,
+                QPointF(landmark_v[0], landmark_v[1] - cross_length),
+                QPointF(landmark_v[0], landmark_v[1] + cross_length),
             )
             # draw landmark label
             font = QFont()
@@ -1484,11 +1480,11 @@ class Viewport(QWidget):
             fontsize = max(fontsize, 10)
             font.setPixelSize(fontsize)
             self.vp_qp.setFont(font)
-            landmark_rect = QRect(
-                int(landmark_v[0] - 50 * self.cs.vp_scale),
-                int(landmark_v[1] - 12 * self.cs.vp_scale),
-                int(6 * fontsize),
-                int(4/3 * fontsize),
+            landmark_rect = QRectF(
+                landmark_v[0] - 50 * self.cs.vp_scale,
+                landmark_v[1] - 12 * self.cs.vp_scale,
+                6 * fontsize,
+                4/3 * fontsize
             )
             self.vp_qp.setPen(QColor(255, 255, 255, 100))
             self.vp_qp.drawRect(landmark_rect)
@@ -1534,16 +1530,16 @@ class Viewport(QWidget):
                 self.cs.convert_s_to_d(self.stage.last_known_xy))
         except TypeError: # last_known_xy not defined (e.g. simulation mode)
             return
-        size = int(self.cs.vp_scale * 5)
+        size = self.cs.vp_scale * 5
         if size < 10:
             size = 10
         self.vp_qp.setPen(QPen(QColor(255, 0, 0), 2, Qt.SolidLine))
         self.vp_qp.setBrush(QColor(255, 0, 0, 0))
-        self.vp_qp.drawEllipse(QPoint(vx, vy), size, size)
+        self.vp_qp.drawEllipse(QPointF(vx, vy), size, size)
         self.vp_qp.setBrush(QColor(255, 0, 0, 0))
-        self.vp_qp.drawEllipse(QPoint(vx, vy), int(size/2), int(size/2))
-        self.vp_qp.drawLine(int(vx - 1.25 * size), int(vy), int(vx + 1.25 * size), int(vy))
-        self.vp_qp.drawLine(int(vx), int(vy - 1.25 * size), int(vx), int(vy + 1.25 * size))
+        self.vp_qp.drawEllipse(QPointF(vx, vy), size/2, size/2)
+        self.vp_qp.drawLine(QPointF(vx - 1.25 * size, vy), QPointF(vx + 1.25 * size, vy))
+        self.vp_qp.drawLine(QPointF(vx, vy - 1.25 * size), QPointF(vx, vy + 1.25 * size))
 
     def _vp_update_stage_position(self):
         """Read the current stage position and show the stage position indicator.
@@ -1649,14 +1645,14 @@ class Viewport(QWidget):
             cropped_resized_img = cropped_img.scaledToWidth(
                 int(v_width * resize_ratio))
             # Draw stub OV on canvas
-            self.vp_qp.drawPixmap(vx_cropped, vy_cropped,
+            self.vp_qp.drawPixmap(QPointF(vx_cropped, vy_cropped),
                                   cropped_resized_img)
             # Draw dark grey rectangle around stub OV
             pen = QPen(QColor(*constants.COLOUR_SELECTOR[11]), 2, Qt.SolidLine)
             self.vp_qp.setPen(pen)
-            self.vp_qp.drawRect(vx - 1, vy - 1,
-                                int(width_px * resize_ratio + 1),
-                                int(height_px * resize_ratio + 1))
+            self.vp_qp.drawRect(QRectF(vx - 1, vy - 1,
+                                width_px * resize_ratio + 1,
+                                height_px * resize_ratio + 1))
 
     def _vp_place_imported_img0(self, index):
         """Place imported image specified by index onto the viewport canvas."""
@@ -1686,7 +1682,7 @@ class Viewport(QWidget):
                     int(v_width * resize_ratio))
                 self.vp_qp.setOpacity(
                     1 - imported.transparency / 100)
-                self.vp_qp.drawPixmap(vx_cropped, vy_cropped,
+                self.vp_qp.drawPixmap(QPointF(vx_cropped, vy_cropped),
                                       cropped_resized_img)
                 self.vp_qp.setOpacity(1)
 
@@ -1720,7 +1716,7 @@ class Viewport(QWidget):
                     int(v_width * resize_ratio))
                 self.vp_qp.setOpacity(
                     1 - imported.transparency / 100)
-                self.vp_qp.drawPixmap(vx_cropped, vy_cropped,
+                self.vp_qp.drawPixmap(QPointF(vx_cropped, vy_cropped),
                                       cropped_resized_img)
                 self.vp_qp.setOpacity(1)
 
@@ -1771,18 +1767,17 @@ class Viewport(QWidget):
                 width_factor = 3.6
             else:
                 width_factor = 9
-            ov_label_rect = QRect(
-                vx, int(vy - int(4/3 * font_size)),
-                int(width_factor * font_size), int(4/3 * font_size))
+            ov_label_rect = QRectF(
+                vx, vy - 4/3 * font_size,
+                width_factor * font_size, 4/3 * font_size)
             self.vp_qp.drawRect(ov_label_rect)
             self.vp_qp.setPen(QColor(255, 255, 255))
             font = QFont()
             font.setPixelSize(font_size)
             self.vp_qp.setFont(font)
-            if self.ovm[ov_index].active:
-                ov_label_text = 'OV %d' % ov_index
-            else:
-                ov_label_text = 'OV %d (inactive)' % ov_index
+            ov_label_text = f'OV {ov_index}'
+            if not self.ovm[ov_index].active:
+                ov_label_text += ' (inactive)'
             self.vp_qp.drawText(ov_label_rect,
                                 Qt.AlignVCenter | Qt.AlignHCenter,
                                 ov_label_text)
@@ -1797,7 +1792,7 @@ class Viewport(QWidget):
             int(v_width * resize_ratio))
         if not (self.ov_drag_active and ov_index == self.selected_ov):
             # Draw OV
-            self.vp_qp.drawPixmap(vx_cropped, vy_cropped,
+            self.vp_qp.drawPixmap(QPointF(vx_cropped, vy_cropped),
                                   cropped_resized_img)
         # Draw blue rectangle around OV.
         self.vp_qp.setPen(
@@ -1807,9 +1802,9 @@ class Viewport(QWidget):
             self.vp_qp.setBrush(QColor(*constants.COLOUR_SELECTOR[12]))
         else:
             self.vp_qp.setBrush(QColor(0, 0, 0, 0))
-        self.vp_qp.drawRect(vx, vy,
-                            int(width_px * resize_ratio),
-                            int(height_px * resize_ratio))
+        self.vp_qp.drawRect(QRectF(vx, vy,
+                            width_px * resize_ratio,
+                            height_px * resize_ratio))
 
         if show_debris_area:
             # w3, w4 are fudge factors for clearer display
@@ -1829,10 +1824,10 @@ class Viewport(QWidget):
                     QColor(*constants.COLOUR_SELECTOR[10]), 2, Qt.DashDotLine)
                 self.vp_qp.setPen(pen)
                 self.vp_qp.setBrush(QColor(0, 0, 0, 0))
-                self.vp_qp.drawRect(int(vx + top_left_dx * resize_ratio - w3),
-                                    int(vy + top_left_dy * resize_ratio - w3),
-                                    int(width * resize_ratio + w4),
-                                    int(height * resize_ratio + w4))
+                self.vp_qp.drawRect(QRectF(vx + top_left_dx * resize_ratio - w3,
+                                    vy + top_left_dy * resize_ratio - w3,
+                                    width * resize_ratio + w4,
+                                    height * resize_ratio + w4))
 
     def _vp_place_grid(self, grid_index,
                        show_grid=True, show_previews=False, with_gaps=False,
@@ -1959,8 +1954,8 @@ class Viewport(QWidget):
             height_px = self.gm[grid_index].tile_height_p()
 
             for tile_index in self.gm[grid_index].active_tiles:
-                vx = int(tile_map[tile_index][0] * resize_ratio)
-                vy = int(tile_map[tile_index][1] * resize_ratio)
+                vx = tile_map[tile_index][0] * resize_ratio
+                vy = tile_map[tile_index][1] * resize_ratio
                 tile_visible = self._vp_element_visible(
                     topleft_vx + vx, topleft_vy + vy,
                     width_px, height_px, resize_ratio,
@@ -1971,7 +1966,7 @@ class Viewport(QWidget):
                 preview_img = self.gm[grid_index][tile_index].preview_img
                 if preview_img is not None:
                     tile_img = preview_img.scaledToWidth(int(tile_width_v))
-                    self.vp_qp.drawPixmap(vx, vy, tile_img)
+                    self.vp_qp.drawPixmap(QPointF(vx, vy), tile_img)
 
         # Display grid lines
         rows, cols = self.gm[grid_index].size
@@ -2006,10 +2001,10 @@ class Viewport(QWidget):
                     self.vp_qp.setBrush(indicator_colour)
                 # Draw tile rectangles.
                 if show_grid:
-                    self.vp_qp.drawRect(
-                        int(tile_map[tile_index][0] * resize_ratio),
-                        int(tile_map[tile_index][1] * resize_ratio),
-                        int(tile_width_v), int(tile_height_v))
+                    self.vp_qp.drawRect(QRectF(
+                        tile_map[tile_index][0] * resize_ratio,
+                        tile_map[tile_index][1] * resize_ratio,
+                        tile_width_v, tile_height_v))
                 if self.show_labels and not suppress_labels:
                     if self.gm[grid_index][tile_index].tile_active:
                         self.vp_qp.setPen(QColor(255, 255, 255))
@@ -2181,10 +2176,10 @@ class Viewport(QWidget):
                 width_factor = 5.3
             else:
                 width_factor = 10.5
-            grid_label_rect = QRect(0,
-                                    -int(4/3 * fontsize),
-                                    int(width_factor * fontsize),
-                                    int(4/3 * fontsize))
+            grid_label_rect = QRectF(0,
+                                    -4/3 * fontsize,
+                                    width_factor * fontsize,
+                                    4/3 * fontsize)
             self.vp_qp.drawRect(grid_label_rect)
             if self.tm.template.display_colour in [1, 2, 3]:
             # Use black for light and white for dark background colour
@@ -2217,10 +2212,10 @@ class Viewport(QWidget):
                 self.vp_qp.setPen(grid_pen)
                 self.vp_qp.setBrush(grid_brush_active_tile)
                 # Draw tile rectangles.
-                self.vp_qp.drawRect(
+                self.vp_qp.drawRect(QRectF(
                     tile_map[tile_index][0] * resize_ratio,
                     tile_map[tile_index][1] * resize_ratio,
-                    tile_width_v, tile_height_v)
+                    tile_width_v, tile_height_v))
         else:
             # Show the grid as a single pixel (for performance reasons when
             # zoomed out).
@@ -2240,31 +2235,31 @@ class Viewport(QWidget):
         b_right = self.cs.convert_d_to_v(self.cs.convert_s_to_d((x_max, y_max)))
         b_bottom = self.cs.convert_d_to_v(self.cs.convert_s_to_d((x_min, y_max)))
         self.vp_qp.setPen(QColor(255, 255, 255))
-        self.vp_qp.drawLine(b_left[0], b_left[1], b_top[0], b_top[1])
-        self.vp_qp.drawLine(b_top[0], b_top[1], b_right[0], b_right[1])
-        self.vp_qp.drawLine(b_right[0], b_right[1], b_bottom[0], b_bottom[1])
-        self.vp_qp.drawLine(b_bottom[0], b_bottom[1], b_left[0], b_left[1])
+        self.vp_qp.drawLine(QPointF(*b_left), QPointF(*b_top))
+        self.vp_qp.drawLine(QPointF(*b_top), QPointF(*b_right))
+        self.vp_qp.drawLine(QPointF(*b_right), QPointF(*b_bottom))
+        self.vp_qp.drawLine(QPointF(*b_bottom), QPointF(*b_left))
         if self.show_labels:
             # Show coordinates of stage corners.
             font = QFont()
             font.setPixelSize(12)
             self.vp_qp.setFont(font)
-            self.vp_qp.drawText(b_left[0] - 75, b_left[1],
-                                'X: {0:.0f} µm'.format(x_min))
-            self.vp_qp.drawText(b_left[0] - 75, b_left[1] + 15,
-                                'Y: {0:.0f} µm'.format(y_min))
-            self.vp_qp.drawText(b_top[0] - 20, b_top[1] - 25,
-                                'X: {0:.0f} µm'.format(x_max))
-            self.vp_qp.drawText(b_top[0] - 20, b_top[1] - 10,
-                                'Y: {0:.0f} µm'.format(y_min))
-            self.vp_qp.drawText(b_right[0] + 10, b_right[1],
-                                'X: {0:.0f} µm'.format(x_max))
-            self.vp_qp.drawText(b_right[0] + 10, b_right[1] + 15,
-                                'Y: {0:.0f} µm'.format(y_max))
-            self.vp_qp.drawText(b_bottom[0] - 20, b_bottom[1] + 15,
-                                'X: {0:.0f} µm'.format(x_min))
-            self.vp_qp.drawText(b_bottom[0] - 20, b_bottom[1] + 30,
-                                'Y: {0:.0f} µm'.format(y_max))
+            self.vp_qp.drawText(QPointF(b_left[0] - 75, b_left[1]),
+                                f'X: {x_min:.0f} µm')
+            self.vp_qp.drawText(QPointF(b_left[0] - 75, b_left[1] + 15),
+                                f'Y: {y_min:.0f} µm')
+            self.vp_qp.drawText(QPointF(b_top[0] - 20, b_top[1] - 25),
+                                f'X: {x_max:.0f} µm')
+            self.vp_qp.drawText(QPointF(b_top[0] - 20, b_top[1] - 10),
+                                f'Y: {y_min:.0f} µm')
+            self.vp_qp.drawText(QPointF(b_right[0] + 10, b_right[1]),
+                                f'X: {x_max:.0f} µm')
+            self.vp_qp.drawText(QPointF(b_right[0] + 10, b_right[1] + 15),
+                                f'Y: {y_max:.0f} µm')
+            self.vp_qp.drawText(QPointF(b_bottom[0] - 20, b_bottom[1] + 15),
+                                f'X: {x_min:.0f} µm')
+            self.vp_qp.drawText(QPointF(b_bottom[0] - 20, b_bottom[1] + 30),
+                                f'Y: {y_max:.0f} µm')
 
     def _vp_draw_stage_axes(self):
         """Calculate and show the x axis and the y axis of the stage."""
@@ -2278,16 +2273,14 @@ class Viewport(QWidget):
         y_axis_end = self.cs.convert_d_to_v(
             self.cs.convert_s_to_d((0, y_max + 100)))
         self.vp_qp.setPen(QPen(QColor(255, 255, 255), 1, Qt.DashLine))
-        self.vp_qp.drawLine(x_axis_start[0], x_axis_start[1],
-                            x_axis_end[0], x_axis_end[1])
-        self.vp_qp.drawLine(y_axis_start[0], y_axis_start[1],
-                            y_axis_end[0], y_axis_end[1])
+        self.vp_qp.drawLine(QPointF(*x_axis_start), QPointF(*x_axis_end))
+        self.vp_qp.drawLine(QPointF(*y_axis_start), QPointF(*y_axis_end))
         if self.show_labels:
             font = QFont()
             font.setPixelSize(12)
-            self.vp_qp.drawText(x_axis_end[0] + 10, x_axis_end[1],
+            self.vp_qp.drawText(QPointF(x_axis_end[0] + 10, x_axis_end[1]),
                                 'stage x-axis')
-            self.vp_qp.drawText(y_axis_end[0] + 10, y_axis_end[1] + 10,
+            self.vp_qp.drawText(QPointF(y_axis_end[0] + 10, y_axis_end[1] + 10),
                                 'stage y-axis')
 
     def _vp_set_measure_point(self, px, py):
@@ -2307,7 +2300,7 @@ class Viewport(QWidget):
         finish_trigger = utils.Trigger()
         finish_trigger.signal.connect(self.vp_draw)
         current_time = self.time_of_last_zoom_action
-        while (current_time - self.time_of_last_zoom_action < 0.3):
+        while current_time - self.time_of_last_zoom_action < 0.3:
             sleep(0.1)
             current_time += 0.1
         self.zooming_in_progress = False
@@ -3468,14 +3461,14 @@ class Viewport(QWidget):
                                 img.setPixel(x, y, red_pixel)
                     display_img = QPixmap(img)
 
-                self.sv_qp.drawPixmap(cropped_vx, cropped_vy, display_img)
+                self.sv_qp.drawPixmap(QPointF(cropped_vx, cropped_vy), display_img)
         # Measuring tool:
         if self.sv_measure_active:
             self._draw_measure_labels(self.sv_qp)
         # Help panel:
         if self.help_panel_visible:
-            self.sv_qp.drawPixmap(self.cs.vp_width - 200,
-                                  self.cs.vp_height - 325,
+            self.sv_qp.drawPixmap(QPointF(self.cs.vp_width - 200,
+                                  self.cs.vp_height - 325),
                                   self.sv_help_panel_img)
 
         self.sv_qp.end()

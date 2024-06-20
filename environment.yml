@@ -1,0 +1,34 @@
+name: sbemimage_env
+channels:
+ - conda-forge
+ - defaults
+dependencies:
+ - python=3.10
+ - pip
+ - numpy
+ - pyqt
+ - colorama
+ - validators
+ - validate_email
+ - Pillow
+ - requests
+ - pywin32
+ - pyserial
+ - scipy
+ - numpy
+ - python-dateutil
+ - scikit-image
+ - imreg_dft
+ - imageio
+ - imagecodecs
+ - pyyaml
+ - psutil
+ - opencv
+ - comtypes
+ - shapely
+ - qdarkstyle
+ - statsmodels
+ - tifffile
+ - tqdm
+ - pip:
+   - mapfost
