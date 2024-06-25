@@ -3,8 +3,6 @@ import sys
 from configparser import ConfigParser
 from qtpy.QtWidgets import QApplication
 
-from sem_control_mock import SEM_Mock
-from microtome_control_mock import Microtome_Mock
 from main_controls import MainControls
 import utils
 
@@ -20,19 +18,16 @@ def read_config(filename):
     return config
 
 
-def test_mock():
+def test_gui_mock():
     utils.logging_init('TEST', 'Testing')
     config = read_config(TEST_CONFIG_FILE)
     sysconfig = read_config(TEST_SYSCONFIG_FILE)
 
-    #sem = SEM_Mock(config, sysconfig)
-    #microtome = Microtome_Mock(config, sysconfig)
-
     sbem = QApplication(sys.argv)
     main_controls = MainControls(config, sysconfig, TEST_CONFIG_FILE)
 
-    sbem.exec()
+    #sbem.exec()     # exec() is a blocking call; for debugging only
 
 
 if __name__ == '__main__':
-    test_mock()
+    test_gui_mock()
