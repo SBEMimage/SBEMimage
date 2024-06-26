@@ -18,6 +18,7 @@ import threading
 import cv2
 import numpy as np
 
+from configparser import ConfigParser
 from time import sleep
 from queue import Queue
 from logging import StreamHandler
@@ -159,6 +160,13 @@ def log_critical(*params):
 
 def log_exception(message=""):
     logger.exception(message, extra={'category': 'EXC'})
+
+
+def read_config(filename):
+    config = ConfigParser()
+    with open(filename, 'r') as file:
+        config.read_file(file)
+    return config
 
 
 def validate_output_path(path, is_file=False):

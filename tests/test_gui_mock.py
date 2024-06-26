@@ -11,20 +11,13 @@ TEST_CONFIG_FILE = 'test.ini'
 TEST_SYSCONFIG_FILE = 'test.cfg'
 
 
-def read_config(filename):
-    config = ConfigParser()
-    with open(filename, 'r') as file:
-        config.read_file(file)
-    return config
-
-
 def test_gui_mock():
     utils.logging_init('TEST', 'Testing')
-    config = read_config(TEST_CONFIG_FILE)
-    sysconfig = read_config(TEST_SYSCONFIG_FILE)
+    config = utils.read_config(TEST_CONFIG_FILE)
+    sysconfig = utils.read_config(TEST_SYSCONFIG_FILE)
 
     sbem = QApplication(sys.argv)
-    main_controls = MainControls(config, sysconfig, TEST_CONFIG_FILE)
+    main_controls = MainControls(config, sysconfig, TEST_CONFIG_FILE)   # opens GUI Control and View window
 
     #sbem.exec()     # exec() is a blocking call; for debugging only
 
