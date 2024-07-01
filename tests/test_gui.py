@@ -1,6 +1,5 @@
 import pytest
 import sys
-from configparser import ConfigParser
 from qtpy.QtWidgets import QApplication
 
 from main_controls import MainControls
@@ -12,6 +11,8 @@ TEST_SYSCONFIG_FILE = 'test.cfg'
 
 
 def test_gui_mock():
+    # TODO: find testing Qt GUI (on github) ~ like napari (viewer) testing
+    # TODO: import image, load grids/OVs/stub-OV (with generated data)
     utils.logging_init('TEST', 'Testing')
     config = utils.read_config(TEST_CONFIG_FILE)
     sysconfig = utils.read_config(TEST_SYSCONFIG_FILE)
