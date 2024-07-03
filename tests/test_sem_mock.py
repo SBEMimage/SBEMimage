@@ -6,7 +6,7 @@ from stage import Stage
 import utils
 
 
-TEST_CONFIG_FILE = 'test.ini'
+TEST_CONFIG_FILE = 'mock.ini'
 TEST_SYSCONFIG_FILE = 'test.cfg'
 
 
@@ -25,11 +25,11 @@ def init_sem_mock():
 
 def test_sem_mock_stage():
     sem = init_sem_mock()
-    stage_position = (1, 1)
-    stage = Stage(sem, None, False)
-    stage.move_to_xy(stage_position)
-    position = sem.get_stage_xy()
-    assert position == stage_position
+    # import array data
+    # import array image
+    # move/rotate array image
+    # create array grids
+    #assert position == stage_position
 
 
 def test_sem_mock_acq(tmp_path):

@@ -3,7 +3,7 @@ from microtome_control_mock import Microtome_Mock
 import utils
 
 
-TEST_CONFIG_FILE = 'test.ini'
+TEST_CONFIG_FILE = 'mock.ini'
 TEST_SYSCONFIG_FILE = 'test.cfg'
 
 
