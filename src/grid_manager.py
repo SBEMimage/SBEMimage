@@ -1604,10 +1604,16 @@ class GridManager(list):
         self,
         source_grid_index,
         target_grid_indices,
+        imported_image
     ):
+        sem_stage_flipped = self.cs.get_sem_stage_flipped()
         source_grid = self[source_grid_index]
         roi_index = source_grid.roi_index
         source = self.array_data.get_roi(source_grid.array_index, roi_index)
+
+        _, _, source_rotation = (
+            self.array_data.get_roi_stage_properties(source, imported_image, sem_stage_flipped))
+
         source_section_center = np.array(source['center'])
         source_section_angle = source['angle'] % 360
 
@@ -1623,22 +1629,24 @@ class GridManager(list):
             if target_grid.roi_index == roi_index and source_grid_index != target_grid_index:
                 target = self.array_data.get_roi(target_grid.array_index, roi_index)
                 if target is not None:
+
+                    _, _, target_rotation = (
+                        self.array_data.get_roi_stage_properties(target, imported_image, sem_stage_flipped))
+
                     target_section_center = np.array(target['center'])
                     target_section_angle = target['angle'] % 360
 
                     # set all parameters in target grid
-                    target_grid_rotation = (source_grid.rotation - source_section_angle + target_section_angle) % 360
+                    target_grid_rotation = (source_grid.rotation - source_rotation + target_rotation) % 360
 
                     target_grid.rotation = target_grid_rotation
                     target_grid.size = source_grid.size
                     target_grid.overlap = source_grid.overlap
                     target_grid.row_shift = source_grid.row_shift
                     target_grid.active_tiles = source_grid.active_tiles
-                    target_grid.frame_size_selector = (
-                        source_grid.frame_size_selector)
+                    target_grid.frame_size_selector = source_grid.frame_size_selector
                     target_grid.pixel_size = source_grid.pixel_size
-                    target_grid.dwell_time_selector = (
-                        source_grid.dwell_time_selector)
+                    target_grid.dwell_time_selector = source_grid.dwell_time_selector
                     target_grid.acq_interval = source_grid.acq_interval
 
                     target_grid.acq_interval_offset = source_grid.acq_interval_offset
@@ -1649,7 +1657,7 @@ class GridManager(list):
                     # xxx self.set_adaptive_focus_tiles(t, self.get_adaptive_focus_tiles(s))
                     # xxx self.set_adaptive_focus_gradient(t, self.get_adaptive_focus_gradient(s))
 
-                    target_section_grid_angle = (source_section_grid_angle + source_section_angle - target_section_angle)
+                    target_section_grid_angle = source_section_grid_angle + source_section_angle - target_section_angle
 
                     target_grid_center_complex = (
                         complex(*target_section_center)

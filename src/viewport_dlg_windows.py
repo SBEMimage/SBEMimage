@@ -478,7 +478,7 @@ class TemplateRotationDlg(QDialog):
 class ImportImageDlg(QDialog):
     """Import an image into the viewport."""
 
-    def __init__(self, imported_images, viewport_trigger, start_path=None):
+    def __init__(self, imported_images, viewport_trigger, stage, start_path=None):
         self.start_path = start_path
         self.imported = imported_images
         self.viewport_trigger = viewport_trigger
@@ -491,6 +491,10 @@ class ImportImageDlg(QDialog):
         self.pushButton_selectFile.clicked.connect(self.select_file)
         self.pushButton_selectFile.setIcon(QIcon('../img/selectdir.png'))
         self.pushButton_selectFile.setIconSize(QSize(16, 16))
+
+        position = stage.get_center()
+        self.doubleSpinBox_posX.setValue(position[0])
+        self.doubleSpinBox_posY.setValue(position[1])
 
     def select_file(self):
         # Let user select image to be imported:
@@ -532,7 +536,7 @@ class ImportImageDlg(QDialog):
     def accept(self):
         import_success = False
         error_msg = ''
-        pixel_size = self.doubleSpinBox_pixelSize.value()
+        source_pixel_size = self.doubleSpinBox_pixelSize.value()
         selected_path = os.path.normpath(
             self.lineEdit_fileName.text())
         selected_filename = os.path.basename(selected_path)
@@ -547,28 +551,28 @@ class ImportImageDlg(QDialog):
             ext = 'ome.tif'
         if os.path.isfile(selected_path):
             try:
+                source_pixel_size_um = [source_pixel_size * 1e-3] * 2   # nm -> um
+
                 metadata = imread_metadata(selected_path)
                 size = metadata['size'][0] * metadata['size'][1]
                 if size > 10 * 1e6:
                     # if image dimension > 10MP scale down
+                    target_pixel_size = 2 * 1e3
                     target_pixel_size_um = [2, 2]   # reduced pixel size
-                    metadata['pixel_size'] = target_pixel_size_um
                 else:
-                    target_pixel_size_um = None
+                    target_pixel_size = source_pixel_size
+                    target_pixel_size_um = source_pixel_size_um
 
-                new_source_pixel_size = metadata.get('pixel_size')
-                if new_source_pixel_size:
-                    pixel_size = new_source_pixel_size[0] * 1e3  # um -> nm
-                else:
-                    metadata['pixel_size'] = [pixel_size * 1e-3] * 2  # nm -> um
-
-                image = imread(selected_path, target_pixel_size_um=target_pixel_size_um,
+                image = imread(selected_path,
+                               source_pixel_size_um=source_pixel_size_um,
+                               target_pixel_size_um=target_pixel_size_um,
                                render=False)
+
                 target_path = os.path.join(
                     self.imported.target_dir,
                     filename)
-
                 target_path += '_' + timestamp + '.' + ext
+                metadata['pixel_size'] = target_pixel_size_um
 
                 imwrite(target_path, image, metadata=metadata, npyramid_add=4, pyramid_downsample=2)
 
@@ -578,7 +582,7 @@ class ImportImageDlg(QDialog):
                 transparency = self.doubleSpinBox_transparency.value()
                 description = self.lineEdit_name.text()
                 imported_image = self.imported.add_image(target_path, description, centre_sx_sy, rotation, flipped,
-                                                         [], pixel_size, True, transparency)
+                                                         [], target_pixel_size, True, transparency)
                 if imported_image.image is not None:
                     import_success = True
 
@@ -637,7 +641,7 @@ class ModifyImagesDlg(QDialog):
         self.viewport_trigger.transmit('DRAW VP')
 
     def import_image(self):
-        dialog = ImportImageDlg(self.imported, self.viewport_trigger)
+        dialog = ImportImageDlg(self.imported, self.viewport_trigger, self.stage)
         if dialog.exec():
             self.populate_image_list()
             self.viewport_trigger.transmit('DRAW VP')

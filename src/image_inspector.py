@@ -150,11 +150,11 @@ class ImageInspector:
         frozen_frame_error = False
         tile_selected = False
 
-        # Skip tests in MagC mode if memory usage too high
+        # Skip tests in Array mode if memory usage too high
         # TODO: Look into this
-        if self.magc_mode and psutil.virtual_memory()[2] > 50:
+        if self.gm.array_mode and psutil.virtual_memory()[2] > 50:
             utils.log_warning(
-                'MagC-WARNING',
+                'Array-CTRL',
                 f'Memory usage too high: {psutil.virtual_memory()[2]}.'
                 # ' Tile checks will be skipped.'
                 )
@@ -168,7 +168,7 @@ class ImageInspector:
                     # # # range_test_passed, slice_by_slice_test_passed,
                     # # # tile_selected,
                     # # # load_error, load_exception, grab_incomplete, frozen_frame_error)
-        # End of MagC-specific code
+        # End of Array specific code
 
         img, mean, stddev, load_error, load_exception, grab_incomplete = (
             self.load_and_inspect(filename))

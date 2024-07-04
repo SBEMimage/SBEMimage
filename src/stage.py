@@ -58,6 +58,10 @@ class Stage:
     def get_xy(self):
         return self._stage.get_stage_xy()
 
+    def get_center(self):
+        limits = self.limits
+        return (limits[0] + limits[1]) / 2, (limits[2] + limits[3]) / 2
+
     def get_xyz(self):
         if self.use_microtome_z:
             x, y = self._stage.get_stage_xy()

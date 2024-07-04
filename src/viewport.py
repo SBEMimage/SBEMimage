@@ -1232,22 +1232,22 @@ class Viewport(QWidget):
             if self.gm.array_mode and len(self.gm.array_data.selected_sections) == 1:
                 array_index, roi_index = array_selected_section
                 grid_selected_index = self.gm.find_grid_index(array_index, roi_index)
-                if self.gm.array_autofocus_points(grid_selected_index):
+                if grid_selected_index is not None and self.gm.array_autofocus_points(grid_selected_index):
 
                     action_removeAutofocusPoint = menu.addAction(
-                        'MagC | Remove last autofocus point of '
+                        'Array | Remove last autofocus point of '
                         f' {grid_label} | Shortcut &E')
                     action_removeAutofocusPoint.triggered.connect(
                         self.vp_remove_autofocus_point)
 
                     action_removeAllAutofocusPoint = menu.addAction(
-                        'MagC | Remove all autofocus points of '
+                        'Array | Remove all autofocus points of '
                         f' {grid_label} | Shortcut &W')
                     action_removeAllAutofocusPoint.triggered.connect(
                         self.vp_remove_all_autofocus_point)
 
                 action_addAutofocusPoint = menu.addAction(
-                    'MagC | Add autofocus point to '
+                    'Array | Add autofocus point to '
                     f' {grid_label} | Shortcut &T')
                 action_addAutofocusPoint.triggered.connect(
                     self.vp_add_autofocus_point)
@@ -1865,7 +1865,7 @@ class Viewport(QWidget):
 
         # Suppress labels when moving a grid or panning the view
         # or when in array mode unless zoomed in
-        if ((self.gm.array_mode and self.cs.vp_scale < 0.1)
+        if ((self.gm.array_mode and self.cs.vp_scale < 1)
                 or self.fov_drag_active
                 or self.grid_drag_active):
             suppress_labels = True
@@ -2820,6 +2820,7 @@ class Viewport(QWidget):
 
     def _vp_manual_stage_move(self):
         utils.log_info('CTRL', 'Performing user-requested stage move.')
+        self.main_controls_trigger.transmit('STATUS BUSY STAGE MOVE')
         self.main_controls_trigger.transmit('RESTRICT GUI')
         self.restrict_gui(True)
         QApplication.processEvents()
@@ -2827,7 +2828,6 @@ class Viewport(QWidget):
                              self.stage,
                              self.selected_stage_pos,
                              self.viewport_trigger)
-        self.main_controls_trigger.transmit('STATUS BUSY STAGE MOVE')
 
     def _vp_manual_stage_move_success(self, success):
         # Show new stage position in Main Controls GUI
@@ -2948,7 +2948,7 @@ class Viewport(QWidget):
                 self.vp_draw()
 
     def vp_open_import_image_dlg(self, start_path=None, on_success_function=None):
-        dialog = ImportImageDlg(self.imported, self.viewport_trigger, start_path=start_path)
+        dialog = ImportImageDlg(self.imported, self.viewport_trigger, self.stage, start_path=start_path)
         if dialog.exec():
             if on_success_function:
                 on_success_function()
@@ -2992,27 +2992,31 @@ class Viewport(QWidget):
     def array_vp_propagate_grid_to_selected_sections(self):
         self.gm.array_propagate_source_grid_to_target_grid(
             self.selected_grid,
-            self.gm.array_data.selected_sections)
+            self.gm.array_data.selected_sections,
+            self.imported.find_array_image())
         self.gm.array_write()
         self.vp_draw()
         self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS') # update statistics in GUI
+        grid_label = self.gm.get_grid_label(self.selected_grid)
         utils.log_info(
             'Array-CTRL',
-            f'Properties of grid {self.selected_grid}'
+            f'Properties of {grid_label}'
             ' have been propagated to the selected sections')
 
     def array_vp_propagate_grid_to_all_sections(self):
         self.gm.array_propagate_source_grid_to_target_grid(
             self.selected_grid,
-            range(self.gm.number_grids))
+            range(self.gm.number_grids),
+            self.imported.find_array_image())
 
         self.gm.array_write()
 
         self.vp_draw()
         self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS') # update statistics in GUI
+        grid_label = self.gm.get_grid_label(self.selected_grid)
         utils.log_info(
             'Array-CTRL',
-            f'Properties of grid {self.selected_grid}'
+            f'Properties of {grid_label}'
             ' have been propagated to all sections')
 
     def array_vp_revert_grid_to_file(self):

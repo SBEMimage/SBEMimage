@@ -16,7 +16,7 @@ CONVERSIONS = {'nm': 1e-3, 'nanometer': 1e-3,
                'm': 1e6, 'meter': 1e6}
 
 
-def imread(path, level=None, target_pixel_size_um=None, channeli=None, render=True):
+def imread(path, level=None, source_pixel_size_um=None, target_pixel_size_um=None, channeli=None, render=True):
     image = None
     if os.path.exists(path):
         paths = os.path.splitext(path)
@@ -30,13 +30,18 @@ def imread(path, level=None, target_pixel_size_um=None, channeli=None, render=Tr
             c_index = None
         size = metadata['size']
         nlevels = len(metadata['sizes'])
-        source_pixel_size = metadata.get('pixel_size')
+        if source_pixel_size_um is not None:
+            source_pixel_size = source_pixel_size_um
+        else:
+            source_pixel_size = metadata.get('pixel_size')
         scale_by_pixel_size = (target_pixel_size_um is not None and source_pixel_size is not None)
-        target_size = 1
+        if scale_by_pixel_size:
+            target_size = (np.divide(source_pixel_size, target_pixel_size_um) * size).astype(int)
+        else:
+            target_size = 1
 
         if is_tiff:
             if scale_by_pixel_size:
-                target_size = (np.divide(source_pixel_size, target_pixel_size_um) * size).astype(int)
                 for level1, size1 in enumerate(metadata['sizes']):
                     if np.all(size1 > target_size):
                         level = level1
@@ -47,13 +52,13 @@ def imread(path, level=None, target_pixel_size_um=None, channeli=None, render=Tr
                     image = np.moveaxis(image, c_index, -1)
                     if channeli is not None:
                         image = image[..., channeli]
-                if scale_by_pixel_size:
-                    image = resize_image(image, target_size)
         else:
             try:
                 image = iio.imread(path)
             except Exception as e:
                 raise TypeError(f'Error reading image {path}\n{e}')
+        if scale_by_pixel_size and not np.all(target_size == size):
+            image = resize_image(image, target_size)
         if render and image is not None:
             image = render_image(image, metadata.get('channels', []))
     return image
