@@ -18,7 +18,6 @@ import numpy as np
 import os
 from qtpy.QtGui import QTransform
 
-import ArrayData
 import utils
 from image_io import imread, imread_metadata
 from utils import round_xy, image_to_QPixmap
