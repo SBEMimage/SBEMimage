@@ -3,21 +3,20 @@ import sys
 from qtpy.QtWidgets import QApplication
 
 from main_controls import MainControls
-import utils
+from test_common import init_read_configs, init_log
 
 
-TEST_CONFIG_FILE = 'test.ini'
-TEST_SYSCONFIG_FILE = 'test.cfg'
+TEST_CONFIG_FILE = 'mock.ini'
+TEST_SYSCONFIG_FILE = 'mock.cfg'
 
 
 def test_gui_mock():
-    # TODO: find testing Qt GUI (on github) ~ like napari (viewer) testing
+    # TODO: find testing Qt GUI (using github actions) ~ like napari (viewer) testing
     # TODO: import image, load grids/OVs/stub-OV (with generated data)
-    utils.logging_init('TEST', 'Testing')
-    config = utils.read_config(TEST_CONFIG_FILE)
-    sysconfig = utils.read_config(TEST_SYSCONFIG_FILE)
+    init_log()
+    config, sysconfig = init_read_configs(TEST_CONFIG_FILE, TEST_SYSCONFIG_FILE)
 
-    sbem = QApplication(sys.argv)
+    qapp = QApplication(sys.argv)
     main_controls = MainControls(config, sysconfig, TEST_CONFIG_FILE)   # opens GUI Control and View window
 
     #sbem.exec()     # exec() is a blocking call; for debugging only

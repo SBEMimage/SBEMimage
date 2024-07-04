@@ -1,28 +1,15 @@
 import pytest
-from microtome_control_mock import Microtome_Mock
-import utils
+
+from test_common import init_microtome_mock
 
 
 TEST_CONFIG_FILE = 'mock.ini'
-TEST_SYSCONFIG_FILE = 'test.cfg'
-
-
-_microtome = None
-
-
-def init_microtome_mock():
-    global _microtome
-    if _microtome is None:
-        utils.logging_init('TEST', 'Testing')
-        config = utils.read_config(TEST_CONFIG_FILE)
-        sysconfig = utils.read_config(TEST_SYSCONFIG_FILE)
-        _microtome = Microtome_Mock(config, sysconfig)
-    return _microtome
+TEST_SYSCONFIG_FILE = 'mock.cfg'
 
 
 def test_microtome_mock():
-    microtome = init_microtome_mock()
-    stage_position = (1, 1)
+    microtome = init_microtome_mock(TEST_CONFIG_FILE, TEST_SYSCONFIG_FILE)
+    stage_position = (0.5, 1)
     duration = microtome.stage_move_duration(0, 0, stage_position[0], stage_position[1])
     assert duration > 0
     microtome.move_stage_to_xy(stage_position)
