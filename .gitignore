@@ -37,3 +37,5 @@ pkgs/
 Python/
 uninstall.exe
 credentials/
+/.qtcreator
+*.user
