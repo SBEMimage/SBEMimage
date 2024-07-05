@@ -33,6 +33,7 @@ class ImportedImage:
         self.flipped = flipped
         self.size = size
         self.pixel_size = pixel_size
+        self.image_pixel_size = pixel_size
         self.enabled = enabled
         self.transparency = transparency
         self.is_array = is_array
@@ -48,8 +49,6 @@ class ImportedImage:
                 image_pixel_size = metadata.get('pixel_size')
                 if image_pixel_size is not None:
                     self.image_pixel_size = image_pixel_size[0] * 1e3
-                else:
-                    self.image_pixel_size = 1e3
                 image = imread(self.image_src)
                 height, width = image.shape[:2]
                 self.size = [width, height]
