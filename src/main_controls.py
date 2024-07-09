@@ -25,13 +25,12 @@ import sys
 from typing import Optional
 from time import sleep
 
-from PyQt5.QtWidgets import QFileDialog, QHeaderView
 #import json
 #import copy
 #import xml.etree.ElementTree as ET
 
 from qtpy.QtWidgets import QApplication, QMainWindow, QMessageBox, QInputDialog, QLineEdit, \
-                            QAbstractItemView, QPushButton, QProgressDialog
+                            QAbstractItemView, QPushButton, QProgressDialog, QFileDialog, QHeaderView
 from qtpy.QtCore import Qt, QRect, QSize, QEvent, QItemSelection, QItemSelectionModel
 from qtpy.QtGui import QIcon, QPalette, QColor, QPixmap, QKeyEvent, \
                         QStatusTipEvent, QStandardItem, QStandardItemModel
