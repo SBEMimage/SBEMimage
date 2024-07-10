@@ -1,3 +1,4 @@
+import os
 import numpy as np
 
 from image_io import imwrite
@@ -15,8 +16,8 @@ def init_log():
 
 
 def init_read_configs(config_filename, test_config_filename):
-    config = utils.read_config('resources/' + config_filename)
-    sysconfig = utils.read_config('resources/' + test_config_filename)
+    config = utils.read_config('../tests/resources/' + config_filename)
+    sysconfig = utils.read_config('../tests/resources/' + test_config_filename)
     return config, sysconfig
 
 

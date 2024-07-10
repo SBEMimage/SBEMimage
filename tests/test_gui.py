@@ -41,7 +41,10 @@ class TestGuiMock:
             if not main_controls.busy:
                 break
 
-        sleep(1)
+        for _ in range(10):
+            QApplication.processEvents()
+            sleep(1e-1)
+
         print('done')
 
         #sbem.exec()     # exec() is a blocking call; for debugging only
