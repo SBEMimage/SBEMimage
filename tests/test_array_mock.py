@@ -14,7 +14,7 @@ class TestArrayMock:
     TEST_CONFIG_FILE = 'array.ini'
     TEST_SYSCONFIG_FILE = 'mock.cfg'
 
-    qapp = QApplication(sys.argv)   # required Qt operations e.g. QPixMap. Needs to remain in context!
+    qapp = QApplication(sys.argv)   # required Qt operations. Exclude when using pytest-qt
 
     def test_array_mock(self, tmp_path):
         # TODO: maybe split up?

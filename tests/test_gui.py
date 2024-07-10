@@ -48,7 +48,8 @@ class TestGuiMock:
 
 
 if __name__ == '__main__':
-    import Path
+    from pathlib import Path
     import tempfile
 
-    TestGuiMock().test_gui_mock(Path(tempfile.TemporaryDirectory().name))
+    path = Path(tempfile.TemporaryDirectory().name)
+    TestGuiMock().test_gui_mock(path)
