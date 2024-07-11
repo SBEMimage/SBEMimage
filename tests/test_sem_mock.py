@@ -6,7 +6,7 @@ import pytest
 
 from image_io import *
 from stage import Stage
-from test_common import init_sem_mock
+from test_common import *
 
 
 class TestSemMock:

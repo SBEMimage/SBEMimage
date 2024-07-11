@@ -1,12 +1,12 @@
 # https://doc.qt.io/qtforpython-6/overviews/qtest-overview.html
 
-import pytest
+#import pytest
+#from qtpy.QtTest import QTest
 import sys
 from time import sleep
-from qtpy.QtTest import QTest
 from qtpy.QtWidgets import QApplication, QMessageBox
 
-from test_common import init_read_configs, init_log
+from test_common import *
 from main_controls import MainControls
 
 
@@ -57,7 +57,7 @@ if __name__ == '__main__':
     import tempfile
     #from pytestqt.qtbot import QtBot
     #qtbot = QtBot(None)
-    qapp = QApplication(sys.argv)
+    qapp = QApplication(sys.argv)       # Required to run Qt
     qtbot = None
 
     path = Path(tempfile.TemporaryDirectory().name)
