@@ -472,6 +472,8 @@ class MainControls(QMainWindow):
                 + ' Please make sure that the Z position is correct.',
                 QMessageBox.Ok)
 
+        self.debug_mode = False
+
 
     def initialize_main_controls_gui(self):
         """Load and set up the Main Controls GUI"""
@@ -2042,48 +2044,54 @@ class MainControls(QMainWindow):
             self.textarea_log.ensureCursorVisible()
     
     def ask_debris_first_ov(self, ov_index):
-        self.viewport.vp_show_overview_for_user_inspection(ov_index)
-        msgBox = QMessageBox(self)
-        msgBox.setIcon(QMessageBox.Question)
-        msgBox.setWindowTitle('Please inspect overview image quality')
-        msgBox.setText(
-            f'Is the overview image OV {ov_index} now shown in the '
-            f'Viewport clean and of good quality (no debris or other image '
-            f'defects)?\n\n'
-            f'(This confirmation is required for the first slice to be '
-            f'imaged after (re)starting an acquisition.)')
-        msgBox.addButton(QPushButton('  Image is fine!  '),
-                            QMessageBox.YesRole)
-        msgBox.addButton(QPushButton('  There is debris.  '),
-                            QMessageBox.NoRole)
-        msgBox.addButton(QPushButton('Abort'),
-                            QMessageBox.RejectRole)
-        reply = msgBox.exec()
-        # Redraw with previous settings
-        self.viewport.vp_draw()
-        self.acq.user_reply = reply
+        if not self.debug_mode:
+            self.viewport.vp_show_overview_for_user_inspection(ov_index)
+            msgBox = QMessageBox(self)
+            msgBox.setIcon(QMessageBox.Question)
+            msgBox.setWindowTitle('Please inspect overview image quality')
+            msgBox.setText(
+                f'Is the overview image OV {ov_index} now shown in the '
+                f'Viewport clean and of good quality (no debris or other image '
+                f'defects)?\n\n'
+                f'(This confirmation is required for the first slice to be '
+                f'imaged after (re)starting an acquisition.)')
+            msgBox.addButton(QPushButton('  Image is fine!  '),
+                                QMessageBox.YesRole)
+            msgBox.addButton(QPushButton('  There is debris.  '),
+                                QMessageBox.NoRole)
+            msgBox.addButton(QPushButton('Abort'),
+                                QMessageBox.RejectRole)
+            reply = msgBox.exec()
+            # Redraw with previous settings
+            self.viewport.vp_draw()
+            self.acq.user_reply = reply
+        else:
+            self.acq.user_reply = 0
             
     def ask_debris_confirmation(self, ov_index):
-        self.viewport.vp_show_overview_for_user_inspection(ov_index)
-        msgBox = QMessageBox(self)
-        msgBox.setIcon(QMessageBox.Question)
-        msgBox.setWindowTitle('Potential debris detected - please confirm')
-        msgBox.setText(
-            f'Is debris visible in the detection area of OV {ov_index} now '
-            f'shown in the Viewport?\n\n'
-            f'(Potential debris has been detected in this overview image. '
-            f'If you get several false positives in a row, you may need to '
-            f'adjust your detection thresholds.)')
-        msgBox.addButton(QPushButton('  Yes, there is debris.  '),
-                            QMessageBox.YesRole)
-        msgBox.addButton(QPushButton('  No debris, continue!  '),
-                            QMessageBox.NoRole)
-        msgBox.addButton(QPushButton('Abort'),
-                            QMessageBox.RejectRole)
-        reply = msgBox.exec()
-        # Redraw with previous settings
-        self.viewport.vp_draw()
-        self.acq.user_reply = reply 
+        if not self.debug_mode:
+            self.viewport.vp_show_overview_for_user_inspection(ov_index)
+            msgBox = QMessageBox(self)
+            msgBox.setIcon(QMessageBox.Question)
+            msgBox.setWindowTitle('Potential debris detected - please confirm')
+            msgBox.setText(
+                f'Is debris visible in the detection area of OV {ov_index} now '
+                f'shown in the Viewport?\n\n'
+                f'(Potential debris has been detected in this overview image. '
+                f'If you get several false positives in a row, you may need to '
+                f'adjust your detection thresholds.)')
+            msgBox.addButton(QPushButton('  Yes, there is debris.  '),
+                                QMessageBox.YesRole)
+            msgBox.addButton(QPushButton('  No debris, continue!  '),
+                                QMessageBox.NoRole)
+            msgBox.addButton(QPushButton('Abort'),
+                                QMessageBox.RejectRole)
+            reply = msgBox.exec()
+            # Redraw with previous settings
+            self.viewport.vp_draw()
+            self.acq.user_reply = reply
+        else:
+            self.acq.user_reply = 1
 
     def add_tile_folder(self):
         """Add a folder for a new tile to be acquired while the acquisition
@@ -2607,10 +2615,11 @@ class MainControls(QMainWindow):
     def completion_stop(self):
         utils.log_info('CTRL', 'Target slice number reached.')
         self.pushButton_resetAcq.setEnabled(True)
-        QMessageBox.information(
-            self, 'Acquisition complete',
-            'The stack has been acquired.',
-            QMessageBox.Ok)
+        if not self.debug_mode:
+            QMessageBox.information(
+                self, 'Acquisition complete',
+                'The stack has been acquired.',
+                QMessageBox.Ok)
 
     def remote_stop(self):
         utils.log_info('CTRL', 'STOP/PAUSE command received remotely.')
@@ -2736,10 +2745,13 @@ class MainControls(QMainWindow):
             event.accept()
             sys.exit()
         elif not self.busy:
-            result = QMessageBox.question(
-                self, 'Exit',
-                'Are you sure you want to exit the program?',
-                QMessageBox.Yes| QMessageBox.No)
+            if not self.debug_mode:
+                result = QMessageBox.question(
+                    self, 'Exit',
+                    'Are you sure you want to exit the program?',
+                    QMessageBox.Yes | QMessageBox.No)
+            else:
+                result = QMessageBox.Yes
             if result == QMessageBox.Yes:
                 if not self.simulation_mode:
                     if (self.use_microtome
@@ -2758,42 +2770,46 @@ class MainControls(QMainWindow):
                 if not self.acq_notes_saved:
                     # Switch to Notes tab
                     self.tabWidget.setCurrentIndex(2)
-                    result = QMessageBox.question(
-                        self, 'Save acquisition notes?',
-                        'There are unsaved changes to your acquisition notes. '
-                        'Would you like to save them?',
-                        QMessageBox.Yes| QMessageBox.No)
-                    if result == QMessageBox.Yes:
-                        self.save_acq_notes()
+                    if not self.debug_mode:
+                        result = QMessageBox.question(
+                            self, 'Save acquisition notes?',
+                            'There are unsaved changes to your acquisition notes. '
+                            'Would you like to save them?',
+                            QMessageBox.Yes | QMessageBox.No)
+                        if result == QMessageBox.Yes:
+                            self.save_acq_notes()
                 if self.acq.acq_paused:
                     if self.cfg_file != 'default.ini':
-                        QMessageBox.information(
-                            self, 'Resume acquisition later',
-                            'The current acquisition is paused. The current '
-                            'settings and acquisition status will be saved '
-                            'now, so that the acquisition can be resumed '
-                            'after restarting the program with the current '
-                            'configuration file.',
-                            QMessageBox.Ok)
-                        self.save_config_to_disk(show_msg=True)
+                        if not self.debug_mode:
+                            QMessageBox.information(
+                                self, 'Resume acquisition later',
+                                'The current acquisition is paused. The current '
+                                'settings and acquisition status will be saved '
+                                'now, so that the acquisition can be resumed '
+                                'after restarting the program with the current '
+                                'configuration file.',
+                                QMessageBox.Ok)
+                            self.save_config_to_disk(show_msg=True)
                     elif self.syscfg['device']['sem'] != 'Unknown':
-                        result = QMessageBox.question(
-                            self, 'Save settings?',
-                            'Do you want to save the current settings to a '
-                            'new configuration file?',
-                            QMessageBox.Yes| QMessageBox.No)
-                        if result == QMessageBox.Yes:
-                            self.open_save_settings_new_file_dlg()
+                        if not self.debug_mode:
+                            result = QMessageBox.question(
+                                self, 'Save settings?',
+                                'Do you want to save the current settings to a '
+                                'new configuration file?',
+                                QMessageBox.Yes| QMessageBox.No)
+                            if result == QMessageBox.Yes:
+                                self.open_save_settings_new_file_dlg()
                 else:
                     if self.cfg_file != 'default.ini':
-                        result = QMessageBox.question(
-                            self, 'Save settings?',
-                            'Do you want to save the current settings '
-                            'to the configuration file '
-                            + self.cfg_file + '? ',
-                            QMessageBox.Yes| QMessageBox.No)
-                        if result == QMessageBox.Yes:
-                            self.save_config_to_disk(show_msg=True)
+                        if not self.debug_mode:
+                            result = QMessageBox.question(
+                                self, 'Save settings?',
+                                'Do you want to save the current settings '
+                                'to the configuration file '
+                                + self.cfg_file + '? ',
+                                QMessageBox.Yes| QMessageBox.No)
+                            if result == QMessageBox.Yes:
+                                self.save_config_to_disk(show_msg=True)
                     elif self.syscfg['device']['sem'] != 'Unknown':
                         result = QMessageBox.question(
                             self, 'Save settings?',
