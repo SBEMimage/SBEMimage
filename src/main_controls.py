@@ -472,7 +472,7 @@ class MainControls(QMainWindow):
                 + ' Please make sure that the Z position is correct.',
                 QMessageBox.Ok)
 
-        self.debug_mode = False
+        self.test_mode = False
 
 
     def initialize_main_controls_gui(self):
@@ -2044,7 +2044,7 @@ class MainControls(QMainWindow):
             self.textarea_log.ensureCursorVisible()
     
     def ask_debris_first_ov(self, ov_index):
-        if not self.debug_mode:
+        if not self.test_mode:
             self.viewport.vp_show_overview_for_user_inspection(ov_index)
             msgBox = QMessageBox(self)
             msgBox.setIcon(QMessageBox.Question)
@@ -2069,7 +2069,7 @@ class MainControls(QMainWindow):
             self.acq.user_reply = 0
             
     def ask_debris_confirmation(self, ov_index):
-        if not self.debug_mode:
+        if not self.test_mode:
             self.viewport.vp_show_overview_for_user_inspection(ov_index)
             msgBox = QMessageBox(self)
             msgBox.setIcon(QMessageBox.Question)
@@ -2615,7 +2615,7 @@ class MainControls(QMainWindow):
     def completion_stop(self):
         utils.log_info('CTRL', 'Target slice number reached.')
         self.pushButton_resetAcq.setEnabled(True)
-        if not self.debug_mode:
+        if not self.test_mode:
             QMessageBox.information(
                 self, 'Acquisition complete',
                 'The stack has been acquired.',
@@ -2682,7 +2682,7 @@ class MainControls(QMainWindow):
         """Save the updated ConfigParser objects for the user and the
         system configuration to disk.
         """
-        if self.debug_mode:
+        if self.test_mode:
             return
 
         # If the current session configuration file is "default.ini",
@@ -2748,7 +2748,7 @@ class MainControls(QMainWindow):
             event.accept()
             sys.exit()
         elif not self.busy:
-            if not self.debug_mode:
+            if not self.test_mode:
                 result = QMessageBox.question(
                     self, 'Exit',
                     'Are you sure you want to exit the program?',
@@ -2773,7 +2773,7 @@ class MainControls(QMainWindow):
                 if not self.acq_notes_saved:
                     # Switch to Notes tab
                     self.tabWidget.setCurrentIndex(2)
-                    if not self.debug_mode:
+                    if not self.test_mode:
                         result = QMessageBox.question(
                             self, 'Save acquisition notes?',
                             'There are unsaved changes to your acquisition notes. '
@@ -2783,7 +2783,7 @@ class MainControls(QMainWindow):
                             self.save_acq_notes()
                 if self.acq.acq_paused:
                     if self.cfg_file != 'default.ini':
-                        if not self.debug_mode:
+                        if not self.test_mode:
                             QMessageBox.information(
                                 self, 'Resume acquisition later',
                                 'The current acquisition is paused. The current '
@@ -2794,7 +2794,7 @@ class MainControls(QMainWindow):
                                 QMessageBox.Ok)
                             self.save_config_to_disk(show_msg=True)
                     elif self.syscfg['device']['sem'] != 'Unknown':
-                        if not self.debug_mode:
+                        if not self.test_mode:
                             result = QMessageBox.question(
                                 self, 'Save settings?',
                                 'Do you want to save the current settings to a '
@@ -2804,7 +2804,7 @@ class MainControls(QMainWindow):
                                 self.open_save_settings_new_file_dlg()
                 else:
                     if self.cfg_file != 'default.ini':
-                        if not self.debug_mode:
+                        if not self.test_mode:
                             result = QMessageBox.question(
                                 self, 'Save settings?',
                                 'Do you want to save the current settings '
@@ -2814,22 +2814,24 @@ class MainControls(QMainWindow):
                             if result == QMessageBox.Yes:
                                 self.save_config_to_disk(show_msg=True)
                     elif self.syscfg['device']['sem'] != 'Unknown':
-                        result = QMessageBox.question(
-                            self, 'Save settings?',
-                            'Do you want to save the current '
-                            'settings to a new configuration file? ',
-                            QMessageBox.Yes| QMessageBox.No)
-                        if result == QMessageBox.Yes:
-                            self.open_save_settings_new_file_dlg()
+                        if not self.test_mode:
+                            result = QMessageBox.question(
+                                self, 'Save settings?',
+                                'Do you want to save the current '
+                                'settings to a new configuration file? ',
+                                QMessageBox.Yes| QMessageBox.No)
+                            if result == QMessageBox.Yes:
+                                self.open_save_settings_new_file_dlg()
                 self.viewport.active = False
                 self.viewport.close()
                 QApplication.processEvents()
                 sleep(1)
                 # Recreate status.dat to indicate that program was closed
                 # normally and didn't crash:
-                status_file = open('../cfg/status.dat', 'w+')
-                status_file.write(self.cfg_file)
-                status_file.close()
+                if not self.test_mode:
+                    status_file = open('../cfg/status.dat', 'w+')
+                    status_file.write(self.cfg_file)
+                    status_file.close()
                 print('Closed by user.\n')
                 event.accept()
             else:

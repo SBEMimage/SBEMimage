@@ -28,7 +28,7 @@ class TestGuiMock:
         main_controls = MainControls(config, sysconfig, self.TEST_CONFIG_FILE)  # opens GUI Control and View window
 
         timeout_s = 30
-        main_controls.debug_mode = True
+        main_controls.test_mode = True
         if qtbot:
             qtbot.addWidget(main_controls)
         # main_controls.pushButton_startAcq.click()     # alternative: simulate button press
@@ -44,6 +44,10 @@ class TestGuiMock:
                     break
 
         sleep(5)
+
+        if not qtbot:
+            main_controls.close()
+        # widget will now close, triggering main_controls close event
 
 
 if __name__ == '__main__':
