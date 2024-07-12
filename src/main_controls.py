@@ -2682,6 +2682,9 @@ class MainControls(QMainWindow):
         """Save the updated ConfigParser objects for the user and the
         system configuration to disk.
         """
+        if self.debug_mode:
+            return
+
         # If the current session configuration file is "default.ini",
         # the user must create a new session configuration file
         if self.cfg_file == 'default.ini':
