@@ -6,23 +6,25 @@ import pytest
 
 from image_io import *
 from stage import Stage
-from test_common import *
+from test_utils import init_mock_sem
 
 
 class TestSemMock:
     TEST_CONFIG_FILE = 'mock.ini'
     TEST_SYSCONFIG_FILE = 'mock.cfg'
 
-    def test_sem_mock_stage(self):
-        sem = init_sem_mock(self.TEST_CONFIG_FILE, self.TEST_SYSCONFIG_FILE)
+    @pytest.fixture
+    def sem(self):
+        return init_mock_sem(self.TEST_CONFIG_FILE, self.TEST_SYSCONFIG_FILE)
+
+    def test_sem_mock_stage(self, sem):
         stage_position = (0.5, 1)
         stage = Stage(sem, None, False)
         stage.move_to_xy(stage_position)
         position = sem.get_stage_xy()
         assert position == stage_position
 
-    def test_sem_mock_acq(self, tmp_path):
-        sem = init_sem_mock(self.TEST_CONFIG_FILE, self.TEST_SYSCONFIG_FILE)
+    def test_sem_mock_acq(self, sem, tmp_path):
         output_filename = str(tmp_path / 'test.ome.tif')
         stage_position = (0.5, 1)
         stage = Stage(sem, None, False)
@@ -40,9 +42,11 @@ class TestSemMock:
 
 
 if __name__ == '__main__':
-    import Path
+    from pathlib import Path
     import tempfile
 
     test = TestSemMock()
-    test.test_sem_mock_stage()
-    test.test_sem_mock_acq(Path(tempfile.TemporaryDirectory().name))
+    test_sem = init_mock_sem(TestSemMock.TEST_CONFIG_FILE, TestSemMock.TEST_SYSCONFIG_FILE)
+    temp_path = Path(tempfile.TemporaryDirectory().name)
+    test.test_sem_mock_stage(test_sem)
+    test.test_sem_mock_acq(test_sem, temp_path)

@@ -147,7 +147,7 @@ class Stage:
     def update_motor_speed(self):
         if self.use_microtome and self.use_microtome_xy and self.microtome.device_name == 'Gatan 3View':
             return self._stage.update_motor_speeds_in_dm_script()
-        elif self.microtome is not None and self.microtome.device_name in ['ConnectomX katana', 'GCIB']:
+        elif self.microtome is not None and self.microtome.device_name in ['ConnectomX katana', 'GCIB', 'Mock Microtome']:
             return True
         else:
             # Speeds can currently not be updated for SEM stage

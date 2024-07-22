@@ -7,7 +7,7 @@ from coordinate_system import CoordinateSystem
 from image_io import *
 from ImportedImage import ImportedImages
 from grid_manager import GridManager
-from test_common import *
+from test_utils import *
 
 
 class TestArrayMock:
@@ -16,11 +16,14 @@ class TestArrayMock:
 
     qapp = QApplication(sys.argv)   # required Qt operations. Exclude when using pytest-qt
 
-    def test_array_mock(self, tmp_path):
+    @pytest.fixture
+    def sem(self):
+        return init_mock_sem(self.TEST_CONFIG_FILE, self.TEST_SYSCONFIG_FILE)
+
+    def test_array_mock(self, sem, tmp_path):
         # TODO: maybe split up?
         config, sysconfig = init_read_configs(self.TEST_CONFIG_FILE, self.TEST_SYSCONFIG_FILE)
         cs = CoordinateSystem(config, sysconfig)
-        sem = init_sem_mock(self.TEST_CONFIG_FILE, self.TEST_SYSCONFIG_FILE)
         gm = GridManager(config, sem, cs)
         assert len(gm.array_data.get_rois()) > 0
         imported = ImportedImages(config, tmp_path)
@@ -53,5 +56,7 @@ if __name__ == '__main__':
     from pathlib import Path
     import tempfile
 
-    path = Path(tempfile.TemporaryDirectory().name)
-    TestArrayMock().test_array_mock(path)
+    test = TestArrayMock()
+    test_sem = init_mock_sem(TestArrayMock.TEST_CONFIG_FILE, TestArrayMock.TEST_SYSCONFIG_FILE)
+    temp_path = Path(tempfile.TemporaryDirectory().name)
+    test.test_array_mock(test_sem, temp_path)
