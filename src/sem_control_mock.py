@@ -160,7 +160,7 @@ class SEM_Mock(SEM):
         return self.frame_size_selector
 
     def get_frame_size(self):
-        raise NotImplementedError
+        return self.STORE_RES[self.frame_size_selector]
 
     def set_frame_size(self, frame_size_selector):
         self.frame_size_selector = frame_size_selector
@@ -183,16 +183,17 @@ class SEM_Mock(SEM):
         return True
 
     def get_scan_rate(self):
-        raise NotImplementedError
+        return self.DWELL_TIME.index(self.dwell_time)
 
     def set_scan_rate(self, scan_rate_selector):
-        raise NotImplementedError
+        self.set_dwell_time(self.DWELL_TIME[scan_rate_selector])
 
     def set_dwell_time(self, dwell_time):
         self.dwell_time = dwell_time
         return True
 
     def set_scan_rotation(self, angle):
+        self.scan_rotation = angle
         return True
 
     def _generate_uniform_noise_image(self, width, height, bitsize=8):

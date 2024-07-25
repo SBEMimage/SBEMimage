@@ -191,7 +191,7 @@ class SEM_Phenom(SEM):
 
     def get_detector_list(self):
         """Return a list of all available detectors."""
-        return ppi.DetectorMode.names
+        return list(ppi.DetectorMode.names)
 
     def get_detector(self):
         """Return the currently selected detector."""
@@ -237,8 +237,8 @@ class SEM_Phenom(SEM):
         return self.mag
 
     def set_mag(self, target_mag):
-        self.mag = target_mag
-        return True
+        pixel_size = self.MAG_PX_SIZE_FACTOR / (target_mag * self.frame_size[0])
+        return self.set_pixel_size(pixel_size)
 
     def get_pixel_size(self):
         # m -> nm

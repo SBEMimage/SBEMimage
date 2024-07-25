@@ -18,7 +18,7 @@ class TestArrayMock:
 
     @pytest.fixture
     def sem(self):
-        return init_mock_sem(self.TEST_CONFIG_FILE, self.TEST_SYSCONFIG_FILE)
+        return init_sem(self.TEST_CONFIG_FILE, self.TEST_SYSCONFIG_FILE)
 
     def test_array_mock(self, sem, tmp_path):
         # TODO: maybe split up?
@@ -57,6 +57,6 @@ if __name__ == '__main__':
     import tempfile
 
     test = TestArrayMock()
-    test_sem = init_mock_sem(TestArrayMock.TEST_CONFIG_FILE, TestArrayMock.TEST_SYSCONFIG_FILE)
+    test_sem = init_sem(TestArrayMock.TEST_CONFIG_FILE, TestArrayMock.TEST_SYSCONFIG_FILE)
     temp_path = Path(tempfile.TemporaryDirectory().name)
     test.test_array_mock(test_sem, temp_path)

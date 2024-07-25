@@ -253,7 +253,7 @@ class SEM:
         if self.scan_rotation is not None:
             rotation += self.scan_rotation
         metadata = {
-            'pixel_size': [self.grab_pixel_size * 1e-3] * 2,
+            'pixel_size': [self.get_pixel_size() * 1e-3] * 2,
             'position': position,
             'rotation': rotation
         }
