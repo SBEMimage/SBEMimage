@@ -1055,9 +1055,9 @@ class GridManager(list):
         grids_data['number_grids'] = str(self.number_grids)
         grids_data['grid_active'] = str(
             [int(grid.active) for grid in self])
-        grids_data['origin_sx_sy'] = str(
+        grids_data['origin_sx_sy'] = utils.serialise_list(
             [utils.round_xy(grid.origin_sx_sy) for grid in self])
-        grids_data['sw_sh'] = str(
+        grids_data['sw_sh'] = utils.serialise_list(
             [utils.round_xy(grid.sw_sh) for grid in self])
         grids_data['rotation'] = str(
             [grid.rotation for grid in self])

@@ -467,6 +467,17 @@ def get_serial_ports():
     return [port.device for port in list_ports.comports()]
 
 
+def convert_numpy_to_list(data):
+    if isinstance(data, np.ndarray):
+        return data.tolist()
+    return data
+
+
+def serialise_list(data):
+    new_data = [convert_numpy_to_list(x) for x in data]
+    return str(new_data)
+
+
 def round_xy(coordinates, digits=3):
     x, y = coordinates
     return [round(x, digits), round(y, digits)]

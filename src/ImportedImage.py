@@ -133,7 +133,7 @@ class ImportedImages(list):
             [image.image_src for image in self])
         imported['description'] = json.dumps(
             [image.description for image in self])
-        imported['centre_sx_sy'] = str(
+        imported['centre_sx_sy'] = utils.serialise_list(
             [round_xy(img.centre_sx_sy)
              for img in self])
         imported['rotation'] = str(

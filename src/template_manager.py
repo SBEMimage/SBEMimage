@@ -80,8 +80,8 @@ class TemplateManager:
 
     def save_to_cfg(self):
         self.cfg['gcib']['template_rotation'] = str(self.template.rotation)
-        self.cfg['gcib']['template_centre_sx_sy'] = str(utils.round_xy(self.template.centre_sx_sy, 0))
-        self.cfg['gcib']['template_w_h'] = str(utils.round_xy(self.template.frame_size, 0))
+        self.cfg['gcib']['template_centre_sx_sy'] = utils.serialise_list(utils.round_xy(self.template.centre_sx_sy, 0))
+        self.cfg['gcib']['template_w_h'] = utils.serialise_list(utils.round_xy(self.template.frame_size, 0))
 
     def add_new_template(self, centre_sx_sy, rotation, w, h):
         self.template = Template(self.cs, self.sem, centre_sx_sy, rotation, self.pixel_size, w, h)

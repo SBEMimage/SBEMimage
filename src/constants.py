@@ -19,7 +19,7 @@ import re
 # master branch (for example, '2020.07 R2020-07-28'). For the current version
 # in the dev (development) branch, it must contain the tag 'dev'.
 # Following https://www.python.org/dev/peps/pep-0440/#public-version-identifiers
-VERSION = '2024.07 dev'
+VERSION = '2024.08 dev'
 
 
 # Default and minimum size of the Viewport canvas.

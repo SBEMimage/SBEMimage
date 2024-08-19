@@ -379,11 +379,11 @@ class OverviewManager:
         self.cfg['overviews']['number_ov'] = str(self.number_ov)
         self.cfg['overviews']['ov_active'] = str(
             [int(ov.active) for ov in self.__overviews])
-        self.cfg['overviews']['ov_centre_sx_sy'] = str(
+        self.cfg['overviews']['ov_centre_sx_sy'] = utils.serialise_list(
             [utils.round_xy(ov.centre_sx_sy) for ov in self.__overviews])
         self.cfg['overviews']['ov_rotation'] = str(
             [ov.rotation for ov in self.__overviews])
-        self.cfg['overviews']['ov_size'] = str(
+        self.cfg['overviews']['ov_size'] = utils.serialise_list(
             [ov.frame_size for ov in self.__overviews])
         self.cfg['overviews']['ov_size_selector'] = str(
             [ov.frame_size_selector for ov in self.__overviews])
@@ -412,7 +412,7 @@ class OverviewManager:
         self.cfg['debris']['show_detection_area'] = str(
             self.detection_area_visible)
         # Stub OV
-        self.cfg['overviews']['stub_ov_centre_sx_sy'] = str(
+        self.cfg['overviews']['stub_ov_centre_sx_sy'] = utils.serialise_list(
             utils.round_xy(self.__stub_overview.centre_sx_sy))
         self.cfg['overviews']['stub_ov_grid_size'] = json.dumps(
             self.__stub_overview.size)
@@ -427,7 +427,7 @@ class OverviewManager:
         self.cfg['overviews']['stub_ov_viewport_image'] = str(
             self.__stub_overview.vp_file_path)
         # Stub OV LM
-        self.cfg['overviews']['stub_ov_lm_centre_sx_sy'] = str(
+        self.cfg['overviews']['stub_ov_lm_centre_sx_sy'] = utils.serialise_list(
             utils.round_xy(self.__stub_overview_lm.centre_sx_sy))
         self.cfg['overviews']['stub_ov_lm_grid_size'] = json.dumps(
             self.__stub_overview_lm.size)
