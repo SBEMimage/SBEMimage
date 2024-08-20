@@ -468,14 +468,30 @@ def get_serial_ports():
 
 
 def convert_numpy_to_list(data):
-    if isinstance(data, np.ndarray):
-        return data.tolist()
-    return data
+    new_data = []
+    is_list = False
+    try:
+        if not isinstance(data, str):
+            # ignore string which is also iterable
+            iter(data)
+            is_list = True
+    except TypeError:
+        pass
+
+    if isinstance(data, (np.ndarray, np.generic)):
+        # also works on single numpy value
+        data = data.tolist()
+
+    if is_list:
+        for x in data:
+            new_data.append(convert_numpy_to_list(x))
+    else:
+        new_data = data
+    return new_data
 
 
 def serialise_list(data):
-    new_data = [convert_numpy_to_list(x) for x in data]
-    return str(new_data)
+    return str(convert_numpy_to_list(data))
 
 
 def round_xy(coordinates, digits=3):
