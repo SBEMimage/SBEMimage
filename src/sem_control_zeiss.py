@@ -46,6 +46,7 @@ class SEM_SmartSEM(SEM):
         # Call __init__ from base class (which loads all settings from
         # config and sysconfig).
         super().__init__(config, sysconfig)
+        self.sem_api = None
         if not self.simulation_mode:
             exception_msg = ''
             try:
@@ -65,8 +66,6 @@ class SEM_SmartSEM(SEM):
                 # Read current SEM stage coordinates
                 self.last_known_x, self.last_known_y, self.last_known_z = (
                     self.get_stage_xyz())
-        else:
-            self.sem_api = None
 
     def sem_get(self, key):
         try:
@@ -808,7 +807,7 @@ class SEM_SmartSEM(SEM):
         self.sem_api.AboutBox()
 
     def disconnect(self):
-        if not self.simulation_mode:
+        if not self.simulation_mode and self.sem_api is not None:
             ret_val = self.sem_api.ClosingControl()
         else:
             ret_val = 0
