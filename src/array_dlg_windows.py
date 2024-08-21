@@ -350,7 +350,7 @@ class ArrayCalibrationDlg(QDialog):
 
             # update calibration flag
             self.gm.array_data.calibrated = True
-            self.main_controls_trigger.transmit('ARRAY IMAGE CALIBRATED')
+            self.main_controls_trigger.transmit('ARRAY LANDMARKS CALIBRATED')
 
             self.accept()
 

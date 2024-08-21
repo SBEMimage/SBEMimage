@@ -2123,7 +2123,7 @@ Green: acquired</string>
          <string>Reset</string>
         </property>
        </widget>
-       <widget class="QPushButton" name="pushButton_array_imageCalibration">
+       <widget class="QPushButton" name="pushButton_array_landmarkCalibration">
         <property name="geometry">
          <rect>
           <x>10</x>
@@ -2138,7 +2138,7 @@ Green: acquired</string>
          </font>
         </property>
         <property name="text">
-         <string>Image calibration</string>
+         <string>Landmark calibration</string>
         </property>
        </widget>
        <widget class="QPushButton" name="pushButton_array_createGrids">

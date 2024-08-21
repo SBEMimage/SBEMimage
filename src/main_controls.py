@@ -964,8 +964,8 @@ class MainControls(QMainWindow):
             self.array_create_grids)
         self.toolButton_array_imageFile.clicked.connect(
             self.array_open_import_image)
-        self.pushButton_array_imageCalibration.clicked.connect(
-            self.array_open_image_calibration_dlg)
+        self.pushButton_array_landmarkCalibration.clicked.connect(
+            self.array_open_landmark_calibration_dlg)
         self.pushButton_array_reset.clicked.connect(self.array_reset_dialog)
 
         self.pushButton_array_selectAll.clicked.connect(self.array_select_all)
@@ -982,9 +982,9 @@ class MainControls(QMainWindow):
             self.array_select_string_sections)
 
         self.pushButton_array_createGrids.setEnabled(False)
-        self.pushButton_array_imageCalibration.setStyleSheet(
+        self.pushButton_array_landmarkCalibration.setStyleSheet(
             'background-color: yellow')
-        self.pushButton_array_imageCalibration.setEnabled(False)
+        self.pushButton_array_landmarkCalibration.setEnabled(False)
 
         # deactivate/activate some core SBEMimage functions
         self.pushButton_microtomeSettings.setEnabled(False)
@@ -1394,12 +1394,19 @@ class MainControls(QMainWindow):
         if response == QMessageBox.Ok:
             self.array_reset()
 
+    def array_trigger_landmark_uncalibrated(self):
+        # change array image flag
+        (self.pushButton_array_landmarkCalibration
+            .setStyleSheet('background-color: yellow'))
+        # inactivate msem transfer to ZEN
+        # self.pushButton_msem_transferToZen.setEnabled(False)
+
     def array_reset(self):
         self.lineEdit_array_dataFile.clear()
         array_table_model = self.tableView_array_sections.model()
         array_table_model.clear()
-        self.array_trigger_image_uncalibrated()
-        self.array_trigger_image_uncalibratable()
+        self.array_trigger_landmark_uncalibrated()
+        self.array_trigger_landmark_uncalibratable()
         self.gm.array_reset()
         self.gm.delete_array_grids()
         self.gm.array_delete_autofocus_points(0)
@@ -1407,25 +1414,18 @@ class MainControls(QMainWindow):
         self.viewport.update_grids()
         self.viewport.vp_draw()
 
-    def array_trigger_image_calibrated(self):
-        (self.pushButton_array_imageCalibration
+    def array_trigger_landmark_calibrated(self):
+        (self.pushButton_array_landmarkCalibration
             .setStyleSheet('background-color: green'))
         # self.pushButton_msem_transferToZen.setEnabled(True)
 
-    def array_trigger_image_uncalibrated(self):
-        # change array image flag
-        (self.pushButton_array_imageCalibration
-            .setStyleSheet('background-color: yellow'))
-        # inactivate msem transfer to ZEN
-        # self.pushButton_msem_transferToZen.setEnabled(False)
-
-    def array_trigger_image_calibratable(self):
+    def array_trigger_landmark_calibratable(self):
         # the array image can be calibrated
-        self.pushButton_array_imageCalibration.setEnabled(True)
+        self.pushButton_array_landmarkCalibration.setEnabled(True)
 
-    def array_trigger_image_uncalibratable(self):
+    def array_trigger_landmark_uncalibratable(self):
         # the array image cannot be calibrated
-        self.pushButton_array_imageCalibration.setEnabled(False)
+        self.pushButton_array_landmarkCalibration.setEnabled(False)
 
     def array_open_import_dlg(self):
         self.tabWidget.setCurrentIndex(3)
@@ -1496,7 +1496,7 @@ class MainControls(QMainWindow):
             #self.tableView_array_sections.setColumnWidth(roi_index, 40)
 
         if len(self.gm.array_data.landmarks) > 2:
-            self.array_trigger_image_calibratable()
+            self.array_trigger_landmark_calibratable()
 
     def array_open_import_image(self):
         if self.lineEdit_array_imageFile.text():
@@ -1505,6 +1505,11 @@ class MainControls(QMainWindow):
             start_path = os.path.dirname(self.lineEdit_array_dataFile.text())
 
         def on_success_function():
+            # remove old array image - find any array image
+            index = self.imported.find_array_image_index()
+            if index is not None:
+                self.imported.delete_image(index)
+            # set last imported image as array image
             array_image = self.imported[-1]
             array_image.is_array = True
             if self.magc_mode:
@@ -1534,7 +1539,7 @@ class MainControls(QMainWindow):
             self.gm.array_create_grids(imported_image)
             self.update_from_grid_dlg()
 
-    def array_open_image_calibration_dlg(self):
+    def array_open_landmark_calibration_dlg(self):
         dialog = ArrayCalibrationDlg(self.cfg, self.stage, self.ovm, self.cs,
                                      self.gm, self.imported, self.trigger)
         dialog.exec()
@@ -1971,14 +1976,14 @@ class MainControls(QMainWindow):
             self.array_reset()
         elif msg == 'ARRAY REMOVE IMAGE':
             self.array_set_import_image(None)
-        elif msg == 'ARRAY IMAGE CALIBRATED':
-            self.array_trigger_image_calibrated()
-        elif msg == 'ARRAY IMAGE NOT CALIBRATED':
-            self.array_trigger_image_uncalibrated()
+        elif msg == 'ARRAY LANDMARKS CALIBRATED':
+            self.array_trigger_landmark_calibrated()
+        elif msg == 'ARRAY LANDMARKS NOT CALIBRATED':
+            self.array_trigger_landmark_uncalibrated()
         elif msg == 'ARRAY ENABLE CALIBRATION':
-            self.array_trigger_image_calibratable()
+            self.array_trigger_landmark_calibratable()
         elif msg == 'ARRAY DISABLE CALIBRATION':
-            self.array_trigger_image_uncalibratable()
+            self.array_trigger_landmark_uncalibratable()
         elif msg == 'ARRAY SET SECTION STATE':
             self.array_set_section_state_in_table(*args, **kwargs)
         # elif 'MSEM GUI' in msg:

@@ -173,6 +173,12 @@ class ImportedImages(list):
                 return imported_image
         return None
 
+    def find_array_image_index(self):
+        for index, imported_image in enumerate(self):
+            if imported_image.is_array:
+                return index
+        return None
+
     def update_array_image(self, transform):
         array_image = self.find_array_image()
         if array_image:
