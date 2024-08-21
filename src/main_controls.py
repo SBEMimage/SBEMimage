@@ -2607,6 +2607,10 @@ class MainControls(QMainWindow):
                     self.gm[grid_index].clear_all_tile_previews()
                 for ov_index in range(self.ovm.number_ov):
                     self.ovm[ov_index].vp_file_path = ''
+                self.ovm['stub'].vp_file_path = ''
+                self.ovm['stub_lm'].vp_file_path = ''
+                self.imported.delete_all_images()
+                self.array_set_import_image()
                 self.viewport.vp_draw()
             self.acq.reset_acquisition()
             self.pushButton_resetAcq.setEnabled(False)
