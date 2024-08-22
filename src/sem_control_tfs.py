@@ -91,8 +91,14 @@ class SEM_Phenom(SEM):
         super().set_eht(target_eht)
         # target_eht given in kV
         # TFS uses negative tension value
-        self.sem_api.SetSemHighTension(self.target_eht * -1e+3)
-        return True
+        try:
+            self.sem_api.SetSemHighTension(self.target_eht * -1e+3)
+            return True
+        except Exception as e:
+            self.error_state = Error.eht
+            self.error_info = (
+                f'sem.set_eht: command failed ({e})')
+            return False
 
     def has_brightness(self):
         """Return True if supports brightness control."""
@@ -247,9 +253,15 @@ class SEM_Phenom(SEM):
     def set_pixel_size(self, pixel_size):
         # pixel_size in [nm]
         self.grab_pixel_size = pixel_size
-        self.sem_api.SetHFW(self.frame_size[0] * pixel_size * 1e-9)
-        self.mag = self.get_mag()
-        return True
+        try:
+            self.sem_api.SetHFW(self.frame_size[0] * pixel_size * 1e-9)
+            self.mag = self.get_mag()
+            return True
+        except Exception as e:
+            self.error_state = Error.magnification
+            self.error_info = (
+                f'sem.set_pixel_size: command failed ({e})')
+            return False
 
     def get_scan_rate(self):
         raise NotImplementedError
@@ -263,25 +275,37 @@ class SEM_Phenom(SEM):
 
     def set_scan_rotation(self, angle):
         self.scan_rotation = angle
-        if angle is not None:
-            self.sem_api.SetSemRotation(-np.deg2rad(angle))
-        return True
+        try:
+            if angle is not None:
+                self.sem_api.SetSemRotation(-np.deg2rad(angle))
+            return True
+        except Exception as e:
+            self.error_state = Error.move_params
+            self.error_info = (
+                f'sem.set_scan_rotation: command failed ({e})')
+            return False
 
     def set_em_mode(self, lm_mode=False):
         correct_mode = True
-        mode = self.sem_api.GetOperationalMode()
-        if mode == OperationalMode.Loadpos:
-            utils.log_info('SEM', 'Moving to load position')
-            self.sem_api.Load()
-        if lm_mode and mode != OperationalMode.LiveNavCam:
-            utils.log_info('SEM', 'Moving to LM mode')
-            self.sem_api.MoveToNavCam()
-            correct_mode = False
-        elif not lm_mode and mode != OperationalMode.LiveSem:
-            utils.log_info('SEM', 'Moving to EM mode')
-            self.sem_api.MoveToSem()
-            correct_mode = False
-        return correct_mode
+        try:
+            mode = self.sem_api.GetOperationalMode()
+            if mode == OperationalMode.Loadpos:
+                utils.log_info('SEM', 'Moving to load position')
+                self.sem_api.Load()
+            if lm_mode and mode != OperationalMode.LiveNavCam:
+                utils.log_info('SEM', 'Moving to LM mode')
+                self.sem_api.MoveToNavCam()
+                correct_mode = False
+            elif not lm_mode and mode != OperationalMode.LiveSem:
+                utils.log_info('SEM', 'Moving to EM mode')
+                self.sem_api.MoveToSem()
+                correct_mode = False
+            return correct_mode
+        except Exception as e:
+            self.error_state = Error.mode_normal
+            self.error_info = (
+                f'sem.set_em_mode: command failed ({e})')
+            return False
 
     def acquire_frame(self, save_path_filename, stage=None, extra_delay=0):
         """Acquire a full frame and save it to save_path_filename.
@@ -358,8 +382,14 @@ class SEM_Phenom(SEM):
 
     def set_wd(self, target_wd):
         """Set working distance to target working distance (in metres)."""
-        self.sem_api.SetSemWD(target_wd)
-        return True
+        try:
+            self.sem_api.SetSemWD(target_wd)
+            return True
+        except Exception as e:
+            self.error_state = Error.working_distance
+            self.error_info = (
+                f'sem.set_wd: command failed ({e})')
+            return False
 
     def get_stig_xy(self):
         stigmate = self.sem_api.GetSemStigmate()
@@ -367,10 +397,16 @@ class SEM_Phenom(SEM):
         return self.stig_x, self.stig_y
 
     def set_stig_xy(self, target_stig_x, target_stig_y):
-        self.sem_api.SetSemStigmate(ppi.Position(target_stig_x, target_stig_y))
-        self.stig_x = target_stig_x
-        self.stig_y = target_stig_y
-        return True
+        try:
+            self.sem_api.SetSemStigmate(ppi.Position(target_stig_x, target_stig_y))
+            self.stig_x = target_stig_x
+            self.stig_y = target_stig_y
+            return True
+        except Exception as e:
+            self.error_state = Error.stig_xy
+            self.error_info = (
+                f'sem.set_stig_xy: command failed ({e})')
+            return False
 
     def get_stig_x(self):
         self.get_stig_xy()
