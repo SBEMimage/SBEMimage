@@ -295,12 +295,16 @@ class ArrayData:
         rois = {}
         for array_index, section in self.sections.items():
             if section:
+                rois1 = None
                 rois0 = section.get('rois', [])
                 if len(rois0) > 0:
                     rois1 = rois0
                 else:
-                    rois1 = {0: section['sample']}
-                rois[array_index] = rois1
+                    rois0 = section.get('sample', [])
+                    if len(rois0) > 0:
+                        rois1 = rois0
+                if rois1 is not None:
+                    rois[array_index] = rois1
         return rois
 
     def get_roi(self, array_index, roi_index):
