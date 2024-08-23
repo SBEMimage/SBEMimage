@@ -272,6 +272,9 @@ def imwrite(path, data, metadata=None, tile_size=None, compression=None,
     resolution = None
     resolution_unit = None
 
+    if data is None:
+        return
+
     paths = path.split('.', 1)
     ext = paths[-1].lower()
     is_tiff = 'tif' in ext

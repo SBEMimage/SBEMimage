@@ -3993,8 +3993,8 @@ class Viewport(QWidget):
                     d1 = np.clip(d1, -60, 60)
                     d2 = (entry - mean_avg) * mean_scaling
                     d2 = np.clip(d2, -60, 60)
-                    self.m_qp.drawLine(x_pos, mean_y_offset - d1,
-                                       x_pos + x_delta, mean_y_offset - d2)
+                    self.m_qp.drawLine(QPointF(x_pos, mean_y_offset - d1),
+                                       QPointF(x_pos + x_delta, mean_y_offset - d2))
                     x_pos += x_delta
                 previous_entry = entry
 
@@ -4009,8 +4009,8 @@ class Viewport(QWidget):
                     d1 = np.clip(d1, -60, 60)
                     d2 = (entry - stddev_avg) * stddev_scaling
                     d2 = np.clip(d2, -60, 60)
-                    self.m_qp.drawLine(x_pos, stddev_y_offset - d1,
-                                       x_pos + x_delta, stddev_y_offset - d2)
+                    self.m_qp.drawLine(QPointF(x_pos, stddev_y_offset - d1),
+                                       QPointF(x_pos + x_delta, stddev_y_offset - d2))
                     x_pos += x_delta
                 previous_entry = entry
 
@@ -4023,8 +4023,8 @@ class Viewport(QWidget):
                 d1 = np.clip(d1, -60, 60)
                 d2 = mean_diff_list[i] * mean_diff_scaling
                 d2 = np.clip(d2, -60, 60)
-                self.m_qp.drawLine(x_pos, mean_diff_y_offset - d1,
-                                   x_pos + x_delta, mean_diff_y_offset - d2)
+                self.m_qp.drawLine(QPointF(x_pos, mean_diff_y_offset - d1),
+                                   QPointF(x_pos + x_delta, mean_diff_y_offset - d2))
                 x_pos += x_delta
 
             pen = QPen(QColor(119, 0, 0))
@@ -4036,8 +4036,8 @@ class Viewport(QWidget):
                 d1 = np.clip(d1, -60, 60)
                 d2 = stddev_diff_list[i] * stddev_diff_scaling
                 d2 = np.clip(d2, -60, 60)
-                self.m_qp.drawLine(x_pos, stddev_diff_y_offset - d1,
-                                   x_pos + x_delta, stddev_diff_y_offset - d2)
+                self.m_qp.drawLine(QPointF(x_pos, stddev_diff_y_offset - d1),
+                                   QPointF(x_pos + x_delta, stddev_diff_y_offset - d2))
                 x_pos += x_delta
 
             self.m_qp.end()
@@ -4105,8 +4105,8 @@ class Viewport(QWidget):
                 gv_normalized = hist[x]/hist_max
                 if gv_normalized == 1:
                     peak = x
-                self.m_qp.drawLine(x + 11, 160,
-                                   x + 11, 160 - gv_normalized * 147)
+                self.m_qp.drawLine(QPointF(x + 11, 160),
+                                   QPointF(x + 11, 160 - gv_normalized * 147))
             if self.m_from_stack:
                 try:
                     idx = selected_file.rfind('s')
