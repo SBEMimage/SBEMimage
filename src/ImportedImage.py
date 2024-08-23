@@ -140,7 +140,7 @@ class ImportedImages(list):
             [img.rotation for img in self])
         imported['flipped'] = json.dumps(
             [img.flipped for img in self])
-        imported['size'] = str(
+        imported['size'] = utils.serialise_list(
             [img.size for img in self])
         imported['pixel_size'] = str(
             [img.pixel_size for img in self])

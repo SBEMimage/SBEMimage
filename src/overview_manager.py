@@ -395,7 +395,7 @@ class OverviewManager:
             [ov.dwell_time_selector for ov in self.__overviews])
         self.cfg['overviews']['ov_bit_depth_selector'] = str(
             [ov.bit_depth_selector for ov in self.__overviews])
-        self.cfg['overviews']['ov_wd_stig_xy'] = str(
+        self.cfg['overviews']['ov_wd_stig_xy'] = utils.serialise_list(
             [ov.wd_stig_xy for ov in self.__overviews])
         self.cfg['overviews']['ov_acq_interval'] = str(
             [ov.acq_interval for ov in self.__overviews])
@@ -405,7 +405,7 @@ class OverviewManager:
             [ov.vp_file_path for ov in self.__overviews])
         self.cfg['debris']['auto_detection_area'] = str(
             self.use_auto_debris_area)
-        self.cfg['debris']['detection_area'] = str(
+        self.cfg['debris']['detection_area'] = utils.serialise_list(
             [ov.debris_detection_area for ov in self.__overviews])
         self.cfg['debris']['auto_area_margin'] = str(
             self.auto_debris_area_margin)
