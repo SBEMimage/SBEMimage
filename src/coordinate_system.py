@@ -85,7 +85,7 @@ class CoordinateSystem:
         self.cfg[self._device]['stage_rotation_angle_y'] = str(
             self.stage_calibration[3])
         # Viewport parameters
-        self.cfg['viewport']['vp_centre_dx_dy'] = str(
+        self.cfg['viewport']['vp_centre_dx_dy'] = utils.serialise_list(
             utils.round_xy(self.vp_centre_dx_dy))
         self.cfg['viewport']['vp_scale'] = str(round(self.vp_scale, 3))
         self.cfg['viewport']['sv_scale_tile'] = str(

@@ -128,7 +128,7 @@ class SEM_Mock(SEM):
         pass
 
     def apply_beam_settings(self):
-        pass
+        return True
 
     def get_detector_list(self):
         return ['Mock BSD', 'Mock ET', 'Mock XYZ']

@@ -735,9 +735,20 @@ class Acquisition:
             # Set SEM to target high voltage and beam current.
             # EHT is assumed to be on at this point (PreStackDlg checks if EHT
             # is on when user wants to start the acq.)
-            self.sem.apply_beam_settings()
-            self.sem.set_beam_blanking(True)
-            sleep(1)
+            success = self.sem.apply_beam_settings()
+            if not success:
+                self.error_state = self.sem.error_state
+                self.error_info = self.sem.error_info
+                self.sem.reset_error_state()
+                self.pause_acquisition(1)
+                self.log(
+                    'SEM',
+                    'ERROR: Could not apply '
+                    'beam settings.',
+                    'error')
+            else:
+                self.sem.set_beam_blanking(True)
+                sleep(1)
 
             # Initialize focus parameters for all grids with defaults, but only
             # for those tiles that have not yet been initialized (there may be

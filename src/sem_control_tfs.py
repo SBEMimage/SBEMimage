@@ -192,8 +192,10 @@ class SEM_Phenom(SEM):
 
     def apply_beam_settings(self):
         """Set the SEM to the current target EHT voltage and beam current."""
-        self.set_em_mode()
-        self.set_eht(self.target_eht)
+        ok = self.set_em_mode()
+        if ok:
+            ok = self.set_eht(self.target_eht)
+        return ok
 
     def get_detector_list(self):
         """Return a list of all available detectors."""
