@@ -85,7 +85,6 @@ class ImportedImages(list):
     def __init__(self, config, base_dir):
         super().__init__()
         self.cfg = config
-        self.number_imported = 0
 
         target_dir = os.path.join(base_dir, 'imported')
         if not os.path.exists(target_dir):
@@ -126,9 +125,13 @@ class ImportedImages(list):
             self.add_image(image_src[i], description[i], centre_sx_sy[i], rotation[i], flipped[i],
                            size[i], pixel_size[i], enabled[i], transparency[i], is_array[i])
 
+    @property
+    def number_imported(self):
+        return len(self)
+
     def save_to_cfg(self):
         imported = self.cfg['imported']
-        imported['number_imported'] = str(len(self))
+        imported['number_imported'] = str(self.number_imported)
         imported['image_src'] = json.dumps(
             [image.image_src for image in self])
         imported['description'] = json.dumps(

@@ -1270,7 +1270,7 @@ class Viewport(QWidget):
                 action_selectGradient.setEnabled(False)
             if self.autofocus.tracking_mode == 1:
                 action_selectAutofocus.setEnabled(False)
-            if self.selected_imported is None:
+            if self.imported.number_imported == 0:
                 action_modifyImported.setEnabled(False)
             if self.busy:
                 action_focusTool.setEnabled(False)
@@ -1835,27 +1835,28 @@ class Viewport(QWidget):
         """Place grid specified by grid_index onto the viewport canvas
         (including tile previews if option selected).
         """
-        grid_label = self.gm.get_grid_label(grid_index)
+        grid = self.gm[grid_index]
+        grid_label = grid.get_label(grid_index)
         viewport_pixel_size = 1000 / self.cs.vp_scale
-        grid_pixel_size = self.gm[grid_index].pixel_size
+        grid_pixel_size = grid.pixel_size
         resize_ratio = grid_pixel_size / viewport_pixel_size
 
         # Calculate coordinates of grid origin with respect to Viewport canvas
-        dx, dy = self.gm[grid_index].origin_dx_dy
+        dx, dy = grid.origin_dx_dy
         origin_vx, origin_vy = self.cs.convert_d_to_v((dx, dy))
 
         # Calculate top-left corner of the (unrotated) grid
-        dx -= self.gm[grid_index].tile_width_d() / 2
-        dy -= self.gm[grid_index].tile_height_d() / 2
+        dx -= grid.tile_width_d() / 2
+        dy -= grid.tile_height_d() / 2
         topleft_vx, topleft_vy = self.cs.convert_d_to_v((dx, dy))
 
-        width_px = self.gm[grid_index].width_p()
-        height_px = self.gm[grid_index].height_p()
-        theta = self.gm[grid_index].rotation
+        width_px = grid.width_p()
+        height_px = grid.height_p()
+        theta = grid.rotation
         use_rotation = (theta != 0)
 
         font = QFont()
-        grid_colour_rgb = self.gm[grid_index].display_colour_rgb()
+        grid_colour_rgb = grid.display_colour_rgb()
         if len(grid_colour_rgb) < 4:
             grid_colour_rgba = grid_colour_rgb + [255]
         else:
@@ -1885,8 +1886,8 @@ class Viewport(QWidget):
             self.vp_qp.rotate(theta)
             # Translate to top-left corner
             self.vp_qp.translate(
-                -self.gm[grid_index].tile_width_d() / 2 * self.cs.vp_scale,
-                -self.gm[grid_index].tile_height_d() / 2 * self.cs.vp_scale)
+                -grid.tile_width_d() / 2 * self.cs.vp_scale,
+                -grid.tile_height_d() / 2 * self.cs.vp_scale)
             # Enable anti-aliasing
             self.vp_qp.setRenderHint(QPainter.Antialiasing)
         else:
@@ -1902,7 +1903,7 @@ class Viewport(QWidget):
             self.vp_qp.setFont(font)
             self.vp_qp.setPen(grid_colour)
             self.vp_qp.setBrush(grid_colour)
-            if self.gm[grid_index].active:
+            if grid.active:
                 width_factor = 5.3
             else:
                 width_factor = 10.5
@@ -1911,7 +1912,7 @@ class Viewport(QWidget):
                                     int(width_factor * fontsize),
                                     int(4/3 * fontsize))
             self.vp_qp.drawRect(grid_label_rect)
-            if self.gm[grid_index].display_colour in [1, 2, 3]:
+            if grid.display_colour in [1, 2, 3]:
             # Use black for light and white for dark background colour
                 self.vp_qp.setPen(QColor(0, 0, 0))
             else:
@@ -1919,7 +1920,7 @@ class Viewport(QWidget):
             # Show the grid label in different versions, depending on
             # whether grid is active
             grid_label_text = grid_label
-            if not self.gm[grid_index].active:
+            if not grid.active:
                 grid_label_text += ' (inactive)'
             self.vp_qp.drawText(grid_label_rect,
                                 Qt.AlignVCenter | Qt.AlignHCenter,
@@ -1927,19 +1928,19 @@ class Viewport(QWidget):
 
         # If grid is inactive, only the label will be drawn, nothing else.
         # Reset the QPainter and return in this case
-        if not self.gm[grid_index].active:
+        if not grid.active:
             self.vp_qp.resetTransform()
             return
 
         if with_gaps:
             # Use gapped tile grid in pixels (coordinates not rotated)
-            tile_map = self.gm[grid_index].gapped_tile_positions_p()
+            tile_map = grid.gapped_tile_positions_p()
         else:
             # Tile grid in pixels (coordinates not rotated)
-            tile_map = self.gm[grid_index].tile_positions_p()
+            tile_map = grid.tile_positions_p()
 
-        tile_width_v = self.gm[grid_index].tile_width_d() * self.cs.vp_scale
-        tile_height_v = self.gm[grid_index].tile_height_d() * self.cs.vp_scale
+        tile_width_v = grid.tile_width_d() * self.cs.vp_scale
+        tile_height_v = grid.tile_height_d() * self.cs.vp_scale
 
         font_size1 = int(tile_width_v/5)
         font_size1 = np.clip(font_size1, 2, 120)
@@ -1950,10 +1951,10 @@ class Viewport(QWidget):
                 and not self.fov_drag_active
                 and not self.grid_drag_active):
             # Previews are disabled when FOV or grid are being dragged
-            width_px = self.gm[grid_index].tile_width_p()
-            height_px = self.gm[grid_index].tile_height_p()
+            width_px = grid.tile_width_p()
+            height_px = grid.tile_height_p()
 
-            for tile_index in self.gm[grid_index].active_tiles:
+            for tile_index in grid.active_tiles:
                 vx = tile_map[tile_index][0] * resize_ratio
                 vy = tile_map[tile_index][1] * resize_ratio
                 tile_visible = self._vp_element_visible(
@@ -1963,13 +1964,13 @@ class Viewport(QWidget):
                 if not tile_visible:
                     continue
                 # Show tile preview
-                preview_img = self.gm[grid_index][tile_index].preview_img
+                preview_img = grid[tile_index].preview_img
                 if preview_img is not None:
                     tile_img = preview_img.scaledToWidth(int(tile_width_v))
                     self.vp_qp.drawPixmap(QPointF(vx, vy), tile_img)
 
         # Display grid lines
-        rows, cols = self.gm[grid_index].size
+        rows, cols = grid.size
         grid_pen = QPen(grid_colour, 1, Qt.SolidLine)
         if len(grid_colour_rgb) < 4:
             grid_colour_rgba = grid_colour_rgb + [40]
@@ -1992,7 +1993,7 @@ class Viewport(QWidget):
             # Draw grid if at least 3 pixels wide or high.
             for tile_index in range(rows * cols):
                 self.vp_qp.setPen(grid_pen)
-                if self.gm[grid_index][tile_index].tile_active:
+                if grid[tile_index].tile_active:
                     self.vp_qp.setBrush(grid_brush_active_tile)
                 else:
                     self.vp_qp.setBrush(grid_brush_transparent)
@@ -2006,7 +2007,7 @@ class Viewport(QWidget):
                         tile_map[tile_index][1] * resize_ratio,
                         tile_width_v, tile_height_v))
                 if self.show_labels and not suppress_labels:
-                    if self.gm[grid_index][tile_index].tile_active:
+                    if grid[tile_index].tile_active:
                         self.vp_qp.setPen(QColor(255, 255, 255))
                         font.setBold(True)
                     else:
@@ -2036,14 +2037,14 @@ class Viewport(QWidget):
                         int(pos_y - tile_height_v - tile_height_v/4),
                         int(2 * tile_width_v), int(2 * tile_height_v))
                     show_grad_label = (
-                        self.gm[grid_index][tile_index].wd_grad_active
-                        and self.gm[grid_index].use_wd_gradient)
+                        grid[tile_index].wd_grad_active
+                        and grid.use_wd_gradient)
                     show_autofocus_label = (
-                        self.gm[grid_index][tile_index].autofocus_active
+                        grid[tile_index].autofocus_active
                         and self.acq.use_autofocus
                         and (self.autofocus.method < 2 or self.autofocus.method == 3))
                     show_tracking_label = (
-                        self.gm[grid_index][tile_index].autofocus_active
+                        grid[tile_index].autofocus_active
                         and self.acq.use_autofocus
                         and self.autofocus.method == 2)
 
@@ -2070,8 +2071,8 @@ class Viewport(QWidget):
 
                     font.setBold(False)
                     self.vp_qp.setFont(font)
-                    if (self.gm[grid_index][tile_index].wd > 0
-                        and (self.gm[grid_index][tile_index].tile_active
+                    if (grid[tile_index].wd > 0
+                        and (grid[tile_index].tile_active
                              or show_grad_label
                              or show_autofocus_label
                              or show_tracking_label)):
