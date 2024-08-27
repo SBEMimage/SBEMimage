@@ -309,7 +309,7 @@ def ov_reslice_save_path(base_dir, ov_index):
 def get_tile_basepath(stack_name, grid_index, array_index=None, roi_index=None, tile_index=None, slice_index=None):
     grid_string = 'g' + str(grid_index).zfill(GRID_DIGITS)
     array_string = 'a' + str(array_index).zfill(GRID_DIGITS) if array_index is not None else None
-    roi_string = 'roi' + str(roi_index).zfill(GRID_DIGITS) if roi_index is not None else None
+    roi_string = 'r' + str(roi_index).zfill(GRID_DIGITS) if roi_index is not None else None
     tile_string = 't' + str(tile_index).zfill(TILE_DIGITS) if tile_index is not None else None
     slice_string = 's' + str(slice_index).zfill(SLICE_DIGITS) if slice_index is not None else None
 

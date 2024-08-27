@@ -278,7 +278,7 @@ class SEM_Mock(SEM):
                 # grid tile
                 grid_index = utils.find_path_numeric_key(save_parts, 'g')
                 array_index = utils.find_path_numeric_key(save_parts, 'a')
-                roi_index = utils.find_path_numeric_key(save_parts, 'roi')
+                roi_index = utils.find_path_numeric_key(save_parts, 'r')
                 tile_index = utils.find_path_numeric_key(save_parts, 't')
                 slice_index = utils.find_path_numeric_key(save_parts, 's')
                 relative_path = utils.tile_relative_save_path(mock_stack_name, grid_index, array_index,
