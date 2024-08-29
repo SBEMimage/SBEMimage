@@ -227,15 +227,17 @@ class StubOverview(Grid):
     @vp_file_path.setter
     def vp_file_path(self, file_path):
         self._vp_file_path = file_path
+        # Release old images
+        del self.pixmaps_
+        self.pixmaps_ = {1: None, 2: None, 4: None, 8: None, 16: None}
         # Load images as QPixmaps:
         file_exists = os.path.isfile(file_path)
         for level, mag in enumerate([1, 2, 4, 8, 16]):
+            image = None
             if file_exists:
                 image = imread(file_path, level=level)
                 if image is not None:
                     image = utils.image_to_QPixmap(image)
-            else:
-                image = None
             self.pixmaps_[mag] = image
 
 

@@ -150,25 +150,7 @@ class ImageInspector:
         frozen_frame_error = False
         tile_selected = False
 
-        # Skip tests in Array mode if memory usage too high
-        # TODO: Look into this
-        if self.gm.array_mode and psutil.virtual_memory()[2] > 50:
-            utils.log_warning(
-                'Array-CTRL',
-                f'Memory usage too high: {psutil.virtual_memory()[2]}.'
-                # ' Tile checks will be skipped.'
-                )
-            # # # range_test_passed, slice_by_slice_test_passed = True, True
-            # # # frozen_frame_error = False
-            # # # grab_incomplete = False
-            # # # load_error = False
-            # # # load_exception = False
-            # # # tile_selected = True
-            # # # return (np.zeros((1000,1000)), 0, 0,
-                    # # # range_test_passed, slice_by_slice_test_passed,
-                    # # # tile_selected,
-                    # # # load_error, load_exception, grab_incomplete, frozen_frame_error)
-        # End of Array specific code
+        # process_mem_in_use_gb = psutil.Process().memory_info().rss / 1024 / 1024 / 1024
 
         img, mean, stddev, load_error, load_exception, grab_incomplete = (
             self.load_and_inspect(filename))
@@ -179,6 +161,9 @@ class ImageInspector:
                         + '_' + 't' + str(tile_index).zfill(constants.TILE_DIGITS))
             tile_key_short = str(grid_index) + '.' + str(tile_index)
 
+            # Release old image
+            if self.gm[grid_index][tile_index].preview_img is not None:
+                del self.gm[grid_index][tile_index].preview_img
             # Save preview image
             height, width = img.shape[:2]
             preview_img = utils.resize_image(img, PREVIEW_IMG_WIDTH)

@@ -166,7 +166,7 @@ class ImportedImages(list):
         del self[index]
 
     def delete_all_images(self):
-        """Delete all imported images"""
+        """Release all imported images"""
         while len(self) > 0:
             self.delete_image(-1)
 

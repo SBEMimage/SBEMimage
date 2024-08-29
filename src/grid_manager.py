@@ -80,13 +80,15 @@ class Tile:
     @preview_src.setter
     def preview_src(self, src):
         self._preview_src = src
+        # Release old image
+        if self.preview_img is not None:
+            del self.preview_img
+        self.preview_img = None
         if os.path.isfile(src):
             try:
                 self.preview_img = utils.image_to_QPixmap(imread(src))
             except:
-                self.preview_img = None
-        else:
-            self.preview_img = None
+                pass
 
 
 class Grid(list):
