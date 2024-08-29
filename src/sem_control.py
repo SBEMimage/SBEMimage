@@ -15,6 +15,7 @@ import json
 from collections import deque
 from typing import List
 
+import utils
 from constants import Error
 
 
@@ -72,6 +73,10 @@ class SEM:
         self.target_eht = float(self.cfg['sem']['eht'])
         self.target_beam_current = int(float(self.cfg['sem']['beam_current']))
         self.target_aperture_size = float(self.cfg['sem']['aperture_size'])
+        if 'spot_size' in self.cfg['sem']:
+            self.target_spot_size = float(self.cfg['sem']['spot_size'])
+        else:
+            self.target_spot_size = 0
         self.target_high_current = False
         # self.stage_rotation: rotation angle of SEM stage (0° by default)
         self.stage_rotation = 0
@@ -154,7 +159,7 @@ class SEM:
         self.BEAM_CURRENT_MODES = json.loads(self.syscfg['sem']['beam_current_modes'])
         self.BEAM_CURRENT_MODE = json.loads(self.syscfg['sem']['beam_current_mode'])
         # self.HAS_HIGH_CURRENT: if has high current mode
-        self.HAS_HIGH_CURRENT = bool(self.syscfg['sem']['has_high_current'])
+        self.HAS_HIGH_CURRENT = utils.str_to_bool(self.syscfg['sem']['has_high_current'])
         # self.STORE_RES: available store resolutions (= frame size in pixels)
         self.STORE_RES = json.loads(self.syscfg['sem']['store_res'])
         # self.STORE_RES_DEFAULT_INDEX_TILE: default store resolution for new grids and grabbing tiles
@@ -213,6 +218,7 @@ class SEM:
             self.stage_move_check_interval)
         self.cfg['sem']['eht'] = '{0:.2f}'.format(self.target_eht)
         self.cfg['sem']['beam_current'] = str(int(self.target_beam_current))
+        self.cfg['sem']['spot_size'] = str(self.target_spot_size)
         self.cfg['sem']['aperture_size'] = str(self.target_aperture_size)
         self.cfg['sem']['grab_frame_dwell_time'] = str(self.grab_dwell_time)
         self.cfg['sem']['grab_frame_pixel_size'] = '{0:.1f}'.format(
@@ -239,6 +245,17 @@ class SEM:
             self.use_maintenance_moves)
         self.syscfg['stage']['sem_maintenance_move_interval'] = str(int(
             self.maintenance_move_interval))
+
+    def get_beam_label(self):
+        label = f'{self.target_eht:.2f} keV / '
+        beam_mode = self.BEAM_CURRENT_MODE.lower()
+        if beam_mode.startswith('aperture'):
+            label += f'{self.target_aperture_size} μm'
+        elif beam_mode.startswith('spot'):
+            label += f'{self.target_spot_size}'
+        else:
+            label += f'{self.target_beam_current} pA'
+        return label
 
     def get_grab_metadata(self, stage=None):
         if stage is not None:
@@ -419,13 +436,22 @@ class SEM:
         self.target_aperture_size = self.APERTURE_SIZE[aperture_size_index]
         # Setting SEM to target aperture size must be implemented in child class!
 
+    def get_spot_size(self):
+        """Read spot size/intensity from SmartSEM."""
+        raise NotImplementedError
+
+    def set_spot_size(self, spot_size):
+        """Set SmartSEM spot size/intensity."""
+        self.target_spot_size = spot_size
+        # Setting SEM to target spot size must be implemented in child class!
+
     def apply_beam_settings(self):
         """Set the SEM to the current target EHT voltage and beam current."""
         raise NotImplementedError
 
     def get_detector_list(self) -> List[str]:
         """Return a list of all available detectors."""
-        raise NotImplementedError
+        return []
 
     def get_detector(self) -> str:
         """Return the currently selected detector."""

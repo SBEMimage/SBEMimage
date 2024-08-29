@@ -779,10 +779,7 @@ class MainControls(QMainWindow):
             self.groupBox_stage.setTitle('Stage (no microtome)')
             self.label_microtome.setText(self.sem.device_name)
         # SEM beam settings:
-        self.label_beamSettings.setText(
-            '{0:.2f}'.format(self.sem.target_eht) + ' kV / '
-            + str(self.sem.target_beam_current) + ' pA / '
-            + str(self.sem.target_aperture_size) + ' μm')
+        self.label_beamSettings.setText(self.sem.get_beam_label())
         # Show dwell time, pixel size, and frame size for current grid:
         grid = self.gm[self.grid_index_dropdown]
         overview = self.ovm[self.ov_index_dropdown]

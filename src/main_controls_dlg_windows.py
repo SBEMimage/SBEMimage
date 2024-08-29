@@ -337,29 +337,40 @@ class SEMSettingsDlg(QDialog):
         self.sem = sem
         # Read actual values
         self.actual_eht = self.sem.get_eht()
-        self.actual_beam_current = self.sem.get_beam_current()
-        self.actual_aperture_size = self.sem.get_aperture_size()
-        self.actual_high_current = self.sem.get_high_current()
+        self.beam_mode = self.sem.BEAM_CURRENT_MODE.lower()
 
         loadUi('../gui/sem_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
-        # Display actual settings from SmartSEM
+
         self.doubleSpinBox_actualEHT.setValue(self.actual_eht)
-        self.spinBox_actualBeamCurrent.setValue(self.actual_beam_current)
-        self.spinBox_actualBeamSize.setValue(self.actual_aperture_size)
-        self.checkBox_highCurrent.setEnabled(self.sem.HAS_HIGH_CURRENT)
-        self.checkBox_highCurrent.setChecked(self.actual_high_current)
-        # Update/disable appropriate GUI elements
-        self.spinBox_beamCurrent.setEnabled(self.sem.BEAM_CURRENT_MODE == 'current')
-        self.comboBox_beamSize.setEnabled(self.sem.BEAM_CURRENT_MODE != 'current')
-        # Display current target settings
         self.doubleSpinBox_EHT.setValue(self.sem.target_eht)
-        self.spinBox_beamCurrent.setValue(self.sem.target_beam_current)
-        self.comboBox_beamSize.addItems(map(str, self.sem.APERTURE_SIZE))
-        self.comboBox_beamSize.setCurrentText(str(self.sem.target_aperture_size))
+
+        self.spinBox_beamCurrent.setEnabled(self.beam_mode == 'current')
+        self.doubleSpinBox_spotSize.setEnabled(self.beam_mode.startswith('spot'))
+        self.comboBox_beamSize.setEnabled(self.beam_mode.startswith('aperture'))
+        if self.beam_mode.startswith('aperture'):
+            self.actual_aperture_size = self.sem.get_aperture_size()
+            self.spinBox_actualBeamSize.setValue(self.actual_aperture_size)
+            self.comboBox_beamSize.clear()
+            self.comboBox_beamSize.addItems(map(str, self.sem.APERTURE_SIZE))
+            self.comboBox_beamSize.setCurrentText(str(self.sem.target_aperture_size))
+        elif self.beam_mode.startswith('spot'):
+            self.actual_spot_size = self.sem.get_spot_size()
+            self.doubleSpinBox_actualSpotSize.setValue(self.actual_spot_size)
+            self.doubleSpinBox_spotSize.setValue(self.sem.target_spot_size)
+        else:
+            self.actual_beam_current = self.sem.get_beam_current()
+            self.spinBox_actualBeamCurrent.setValue(self.actual_beam_current)
+            self.spinBox_beamCurrent.setValue(self.sem.target_beam_current)
+
+        self.checkBox_highCurrent.setEnabled(self.sem.HAS_HIGH_CURRENT)
+        if self.sem.HAS_HIGH_CURRENT:
+            self.actual_high_current = self.sem.get_high_current()
+            self.checkBox_highCurrent.setChecked(self.actual_high_current)
+
         # Display current working distance and stigmation parameters
         self.lineEdit_currentFocus.setText(
             '{0:.6f}'.format(sem.get_wd() * 1000))
@@ -429,17 +440,23 @@ class SEMSettingsDlg(QDialog):
         if self.target_eht != self.actual_eht:
             self.sem.set_eht(self.target_eht)
 
-        self.target_beam_current = self.spinBox_beamCurrent.value()
-        if self.target_beam_current != self.actual_beam_current:
-            self.sem.set_beam_current(self.target_beam_current)
+        if self.beam_mode.startswith('aperture'):
+            self.target_aperture_size = self.comboBox_beamSize.currentIndex()
+            if self.target_aperture_size != self.actual_aperture_size:
+                self.sem.set_aperture_size(self.target_aperture_size)
+        elif self.beam_mode.startswith('spot'):
+            self.target_spot_size = self.doubleSpinBox_spotSize.value()
+            if self.target_spot_size != self.actual_spot_size:
+                self.sem.set_spot_size(self.target_spot_size)
+        else:
+            self.target_beam_current = self.spinBox_beamCurrent.value()
+            if self.target_beam_current != self.actual_beam_current:
+                self.sem.set_beam_current(self.target_beam_current)
 
-        self.target_aperture_size = self.comboBox_beamSize.currentIndex()
-        if self.target_aperture_size != self.actual_aperture_size:
-            self.sem.set_aperture_size(self.target_aperture_size)
-
-        self.target_high_current = self.checkBox_highCurrent.isChecked()
-        if self.target_high_current != self.actual_high_current:
-            self.sem.set_high_current(self.target_high_current)
+        if self.sem.HAS_HIGH_CURRENT:
+            self.target_high_current = self.checkBox_highCurrent.isChecked()
+            if self.target_high_current != self.actual_high_current:
+                self.sem.set_high_current(self.target_high_current)
 
         selected_detector = self.comboBox_detector.currentText()
         if selected_detector:
@@ -2425,10 +2442,7 @@ class PreStackDlg(QDialog):
         # Show the most relevant current settings for the acquisition
         self.label_stackName.setText(self.acq.stack_name)
         self.label_sliceCounter.setText(str(self.acq.slice_counter))
-        self.label_beamSettings.setText(
-            f'{self.sem.target_eht:.2f} keV, '
-            f'{self.sem.target_beam_current} pA, '
-            f'{self.sem.target_aperture_size} μm')
+        self.label_beamSettings.setText(self.sem.get_beam_label())
         if self.acq.take_overviews:
             number_ov = ovm.total_number_active_overviews()
         else:

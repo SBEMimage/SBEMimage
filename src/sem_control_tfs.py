@@ -170,25 +170,23 @@ class SEM_Phenom(SEM):
     def set_vp_target(self, target_pressure):
         pass
 
-    def get_beam_current(self):
-        return self.target_beam_current
+    def get_spot_size(self):
+        """Read spot size/intensity from SmartSEM."""
+        return self.sem_api.GetSemSpotSize()
 
-    def set_beam_current(self, target_current):
-        self.target_beam_current = target_current
-        return True
-
-    def get_high_current(self):
-        return self.target_high_current
-
-    def set_high_current(self, high_current):
-        self.target_high_current = high_current
-        return True
-
-    def get_aperture_size(self):
-        return 30  # micrometres
-
-    def set_aperture_size(self, aperture_size_index):
-        pass
+    def set_spot_size(self, spot_size):
+        """Set SmartSEM spot size/intensity."""
+        # Call method in parent class
+        super().set_spot_size(spot_size)
+        try:
+            self.spot_size = spot_size
+            self.sem_api.SetSemSpotSize(self.spot_size)
+            return True
+        except Exception as e:
+            self.error_state = Error.beam_current
+            self.error_info = (
+                f'sem.set_spot_size: command failed ({e})')
+            return False
 
     def apply_beam_settings(self):
         """Set the SEM to the current target EHT voltage and beam current."""

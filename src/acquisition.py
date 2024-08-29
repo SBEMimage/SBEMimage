@@ -1558,7 +1558,7 @@ class Acquisition:
         ov_save_path = None
         ov_accepted = False
         rejected_by_user = False
-        check_ov_acceptance = bool(self.cfg['overviews']['check_acceptance'].lower() == 'true')
+        check_ov_acceptance = utils.str_to_bool(self.cfg['overviews']['check_acceptance'])
 
         ov_stage_position = self.ovm[ov_index].centre_sx_sy
         # Move to OV stage coordinates if required (this method can be called

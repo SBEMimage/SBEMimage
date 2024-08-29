@@ -29,7 +29,7 @@ import utils
 
 def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
                main_controls_trigger, viewport_trigger):
-    check_ov_acceptance = bool(sem.cfg['overviews']['check_acceptance'].lower() == 'true')
+    check_ov_acceptance = utils.str_to_bool(sem.cfg['overviews']['check_acceptance'])
     # Update current XY stage position
     stage.get_xy()
     success = True

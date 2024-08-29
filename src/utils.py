@@ -162,6 +162,13 @@ def log_exception(message=""):
     logger.exception(message, extra={'category': 'EXC'})
 
 
+def str_to_bool(value):
+    if isinstance(value, str):
+        return value.lower() == 'true'
+    else:
+        return bool(value)
+
+
 def read_config(filename):
     config = ConfigParser()
     with open(filename, 'r') as file:
