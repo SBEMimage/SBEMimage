@@ -2762,6 +2762,9 @@ Green: acquired</string>
       <property name="readOnly">
        <bool>true</bool>
       </property>
+      <property name="centerOnScroll">
+       <bool>true</bool>
+      </property>
      </widget>
     </item>
    </layout>
