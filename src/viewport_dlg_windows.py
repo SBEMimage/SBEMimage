@@ -604,9 +604,10 @@ class ImportImageDlg(QDialog):
 class ModifyImagesDlg(QDialog):
     """Modify imported images from the viewport."""
 
-    def __init__(self, imported_images, grid_manager, viewport_trigger):
+    def __init__(self, imported_images, grid_manager, stage, viewport_trigger):
         self.imported = imported_images
         self.gm = grid_manager
+        self.stage = stage
         self.viewport_trigger = viewport_trigger
         super().__init__()
         loadUi('../gui/modify_images_dlg.ui', self)

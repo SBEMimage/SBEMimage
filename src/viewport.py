@@ -2956,7 +2956,7 @@ class Viewport(QWidget):
             self.vp_draw()
 
     def _vp_open_modify_images_dlg(self):
-        dialog = ModifyImagesDlg(self.imported, self.gm, self.viewport_trigger)
+        dialog = ModifyImagesDlg(self.imported, self.gm, self.stage, self.viewport_trigger)
         dialog.exec()
 
     def vp_show_new_stub_overview(self):
