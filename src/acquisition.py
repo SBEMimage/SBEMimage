@@ -1479,11 +1479,12 @@ class Acquisition:
                                                sweep_counter)
                         self.img_inspector.discard_last_ov(ov_index)
                         # Try to remove debris
-                        if sweep_counter < self.max_number_sweeps:
-                            self.remove_debris()
-                            sweep_counter += 1
-                        elif sweep_counter == self.max_number_sweeps:
-                            sweep_limit = True
+                        if self.microtome is not None:
+                            if sweep_counter < self.max_number_sweeps:
+                                self.remove_debris()
+                                sweep_counter += 1
+                            elif sweep_counter == self.max_number_sweeps:
+                                sweep_limit = True
                 # ================== OV acquisition loop end ===================
 
                 cycle_time_diff = (

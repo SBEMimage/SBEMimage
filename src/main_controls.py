@@ -2102,7 +2102,7 @@ class MainControls(QMainWindow):
         grid = self.gm[grid_index]
         tile_index = self.viewport.selected_tile
         tile_folder = utils.get_tile_dirname('tiles', grid_index, grid.array_index, grid.roi_index, tile_index)
-        tile_folder = os.path.join(self.acq.base_dir, tile_folder)
+        tile_folder = os.path.join(self.acq.base_dir, *tile_folder)
         if not os.path.exists(tile_folder):
             self.try_to_create_directory(tile_folder)
         if self.acq.use_mirror_drive:
