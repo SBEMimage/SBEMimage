@@ -4,6 +4,7 @@ import os
 import tifffile
 from tifffile import TiffWriter, PHOTOMETRIC
 
+from constants import VERSION
 from utils import resize_image, int2float_image, float2int_image, norm_image_quantiles, validate_output_path
 
 # TODO: add ome.zarr support
@@ -237,7 +238,7 @@ def create_tiff_metadata(metadata, is_ome=False):
     channels = metadata.get('channels', [])
 
     if is_ome:
-        ome_metadata = {}
+        ome_metadata = {'Creator': 'SBEMimage ' + VERSION}
         ome_channels = []
         if pixel_size_um is not None:
             ome_metadata['PhysicalSizeX'] = pixel_size_um[0]
@@ -254,8 +255,8 @@ def create_tiff_metadata(metadata, is_ome=False):
             plane_metadata['PositionY'] = position[1]
             plane_metadata['PositionYUnit'] = 'µm'
             if len(position) > 2:
-                ome_metadata['PositionZ'] = position[2]
-                ome_metadata['PositionZUnit'] = 'µm'
+                plane_metadata['PositionZ'] = position[2]
+                plane_metadata['PositionZUnit'] = 'µm'
             ome_metadata['Plane'] = plane_metadata
         for channel in channels:
             ome_channel = {'Name': channel.get('label', '')}
