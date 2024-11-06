@@ -2179,7 +2179,7 @@ class Acquisition:
                                # acquired or marked as acquired
         rejected_by_user = False   # if True: rejected by user (Ask user mode)
 
-        slice_index = self.slice_counter if grid.roi_index is None else None
+        slice_index = self.slice_counter if not self.gm.array_mode else None
         relative_save_path = utils.tile_relative_save_path(
             self.stack_name, grid_index, grid.array_index, grid.roi_index, tile_index, slice_index)
         save_path = os.path.join(self.base_dir, relative_save_path)
