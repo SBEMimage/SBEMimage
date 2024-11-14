@@ -17,7 +17,6 @@ from time import sleep
 try:
     # required for Phenom API
     import PyPhenom as ppi
-    from PyPhenom import OperationalMode
 except:
     pass
 
@@ -289,14 +288,14 @@ class SEM_Phenom(SEM):
         correct_mode = True
         try:
             mode = self.sem_api.GetOperationalMode()
-            if mode == OperationalMode.Loadpos:
+            if mode == ppi.OperationalMode.Loadpos:
                 utils.log_info('SEM', 'Moving to load position')
                 self.sem_api.Load()
-            if lm_mode and mode != OperationalMode.LiveNavCam:
+            if lm_mode and mode != ppi.OperationalMode.LiveNavCam:
                 utils.log_info('SEM', 'Moving to LM mode')
                 self.sem_api.MoveToNavCam()
                 correct_mode = False
-            elif not lm_mode and mode != OperationalMode.LiveSem:
+            elif not lm_mode and mode != ppi.OperationalMode.LiveSem:
                 utils.log_info('SEM', 'Moving to EM mode')
                 self.sem_api.MoveToSem()
                 correct_mode = False
@@ -330,7 +329,8 @@ class SEM_Phenom(SEM):
                 self.set_scan_rotation(self.scan_rotation)
                 self.set_pixel_size(self.grab_pixel_size)
 
-            self.sem_api.SemUnblankBeam()
+            if self.sem_api.GetSemViewingMode() == ppi.ScanMode.Blank:
+                self.sem_api.SemUnblankBeam()
 
             if extra_delay > 0:
                 sleep(extra_delay)

@@ -94,8 +94,6 @@ def em_test(api, saveFolderFinal):
             i += 1
             print("Acquiring image " + str(i) + "/" + str(nx * ny))
 
-            api.SetHFW(1920 * 10 * 1e-9) # debugging
-
             if auto_contrast_brightness:
                 api.SemAutoContrastBrightness()
 
