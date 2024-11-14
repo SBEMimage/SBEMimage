@@ -70,7 +70,9 @@ def em_test(api, saveFolderFinal):
         api.Load()
     if mode != OperationalMode.LiveSem:
         api.MoveToSem()
-        
+
+    api.SetHFW(1920 * 10 * 1e-9)
+
     #print_info(api)
 
     scanParams = ppi.ScanParamsEx()
