@@ -329,7 +329,7 @@ class SEM_Phenom(SEM):
                 self.set_scan_rotation(self.scan_rotation)
                 self.set_pixel_size(self.grab_pixel_size)
 
-            if self.sem_api.GetSemViewingMode() == ppi.ScanMode.Blank:
+            if self.sem_api.SemGetBlankBeamState() == ppi.SemBlankState.Blanked:
                 self.sem_api.SemUnblankBeam()
 
             if extra_delay > 0:

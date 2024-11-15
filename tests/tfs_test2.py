@@ -66,9 +66,9 @@ def em_test(api, saveFolderFinal):
 
     mode = api.GetOperationalMode()
     print(mode)
-    if mode == OperationalMode.Loadpos:
+    if mode == ppi.OperationalMode.Loadpos:
         api.Load()
-    if mode != OperationalMode.LiveSem:
+    if mode != ppi.OperationalMode.LiveSem:
         api.MoveToSem()
 
     api.SetHFW(1920 * 10 * 1e-9)
