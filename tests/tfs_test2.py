@@ -3,7 +3,6 @@
 import csv
 import os
 import PyPhenom as ppi
-from PyPhenom import OperationalMode
 
 
 PPAPI_CREDENTIALS_FILENAME = '../credentials/ppapi_credentials.txt'
@@ -33,9 +32,9 @@ def lm_test(api, saveFolderFinal):
     print("setting imaging mode")
 
     mode = api.GetOperationalMode()
-    if mode == OperationalMode.Loadpos:
+    if mode == ppi.OperationalMode.Loadpos:
         api.Load()
-    if mode != OperationalMode.LiveNavCam:
+    if mode != ppi.OperationalMode.LiveNavCam:
         api.MoveToNavCam()
 
     api.MoveTo(0, 0)
@@ -66,6 +65,7 @@ def em_test(api, saveFolderFinal):
     print("setting imaging mode")
 
     mode = api.GetOperationalMode()
+    print(mode)
     if mode == OperationalMode.Loadpos:
         api.Load()
     if mode != OperationalMode.LiveSem:
@@ -83,6 +83,8 @@ def em_test(api, saveFolderFinal):
     scanParams.center = ppi.Position(0, 0)
     scanParams.detector = ppi.DetectorMode.All
     scanParams.nFrames = 1
+    
+    print(api.GetSemViewingMode())
 
     print("starting EM imaging")
 
@@ -164,6 +166,18 @@ if __name__ == '__main__':
 
     api = init_api()
     print(api.versionInfo)
+    
+    print(api.SemGetBlankBeamState())
+    
+    api.SemBlankBeam()
+    
+    print(api.SemGetBlankBeamState())
+    print(api.SemGetBlankBeamState() == ppi.SemBlankState.Blanked)
+    
+    api.SemUnblankBeam()
+    
+    print(api.SemGetBlankBeamState())
+    print(api.SemGetBlankBeamState() == ppi.SemBlankState.Blanked)
 
     #lm_test(api, saveFolderFinal)
-    em_test(api, saveFolderFinal)
+    #em_test(api, saveFolderFinal)
