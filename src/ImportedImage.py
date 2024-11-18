@@ -49,6 +49,10 @@ class ImportedImage:
                 image_pixel_size = metadata.get('pixel_size')
                 if image_pixel_size is not None:
                     self.image_pixel_size = image_pixel_size[0] * 1e3
+                position = metadata.get('position', (0, 0))
+                if isinstance(position[0], (list, tuple)):
+                    position = position[0]
+                self.origin = position
                 image = imread(self.image_src)
                 height, width = image.shape[:2]
                 self.size = [width, height]

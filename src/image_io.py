@@ -141,10 +141,14 @@ def imread_metadata(path):
                 pixels = metadata.get('Image', {}).get('Pixels', {})
                 pixel_size = [(float(pixels.get('PhysicalSizeX', 0)), pixels.get('PhysicalSizeXUnit', 'µm')),
                               (float(pixels.get('PhysicalSizeY', 0)), pixels.get('PhysicalSizeYUnit', 'µm'))]
-                plane = pixels.get('Plane', {})
-                if 'PositionX' in plane and 'PositionY' in plane:
-                    position = [(float(plane['PositionX']), plane.get('PositionXUnit', 'µm')),
-                                (float(plane['PositionY']), plane.get('PositionYUnit', 'µm'))]
+                planes = pixels.get('Plane', [])
+                if not isinstance(planes, list):
+                    planes = [planes]
+                for plane in planes:
+                    if 'PositionX' in plane and 'PositionY' in plane:
+                        position1 = [(float(plane['PositionX']), plane.get('PositionXUnit', 'µm')),
+                                     (float(plane['PositionY']), plane.get('PositionYUnit', 'µm'))]
+                        position.append(convert_units_micrometer(position1))
                 channels0 = pixels.get('Channel', [])
                 if not isinstance(channels0, list):
                     channels0 = [channels0]
@@ -181,7 +185,7 @@ def imread_metadata(path):
                             pixel_size.append((pixel_info['value'], pixel_info['unit']))
                         position = metadata.get('samplePosition')
                         if position:
-                            position = [(position['x'], 'm'), (position['y'], 'm')]
+                            position = convert_units_micrometer([(position['x'], 'm'), (position['y'], 'm')])
                         rotation = metadata.get('acquisition', {}).get('frame', {}).get('rotation')
                 if not pixel_size:
                     units = tags.get('ResolutionUnit')
@@ -214,8 +218,7 @@ def imread_metadata(path):
         pixel_size_um = convert_units_micrometer(pixel_size)
         all_metadata['pixel_size'] = pixel_size_um
     if len(position) > 0:
-        position_um = convert_units_micrometer(position)
-        all_metadata['position'] = position_um
+        all_metadata['position'] = position
     if rotation is not None:
         all_metadata['rotation'] = rotation
     if len(channels) > 0:
@@ -230,7 +233,9 @@ def create_tiff_metadata(metadata, is_ome=False):
     pixel_size_um = None
 
     pixel_size = metadata.get('pixel_size')
-    position = metadata.get('position')
+    positions = metadata.get('position', [])
+    if not isinstance(positions, list):
+        positions = [positions]
     if pixel_size is not None:
         pixel_size_um = convert_units_micrometer(pixel_size)
         resolution_unit = 'CENTIMETER'
@@ -248,15 +253,15 @@ def create_tiff_metadata(metadata, is_ome=False):
             if len(pixel_size_um) > 2:
                 ome_metadata['PhysicalSizeZ'] = pixel_size_um[2]
                 ome_metadata['PhysicalSizeZUnit'] = 'µm'
-        if position is not None:
+        if positions is not None and len(positions) > 0:
             plane_metadata = {}
-            plane_metadata['PositionX'] = position[0]
-            plane_metadata['PositionXUnit'] = 'µm'
-            plane_metadata['PositionY'] = position[1]
-            plane_metadata['PositionYUnit'] = 'µm'
-            if len(position) > 2:
-                plane_metadata['PositionZ'] = position[2]
-                plane_metadata['PositionZUnit'] = 'µm'
+            plane_metadata['PositionX'] = [float(position1[0]) for position1 in positions]
+            plane_metadata['PositionXUnit'] = ['µm' for _ in positions]
+            plane_metadata['PositionY'] = [float(position1[1]) for position1 in positions]
+            plane_metadata['PositionYUnit'] = ['µm' for _ in positions]
+            if len(positions[0]) > 2:
+                plane_metadata['PositionZ'] = [float(position1[2]) for position1 in positions]
+                plane_metadata['PositionZUnit'] = ['µm' for _ in positions]
             ome_metadata['Plane'] = plane_metadata
         for channel in channels:
             ome_channel = {'Name': channel.get('label', '')}

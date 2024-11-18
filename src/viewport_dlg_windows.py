@@ -518,10 +518,12 @@ class ImportImageDlg(QDialog):
                 metadata = imread_metadata(selected_file)
                 pixel_size = metadata.get('pixel_size')
                 if pixel_size:
-                    pxel_size_nm = pixel_size[0] * 1e3
-                    self.doubleSpinBox_pixelSize.setValue(pxel_size_nm)
+                    pixel_size_nm = pixel_size[0] * 1e3
+                    self.doubleSpinBox_pixelSize.setValue(pixel_size_nm)
                 position = metadata.get('position')
                 if position:
+                    if isinstance(position[0], (list, tuple)):
+                        position = position[0]
                     self.doubleSpinBox_posX.setValue(position[0])
                     self.doubleSpinBox_posY.setValue(position[1])
                 rotation = metadata.get('rotation')

@@ -10,6 +10,7 @@
 
 """This module provides the commands to operate the SEM. Only the functions
 that are actually required in SBEMimage have been implemented."""
+import os.path
 
 import numpy as np
 from time import sleep
@@ -36,32 +37,24 @@ class SEM_Phenom(SEM):
     def __init__(self, config, sysconfig):
         super().__init__(config, sysconfig)
 
-        self.sem_api = None
         self.detector = self.DEFAULT_DETECTOR
 
-        if not self.simulation_mode:
-            try:
-                phenom_id, username, password = utils.load_csv(self.PPAPI_CREDENTIALS_FILENAME)
-                if len(username) == 0:
-                    username = ''
-                if len(password) == 0:
-                    password = ''
-                self.sem_api = ppi.Phenom(phenom_id, username, password)
-            except Exception as e:
-                self.error_state = Error.smartsem_api
-                self.error_info = str(e)
-                self.simulation_mode = True
-        if self.simulation_mode:
-            self.sem_api = ppi.Phenom('Simulator', '', '')
-
-        if self.sem_api is not None:
-            self.sem_api.Activate()
-            if self.use_sem_stage:
-                # Read current SEM stage coordinates
-                self.last_known_x, self.last_known_y = self.get_stage_xy()
+        if not self.simulation_mode and os.path.exists(self.PPAPI_CREDENTIALS_FILENAME):
+            phenom_id, username, password = utils.load_csv(self.PPAPI_CREDENTIALS_FILENAME)
         else:
+            phenom_id, username, password = 'Simulator', '', ''
+
+        try:
+            self.sem_api = ppi.Phenom(phenom_id, username, password)
+            self.sem_api.Activate()
+        except Exception as e:
             self.error_state = Error.smartsem_api
-            self.error_info = ''
+            self.error_info = str(e)
+            self.simulation_mode = True
+
+        if self.use_sem_stage:
+            # Read current SEM stage coordinates
+            self.last_known_x, self.last_known_y = self.get_stage_xy()
 
     def has_lm_mode(self):
         return True

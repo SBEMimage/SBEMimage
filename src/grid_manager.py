@@ -1616,7 +1616,7 @@ class GridManager(list):
         _, _, source_rotation = (
             self.array_data.get_roi_stage_properties(source, imported_image, sem_stage_flipped))
 
-        source_section_center = np.array(source['center'])
+        source_section_center = np.array(source['center']) - np.array(imported_image.origin)
         source_section_angle = source['angle'] % 360
 
         source_grid_center = utils.apply_transform(source_grid.centre_sx_sy, np.linalg.inv(self.array_data.transform))
@@ -1635,7 +1635,7 @@ class GridManager(list):
                     _, _, target_rotation = (
                         self.array_data.get_roi_stage_properties(target, imported_image, sem_stage_flipped))
 
-                    target_section_center = np.array(target['center'])
+                    target_section_center = np.array(target['center']) - np.array(imported_image.origin)
                     target_section_angle = target['angle'] % 360
 
                     # set all parameters in target grid

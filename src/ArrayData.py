@@ -323,7 +323,8 @@ class ArrayData:
         # Get rectangle: use angle corresponding to rectangle size
         center0, size0, angle0 = utils.calc_rotated_rect(source['polygon'])
         size = np.multiply(size0, imported_image.scale)
-        center = utils.apply_transform(source['center'], self.transform)
+        position0 = np.array(source['center']) - np.array(imported_image.origin)
+        center = utils.apply_transform(position0, self.transform)
         rotation = imported_image.rotation
         if imported_image.flipped:
             rotation -= angle0
