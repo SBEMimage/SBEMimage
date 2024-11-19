@@ -86,7 +86,7 @@ class TestSem:
             assert isinstance(image, np.ndarray)
             image_metadata = imread_metadata(output_filename)
             assert image_metadata['pixel_size'][0] == pixel_size_um
-            assert tuple(image_metadata['position']) == tuple(stage_position)
+            assert tuple(image_metadata['position'][0]) == tuple(stage_position)
         else:
             pytest.fail('Acquisition failed')
 
