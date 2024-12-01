@@ -11,6 +11,8 @@
 
 from time import sleep
 import serial
+import threading
+import sys
 
 import utils
 from utils import Error
@@ -26,6 +28,8 @@ class Microtome_katana(Microtome):
 
     def __init__(self, config, sysconfig):
         super().__init__(config, sysconfig)
+        self.KMS_factor = 1
+        self.knife_min_KMS_val = 50
         self.selected_port = sysconfig['device']['katana_com_port']
         self.clear_position = int(sysconfig['knife']['katana_clear_position'])
         self.retract_clearance = int(float(
@@ -103,7 +107,7 @@ class Microtome_katana(Microtome):
                 print('Starting Z position: ' + str(self.last_known_z) + 'µm')
             else:
                 self.connected = False
-                print('Handshake with katana failed.')
+                print('Handshake with katana failed...')
         
     def initialise_motor(self):
          self._send_command('XM2')
@@ -149,11 +153,22 @@ class Microtome_katana(Microtome):
             # purposes. (it is very fast though, so you can use it in a loop
             # to update the GUI)
             # self._read_realtime_data()
+            self._send_command('KKM')
+            response = self._read_response()
+            if(response.startswith('KKM')):
+                response = response.rstrip()
+                response = response.replace('KKM', '')
+                self.knife_position = response
+                
+            
             print("Knife status: "
                   + knife_status
                   + ", \tKnife pos: "
                   + str(self.knife_position)
                   + "µm")
+            #1print("Knife status: " + knife_status + ", \tKnife pos: " + str(self.knife_position) + "µm", end='\r')
+            #sys.stdout.flush()
+
 
             if knife_status == 'KKP:0':    # If knife is not moving
                 print('Knife stopped (KKP:0)')
@@ -222,13 +237,13 @@ class Microtome_katana(Microtome):
         # Move to cutting window
         # (good practice to check the knife is not moving before starting)
         self._wait_until_knife_stopped()
-        print('Moving to cutting position '
-              + str(self.cut_window_start) + ' ...')
-        self._send_command('KMS' + str(self.knife_fast_speed))
+        print('Moving to cutting position ')
+        #4self._send_command('KMS' + str(self.knife_fast_speed) + str(self.cut_window_start) + ' ...')
+        self._send_command('KMS' + str(int(self.knife_fast_speed*self.KMS_factor)))
         # send required speed. The reason I'm setting it every time before
         # moving is that I'm using two different speeds
         # (knifeFastSpeed & knifeCutSpeed)
-        self._send_command('KKM' + str(self.cut_window_start))   # send required position
+        self._send_command('KKM' + str(self.cut_window_start) +';')   # send required position
 
         # Turn oscillator on
         self._wait_until_knife_stopped()
@@ -239,8 +254,8 @@ class Microtome_katana(Microtome):
 
         # Cut sample
         print('Cutting sample...')
-        self._send_command('KMS' + str(self.knife_cut_speed))
-        self._send_command('KKM' + str(self.cut_window_end))
+        self._send_command('KMS' + str(int(self.knife_cut_speed*self.KMS_factor)))
+        self._send_command('KKM' + str(self.cut_window_end) + ';')
 
         # Turn oscillator off
         self._wait_until_knife_stopped()
@@ -248,21 +263,41 @@ class Microtome_katana(Microtome):
             self._send_command('KOA0')
 
         # Drop sample
-        print('Dropping sample by ' + str(self.retract_clearance/1000) + 'µm...')
+        # don't let it drop below zero:
+        """    
+        modified_retract_clearance = int(1000*min(self.last_known_z, (self.retract_clearance / 1000)))/1000
+        print('modified_retract_clearance = '+str(modified_retract_clearance)+" um")
+        if modified_retract_clearance != self.retract_clearance/1000:
+            print('Dropping sample by ' + str(modified_retract_clearance) + 'µm (out of a requested '+str(self.retract_clearance/1000)+')')
+        """
+        # nm = retract_clearance, 
+        # um = last_known_z, modified_retract_clearance, move_stage_to_z(z, speed)
+        if self.last_known_z <= (self.retract_clearance / 1000):
+                print('Dropping sample by ' + str(self.last_known_z) + 'µm (out of a requested '+str(self.retract_clearance/1000)+')') 
+                modified_retract_clearance = self.last_known_z
+                self.move_stage_to_z(0, 300)
+        else:
+            modified_retract_clearance = self.retract_clearance/1000
+            print('Dropping sample by ' + str(modified_retract_clearance) + 'µm...')
+            self.move_stage_to_z(self.last_known_z - modified_retract_clearance, 300)
+        print('modified_retract_clearance = '+str(modified_retract_clearance)+" um")
         # TODO: discuss how Z is handled:
         # drop sample before knife retract
-        self.move_stage_to_z(
-            self.last_known_z - self.retract_clearance / 1000, 300)
+        # self.move_stage_to_z(self.last_known_z - self.retract_clearance / 1000, 300)
+        
+
+
 
         # Retract knife
         print('Retracting knife...')
-        self._send_command('KMS' + str(self.knife_fast_speed))
-        self._send_command('KKM' + str(self.clear_position))
+        self._send_command('KMS' + str(int(self.knife_fast_speed*self.KMS_factor)))
+        self._send_command('KKM' + str(self.clear_position)+';')
 
         # Raise sample to cutting plane
         self._wait_until_knife_stopped()
         print('Returning sample to cutting plane...')
-        self.move_stage_to_z(self.last_known_z + self.retract_clearance / 1000, 300)
+        # self.move_stage_to_z(self.last_known_z + self.retract_clearance / 1000, 300)
+        self.move_stage_to_z(self.last_known_z + modified_retract_clearance, 300)
         self.cut_completed = True
         
     def check_cut_cycle_status(self):
@@ -297,35 +332,51 @@ class Microtome_katana(Microtome):
         # Cut sample
         self._wait_until_knife_stopped()
         print('Cutting sample...')
-        # self._send_command('KMS' + str(self.knife_cut_speed)) # For now, keep fast speed for approach cutting. Can add setting later
-        self._send_command('KKM' + str(0))
-
+       		#self._send_command('KMS' + str(self.knife_cut_speed)) # For now, keep fast speed for approach cutting. Can add setting later
+        self._send_command('KMS' + str(int(self.knife_cut_speed*self.KMS_factor)))
+        self._send_command('KKM' +  str(self.cut_window_end) + ';') #str(0) + ';')
 
         # Return to cutting window start
         self._wait_until_knife_stopped()
-        print('Moving to cutting position '
-              + str(self.cut_window_start) + ' ...')
-        self._send_command('KMS' + str(self.knife_fast_speed))
-        # send required speed. The reason I'm setting it every time before
-        # moving is that I'm using two different speeds
-        # (knifeFastSpeed & knifeCutSpeed)
-        self._send_command('KKM' + str(self.cut_window_start))   # send required position
-        ###self._send_command('KKM' + str(1000))   # send required position
-
-
-        # Turn oscillator off
-        self._wait_until_knife_stopped()
+        
+        if self.last_known_z <= 1:
+            print('Dropping sample by ' + str(self.last_known_z) + 'µm (out of a requested '+str(1)+')') 
+            self.move_stage_to_z(0, 300)
+        else:
+            print('Dropping sample by ' + str(1) + 'µm...')
+            self.move_stage_to_z(self.last_known_z - 1, 300)
+            
+        # Turn oscillator off       
         if self.use_oscillation:
             self._send_command('KOA0')
             
+        print('Moving to cutting position '
+              + str(self.cut_window_start) + ' ...')
+        self._send_command('KMS' + str(int(self.knife_fast_speed*self.KMS_factor)))
+        # send required speed. The reason I'm setting it every time before
+        # moving is that I'm using two different speeds
+        # (knifeFastSpeed & knifeCutSpeed)
+        self._send_command('KKM' + str(self.cut_window_start)+ ';')   # send required position
+        ###self._send_command('KKM' + str(1000))   # send required position
+
+
+        self._wait_until_knife_stopped()
+        print('Returning sample to cutting plane...')
+        self.move_stage_to_z(self.last_known_z + 1, 300)
+
+            
 
     def do_sweep(self, z_position):
-        """Perform a sweep by cutting slightly above the surface."""
+        # """Perform a sweep by cutting slightly above the surface."""
+        print("d")
         print('def do_sweep(self, z_position)')
         self._wait_until_knife_stopped()
         print('Moving to cutting position '
-              + str(self.cut_window_start) + ' ...')
-        self._send_command('KMS' + str(self.knife_fast_speed))
+              + str(self.cut_window_start) + ', at speed ' + str(self.knife_fast_speed) +  ' ...')
+        sleep(0.1)
+        self._send_command('KMS' + str(int(self.knife_fast_speed*self.KMS_factor)))
+        #hself._send_command('KMS500')
+        sleep(0.1)
         self._send_command('KKM' + str(self.cut_window_start))   # send required position
         self._wait_until_knife_stopped()
 
@@ -335,24 +386,36 @@ class Microtome_katana(Microtome):
         self._send_command('KKM' + str(self.cut_window_end))
         self._wait_until_knife_stopped()
 
+        if self.last_known_z <= 1:
+            print('Dropping sample by ' + str(self.last_known_z) + 'µm (out of a requested '+str(1)+')') 
+            self.move_stage_to_z(0, 300)
+        else:
+            print('Dropping sample by ' + str(1) + 'µm...')
+            self.move_stage_to_z(self.last_known_z - 1, 300)
+
         self.retract_knife()
-        self._wait_until_knife_stopped()        
+        self._wait_until_knife_stopped()  
+        print('Returning sample to cutting plane...')
+        self.move_stage_to_z(self.last_known_z + 1, 300)
 
     def cut(self):
         print('def cut(self)')
-        self._send_command('KKM0')
+        self._send_command('KKM0;')
         pass
 
     def retract_knife(self):
         print('def retract(self)')
-        self._send_command('KKM5000')
+        #self._send_command('KKM10000;')
+        self._send_command('KKM' + str(self.clear_position))
         pass
 
     def get_stage_z(self, wait_interval=0.5):
         """Get current Z position"""
+        print("getting Z")
         self.com_port.flushInput()
         self._send_command('KE')
         response = self._read_response()
+        print(response)
         # response will look like 'KE:120000' (for position of 0.12mm)
         response = response.rstrip();
         response = response.replace('KE:', '')
@@ -368,7 +431,7 @@ class Microtome_katana(Microtome):
 
     def move_stage_to_z(self, z, speed=100, safe_mode=True):
         """Move to specified Z position, and block until it is reached."""
-        print('Moving to Z=' + str(z) + 'µm...')
+        print('Moving to Z=' + str(int(z*1000)/1000) + 'µm...')
         # Use nanometres for katana Z position
         target_z = 1000 * z
         self._send_command('KT' + str(target_z) + ',' + str(speed))
@@ -385,13 +448,14 @@ class Microtome_katana(Microtome):
     def near_knife(self):
         #self.add_to_log('ssearle - nearing knife (KKM0)') # not working. not sure how to add to log from here
         print('ssearle - nearing knife (KKM0)') # print command goes to the terminal window, which is fine for debugging
-        self._send_command('KKM0')
+        self._send_command('KKM0;')
         pass
 
     def clear_knife(self):
         print('def clear_knife(self)')
-        print('ssearle - clearing knife (KKM5256)')
-        self._send_command('KKM5256')
+        print('ssearle - ' + 'KKM' + str(self.clear_position))
+        #(self._send_command('KKM10000;')
+        self._send_command('KKM' + str(self.clear_position))
         pass
 
     def get_clear_position(self):
