@@ -29,7 +29,7 @@ def grid_manager():
     return GridManager(config, sem, cs)
 
 def test_initial_config(grid_manager):
-	assert grid_manager.number_grids == 1
+    assert grid_manager.number_grids == 1
 
 def test_create_new_grids(grid_manager):
     grid_manager.add_new_grid()

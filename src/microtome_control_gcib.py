@@ -2,9 +2,10 @@ import time
 from time import sleep
 import json
 import numpy as np
+
+from constants import Error
 from microtome_control import BFRemover
 import utils
-from utils import Error
 
 
 try:

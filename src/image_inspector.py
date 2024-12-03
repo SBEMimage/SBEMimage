@@ -16,18 +16,13 @@ import json
 import psutil
 import numpy as np
 
-from time import sleep
-from imageio import imwrite
 from scipy.signal import medfilt2d
 from collections import deque
-from PIL import Image
-from PIL.ImageQt import ImageQt
-from PyQt5.QtGui import QPixmap
 
+import constants
+from image_io import imread, imwrite
 import utils
 
-# Remove image size limit in PIL (Pillow) to prevent DecompressionBombError
-Image.MAX_IMAGE_PIXELS = None
 
 # Preview image width in pixels
 PREVIEW_IMG_WIDTH = 512
@@ -126,9 +121,10 @@ class ImageInspector:
         load_exception = ''
         grab_incomplete = False
 
+        if not os.path.exists(filename):
+            load_error = True
         try:
-            # TODO: Switch to skimage / imageio?
-            img = Image.open(filename)
+            img = imread(filename)
         except Exception as e:
             load_exception = str(e)
             load_error = True
@@ -142,61 +138,37 @@ class ImageInspector:
             # Was complete image grabbed? Test if first or final line of image
             # is black/white/uniform greyscale
             height = img.shape[0]
-            first_line = img[0:1,:]
-            final_line = img[height-1:height,:]
+            first_line = img[0:1, :]
+            final_line = img[height-1:height, :]
             grab_incomplete = (np.min(first_line) == np.max(first_line) or
                                np.min(final_line) == np.max(final_line))
 
         return img, mean, stddev, load_error, load_exception, grab_incomplete
-
 
     def process_tile(self, filename, grid_index, tile_index, slice_counter):
         range_test_passed, slice_by_slice_test_passed = False, False
         frozen_frame_error = False
         tile_selected = False
 
-        # Skip tests in MagC mode if memory usage too high
-        # TODO: Look into this
-        if self.magc_mode and psutil.virtual_memory()[2] > 50:
-            utils.log_warning(
-                'MagC-WARNING',
-                f'Memory usage too high: {psutil.virtual_memory()[2]}.'
-                # ' Tile checks will be skipped.'
-                )
-            # # # range_test_passed, slice_by_slice_test_passed = True, True
-            # # # frozen_frame_error = False
-            # # # grab_incomplete = False
-            # # # load_error = False
-            # # # load_exception = False
-            # # # tile_selected = True
-            # # # return (np.zeros((1000,1000)), 0, 0,
-                    # # # range_test_passed, slice_by_slice_test_passed,
-                    # # # tile_selected,
-                    # # # load_error, load_exception, grab_incomplete, frozen_frame_error)
-        # End of MagC-specific code
+        # process_mem_in_use_gb = psutil.Process().memory_info().rss / 1024 / 1024 / 1024
 
         img, mean, stddev, load_error, load_exception, grab_incomplete = (
             self.load_and_inspect(filename))
 
         if not load_error:
 
-            tile_key = ('g' + str(grid_index).zfill(utils.GRID_DIGITS)
-                        + '_' + 't' + str(tile_index).zfill(utils.TILE_DIGITS))
+            tile_key = ('g' + str(grid_index).zfill(constants.GRID_DIGITS)
+                        + '_' + 't' + str(tile_index).zfill(constants.TILE_DIGITS))
             tile_key_short = str(grid_index) + '.' + str(tile_index)
 
+            # Release old image
+            if self.gm[grid_index][tile_index].preview_img is not None:
+                del self.gm[grid_index][tile_index].preview_img
             # Save preview image
-            height, width = img.shape[0], img.shape[1]
-            img_tostring = img.tostring()
-            preview_img = Image.frombytes(
-                'L', (width, height),
-                img_tostring).resize((
-                    PREVIEW_IMG_WIDTH,
-                    int(PREVIEW_IMG_WIDTH * height / width)),
-                    resample=Image.BILINEAR)
-
+            height, width = img.shape[:2]
+            preview_img = utils.resize_image(img, PREVIEW_IMG_WIDTH)
             # Convert to QPixmap and save in grid_manager
-            self.gm[grid_index][tile_index].preview_img = QPixmap.fromImage(
-                ImageQt(preview_img))
+            self.gm[grid_index][tile_index].preview_img = utils.image_to_QPixmap(preview_img)
 
             # Compare with previous mean and std to check for frozen frame
             # error in SmartSEM
@@ -210,10 +182,10 @@ class ImageInspector:
             # of the image. This works for all frame resolutions.
             img_reslice_line = img[int(height/2):int(height/2)+1,
                 int(width/2)-200:int(width/2)+200]
-            self.tile_reslice_line[tile_key] = (img_reslice_line)
+            self.tile_reslice_line[tile_key] = img_reslice_line
 
             # Save mean and std in memory. Add key to dictionary if tile is new.
-            if not tile_key in self.tile_means:
+            if tile_key not in self.tile_means:
                 self.tile_means[tile_key] = []
             # Save mean and stddev in tile list
             if len(self.tile_means[tile_key]) > 1:
@@ -222,7 +194,7 @@ class ImageInspector:
             # Add the newest
             self.tile_means[tile_key].append((slice_counter, mean))
 
-            if not tile_key in self.tile_stddevs:
+            if tile_key not in self.tile_stddevs:
                 self.tile_stddevs[tile_key] = []
             if len(self.tile_stddevs[tile_key]) > 1:
                 self.tile_stddevs[tile_key].pop(0)
@@ -257,7 +229,6 @@ class ImageInspector:
             # ...
             tile_selected = True
 
-            del img_tostring
             del preview_img
 
         return (img, mean, stddev,
@@ -268,15 +239,15 @@ class ImageInspector:
         """Write mean and SD of specified tile to disk."""
         success = True
         error_msg = ''
-        tile_key = ('g' + str(grid_index).zfill(utils.GRID_DIGITS)
-                    + '_' + 't' + str(tile_index).zfill(utils.TILE_DIGITS))
+        tile_key = ('g' + str(grid_index).zfill(constants.GRID_DIGITS)
+                    + '_' + 't' + str(tile_index).zfill(constants.TILE_DIGITS))
         if tile_key in self.tile_means and tile_key in self.tile_stddevs:
             stats_filename = os.path.join(
                 base_dir, 'meta', 'stats', tile_key + '.dat')
             # Append to existing file or create new file
             try:
                 with open(stats_filename, 'a') as file:
-                    file.write(str(slice_counter).zfill(utils.SLICE_DIGITS)
+                    file.write(str(slice_counter).zfill(constants.SLICE_DIGITS)
                                + ';' + str(self.tile_means[tile_key][-1][1])
                                + ';' + str(self.tile_stddevs[tile_key][-1][1])
                                + '\n')
@@ -288,21 +259,21 @@ class ImageInspector:
             error_msg = 'Mean/StdDev of specified tile not found.'
         return success, error_msg
 
-    def save_tile_reslice(self, base_dir, grid_index, tile_index):
+    def save_tile_reslice(self, base_dir, grid_index, array_index, roi_index, tile_index):
         """Write reslice line of specified tile to disk."""
-        tile_key = ('g' + str(grid_index).zfill(utils.GRID_DIGITS)
-                    + '_' + 't' + str(tile_index).zfill(utils.TILE_DIGITS))
+        tile_key = ('g' + str(grid_index).zfill(constants.GRID_DIGITS)
+                    + '_' + 't' + str(tile_index).zfill(constants.TILE_DIGITS))
         success = True
         error_msg = ''
         if (tile_key in self.tile_reslice_line
-            and self.tile_reslice_line[tile_key].shape[1] == 400):
-            reslice_filename = os.path.join(
-                base_dir, 'workspace', 'reslices', 'r_' + tile_key + '.png')
-            reslice_img = None
+                and self.tile_reslice_line[tile_key].shape[1] == 400):
+            reslice_filename = utils.tile_reslice_save_path(
+                base_dir, grid_index, array_index, roi_index, tile_index)
             # Open reslice file if it exists and save updated reslice
             try:
+                reslice_img = None
                 if os.path.isfile(reslice_filename):
-                    reslice_img = np.array(Image.open(reslice_filename))
+                    reslice_img = imread(reslice_filename)
                 if reslice_img is not None and reslice_img.shape[1] == 400:
                     new_reslice_img = np.concatenate(
                         (reslice_img, self.tile_reslice_line[tile_key]))
@@ -369,7 +340,7 @@ class ImageInspector:
         if ov_index in self.ov_means and ov_index in self.ov_stddevs:
             stats_filename = os.path.join(
                 base_dir, 'meta', 'stats',
-                'OV' + str(ov_index).zfill(utils.OV_DIGITS) + '.dat')
+                'OV' + str(ov_index).zfill(constants.OV_DIGITS) + '.dat')
             # Append to existing file or create new file
             try:
                 with open(stats_filename, 'a') as file:
@@ -390,14 +361,12 @@ class ImageInspector:
         error_msg = ''
         if (ov_index in self.ov_reslice_line
             and self.ov_reslice_line[ov_index].shape[1] == 400):
-            reslice_filename = os.path.join(
-                base_dir, 'workspace', 'reslices',
-                'r_OV' + str(ov_index).zfill(utils.OV_DIGITS) + '.png')
+            reslice_filename = utils.ov_reslice_save_path(base_dir, ov_index)
             reslice_img = None
             # Open reslice file if it exists and save updated reslice
             try:
                 if os.path.isfile(reslice_filename):
-                    reslice_img = np.array(Image.open(reslice_filename))
+                    reslice_img = imread(reslice_filename)
                 if reslice_img is not None and reslice_img.shape[1] == 400:
                     new_reslice_img = np.concatenate(
                         (reslice_img, self.ov_reslice_line[ov_index]))
@@ -537,3 +506,4 @@ class ImageInspector:
         self.tile_means = {}
         self.tile_stddevs = {}
         self.tile_reslice_line = {}
+        self.prev_img_mean_stddev = [0, 0]

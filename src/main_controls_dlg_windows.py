@@ -16,7 +16,6 @@ import math
 import os
 import re
 import string
-import threading
 import datetime
 import glob
 import json
@@ -31,31 +30,28 @@ from time import sleep, time
 from validate_email import validate_email
 from math import atan, atan2, sqrt
 from statistics import mean
-from PIL import Image
-from skimage.io import imread
 from skimage.registration import phase_cross_correlation
 import numpy as np
 from imreg_dft import translation
 from zipfile import ZipFile
 from typing import Tuple
 
-from PyQt5.uic import loadUi
-from PyQt5.QtCore import Qt, QObject, QSize, pyqtSignal, QThread
-from PyQt5.QtGui import QPixmap, QIcon, QPalette, QColor, QFont
-from PyQt5.QtWidgets import QApplication, QDialog, QMessageBox, \
-                            QFileDialog, QLineEdit, QDialogButtonBox
+from qtpy.uic import loadUi
+from qtpy.QtCore import Qt, QSize, Signal, QThread
+from qtpy.QtGui import QPixmap, QIcon, QPalette, QColor, QFont
+from qtpy.QtWidgets import QApplication, QDialog, QMessageBox, \
+                            QFileDialog, QLineEdit
 
-import utils
+import constants
+from constants import VERSION, Error
+from image_io import imread
 from sem_control_mock import SEM_Mock
-from utils import Error
-import acq_func
-
-import magc_utils
+import utils
 
 
 class UpdateQThread(QThread):
     """Helper for updating QDialogs using QThread"""
-    update = pyqtSignal()
+    update = Signal()
 
     def __init__(self, secs):
         self.active = True
@@ -82,16 +78,16 @@ class ConfigDlg(QDialog):
     for different SEM and microtome models including mocks.
     """
 
-    def __init__(self, version):
+    def __init__(self):
         super().__init__()
         self.device_presets_selection = [None, None]
         self.load_presets_enabled = False
         loadUi('../gui/config_dlg.ui', self)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
-        if 'dev' in version.lower():
-            self.label_version.setText(f'DEVELOPMENT VERSION ({version})')
+        self.setWindowIcon(utils.get_window_icon())
+        if 'dev' in VERSION.lower():
+            self.label_version.setText(f'DEVELOPMENT VERSION ({VERSION})')
         else:
-            self.label_version.setText('Version ' + version)
+            self.label_version.setText('Version ' + VERSION)
         self.labelIcon.setPixmap(QPixmap('../img/logo.png'))
         self.label_website.setText('<a href="https://github.com/SBEMimage">'
                                    'https://github.com/SBEMimage</a>')
@@ -164,7 +160,7 @@ class ConfigDlg(QDialog):
     def open_device_selection_dlg(self):
         dialog = DeviceSelectionDlg(self.load_presets_enabled,
                                     self.device_presets_selection)
-        if dialog.exec_():
+        if dialog.exec():
             self.device_presets_selection = dialog.selected_presets
             self.load_presets_enabled = dialog.presets_enabled
 
@@ -190,7 +186,7 @@ class DeviceSelectionDlg(QDialog):
         self.presets_enabled = presets_enabled
         loadUi('../gui/device_selection_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         syscfg = configparser.ConfigParser()
@@ -257,7 +253,7 @@ class SaveConfigDlg(QDialog):
         self.new_syscfg = new_syscfg
         loadUi('../gui/save_config_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         self.lineEdit_cfgFileName.setText('')
@@ -341,29 +337,40 @@ class SEMSettingsDlg(QDialog):
         self.sem = sem
         # Read actual values
         self.actual_eht = self.sem.get_eht()
-        self.actual_beam_current = self.sem.get_beam_current()
-        self.actual_aperture_size = self.sem.get_aperture_size()
-        self.actual_high_current = self.sem.get_high_current()
+        self.beam_mode = self.sem.BEAM_CURRENT_MODE.lower()
 
         loadUi('../gui/sem_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
-        # Display actual settings from SmartSEM
+
         self.doubleSpinBox_actualEHT.setValue(self.actual_eht)
-        self.spinBox_actualBeamCurrent.setValue(self.actual_beam_current)
-        self.spinBox_actualBeamSize.setValue(self.actual_aperture_size)
-        self.checkBox_highCurrent.setEnabled(self.sem.HAS_HIGH_CURRENT)
-        self.checkBox_highCurrent.setChecked(self.actual_high_current)
-        # Update/disable appropriate GUI elements
-        self.spinBox_beamCurrent.setEnabled(self.sem.BEAM_CURRENT_MODE == 'current')
-        self.comboBox_beamSize.setEnabled(self.sem.BEAM_CURRENT_MODE != 'current')
-        # Display current target settings
         self.doubleSpinBox_EHT.setValue(self.sem.target_eht)
-        self.spinBox_beamCurrent.setValue(self.sem.target_beam_current)
-        self.comboBox_beamSize.addItems(map(str, self.sem.APERTURE_SIZE))
-        self.comboBox_beamSize.setCurrentText(str(self.sem.target_aperture_size))
+
+        self.spinBox_beamCurrent.setEnabled(self.beam_mode == 'current')
+        self.doubleSpinBox_spotSize.setEnabled(self.beam_mode.startswith('spot'))
+        self.comboBox_beamSize.setEnabled(self.beam_mode.startswith('aperture'))
+        if self.beam_mode.startswith('aperture'):
+            self.actual_aperture_size = self.sem.get_aperture_size()
+            self.spinBox_actualBeamSize.setValue(self.actual_aperture_size)
+            self.comboBox_beamSize.clear()
+            self.comboBox_beamSize.addItems(map(str, self.sem.APERTURE_SIZE))
+            self.comboBox_beamSize.setCurrentText(str(self.sem.target_aperture_size))
+        elif self.beam_mode.startswith('spot'):
+            self.actual_spot_size = self.sem.get_spot_size()
+            self.doubleSpinBox_actualSpotSize.setValue(self.actual_spot_size)
+            self.doubleSpinBox_spotSize.setValue(self.sem.target_spot_size)
+        else:
+            self.actual_beam_current = self.sem.get_beam_current()
+            self.spinBox_actualBeamCurrent.setValue(self.actual_beam_current)
+            self.spinBox_beamCurrent.setValue(self.sem.target_beam_current)
+
+        self.checkBox_highCurrent.setEnabled(self.sem.HAS_HIGH_CURRENT)
+        if self.sem.HAS_HIGH_CURRENT:
+            self.actual_high_current = self.sem.get_high_current()
+            self.checkBox_highCurrent.setChecked(self.actual_high_current)
+
         # Display current working distance and stigmation parameters
         self.lineEdit_currentFocus.setText(
             '{0:.6f}'.format(sem.get_wd() * 1000))
@@ -375,33 +382,97 @@ class SEMSettingsDlg(QDialog):
             current_detector = self.sem.get_detector()
             self.comboBox_detector.addItems(available_detectors)
             if current_detector in available_detectors: 
-                self.comboBox_detector.setCurrentIndex(
-                    available_detectors.index(current_detector))
+                self.comboBox_detector.setCurrentText(current_detector)
         except NotImplementedError:
             self.comboBox_detector.setEnabled(False)
+        # brightness/contrast
+        self.has_brightness = self.sem.has_brightness()
+        self.has_contrast = self.sem.has_contrast()
+        self.has_auto_brightness_contrast = self.sem.has_auto_brightness_contrast()
+        self.doubleSpinBox_brightness.setEnabled(self.has_brightness)
+        if self.has_brightness:
+            self.update_brightness_control()
+            self.brightness_initial = self.brightness
+            self.doubleSpinBox_brightness.valueChanged.connect(self.brightness_changed)
+        self.doubleSpinBox_contrast.setEnabled(self.has_contrast)
+        if self.has_contrast:
+            self.update_contrast_control()
+            self.contrast_initial = self.contrast
+            self.doubleSpinBox_contrast.valueChanged.connect(self.contrast_changed)
+        self.pushButton_auto_brightness_contrast.setEnabled(self.has_auto_brightness_contrast)
+        if self.has_auto_brightness_contrast:
+            self.update_auto_brightness_contrast_control()
+            self.auto_brightness_contrast_initial = self.sem.get_auto_brightness_contrast()
+            self.pushButton_auto_brightness_contrast.clicked.connect(self.auto_brightness_contrast_clicked)
+
+    def brightness_changed(self):
+        self.brightness = self.doubleSpinBox_brightness.value() / 100
+        self.sem.set_brightness(self.brightness)
+
+    def update_brightness_control(self):
+        self.brightness = self.sem.get_brightness()
+        self.doubleSpinBox_brightness.setValue(self.brightness * 100)
+
+    def contrast_changed(self):
+        self.contrast = self.doubleSpinBox_contrast.value() / 100
+        self.sem.set_contrast(self.contrast)
+
+    def update_contrast_control(self):
+        self.contrast = self.sem.get_contrast()
+        self.doubleSpinBox_contrast.setValue(self.contrast * 100)
+
+    def auto_brightness_contrast_clicked(self):
+        enabled = not self.sem.get_auto_brightness_contrast()
+        self.sem.set_auto_brightness_contrast(enabled)
+        self.update_brightness_control()
+        self.update_contrast_control()
+        self.update_auto_brightness_contrast_control()
+
+    def update_auto_brightness_contrast_control(self):
+        enabled = self.sem.get_auto_brightness_contrast()
+        self.pushButton_auto_brightness_contrast.setCheckable(enabled)
+        self.pushButton_auto_brightness_contrast.setChecked(enabled)
+        self.doubleSpinBox_brightness.setEnabled(self.has_brightness and not enabled)
+        self.doubleSpinBox_contrast.setEnabled(self.has_contrast and not enabled)
 
     def accept(self):
         self.target_eht = self.doubleSpinBox_EHT.value()
         if self.target_eht != self.actual_eht:
             self.sem.set_eht(self.target_eht)
 
-        self.target_beam_current = self.spinBox_beamCurrent.value()
-        if self.target_beam_current != self.actual_beam_current:
-            self.sem.set_beam_current(self.target_beam_current)
+        if self.beam_mode.startswith('aperture'):
+            self.target_aperture_size = self.comboBox_beamSize.currentIndex()
+            if self.target_aperture_size != self.actual_aperture_size:
+                self.sem.set_aperture_size(self.target_aperture_size)
+        elif self.beam_mode.startswith('spot'):
+            self.target_spot_size = self.doubleSpinBox_spotSize.value()
+            if self.target_spot_size != self.actual_spot_size:
+                self.sem.set_spot_size(self.target_spot_size)
+        else:
+            self.target_beam_current = self.spinBox_beamCurrent.value()
+            if self.target_beam_current != self.actual_beam_current:
+                self.sem.set_beam_current(self.target_beam_current)
 
-        self.target_aperture_size = self.comboBox_beamSize.currentIndex()
-        if self.target_aperture_size != self.actual_aperture_size:
-            self.sem.set_aperture_size(self.target_aperture_size)
-
-        self.target_high_current = self.checkBox_highCurrent.isChecked()
-        if self.target_high_current != self.actual_high_current:
-            self.sem.set_high_current(self.target_high_current)
+        if self.sem.HAS_HIGH_CURRENT:
+            self.target_high_current = self.checkBox_highCurrent.isChecked()
+            if self.target_high_current != self.actual_high_current:
+                self.sem.set_high_current(self.target_high_current)
 
         selected_detector = self.comboBox_detector.currentText()
         if selected_detector:
             self.sem.set_detector(selected_detector)
 
         super().accept()
+
+    def reject(self):
+        if (self.has_auto_brightness_contrast and
+                self.sem.get_auto_brightness_contrast() != self.auto_brightness_contrast_initial):
+            self.sem.set_auto_brightness_contrast(self.auto_brightness_contrast_initial)
+        if self.has_brightness:
+            self.sem.set_brightness(self.brightness_initial)
+        if self.has_contrast:
+            self.sem.set_contrast(self.contrast_initial)
+        super().reject()
 
 # ------------------------------------------------------------------------------
 
@@ -422,7 +493,7 @@ class MicrotomeSettingsDlg(QDialog):
         self.microtome_active = microtome_active
         loadUi('../gui/microtome_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         # Labels and selection options depend on whether microtome stage or
@@ -506,11 +577,11 @@ class MicrotomeSettingsDlg(QDialog):
 
     def open_motor_status_dlg(self):
         dialog = MotorStatusDlg(self.microtome)
-        dialog.exec_()
+        dialog.exec()
 
     def open_set_stage_position_dlg(self):
         dialog = SetStagePositionDlg(self.stage, self.main_controls_trigger)
-        dialog.exec_()
+        dialog.exec()
 
     def update_maintenance_move_interval_spinbox(self):
         self.spinBox_maintenanceMoveInterval.setEnabled(
@@ -547,7 +618,7 @@ class MotorStatusDlg(QDialog):
         self.stage = stage
         loadUi('../gui/motor_status_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         self.pushButton_update.clicked.connect(self.show_current_stats)
@@ -719,7 +790,7 @@ class SetStagePositionDlg(QDialog):
         self.stage = stage
         loadUi('../gui/set_stage_position_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         QApplication.processEvents()
@@ -816,7 +887,7 @@ class KatanaSettingsDlg(QDialog):
         self.microtome = microtome
         loadUi('../gui/katana_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
 
@@ -923,7 +994,7 @@ class GCIBSettingsDlg(QDialog):
         loadUi('../gui/gcib_settings_dlg.ui', self)
 
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
 
@@ -1010,7 +1081,7 @@ class StageCalibrationDlg(QDialog):
 
         loadUi('../gui/stage_calibration_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         self.arrow_symbol1.setPixmap(QPixmap('../img/arrow.png'))
@@ -1184,24 +1255,30 @@ class StageCalibrationDlg(QDialog):
             self.frame_size_selector, pixel_size, dwell_time)
 
         start_x, start_y = self.stage.get_xy()
+
+        start_path = os.path.join(self.base_dir, 'start' + constants.TEMP_IMAGE_FORMAT)
+        shift_x_path = os.path.join(self.base_dir, 'shift_x' + constants.TEMP_IMAGE_FORMAT)
+        shift_y_path = os.path.join(self.base_dir, 'shift_y' + constants.TEMP_IMAGE_FORMAT)
+
         # Acquire first image at starting position
-        self.sem.acquire_frame(self.base_dir + '/start.tif')
+        self.sem.acquire_frame(start_path)
         # Shift along X stage
         self.stage.move_to_xy((start_x + shift, start_y))
         # Second image, at new X position (Y unchanged from starting position)
-        self.sem.acquire_frame(self.base_dir + '/shift_x.tif')
+        self.sem.acquire_frame(shift_x_path)
         # Shift along Y direction, X back to starting position
         self.stage.move_to_xy((start_x, start_y + shift))
         # Acquire third and final image, at new Y position
-        self.sem.acquire_frame(self.base_dir + '/shift_y.tif')
+        self.sem.acquire_frame(shift_y_path)
         # Move back to starting position
         self.stage.move_to_xy((start_x, start_y))
         # Show in log that calculation begins now
         self.update_calc_trigger.signal.emit()
         # Load images and calculate shifts:
-        start_img = imread(os.path.join(self.base_dir, 'start.tif'), 1)
-        shift_x_img = imread(os.path.join(self.base_dir, 'shift_x.tif'), 1)
-        shift_y_img = imread(os.path.join(self.base_dir, 'shift_y.tif'), 1)
+        start_img = utils.grayscale_image(imread(start_path))
+        shift_x_img = utils.grayscale_image(imread(shift_x_path))
+        shift_y_img = utils.grayscale_image(imread(shift_y_path))
+
         self.calc_exception = None
         try:
             # # [::-1] to use x, y, z order
@@ -1224,6 +1301,7 @@ class StageCalibrationDlg(QDialog):
             self.x_shift_vector = [x_shift[0], x_shift[1]]
             self.y_shift_vector = [y_shift[0], y_shift[1]]
         except Exception as e:
+            utils.log_exception(str(e))
             self.calc_exception = str(e)
         self.finish_trigger.signal.emit()
 
@@ -1399,7 +1477,7 @@ class MagCalibrationDlg(QDialog):
         self.sem = sem
         loadUi('../gui/mag_calibration_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         self.lineEdit_calibrationFactor.setText(
@@ -1441,7 +1519,7 @@ class CutDurationDlg(QDialog):
         self.microtome = microtome
         loadUi('../gui/cut_duration_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         self.doubleSpinBox_cutDuration.setValue(
@@ -1467,7 +1545,7 @@ class OVSettingsDlg(QDialog):
         self.main_controls_trigger = main_controls_trigger
         loadUi('../gui/overview_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         # Set up OV selector
@@ -1533,7 +1611,7 @@ class OVSettingsDlg(QDialog):
             / (self.sem.STORE_RES[self.comboBox_frameSize.currentIndex()][0]
             * self.spinBox_magnification.value()))
         self.doubleSpinBox_pixelSize.setValue(pixel_size)
-        self.show_frame_size();
+        self.show_frame_size()
 
     def show_frame_size(self):
         """Calculate and show physical frame size depending on current frame resolution and pixel size."""
@@ -1566,8 +1644,9 @@ class OVSettingsDlg(QDialog):
                 self.current_ov == self.ovm.number_ov - 1)
         # Show current OV number on delete and save buttons
         self.pushButton_save.setText(
-            'Save settings for OV %d' % self.current_ov)
-        self.pushButton_deleteOV.setText('Delete OV %d' % self.current_ov)
+            f'Save settings for OV {self.current_ov}')
+        self.pushButton_deleteOV.setText(
+            f'Delete OV {self.current_ov}')
 
     def clear_viewport_image(self):
         self.ovm[self.current_ov].vp_file_path = ''
@@ -1633,6 +1712,7 @@ class OVSettingsDlg(QDialog):
         self.change_ov()
         self.main_controls_trigger.transmit('OV SETTINGS CHANGED')
 
+
 # ------------------------------------------------------------------------------
 
 class GridSettingsDlg(QDialog):
@@ -1648,7 +1728,7 @@ class GridSettingsDlg(QDialog):
         self.magc_mode = magc_mode
         loadUi('../gui/grid_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         # Set up grid selector:
@@ -1657,10 +1737,10 @@ class GridSettingsDlg(QDialog):
         self.comboBox_gridSelector.currentIndexChanged.connect(
             self.change_grid)
         # Set up colour selector:
-        for i in range(len(utils.COLOUR_SELECTOR)):
-            rgb = utils.COLOUR_SELECTOR[i]
+        for i in range(len(constants.COLOUR_SELECTOR)):
+            rgb = constants.COLOUR_SELECTOR[i]
             colour_icon = QPixmap(20, 10)
-            colour_icon.fill(QColor(rgb[0], rgb[1], rgb[2]))
+            colour_icon.fill(QColor(*rgb))
             self.comboBox_colourSelector.addItem(QIcon(colour_icon), '')
         if self.gm[self.current_grid].active:
             self.radioButton_active.setChecked(True)
@@ -1669,7 +1749,7 @@ class GridSettingsDlg(QDialog):
         self.radioButton_active.toggled.connect(self.update_active_status)
         self.update_active_status()
         store_res_list = [
-            '%d × %d' % (res[0], res[1]) for res in self.sem.STORE_RES]
+            f'{res[0]} × {res[1]}' for res in self.sem.STORE_RES]
         self.comboBox_tileSize.addItems(store_res_list)
         self.comboBox_tileSize.currentIndexChanged.connect(
             self.show_frame_size_and_dose)
@@ -1702,10 +1782,6 @@ class GridSettingsDlg(QDialog):
         self.update_buttons()
         self.show_current_settings()
         self.show_frame_size_and_dose()
-        # Inactivate 'add grid' button in magc_mode
-        # (should be done in MagC panel instead)
-        if self.magc_mode:
-            self.pushButton_addGrid.setEnabled(False)
         if 'multisem' in self.sem.device_name.lower():
             # in multisem ROIs are used instead of grids
             # the smallest possible grid is kept for compatibility
@@ -1747,28 +1823,29 @@ class GridSettingsDlg(QDialog):
         self.doubleSpinBox_pixelSize.setValue(current_pixel_size)
 
     def show_current_settings(self):
+        grid = self.gm[self.current_grid]
         self.comboBox_colourSelector.setCurrentIndex(
-            self.gm[self.current_grid].display_colour)
+            grid.display_colour)
         self.checkBox_focusGradient.setChecked(
-            self.gm[self.current_grid].use_wd_gradient)
-        self.spinBox_rows.setValue(self.gm[self.current_grid].number_rows())
-        self.spinBox_cols.setValue(self.gm[self.current_grid].number_cols())
-        self.spinBox_overlap.setValue(self.gm[self.current_grid].overlap)
+            grid.use_wd_gradient)
+        self.spinBox_rows.setValue(grid.number_rows())
+        self.spinBox_cols.setValue(grid.number_cols())
+        self.spinBox_overlap.setValue(int(grid.overlap))
         self.doubleSpinBox_rotation.setValue(
-            self.gm[self.current_grid].rotation)
-        self.spinBox_shift.setValue(self.gm[self.current_grid].row_shift)
+            grid.rotation)
+        self.spinBox_shift.setValue(grid.row_shift)
         self.doubleSpinBox_pixelSize.setValue(
-            self.gm[self.current_grid].pixel_size)
+            grid.pixel_size)
         self.comboBox_tileSize.setCurrentIndex(
-            self.gm[self.current_grid].frame_size_selector)
+            grid.frame_size_selector)
         self.comboBox_dwellTime.setCurrentIndex(
-            self.gm[self.current_grid].dwell_time_selector)
+            grid.dwell_time_selector)
         self.comboBox_bitDepth.setCurrentIndex(
-            self.gm[self.current_grid].bit_depth_selector)
+            grid.bit_depth_selector)
         self.spinBox_acqInterval.setValue(
-            self.gm[self.current_grid].acq_interval)
+            grid.acq_interval)
         self.spinBox_acqIntervalOffset.setValue(
-            self.gm[self.current_grid].acq_interval_offset)
+            grid.acq_interval_offset)
 
     def show_frame_size_and_dose(self):
         """Calculate and display the tile size and the dose for the current
@@ -1779,8 +1856,7 @@ class GridSettingsDlg(QDialog):
         pixel_size = self.doubleSpinBox_pixelSize.value()
         width = self.sem.STORE_RES[frame_size_selector][0] * pixel_size / 1000
         height = self.sem.STORE_RES[frame_size_selector][1] * pixel_size / 1000
-        self.label_tileSize.setText('{0:.1f} × '.format(width)
-                                    + '{0:.1f}'.format(height))
+        self.label_tileSize.setText(f'{width:.1f} × {height:.1f}')
         current = self.sem.target_beam_current
         dwell_time = float(self.comboBox_dwellTime.currentText())
         pixel_size = self.doubleSpinBox_pixelSize.value()
@@ -1805,14 +1881,16 @@ class GridSettingsDlg(QDialog):
         Only the last grid can be deleted. Reason: preserve identities of
         grids and tiles within grids.
         """
+        grid_label = self.gm.get_grid_label(self.current_grid)
         if self.current_grid == 0:
             self.pushButton_deleteGrid.setEnabled(False)
         else:
             self.pushButton_deleteGrid.setEnabled(
                 self.current_grid == (self.gm.number_grids - 1))
         self.pushButton_save.setText(
-            'Save settings for grid %d' % self.current_grid)
-        self.pushButton_deleteGrid.setText('Delete grid %d' % self.current_grid)
+            f'Save settings for {grid_label}')
+        self.pushButton_deleteGrid.setText(
+            f'Delete {grid_label}')
 
     def add_grid(self):
         active = self.radioButton_active.isChecked()
@@ -1868,7 +1946,7 @@ class GridSettingsDlg(QDialog):
         user_reply = QMessageBox.question(
             self, 'Reset tile previews',
             f'This will clear all tile preview images in the Viewport for '
-            f'grid {self.current_grid}.\n',
+            f'{self.gm.get_grid_label(self.current_grid)}',
             QMessageBox.Ok | QMessageBox.Cancel)
         if user_reply == QMessageBox.Ok:
             self.gm[self.current_grid].clear_all_tile_previews()
@@ -1947,7 +2025,7 @@ class GridSettingsDlg(QDialog):
 
         if self.magc_mode:
             self.gm[self.current_grid].centre_sx_sy = prev_grid_centre
-            magc_utils.write_magc(self.gm)
+            self.gm.array_write()
         # Restore default behaviour for updating tile positions
         if error_msg:
             QMessageBox.warning(self, 'Error', error_msg, QMessageBox.Ok)
@@ -1956,7 +2034,8 @@ class GridSettingsDlg(QDialog):
 
     def open_focus_gradient_dlg(self):
         sub_dialog = FocusGradientSettingsDlg(self.gm, self.current_grid)
-        sub_dialog.exec_()
+        sub_dialog.exec()
+
 
 # ------------------------------------------------------------------------------
 
@@ -1969,10 +2048,10 @@ class FocusGradientSettingsDlg(QDialog):
         self.current_grid = current_grid
         loadUi('../gui/wd_gradient_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
-        self.lineEdit_currentGrid.setText('Grid ' + str(current_grid))
+        self.lineEdit_currentGrid.setText(self.gm.get_grid_label(current_grid))
         self.grid_illustration.setPixmap(QPixmap('../img/grid.png'))
         self.ref_tiles = self.gm[self.current_grid].wd_gradient_ref_tiles
         # Backup variable for currently selected reference tiles:
@@ -2081,13 +2160,13 @@ class AcqSettingsDlg(QDialog):
         super().__init__()
         self.acq = acquisition
         self.notifications = notifications
-        if not isinstance(self.acq.sem, SEM_Mock):
-            loadUi('../gui/acq_settings_dlg.ui', self)
-        else:
+        if isinstance(self.acq.sem, SEM_Mock):
             loadUi('../gui/acq_settings_dlg_mock.ui', self)
             self.update_mock_settings()
+        else:
+            loadUi('../gui/acq_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         self.pushButton_selectDir.clicked.connect(self.select_directory)
@@ -2167,10 +2246,10 @@ class AcqSettingsDlg(QDialog):
         self.pushButton_selectMockDir.setIconSize(QSize(16, 16))
         if self.acq.sem.previous_acq_dir is not None:
             self.lineEdit_mockDir.setText(self.acq.sem.previous_acq_dir)
-        if self.acq.sem.mock_type == "noise":
-            self.comboBox_mockType.setCurrentIndex(0)
-        else:
-            self.comboBox_mockType.setCurrentIndex(1)
+        index = self.comboBox_mockType.findText(self.acq.sem.mock_type)
+        if index < 0:
+            index = 0
+        self.comboBox_mockType.setCurrentIndex(index)
 
     def update_target_z_diff(self):
         if self.slices_valid(self.acq.slice_counter, self.acq.number_slices):
@@ -2239,13 +2318,8 @@ class AcqSettingsDlg(QDialog):
                 'trailing slashes and whitespace and replacing spaces with '
                 'underscores and forward slashes with backslashes.',
                 QMessageBox.Ok)
-        # Check if path contains a drive letter / valid absolute path
-        try:
-            os.lstat(os.path.splitdrive(modified_dir)[0])
-            ok = True
-        except:
-            ok = False
-        if not ok:
+        # Check if path is a valid absolute path
+        if not os.path.isabs(modified_dir):
             success = False
             QMessageBox.warning(
                 self, 'Error',
@@ -2267,10 +2341,8 @@ class AcqSettingsDlg(QDialog):
                     'inaccessible: ' + str(e),
                     QMessageBox.Ok)
         if isinstance(self.acq.sem, SEM_Mock):
-            if self.comboBox_mockType.currentIndex() == 0:
-                self.acq.sem.mock_type = "noise"
-            else:
-                self.acq.sem.mock_type = "previous_acquisition"
+            self.acq.sem.mock_type = self.comboBox_mockType.currentText()
+            if 'previous' in self.acq.sem.mock_type.lower():
                 mock_dir = self.lineEdit_mockDir.text()
                 if os.path.exists(mock_dir) and os.path.isdir(mock_dir):
                     self.acq.sem.previous_acq_dir = mock_dir
@@ -2355,7 +2427,7 @@ class PreStackDlg(QDialog):
         self.gm = gm
         loadUi('../gui/pre_stack_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         # Different labels if stack is paused ('Continue' instead of 'Start')
@@ -2370,10 +2442,7 @@ class PreStackDlg(QDialog):
         # Show the most relevant current settings for the acquisition
         self.label_stackName.setText(self.acq.stack_name)
         self.label_sliceCounter.setText(str(self.acq.slice_counter))
-        self.label_beamSettings.setText(
-            f'{self.sem.target_eht:.2f} keV, '
-            f'{self.sem.target_beam_current} pA, '
-            f'{self.sem.target_aperture_size} μm')
+        self.label_beamSettings.setText(self.sem.get_beam_label())
         if self.acq.take_overviews:
             number_ov = ovm.total_number_active_overviews()
         else:
@@ -2409,6 +2478,8 @@ class PreStackDlg(QDialog):
         self.doubleSpinBox_brightness.setValue(self.sem.bsd_brightness)
         self.doubleSpinBox_contrast.setValue(self.sem.bsd_contrast)
         self.spinBox_bias.setValue(int(self.sem.bsd_bias))
+        if self.microtome is None:
+            self.groupBox_dmSettings.setEnabled(False)
         if self.microtome is not None and self.microtome.device_name != 'GCIB':
             self.checkBox_oscillation.setChecked(self.microtome.use_oscillation)
             self.doubleSpinBox_cutSpeed.setValue(
@@ -2418,7 +2489,7 @@ class PreStackDlg(QDialog):
 
     def edit_interruption_point(self):
         dialog = SetStartTileDlg(self.acq, self.gm)
-        dialog.exec_()
+        dialog.exec()
         # Update interruption point label
         self.show_interruption_point()
 
@@ -2457,7 +2528,7 @@ class SetStartTileDlg(QDialog):
         self.gm = grid_manager
         loadUi('../gui/set_start_tile_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         if self.acq.acq_interrupted:
@@ -2481,19 +2552,23 @@ class SetStartTileDlg(QDialog):
             else:
                 grid_index, tile_index = 0, 0
 
-        self.label_acqstatus2.setText(
-            f'and will (re)start at tile {tile_index} in grid {grid_index}.')
+        if grid_index is not None:
+            grid = self.gm[grid_index]
+            grid_label = grid.get_label(grid_index)
 
-        # Populate grid selector
-        self.comboBox_gridSelector.clear()
-        self.comboBox_gridSelector.addItems(self.gm.grid_selector_list())
-        self.comboBox_gridSelector.setCurrentIndex(grid_index)
-        self.comboBox_gridSelector.currentIndexChanged.connect(
-            self.update_tile_selector)
-        # Populate tile selector
-        self.update_tile_selector()
-        # Select current tile (+1 to account for entry 'Select tile')
-        self.comboBox_tileSelector.setCurrentIndex(tile_index + 1)
+            self.label_acqstatus2.setText(
+                f'and will (re)start at tile {tile_index} in {grid_label}.')
+
+            # Populate grid selector
+            self.comboBox_gridSelector.clear()
+            self.comboBox_gridSelector.addItems(self.gm.grid_selector_list())
+            self.comboBox_gridSelector.setCurrentIndex(grid_index)
+            self.comboBox_gridSelector.currentIndexChanged.connect(
+                self.update_tile_selector)
+            # Populate tile selector
+            self.update_tile_selector()
+            # Select current tile (+1 to account for entry 'Select tile')
+            self.comboBox_tileSelector.setCurrentIndex(tile_index + 1)
 
     def update_tile_selector(self):
         """Populate the tile selector with the active tiles of the currently
@@ -2540,7 +2615,7 @@ class PauseDlg(QDialog):
         super().__init__()
         loadUi('../gui/pause_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         self.pause_type = 0  # don't pause (when user clicks 'Cancel')
@@ -2568,7 +2643,7 @@ class ExportDlg(QDialog):
         self.acq = acq
         loadUi('../gui/export_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.pushButton_export.clicked.connect(self.export_list)
         self.spinBox_untilSlice.setValue(int(self.acq.slice_counter))
@@ -2580,7 +2655,7 @@ class ExportDlg(QDialog):
         QApplication.processEvents()
         base_dir = self.acq.base_dir
         target_grid_index = str(
-            self.spinBox_gridNumber.value()).zfill(utils.GRID_DIGITS)
+            self.spinBox_gridNumber.value()).zfill(constants.GRID_DIGITS)
         pixel_size = self.doubleSpinBox_pixelSize.value()
         start_slice = self.spinBox_fromSlice.value()
         end_slice = self.spinBox_untilSlice.value()
@@ -2666,7 +2741,7 @@ class UpdateDlg(QDialog):
         super().__init__()
         loadUi('../gui/update_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.pushButton_update.clicked.connect(self.update)
         self.show()
@@ -2727,7 +2802,7 @@ class EmailMonitoringSettingsDlg(QDialog):
         self.notifications = notifications
         loadUi('../gui/email_monitoring_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         self.lineEdit_notificationEmail.setText(
@@ -2854,7 +2929,7 @@ class DebrisSettingsDlg(QDialog):
         self.acq = acq
         loadUi('../gui/debris_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         # Detection area
@@ -2972,9 +3047,41 @@ class AskUserDlg(QDialog):
         super().__init__()
         loadUi('../gui/ask_user_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
+
+# ------------------------------------------------------------------------------
+
+class TCPSettingsDlg(QDialog):
+    """Specify the host and port for TCP requests during acquisition.
+    Currently only used for remote control through the Napari SBEMViewer plugin.
+    """
+
+    def __init__(self, tcp_remote, acq):
+        super().__init__()
+        loadUi('../gui/tcp_settings_dlg.ui', self)
+        self.tcp_remote = tcp_remote
+        self.acq = acq
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(utils.get_window_icon())
+        self.setFixedSize(self.size())
+        self.lineEdit_host.setText(self.tcp_remote.host)
+        self.spinBox_port.setValue(self.tcp_remote.port)
+        self.pushButton_testConnection.clicked.connect(self._on_test_connection)
+        self.show()
+        
+    def _on_test_connection(self):
+        try:
+            res = self.acq.send_data_tcp()
+            self.acq.process_tcp_commands(res.get('commands', []))
+        except ConnectionRefusedError:
+            utils.log_info('CTRL', 'TCP Connection refused.')
+        
+    def accept(self):
+        self.tcp_remote.host = self.lineEdit_host.text()
+        self.tcp_remote.port = self.spinBox_port.value()
+        super().accept()
 
 # ------------------------------------------------------------------------------
 
@@ -2986,7 +3093,7 @@ class MirrorDriveDlg(QDialog):
         self.acq = acquisition
         loadUi('../gui/mirror_drive_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         self.available_drives = []
@@ -3039,7 +3146,7 @@ class ImageMonitoringSettingsDlg(QDialog):
         self.img_inspector = image_inspector
         loadUi('../gui/image_monitoring_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         self.spinBox_meanMin.setValue(self.img_inspector.mean_lower_limit)
@@ -3085,14 +3192,14 @@ class AutofocusSettingsDlg(QDialog):
     """Dialog to adjust settings for the SEM autofocus, the heuristic autofocus,
     MAPFoSt, and for tracking the focus/stig when refocusing manually.
     """
-    def __init__(self, sem, autofocus, grid_manager, magc_mode=False):
+    def __init__(self, sem, autofocus, grid_manager):
         super().__init__()
         self.sem = sem
         self.autofocus = autofocus
         self.gm = grid_manager
         loadUi('../gui/autofocus_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         if self.autofocus.method == 0:
@@ -3164,8 +3271,8 @@ class AutofocusSettingsDlg(QDialog):
         self.doubleSpinBox_stigRot.setValue(self.autofocus.rot_angle)
         self.doubleSpinBox_stigScale.setValue(self.autofocus.scale_factor)
 
-        # Disable some settings if MagC mode is active
-        if magc_mode:
+        # Disable some settings if Array mode is active
+        if self.gm.array_mode:
             self.radioButton_useHeuristic.setEnabled(False)
             self.radioButton_useTrackingOnly.setEnabled(False)
             self.radioButton_useMAPFoSt.setEnabled(False)
@@ -3222,11 +3329,11 @@ class AutofocusSettingsDlg(QDialog):
 
     def open_zeiss_params_dlg(self):
         sub_dialog = AutofocusZEISSParamsDlg(self.autofocus)
-        sub_dialog.exec_()
+        sub_dialog.exec()
 
     def open_tescan_params_dlg(self):
         sub_dialog = AutofocusTESCANParamsDlg(self.autofocus)
-        sub_dialog.exec_()
+        sub_dialog.exec()
 
     def accept(self):
         error_str = ''
@@ -3282,7 +3389,7 @@ class AutofocusZEISSParamsDlg(QDialog):
         self.autofocus = autofocus
         loadUi('../gui/autofocus_zeiss_params_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         self.doubleSpinBox_pixelSize.setValue(self.autofocus.pixel_size)
@@ -3301,7 +3408,7 @@ class AutofocusTESCANParamsDlg(QDialog):
         self.autofocus = autofocus
         loadUi('../gui/autofocus_tescan_params_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         self.doubleSpinBox_WDrange.setValue(self.autofocus.wd_range)
@@ -3334,7 +3441,7 @@ class RunAutofocusDlg(QDialog):
 
         loadUi('../gui/run_autofocus_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
 
@@ -3539,7 +3646,7 @@ class VariablePressureDlg(QDialog):
         self.current = 0
         loadUi('../gui/variable_pressure_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         self.pushButton_hv.clicked.connect(self.set_hv)
@@ -3610,13 +3717,13 @@ class VariablePressureDlg(QDialog):
         self.horizontalSlider_target.blockSignals(False)
 
     def update_pressure(self, textEdit, value):
-        unit_value = value * utils.PRESSURE_FROM_SEM[self.units]
+        unit_value = value * constants.PRESSURE_FROM_SEM[self.units]
         textEdit.setText("{:.2e}".format(unit_value))
 
     def target_text_changed(self):
         try:
             unit_value = float(self.lineEdit_target.text())
-            self.target = unit_value * utils.PRESSURE_TO_SEM[self.units]
+            self.target = unit_value * constants.PRESSURE_TO_SEM[self.units]
             self.update_target_pressure_slider()
             self.sem.set_vp_target(self.target)
         except Exception as e:
@@ -3666,7 +3773,7 @@ class ChargeCompensatorDlg(QDialog):
         self.vacuum_pressure = 0
         loadUi('../gui/charge_compensator_settings_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         self.pushButton_on.clicked.connect(self.turn_on)
@@ -3728,7 +3835,7 @@ class ChargeCompensatorDlg(QDialog):
         self.update_pressure()
 
     def update_pressure(self):
-        unit_value = self.vacuum_pressure * utils.PRESSURE_FROM_SEM[self.units]
+        unit_value = self.vacuum_pressure * constants.PRESSURE_FROM_SEM[self.units]
         self.lineEdit_vacuumPressure.setText("{:.2e}".format(unit_value))
 
     def update_buttons(self):
@@ -3777,7 +3884,7 @@ class ApproachDlg(QDialog):
         self.main_controls_trigger = main_controls_trigger
         loadUi('../gui/approach_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         # Set up trigger and queue to update dialog GUI during approach
@@ -3981,7 +4088,7 @@ class GrabFrameDlg(QDialog):
         self.finish_trigger.signal.connect(self.scan_complete)
         loadUi('../gui/grab_frame_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         timestamp = str(datetime.datetime.now())
@@ -4023,7 +4130,7 @@ class GrabFrameDlg(QDialog):
 
     def file_name_already_exists(self):
         if os.path.isfile(os.path.join(
-                self.acq.base_dir, self.file_name + '.tif')):
+                self.acq.base_dir, self.file_name + constants.FRAME_IMAGE_FORMAT)):
             QMessageBox.information(
                 self, 'File name already exists',
                 'A file with the same name already exists in the base '
@@ -4058,7 +4165,8 @@ class GrabFrameDlg(QDialog):
         time and GUI should not freeze.
         """
         self.scan_success = self.sem.acquire_frame(
-            self.acq.base_dir + '/' + self.file_name + '.tif')
+            os.path.join(self.acq.base_dir, self.file_name + constants.FRAME_IMAGE_FORMAT),
+            self.acq.stage)
         self.finish_trigger.signal.emit()
 
     def scan_complete(self):
@@ -4074,8 +4182,8 @@ class GrabFrameDlg(QDialog):
             QMessageBox.information(
                 self, 'Frame acquired',
                 'The image was acquired and saved as '
-                + self.file_name +
-                '.tif in the current base directory.',
+                + self.file_name + constants.FRAME_IMAGE_FORMAT +
+                ' in the current base directory.',
                 QMessageBox.Ok)
         else:
             QMessageBox.warning(
@@ -4090,14 +4198,16 @@ class GrabFrameDlg(QDialog):
         self.file_name = self.lineEdit_filename.text()
         if self.file_name_already_exists():
             return
-        success = self.sem.save_frame(os.path.join(
-            self.acq.base_dir, self.file_name + '.tif'))
+        full_file_name = self.file_name + constants.FRAME_IMAGE_FORMAT
+        success = self.sem.save_frame(
+            os.path.join(self.acq.base_dir, full_file_name),
+            self.acq.stage)
         if success:
             utils.log_info('SEM', 'Single frame saved (Grab dialog).')
             QMessageBox.information(
                 self, 'Frame saved',
                 'The current image shown in SmartSEM was saved as '
-                + self.file_name + '.tif in the current base directory.',
+                + full_file_name + ' in the current base directory.',
                 QMessageBox.Ok)
         else:
             QMessageBox.warning(
@@ -4118,7 +4228,7 @@ class EHTDlg(QDialog):
         self.sem = sem
         loadUi('../gui/eht_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         self.pushButton_on.clicked.connect(self.turn_on)
@@ -4184,7 +4294,7 @@ class FTSetParamsDlg(QDialog):
         self.sem = sem
         loadUi('../gui/focus_tool_set_params_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         if simulation_mode:
@@ -4239,15 +4349,16 @@ class FTMoveDlg(QDialog):
         self.finish_trigger.signal.connect(self.move_completed)
         loadUi('../gui/focus_tool_move_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         self.pushButton_move.clicked.connect(self.start_move)
         if ov_index >= 0:
             self.label_moveTarget.setText('OV ' + str(ov_index))
-        elif (grid_index >= 0) and (tile_index >= 0):
+        elif grid_index >= 0 and tile_index >= 0:
+            grid_label = grid_manager.get_grid_label(grid_index)
             self.label_moveTarget.setText(
-                'Grid: %d, Tile: %d' % (grid_index, tile_index))
+                f'{grid_label} Tile: {tile_index}' % (grid_index, tile_index))
 
     def start_move(self):
         self.error = False
@@ -4298,7 +4409,7 @@ class MotorTestDlg(QDialog):
         self.main_controls_trigger = main_controls_trigger
         loadUi('../gui/motor_test_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         # Set up trigger and queue to update dialog GUI during approach
@@ -4527,7 +4638,7 @@ class SendCommandDlg(QDialog):
         self.microtome = microtome
         loadUi('../gui/send_dm_command_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         self.pushButton_sendCommand.clicked.connect(self.send_command)
@@ -4623,15 +4734,15 @@ class AboutBox(QDialog):
     version and release date.
     """
 
-    def __init__(self, version):
+    def __init__(self):
         super().__init__()
         loadUi('../gui/about_box.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
-        if 'dev' in version.lower():
-            self.label_version.setText(f'DEVELOPMENT VERSION ({version})')
+        self.setWindowIcon(utils.get_window_icon())
+        if 'dev' in VERSION.lower():
+            self.label_version.setText(f'DEVELOPMENT VERSION ({VERSION})')
         else:
-            self.label_version.setText('Version ' + version)
+            self.label_version.setText('Version ' + VERSION)
         self.labelIcon.setPixmap(QPixmap('../img/logo.png'))
         # Enable links to readthedocs and GitHub
         self.label_readthedocs.setText('<a href="https://sbemimage.readthedocs.io">'

@@ -11,23 +11,20 @@
 """This modules contains all dialog windows that are called from the
 Viewport."""
 
-import os
-import threading
 import datetime
-
-from time import time, sleep
+import os
 from queue import Queue
-from PIL import Image
+from time import time, sleep
 
-from PyQt5.uic import loadUi
-from PyQt5.QtCore import Qt, QObject, QSize, pyqtSignal
-from PyQt5.QtGui import QPixmap, QIcon
-from PyQt5.QtWidgets import QApplication, QDialog, QMessageBox, QFileDialog, \
-                            QDialogButtonBox
+from qtpy.uic import loadUi
+from qtpy.QtCore import Qt, QSize
+from qtpy.QtGui import QPixmap, QIcon
+from qtpy.QtWidgets import QApplication, QDialog, QMessageBox, QFileDialog, \
+                           QDialogButtonBox, QListWidgetItem
 
-import utils
 import acq_func
-import magc_utils
+from image_io import imread, imwrite, imread_metadata
+import utils
 
 
 # ------------------------------------------------------------------------------
@@ -42,7 +39,7 @@ class StubOVDlg(QDialog):
         super().__init__()
         loadUi('../gui/stub_ov_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         self.sem = sem
@@ -60,31 +57,38 @@ class StubOVDlg(QDialog):
         self.abort_queue = Queue()
         self.pushButton_acquire.clicked.connect(self.start_stub_ov_acquisition)
         self.pushButton_abort.clicked.connect(self.abort)
+        self.checkBox_LmMode.setEnabled(self.sem.has_lm_mode())
+        self.checkBox_LmMode.stateChanged.connect(self.update_settings_from_ovm)
+        self.update_settings_from_ovm()
         self.spinBox_X.setValue(int(round(centre_sx_sy[0])))
         self.spinBox_Y.setValue(int(round(centre_sx_sy[1])))
-        self.spinBox_rows.setValue(ovm['stub'].size[0])
-        self.spinBox_cols.setValue(ovm['stub'].size[1])
         self.spinBox_rows.valueChanged.connect(
             self.update_dimension_and_duration_display)
         self.spinBox_cols.valueChanged.connect(
             self.update_dimension_and_duration_display)
-        self.update_dimension_and_duration_display()
+        self.spinBox_magnification.valueChanged.connect(
+            self.set_magnification)
         # Save previous settings. If user aborts the stub OV acquisition
         # revert to these settings.
-        self.previous_centre_sx_sy = self.ovm['stub'].centre_sx_sy
-        self.previous_grid_size = self.ovm['stub'].size
+        stub_ovm = self.get_selected_stub_ovm()
+        self.previous_lm_mode = self.checkBox_LmMode.isChecked()
+        self.previous_centre_sx_sy = stub_ovm.centre_sx_sy
+        self.previous_grid_size = stub_ovm.size
 
     def process_thread_signal(self):
         """Process commands from the queue when a trigger signal occurs
         while the acquisition of the stub overview is running.
         """
-        msg = self.stub_dlg_trigger.queue.get()
+        cmd = self.stub_dlg_trigger.queue.get()
+        msg = cmd['msg']
+        args = cmd['args']
+        kwargs = cmd['kwargs']
         if msg == 'UPDATE XY':
             self.viewport_trigger.transmit('UPDATE XY')
         elif msg == 'DRAW VP':
             self.viewport_trigger.transmit('DRAW VP')
-        elif msg[:15] == 'UPDATE PROGRESS':
-            percentage = int(msg[15:])
+        elif msg == 'UPDATE PROGRESS':
+            percentage = int(str(args[0]))
             self.progressBar.setValue(percentage)
         elif msg == 'STUB OV SUCCESS':
             self.viewport_trigger.transmit('STUB OV SUCCESS')
@@ -114,8 +118,9 @@ class StubOVDlg(QDialog):
         elif msg == 'STUB OV ABORT':
             self.viewport_trigger.transmit('STATUS IDLE')
             # Restore previous grid size and grid position
-            self.ovm['stub'].size = self.previous_grid_size
-            self.ovm['stub'].centre_sx_sy = self.previous_centre_sx_sy
+            stub_ovm = self.get_selected_stub_ovm(self.previous_lm_mode)
+            stub_ovm.size = self.previous_grid_size
+            stub_ovm.centre_sx_sy = self.previous_centre_sx_sy
             QMessageBox.information(
                 self, 'Stub Overview acquisition aborted',
                 'The stub overview acquisition was aborted.',
@@ -126,16 +131,43 @@ class StubOVDlg(QDialog):
             # Use as error message
             self.error_msg_from_acq_thread = msg
 
+    def get_selected_stub_ovm(self, lm_mode=None):
+        if lm_mode is None:
+            lm_mode = self.checkBox_LmMode.isChecked()
+        if lm_mode:
+            stub_ovm = self.ovm['stub_lm']
+        else:
+            stub_ovm = self.ovm['stub']
+        return stub_ovm
+
+    def set_magnification(self):
+        stub_ovm = self.get_selected_stub_ovm()
+        magnification = self.spinBox_magnification.value()
+        stub_ovm.pixel_size = self.sem.MAG_PX_SIZE_FACTOR / (magnification * stub_ovm.frame_size[0])
+        self.update_dimension_and_duration_display()
+
+    def update_settings_from_ovm(self):
+        stub_ovm = self.get_selected_stub_ovm()
+        magnification = int(self.sem.MAG_PX_SIZE_FACTOR / (stub_ovm.frame_size[0] * stub_ovm.pixel_size))
+        self.spinBox_magnification.setValue(magnification)
+        self.spinBox_rows.setValue(stub_ovm.size[0])
+        self.spinBox_cols.setValue(stub_ovm.size[1])
+        self.update_dimension_and_duration_display()
+
     def update_dimension_and_duration_display(self):
         rows = self.spinBox_rows.value()
         cols = self.spinBox_cols.value()
-        tile_width = self.ovm['stub'].frame_size[0]
-        tile_height = self.ovm['stub'].frame_size[1]
-        overlap = self.ovm['stub'].overlap
-        pixel_size = self.ovm['stub'].pixel_size
-        cycle_time = self.ovm['stub'].tile_cycle_time()
-        motor_move_time = self.stage.stage_move_duration(
-            *self.ovm['stub'][0].sx_sy, *self.ovm['stub'][1].sx_sy)
+        stub_ovm = self.get_selected_stub_ovm()
+        tile_width = stub_ovm.frame_size[0]
+        tile_height = stub_ovm.frame_size[1]
+        overlap = stub_ovm.overlap
+        pixel_size = stub_ovm.pixel_size
+        cycle_time = stub_ovm.tile_cycle_time()
+        motor_move_time = 0
+        if len(stub_ovm) >= 2:
+            ov0, ov1 = stub_ovm[0], stub_ovm[1]
+            if ov0 is not None and ov1 is not None:
+                motor_move_time = self.stage.stage_move_duration(*ov0.sx_sy, *ov1.sx_sy)
         width = int(
             (cols * tile_width - (cols - 1) * overlap) * pixel_size / 1000)
         height = int(
@@ -149,15 +181,21 @@ class StubOVDlg(QDialog):
 
     def start_stub_ov_acquisition(self):
         """Acquire the stub overview. Acquisition routine runs in a thread."""
-
+        lm_mode = self.checkBox_LmMode.isChecked()
         # Start acquisition if EHT is on
-        if self.sem.is_eht_on():
+        if lm_mode or self.sem.is_eht_on():
             self.acq_in_progress = True
             centre_sx_sy = self.spinBox_X.value(), self.spinBox_Y.value()
             grid_size = [self.spinBox_rows.value(), self.spinBox_cols.value()]
             # Change the Stub Overview to the requested grid size and centre
-            self.ovm['stub'].size = grid_size
-            self.ovm['stub'].centre_sx_sy = centre_sx_sy
+            stub_ovm = self.get_selected_stub_ovm()
+            if lm_mode:
+                # get correct pixel size value for discrete LM FOV steps
+                self.sem.set_em_mode(lm_mode=True)
+                self.sem.apply_frame_settings(stub_ovm.frame_size_selector, stub_ovm.pixel_size, stub_ovm.dwell_time)
+                stub_ovm.pixel_size = self.sem.get_pixel_size()
+            stub_ovm.size = grid_size               # triggers tiles update
+            stub_ovm.centre_sx_sy = centre_sx_sy    # triggers tiles update
             self.viewport_trigger.transmit(
                 'CTRL: Acquisition of stub overview image started.')
             self.pushButton_acquire.setEnabled(False)
@@ -172,7 +210,7 @@ class StubOVDlg(QDialog):
             QApplication.processEvents()
             utils.run_log_thread(acq_func.acquire_stub_ov,
                                  self.sem, self.stage,
-                                 self.ovm, self.acq,
+                                 stub_ovm, self.acq,
                                  self.img_inspector,
                                  self.stub_dlg_trigger,
                                  self.abort_queue)
@@ -194,6 +232,7 @@ class StubOVDlg(QDialog):
         else:
             event.ignore()
 
+
 # ------------------------------------------------------------------------------
 
 class FocusGradientTileSelectionDlg(QDialog):
@@ -203,7 +242,7 @@ class FocusGradientTileSelectionDlg(QDialog):
         self.selected = None
         loadUi('../gui/wd_gradient_tile_selection_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         self.grid_illustration.setPixmap(QPixmap('../img/grid.png'))
@@ -250,7 +289,7 @@ class GridRotationDlg(QDialog):
         super().__init__()
         loadUi('../gui/change_grid_rotation_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         self.label_description.setText(
@@ -334,7 +373,7 @@ class GridRotationDlg(QDialog):
         # Calculate new grid map with new rotation angle
         self.gm[self.selected_grid].update_tile_positions()
         if self.magc_mode:
-            magc_utils.write_magc(self.gm)
+            self.gm.array_write()
         # Restore default behaviour for updating tile positions
         self.gm[self.selected_grid].auto_update_tile_positions = True
         super().accept()
@@ -352,7 +391,7 @@ class TemplateRotationDlg(QDialog):
         super().__init__()
         loadUi('../gui/change_grid_rotation_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         self.label_description.setText(
@@ -439,129 +478,244 @@ class TemplateRotationDlg(QDialog):
 class ImportImageDlg(QDialog):
     """Import an image into the viewport."""
 
-    def __init__(self, imported_images, target_dir):
+    def __init__(self, imported_images, viewport_trigger, stage, start_path=None):
+        self.start_path = start_path
         self.imported = imported_images
-        self.target_dir = target_dir
+        self.viewport_trigger = viewport_trigger
         super().__init__()
         loadUi('../gui/import_image_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
         self.show()
         self.pushButton_selectFile.clicked.connect(self.select_file)
         self.pushButton_selectFile.setIcon(QIcon('../img/selectdir.png'))
         self.pushButton_selectFile.setIconSize(QSize(16, 16))
 
+        position = stage.get_center()
+        self.doubleSpinBox_posX.setValue(position[0])
+        self.doubleSpinBox_posY.setValue(position[1])
+
     def select_file(self):
         # Let user select image to be imported:
-        start_path = 'C:/'
+        if self.start_path:
+            start_path = self.start_path
+        else:
+            start_path = 'C:/'
         selected_file = str(QFileDialog.getOpenFileName(
             self, 'Select image',
             start_path,
-            'Images (*.tif *.png *.bmp *.jpg)'
+            filter='Images (*)'
             )[0])
-        if len(selected_file) > 0:
+
+        if selected_file:
             selected_file = os.path.normpath(selected_file)
+            self.start_path = selected_file
             self.lineEdit_fileName.setText(selected_file)
             self.lineEdit_name.setText(
-                os.path.splitext(os.path.basename(selected_file))[0])
+                utils.get_image_file_title(selected_file))
+            try:
+                metadata = imread_metadata(selected_file)
+                pixel_size = metadata.get('pixel_size')
+                if pixel_size:
+                    pixel_size_nm = pixel_size[0] * 1e3
+                    self.doubleSpinBox_pixelSize.setValue(pixel_size_nm)
+                position = metadata.get('position')
+                if position:
+                    if isinstance(position[0], (list, tuple)):
+                        position = position[0]
+                    self.doubleSpinBox_posX.setValue(position[0])
+                    self.doubleSpinBox_posY.setValue(position[1])
+                rotation = metadata.get('rotation')
+                if rotation is not None:
+                    self.doubleSpinBox_rotation.setValue(rotation)
+            except TypeError:
+                QMessageBox.critical(self,
+                                     'SBEMimage error',
+                                     f'Unsupported image format: {selected_file}',
+                                     QMessageBox.Ok)
 
     def accept(self):
-        selection_success = True
+        import_success = False
+        error_msg = ''
+        source_pixel_size = self.doubleSpinBox_pixelSize.value()
         selected_path = os.path.normpath(
             self.lineEdit_fileName.text())
         selected_filename = os.path.basename(selected_path)
         timestamp = str(datetime.datetime.now())
-        # Remove some characters from timestap to get valid file name:
+        # Remove extra characters from timestamp:
         timestamp = timestamp[:19].translate({ord(c): None for c in ' :-.'})
-        # target_path = (self.target_dir + '/'
-                       # + os.path.splitext(selected_filename)[0]
-                       # + '_' + timestamp + '.png')
-        target_path = os.path.join(
-            self.target_dir,
-            os.path.splitext(selected_filename)[0]
-            + '_' + timestamp + '.png')
+        filename, ext = selected_filename.split('.', 1)
+        # format conversion
+        if ext.lower() == 'zarr':
+            ext = 'ome.zarr'
+        elif not ext.lower() == 'ome.zarr':
+            ext = 'ome.tif'
         if os.path.isfile(selected_path):
-            # Copy file to data folder as png:
             try:
-                imported_img = Image.open(selected_path)
-                imported_img.save(target_path)
+                source_pixel_size_um = [source_pixel_size * 1e-3] * 2   # nm -> um
+
+                metadata = imread_metadata(selected_path)
+                size = metadata['size'][0] * metadata['size'][1]
+                if size > 10 * 1e6:
+                    # if image dimension > 10MP scale down
+                    target_pixel_size = 2 * 1e3
+                    target_pixel_size_um = [2, 2]   # reduced pixel size
+                else:
+                    target_pixel_size = source_pixel_size
+                    target_pixel_size_um = source_pixel_size_um
+
+                image = imread(selected_path,
+                               source_pixel_size_um=source_pixel_size_um,
+                               target_pixel_size_um=target_pixel_size_um,
+                               render=False)
+
+                target_path = os.path.join(
+                    self.imported.target_dir,
+                    filename)
+                target_path += '_' + timestamp + '.' + ext
+                metadata['pixel_size'] = target_pixel_size_um
+
+                imwrite(target_path, image, metadata=metadata, npyramid_add=4, pyramid_downsample=2)
+
+                centre_sx_sy = [self.doubleSpinBox_posX.value(), self.doubleSpinBox_posY.value()]
+                rotation = self.doubleSpinBox_rotation.value()
+                flipped = self.checkBox_flipped.isChecked()
+                transparency = self.doubleSpinBox_transparency.value()
+                description = self.lineEdit_name.text()
+                imported_image = self.imported.add_image(target_path, description, centre_sx_sy, rotation, flipped,
+                                                         [], target_pixel_size, True, transparency)
+                if imported_image.image is not None:
+                    import_success = True
+
             except Exception as e:
-                QMessageBox.warning(
-                    self, 'Error',
-                    'Could not load image file: ' + str(e),
-                     QMessageBox.Ok)
-                selection_success = False
+                error_msg = str(e)
 
-            if selection_success:
-                new_index = self.imported.number_imported
-                self.imported.add_image()
-                self.imported[new_index].image_src = target_path
-                self.imported[new_index].centre_sx_sy = [
-                    self.doubleSpinBox_posX.value(),
-                    self.doubleSpinBox_posY.value()]
-                self.imported[new_index].rotation = (
-                    self.spinBox_rotation.value())
-                self.imported[new_index].description = (
-                    self.lineEdit_name.text())
-                width, height = imported_img.size
-                self.imported[new_index].size = [width, height]
-                self.imported[new_index].pixel_size = (
-                    self.doubleSpinBox_pixelSize.value())
-                self.imported[new_index].transparency = (
-                    self.spinBox_transparency.value())
-                if self.imported[new_index].image is None:
-                    QMessageBox.warning(
-                        self, 'Error',
-                        'Could not load image as QPixmap.',
-                         QMessageBox.Ok)
-        else:
-            QMessageBox.warning(self, 'Error',
-                                'Specified file not found.',
-                                QMessageBox.Ok)
-            selection_success = False
-
-        if selection_success:
+        if import_success:
+            self.viewport_trigger.transmit('SHOW IMPORTED')
             super().accept()
+        else:
+            QMessageBox.warning(
+                self, 'Error',
+                'Error importing image file: ' + error_msg,
+                QMessageBox.Ok)
+
 
 # ------------------------------------------------------------------------------
 
-class AdjustImageDlg(QDialog):
-    """Adjust an imported image (size, rotation, transparency)"""
+class ModifyImagesDlg(QDialog):
+    """Modify imported images from the viewport."""
 
-    def __init__(self, imported_images, selected_img, magc_mode,
-    		viewport_trigger):
+    def __init__(self, imported_images, grid_manager, stage, viewport_trigger):
         self.imported = imported_images
+        self.gm = grid_manager
+        self.stage = stage
         self.viewport_trigger = viewport_trigger
-        self.selected_img = selected_img
-        self.magc_mode = magc_mode
         super().__init__()
-        loadUi('../gui/adjust_imported_image_dlg.ui', self)
+        loadUi('../gui/modify_images_dlg.ui', self)
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
+        self.setWindowIcon(utils.get_window_icon())
+        self.setFixedSize(self.size())
+        self.pushButton_import.clicked.connect(self.import_image)
+        self.pushButton_delete.clicked.connect(self.delete_imported)
+        self.pushButton_modify.clicked.connect(self.modify_imported)
+        self.pushButton_move_up.clicked.connect(self.move_up)
+        self.pushButton_move_down.clicked.connect(self.move_down)
+        self.populate_image_list()
+
+    def populate_image_list(self):
+        # Populate the list widget with existing imported images:
+        #self.listWidget_imagelist.itemChanged.disconnect()
+        self.listWidget_imagelist.clear()
+        for index, imported_image in enumerate(self.imported):
+            item = QListWidgetItem(str(index) + ' - ' + imported_image.description)
+            if imported_image.enabled:
+                state = Qt.CheckState.Checked
+            else:
+                state = Qt.CheckState.Unchecked
+            item.setCheckState(state)
+            self.listWidget_imagelist.addItem(item)
+        self.listWidget_imagelist.itemChanged.connect(self.item_changed)
+
+    def item_changed(self, item):
+        index = self.listWidget_imagelist.row(item)
+        checked = (item.checkState() == Qt.CheckState.Checked)
+        self.imported[index].enabled = checked
+        self.viewport_trigger.transmit('DRAW VP')
+
+    def import_image(self):
+        dialog = ImportImageDlg(self.imported, self.viewport_trigger, self.stage)
+        if dialog.exec():
+            self.populate_image_list()
+            self.viewport_trigger.transmit('DRAW VP')
+
+    def delete_imported(self):
+        index = self.listWidget_imagelist.currentRow()
+        if index >= 0:
+            imported = self.imported[index]
+            response = QMessageBox.question(
+                self, 'Delete imported image',
+                f'Are you sure you want to delete imported image?\n{imported.description}',
+                QMessageBox.Ok | QMessageBox.Cancel)
+            if response == QMessageBox.Ok:
+                if self.imported[index].is_array:
+                    self.viewport_trigger.transmit('ARRAY REMOVE IMAGE')
+                self.imported.delete_image(index)
+                self.populate_image_list()
+                self.viewport_trigger.transmit('DRAW VP')
+
+    def modify_imported(self):
+        index = self.listWidget_imagelist.currentRow()
+        if index >= 0:
+            selected_image = self.imported[index]
+            dialog = ModifyImageDlg(selected_image, self.gm,
+                                    self.viewport_trigger)
+            dialog.exec()
+
+    def move_up(self):
+        index = self.listWidget_imagelist.currentRow()
+        if index > 0:
+            self.imported[index], self.imported[index - 1] = self.imported[index - 1], self.imported[index]
+            self.populate_image_list()
+            self.viewport_trigger.transmit('DRAW VP')
+
+    def move_down(self):
+        index = self.listWidget_imagelist.currentRow()
+        if 0 <= index < len(self.imported) - 1:
+            self.imported[index], self.imported[index + 1] = self.imported[index + 1], self.imported[index]
+            self.populate_image_list()
+            self.viewport_trigger.transmit('DRAW VP')
+
+
+# ------------------------------------------------------------------------------
+
+class ModifyImageDlg(QDialog):
+    """Modify an imported image (size, rotation, transparency)"""
+
+    def __init__(self, selected_image, grid_manager,
+                 viewport_trigger):
+        self.viewport_trigger = viewport_trigger
+        self.gm = grid_manager
+        self.selected_image = selected_image
+        super().__init__()
+        loadUi('../gui/modify_image_dlg.ui', self)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowIcon(utils.get_window_icon())
         self.setFixedSize(self.size())
 
-        if self.magc_mode:
-            # magc_mode is restrictive about imported images
-            # the only imported image is a wafer image
-            # and should not be modified (except the transparency)
-            self.doubleSpinBox_posX.setEnabled(False)
-            self.doubleSpinBox_posY.setEnabled(False)
-            self.doubleSpinBox_pixelSize.setEnabled(False)
-            self.spinBox_rotation.setEnabled(False)
-
-        self.show()
         self.lineEdit_selectedImage.setText(
-            self.imported[self.selected_img].description)
-        pos_x, pos_y = self.imported[self.selected_img].centre_sx_sy
+            self.selected_image.description)
+        pos_x, pos_y = self.selected_image.centre_sx_sy
         self.doubleSpinBox_posX.setValue(pos_x)
         self.doubleSpinBox_posY.setValue(pos_y)
         self.doubleSpinBox_pixelSize.setValue(
-            self.imported[self.selected_img].pixel_size)
-        self.spinBox_rotation.setValue(
-            self.imported[self.selected_img].rotation)
-        self.spinBox_transparency.setValue(
-            self.imported[self.selected_img].transparency)
+            self.selected_image.pixel_size)
+        self.doubleSpinBox_rotation.setValue(
+            self.selected_image.rotation)
+        self.checkBox_flipped.setChecked(
+            self.selected_image.flipped)
+        self.doubleSpinBox_transparency.setValue(
+            self.selected_image.transparency)
         # Use "Apply" button to show changes in viewport
         apply_button = self.buttonBox.button(QDialogButtonBox.Apply)
         cancel_button = self.buttonBox.button(QDialogButtonBox.Cancel)
@@ -573,39 +727,20 @@ class AdjustImageDlg(QDialog):
 
     def apply_changes(self):
         """Apply the current settings and redraw the image in the viewport."""
-        self.imported[self.selected_img].centre_sx_sy = [
+        imported = self.selected_image
+        imported.centre_sx_sy = [
             self.doubleSpinBox_posX.value(),
             self.doubleSpinBox_posY.value()]
-        self.imported[self.selected_img].pixel_size = (
+        imported.pixel_size = (
             self.doubleSpinBox_pixelSize.value())
-        self.imported[self.selected_img].rotation = (
-            self.spinBox_rotation.value())
-        self.imported[self.selected_img].transparency = (
-            self.spinBox_transparency.value())
+        imported.rotation = (
+            self.doubleSpinBox_rotation.value())
+        imported.flipped = (
+            self.checkBox_flipped.isChecked())
+        imported.transparency = (
+            self.doubleSpinBox_transparency.value())
+        imported.update_image()
+        if imported.is_array:
+            self.gm.array_update_data_image_properties(imported)
         # Emit signals to redraw Viewport:
         self.viewport_trigger.transmit('DRAW VP')
-
-# ------------------------------------------------------------------------------
-
-class DeleteImageDlg(QDialog):
-    """Delete an imported image from the viewport."""
-
-    def __init__(self, imported_images):
-        self.imported = imported_images
-        super().__init__()
-        loadUi('../gui/delete_image_dlg.ui', self)
-        self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowIcon(QIcon('../img/icon_16px.ico'))
-        self.setFixedSize(self.size())
-        self.show()
-        # Populate the list widget with existing imported images:
-        img_list = []
-        for i in range(self.imported.number_imported):
-            img_list.append(str(i) + ' - ' + self.imported[i].description)
-        self.listWidget_imagelist.addItems(img_list)
-
-    def accept(self):
-        selected_img = self.listWidget_imagelist.currentRow()
-        if selected_img is not None:
-            self.imported.delete_image(selected_img)
-        super().accept()

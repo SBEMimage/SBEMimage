@@ -35,13 +35,13 @@
       <property name="minimumSize">
        <size>
         <width>691</width>
-        <height>535</height>
+        <height>560</height>
        </size>
       </property>
       <property name="maximumSize">
        <size>
         <width>691</width>
-        <height>535</height>
+        <height>560</height>
        </size>
       </property>
       <property name="toolTip">
@@ -139,7 +139,7 @@
           <rect>
            <x>10</x>
            <y>20</y>
-           <width>69</width>
+           <width>111</width>
            <height>22</height>
           </rect>
          </property>
@@ -297,7 +297,7 @@
           <x>10</x>
           <y>230</y>
           <width>661</width>
-          <height>271</height>
+          <height>291</height>
          </rect>
         </property>
         <property name="title">
@@ -307,14 +307,13 @@
          <property name="geometry">
           <rect>
            <x>10</x>
-           <y>235</y>
+           <y>260</y>
            <width>101</width>
            <height>23</height>
           </rect>
          </property>
          <property name="font">
           <font>
-           <weight>75</weight>
            <bold>true</bold>
           </font>
          </property>
@@ -329,14 +328,13 @@
          <property name="geometry">
           <rect>
            <x>120</x>
-           <y>235</y>
+           <y>260</y>
            <width>101</width>
            <height>23</height>
           </rect>
          </property>
          <property name="font">
           <font>
-           <weight>75</weight>
            <bold>true</bold>
           </font>
          </property>
@@ -351,14 +349,13 @@
          <property name="geometry">
           <rect>
            <x>230</x>
-           <y>235</y>
+           <y>260</y>
            <width>101</width>
            <height>23</height>
           </rect>
          </property>
          <property name="font">
           <font>
-           <weight>75</weight>
            <bold>true</bold>
           </font>
          </property>
@@ -427,7 +424,7 @@
            <x>335</x>
            <y>22</y>
            <width>20</width>
-           <height>239</height>
+           <height>264</height>
           </rect>
          </property>
          <property name="orientation">
@@ -464,7 +461,7 @@
          <property name="geometry">
           <rect>
            <x>360</x>
-           <y>234</y>
+           <y>259</y>
            <width>281</width>
            <height>23</height>
           </rect>
@@ -620,7 +617,7 @@
          <property name="geometry">
           <rect>
            <x>360</x>
-           <y>200</y>
+           <y>225</y>
            <width>91</width>
            <height>16</height>
           </rect>
@@ -633,14 +630,13 @@
          <property name="geometry">
           <rect>
            <x>470</x>
-           <y>200</y>
+           <y>225</y>
            <width>181</width>
            <height>16</height>
           </rect>
          </property>
          <property name="font">
           <font>
-           <weight>75</weight>
            <bold>true</bold>
           </font>
          </property>
@@ -733,14 +729,13 @@
          <property name="geometry">
           <rect>
            <x>10</x>
-           <y>200</y>
+           <y>225</y>
            <width>141</width>
            <height>20</height>
           </rect>
          </property>
          <property name="font">
           <font>
-           <weight>75</weight>
            <bold>true</bold>
           </font>
          </property>
@@ -846,7 +841,6 @@
          </property>
          <property name="font">
           <font>
-           <weight>50</weight>
            <bold>false</bold>
           </font>
          </property>
@@ -891,7 +885,6 @@
          </property>
          <property name="font">
           <font>
-           <weight>50</weight>
            <bold>false</bold>
           </font>
          </property>
@@ -923,6 +916,32 @@
          </property>
          <property name="text">
           <string>00000.0 µm</string>
+         </property>
+        </widget>
+        <widget class="QCheckBox" name="checkBox_useTCP">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>195</y>
+           <width>101</width>
+           <height>17</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Use TCP</string>
+         </property>
+        </widget>
+        <widget class="QToolButton" name="toolButton_TCPSettings">
+         <property name="geometry">
+          <rect>
+           <x>120</x>
+           <y>195</y>
+           <width>25</width>
+           <height>19</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>...</string>
          </property>
         </widget>
        </widget>
@@ -1034,7 +1053,7 @@
           <rect>
            <x>10</x>
            <y>21</y>
-           <width>91</width>
+           <width>111</width>
            <height>21</height>
           </rect>
          </property>
@@ -1638,7 +1657,6 @@
         </property>
         <property name="font">
          <font>
-          <weight>75</weight>
           <bold>true</bold>
          </font>
         </property>
@@ -1715,7 +1733,6 @@
         </property>
         <property name="font">
          <font>
-          <weight>50</weight>
           <bold>false</bold>
          </font>
         </property>
@@ -1770,7 +1787,6 @@
          <font>
           <family>Lucida Console</family>
           <pointsize>8</pointsize>
-          <weight>50</weight>
           <bold>false</bold>
          </font>
         </property>
@@ -1789,7 +1805,6 @@
         </property>
         <property name="font">
          <font>
-          <weight>50</weight>
           <bold>false</bold>
          </font>
         </property>
@@ -1824,7 +1839,6 @@
         </property>
         <property name="font">
          <font>
-          <weight>50</weight>
           <bold>false</bold>
          </font>
         </property>
@@ -1872,19 +1886,19 @@
         </property>
        </widget>
       </widget>
-      <widget class="QWidget" name="tab_MagC">
+      <widget class="QWidget" name="tab_Array">
        <attribute name="title">
-        <string>MagC</string>
+        <string>Array</string>
        </attribute>
-       <widget class="QTableView" name="tableView_magc_sections">
+       <widget class="QTableView" name="tableView_array_sections">
         <property name="enabled">
          <bool>true</bool>
         </property>
         <property name="geometry">
          <rect>
-          <x>350</x>
+          <x>150</x>
           <y>10</y>
-          <width>181</width>
+          <width>381</width>
           <height>481</height>
          </rect>
         </property>
@@ -1928,7 +1942,6 @@
         <property name="font">
          <font>
           <family>Calibri</family>
-          <weight>50</weight>
           <bold>false</bold>
          </font>
         </property>
@@ -1953,22 +1966,22 @@ Green: acquired</string>
          <number>90</number>
         </attribute>
         <attribute name="verticalHeaderVisible">
-         <bool>false</bool>
-        </attribute>
-        <attribute name="verticalHeaderDefaultSectionSize">
-         <number>10</number>
+         <bool>true</bool>
         </attribute>
         <attribute name="verticalHeaderMinimumSectionSize">
          <number>10</number>
         </attribute>
+        <attribute name="verticalHeaderDefaultSectionSize">
+         <number>40</number>
+        </attribute>
        </widget>
-       <widget class="QTextEdit" name="textEdit_magc_stringSections">
+       <widget class="QTextEdit" name="textEdit_array_stringSections">
         <property name="geometry">
          <rect>
           <x>540</x>
           <y>170</y>
           <width>101</width>
-          <height>41</height>
+          <height>31</height>
          </rect>
         </property>
         <property name="toolTip">
@@ -1978,58 +1991,56 @@ Green: acquired</string>
 - a range with increment: 2-30-5</string>
         </property>
        </widget>
-       <widget class="QPushButton" name="pushButton_magc_okStringSections">
+       <widget class="QPushButton" name="pushButton_array_okStringSections">
         <property name="geometry">
          <rect>
           <x>650</x>
           <y>170</y>
           <width>31</width>
-          <height>40</height>
+          <height>31</height>
          </rect>
         </property>
         <property name="text">
          <string>OK</string>
         </property>
        </widget>
-       <widget class="QPushButton" name="pushButton_magc_checkSelected">
+       <widget class="QPushButton" name="pushButton_array_checkSelected">
         <property name="geometry">
          <rect>
           <x>540</x>
-          <y>230</y>
+          <y>220</y>
           <width>141</width>
           <height>31</height>
          </rect>
         </property>
         <property name="font">
          <font>
-          <weight>75</weight>
-          <bold>true</bold>
+          <bold>false</bold>
          </font>
         </property>
         <property name="text">
          <string>Check</string>
         </property>
        </widget>
-       <widget class="QPushButton" name="pushButton_magc_uncheckSelected">
+       <widget class="QPushButton" name="pushButton_array_uncheckSelected">
         <property name="geometry">
          <rect>
           <x>540</x>
-          <y>270</y>
+          <y>260</y>
           <width>141</width>
           <height>31</height>
          </rect>
         </property>
         <property name="font">
          <font>
-          <weight>75</weight>
-          <bold>true</bold>
+          <bold>false</bold>
          </font>
         </property>
         <property name="text">
          <string>Uncheck</string>
         </property>
        </widget>
-       <widget class="QPushButton" name="pushButton_magc_invertSelection">
+       <widget class="QPushButton" name="pushButton_array_invertSelection">
         <property name="geometry">
          <rect>
           <x>540</x>
@@ -2042,7 +2053,7 @@ Green: acquired</string>
          <string>Invert selection</string>
         </property>
        </widget>
-       <widget class="QPushButton" name="pushButton_magc_selectAll">
+       <widget class="QPushButton" name="pushButton_array_selectAll">
         <property name="geometry">
          <rect>
           <x>540</x>
@@ -2055,7 +2066,7 @@ Green: acquired</string>
          <string>Select all</string>
         </property>
        </widget>
-       <widget class="QPushButton" name="pushButton_magc_deselectAll">
+       <widget class="QPushButton" name="pushButton_array_deselectAll">
         <property name="geometry">
          <rect>
           <x>540</x>
@@ -2068,7 +2079,7 @@ Green: acquired</string>
          <string>Deselect all</string>
         </property>
        </widget>
-       <widget class="QPushButton" name="pushButton_magc_selectChecked">
+       <widget class="QPushButton" name="pushButton_array_selectChecked">
         <property name="geometry">
          <rect>
           <x>540</x>
@@ -2081,12 +2092,12 @@ Green: acquired</string>
          <string>Select checked</string>
         </property>
        </widget>
-       <widget class="Line" name="line_2">
+       <widget class="Line" name="line_1">
         <property name="geometry">
          <rect>
-          <x>550</x>
-          <y>220</y>
-          <width>118</width>
+          <x>20</x>
+          <y>210</y>
+          <width>111</width>
           <height>3</height>
          </rect>
         </property>
@@ -2094,122 +2105,155 @@ Green: acquired</string>
          <enum>Qt::Horizontal</enum>
         </property>
        </widget>
-       <widget class="QPushButton" name="pushButton_magc_importMagc">
+       <widget class="QPushButton" name="pushButton_array_reset">
         <property name="geometry">
          <rect>
           <x>10</x>
-          <y>10</y>
-          <width>138</width>
-          <height>40</height>
+          <y>220</y>
+          <width>131</width>
+          <height>31</height>
          </rect>
         </property>
         <property name="font">
          <font>
-          <weight>75</weight>
-          <bold>true</bold>
-         </font>
-        </property>
-        <property name="text">
-         <string>Import MagC</string>
-        </property>
-       </widget>
-       <widget class="QPushButton" name="pushButton_magc_importWaferImage">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>60</y>
-          <width>141</width>
-          <height>58</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Import 
-Wafer Image</string>
-        </property>
-       </widget>
-       <widget class="QPushButton" name="pushButton_magc_resetMagc">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>130</y>
-          <width>138</width>
-          <height>40</height>
-         </rect>
-        </property>
-        <property name="font">
-         <font>
-          <weight>50</weight>
           <bold>false</bold>
          </font>
         </property>
         <property name="text">
-         <string>Reset MagC</string>
+         <string>Reset</string>
         </property>
        </widget>
-       <widget class="QPushButton" name="pushButton_magc_addSection">
+       <widget class="QPushButton" name="pushButton_array_landmarkCalibration">
         <property name="geometry">
          <rect>
-          <x>540</x>
-          <y>320</y>
-          <width>141</width>
-          <height>31</height>
-         </rect>
-        </property>
-        <property name="toolTip">
-         <string>Requires wafer calibration</string>
-        </property>
-        <property name="text">
-         <string>Add section</string>
-        </property>
-       </widget>
-       <widget class="QPushButton" name="pushButton_magc_deleteLastSection">
-        <property name="geometry">
-         <rect>
-          <x>540</x>
-          <y>360</y>
-          <width>141</width>
+          <x>10</x>
+          <y>130</y>
+          <width>131</width>
           <height>31</height>
          </rect>
         </property>
         <property name="font">
          <font>
-          <pointsize>7</pointsize>
+          <bold>false</bold>
          </font>
         </property>
         <property name="text">
-         <string>Delete last section</string>
+         <string>Landmark calibration</string>
         </property>
        </widget>
-       <widget class="Line" name="line_3">
+       <widget class="QPushButton" name="pushButton_array_createGrids">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>170</y>
+          <width>131</width>
+          <height>31</height>
+         </rect>
+        </property>
+        <property name="font">
+         <font>
+          <bold>false</bold>
+         </font>
+        </property>
+        <property name="text">
+         <string>Create ROI grids</string>
+        </property>
+       </widget>
+       <widget class="QToolButton" name="toolButton_array_dataFile">
+        <property name="geometry">
+         <rect>
+          <x>110</x>
+          <y>10</y>
+          <width>31</width>
+          <height>21</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>...</string>
+        </property>
+       </widget>
+       <widget class="QLineEdit" name="lineEdit_array_dataFile">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>40</y>
+          <width>131</width>
+          <height>21</height>
+         </rect>
+        </property>
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+       </widget>
+       <widget class="QLabel" name="label_array_dataFile">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>10</y>
+          <width>91</width>
+          <height>21</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Array data file</string>
+        </property>
+       </widget>
+       <widget class="QLineEdit" name="lineEdit_array_imageFile">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>100</y>
+          <width>131</width>
+          <height>21</height>
+         </rect>
+        </property>
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+       </widget>
+       <widget class="QToolButton" name="toolButton_array_imageFile">
+        <property name="geometry">
+         <rect>
+          <x>110</x>
+          <y>70</y>
+          <width>31</width>
+          <height>21</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>...</string>
+        </property>
+       </widget>
+       <widget class="QLabel" name="label_array_imageFile">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>70</y>
+          <width>91</width>
+          <height>21</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Array image file</string>
+        </property>
+       </widget>
+       <widget class="Line" name="line_2">
         <property name="geometry">
          <rect>
           <x>550</x>
-          <y>310</y>
+          <y>210</y>
           <width>118</width>
           <height>3</height>
          </rect>
         </property>
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
-        </property>
-       </widget>
-       <widget class="QPushButton" name="pushButton_magc_waferCalibration">
-        <property name="geometry">
-         <rect>
-          <x>160</x>
-          <y>10</y>
-          <width>177</width>
-          <height>40</height>
-         </rect>
-        </property>
-        <property name="font">
-         <font>
-          <weight>75</weight>
-          <bold>true</bold>
-         </font>
-        </property>
-        <property name="text">
-         <string>Wafer calibration</string>
         </property>
        </widget>
       </widget>
@@ -2358,7 +2402,6 @@ Wafer Image</string>
         </property>
         <property name="font">
          <font>
-          <weight>75</weight>
           <bold>true</bold>
          </font>
         </property>
@@ -2713,11 +2756,13 @@ Wafer Image</string>
        <font>
         <family>Lucida Console</family>
         <pointsize>8</pointsize>
-        <weight>50</weight>
         <bold>false</bold>
        </font>
       </property>
       <property name="readOnly">
+       <bool>true</bool>
+      </property>
+      <property name="centerOnScroll">
        <bool>true</bool>
       </property>
      </widget>
@@ -2733,7 +2778,7 @@ Wafer Image</string>
      <x>0</x>
      <y>0</y>
      <width>711</width>
-     <height>21</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -2756,6 +2801,7 @@ Wafer Image</string>
     <addaction name="actionMonitoringSettings"/>
     <addaction name="actionDebrisDetectionSettings"/>
     <addaction name="actionAskUserModeSettings"/>
+    <addaction name="actionTCPRemote"/>
     <addaction name="actionDiskMirroringSettings"/>
     <addaction name="actionTileMonitoringSettings"/>
     <addaction name="actionAutofocusSettings"/>
@@ -2804,7 +2850,7 @@ Wafer Image</string>
     <property name="title">
      <string>Import</string>
     </property>
-    <addaction name="actionImportMagCMetadata"/>
+    <addaction name="actionImportArrayData"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuSettings"/>
@@ -2934,12 +2980,12 @@ Wafer Image</string>
     <string>Switch to X stage</string>
    </property>
   </action>
-  <action name="actionImportMagCMetadata">
+  <action name="actionImportArrayData">
    <property name="text">
-    <string>Import MagC metadata</string>
+    <string>Import Array data</string>
    </property>
    <property name="toolTip">
-    <string>To enable the MagC module: set magc_mode = True in your config file</string>
+    <string>Import Array data</string>
    </property>
   </action>
   <action name="actionCutDuration">
@@ -2960,6 +3006,11 @@ Wafer Image</string>
   <action name="actionVariablePressureSettings">
    <property name="text">
     <string>Variable pressure</string>
+   </property>
+  </action>
+  <action name="actionTCPRemote">
+   <property name="text">
+    <string>TCP remote</string>
    </property>
   </action>
  </widget>

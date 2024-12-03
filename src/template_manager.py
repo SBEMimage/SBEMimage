@@ -1,14 +1,14 @@
-import os
-import json
-from math import sin, cos, radians
 from collections import Counter
-import imageio
 import cv2
-import tqdm
-import scipy.ndimage
+import json
 import numpy as np
+import os
+import scipy.ndimage
+import tqdm
 import utils
+
 from grid_manager import Grid, GridManager
+from image_io import imread
 
 
 class Template(Grid):
@@ -71,7 +71,7 @@ class TemplateManager:
     @property
     def stub_ov_arr(self):
         if self._stub_ov_arr is None:
-            self._stub_ov_arr = imageio.imread(self.stub_ov_viewport_image).swapaxes(1, 0)
+            self._stub_ov_arr = imread(self.stub_ov_viewport_image).swapaxes(1, 0)
         return self._stub_ov_arr
 
     def delete_cache(self):
@@ -80,8 +80,8 @@ class TemplateManager:
 
     def save_to_cfg(self):
         self.cfg['gcib']['template_rotation'] = str(self.template.rotation)
-        self.cfg['gcib']['template_centre_sx_sy'] = str(utils.round_xy(self.template.centre_sx_sy, 0))
-        self.cfg['gcib']['template_w_h'] = str(utils.round_xy(self.template.frame_size, 0))
+        self.cfg['gcib']['template_centre_sx_sy'] = utils.serialise_list(utils.round_xy(self.template.centre_sx_sy, 0))
+        self.cfg['gcib']['template_w_h'] = utils.serialise_list(utils.round_xy(self.template.frame_size, 0))
 
     def add_new_template(self, centre_sx_sy, rotation, w, h):
         self.template = Template(self.cs, self.sem, centre_sx_sy, rotation, self.pixel_size, w, h)
@@ -113,7 +113,7 @@ class TemplateManager:
 
         Returns:
             Locations of connected components of high matching scores in relative SEM (d) coordinates
-            (distances as shown in SEM images) with grid rotation applied (if theta > 0).
+            (distances as shown in SEM images) with grid rotation applied (if theta <> 0).
         """
         temp = self.img_arr.astype(np.float32)
         stubov = self.stub_ov_arr.astype(np.float32)
@@ -130,7 +130,7 @@ class TemplateManager:
         out_scores = np.zeros_like(stubov).astype(np.float32)
         # make stubov rotatable without losing pixels by padding to square extent of c^2 = X^2 + Y^2
         # maybe can be solved more elegant by bordermode / value in warpAffine
-        pad_extent = ((np.sqrt(stubov.shape[0]**2 + stubov.shape[1]**2) - np.array(stubov.shape)) / 2).astype(np.int)
+        pad_extent = ((np.sqrt(stubov.shape[0]**2 + stubov.shape[1]**2) - np.array(stubov.shape)) / 2).astype(int)
         stubov = np.pad(stubov, ((pad_extent[0], pad_extent[0]), (pad_extent[1], pad_extent[1])), constant_values=0)
         # get center in pixels relative to stub ov origin
         center = tuple((stubov.shape[0] // 2, stubov.shape[1] // 2))
@@ -157,8 +157,8 @@ class TemplateManager:
                 del out_
 
         # might be useful for GUI
-        # imageio.imsave(self.stub_ov_viewport_image[:-4] + '_MASK.tif', (out_scores > threshold).astype(np.uint16) * 255)
-        # imageio.imsave(self.stub_ov_viewport_image[:-4] + '_ANGLES.tif', (out_angles + 360).astype(np.uint16))
+        # imwrite(self.stub_ov_viewport_image[:-4] + '_MASK.tif', (out_scores > threshold).astype(np.uint16) * 255)
+        # imwrite(self.stub_ov_viewport_image[:-4] + '_ANGLES.tif', (out_angles + 360).astype(np.uint16))
 
         # Compute position of stub overview (upper left corner) and its
         # width and height
@@ -219,7 +219,7 @@ class TemplateManager:
         Returns:
             Template image array in with shape XY.
         """
-        stub_ov = imageio.imread(self.stub_ov_viewport_image)
+        stub_ov = imread(self.stub_ov_viewport_image)
         # Compute position of stub overview (upper left corner) and its
         # width and height
         dx, dy = self.ovm['stub'].origin_dx_dy

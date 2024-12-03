@@ -19,17 +19,17 @@ and not during acquisitions:
 import os
 import datetime
 import numpy as np
-import scipy.ndimage
 from time import sleep
-from skimage import io
 
+import constants
+from constants import Error
+from image_io import imwrite, imread_metadata
 import utils
-from utils import Error
 
 
 def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
                main_controls_trigger, viewport_trigger):
-    check_ov_acceptance = bool(sem.cfg['overviews']['check_acceptance'].lower() == 'true')
+    check_ov_acceptance = utils.str_to_bool(sem.cfg['overviews']['check_acceptance'])
     # Update current XY stage position
     stage.get_xy()
     success = True
@@ -45,8 +45,8 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
     for ov_index in range(start, end):
         if not ovm[ov_index].active:
             continue
-        main_controls_trigger.transmit(utils.format_log_entry(
-            'STAGE: Moving to OV %d position.' % ov_index))
+        #main_controls_trigger.transmit(utils.format_log_entry('STAGE: Moving to OV %d position.' % ov_index))
+        utils.log_info('STAGE', f'Moving to OV {ov_index} position.')
         # Move to OV stage coordinates
         stage.move_to_xy(ovm[ov_index].centre_sx_sy)
         # Check to see if error ocurred
@@ -57,9 +57,8 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
             stage.move_to_xy(ovm[ov_index].centre_sx_sy)
             if stage.error_state != Error.none:
                 stage.reset_error_state()
-                main_controls_trigger.transmit(utils.format_log_entry(
-                    'STAGE: Second attempt to move to OV %d position failed.'
-                    % ov_index))
+                #main_controls_trigger.transmit(utils.format_log_entry('STAGE: Second attempt to move to OV %d position failed.' % ov_index))
+                utils.log_info('STAGE', f'Second attempt to move to OV {ov_index} position failed.')
                 success = False
         if success:
             # Update stage position in Main Controls GUI and Viewport
@@ -72,9 +71,8 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
                 sem.set_wd(ov_wd)
                 stig_x, stig_y = ovm[ov_index].wd_stig_xy[1:3]
                 sem.set_stig_xy(stig_x, stig_y)
-                main_controls_trigger.transmit(utils.format_log_entry(
-                    'SEM: Using specified '
-                    + utils.format_wd_stig(ov_wd, stig_x, stig_y)))
+                #main_controls_trigger.transmit(utils.format_log_entry('SEM: Using specified ' + utils.format_wd_stig(ov_wd, stig_x, stig_y)))
+                utils.log_info('SEM', 'Using specified ' + utils.format_wd_stig(ov_wd, stig_x, stig_y))
             # Set specified OV frame settings
             sem.apply_frame_settings(ovm[ov_index].frame_size_selector,
                                      ovm[ov_index].pixel_size,
@@ -82,25 +80,25 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
             # Set bit depth
             sem.set_bit_depth(ovm[ov_index].bit_depth_selector)
             save_path = os.path.join(
-                base_dir, 'workspace', 'OV'
-                + str(ov_index).zfill(3) + '.bmp')
-            main_controls_trigger.transmit(utils.format_log_entry(
-                'SEM: Acquiring OV %d.' % ov_index))
+                base_dir, 'workspace',
+                utils.get_ov_filename(None, ov_index))
+            #main_controls_trigger.transmit(utils.format_log_entry('SEM: Acquiring OV %d.' % ov_index))
+            utils.log_info('SEM', f'Acquiring OV {ov_index}.')
             # Indicate the overview being acquired in the viewport
-            viewport_trigger.transmit('ACQ IND OV' + str(ov_index))
-            success = sem.acquire_frame(save_path)
+            viewport_trigger.transmit('ACQ IND OV', ov_index)
+            success = sem.acquire_frame(save_path, stage)
             # Remove indicator colour
-            viewport_trigger.transmit('ACQ IND OV' + str(ov_index))
+            viewport_trigger.transmit('ACQ IND OV', ov_index)
             _, _, _, load_error, _, grab_incomplete = (
                 img_inspector.load_and_inspect(save_path))
             if load_error or grab_incomplete and check_ov_acceptance:
                 # Try again
                 sleep(0.5)
-                main_controls_trigger.transmit(utils.format_log_entry(
-                    'SEM: Second attempt: Acquiring OV %d.' % ov_index))
-                viewport_trigger.transmit('ACQ IND OV' + str(ov_index))
-                success = sem.acquire_frame(save_path)
-                viewport_trigger.transmit('ACQ IND OV' + str(ov_index))
+                #main_controls_trigger.transmit(utils.format_log_entry('SEM: Second attempt: Acquiring OV %d.' % ov_index))
+                utils.log_info('SEM', f'Second attempt: Acquiring OV {ov_index}.')
+                viewport_trigger.transmit('ACQ IND OV', ov_index)
+                success = sem.acquire_frame(save_path, stage)
+                viewport_trigger.transmit('ACQ IND OV', ov_index)
                 sleep(1)
                 _, _, _, load_error, _, grab_incomplete = (
                     img_inspector.load_and_inspect(save_path))
@@ -112,9 +110,8 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
                         cause = 'grab incomplete'
                     else:
                         cause = 'acquisition error'
-                    main_controls_trigger.transmit(utils.format_log_entry(
-                        f'SEM: Second attempt to acquire OV {ov_index} '
-                        f'failed ({cause}).'))
+                    #main_controls_trigger.transmit(utils.format_log_entry(f'SEM: Second attempt to acquire OV {ov_index} failed ({cause}).'))
+                    utils.log_info('SEM', f'Second attempt to acquire OV {ov_index} failed ({cause}).')
             if success:
                 ovm[ov_index].vp_file_path = save_path
             # Show updated OV
@@ -127,7 +124,7 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
         viewport_trigger.transmit('REFRESH OV FAILURE')
 
 
-def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
+def acquire_stub_ov(sem, stage, stub_ovm, acq, img_inspector,
                     stub_dlg_trigger, abort_queue):
     """Acquire a large tiled overview image of user-defined size that covers a
     part of or the entire stub (SEM sample holder).
@@ -137,7 +134,7 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
     """
     success = True      # Set to False if an error occurs during acq process
     aborted = False     # Set to True when user clicks the 'Abort' button
-    prev_vp_file_path = ovm['stub'].vp_file_path
+    prev_vp_file_path = stub_ovm.vp_file_path
 
     # Update current XY position and display it in Main Controls GUI
     stage.get_xy()
@@ -149,29 +146,35 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
         success = stage.update_motor_speed()
 
     if success:
-        # NumPy array for final stitched image
-        width, height = ovm['stub'].width_p(), ovm['stub'].height_p()
-        full_stub_image = np.zeros((height, width), dtype=np.uint8)
-        # Save current stub image to temp_save_path to show live preview
-        # during the acquisition
-        temp_save_path = os.path.join(
-            acq.base_dir, 'workspace', 'temp_stub_ov.png')
-        io.imsave(temp_save_path, full_stub_image,
-                  check_contrast=False)
-        ovm['stub'].vp_file_path = temp_save_path
-
         image_counter = 0
         first_tile = True
-        number_cols = ovm['stub'].size[1]
-        tile_width = ovm['stub'].tile_width_p()
-        tile_height = ovm['stub'].tile_height_p()
-        overlap = ovm['stub'].overlap
+        number_cols = stub_ovm.size[1]
+        tile_width, tile_height = stub_ovm.tile_width_p(), stub_ovm.tile_height_p()
+        overlap = stub_ovm.overlap
+        metadata = None
 
         # Activate all tiles, which will automatically sort active tiles to
         # minimize motor move durations
-        ovm['stub'].activate_all_tiles()
+        stub_ovm.activate_all_tiles()
 
-        for tile_index in ovm['stub'].active_tiles:
+        # NumPy array for final stitched image
+        temp_save_path = os.path.join(
+            acq.base_dir, 'workspace', 'temp_stub_ov' + constants.TEMP_IMAGE_FORMAT)
+        stub_ovm.vp_file_path = temp_save_path
+        is_single_tile = (len(stub_ovm.active_tiles) == 1)
+        if not is_single_tile:
+            shape = [stub_ovm.height_p(), stub_ovm.width_p()]
+            depth = stub_ovm.tile_depth()
+            if depth > 1:
+                shape += [depth]
+            full_stub_image = np.zeros(shape, dtype=np.uint8)
+            # Save current stub image to temp_save_path to show live preview
+            # during the acquisition
+            imwrite(temp_save_path, full_stub_image, npyramid_add=4, pyramid_downsample=2)
+        else:
+            full_stub_image = None
+
+        for tile_index in stub_ovm.active_tiles:
             if not abort_queue.empty():
                 # Check if user has clicked 'Abort' button in dialog GUI
                 if abort_queue.get() == 'ABORT':
@@ -180,7 +183,7 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
                     success = False
                     aborted = True
                     break
-            target_x, target_y = ovm['stub'][tile_index].sx_sy
+            target_x, target_y = stub_ovm[tile_index].sx_sy
             # Only acquire tile if it is within stage limits
             if stage.pos_within_limits((target_x, target_y)):
                 stage.move_to_xy((target_x, target_y))
@@ -206,23 +209,29 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
                     stub_dlg_trigger.transmit('DRAW VP')
                     save_path = os.path.join(
                         acq.base_dir, 'workspace',
-                        'stub' + str(tile_index).zfill(2) + '.tif')
+                        'stub' + str(tile_index).zfill(2) + constants.TEMP_IMAGE_FORMAT)
                     if first_tile:
                         # Set acquisition parameters
                         sem.apply_frame_settings(
-                            ovm['stub'].frame_size_selector,
-                            ovm['stub'].pixel_size,
-                            ovm['stub'].dwell_time)
-                        sem.set_bit_depth(ovm['stub'].bit_depth_selector)
+                            stub_ovm.frame_size_selector,
+                            stub_ovm.pixel_size,
+                            stub_ovm.dwell_time)
+                        sem.set_bit_depth(stub_ovm.bit_depth_selector)
                         first_tile = False
-                    success = sem.acquire_frame(save_path)
+                    if stub_ovm.lm_mode:
+                        success = sem.acquire_frame_lm(save_path, stage)
+                    else:
+                        success = sem.acquire_frame(save_path, stage)
                     sleep(0.5)
                     tile_img, _, _, load_error, _, grab_incomplete = (
                         img_inspector.load_and_inspect(save_path))
                     if load_error or grab_incomplete:
                         # Try again
                         sem.reset_error_state()
-                        success = sem.acquire_frame(save_path)
+                        if stub_ovm.lm_mode:
+                            success = sem.acquire_frame_lm(save_path, stage)
+                        else:
+                            success = sem.acquire_frame(save_path, stage)
                         sleep(1.5)
                         tile_img, _, _, load_error, _, grab_incomplete = (
                             img_inspector.load_and_inspect(save_path))
@@ -245,14 +254,18 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
                         y = tile_index // number_cols
                         x_pos = x * (tile_width - overlap)
                         y_pos = y * (tile_height - overlap)
-                        full_stub_image[y_pos:y_pos+tile_height,
-                                        x_pos:x_pos+tile_width] = tile_img
+                        if is_single_tile:
+                            full_stub_image = tile_img
+                        else:
+                            full_stub_image[y_pos:y_pos + tile_height,
+                                            x_pos:x_pos + tile_width] = tile_img
                         # Save current stitched image and show it in Viewport
-                        io.imsave(temp_save_path, full_stub_image,
-                                  check_contrast=False)
-                        # Setting vp_file_path to temp_save_path reloads the
-                        # current png file as a QPixmap
-                        ovm['stub'].vp_file_path = temp_save_path
+                        metadata = {'pixel_size': [stub_ovm.pixel_size * 1e-3] * 2,
+                                    'position': stub_ovm.centre_sx_sy,
+                                    'rotation': stub_ovm.rotation}
+                        imwrite(temp_save_path, full_stub_image, metadata=metadata, npyramid_add=4, pyramid_downsample=2)
+                        # Setting vp_file_path to temp_save_path reloads the current file
+                        stub_ovm.vp_file_path = temp_save_path
                         stub_dlg_trigger.transmit('DRAW VP')
                         sleep(0.1)
 
@@ -262,9 +275,9 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
             # Update progress bar in dialog window
             image_counter += 1
             percentage_done = int(
-                image_counter / ovm['stub'].number_tiles * 100)
+                image_counter / stub_ovm.number_tiles * 100)
             stub_dlg_trigger.transmit(
-                'UPDATE PROGRESS' + str(percentage_done))
+                'UPDATE PROGRESS', percentage_done)
 
         # Write final full stub overview image and downsampled copies to disk unless acq aborted
         if not aborted:
@@ -278,26 +291,13 @@ def acquire_stub_ov(sem, stage, ovm, acq, img_inspector,
                 acq.base_dir, 'overviews', 'stub',
                 acq.stack_name + '_stubOV_s'
                 + str(acq.slice_counter).zfill(5)
-                + '_' + timestamp + '.png')
-            
-            # Full stub OV image
-            io.imsave(stub_overview_file_name, full_stub_image,
-                      check_contrast=False)
-            try:
-                # Generate downsampled versions of stub OV
-                for mag in [2, 4, 8, 16]:
-                    vp_fname_mag = stub_overview_file_name[:-4] + f'_mag{mag}.png'
-                    img_mag = scipy.ndimage.zoom(full_stub_image, 1 / mag, order=3)
-                    io.imsave(vp_fname_mag, img_mag)
-            except Exception as e:
-                stub_dlg_trigger.transmit(
-                    f'An exception occurred while saving downsampled copies'
-                    f'of the acquired stub overview image: {str(e)}')
+                + '_' + timestamp + constants.STUBOV_IMAGE_FORMAT)
 
-            ovm['stub'].vp_file_path = stub_overview_file_name
+            imwrite(stub_overview_file_name, full_stub_image, metadata=metadata, npyramid_add=4, pyramid_downsample=2)
+            stub_ovm.vp_file_path = stub_overview_file_name
         else:
             # Restore previous stub OV
-            ovm['stub'].vp_file_path = prev_vp_file_path
+            stub_ovm.vp_file_path = prev_vp_file_path
             stub_dlg_trigger.transmit('DRAW VP')
 
     if success:

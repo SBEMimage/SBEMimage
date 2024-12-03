@@ -15,7 +15,8 @@ import json
 from collections import deque
 from typing import List
 
-from utils import Error
+import utils
+from constants import Error
 
 
 class SEM:
@@ -32,7 +33,9 @@ class SEM:
         self.last_known_x = None
         self.last_known_y = None
         self.last_known_z = None
-        # self.error_state: see list in utils.py; no error -> error_state = 0
+        # Last known SEM scan rotation in degrees
+        self.scan_rotation = None
+        # self.error_state: see list in utils.py; no error -> error_state = Error.none
         # self.error_info: further description / exception error message
         self.error_state = Error.none
         self.error_info = ''
@@ -70,6 +73,10 @@ class SEM:
         self.target_eht = float(self.cfg['sem']['eht'])
         self.target_beam_current = int(float(self.cfg['sem']['beam_current']))
         self.target_aperture_size = float(self.cfg['sem']['aperture_size'])
+        if 'spot_size' in self.cfg['sem']:
+            self.target_spot_size = float(self.cfg['sem']['spot_size'])
+        else:
+            self.target_spot_size = 0
         self.target_high_current = False
         # self.stage_rotation: rotation angle of SEM stage (0° by default)
         self.stage_rotation = 0
@@ -152,7 +159,7 @@ class SEM:
         self.BEAM_CURRENT_MODES = json.loads(self.syscfg['sem']['beam_current_modes'])
         self.BEAM_CURRENT_MODE = json.loads(self.syscfg['sem']['beam_current_mode'])
         # self.HAS_HIGH_CURRENT: if has high current mode
-        self.HAS_HIGH_CURRENT = bool(self.syscfg['sem']['has_high_current'])
+        self.HAS_HIGH_CURRENT = utils.str_to_bool(self.syscfg['sem']['has_high_current'])
         # self.STORE_RES: available store resolutions (= frame size in pixels)
         self.STORE_RES = json.loads(self.syscfg['sem']['store_res'])
         # self.STORE_RES_DEFAULT_INDEX_TILE: default store resolution for new grids and grabbing tiles
@@ -161,6 +168,10 @@ class SEM:
         self.STORE_RES_DEFAULT_INDEX_OV = int(self.syscfg['sem']['store_res_default_index_ov'])
         # self.STORE_RES_DEFAULT_INDEX_STUB_OV: default store resolution for stub OV tiles
         self.STORE_RES_DEFAULT_INDEX_STUB_OV = int(self.syscfg['sem']['store_res_default_index_stub_ov'])
+        if 'store_res_default_index_stub_ov_lm' in self.syscfg['sem']:
+            self.STORE_RES_DEFAULT_INDEX_STUB_OV_LM = int(self.syscfg['sem']['store_res_default_index_stub_ov_lm'])
+        else:
+            self.STORE_RES_DEFAULT_INDEX_STUB_OV_LM = self.STORE_RES_DEFAULT_INDEX_STUB_OV
         # self.DWELL_TIME: available dwell times in microseconds
         self.DWELL_TIME = json.loads(self.syscfg['sem']['dwell_time'])
         # self.DWELL_TIME_DEFAULT_INDEX: default dwell time
@@ -172,7 +183,7 @@ class SEM:
         # cycle_time[frame_size_selector][scan_rate] -> duration in sec
         cycle_time = json.loads(self.syscfg['sem']['cycle_time'])
         # Convert string keys to int
-        self.CYCLE_TIME = {int(k): v for k, v in cycle_time.items()}
+        self.CYCLE_TIME = {int(index): values for index, values in cycle_time.items()}
         # self.DEFAULT_DELAY: delay in seconds after cycle time before
         # image is grabbed by SBEMimage
         self.DEFAULT_DELAY = float(self.syscfg['sem']['delay_after_cycle_time'])
@@ -180,10 +191,18 @@ class SEM:
         # as a function of frame resolution and pixel size (in nm):
         # M = MAG_PX_SIZE_FACTOR / (STORE_RES_X * PX_SIZE)
         self.MAG_PX_SIZE_FACTOR = int(self.syscfg['sem']['mag_px_size_factor'])
+        # self.FIELD_WIDTH_RANGE is the valid range of horizontal field width (FW / HFW / FOV)
+        # for the instrument in microns; HFW = pixel size * horizontal resolution
+        # This is used to set (UI) Zoom/scale ranges
+        if 'field_width_range' in self.syscfg['sem']:
+            self.FIELD_WIDTH_RANGE = json.loads(self.syscfg['sem']['field_width_range'])
+        else:
+            self.FIELD_WIDTH_RANGE = []
 
     def save_to_cfg(self):
         """Save current values of attributes to config and sysconfig objects."""
         self.syscfg['sem']['mag_px_size_factor'] = str(self.MAG_PX_SIZE_FACTOR)
+        self.syscfg['sem']['field_width_range'] = str(self.FIELD_WIDTH_RANGE)
         self.cfg['sem']['stage_min_x'] = str(self.stage_limits[0])
         self.cfg['sem']['stage_max_x'] = str(self.stage_limits[1])
         self.cfg['sem']['stage_min_y'] = str(self.stage_limits[2])
@@ -199,6 +218,7 @@ class SEM:
             self.stage_move_check_interval)
         self.cfg['sem']['eht'] = '{0:.2f}'.format(self.target_eht)
         self.cfg['sem']['beam_current'] = str(int(self.target_beam_current))
+        self.cfg['sem']['spot_size'] = str(self.target_spot_size)
         self.cfg['sem']['aperture_size'] = str(self.target_aperture_size)
         self.cfg['sem']['grab_frame_dwell_time'] = str(self.grab_dwell_time)
         self.cfg['sem']['grab_frame_pixel_size'] = '{0:.1f}'.format(
@@ -225,6 +245,40 @@ class SEM:
             self.use_maintenance_moves)
         self.syscfg['stage']['sem_maintenance_move_interval'] = str(int(
             self.maintenance_move_interval))
+
+    def get_beam_label(self):
+        label = f'{self.target_eht:.2f} keV / '
+        beam_mode = self.BEAM_CURRENT_MODE.lower()
+        if beam_mode.startswith('aperture'):
+            label += f'{self.target_aperture_size} μm'
+        elif beam_mode.startswith('spot'):
+            label += f'{self.target_spot_size}'
+        else:
+            label += f'{self.target_beam_current} pA'
+        return label
+
+    def get_grab_metadata(self, stage=None):
+        if stage is not None:
+            position = stage.get_xyz()
+        else:
+            position = self.get_stage_xyz()
+        if len(position) > 2 and position[2] is None:
+            position = position[:2]
+        rotation = 0
+        if self.stage_rotation is not None:
+            rotation += self.stage_rotation
+        if self.scan_rotation is not None:
+            rotation += self.scan_rotation
+        metadata = {
+            'pixel_size': [self.get_pixel_size() * 1e-3] * 2,
+            'position': position,
+            'rotation': rotation
+        }
+        return metadata
+
+    def has_lm_mode(self):
+        """Return True if supports LM mode."""
+        return False
 
     def turn_eht_on(self):
         """Turn EHT (= high voltage) on."""
@@ -253,9 +307,45 @@ class SEM:
         self.target_eht = round(target_eht, 2)
         # Setting SEM to target EHT must be implemented in child class!
 
+    def has_brightness(self):
+        """Return True if supports brightness control."""
+        return False
+
+    def has_contrast(self):
+        """Return True if supports contrast control."""
+        return False
+
+    def has_auto_brightness_contrast(self):
+        """Return True if supports auto brightness/contrast control."""
+        return False
+
+    def get_brightness(self):
+        """Read SmartSEM brightness (0-1)."""
+        raise NotImplementedError
+
+    def get_contrast(self):
+        """Read SmartSEM contrast (0-1)."""
+        raise NotImplementedError
+
+    def get_auto_brightness_contrast(self):
+        """Return True if auto active, otherwise False."""
+        raise NotImplementedError
+
+    def set_brightness(self, brightness):
+        """Write SmartSEM brightness (0-1)."""
+        raise NotImplementedError
+
+    def set_contrast(self, contrast):
+        """Write SmartSEM contrast (0-1)."""
+        raise NotImplementedError
+
+    def set_auto_brightness_contrast(self, enable=True):
+        """Perform or set auto contrast brightness."""
+        raise NotImplementedError
+
     def has_vp(self):
         """Return True if VP is fitted."""
-        raise NotImplementedError
+        return False
 
     def is_hv_on(self):
         """Return True if HV is on."""
@@ -287,7 +377,7 @@ class SEM:
 
     def has_fcc(self):
         """Return True if FCC is fitted."""
-        raise NotImplementedError
+        return False
 
     def is_fcc_on(self):
         """Return True if FCC is on."""
@@ -312,6 +402,10 @@ class SEM:
     def set_fcc_level(self, target_fcc_level):
         """Set the FCC to this target value."""
         raise NotImplementedError
+
+    def set_mode_normal(self):
+        """Sets mode NORMAL (not split, not reduced, not emission)"""
+        return False
 
     def get_beam_current(self):
         """Read beam current (in pA) from SmartSEM."""
@@ -342,13 +436,22 @@ class SEM:
         self.target_aperture_size = self.APERTURE_SIZE[aperture_size_index]
         # Setting SEM to target aperture size must be implemented in child class!
 
+    def get_spot_size(self):
+        """Read spot size/intensity from SmartSEM."""
+        raise NotImplementedError
+
+    def set_spot_size(self, spot_size):
+        """Set SmartSEM spot size/intensity."""
+        self.target_spot_size = spot_size
+        # Setting SEM to target spot size must be implemented in child class!
+
     def apply_beam_settings(self):
         """Set the SEM to the current target EHT voltage and beam current."""
         raise NotImplementedError
 
     def get_detector_list(self) -> List[str]:
         """Return a list of all available detectors."""
-        raise NotImplementedError
+        return []
 
     def get_detector(self) -> str:
         """Return the currently selected detector."""
@@ -428,7 +531,11 @@ class SEM:
         is added by default for cycle times > 0.5 s."""
         raise NotImplementedError
 
-    def save_frame(self, save_path_filename):
+    def acquire_frame_lm(self, save_path_filename, stage=None, extra_delay=0):
+        """Acquire LM frame"""
+        raise NotImplementedError
+
+    def save_frame(self, save_path_filename, stage=None):
         """Save the frame currently displayed in SmartSEM."""
         raise NotImplementedError
 

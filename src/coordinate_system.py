@@ -20,10 +20,11 @@
            _v, vx, vy, vx_vy
 """
 
-from math import sin, cos
 import json
 import numpy as np
+from math import sin, cos
 
+import constants
 import utils
 
 
@@ -50,8 +51,8 @@ class CoordinateSystem:
 
         # Viewport (vp): default width/height,
         # centre position of visible area, and scale factor
-        self.vp_width = utils.VP_WIDTH
-        self.vp_height = utils.VP_HEIGHT
+        self.vp_width = constants.VP_WIDTH
+        self.vp_height = constants.VP_HEIGHT
         self._vp_centre_dx_dy = json.loads(
             self.cfg['viewport']['vp_centre_dx_dy'])
         self._vp_scale = float(self.cfg['viewport']['vp_scale'])
@@ -84,7 +85,7 @@ class CoordinateSystem:
         self.cfg[self._device]['stage_rotation_angle_y'] = str(
             self.stage_calibration[3])
         # Viewport parameters
-        self.cfg['viewport']['vp_centre_dx_dy'] = str(
+        self.cfg['viewport']['vp_centre_dx_dy'] = utils.serialise_list(
             utils.round_xy(self.vp_centre_dx_dy))
         self.cfg['viewport']['vp_scale'] = str(round(self.vp_scale, 3))
         self.cfg['viewport']['sv_scale_tile'] = str(
@@ -111,10 +112,10 @@ class CoordinateSystem:
         else:
             # Fallback option: nearest among the available EHT calibrations
             closest_eht = 1500  # default if no other closer EHT found.
-            min_diff = abs(eht - closest_eht)
+            min_diff = None
             for eht_choice in available_eht_keys:
                 diff = abs(eht - eht_choice)
-                if diff < min_diff:
+                if min_diff is None or diff < min_diff:
                     min_diff = diff
                     closest_eht = eht_choice
             self.stage_calibration = calibration_params[str(closest_eht)]
@@ -124,9 +125,9 @@ class CoordinateSystem:
         """(Re)load rotation and scale parameters and compute rotation
         matrix elements.
         """
-        self.scale_x, self.scale_y, θ_x, θ_y = self.stage_calibration
-        θ_diff = θ_x - θ_y
-        if cos(θ_diff) == 0:
+        self.scale_x, self.scale_y, rotation_x, rotation_y = self.stage_calibration
+        rotation_diff = rotation_x - rotation_y
+        if cos(rotation_diff) == 0:
             raise ValueError('Illegal values of the stage rotation angles. '
                              'X and Y axes would coincide!')
         # Elements of the rotation matrix are precomputed here to enable
@@ -134,10 +135,10 @@ class CoordinateSystem:
         # elements only change if the user recalibrates the stage.
         # Rotation matrix:   ⎛ a  b ⎞
         #                    ⎝ c  d ⎠
-        self.rot_mat_a = cos(θ_y) / cos(θ_diff)
-        self.rot_mat_b = -sin(θ_y) / cos(θ_diff)
-        self.rot_mat_c = sin(θ_x) / cos(θ_diff)
-        self.rot_mat_d = cos(θ_x) / cos(θ_diff)
+        self.rot_mat_a = cos(rotation_y) / cos(rotation_diff)
+        self.rot_mat_b = -sin(rotation_y) / cos(rotation_diff)
+        self.rot_mat_c = sin(rotation_x) / cos(rotation_diff)
+        self.rot_mat_d = cos(rotation_x) / cos(rotation_diff)
         self.rot_mat_determinant = (
             self.rot_mat_a * self.rot_mat_d - self.rot_mat_b * self.rot_mat_c)
         if self.rot_mat_determinant == 0:
@@ -180,12 +181,33 @@ class CoordinateSystem:
               / self.rot_mat_determinant)
         return np.array([dx, dy])
 
+    def get_s_to_d_transform(self):
+        transform = [
+            [self.rot_mat_a * self.scale_x, self.rot_mat_b * self.scale_x, 0],
+            [self.rot_mat_c * self.scale_y, self.rot_mat_d * self.scale_y, 0],
+            [0, 0, 1]
+        ]
+        return np.linalg.inv(transform)
+
+    def get_sem_stage_flipped(self):
+        yx_factor = self.rot_mat_d * self.scale_y / self.rot_mat_a * self.scale_x
+        return yx_factor < 0
+
     def convert_d_to_v(self, d_coordinates) -> np.ndarray:
         """Convert SEM XY coordinates into Viewport window coordinates.
         These coordinates in units of pixels specify an object's location
         relative to the Viewport origin.
         """
-        return ((d_coordinates - self._vp_origin_dx_dy) * self._vp_scale).astype(int)
+        return (d_coordinates - self._vp_origin_dx_dy) * self._vp_scale
+
+    def get_d_to_v_transform(self):
+        scale = self._vp_scale
+        transform = [
+            [scale, 0, -self._vp_origin_dx_dy[0] * scale],
+            [0, scale, -self._vp_origin_dx_dy[1] * scale],
+            [0, 0, 1]
+        ]
+        return transform
 
     def convert_d_to_sv(self, d_coordinates, tile_display=True) -> np.ndarray:
         """Convert SEM coordinates in microns (relative to image origin) to

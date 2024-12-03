@@ -23,11 +23,13 @@ self.ovm['stub'].size  (size of the stub overview grid)
 
 import os
 import json
-from PyQt5.QtGui import QPixmap, QPainter, QColor
+from qtpy.QtCore import QRectF
+from qtpy.QtGui import QPixmap, QPainter, QColor
 
+from grid_manager import Grid
+from image_io import imread
 import numpy as np
 import utils
-from grid_manager import Grid
 
 
 class Overview(Grid):
@@ -94,7 +96,7 @@ class Overview(Grid):
         self._vp_file_path = file_path
         # Load OV image as QPixmap:
         if os.path.isfile(file_path):
-            self.image = QPixmap(file_path)
+            self.image = utils.image_to_QPixmap(imread(file_path))
         else:
             # Show blue transparent ROI when no OV image found
             blank = QPixmap(self.width_p(), self.height_p())
@@ -104,7 +106,7 @@ class Overview(Grid):
             qp.begin(self.image)
             qp.setPen(QColor(0, 0, 255, 0))
             qp.setBrush(QColor(0, 0, 255, 70))
-            qp.drawRect(0, 0, self.width_p(), self.height_p())
+            qp.drawRect(QRectF(0, 0, self.width_p(), self.height_p()))
             qp.end()
 
     def bounding_box(self):
@@ -172,13 +174,13 @@ class Overview(Grid):
                 bottom_right_py = int(
                     bottom_right_dy_max * 1000 / ov_pixel_size)
                 # Add/subract margin and must fit in OV image:
-                top_left_px = utils.fit_in_range(
+                top_left_px = np.clip(
                     top_left_px - margin, 0, self.width_p())
-                top_left_py = utils.fit_in_range(
+                top_left_py = np.clip(
                     top_left_py - margin, 0, self.height_p())
-                bottom_right_px = utils.fit_in_range(
+                bottom_right_px = np.clip(
                     bottom_right_px + margin, 0, self.width_p())
-                bottom_right_py = utils.fit_in_range(
+                bottom_right_py = np.clip(
                     bottom_right_py + margin, 0, self.height_p())
             # set calculated detection area:
             self.debris_detection_area = [
@@ -205,6 +207,7 @@ class StubOverview(Grid):
                          bit_depth_selector=0,
                          display_colour=11)
 
+        self.lm_mode = False
         # Set the centre coordinates, which will update the origin.
         self.centre_sx_sy = centre_sx_sy
         # QPixmaps of current stub OV (original and downsampled)
@@ -224,19 +227,19 @@ class StubOverview(Grid):
     @vp_file_path.setter
     def vp_file_path(self, file_path):
         self._vp_file_path = file_path
+        # Release old images
+        del self.pixmaps_
+        self.pixmaps_ = {1: None, 2: None, 4: None, 8: None, 16: None}
         # Load images as QPixmaps:
-        # Full resolution  
-        if os.path.isfile(file_path):
-            self.pixmaps_[1] = QPixmap(file_path)
-        else:
-            self.pixmaps_[1] = None
-        # Downsampled 
-        for mag in [2, 4, 8, 16]:
-            vp_file_path_mag = file_path[:-4] + f'_mag{mag}.png'
-            if os.path.isfile(vp_file_path_mag): 
-                self.pixmaps_[mag] = QPixmap(vp_file_path_mag)
-            else:
-                self.pixmaps_[mag] = None
+        file_exists = os.path.isfile(file_path)
+        for level, mag in enumerate([1, 2, 4, 8, 16]):
+            image = None
+            if file_exists:
+                image = imread(file_path, level=level)
+                if image is not None:
+                    image = utils.image_to_QPixmap(image)
+            self.pixmaps_[mag] = image
+
 
 class OverviewManager:
     def __init__(self, config, sem, coordinate_system):
@@ -330,10 +333,45 @@ class OverviewManager:
                                             stub_ov_dwell_time_selector,
                                             stub_ov_file_path)
 
+        # Load stub OV LM settings
+        # The acq parameters (frame size, pixel size, dwell time) can at the
+        # moment only be changed manually in the config file.
+
+        stub_ov_lm_centre_sx_sy = json.loads(
+            self.cfg['overviews']['stub_ov_lm_centre_sx_sy'])
+        stub_ov_lm_grid_size = json.loads(
+            self.cfg['overviews']['stub_ov_lm_grid_size'])
+        stub_ov_lm_overlap = int(self.cfg['overviews']['stub_ov_lm_overlap'])
+        if self.cfg['overviews']['stub_ov_lm_frame_size_selector'] == 'None':
+            stub_ov_lm_frame_size_selector = self.sem.STORE_RES_DEFAULT_INDEX_STUB_OV_LM
+        else:
+            stub_ov_lm_frame_size_selector = int(
+                self.cfg['overviews']['stub_ov_lm_frame_size_selector'])
+        stub_ov_lm_pixel_size = float(self.cfg['overviews']['stub_ov_lm_pixel_size'])
+        if self.cfg['overviews']['stub_ov_lm_dwell_time_selector'] == 'None':
+            stub_ov_lm_dwell_time_selector = self.sem.DWELL_TIME_DEFAULT_INDEX
+        else:
+            stub_ov_lm_dwell_time_selector = int(
+                self.cfg['overviews']['stub_ov_lm_dwell_time_selector'])
+        stub_ov_lm_file_path = (
+            self.cfg['overviews']['stub_ov_lm_viewport_image'])
+
+        self.__stub_overview_lm = StubOverview(self.cs, self.sem,
+                                               stub_ov_lm_centre_sx_sy,
+                                               stub_ov_lm_grid_size,
+                                               stub_ov_lm_overlap,
+                                               stub_ov_lm_frame_size_selector,
+                                               stub_ov_lm_pixel_size,
+                                               stub_ov_lm_dwell_time_selector,
+                                               stub_ov_lm_file_path)
+        self.__stub_overview_lm.lm_mode = True
+
     def __getitem__(self, ov_index):
         """Return the Overview object selected by index."""
         if ov_index == 'stub':
             return self.__stub_overview
+        elif ov_index == 'stub_lm':
+            return self.__stub_overview_lm
         elif ov_index < self.number_ov:
             return self.__overviews[ov_index]
         else:
@@ -343,11 +381,11 @@ class OverviewManager:
         self.cfg['overviews']['number_ov'] = str(self.number_ov)
         self.cfg['overviews']['ov_active'] = str(
             [int(ov.active) for ov in self.__overviews])
-        self.cfg['overviews']['ov_centre_sx_sy'] = str(
+        self.cfg['overviews']['ov_centre_sx_sy'] = utils.serialise_list(
             [utils.round_xy(ov.centre_sx_sy) for ov in self.__overviews])
         self.cfg['overviews']['ov_rotation'] = str(
             [ov.rotation for ov in self.__overviews])
-        self.cfg['overviews']['ov_size'] = str(
+        self.cfg['overviews']['ov_size'] = utils.serialise_list(
             [ov.frame_size for ov in self.__overviews])
         self.cfg['overviews']['ov_size_selector'] = str(
             [ov.frame_size_selector for ov in self.__overviews])
@@ -359,7 +397,7 @@ class OverviewManager:
             [ov.dwell_time_selector for ov in self.__overviews])
         self.cfg['overviews']['ov_bit_depth_selector'] = str(
             [ov.bit_depth_selector for ov in self.__overviews])
-        self.cfg['overviews']['ov_wd_stig_xy'] = str(
+        self.cfg['overviews']['ov_wd_stig_xy'] = utils.serialise_list(
             [ov.wd_stig_xy for ov in self.__overviews])
         self.cfg['overviews']['ov_acq_interval'] = str(
             [ov.acq_interval for ov in self.__overviews])
@@ -369,14 +407,14 @@ class OverviewManager:
             [ov.vp_file_path for ov in self.__overviews])
         self.cfg['debris']['auto_detection_area'] = str(
             self.use_auto_debris_area)
-        self.cfg['debris']['detection_area'] = str(
+        self.cfg['debris']['detection_area'] = utils.serialise_list(
             [ov.debris_detection_area for ov in self.__overviews])
         self.cfg['debris']['auto_area_margin'] = str(
             self.auto_debris_area_margin)
         self.cfg['debris']['show_detection_area'] = str(
             self.detection_area_visible)
         # Stub OV
-        self.cfg['overviews']['stub_ov_centre_sx_sy'] = str(
+        self.cfg['overviews']['stub_ov_centre_sx_sy'] = utils.serialise_list(
             utils.round_xy(self.__stub_overview.centre_sx_sy))
         self.cfg['overviews']['stub_ov_grid_size'] = json.dumps(
             self.__stub_overview.size)
@@ -390,6 +428,21 @@ class OverviewManager:
             self.__stub_overview.dwell_time)
         self.cfg['overviews']['stub_ov_viewport_image'] = str(
             self.__stub_overview.vp_file_path)
+        # Stub OV LM
+        self.cfg['overviews']['stub_ov_lm_centre_sx_sy'] = utils.serialise_list(
+            utils.round_xy(self.__stub_overview_lm.centre_sx_sy))
+        self.cfg['overviews']['stub_ov_lm_grid_size'] = json.dumps(
+            self.__stub_overview_lm.size)
+        self.cfg['overviews']['stub_ov_lm_overlap'] = str(
+            self.__stub_overview_lm.overlap)
+        self.cfg['overviews']['stub_ov_lm_frame_size_selector'] = str(
+            self.__stub_overview_lm.frame_size_selector)
+        self.cfg['overviews']['stub_ov_lm_pixel_size'] = str(
+            self.__stub_overview_lm.pixel_size)
+        self.cfg['overviews']['stub_ov_lm_dwell_time'] = str(
+            self.__stub_overview_lm.dwell_time)
+        self.cfg['overviews']['stub_ov_lm_viewport_image'] = str(
+            self.__stub_overview_lm.vp_file_path)
 
     def add_new_overview(self, ov_active=True, centre_sx_sy=None,
                          frame_size=None, frame_size_selector=None, pixel_size=None,
@@ -508,3 +561,11 @@ class OverviewManager:
                 grid_manager,
                 self.use_auto_debris_area,
                 self.auto_debris_area_margin)
+
+    def deactivate_overview(self, ov_idx):
+        """Deactivate overview with ov_idx."""
+        self.__overviews[ov_idx].active = False
+        
+    def activate_overview(self, ov_idx):
+        """Activate overview with ov_idx."""
+        self.__overviews[ov_idx].active = True

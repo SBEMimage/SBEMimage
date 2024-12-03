@@ -8,238 +8,39 @@
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
 
-"""This modules provides various constants and helper functions."""
+"""This modules provides various helper functions."""
 
 import csv
 import os
 import datetime
-import json
-import re
 import logging
 import threading
-import math
 import cv2
 import numpy as np
 
-from enum import Enum
+from configparser import ConfigParser
 from time import sleep
 from queue import Queue
 from logging import StreamHandler
 from logging.handlers import RotatingFileHandler
+
 from skimage.transform import ProjectiveTransform
 from skimage.measure import ransac
 from serial.tools import list_ports
-from PyQt5.QtCore import QObject, pyqtSignal
+from qtpy.QtCore import QObject, Signal, QSize
+from qtpy.QtGui import QIcon, QPixmap, QImage, QTransform
+
+from constants import *
 
 
-# Default and minimum size of the Viewport canvas.
-VP_WIDTH = 1000
-VP_HEIGHT = 800
-
-# XY margins between display area and the top-left corner of the Viewport
-# window. These margins must be subtracted from the coordinates provided
-# when the user clicks onto the window.
-VP_MARGIN_X = 20
-VP_MARGIN_Y = 40
-
-# Difference in pixels between the Viewport window width/height and the
-# Viewport canvas width/height.
-VP_WINDOW_DIFF_X = 50
-VP_WINDOW_DIFF_Y = 150
-
-# Zoom parameters to convert between the scale factors and the position
-# of the zoom sliders in the Viewport (VP) and the Slice-by-Slice viewer
-# (SV). Zoom settings for tiles and for OVs are stored separately because
-# tiles and OVs usually differ in pixel size by an order of magnitude.
-VP_ZOOM_MICROTOME_STAGE = (0.2, 1.05)
-VP_ZOOM_SEM_STAGE = (0.0055, 1.085)
-SV_ZOOM_OV = (1.0, 1.03)
-SV_ZOOM_TILE = (5.0, 1.04)
-
-# Number of digits used to format image file names.
-OV_DIGITS = 3         # up to 999 overview images
-GRID_DIGITS = 4       # up to 9999 grids
-TILE_DIGITS = 4       # up to 9999 tiles per grid
-SLICE_DIGITS = 5      # up to 99999 slices per stack
-
-PRESSURE_FROM_SEM = {"mbar": 1000, "Pa": 100000, "Torr": 750.061682704}
-PRESSURE_TO_SEM = {"mbar": 0.001, "Pa": 0.00001, "Torr": 0.00133322368421}
-
-# Regular expressions for checking user input of tiles and overviews
-RE_TILE_LIST = re.compile('^((0|[1-9][0-9]*)[.](0|[1-9][0-9]*))'
-                          '([ ]*,[ ]*(0|[1-9][0-9]*)[.](0|[1-9][0-9]*))*$')
-RE_OV_LIST = re.compile('^([0-9]+)([ ]*,[ ]*[0-9]+)*$')
-
-LOG_FILENAME = '../log/SBEMimage.log'
-# Custom date/time / format to get '.' instead of ',' as millisecond separator
-LOG_FORMAT = '%(asctime)s.%(msecs)03d %(levelname)s %(category)s: %(message)s'
-LOG_FORMAT_SCREEN = '%(asctime)s | %(category)-5s : %(message)s'
-LOG_FORMAT_DATETIME = '%Y-%m-%d %H:%M:%S'
-LOG_MAX_FILESIZE = 10000000
-LOG_MAX_FILECOUNT = 20
+window_icon = QIcon()
 
 
-# TODO: replace values with auto()
-class Error(Enum):
-    none = 0
-
-    # Movement
-    move_init = 42
-    move_params = 44
-    move_unsafe = 45
-
-    # DM communication
-    dm_init = 101
-    dm_comm_send = 102
-    dm_comm_response = 103
-    dm_comm_retval = 104
-
-    # 3View/SBEM hardware
-    stage_xy = 201
-    stage_z = 202
-    stage_z_move = 203
-    cutting = 204
-    sweeping = 205
-    mismatch_z = 206
-
-    # SmartSEM/SEM
-    smartsem_api = 301
-    grab_image = 302
-    grab_incomplete = 303
-    frame_frozen = 304
-    smartsem_response = 305
-    eht = 306
-    beam_current = 307
-    frame_size = 308
-    magnification = 309
-    scan_rate = 310
-    working_distance = 311
-    stig_xy = 312
-    beam_blanking = 313
-    hp_hv = 314
-    fcc = 315
-    aperture_size = 316
-    high_current = 317
-    mode_normal = 318
-
-    # I/O error
-    primary_drive = 401
-    mirror_drive = 402
-    file_overwrite = 403
-    image_load = 404
-
-    # Other errors during acq
-    sweeps_max = 501
-    overview_image = 502
-    tile_image_range = 503
-    tile_image_compare = 504
-    autofocus_smartsem = 505
-    autofocus_heuristic = 506
-    wd_stig_difference = 507
-    metadata_server = 508
-
-    # Reserved for user-defined errors
-    test_case = 601
-
-    # Error in configuration
-    configuration = 701
-
-    # MultiSEM
-    multisem_beam_control = 901
-    multisem_imaging = 902
-    multisem_alignment = 903
-    multisem_failed_to_write = 904
-
-
-Errors = {
-    Error.none: 'No error',
-
-    # Movement
-    Error.move_init: 'Movement initialisation error',
-    Error.move_params: 'Movement invalid parameter',
-    Error.move_unsafe: 'Movement unsafe',
-
-    # DM communication
-    Error.dm_init: 'DM script initialisation error',
-    Error.dm_comm_send: 'DM communication error (command could not be sent)',
-    Error.dm_comm_response: 'DM communication error (unresponsive)',
-    Error.dm_comm_retval: 'DM communication error (return values could not be read)',
-
-    # 3View/SBEM hardware
-    Error.stage_xy: 'Stage error (XY target position not reached)',
-    Error.stage_z: 'Stage error (Z target position not reached)',
-    Error.stage_z_move: 'Stage error (Z move too large)',
-    Error.cutting: 'Cutting error',
-    Error.sweeping: 'Sweeping error',
-    Error.mismatch_z: 'Z mismatch error',
-
-    # SmartSEM/SEM
-    Error.smartsem_api: 'SmartSEM API initialisation error',
-    Error.grab_image: 'Grab image error',
-    Error.grab_incomplete: 'Grab incomplete error',
-    Error.frame_frozen: 'Frozen frame error',
-    Error.smartsem_response: 'SmartSEM unresponsive error',
-    Error.eht: 'EHT error',
-    Error.beam_current: 'Beam current error',
-    Error.frame_size: 'Frame size error',
-    Error.magnification: 'Magnification error',
-    Error.scan_rate: 'Scan rate error',
-    Error.working_distance: 'WD error',
-    Error.stig_xy: 'STIG XY error',
-    Error.beam_blanking: 'Beam blanking error',
-    Error.hp_hv: 'HV/VP error',
-    Error.fcc: 'FCC error',
-    Error.aperture_size: 'Aperture size error',
-
-    # MultiSEM
-    Error.multisem_beam_control: 'Error: beam control',
-    Error.multisem_imaging: 'Error: imaging not possible',
-    Error.multisem_alignment: 'Error: auto alignment not possible',
-    Error.multisem_failed_to_write: 'Error: failed to write metadata or thumbnails',
-
-    # I/O error
-    Error.primary_drive: 'Primary drive error',
-    Error.mirror_drive: 'Mirror drive error',
-    Error.file_overwrite: 'Overwrite file error',
-    Error.image_load: 'Load image error',
-
-    # Other errors during acq
-    Error.sweeps_max: 'Maximum sweeps error',
-    Error.overview_image: 'Overview image error (outside of range)',
-    Error.tile_image_range: 'Tile image error (outside of range)',
-    Error.tile_image_compare: 'Tile image error (slice-by-slice comparison)',
-    Error.autofocus_smartsem: 'Autofocus error (SmartSEM)',
-    Error.autofocus_heuristic: 'Autofocus error (heuristic)',
-    Error.wd_stig_difference: 'WD/STIG difference error',
-    Error.metadata_server: 'Metadata server error',
-
-    # Reserved for user-defined errors
-    Error.test_case: 'Test case error',
-
-    # Error in configuration
-    Error.configuration: 'Configuration error',
-
-}
-
-
-# List of selectable colours for grids (0-9), overviews (10)
-# acquisition indicator (11):
-COLOUR_SELECTOR = [
-    [255, 0, 0],        #0  red (default colour for grid 0)
-    [0, 255, 0],        #1  green
-    [255, 255, 0],      #2  yellow
-    [0, 255, 255],      #3  cyan
-    [128, 0, 0],        #4  dark red
-    [0, 128, 0],        #5  dark green
-    [255, 165, 0],      #6  orange
-    [255, 0, 255],      #7  pink
-    [173, 216, 230],    #8  grey
-    [184, 134, 11],     #9  brown
-    [0, 0, 255],        #10 blue (used only for OVs)
-    [50, 50, 50],       #11 dark grey for stub OV border
-    [128, 0, 128, 80],  #12 transparent violet (to indicate live acq)
-    [255, 195, 0]       #13 bright orange (active user flag, measuring tool)
-]
+def get_window_icon():
+    if window_icon.isNull():
+        window_icon.addFile('../img/icon_16px.ico', QSize(16, 16))
+        window_icon.addFile('../img/icon_48px.ico', QSize(48, 48))
+    return window_icon
 
 
 class Trigger(QObject):
@@ -248,11 +49,12 @@ class Trigger(QObject):
     be used to send commands: queue.put(cmd) puts a cmd into the
     queue, and queue.get() reads the cmd and empties the queue.
     """
-    signal = pyqtSignal()
+    signal = Signal()
     queue = Queue()
 
-    def transmit(self, cmd):
+    def transmit(self, cmd, *args, **kwargs):
         """Transmit a single command."""
+        cmd = {'msg': cmd, 'args': args, 'kwargs': kwargs}
         self.queue.put(cmd)
         self.signal.emit()
 
@@ -274,8 +76,8 @@ class QtTextHandler(StreamHandler):
         # Filter stack trace from main view
         if 'Traceback' in message:
             message = (message[:message.index('Traceback')]
-                + 'EXCEPTION occurred: See /log/SBEMimage.log '
-                'and output in console window for details.')
+                       + 'EXCEPTION occurred: See /SBEMimage/log/SBEMimage.log '
+                       'and output in console window for details.')
         if self.qt_trigger:
             self.qt_trigger.transmit(message)
         else:
@@ -286,8 +88,10 @@ def run_log_thread(thread_function, *args):
     def run_log():
         try:
             thread_function(*args)
-        except:
-            log_exception("Exception")
+        except Exception as e:
+            print('\nEXCEPTION occurred: See /SBEMimage/log/SBEMimage.log '
+                  'and output in console window for details.\n')
+            log_exception(str(e))
 
     thread = threading.Thread(target=run_log)
     thread.start()
@@ -299,15 +103,12 @@ qt_text_handler = QtTextHandler()
 
 def logging_init(*message):
     global logger
-    dirtree = os.path.dirname(LOG_FILENAME)
-    if not os.path.exists(dirtree):
-        os.makedirs(dirtree)
-
+    validate_output_path(LOG_FILENAME, is_file=True)
     logger = logging.getLogger("SBEMimage")
     logger.setLevel(logging.INFO)   # important: anything below this will be filtered irrespective of handler level
     # logging_add_handler(StreamHandler(), level=logging.ERROR)   # filter messages to console log handler
     logging_add_handler(RotatingFileHandler(
-        LOG_FILENAME, maxBytes=LOG_MAX_FILESIZE, backupCount=LOG_MAX_FILECOUNT))
+        LOG_FILENAME, maxBytes=LOG_MAX_FILESIZE, backupCount=LOG_MAX_FILECOUNT, encoding='utf-8'))
     logging_add_handler(qt_text_handler, format=LOG_FORMAT_SCREEN)
 
     # logger.propagate = False
@@ -361,6 +162,27 @@ def log_exception(message=""):
     logger.exception(message, extra={'category': 'EXC'})
 
 
+def str_to_bool(value):
+    if isinstance(value, str):
+        return value.lower() == 'true'
+    else:
+        return bool(value)
+
+
+def read_config(filename):
+    config = ConfigParser()
+    with open(filename, 'r') as file:
+        config.read_file(file)
+    return config
+
+
+def validate_output_path(path, is_file=False):
+    if is_file:
+        path = os.path.dirname(path)
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+
 def try_to_open(file_name, mode):
     """Try to open file and retry twice if unsuccessful."""
     file_handle = None
@@ -378,6 +200,7 @@ def try_to_open(file_name, mode):
             except:
                 success = False
     return success, file_handle
+
 
 def try_to_remove(file_name):
     """Try to remove file and retry twice if unsuccessful."""
@@ -411,20 +234,11 @@ def create_subdirectories(base_dir, dir_list):
     """Create subdirectories given in dir_list in the base folder base_dir."""
     try:
         for dir_name in dir_list:
-            new_dir = os.path.join(base_dir, dir_name)
-            if not os.path.exists(new_dir):
-                os.makedirs(new_dir)
+            validate_output_path(os.path.join(base_dir, dir_name))
         return True, ''
     except Exception as e:
         return False, str(e)
 
-def fit_in_range(value, min_value, max_value):
-    """Make the given value fit into the range min_value..max_value"""
-    if value < min_value:
-        value = min_value
-    elif value > max_value:
-        value = max_value
-    return value
 
 # TODO (BT): Remove format_log_entry, run through standard logging instead
 def format_log_entry(msg):
@@ -451,65 +265,123 @@ def show_progress_in_console(progress):
         + ' ' * (10 - int(progress/10)),
         progress), end='')
 
-def ov_save_path(base_dir, stack_name, ov_index, slice_counter):
-    return os.path.join(
-        base_dir, ov_relative_save_path(stack_name, ov_index, slice_counter))
+def calc_rotated_rect(polygon):
+    return cv2.minAreaRect(np.array(polygon, dtype=np.float32))
 
-def ov_relative_save_path(stack_name, ov_index, slice_counter):
-    return os.path.join(
-        'overviews', 'ov' + str(ov_index).zfill(OV_DIGITS),
-        stack_name + '_ov' + str(ov_index).zfill(OV_DIGITS)
-        + '_s' + str(slice_counter).zfill(SLICE_DIGITS) + '.tif')
+def get_ov_basepath(stack_name, ov_index, slice_index=None):
+    ov_string = 'ov' + str(ov_index).zfill(OV_DIGITS)
+    slice_string = 's' + str(slice_index).zfill(SLICE_DIGITS) if slice_index is not None else None
 
-def ov_debris_save_path(base_dir, stack_name, ov_index, slice_counter,
-                        sweep_counter):
+    path = [
+        'overviews',
+        ov_string
+    ]
+
+    file = []
+    if stack_name:
+        file.append(stack_name)
+    file.append(ov_string)
+    if slice_string:
+        file.append(slice_string)
+    file = '_'.join(file) + OV_IMAGE_FORMAT
+    return path, file
+
+def get_ov_dirname(stack_name, ov_index):
+    return get_ov_basepath(stack_name, ov_index)[0]
+
+def get_ov_filename(stack_name, ov_index, slice_index=None):
+    return get_ov_basepath(stack_name, ov_index, slice_index)[1]
+
+def ov_save_path(base_dir, stack_name, ov_index, slice_index):
+    return os.path.join(
+        base_dir,
+        str(ov_relative_save_path(stack_name, ov_index, slice_index)))
+
+def ov_relative_save_path(stack_name, ov_index, slice_index=None):
+    paths = get_ov_dirname(stack_name, ov_index)
+    paths.append(get_ov_filename(stack_name, ov_index, slice_index))
+    return os.path.join(*paths)
+
+def ov_debris_save_path(base_dir, stack_name, ov_index, slice_index, sweep_index):
     return os.path.join(
         base_dir, 'overviews', 'debris',
         stack_name + '_ov' + str(ov_index).zfill(OV_DIGITS)
-        + '_s' + str(slice_counter).zfill(SLICE_DIGITS)
-        + '_' + str(sweep_counter) + '.tif')
-
-def tile_relative_save_path(stack_name, grid_index, tile_index, slice_counter):
-    return os.path.join(
-        'tiles', 'g' + str(grid_index).zfill(GRID_DIGITS),
-        't' + str(tile_index).zfill(TILE_DIGITS),
-        stack_name + '_g' + str(grid_index).zfill(GRID_DIGITS)
-        + '_t' + str(tile_index).zfill(TILE_DIGITS)
-        + '_s' + str(slice_counter).zfill(SLICE_DIGITS) + '.tif')
-
-def rejected_tile_save_path(base_dir, stack_name, grid_index, tile_index,
-                            slice_counter, fail_counter):
-    return os.path.join(
-        base_dir, 'tiles', 'rejected',
-        stack_name + '_g' + str(grid_index).zfill(GRID_DIGITS)
-        + '_t' + str(tile_index).zfill(TILE_DIGITS)
-        + '_s' + str(slice_counter).zfill(SLICE_DIGITS)
-        + '_'  + str(fail_counter) + '.tif')
-
-def tile_preview_save_path(base_dir, grid_index, tile_index):
-    return os.path.join(
-        base_dir, 'workspace', 'g' + str(grid_index).zfill(GRID_DIGITS)
-         + '_t' + str(tile_index).zfill(TILE_DIGITS) + '.png')
-
-def tile_reslice_save_path(base_dir, grid_index, tile_index):
-    return os.path.join(
-        base_dir, 'workspace', 'reslices',
-        'r_g' + str(grid_index).zfill(GRID_DIGITS)
-        + '_t' + str(tile_index).zfill(TILE_DIGITS) + '.png')
+        + '_s' + str(slice_index).zfill(SLICE_DIGITS)
+        + '_' + str(sweep_index) + TEMP_IMAGE_FORMAT)
 
 def ov_reslice_save_path(base_dir, ov_index):
-    return os.path.join(
-        base_dir, 'workspace', 'reslices',
-        'r_OV' + str(ov_index).zfill(OV_DIGITS) + '.png')
+    filename = get_ov_filename('r', ov_index)
+    return os.path.join(base_dir, 'workspace', 'reslices', filename)
 
-def tile_id(grid_index, tile_index, slice_counter):
+def get_tile_basepath(stack_name, grid_index, array_index=None, roi_index=None, tile_index=None, slice_index=None):
+    grid_string = 'g' + str(grid_index).zfill(GRID_DIGITS)
+    array_string = 'a' + str(array_index).zfill(GRID_DIGITS) if array_index is not None else None
+    roi_string = 'r' + str(roi_index).zfill(GRID_DIGITS) if roi_index is not None else None
+    tile_string = 't' + str(tile_index).zfill(TILE_DIGITS) if tile_index is not None else None
+    slice_string = 's' + str(slice_index).zfill(SLICE_DIGITS) if slice_index is not None else None
+
+    path = ['tiles']
+    file = []
+    if stack_name:
+        file.append(stack_name)
+    if array_index is not None or roi_index is not None:
+        if array_index is not None:
+            path.append(array_string)
+            file.append(array_string)
+        if roi_index is not None:
+            path.append(roi_string)
+            file.append(roi_string)
+    else:
+        path.append(grid_string)
+        file.append(grid_string)
+
+    if tile_string:
+        path.append(tile_string)
+        file.append(tile_string)
+    if slice_string:
+        file.append(slice_string)
+    file = '_'.join(file) + GRIDTILE_IMAGE_FORMAT
+    return path, file
+
+def get_tile_dirname(stack_name, grid_index, array_index=None, roi_index=None, tile_index=None):
+    return get_tile_basepath(stack_name, grid_index, array_index, roi_index, tile_index)[0]
+
+def get_tile_filename(stack_name, grid_index, array_index=None, roi_index=None, tile_index=None, slice_index=None):
+    return get_tile_basepath(stack_name, grid_index, array_index, roi_index, tile_index, slice_index)[1]
+
+def tile_relative_save_path(stack_name, grid_index, array_index=None, roi_index=None, tile_index=None, slice_index=None):
+    paths = get_tile_dirname(stack_name, grid_index, array_index, roi_index, tile_index)
+    paths.append(get_tile_filename(stack_name, grid_index, array_index, roi_index, tile_index, slice_index))
+    return os.path.join(*paths)
+
+def tile_preview_save_path(base_dir, grid_index, array_index=None, roi_index=None, tile_index=None):
+    filename = get_tile_filename('', grid_index, array_index, roi_index, tile_index)
+    return os.path.join(base_dir, 'workspace', filename)
+
+def tile_reslice_save_path(base_dir, grid_index, array_index=None, roi_index=None, tile_index=None):
+    filename = get_tile_filename('r', grid_index, array_index, roi_index, tile_index)
+    return os.path.join(base_dir, 'workspace', 'reslices', filename)
+
+def tile_id(grid_index, tile_index, slice_index):
     return (str(grid_index).zfill(GRID_DIGITS)
             + '.' + str(tile_index).zfill(TILE_DIGITS)
-            + '.' + str(slice_counter).zfill(SLICE_DIGITS))
+            + '.' + str(slice_index).zfill(SLICE_DIGITS))
 
-def overview_id(ov_index, slice_counter):
+def overview_id(ov_index, slice_index):
     return (str(ov_index).zfill(OV_DIGITS)
-            + '.' + str(slice_counter).zfill(SLICE_DIGITS))
+            + '.' + str(slice_index).zfill(SLICE_DIGITS))
+
+def find_path_numeric_key(paths, label):
+    for path in paths:
+        if path.startswith(label):
+            values = find_path_numeric(path)
+            if len(values) > 0:
+                return values[0]
+    return None
+
+def find_path_numeric(path):
+    matches = re.findall(r'\d+', path)
+    return [int(match) for match in matches]
 
 def validate_tile_list(input_str):
     input_str = input_str.strip()
@@ -537,6 +409,7 @@ def validate_ov_list(input_str):
             success = False
     return success, ov_list
 
+# TODO: deprecated
 def suppress_console_warning():
     # Suppress TIFFReadDirectory warnings that otherwise flood console window
     print('\x1b[19;1H' + 80*' ' + '\x1b[19;1H', end='')
@@ -601,6 +474,33 @@ def get_serial_ports():
     return [port.device for port in list_ports.comports()]
 
 
+def convert_numpy_to_list(data):
+    new_data = []
+    is_list = False
+    try:
+        if not isinstance(data, str):
+            # ignore string which is also iterable
+            iter(data)
+            is_list = True
+    except TypeError:
+        pass
+
+    if isinstance(data, (np.ndarray, np.generic)):
+        # also works on single numpy value
+        data = data.tolist()
+
+    if is_list:
+        for x in data:
+            new_data.append(convert_numpy_to_list(x))
+    else:
+        new_data = data
+    return new_data
+
+
+def serialise_list(data):
+    return str(convert_numpy_to_list(data))
+
+
 def round_xy(coordinates, digits=3):
     x, y = coordinates
     return [round(x, digits), round(y, digits)]
@@ -613,6 +513,170 @@ def round_floats(input_var, precision=3):
     if isinstance(input_var, list):
         return [round_floats(entry) for entry in input_var]
     return input_var
+
+
+def get_image_file_title(filepath):
+    title = os.path.splitext(os.path.basename(filepath))[0].rstrip('.ome')
+    return title
+
+
+def image_to_QPixmap(image):
+    image = np.require(uint8_image(image), np.uint8, 'C')
+    height, width = image.shape[:2]
+    nchannels = image.shape[2] if image.ndim > 2 else 1
+    bytes_per_line = nchannels * width
+    if nchannels == 1:
+        channel_format = QImage.Format_Grayscale8
+    else:
+        channel_format = QImage.Format_RGB888
+    return QPixmap(QImage(image, width, height, bytes_per_line, channel_format))
+
+
+def grayscale_image(image):
+    nchannels = image.shape[2] if len(image.shape) > 2 else 1
+    if nchannels == 4:
+        return cv2.cvtColor(image, cv2.COLOR_RGBA2GRAY)
+    elif nchannels > 1:
+        return cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    else:
+        return image
+
+
+def color_image(image):
+    nchannels = image.shape[2] if len(image.shape) > 2 else 1
+    if nchannels == 1:
+        return cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+    else:
+        return image
+
+
+def int2float_image(image):
+    source_dtype = image.dtype
+    if not source_dtype.kind == 'f':
+        maxval = 2 ** (8 * source_dtype.itemsize) - 1
+        return image / np.float32(maxval)
+    else:
+        return image
+
+
+def float2int_image(image, target_dtype=np.dtype(np.uint8)):
+    source_dtype = image.dtype
+    if source_dtype.kind not in ('i', 'u') and not target_dtype.kind == 'f':
+        maxval = 2 ** (8 * target_dtype.itemsize) - 1
+        return (image * maxval).astype(target_dtype)
+    else:
+        return image
+
+
+def uint8_image(image):
+    source_dtype = image.dtype
+    if source_dtype.kind == 'f':
+        image *= 255
+    elif source_dtype.itemsize != 1:
+        factor = 2 ** (8 * (source_dtype.itemsize - 1))
+        image //= factor
+    return image.astype(np.uint8)
+
+
+def norm_image_minmax(image0):
+    if len(image0.shape) == 3 and image0.shape[2] == 4:
+        image, alpha = image0[..., :3], image0[..., 3]
+    else:
+        image, alpha = image0, None
+    normimage = cv2.normalize(np.array(image), None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+    if alpha is not None:
+        normimage = np.dstack([normimage, alpha])
+    return normimage
+
+
+def norm_image_quantiles(image0, quantile=0.999):
+    if len(image0.shape) == 3 and image0.shape[2] == 4:
+        image, alpha = image0[..., :3], image0[..., 3]
+    else:
+        image, alpha = image0, None
+    min_value = np.quantile(image, 1 - quantile)
+    max_value = np.quantile(image, quantile)
+    normimage = np.clip((image.astype(np.float32) - min_value) / (max_value - min_value), 0, 1)
+    if alpha is not None:
+        normimage = np.dstack([normimage, alpha])
+    return normimage
+
+
+def resize_image(image, new_size):
+    if not isinstance(new_size, (tuple, list, np.ndarray)):
+        # use single value for width; apply aspect ratio
+        size = np.flip(image.shape[:2])
+        new_size = new_size, new_size * size[1] // size[0]
+    return cv2.resize(image, new_size)
+
+
+def transform_to_QTransform(transform0):
+    transform = np.transpose(transform0)
+    qtransform = QTransform()
+    t00, t01, t02 = transform[0]
+    t10, t11, t12 = transform[1]
+    if len(transform) >= 3:
+        t20, t21, t22 = transform[2]
+    else:
+        t20, t21, t22 = 0, 0, 1
+    qtransform.setMatrix(
+        t00, t01, t02,
+        t10, t11, t12,
+        t20, t21, t22
+        )
+    return qtransform
+
+
+def create_point_transform(source, target):
+    source3d = np.array([x + [1] for x in source])
+    target3d = np.array([x + [1] for x in target])
+    solution, res, rank, s = np.linalg.lstsq(source3d, target3d, rcond=None)
+    return solution.T
+
+
+def create_transform(center=(0, 0), angle=0, scale=1, translate=(0, 0)):
+    if isinstance(scale, (list, tuple)):
+        scale1 = scale[0]
+    else:
+        scale1 = scale
+    transform = cv2.getRotationMatrix2D(center, angle, scale1)
+    if isinstance(scale, (list, tuple)):
+        transform[1, :] *= scale[1] / scale[0]
+    transform[:, 2] += translate
+    return transform
+
+
+def combine_transforms(transforms):
+    combined_transform = None
+    for transform in transforms:
+        if len(transform) < 3:
+            transform = np.vstack([transform, [0, 0, 1]])
+        if combined_transform is None:
+            combined_transform = transform
+        else:
+            combined_transform = np.dot(transform, combined_transform)
+    return combined_transform
+
+
+def apply_transform(point, transform):
+    return np.dot(list(point) + [1], np.transpose(transform))[:2]
+
+
+def transform_image(image, transform):
+    (h, w) = image.shape[:2]
+    cos = np.abs(transform[0, 0])
+    sin = np.abs(transform[0, 1])
+    new_width = int((h * sin) + (w * cos))
+    new_height = int((h * cos) + (w * sin))
+    return cv2.warpAffine(image, transform, (new_width, new_height))
+
+
+def get_transform_angle(transform):
+    return np.rad2deg(np.arctan2(transform[0][1], transform[0][0]))
+
+
+def get_transform_scale(transform):
+    return np.linalg.norm(transform[:, :2]) / np.linalg.norm([1, 1])
 
 
 class TranslationTransform(ProjectiveTransform):
@@ -659,7 +723,7 @@ def align_images_cv2(src: np.ndarray, target: np.ndarray) -> np.ndarray:
     matcher = cv2.DescriptorMatcher_create(cv2.DESCRIPTOR_MATCHER_BRUTEFORCE_HAMMING)
     matches = matcher.match(des1, des2, None)
     # Sort matches by score
-    matches.sort(key=lambda x: x.distance, reverse=False)
+    matches = sorted(matches, key=lambda x: x.distance)
 
     # Remove not so good matches
     numGoodMatches = int(len(matches) * GOOD_MATCH_PERCENT)

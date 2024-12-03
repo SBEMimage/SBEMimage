@@ -24,6 +24,9 @@ Use 'python sbemimage.py' or call the batch file SBEMimage.bat to run SBEMimage.
 import os
 import sys
 
+from constants import VERSION
+
+
 # Required for version installed with pynsist installer
 if os.path.exists('../Python') and os.path.exists('../pkgs'):
     import site
@@ -41,20 +44,13 @@ import ctypes
 import traceback
 import colorama # needed to suppress TIFFReadDirectory warnings in the console
 from configparser import ConfigParser
-from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import Qt
+from qtpy.QtWidgets import QApplication
+from qtpy.QtCore import Qt
 
 from main_controls_dlg_windows import ConfigDlg
 from config_template import process_cfg, load_device_presets, default_cfg_found
 from main_controls import MainControls
 import utils
-
-
-# VERSION contains the current version/release date information for the
-# master branch (for example, '2020.07 R2020-07-28'). For the current version
-# in the dev (development) branch, it must contain the tag 'dev'.
-# Following https://www.python.org/dev/peps/pep-0440/#public-version-identifiers
-VERSION = '2023.03 dev'
 
 
 # Hook for uncaught/Qt exceptions
@@ -116,8 +112,8 @@ def main():
 
     if default_cfg_found():
         # Ask user to select .ini file
-        startup_dialog = ConfigDlg(VERSION)
-        startup_dialog.exec_()
+        startup_dialog = ConfigDlg()
+        startup_dialog.exec()
         dlg_response = startup_dialog.get_ini_file()
         device_presets_selection = startup_dialog.device_presets_selection
         if dlg_response == 'abort':
@@ -198,7 +194,7 @@ def main():
                     sysconfig, selected_sem, selected_microtome)
                 exceptions += '; ' + exc
                 if success:
-                    if device_presets_selection[1] == None:
+                    if device_presets_selection[1] is None:
                         config['sys']['use_microtome'] = 'False'
                     syscfg_changed = True
                     presets_loaded = True
@@ -257,7 +253,7 @@ def main():
             # Switch to dark style (experimental) if specified in session configuration
             if config['sys']['use_dark_mode_gui'].lower() == 'true':
                 import qdarkstyle
-                SBEMimage.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt5'))
+                SBEMimage.setStyleSheet(qdarkstyle.load_stylesheet())
 
             print('Please wait while SBEMimage is starting up...\n')
 
@@ -266,20 +262,20 @@ def main():
             try:
                 SBEMimage_main_window = MainControls(config,
                                                      sysconfig,
-                                                     config_file,
-                                                     VERSION)
-                sys.exit(SBEMimage.exec_())
+                                                     config_file)
+                sys.exit(SBEMimage.exec())
             except Exception as e:
-                print('\nAn exception occurred during this SBEMimage session:\n')
-                utils.logger.propagate = True
+                print('\nAn exception occurred during this SBEMimage session:\n' + str(e))
+                utils.logger.propagate = True  # TODO: why is this flag set here?
                 utils.log_exception("Exception")
                 print('\nProgram aborted.')
-                print('Please submit a bug report at '
-                      'https://github.com/SBEMimage/SBEMimage/issues and '
-                      'include all lines in /SBEMimage/log/SBEMimage.log '
-                      'after the entry "ERROR : Exception".')
-                os.system('cmd /k')
-                sys.exit()
+                if 'dev' not in VERSION.lower():
+                    print('Please submit a bug report at '
+                          'https://github.com/SBEMimage/SBEMimage/issues and '
+                          'include all lines in /SBEMimage/log/SBEMimage.log '
+                          'after the entry "ERROR : Exception".')
+                    os.system('cmd /k')
+                    sys.exit()
 
         else:
             config_error = ('Error(s) while checking configuration file(s): '

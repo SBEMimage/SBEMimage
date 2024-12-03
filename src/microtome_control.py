@@ -27,8 +27,9 @@ alternative removal approach via the separate GCIB class.
 import json
 from collections import deque
 from abc import ABC, abstractmethod
+
+from constants import Error
 import utils
-from utils import Error
 
 
 class BFRemover(ABC):

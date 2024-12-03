@@ -58,10 +58,14 @@ class Stage:
     def get_xy(self):
         return self._stage.get_stage_xy()
 
+    def get_center(self):
+        limits = self.limits
+        return (limits[0] + limits[1]) / 2, (limits[2] + limits[3]) / 2
+
     def get_xyz(self):
         if self.use_microtome_z:
             x, y = self._stage.get_stage_xy()
-            z = self.microtome.get_stage_z()
+            z = self.get_z()
             return x, y, z
         else:
             return self._stage.get_stage_xyz()
@@ -143,7 +147,7 @@ class Stage:
     def update_motor_speed(self):
         if self.use_microtome and self.use_microtome_xy and self.microtome.device_name == 'Gatan 3View':
             return self._stage.update_motor_speeds_in_dm_script()
-        elif self.microtome is not None and self.microtome.device_name in ['ConnectomX katana', 'GCIB']:
+        elif self.microtome is not None and self.microtome.device_name in ['ConnectomX katana', 'GCIB', 'Mock Microtome']:
             return True
         else:
             # Speeds can currently not be updated for SEM stage

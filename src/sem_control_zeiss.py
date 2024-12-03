@@ -12,8 +12,9 @@
 that are actually required in SBEMimage have been implemented."""
 
 import json
+import os
 import sys
-from PyQt5.QtWidgets import QMessageBox
+from qtpy.QtWidgets import QMessageBox
 from time import sleep
 
 try:
@@ -25,9 +26,11 @@ try:
 except:
     pass
 
-import utils
-from utils import Error
+import constants
+from constants import Error
+from image_io import imread, imwrite
 from sem_control import SEM
+import utils
 
 
 class SEM_SmartSEM(SEM):
@@ -43,6 +46,7 @@ class SEM_SmartSEM(SEM):
         # Call __init__ from base class (which loads all settings from
         # config and sysconfig).
         super().__init__(config, sysconfig)
+        self.sem_api = None
         if not self.simulation_mode:
             exception_msg = ''
             try:
@@ -62,8 +66,6 @@ class SEM_SmartSEM(SEM):
                 # Read current SEM stage coordinates
                 self.last_known_x, self.last_known_y, self.last_known_z = (
                     self.get_stage_xyz())
-        else:
-            self.sem_api = None
 
     def sem_get(self, key):
         try:
@@ -265,7 +267,7 @@ class SEM_SmartSEM(SEM):
 
     def get_beam_current(self):
         """Read beam current (in pA) from SmartSEM."""
-        return int(round(self.sem_get('AP_IPROBE') * 10**12))
+        return int(round(self.sem_get('AP_IPROBE') * 1e12))
 
     def set_beam_current(self, target_current):
         """Save the target beam current (in pA) and set the SEM's beam to this
@@ -273,7 +275,7 @@ class SEM_SmartSEM(SEM):
         # Call method in parent class
         super().set_beam_current(target_current)
         # target_current given in pA
-        ret_val = self.sem_set('AP_IPROBE', target_current * 10**(-12))
+        ret_val = self.sem_set('AP_IPROBE', target_current * 1e-12)
         if ret_val == 0:
             return True
         else:
@@ -304,7 +306,7 @@ class SEM_SmartSEM(SEM):
 
     def get_aperture_size(self):
         """Read aperture size (in μm) from SmartSEM."""
-        return round(self.sem_get('AP_APERTURESIZE') * 10**6, 1)
+        return round(self.sem_get('AP_APERTURESIZE') * 1e6, 1)
 
     def set_aperture_size(self, aperture_size_index):
         """Save the aperture size (in μm) and set the SEM's beam to this
@@ -327,7 +329,7 @@ class SEM_SmartSEM(SEM):
         ret_val2 = self.set_beam_current(self.target_beam_current)
         ret_val3 = self.set_aperture_size(self.APERTURE_SIZE.index(self.target_aperture_size))
         ret_val4 = self.set_high_current(self.target_high_current)
-        return (ret_val1 and ret_val2 and ret_val3 and ret_val4)
+        return ret_val1 and ret_val2 and ret_val3 and ret_val4
 
     def apply_grab_settings(self):
         """Set the SEM to the current grab settings."""
@@ -352,7 +354,7 @@ class SEM_SmartSEM(SEM):
             self.CYCLE_TIME[frame_size_selector][scan_speed] + 0.3)
         if self.current_cycle_time < 0.8:
             self.current_cycle_time = 0.8
-        return (ret_val1 and ret_val2 and ret_val3)
+        return ret_val1 and ret_val2 and ret_val3
 
     def get_frame_size_selector(self):
         """Read the current store resolution from the SEM and return the
@@ -421,6 +423,7 @@ class SEM_SmartSEM(SEM):
         return self.MAG_PX_SIZE_FACTOR / (current_mag
                    * self.STORE_RES[current_frame_size_selector][0])
 
+    # TODO: unused - remove?
     def set_pixel_size(self, pixel_size):
         """Set SEM to the magnification corresponding to pixel_size."""
         frame_size_selector = self.get_frame_size_selector()
@@ -456,13 +459,18 @@ class SEM_SmartSEM(SEM):
         sleep(0.5)  # how long of a delay is necessary?
         return ret_val1 == 0 and ret_val2 == 0
 
-    def acquire_frame(self, save_path_filename, extra_delay=0):
+    def acquire_frame(self, save_path_filename, stage=None, extra_delay=0):
         """Acquire a full frame and save it to save_path_filename.
         All imaging parameters must be applied BEFORE calling this function.
         To avoid grabbing the image before it is acquired completely, an
         additional waiting period after the cycle time (extra_delay, in seconds)
         may be necessary. The delay specified in syscfg (self.DEFAULT_DELAY)
         is added by default for cycle times > 0.5 s."""
+
+        if self.simulation_mode:
+            self.error_state = Error.grab_image
+            self.error_info = f'sem.save_frame: simulation mode'
+            return False
 
         self.sem_execute('CMD_UNFREEZE_ALL')
 
@@ -490,21 +498,29 @@ class SEM_SmartSEM(SEM):
             sleep(0.1)
             self.additional_cycle_time += 0.1
 
-        ret_val = self.sem_api.Grab(0, 0, 1024, 768, 0,
-                                    save_path_filename)
-        if ret_val == 0:
-            return True
-        else:
+        return self.save_frame(save_path_filename, stage=stage)
+
+    def save_frame(self, save_path_filename, stage=None):
+        """Save the frame currently displayed in SmartSEM."""
+
+        if self.simulation_mode:
             self.error_state = Error.grab_image
-            self.error_info = (
-                f'sem.acquire_frame: command failed (ret_val: {ret_val})')
+            self.error_info = f'sem.save_frame: simulation mode'
             return False
 
-    def save_frame(self, save_path_filename):
-        """Save the frame currently displayed in SmartSEM."""
-        ret_val = self.sem_api.Grab(0, 0, 1024, 768, 0,
-                                    save_path_filename)
+        # for (ome).tif write to temp file, then rewrite with metadata
+        ext = os.path.splitext(save_path_filename)[1].lower()
+        rewrite_file = ext in ['.tif', '.tiff']
+        if rewrite_file:
+            grab_filename = os.path.join(os.path.dirname(save_path_filename), 'grab' + constants.TEMP_IMAGE_FORMAT)
+        else:
+            grab_filename = save_path_filename
+        ret_val = self.sem_api.Grab(0, 0, 1024, 768, 0, grab_filename)
         if ret_val == 0:
+            if rewrite_file:
+                image = imread(grab_filename)
+                imwrite(save_path_filename, image, metadata=self.get_grab_metadata(stage))
+                os.remove(grab_filename)
             return True
         else:
             self.error_state = Error.grab_image
@@ -531,13 +547,13 @@ class SEM_SmartSEM(SEM):
         """Return XY stigmation parameters in %, as a tuple."""
         stig_x = self.sem_get('AP_STIG_X')
         stig_y = self.sem_get('AP_STIG_Y')
-        return (float(stig_x), float(stig_y))
+        return float(stig_x), float(stig_y)
 
     def set_stig_xy(self, target_stig_x, target_stig_y):
         """Set X and Y stigmation parameters (in %)."""
         ret_val1 = self.sem_set('AP_STIG_X', target_stig_x)
         ret_val2 = self.sem_set('AP_STIG_Y', target_stig_y)
-        if (ret_val1 == 0) and (ret_val2 == 0):
+        if ret_val1 == 0 and ret_val2 == 0:
             return True
         else:
             self.error_state = Error.stig_xy
@@ -646,30 +662,30 @@ class SEM_SmartSEM(SEM):
 
     def get_stage_x(self):
         """Read X stage position (in micrometres) from SEM."""
-        self.last_known_x = self.sem_api.GetStagePosition()[1] * 10**6
+        self.last_known_x = self.sem_api.GetStagePosition()[1] * 1e6
         return self.last_known_x
 
     def get_stage_y(self):
         """Read Y stage position (in micrometres) from SEM."""
-        self.last_known_y = self.sem_api.GetStagePosition()[2] * 10**6
+        self.last_known_y = self.sem_api.GetStagePosition()[2] * 1e6
         return self.last_known_y
 
     def get_stage_z(self):
         """Read Z stage position (in micrometres) from SEM."""
-        self.last_known_z = self.sem_api.GetStagePosition()[3] * 10**6
+        self.last_known_z = self.sem_api.GetStagePosition()[3] * 1e6
         return self.last_known_z
 
     def get_stage_xy(self):
         """Read XY stage position (in micrometres) from SEM."""
         x, y = self.sem_api.GetStagePosition()[1:3]
-        self.last_known_x, self.last_known_y = x * 10**6, y * 10**6
+        self.last_known_x, self.last_known_y = x * 1e6, y * 1e6
         return self.last_known_x, self.last_known_y
 
     def get_stage_xyz(self):
         """Read XYZ stage position (in micrometres) from SEM."""
         x, y, z = self.sem_api.GetStagePosition()[1:4]
         self.last_known_x, self.last_known_y, self.last_known_z = (
-            x * 10**6, y * 10**6, z * 10**6)
+            x * 1e6, y * 1e6, z * 1e6)
         return self.last_known_x, self.last_known_y, self.last_known_z
 
     def get_stage_xyztr(self):
@@ -677,7 +693,7 @@ class SEM_SmartSEM(SEM):
         rotation angles (in degree) from SEM."""
         x, y, z, t, r = self.sem_api.GetStagePosition()[1:6]
         self.last_known_x, self.last_known_y, self.last_known_z = (
-            x * 10**6, y * 10**6, z * 10**6)
+            x * 1e6, y * 1e6, z * 1e6)
         return self.last_known_x, self.last_known_y, self.last_known_z, t, r
 
     def get_stage_t(self):
@@ -694,64 +710,55 @@ class SEM_SmartSEM(SEM):
         """Read tilt (degrees) and stage rotation (degrees) from SEM
         as a tuple"""
         x, y, z, t, r = self.sem_api.GetStagePosition()[1:6]
-        return t,r
+        return t, r
 
     def move_stage_to_x(self, x):
         """Move stage to coordinate x, provided in microns"""
-        x /= 10**6   # convert to metres
-        y = self.get_stage_y() / 10**6
-        z = self.get_stage_z() / 10**6
+        x /= 1e6   # convert to metres
+        y = self.get_stage_y() / 1e6
+        z = self.get_stage_z() / 1e6
         self.sem_api.MoveStage(x, y, z, 0, self.stage_rotation, 0)
         while self.sem_stage_busy():
             sleep(self.stage_move_check_interval)
         sleep(self.stage_move_wait_interval)
-        self.last_known_x = self.sem_api.GetStagePosition()[1] * 10**6
+        self.last_known_x = self.sem_api.GetStagePosition()[1] * 1e6
 
     def move_stage_to_y(self, y):
         """Move stage to coordinate y, provided in microns"""
-        y /= 10**6   # convert to metres
-        x = self.get_stage_x() / 10**6
-        z = self.get_stage_z() / 10**6
+        y /= 1e6   # convert to metres
+        x = self.get_stage_x() / 1e6
+        z = self.get_stage_z() / 1e6
         self.sem_api.MoveStage(x, y, z, 0, self.stage_rotation, 0)
         while self.sem_stage_busy():
             sleep(self.stage_move_check_interval)
         sleep(self.stage_move_wait_interval)
-        self.last_known_y = self.sem_api.GetStagePosition()[2] * 10**6
+        self.last_known_y = self.sem_api.GetStagePosition()[2] * 1e6
 
     def move_stage_to_z(self, z):
         """Move stage to coordinate z, provided in microns"""
-        z /= 10**6   # convert to metres
-        x = self.get_stage_x() / 10**6
-        y = self.get_stage_y() / 10**6
+        z /= 1e6   # convert to metres
+        x = self.get_stage_x() / 1e6
+        y = self.get_stage_y() / 1e6
         self.sem_api.MoveStage(x, y, z, 0, self.stage_rotation, 0)
         while self.sem_stage_busy():
             sleep(self.stage_move_check_interval)
         sleep(self.stage_move_wait_interval)
-        self.last_known_z = self.sem_api.GetStagePosition()[3] * 10**6
+        self.last_known_z = self.sem_api.GetStagePosition()[3] * 1e6
 
     def move_stage_to_xy(self, coordinates):
         """Move stage to coordinates x and y, provided in microns"""
         x, y = coordinates
-        x /= 10**6   # convert to metres
-        y /= 10**6
-        z = self.get_stage_z() / 10**6
-
-        # adding a magc_mode as precaution
-        # should this not be the standard way to make a stage movement:
-        # keep the other parameters constant by reading them first?
-        if self.magc_mode:
-            t,r = self.get_stage_tr()
-        else:
-            r = self.stage_rotation
-            t = 0
-
+        x /= 1e6   # convert to metres
+        y /= 1e6
+        z = self.get_stage_z() / 1e6
+        t, r = self.get_stage_tr()
         self.sem_api.MoveStage(x, y, z, t, r, 0)
 
         while self.sem_stage_busy():
             sleep(self.stage_move_check_interval)
         sleep(self.stage_move_wait_interval)
         new_x, new_y = self.sem_api.GetStagePosition()[1:3]
-        self.last_known_x, self.last_known_y = new_x * 10**6, new_y * 10**6
+        self.last_known_x, self.last_known_y = new_x * 1e6, new_y * 1e6
 
     def move_stage_to_r(self, new_r, no_wait=False):
         """Move stage to rotation angle r (in degrees)"""
@@ -777,9 +784,9 @@ class SEM_SmartSEM(SEM):
 
     def move_stage_to_xyzt(self, x, y, z, t):
         """Move stage to coordinates x and y, z (in microns) and tilt angle t (in degrees)."""
-        x /= 10**6   # convert to metres
-        y /= 10**6
-        z /= 10**6
+        x /= 1e6   # convert to metres
+        y /= 1e6
+        z /= 1e6
         self.sem_api.MoveStage(x, y, z, t, self.stage_rotation, 0)
         while self.sem_stage_busy():
             sleep(self.stage_move_check_interval)
@@ -787,9 +794,9 @@ class SEM_SmartSEM(SEM):
 
     def move_stage_to_xyztr(self, x, y, z, t, r):
         """Move stage to coordinates x and y, z (in microns), tilt and rotation angles t, r (in degrees)."""
-        x /= 10**6   # convert to metres
-        y /= 10**6
-        z /= 10**6
+        x /= 1e6   # convert to metres
+        y /= 1e6
+        z /= 1e6
         self.sem_api.MoveStage(x, y, z, t, r, 0)
         while self.sem_stage_busy():
             sleep(self.stage_move_check_interval)
@@ -800,7 +807,11 @@ class SEM_SmartSEM(SEM):
         self.sem_api.AboutBox()
 
     def disconnect(self):
-        ret_val = self.sem_api.ClosingControl()
+        if not self.simulation_mode and self.sem_api is not None:
+            ret_val = self.sem_api.ClosingControl()
+        else:
+            ret_val = 0
+
         if ret_val == 0:
             utils.log_info('SEM', 'Disconnected from SmartSEM.')
             return True
@@ -829,9 +840,9 @@ class SEM_MultiSEM(SEM):
         self.last_known_x = None
         self.last_known_y = None
         self.last_known_z = None
-        # self.error_state: see list in utils.py; no error -> error_state = 0
+        # self.error_state: see list in utils.py; no error -> error_state = Error.none
         # self.error_info: further description / exception error message
-        self.error_state = 0
+        self.error_state = Error.none
         self.error_info = ''
         # Use device selection from system configuration
         self.cfg['sem']['device'] = self.syscfg['device']['sem']
@@ -847,6 +858,7 @@ class SEM_MultiSEM(SEM):
             self.cfg['sys']['use_microtome'].lower() == 'false')
         if not self.use_sem_stage:
             QMessageBox.critical(self,
+                'SBEMimage error',
                 'MultiSEM device error:'
                 '\nuse_microtome is set to True in the configuration file'
                 '\n Please set use_microtome to False in the configuration file'
@@ -917,7 +929,7 @@ class SEM_MultiSEM(SEM):
                 ret_val = 1
                 exception_msg = str(e)
             if ret_val != 0:   # In mSEMService API, '0' means success
-                self.error_state = 301
+                self.error_state = Error.smartsem_api
                 self.error_info = (
                     f'sem.__init__: remote API control could not be '
                     f'initalized (ret_val: {ret_val}). {exception_msg}')
@@ -997,10 +1009,10 @@ class SEM_MultiSEM(SEM):
                 sleep(1)
                 wait_beam_on = self.sem_api.Execute('CMD_WAIT_BEAM_ON')
                 if wait_beam_on != 0:
-                    self.error_state = 306
+                    self.error_state = Error.eht
                     self.error_info = (
                         f'sem.turn_eht_on: command failed (wait_beam_on: {wait_beam_on})')
-                    QMessageBox.critical(self,
+                    QMessageBox.critical(self,'SBEMimage error',
                         'Failure to turn the beam on',
                         QMessageBox.Ok)
                     return False
@@ -1017,20 +1029,20 @@ class SEM_MultiSEM(SEM):
             sleep(1)
             wait_beam_off = self.sem_api.Execute('CMD_WAIT_BEAM_OFF')
             if wait_beam_off != 0:
-                self.error_state = 306
+                self.error_state = Error.eht
                 self.error_info = (
                     f'sem.turn_eht_off: command failed (wait_beam_off: {wait_beam_off})')
-                QMessageBox.critical(self,
+                QMessageBox.critical(self, 'SBEMimage error',
                     'Failure to turn the beam off',
                     QMessageBox.Ok)
                 return False
             else:
                 return True
         else:
-            self.error_state = 306
+            self.error_state = Error.eht
             self.error_info = (
                 f'sem.turn_eht_off: command failed (ret_val: {ret_val})')
-            QMessageBox.critical(self,
+            QMessageBox.critical(self, 'SBEMimage error',
                 'Failure to turn the beam on',
                 QMessageBox.Ok)
             return False
@@ -1058,7 +1070,7 @@ class SEM_MultiSEM(SEM):
     def get_eht(self):
         """Return current echuck voltage in kV."""
         return (self.sem_api
-            .Get_ReturnTypeDouble('AP_ECHUCK_VOLTAGE_MONITOR') / 1000)
+                .Get_ReturnTypeDouble('AP_ECHUCK_VOLTAGE_MONITOR') / 1000)
 
     def set_eht(self, target_eht):
         """Save the target echuck voltage (in kV) and set the EHT to this target value."""
@@ -1071,7 +1083,7 @@ class SEM_MultiSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = 306
+            self.error_state = Error.eht
             self.error_info = (
                 f'sem.set_eht: command failed (ret_val: {ret_val})')
             return False
@@ -1091,6 +1103,50 @@ class SEM_MultiSEM(SEM):
         ret_val1 = self.set_eht(self.target_eht)
         # ret_val2 = self.set_beam_current(self.target_beam_current)
         return ret_val1 == 0
+
+    def has_brightness(self):
+        """Return True if supports brightness control."""
+        return True
+
+    def has_contrast(self):
+        """Return True if supports contrast control."""
+        return True
+
+    def get_brightness(self):
+        """Read SmartSEM brightness (0-1)."""
+        return self.sem_api.Get_ReturnTypeDouble('AP_BRIGHTNESS') / 100
+
+    def get_contrast(self):
+        """Read SmartSEM contrast (0-1)."""
+        return self.sem_api.Get_ReturnTypeDouble('AP_CONTRAST') / 100
+
+    def set_brightness(self, brightness):
+        """Write SmartSEM brightness (0-1)."""
+        ret_val = self.sem_api.Set_ReturnTypeDouble(
+            'AP_BRIGHTNESS',
+            brightness * 100)
+        if ret_val == 0:
+            return True
+        else:
+            self.error_state = Error.brightness_contrast
+            self.error_info = (
+                f'sem.set_brightness: command failed (ret_val: {ret_val})'
+            )
+            return False
+
+    def set_contrast(self, contrast):
+        """Write SmartSEM contrast (0-1)."""
+        ret_val = self.sem_api.Set_ReturnTypeDouble(
+            'AP_CONTRAST',
+            contrast * 100)
+        if ret_val == 0:
+            return True
+        else:
+            self.error_state = Error.brightness_contrast
+            self.error_info = (
+                f'sem.set_contrast: command failed (ret_val: {ret_val})'
+            )
+            return False
 
     def apply_grab_settings(self):
         """Set the SEM to the current grab settings."""
@@ -1134,7 +1190,7 @@ class SEM_MultiSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = 310
+            self.error_state = Error.scan_rate
             self.error_info = (
                 f'sem.set_scan_rate: command failed (ret_val: {ret_val})')
             return False
@@ -1167,7 +1223,7 @@ class SEM_MultiSEM(SEM):
         """Return XY stigmation parameters in %, as a tuple."""
         stig_x = self.sem_api.Get_ReturnTypeDouble('AP_STIG_X')
         stig_y = self.sem_api.Get_ReturnTypeDouble('AP_STIG_Y')
-        return (float(stig_x), float(stig_y))
+        return float(stig_x), float(stig_y)
 
     def set_stig_xy(self, target_stig_x, target_stig_y):
         """Set X and Y stigmation parameters (in %)."""
@@ -1177,10 +1233,10 @@ class SEM_MultiSEM(SEM):
         ret_val2 = self.sem_api.Set_ReturnTypeDouble(
             'AP_STIG_Y',
             target_stig_y)
-        if (ret_val1 == 0) and (ret_val2 == 0):
+        if ret_val1 == 0 and ret_val2 == 0:
             return True
         else:
-            self.error_state = 312
+            self.error_state = Error.stig_xy
             self.error_info = (
                 f'sem.set_stig_xy: command failed (ret_vals: {ret_val1}, '
                 f'{ret_val2})')
@@ -1198,7 +1254,7 @@ class SEM_MultiSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = 312
+            self.error_state = Error.stig_xy
             self.error_info = (
                 f'sem.set_stig_x: command failed (ret_val: {ret_val})')
             return False
@@ -1215,7 +1271,7 @@ class SEM_MultiSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = 312
+            self.error_state = Error.stig_xy
             self.error_info = (
                 f'sem.set_stig_y: command failed (ret_val: {ret_val})')
             return False
@@ -1249,7 +1305,7 @@ class SEM_MultiSEM(SEM):
             'AP_STAGE_GOTO_X',
             x)
         if move_x_success != 0:
-            self.error_state = 201
+            self.error_state = Error.stage_xy
             self.error_info = (
                 f'sem.move_stage_to_x: command failed '
                 f'(move_x_success: {move_x_success})')
@@ -1259,7 +1315,7 @@ class SEM_MultiSEM(SEM):
         stage_settled = self.sem_api.Execute('CMD_WAIT_STAGE_SETTLED')
 
         if stage_settled != 0:
-            self.error_state = 201
+            self.error_state = Error.stage_xy
             self.error_info = (
                 f'sem.move_stage_to_x: command failed '
                 f'(stage_settled: {stage_settled})')
@@ -1273,7 +1329,7 @@ class SEM_MultiSEM(SEM):
             'AP_STAGE_GOTO_Y',
             y)
         if move_y_success != 0:
-            self.error_state = 201
+            self.error_state = Error.stage_xy
             self.error_info = (
                 f'sem.move_stage_to_y: command failed '
                 f'(move_y_success: {move_y_success})')
@@ -1283,7 +1339,7 @@ class SEM_MultiSEM(SEM):
         stage_settled = self.sem_api.Execute('CMD_WAIT_STAGE_SETTLED')
 
         if stage_settled != 0:
-            self.error_state = 201
+            self.error_state = Error.stage_xy
             self.error_info = (
                 f'sem.move_stage_to_y: command failed '
                 f'(stage_settled: {stage_settled})')
@@ -1297,7 +1353,7 @@ class SEM_MultiSEM(SEM):
             'AP_STAGE_GOTO_Z',
             z)
         if move_z_success != 0:
-            self.error_state = 201
+            self.error_state = Error.stage_z_move
             self.error_info = (
                 f'sem.move_stage_to_z: command failed '
                 f'(move_z_success: {move_z_success})')
@@ -1307,7 +1363,7 @@ class SEM_MultiSEM(SEM):
         stage_settled = self.sem_api.Execute('CMD_WAIT_STAGE_SETTLED')
 
         if stage_settled != 0:
-            self.error_state = 201
+            self.error_state = Error.stage_z_move
             self.error_info = (
                 f'sem.move_stage_to_z: command failed '
                 f'(stage_settled: {stage_settled})')
@@ -1326,7 +1382,7 @@ class SEM_MultiSEM(SEM):
             y)
 
         if move_x_success != 0 or move_y_success != 0:
-            self.error_state = 201
+            self.error_state = Error.stage_xy
             self.error_info = (
                 f'sem.move_stage_to_xy: command failed '
                 f'\n(move_x_success: {move_x_success}) '
@@ -1337,7 +1393,7 @@ class SEM_MultiSEM(SEM):
         stage_settled = self.sem_api.Execute('CMD_WAIT_STAGE_SETTLED')
 
         if stage_settled != 0:
-            self.error_state = 201
+            self.error_state = Error.stage_xy
             self.error_info = (
                 f'sem.move_stage_to_xy: command failed '
                 f'(stage_settled: {stage_settled})')
@@ -1355,14 +1411,14 @@ class SEM_MultiSEM(SEM):
         if system_sanity == 0:
             return True
         elif system_sanity == -101:
-            self.error_state = 901
+            self.error_state = Error.multisem_beam_control
             self.error_info = (
                 f'sem.check_system_sanity: command failed. '
                 f'Beam control not possible. Check HV and vacuum '
                 f'(system_sanity: {system_sanity})')
             return False
         elif system_sanity == -102:
-            self.error_state = 902
+            self.error_state = Error.multisem_imaging
             self.error_info = (
                 f'sem.check_system_sanity: command failed. '
                 f'Imaging not possible. Make sure '
@@ -1370,7 +1426,7 @@ class SEM_MultiSEM(SEM):
                 f'(system_sanity: {system_sanity})')
             return False
         elif system_sanity == -103:
-            self.error_state = 903
+            self.error_state = Error.multisem_alignment
             self.error_info = (
                 f'sem.check_system_sanity: command failed. '
                 f'Auto alignment is not possible. '
@@ -1385,7 +1441,7 @@ class SEM_MultiSEM(SEM):
         if ret_val == 0:
             return True
         else:
-            self.error_state = 904
+            self.error_state = Error.multisem_failed_to_write
             self.error_info = (
                 f'sem.create_metadata_thumbnails: command failed. '
                 f'(ret_val: {ret_val})')
