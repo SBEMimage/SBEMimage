@@ -29,6 +29,7 @@ from skimage.measure import ransac
 from serial.tools import list_ports
 from qtpy.QtCore import QObject, Signal, QSize
 from qtpy.QtGui import QIcon, QPixmap, QImage, QTransform
+from scipy.ndimage import maximum_filter
 
 from constants import *
 
@@ -608,6 +609,16 @@ def resize_image(image, new_size):
         size = np.flip(image.shape[:2])
         new_size = new_size, new_size * size[1] // size[0]
     return cv2.resize(image, new_size)
+
+
+def resize_image_max_pool(image, new_size):
+    if not isinstance(new_size, (tuple, list, np.ndarray)):
+        # use single value for width; apply aspect ratio
+        size = np.flip(image.shape[:2])
+        new_size = new_size, new_size * size[1] // size[0]
+    height_factor = -(image.shape[0] // -new_size[1])
+    width_factor = -(image.shape[1] // -new_size[0])
+    return maximum_filter(image, size=(height_factor, width_factor))[::height_factor, ::width_factor]
 
 
 def transform_to_QTransform(transform0):

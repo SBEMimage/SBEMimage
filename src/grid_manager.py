@@ -872,7 +872,13 @@ class Grid(list):
         """Clear all preview images in this grid."""
         for tile in self:
             tile.preview_src = ''  # Setter will set preview_img to None
-
+            
+    def activate_tiles_from_mask(self, mask):
+        """Activate tiles based on a boolean mask."""
+        mask = mask.flatten()
+        if len(mask) != self.number_tiles:
+            raise ValueError('Mask length does not match number of tiles.')
+        self.active_tiles = np.where(mask)[0].tolist()
 
 class GridManager(list):
 
@@ -1450,7 +1456,7 @@ class GridManager(list):
                     grid.auto_update_tile_positions = True
                     grid.centre_sx_sy = center
 
-    def add_new_grid_from_roi(self, array_index, roi_index, center, size, rotation):
+    def add_new_grid_from_roi(self, array_index, roi_index, center, size, rotation, mask=None):
         # use first matching roi grid as template
         template_index = self.find_grid_index(roi_index)
         if template_index is None:
@@ -1476,6 +1482,18 @@ class GridManager(list):
                                      wd_stig_xy=grid.wd_stig_xy, use_wd_gradient=grid.use_wd_gradient,
                                      wd_gradient_ref_tiles=grid.wd_gradient_ref_tiles,
                                      wd_gradient_params=grid.wd_gradient_params)
+        if mask is not None:
+            mask = np.asarray(mask, dtype=np.uint8)
+            # pad mask to match tile size
+            px_size_y = mask.shape[0] / h
+            px_size_x = mask.shape[0] / w
+            dh =  (tiles[0] * tile_height - h) / 2
+            dw = (tiles[1] * tile_width - w) / 2
+            mask = np.pad(mask, ((round(dh * px_size_y), round(dh * px_size_y)), 
+                          (round(dw * px_size_x), round(dw * px_size_x))))
+            # reshape mask to match tiles in grid
+            mask = utils.resize_image_max_pool(mask, (tiles[1], tiles[0]))
+            new_grid.activate_tiles_from_mask(mask)
 
         new_grid.array_index = array_index
         new_grid.roi_index = roi_index
