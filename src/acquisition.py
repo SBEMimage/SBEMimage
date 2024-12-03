@@ -1123,7 +1123,7 @@ class Acquisition:
     def send_data_tcp(self):
         res = self.tcp_remote.send({
             'paused': self.pause_state != 0,
-            'z_depth': self.total_z_diff,
+            'z_depth': self.microtome.get_stage_z(),
             'overviews': {'number_ov': self.ovm.number_ov,
                           'ov_coords': self.get_ov_coords(),
                           'ov_dirs': self.get_ov_dirs()},
