@@ -616,8 +616,8 @@ def resize_image_max_pool(image, new_size):
         # use single value for width; apply aspect ratio
         size = np.flip(image.shape[:2])
         new_size = new_size, new_size * size[1] // size[0]
-    height_factor = -(image.shape[0] // -new_size[1])
-    width_factor = -(image.shape[1] // -new_size[0])
+    height_factor = int(np.ceil(image.shape[0] / new_size[1]))
+    width_factor = int(np.ceil(image.shape[1] / new_size[0]))
     return maximum_filter(image, size=(height_factor, width_factor))[::height_factor, ::width_factor]
 
 
