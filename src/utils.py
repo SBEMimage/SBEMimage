@@ -618,7 +618,8 @@ def resize_image_max_pool(image, new_size):
         new_size = new_size, new_size * size[1] // size[0]
     height_factor = int(np.ceil(image.shape[0] / new_size[1]))
     width_factor = int(np.ceil(image.shape[1] / new_size[0]))
-    return maximum_filter(image, size=(height_factor, width_factor))[::height_factor, ::width_factor]
+    max_filter = maximum_filter(image, size=(height_factor, width_factor))
+    return max_filter[height_factor//2::height_factor, width_factor//2::width_factor]
 
 
 def transform_to_QTransform(transform0):
