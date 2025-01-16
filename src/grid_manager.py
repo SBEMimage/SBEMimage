@@ -1424,7 +1424,19 @@ class GridManager(list):
             location = utils.apply_transform(landmark, transform)
             self.set_array_landmark(landmark_id, location, landmark_type='stage')
             self.set_array_landmark(landmark_id, location, landmark_type='target')
-
+            
+    def convert_overview_coords_to_stage(self, ov_position, roi_center):
+        # given the position of the overview in stage coordinates and the position of an roi relative
+        # to the centre of the overview, return the position of the roi in stage coordinates
+        roi_center_stage = self.cs.convert_d_to_s(roi_center)
+        transform = utils.create_transform(translate=ov_position)
+        return utils.apply_transform(roi_center_stage, transform)
+    
+    def add_new_grid_from_overview_roi(self, array_index, roi_index, roi_center, size, ov_position, mask=None):
+        # convert the roi_center to stage coordinates
+        roi_stage_coords = self.convert_overview_coords_to_stage(ov_position, roi_center)
+        self.add_new_grid_from_roi(array_index, roi_index, roi_stage_coords, size, 0, mask)
+        
     def array_create_grids(self, imported_image):
         sem_stage_flipped = self.cs.get_sem_stage_flipped()
         self.delete_array_grids(keep_template_grids=True)
