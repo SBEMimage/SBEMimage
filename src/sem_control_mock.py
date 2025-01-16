@@ -313,7 +313,7 @@ class SEM_Mock(SEM):
         return True
 
     def save_frame(self, save_path_filename, stage=None):
-        self.acquire_frame(save_path_filename, stage=stage)
+        return self.acquire_frame(save_path_filename, stage=stage)
         
     def save_to_cfg(self):
         # Mock SEM settings
