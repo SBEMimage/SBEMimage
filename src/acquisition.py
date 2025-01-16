@@ -1152,7 +1152,7 @@ class Acquisition:
                 self.set_ov_interval(*args, **kwargs)
                 self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS')
             elif msg == 'ADD ARRAY GRID':
-                self.gm.add_new_grid_from_roi(*args, **kwargs)
+                self.gm.add_new_grid_from_overview_roi(*args, **kwargs)
                 self.main_controls_trigger.transmit('DRAW VP')
             elif msg == 'DELETE ALL ARRAY GRIDS':
                 self.gm.delete_array_grids(*args, **kwargs)
