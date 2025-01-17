@@ -269,6 +269,9 @@ class SEM:
             rotation += self.stage_rotation
         if self.scan_rotation is not None:
             rotation += self.scan_rotation
+        rotation %= 360
+        if rotation > 180:
+            rotation -= 360
         metadata = {
             'pixel_size': [self.get_pixel_size() * 1e-3] * 2,
             'position': position,
