@@ -28,7 +28,7 @@ dependencies:
  - shapely
  - qdarkstyle
  - statsmodels
- - tifffile
+ - tifffile>=2024.8.30
  - tqdm
  - pip:
    - mapfost
