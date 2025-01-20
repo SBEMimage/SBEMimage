@@ -257,7 +257,7 @@ def create_tiff_metadata(metadata, is_ome=False):
     positions = metadata.get('position', [])
     if not isinstance(positions, list):
         positions = [positions]
-    rotation = metadata.get('rotation', [])
+    rotation = metadata.get('rotation')
     if pixel_size is not None:
         pixel_size_um = convert_units_micrometer(pixel_size)
         resolution_unit = 'CENTIMETER'
