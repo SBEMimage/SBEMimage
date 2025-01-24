@@ -171,9 +171,10 @@ def imread_metadata(path):
                         for annotation in annotation_item.values():
                             value = annotation.get('Value')
                             unit = None
-                            if isinstance(value, dict):
-                                value = value.get('Label')
-                                unit = value.get('Unit')
+                            if isinstance(value, dict) and 'Modulo' in value:
+                                modulo = value.get('Modulo', {}).get('ModuloAlongZ', {})
+                                unit = modulo.get('Unit')
+                                value = modulo.get('Label')
                             elif isinstance(value, str) and 'Angle' in value:
                                 value = value.split(':')[1].split()
                                 if len(value) >= 2:
