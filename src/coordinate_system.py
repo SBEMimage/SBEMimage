@@ -193,6 +193,9 @@ class CoordinateSystem:
         yx_factor = self.rot_mat_d * self.scale_y / self.rot_mat_a * self.scale_x
         return yx_factor < 0
 
+    def get_rotation(self):
+        return np.rad2deg(np.arctan2(self.rot_mat_c, self.rot_mat_a))
+
     def convert_d_to_v(self, d_coordinates) -> np.ndarray:
         """Convert SEM XY coordinates into Viewport window coordinates.
         These coordinates in units of pixels specify an object's location

@@ -149,6 +149,7 @@ class SEM:
         self.failed_x_move_warnings = deque(maxlen=200)
         self.failed_y_move_warnings = deque(maxlen=200)
         self.failed_z_move_warnings = deque(maxlen=200)
+        self.cs = None
 
     def __str__(self):
         return self.device_name
@@ -269,6 +270,8 @@ class SEM:
             rotation += self.stage_rotation
         if self.scan_rotation is not None:
             rotation += self.scan_rotation
+        if self.cs is not None:
+            rotation -= self.cs.get_rotation()
         rotation %= 360
         if rotation > 180:
             rotation -= 360
