@@ -149,6 +149,7 @@ class SEM:
         self.failed_x_move_warnings = deque(maxlen=200)
         self.failed_y_move_warnings = deque(maxlen=200)
         self.failed_z_move_warnings = deque(maxlen=200)
+        self.cs = None
 
     def __str__(self):
         return self.device_name
@@ -258,6 +259,7 @@ class SEM:
         return label
 
     def get_grab_metadata(self, stage=None):
+        pixel_size = [self.get_pixel_size() * 1e-3] * 2
         if stage is not None:
             position = stage.get_xyz()
         else:
@@ -269,8 +271,16 @@ class SEM:
             rotation += self.stage_rotation
         if self.scan_rotation is not None:
             rotation += self.scan_rotation
+        if self.cs is not None:
+            # compensate for stage scale/rotation
+            rotation -= self.cs.get_rotation()
+            pixel_size[0] *= self.cs.scale_x
+            pixel_size[1] *= self.cs.scale_y
+        rotation %= 360
+        if rotation > 180:
+            rotation -= 360
         metadata = {
-            'pixel_size': [self.get_pixel_size() * 1e-3] * 2,
+            'pixel_size': pixel_size,
             'position': position,
             'rotation': rotation
         }

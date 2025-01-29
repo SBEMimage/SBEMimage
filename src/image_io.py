@@ -162,6 +162,33 @@ def imread_metadata(path):
                     if color is not None:
                         channel['color'] = color_int_to_rgba(color)
                     channels.append(channel)
+                # Look for rotation angle in annotations
+                annotations = metadata.get('StructuredAnnotations')
+                if annotations is not None:
+                    if not isinstance(annotations, (list, tuple)):
+                        annotations = [annotations]
+                    for annotation_item in annotations:
+                        for annotation in annotation_item.values():
+                            value = annotation.get('Value')
+                            unit = None
+                            if isinstance(value, dict) and 'Modulo' in value:
+                                modulo = value.get('Modulo', {}).get('ModuloAlongZ', {})
+                                unit = modulo.get('Unit')
+                                value = modulo.get('Label')
+                            elif isinstance(value, str) and value.lower().startswith('angle'):
+                                if ':' in value:
+                                    value = value.split(':')[1].split()
+                                elif '=' in value:
+                                    value = value.split('=')[1].split()
+                                else:
+                                    value = value.split()[1:]
+                                if len(value) >= 2:
+                                    unit = value[1]
+                                value = value[0]
+                            if value is not None:
+                                rotation = float(value)
+                                if 'rad' in unit.lower():
+                                    rotation = np.rad2deg(rotation)
             else:
                 tags = {tag.name: tag.value for tag in tiff.pages[0].tags.values()}
                 if tiff.is_imagej:
@@ -236,6 +263,7 @@ def create_tiff_metadata(metadata, is_ome=False):
     positions = metadata.get('position', [])
     if not isinstance(positions, list):
         positions = [positions]
+    rotation = metadata.get('rotation')
     if pixel_size is not None:
         pixel_size_um = convert_units_micrometer(pixel_size)
         resolution_unit = 'CENTIMETER'
@@ -263,6 +291,8 @@ def create_tiff_metadata(metadata, is_ome=False):
                 plane_metadata['PositionZ'] = [float(position1[2]) for position1 in positions]
                 plane_metadata['PositionZUnit'] = ['µm' for _ in positions]
             ome_metadata['Plane'] = plane_metadata
+        if rotation is not None:
+            ome_metadata['StructuredAnnotations'] = {'CommentAnnotation': {'Value': f'Angle: {rotation} degrees'}}
         for channel in channels:
             ome_channel = {'Name': channel.get('label', '')}
             if 'color' in channel:

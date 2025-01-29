@@ -23,7 +23,7 @@ from time import sleep
 
 import constants
 from constants import Error
-from image_io import imwrite, imread_metadata
+from image_io import imwrite
 import utils
 
 

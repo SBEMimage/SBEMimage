@@ -199,6 +199,7 @@ class MainControls(QMainWindow):
 
         # Initialize coordinate system object
         self.cs = CoordinateSystem(self.cfg, self.syscfg)
+        self.sem.cs = self.cs
 
         # Set up the objects to manage overviews, grids
         self.ovm = OverviewManager(self.cfg, self.sem, self.cs)
