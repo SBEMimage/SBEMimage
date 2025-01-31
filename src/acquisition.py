@@ -1151,11 +1151,16 @@ class Acquisition:
             elif msg == 'SET OV INTERVAL':
                 self.set_ov_interval(*args, **kwargs)
                 self.main_controls_trigger.transmit('SHOW CURRENT SETTINGS')
+            elif msg == 'UPDATE GRID TILES WITH MASK':
+                self.gm.update_grid_tiles_with_mask(*args, **kwargs)
+                self.main_controls_trigger.transmit('DRAW VP')
             elif msg == 'ADD ARRAY GRID':
                 self.gm.add_new_grid_from_overview_roi(*args, **kwargs)
+                self.main_controls_trigger.transmit('GRID SETTINGS CHANGED')
                 self.main_controls_trigger.transmit('DRAW VP')
             elif msg == 'DELETE ALL ARRAY GRIDS':
                 self.gm.delete_array_grids(*args, **kwargs)
+                self.main_controls_trigger.transmit('GRID SETTINGS CHANGED')
                 self.main_controls_trigger.transmit('DRAW VP')
             elif msg == 'ACTIVATE OV':
                 self.ovm.activate_overview(*args, **kwargs)

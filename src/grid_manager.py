@@ -1425,17 +1425,54 @@ class GridManager(list):
             self.set_array_landmark(landmark_id, location, landmark_type='stage')
             self.set_array_landmark(landmark_id, location, landmark_type='target')
             
-    def convert_overview_coords_to_stage(self, ov_position, roi_center):
+    def convert_overview_coords_to_stage(self, ov_position, roi_center, overview_angle):
         # given the position of the overview in stage coordinates and the position of an roi relative
         # to the centre of the overview, return the position of the roi in stage coordinates
-        roi_center_stage = self.cs.convert_d_to_s(roi_center)
-        transform = utils.create_transform(translate=ov_position)
-        return utils.apply_transform(roi_center_stage, transform)
+        transform = utils.create_transform(translate=ov_position, angle=-overview_angle)
+        return utils.apply_transform(roi_center, transform)
     
-    def add_new_grid_from_overview_roi(self, array_index, roi_index, roi_center, size, ov_position, mask=None):
+    def add_new_grid_from_overview_roi(self, array_index, roi_index, roi_center, size, ov_position, ov_angle=None):
         # convert the roi_center to stage coordinates
-        roi_stage_coords = self.convert_overview_coords_to_stage(ov_position, roi_center)
-        self.add_new_grid_from_roi(array_index, roi_index, roi_stage_coords, size, 0, mask)
+        if ov_angle is None:
+            ov_angle = -self.cs.get_rotation()
+        transform = utils.create_transform(translate=ov_position, angle=ov_angle)
+        roi_stage_coords = utils.apply_transform(roi_center, transform)
+        
+        grid_index = self.find_grid_index(roi_index, array_index)
+        grid_rotation = self.cs.get_rotation() + ov_angle  # calculate the grid rotation relative to the SEM
+        if grid_index is None:
+            # add new grid if it doesn't already exist
+            self.add_new_grid_from_roi(array_index, roi_index, roi_stage_coords, size, -grid_rotation)
+        else:
+            # otherwise, update the grid attributes
+            self.update_grid_from_roi(grid_index, roi_stage_coords, size, -grid_rotation)
+            
+    def update_grid_tiles_with_mask(self, array_index, roi_index, mask):
+        grid_index = self.find_grid_index(roi_index, array_index)
+        if grid_index is None:
+            return
+        
+        grid = self[grid_index]
+        overlap_um = grid.overlap * grid.pixel_size * 1e-3
+        w, h = grid.sw_sh
+        mask = np.asarray(mask, dtype=np.uint8)
+        
+        # pad mask to match tile size
+        px_size_y = mask.shape[0] / h
+        px_size_x = mask.shape[0] / w
+        
+        # effective tile size is equivalent to tile size minus overlap
+        tile_width = grid.tile_width_d() - overlap_um
+        tile_height = grid.tile_height_d() - overlap_um
+
+        dh = (grid.size[0] * tile_height - h) / 2
+        dw = (grid.size[1] * tile_width - w) / 2
+        mask = np.pad(mask, ((round(dh * px_size_y), round(dh * px_size_y)), 
+                        (round(dw * px_size_x), round(dw * px_size_x))))
+        
+        # reshape mask to match tiles in grid
+        mask = utils.resize_image_max_pool(mask, (grid.size[1], grid.size[0]))
+        grid.activate_tiles_from_mask(mask)
         
     def array_create_grids(self, imported_image):
         sem_stage_flipped = self.cs.get_sem_stage_flipped()
@@ -1467,8 +1504,21 @@ class GridManager(list):
                     grid.update_tile_positions()
                     grid.auto_update_tile_positions = True
                     grid.centre_sx_sy = center
+                    
+    def update_grid_from_roi(self, grid_index, center, size, rotation):
+        grid = self[grid_index]
+        overlap_um = grid.overlap * grid.pixel_size * 1e-3
+        # effective tile size is equivalent to tile size minus overlap
+        tile_width = grid.tile_width_d() - overlap_um
+        tile_height = grid.tile_height_d() - overlap_um
+        w, h = size
+        tiles = [int(np.ceil(h / tile_height)), int(np.ceil(w / tile_width))]
+        grid.size = tiles
+        grid.rotation = rotation
+        grid.auto_update_tile_positions = True
+        grid.centre_sx_sy = center
 
-    def add_new_grid_from_roi(self, array_index, roi_index, center, size, rotation, mask=None):
+    def add_new_grid_from_roi(self, array_index, roi_index, center, size, rotation):
         # use first matching roi grid as template
         template_index = self.find_grid_index(roi_index)
         if template_index is None:
@@ -1494,18 +1544,6 @@ class GridManager(list):
                                      wd_stig_xy=grid.wd_stig_xy, use_wd_gradient=grid.use_wd_gradient,
                                      wd_gradient_ref_tiles=grid.wd_gradient_ref_tiles,
                                      wd_gradient_params=grid.wd_gradient_params)
-        if mask is not None:
-            mask = np.asarray(mask, dtype=np.uint8)
-            # pad mask to match tile size
-            px_size_y = mask.shape[0] / h
-            px_size_x = mask.shape[0] / w
-            dh =  (tiles[0] * tile_height - h) / 2
-            dw = (tiles[1] * tile_width - w) / 2
-            mask = np.pad(mask, ((round(dh * px_size_y), round(dh * px_size_y)), 
-                          (round(dw * px_size_x), round(dw * px_size_x))))
-            # reshape mask to match tiles in grid
-            mask = utils.resize_image_max_pool(mask, (tiles[1], tiles[0]))
-            new_grid.activate_tiles_from_mask(mask)
 
         new_grid.array_index = array_index
         new_grid.roi_index = roi_index
