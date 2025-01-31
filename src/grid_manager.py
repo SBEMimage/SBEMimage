@@ -1424,12 +1424,6 @@ class GridManager(list):
             location = utils.apply_transform(landmark, transform)
             self.set_array_landmark(landmark_id, location, landmark_type='stage')
             self.set_array_landmark(landmark_id, location, landmark_type='target')
-            
-    def convert_overview_coords_to_stage(self, ov_position, roi_center, overview_angle):
-        # given the position of the overview in stage coordinates and the position of an roi relative
-        # to the centre of the overview, return the position of the roi in stage coordinates
-        transform = utils.create_transform(translate=ov_position, angle=-overview_angle)
-        return utils.apply_transform(roi_center, transform)
     
     def add_new_grid_from_overview_roi(self, array_index, roi_index, roi_center, size, ov_position, ov_angle=None):
         # convert the roi_center to stage coordinates
