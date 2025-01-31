@@ -1067,8 +1067,8 @@ class GridManager(list):
             [utils.round_xy(grid.origin_sx_sy) for grid in self])
         grids_data['sw_sh'] = utils.serialise_list(
             [utils.round_xy(grid.sw_sh) for grid in self])
-        grids_data['rotation'] = str(
-            [grid.rotation for grid in self])
+        grids_data['rotation'] = utils.serialise_list(
+            [utils.round_floats(grid.rotation, 1) for grid in self])
         grids_data['size'] = str(
             [grid.size for grid in self])
         grids_data['overlap'] = str(
