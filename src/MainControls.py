@@ -45,12 +45,12 @@ from sem.SEM import SEM
 from microtome.Microtome import Microtome
 from Stage import Stage
 from PlasmaCleaner import PlasmaCleaner
-from acquisition import Acquisition
+from Acquisition import Acquisition
 from Notifications import Notifications
-from overview_manager import OverviewManager
+from OverviewManager import OverviewManager
 from ImportedImage import ImportedImages
-from grid_manager import GridManager
-from template_manager import TemplateManager
+from GridManager import GridManager
+from TemplateManager import TemplateManager
 from CoordinateSystem import CoordinateSystem
 from Viewport import Viewport
 from ImageInspector import ImageInspector
@@ -91,7 +91,6 @@ from dialog.MotorStatusDlg import MotorStatusDlg
 from dialog.MicrotomeSettingsDlg import MicrotomeSettingsDlg
 from dialog.SEMSettingsDlg import SEMSettingsDlg
 from dialog.SaveConfigDlg import SaveConfigDlg
-
 from dialog.array.ArrayCalibrationDlg import ArrayCalibrationDlg
 
 

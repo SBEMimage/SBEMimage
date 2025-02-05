@@ -8,14 +8,14 @@
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
 
-"""Tests for grid_manager.py"""
+"""Tests for GridManager.py"""
 
 import pytest
 
 # Use the default configuration for all tests
 from test_load_config import config, sysconfig
 
-from grid_manager import GridManager
+from GridManager import GridManager
 from sem.SEM import SEM
 from CoordinateSystem import CoordinateSystem
 

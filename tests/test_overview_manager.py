@@ -8,19 +8,19 @@
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
 
-"""Tests for overview_manager.py"""
+"""Tests for Overview.py"""
 
 import sys
 import pytest
 
-# QApplication needed because QPixmap is used in overview_manager.py
+# QApplication needed because QPixmap is used in Overview.py
 from qtpy.QtWidgets import QApplication
 app = QApplication(sys.argv)
 
 # Use the default configuration for all tests
 from test_load_config import config, sysconfig
 
-from overview_manager import OverviewManager
+from OverviewManager import OverviewManager
 from CoordinateSystem import CoordinateSystem
 from sem.SEM import SEM
 

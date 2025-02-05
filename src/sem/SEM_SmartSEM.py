@@ -616,7 +616,7 @@ class SEM_SmartSEM(SEM):
                 break
         if not self.magc_mode:
             self.sem_execute('CMD_FREEZE_ALL')
-        # Error state is set in acquisition.py when this function is
+        # Error state is set in Acquisition.py when this function is
         # called via Autofocus.py
         return ret_val == 0
 
@@ -635,7 +635,7 @@ class SEM_SmartSEM(SEM):
                 break
         if not self.magc_mode:
             self.sem_execute('CMD_FREEZE_ALL')
-        # Error state is set in acquisition.py when this function is
+        # Error state is set in Acquisition.py when this function is
         # called via Autofocus.py
         return ret_val == 0
 
@@ -654,7 +654,7 @@ class SEM_SmartSEM(SEM):
                 ret_val = 1
                 break
         self.sem_execute('CMD_FREEZE_ALL')
-        # Error state is set in acquisition.py when this function is
+        # Error state is set in Acquisition.py when this function is
         # called via Autofocus.py
         return ret_val == 0
 

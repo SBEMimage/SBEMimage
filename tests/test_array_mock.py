@@ -6,7 +6,7 @@ from qtpy.QtWidgets import QApplication
 from CoordinateSystem import CoordinateSystem
 from image_io import *
 from ImportedImage import ImportedImages
-from grid_manager import GridManager
+from GridManager import GridManager
 from test_utils import *
 
 
