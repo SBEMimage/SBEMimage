@@ -17,10 +17,10 @@ from config_template import process_cfg
 
 # Load default session and system configurations
 config = ConfigParser()
-with open(os.path.join('..', 'src', 'default_cfg', 'default.ini'), 'r') as file:
+with open(os.path.join('src', 'default_cfg', 'default.ini'), 'r') as file:
     config.read_file(file)
 sysconfig = ConfigParser()
-with open(os.path.join('..', 'src', 'default_cfg', 'system.cfg'), 'r') as file:
+with open(os.path.join('src', 'default_cfg', 'system.cfg'), 'r') as file:
     sysconfig.read_file(file)
 
 def test_process_config():

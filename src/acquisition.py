@@ -10,9 +10,9 @@
 
 """This module controls the acquisition process for SBEM stacks or wafers.
 
-The instance self.acq from class Acquisition is created in main_controls.py. Its
+The instance self.acq from class Acquisition is created in MainControls.py. Its
 method run(), which contains the acquisition loop, is started in a thread from
-main_controls.py.
+MainControls.py.
 """
 
 import os
@@ -637,7 +637,7 @@ class Acquisition:
             self.main_controls_trigger.transmit('ACQ NOT IN PROGRESS')
 
     def run_acquisition(self):
-        """Run acquisition in a thread started from main_controls.py."""
+        """Run acquisition in a thread started from MainControls.py."""
 
         self.reset_error_state()
         self.pause_state = None
@@ -677,7 +677,7 @@ class Acquisition:
                     + self.mirror_drive_dir)
 
             # Save current configuration to disk:
-            # Send signal to call save_settings() in main_controls.py
+            # Send signal to call save_settings() in MainControls.py
             self.main_controls_trigger.transmit('SAVE CFG')
             # Update progress bar and slice counter in Main Controls GUI
             self.main_controls_trigger.transmit('UPDATE PROGRESS')

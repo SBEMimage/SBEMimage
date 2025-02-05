@@ -6,8 +6,9 @@ from time import sleep
 from qtpy.QtWidgets import QApplication
 
 from test_utils import *
-from main_controls import MainControls
-from viewport_dlg_windows import ImportImageDlg, StubOVDlg
+from MainControls import MainControls
+from dialog.viewport.ImportImageDlg import ImportImageDlg
+from dialog.viewport.StubOVDlg import StubOVDlg
 
 
 class TestGuiMock:

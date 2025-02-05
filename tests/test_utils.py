@@ -13,8 +13,8 @@ def init_log():
 
 
 def init_read_configs(config_filename, test_config_filename):
-    config = utils.read_config('../tests/resources/' + config_filename)
-    sysconfig = utils.read_config('../tests/resources/' + test_config_filename)
+    config = utils.read_config('tests/resources/' + config_filename)
+    sysconfig = utils.read_config('tests/resources/' + test_config_filename)
     return config, sysconfig
 
 
@@ -26,22 +26,22 @@ def init_sem(config_filename, test_config_filename):
         device = sysconfig['device']['sem']
 
         if device == 'ZEISS MultiSEM':
-            from sem_control_zeiss import SEM_MultiSEM
+            from sem.SEM_MultiSEM import SEM_MultiSEM
             _SEM = SEM_MultiSEM
         elif device.startswith('ZEISS'):
-            from sem_control_zeiss import SEM_SmartSEM
+            from sem.SEM_SmartSEM import SEM_SmartSEM
             _SEM = SEM_SmartSEM
         elif device.startswith('TESCAN'):
-            from sem_control_tescan import SEM_SharkSEM
+            from sem.SEM_SharkSEM import SEM_SharkSEM
             _SEM = SEM_SharkSEM
         elif device.startswith('TFS'):
-            from sem_control_tfs import SEM_Phenom
+            from sem.SEM_Phenom import SEM_Phenom
             _SEM = SEM_Phenom
         elif device == 'Mock SEM':
-            from sem_control_mock import SEM_Mock
+            from sem.SEM_Mock import SEM_Mock
             _SEM = SEM_Mock
         else:
-            from sem_control import SEM
+            from sem.SEM import SEM
             _SEM = SEM
 
         _sem = _SEM(config, sysconfig)
@@ -58,19 +58,19 @@ def init_microtome(config_filename, test_config_filename):
         device = sysconfig['device']['microtome']
 
         if device == 'Gatan 3View':
-            from microtome_control_gatan import Microtome_3View
+            from microtome.Microtome_3View import Microtome_3View
             _Microtome = Microtome_3View
         elif device == 'ConnectomX katana':
-            from microtome_control_katana import Microtome_katana
+            from microtome.Microtome_katana import Microtome_katana
             _Microtome = Microtome_katana
         elif device == 'GCIB':
-            from microtome_control_gcib import GCIB
+            from microtome.GCIB import GCIB
             _Microtome = GCIB
         elif device == 'Mock Microtome':
-            from microtome_control_mock import Microtome_Mock
+            from microtome.Microtome_Mock import Microtome_Mock
             _Microtome = Microtome_Mock
         else:
-            from microtome_control import Microtome
+            from microtome.Microtome import Microtome
             _Microtome = Microtome
 
         _microtome = _Microtome(config, sysconfig)

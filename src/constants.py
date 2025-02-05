@@ -19,7 +19,7 @@ import re
 # master branch (for example, '2020.07 R2020-07-28'). For the current version
 # in the dev (development) branch, it must contain the tag 'dev'.
 # Following https://www.python.org/dev/peps/pep-0440/#public-version-identifiers
-VERSION = '2025.1.31 dev'
+VERSION = '2025.2.5 dev'
 
 
 # Default and minimum size of the Viewport canvas.
@@ -84,7 +84,7 @@ FRAME_IMAGE_FORMAT = DEFAULT_IMAGE_FORMAT
 TEMP_IMAGE_FORMAT = '.tif'
 SCREENSHOT_FORMAT = '.png'
 
-LOG_FILENAME = '../log/SBEMimage.log'
+LOG_FILENAME = 'log/SBEMimage.log'
 # Custom date/time / format to get '.' instead of ',' as millisecond separator
 LOG_FORMAT = '%(asctime)s.%(msecs)03d %(levelname)s %(category)s: %(message)s'
 LOG_FORMAT_SCREEN = '%(asctime)s | %(category)-5s : %(message)s'

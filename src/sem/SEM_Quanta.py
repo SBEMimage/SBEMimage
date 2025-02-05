@@ -1,0 +1,29 @@
+# -*- coding: utf-8 -*-
+
+# ==============================================================================
+#   This source file is part of SBEMimage (github.com/SBEMimage)
+#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel,
+#   and the SBEMimage developers.
+#   This software is licensed under the terms of the MIT License.
+#   See LICENSE.txt in the project root folder.
+# ==============================================================================
+
+"""This module provides the commands to operate the SEM. Only the functions
+that are actually required in SBEMimage have been implemented."""
+
+import json
+from time import sleep
+
+try:
+    import pythoncom
+    from win32com.client import VARIANT  # required for API function calls
+except:
+    pass
+
+from sem.SEM import SEM
+
+
+class SEM_Quanta(SEM):   # or: SEM_XTLib(SEM)
+
+    def __init__(self, config, sysconfig):
+        pass

@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from image_io import *
-from stage import Stage
+from Stage import Stage
 from test_utils import init_sem
 
 

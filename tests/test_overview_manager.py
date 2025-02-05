@@ -21,8 +21,8 @@ app = QApplication(sys.argv)
 from test_load_config import config, sysconfig
 
 from overview_manager import OverviewManager
-from coordinate_system import CoordinateSystem
-from sem_control import SEM
+from CoordinateSystem import CoordinateSystem
+from sem.SEM import SEM
 
 @pytest.fixture
 def ov_manager():

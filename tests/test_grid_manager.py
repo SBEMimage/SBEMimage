@@ -16,8 +16,8 @@ import pytest
 from test_load_config import config, sysconfig
 
 from grid_manager import GridManager
-from sem_control import SEM
-from coordinate_system import CoordinateSystem
+from sem.SEM import SEM
+from CoordinateSystem import CoordinateSystem
 
 @pytest.fixture
 def grid_manager():
