@@ -168,27 +168,32 @@ def imread_metadata(path):
                     if not isinstance(annotations, (list, tuple)):
                         annotations = [annotations]
                     for annotation_item in annotations:
-                        for annotation in annotation_item.values():
-                            value = annotation.get('Value')
-                            unit = None
-                            if isinstance(value, dict) and 'Modulo' in value:
-                                modulo = value.get('Modulo', {}).get('ModuloAlongZ', {})
-                                unit = modulo.get('Unit')
-                                value = modulo.get('Label')
-                            elif isinstance(value, str) and value.lower().startswith('angle'):
-                                if ':' in value:
-                                    value = value.split(':')[1].split()
-                                elif '=' in value:
-                                    value = value.split('=')[1].split()
+                        for annotations2 in annotation_item.values():
+                            if not isinstance(annotations2, (list, tuple)):
+                                annotations2 = [annotations2]
+                            for annotation in annotations2:
+                                value = annotation.get('Value')
+                                unit = None
+                                if isinstance(value, dict) and 'Modulo' in value:
+                                    modulo = value.get('Modulo', {}).get('ModuloAlongZ', {})
+                                    unit = modulo.get('Unit')
+                                    value = modulo.get('Label')
+                                elif isinstance(value, str) and value.lower().startswith('angle'):
+                                    if ':' in value:
+                                        value = value.split(':')[1].split()
+                                    elif '=' in value:
+                                        value = value.split('=')[1].split()
+                                    else:
+                                        value = value.split()[1:]
+                                    if len(value) >= 2:
+                                        unit = value[1]
+                                    value = value[0]
                                 else:
-                                    value = value.split()[1:]
-                                if len(value) >= 2:
-                                    unit = value[1]
-                                value = value[0]
-                            if value is not None:
-                                rotation = float(value)
-                                if 'rad' in unit.lower():
-                                    rotation = np.rad2deg(rotation)
+                                    value = None
+                                if value is not None:
+                                    rotation = float(value)
+                                    if 'rad' in unit.lower():
+                                        rotation = np.rad2deg(rotation)
             else:
                 tags = {tag.name: tag.value for tag in tiff.pages[0].tags.values()}
                 if tiff.is_imagej:
