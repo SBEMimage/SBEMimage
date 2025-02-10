@@ -603,7 +603,7 @@ class SEM_SmartSEM(SEM):
                 f'sem.set_beam_blanking: command failed (ret_val: {ret_val})')
             return False
 
-    def run_autofocus(self):
+    def run_autofocus(self, *args):
         """Run ZEISS autofocus, break if it takes longer than 1 min."""
         self.sem_execute('CMD_UNFREEZE_ALL')
         sleep(1)
@@ -622,7 +622,7 @@ class SEM_SmartSEM(SEM):
         # called via autofocus.py
         return ret_val == 0
 
-    def run_autostig(self):
+    def run_autostig(self, *args):
         """Run ZEISS autostig, break if it takes longer than 1 min."""
         self.sem_execute('CMD_UNFREEZE_ALL')
         sleep(1)
@@ -641,7 +641,7 @@ class SEM_SmartSEM(SEM):
         # called via autofocus.py
         return ret_val == 0
 
-    def run_autofocus_stig(self):
+    def run_autofocus_stig(self, *args):
         """Run combined ZEISS autofocus and autostig, break if it takes
         longer than 1 min."""
         self.sem_execute('CMD_UNFREEZE_ALL')

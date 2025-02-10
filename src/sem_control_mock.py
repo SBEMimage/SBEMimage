@@ -353,13 +353,13 @@ class SEM_Mock(SEM):
     def set_beam_blanking(self, enable_blanking):
         return True
 
-    def run_autofocus(self):
+    def run_autofocus(self, *args):
         return True
 
-    def run_autostig(self):
+    def run_autostig(self, *args):
         return True
 
-    def run_autofocus_stig(self):
+    def run_autofocus_stig(self, *args):
         return True
 
     def get_stage_x(self):

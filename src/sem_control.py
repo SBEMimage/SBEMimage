@@ -586,15 +586,15 @@ class SEM:
         """Enable beam blanking if enable_blanking == True."""
         raise NotImplementedError
 
-    def run_autofocus(self):
+    def run_autofocus(self, *args):
         """Run ZEISS autofocus, break if it takes longer than 1 min."""
         raise NotImplementedError
 
-    def run_autostig(self):
+    def run_autostig(self, *args):
         """Run ZEISS autostig, break if it takes longer than 1 min."""
         raise NotImplementedError
 
-    def run_autofocus_stig(self):
+    def run_autofocus_stig(self, *args):
         """Run combined ZEISS autofocus and autostig, break if it takes
         longer than 1 min."""
         raise NotImplementedError

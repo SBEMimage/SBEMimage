@@ -42,14 +42,15 @@ import constants
 
 class RunAutoFoc:
 
-    def __init__(self, exps_dir, exp_id, sem_api):
+    def __init__(self, exps_dir, exp_id, sem):
         self.exps_dir = exps_dir
         self.exp_id = exp_id
         self.additional_cycle_time = 0
         self.path_to_exp = self.exps_dir + self.exp_id
         self.result_path = self.path_to_exp + "/Result"
         self.perturbed_ims_path = self.path_to_exp + "/Test_Images" + "_" + self.exp_id
-        self.sem_api = sem_api
+        self.sem = sem
+        self.sem_api = sem.sem_api  # TODO: replace all calls to sem_api with self.sem.calls
         self.create_exps_dir()
 
     def create_exps_dir(self):
@@ -233,7 +234,7 @@ def process_ims_and_est_aberr(aberr_perturbations, test_imarrs, mapfost_params={
     return est_aberr
 
 
-def run(sem_api, working_distance_perturbations, exps_dir=None, mapfost_params={},
+def run(sem, working_distance_perturbations, exps_dir=None, mapfost_params={},
         induce_aberration_vec=[0,0,0], max_iters=7, convergence_threshold = 0.2,
         aberr_mode_bools = [1,1,1],large_aberrations=0, max_wd_stigx_stigy=None):
 
@@ -254,7 +255,7 @@ def run(sem_api, working_distance_perturbations, exps_dir=None, mapfost_params={
         for exp_itr, ta in enumerate(working_distance_perturbations):
             aberr_perturbation = [[-1*ta, 0, 0], [ta, 0, 0]]
             exp_id =  str(int(time.time())) + "_" + str(exp_itr)
-            af = RunAutoFoc(exps_dir, exp_id, sem_api=sem_api)
+            af = RunAutoFoc(exps_dir, exp_id, sem=sem)
 
             if np.any(induce_aberration_vec) !=0:
                 af.induce_aberration(induce_aberration_vec)
@@ -287,7 +288,7 @@ def run(sem_api, working_distance_perturbations, exps_dir=None, mapfost_params={
             print("corrections", corrections[-1])
     return corrections
 
-def calibrate(sem_api, mapfost_params={},
+def calibrate(sem, mapfost_params={},
               calib_mode=None,exps_dir=None):
 
     working_distance_perturbations = [4]
@@ -303,7 +304,7 @@ def calibrate(sem_api, mapfost_params={},
     for exp_itr, ta in enumerate(working_distance_perturbations):
         aberr_perturbation = [[-1*ta, 0, 0], [ta, 0, 0]]
         exp_id =  str(int(time.time())) + "_" + str(exp_itr)
-        af = RunAutoFoc(exps_dir, exp_id, sem_api=sem_api)
+        af = RunAutoFoc(exps_dir, exp_id, sem=sem)
         if np.any(induce_aberration_vec) !=0:
             af.induce_aberration(induce_aberration_vec)
             print("induced aberr, ", induce_aberration_vec)

@@ -179,26 +179,17 @@ class Autofocus():
                 else:
                     msg = 'SEM autofocus + autostig procedure'
                     # Perform combined autofocus + autostig
-                    if self.use_smartsem:
-                        success = self.sem.run_autofocus_stig()
-                    else:
-                        success = self.sem.run_autofocus_stig(
-                            self.wd_range, self.wd_final_step, self.autostig_range)
+                    success = self.sem.run_autofocus_stig(
+                        self.wd_range, self.wd_final_step, self.autostig_range)
             elif autofocus:
                 msg = 'SEM autofocus procedure'
                 # Call only autofocus routine
-                if self.use_smartsem:
-                    success = self.sem.run_autofocus()
-                else:
-                    success = self.sem.run_autofocus(
+                success = self.sem.run_autofocus(
                         self.wd_range, self.wd_final_step)
             else:
                 msg = 'SEM autostig procedure'
                 # Call only autostig routine
-                if self.use_smartsem:
-                    success = self.sem.run_autostig()
-                else:
-                    success = self.sem.run_autostig(self.autostig_range)
+                success = self.sem.run_autostig(self.autostig_range)
         if success:
             msg = 'Completed ' + msg + '.'
         else:
@@ -220,7 +211,7 @@ class Autofocus():
                               'stig_rot_deg': self.mapfost_stig_rot,
                               'stig_scale': self.mapfost_stig_scale,
                               'crop_size': self.MAPFOST_PATCH_SIZE}
-            corrections = autofocus_mapfost.run(self.sem.api, working_distance_perturbations=[self.mapfost_wd_pert],
+            corrections = autofocus_mapfost.run(self.sem, working_distance_perturbations=[self.mapfost_wd_pert],
                                                 mapfost_params=mapfost_params, max_iters = self.mapfost_max_iters,
                                                 convergence_threshold = self.mapfost_conv_thresh,
                                                 aberr_mode_bools=aberr_mode_bools, large_aberrations=large_aberrations,
@@ -245,7 +236,7 @@ class Autofocus():
                               'stig_rot_deg': 0,
                               'stig_scale': [1.,1.],
                               'crop_size': self.MAPFOST_PATCH_SIZE}
-            calib_param = autofocus_mapfost.calibrate(self.sem.api, mapfost_params=mapfost_params,
+            calib_param = autofocus_mapfost.calibrate(self.sem, mapfost_params=mapfost_params,
                                                       calib_mode=calib_mode)
             msg = calib_param
         except Exception as e:
