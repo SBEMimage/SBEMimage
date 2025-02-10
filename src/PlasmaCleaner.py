@@ -15,7 +15,7 @@
 from time import sleep
 import serial
 
-class PlasmaCleaner():
+class PlasmaCleaner:
 
     def __init__(self, selected_port):
         self.com_port = serial.Serial()

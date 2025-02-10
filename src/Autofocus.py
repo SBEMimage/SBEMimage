@@ -24,7 +24,7 @@ from scipy.signal import fftconvolve
 import autofocus_mapfost
 
 
-class Autofocus():
+class Autofocus:
 
     def __init__(self, config, sem, grid_manager):
         self.cfg = config
