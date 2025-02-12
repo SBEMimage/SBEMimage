@@ -22,6 +22,7 @@ nav:
   - user_interface.md
   - acquisition.md
   - datasets.md
+  - array_setup.md
   - development.md
   - about.md
   - references.md
