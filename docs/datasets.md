@@ -9,8 +9,7 @@ be `Drosophila_20191023`.
 
 ## Folder structure
 
-<img src="/images/dataset_folders.png" class="align-center" width="620"
-alt="Folder structure of a base directory" />
+![Folder structure of a base directory](images/dataset_folders.png)
 
 ## Acquisition metadata
 

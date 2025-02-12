@@ -1,8 +1,8 @@
 # Installation
 
-## Windows 7/10 Installer
+## Windows 10+ Installer
 
-For most users, we recommend downloading the Windows 7/10 installer
+For most users, we recommend downloading the Windows 10 or higher installer
 ([Releases](https://github.com/SBEMimage/SBEMimage/releases)). This
 installer automatically installs Python and all required packages in
 local subdirectories, registers the application (so that you can use the
@@ -28,12 +28,11 @@ If you are familiar with Python and wish to run *SBEMimage* with your
 default system Python or a custom Python environment, follow the
 instructions below.
 
-1)  Install Python (3.6 or above) on the computer on which you wish to
+1)  Install Python on the computer on which you wish to
     run *SBEMimage*. If you are using *DigitalMicrograph* (DM) to
     control a 3View microtome, the installation must be on the same
     computer on which DM is running. We recommend the Anaconda Python
     distribution: <https://www.anaconda.com/products/individual>.
-    Important: Download Python version 3.6 or higher (not 2.7)!
 2)  Either clone the repository in `C:\Utilities\SBEMimage` or download
     all files from the GitHub repository
     (<https://github.com/SBEMimage/SBEMimage>) and copy them into the
@@ -168,8 +167,7 @@ size used for that image, and the exact magnification factor you had to
 select to get that pixel size. Then click on 'Calculate' to calculate
 the new calibration factor. Confirm the new value by clicking on 'OK'.
 
-<img src="/images/mag_calibration.jpg" class="align-center" width="250"
-alt="Mag calibration dialog" />
+![Mag calibration dialog](images/mag_calibration.jpg)
 
 ### Stage calibration
 
@@ -198,8 +196,7 @@ acquired after the X shift (shift_x.tif) and input the new pixel
 coordinates. Do the same for the shift in Y direction and click on
 'Calculate' to find the new calibration parameters.
 
-<img src="/images/stage_calibration.jpg" class="align-center"
-width="600" alt="Stage calibration dialog" />
+![Stage calibration dialog](images/stage_calibration.jpg)
 
 ### Motor speeds
 
@@ -214,5 +211,4 @@ cut duration'. Set the cut duration of a full cycle in seconds. If you
 are using DigitalMicrograph, you can read the cut duration in the DM
 output log after running a cut cycle with *SBEMimage*.
 
-<img src="/images/cut_duration.jpg" class="align-center" width="250"
-alt="Set cut duration dialog" />
+![Set cut duration dialog](images/cut_duration.jpg)

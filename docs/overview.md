@@ -1,4 +1,4 @@
-# User Guide
+# Overview
 
 Last updated: 12 february 2025, for *SBEMimage* 2025.2.5
 
@@ -14,14 +14,4 @@ The source code of *SBEMimage* is hosted on
 source files for this user guide are located in the folder
 [/docs](https://github.com/SBEMimage/SBEMimage/tree/master/docs).
 
-<img src="/images/SBEMimage_screenshot.png" class="align-center"
-width="550" alt="SBEMimage screenshot" />
-
-## Contents
-
-<div class="toctree" maxdepth="1" titlesonly="">
-
-requirements installation user_interface acquisition datasets
-development about
-
-</div>
+![SBEMimage screenshot](images/SBEMimage_screenshot.png)

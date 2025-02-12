@@ -20,8 +20,7 @@ different features (for example, debris detection) that can be activated
 during stack acquisitions. Two additional tabs contain a focus tool and
 various functions for testing and debugging.
 
-<img src="/images/main_controls.jpg" class="align-center" width="600"
-alt="Main Controls window" />
+![Main Controls window](images/main_controls.jpg)
 
 ## Viewport
 
@@ -34,8 +33,7 @@ button “Image stub”. A large low-resolution (372 nm pixel size) mosaic
 will be acquired and placed in the workspace as a background image (see
 screenshot below).
 
-<img src="/images/stub_ov.jpg" class="align-center" width="600"
-alt="Stub Overview example" />
+![Stub Overview example](images/stub_ov.jpg)
 
 You can then use the stub overview image to locate the region of
 interest. In the region of interest, you can acquire a smaller overview
@@ -60,8 +58,7 @@ an overview image (“OV 0”) and two tile grids (“GRID 0” and “GRID 1”
 The highlighted tiles have been selected for imaging. A low-resolution
 stub overview mosaic is displayed in the background.
 
-<img src="/images/viewport.jpg" class="align-center" width="600"
-alt="Viewport window" />
+![Viewport window](images/viewport.jpg)
 
 The basic elements described above are displayed in different layers
 inside the viewport. The background layer consists of the stub overview
@@ -93,8 +90,7 @@ slice is marked with a vertical line in the plot area and a red line in
 the reslice. The histogram and the mean/SD values are shown for the
 selected slice.
 
-<img src="/images/slice_view_and_stats.jpg" class="align-center"
-width="600" alt="Slice-by-slice Viewer and Acquisition Monitor" />
+![Slice-by-slice Viewer and Acquisition Monitor](images/slice_view_and_stats.jpg)
 
 ## Mouse and key commands
 

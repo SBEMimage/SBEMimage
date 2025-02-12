@@ -17,8 +17,7 @@ current estimates for the duration of the stack as well as the electron
 dose range (lower value for overviews, higher value for tiles) and the
 stack's dimensions.
 
-<img src="/images/acq_panel.jpg" class="align-center" width="620"
-alt="Acquisition panel in the Main Controls window" />
+![Acquisition panel in the Main Controls window](images/acq_panel.jpg)
 
 While an acquisition is running, you can use the Viewport to monitor it:
 Selecting "Show tile previews" in the control panel of the Viewport will

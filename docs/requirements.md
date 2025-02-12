@@ -1,7 +1,7 @@
 # Requirements
 
-*SBEMimage* can be run in simulation mode on any computer with Windows 7
-or 10 and a Python 3.6+ environment. The Python environment is provided
+*SBEMimage* can be run in simulation mode on any computer with Windows 10 or higher
+and a Python 3 environment. The Python environment is provided
 automatically if you use the installer, or it can be downloaded for
 free, see installation instructions. A screen resolution of at least
 1920 × 1080 is required to fully see both application windows. On
@@ -10,8 +10,8 @@ Currently, when using a scaling other than 100% on Windows 10, there may
 be problems with the font size in the GUI (but no impact on
 functionality).
 
-For data acquisitions, the following requirements must be met (version
-2020.07 of *SBEMimage*). We will support SEMs and microtomes from other
+For data acquisitions, the following requirements must be met.
+We will support SEMs and microtomes from other
 manufacturers in future releases.
 
 -   ZEISS SEM with SmartSEM software (version 5.4 or above – older
@@ -38,5 +38,4 @@ manufacturers in future releases.
     to that circuit board. You can now record images from the detector
     of your choice in SmartSEM.
 
-<img src="/images/ZEISS_adapter.jpg" class="align-center" width="300"
-alt="image" />
+![ZEISS adapter](images/ZEISS_adapter.jpg)
