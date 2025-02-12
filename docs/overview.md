@@ -1,6 +1,10 @@
 # Overview
 
-Last updated: 12 february 2025, for *SBEMimage* 2025.2.5
+Open-source acquisition software for scanning electron microscopy with a focus on serial block-face imaging.
+
+*SBEMimage* is designed for complex, challenging acquisition tasks, such as large-scale volume imaging of neuronal tissue or other biological ultrastructure. Advanced monitoring, process control, and error handling capabilities improve reliability, speed, and quality of acquisitions. Debris detection, autofocus, real-time image inspection, and various other quality control features minimize the risk of data loss. Adaptive tile selection allows for efficient imaging of large volumes of arbitrary shape. The software’s graphical user interface is optimized for remote operation. It includes a user-friendly Viewport to visually set up acquisitions and monitor them.
+
+*SBEMimage* is customizable and extensible, which allows for fast prototyping and permits adaptation to a wide range of SEM/SBEM systems and applications.
 
 This is the user guide for the acquisition software *SBEMimage*.
 
