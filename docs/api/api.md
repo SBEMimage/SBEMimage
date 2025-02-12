@@ -1,0 +1,4 @@
+::: sbemimage.api
+    options:
+      members:
+        - .

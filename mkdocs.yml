@@ -1,0 +1,92 @@
+site_name: SBEMimage
+site_url: https://sbemimage.github.io/sbemimage
+site_description: Open-source acquisition software for scanning electron microscopy
+
+repo_name: SBEMimage
+repo_url: https://github.com/SBEMimage/SBEMimage
+# edit_uri: edit/main/docs/
+# use_directory_urls: false
+
+plugins:
+  - mike:
+      canonical_version: main
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths: [src]
+          selection:
+            docstring_style: numpy
+  - search
+  - mermaid2:
+      version: 11.3.0
+      arguments:
+        securityLevel: 'loose'
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:mermaid2.fence_mermaid_custom
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  # https://squidfunk.github.io/mkdocs-material/reference/admonitions
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+
+nav:
+  - index.md
+  - installation.md
+  - user_interface.md
+  - acquisition.md
+  - datasets.md
+  - development.md
+  - about.md
+  - API:
+    - api/api.md
+
+theme:
+  name: material
+  features:
+    - content.tabs.link
+    - content.code.annotate
+    - content.code.copy
+    # - navigation.tabs
+    - navigation.footer  # next/previous links in footer
+    - navigation.instant
+    - navigation.instant.progress
+  logo: images/logo.png
+  icon:
+    # logo: fontawesome/solid/clone
+
+    repo: fontawesome/brands/github
+  favicon:
+  palette:
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: white
+      accent: dark blue
+      toggle:
+        icon: material/lightbulb-outline
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: grey
+      accent: light blue
+      toggle:
+        icon: material/lightbulb
+        name: Switch to light mode
+
+extra:
+  version:
+    provider: mike
