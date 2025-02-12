@@ -41,3 +41,4 @@ credentials/
 *.user
 coverage.xml
 .coverage
+/site
