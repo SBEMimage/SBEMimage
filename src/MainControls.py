@@ -451,7 +451,7 @@ class MainControls(QMainWindow):
                         'Menu  →  Configuration  →  Leave simulation mode'
                         '\nRestart SBEMimage and load your new configuration file. '
                         '\n\nFollow the instructions in the user guide '
-                        '(sbemimage.readthedocs.io) to calibrate your setup.',
+                        'to calibrate your setup.',
                         QMessageBox.Ok)
                 else:
                     QMessageBox.information(
