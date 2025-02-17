@@ -39,8 +39,8 @@ window_icon = QIcon()
 
 def get_window_icon():
     if window_icon.isNull():
-        window_icon.addFile('../img/icon_16px.ico', QSize(16, 16))
-        window_icon.addFile('../img/icon_48px.ico', QSize(48, 48))
+        window_icon.addFile('img/icon_16px.ico', QSize(16, 16))
+        window_icon.addFile('img/icon_48px.ico', QSize(48, 48))
     return window_icon
 
 

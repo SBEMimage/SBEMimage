@@ -8,7 +8,7 @@
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
 
-"""Tests for microtome_control.py. Currently only for base class.
+"""Tests for BFRemover.py. Currently only for base class.
 TODO: Tests for different microtomes with mock hardware."""
 
 import pytest
@@ -16,7 +16,8 @@ import pytest
 # Use the default configuration for all tests
 from test_load_config import config, sysconfig
 
-from microtome_control import Microtome
+from microtome.Microtome import Microtome
+
 
 @pytest.fixture
 def microtome():

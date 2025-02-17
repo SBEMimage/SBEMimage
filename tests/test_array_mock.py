@@ -3,10 +3,10 @@ import pytest
 import sys
 from qtpy.QtWidgets import QApplication
 
-from coordinate_system import CoordinateSystem
+from CoordinateSystem import CoordinateSystem
 from image_io import *
 from ImportedImage import ImportedImages
-from grid_manager import GridManager
+from GridManager import GridManager
 from test_utils import *
 
 
@@ -28,7 +28,7 @@ class TestArrayMock:
         assert len(gm.array_data.get_rois()) > 0
         imported = ImportedImages(config, tmp_path)
 
-        array_image_source_path = '../array/example/wafer_example1.jpg'
+        array_image_source_path = 'array/example/wafer_example1.jpg'
         array_image_path = str(tmp_path / 'imported' / 'wafer_example1.ome.tiff')
         metadata = imread_metadata(array_image_source_path)
         source_pixel_size_um = [1, 1]

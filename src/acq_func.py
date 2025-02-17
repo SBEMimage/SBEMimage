@@ -322,7 +322,7 @@ def manual_sweep(microtome, main_controls_trigger):
 
 def manual_stage_move(stage, target_position, viewport_trigger):
     """Move stage to target_position (X, Y), requested by user in Viewport.
-    This function is run in a thread started in viewport.py.
+    This function is run in a thread started in Viewport.py.
     """
     # Read current XY stage position to make sure that stage.last_known_xy
     # is up-to-date. Expected duration of the move is calculated with

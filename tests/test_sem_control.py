@@ -8,7 +8,7 @@
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
 
-"""Tests for sem_control.py. Currently only for base class.
+"""Tests for SEM.py. Currently only for base class.
 TODO: Tests for different SEMs with mock hardware."""
 
 import pytest
@@ -16,7 +16,7 @@ import pytest
 # Use the default configuration for all tests
 from test_load_config import config, sysconfig
 
-from sem_control import SEM
+from sem.SEM import SEM
 
 @pytest.fixture
 def sem():

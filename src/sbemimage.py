@@ -16,7 +16,7 @@ First, the start-up dialog is shown (ConfigDlg in main_controls_dlg_windows.py),
 and the user is asked to select a session configuration. The application
 attempts to load the session configuration file (.ini) and the associated system
 configuration file (.cfg). If the configuration is loaded successfully, the
-QMainWindow MainControls (in main_controls.py) is launched.
+QMainWindow MainControls (in MainControls.py) is launched.
 
 Use 'python sbemimage.py' or call the batch file SBEMimage.bat to run SBEMimage.
 """
@@ -28,10 +28,10 @@ from constants import VERSION
 
 
 # Required for version installed with pynsist installer
-if os.path.exists('../Python') and os.path.exists('../pkgs'):
+if os.path.exists('Python') and os.path.exists('pkgs'):
     import site
     scriptdir, script = os.path.split(__file__)
-    pkgdir = os.path.join(scriptdir, '..', 'pkgs')
+    pkgdir = os.path.abspath('pkgs')
     # Ensure .pth files in pkgdir are handled properly and ensure importing
     # local modules works.
     site.addsitedir(pkgdir)
@@ -47,9 +47,9 @@ from configparser import ConfigParser
 from qtpy.QtWidgets import QApplication
 from qtpy.QtCore import Qt
 
-from main_controls_dlg_windows import ConfigDlg
+from dialog.ConfigDlg import ConfigDlg
 from config_template import process_cfg, load_device_presets, default_cfg_found
-from main_controls import MainControls
+from MainControls import MainControls
 import utils
 
 
@@ -133,10 +133,10 @@ def main():
                 print(f'Loading configuration file {config_file} ...', end='')
                 config = ConfigParser()
                 if default_configuration:
-                    config_file_path = os.path.join('..', 'src', 'default_cfg', 
+                    config_file_path = os.path.join('src', 'default_cfg',
                                                     config_file)
                 else:
-                    config_file_path = os.path.join('..', 'cfg', config_file)
+                    config_file_path = os.path.join('cfg', config_file)
                 with open(config_file_path, 'r') as file:
                     config.read_file(file)
                 print(' Done.\n')
@@ -150,10 +150,10 @@ def main():
                       end='')
                 sysconfig = ConfigParser()
                 if default_configuration:
-                    sysconfig_file_path = os.path.join('..', 'src', 'default_cfg', 
+                    sysconfig_file_path = os.path.join('src', 'default_cfg',
                                                        sysconfig_file)
                 else:
-                    sysconfig_file_path = os.path.join('..', 'cfg', sysconfig_file)
+                    sysconfig_file_path = os.path.join('cfg', sysconfig_file)
                 with open(sysconfig_file_path, 'r') as file:
                     sysconfig.read_file(file)
                 configuration_loaded = True
@@ -247,8 +247,8 @@ def main():
             # Remove status.dat. This file will be recreated when the program
             # terminates normally. The start-up dialog checks if status.dat
             # exists and displays a warning message if not.
-            if os.path.isfile('../cfg/status.dat'):
-                os.remove('../cfg/status.dat')
+            if os.path.isfile('cfg/status.dat'):
+                os.remove('cfg/status.dat')
 
             # Switch to dark style (experimental) if specified in session configuration
             if config['sys']['use_dark_mode_gui'].lower() == 'true':
@@ -257,7 +257,7 @@ def main():
 
             print('Please wait while SBEMimage is starting up...\n')
 
-            # Launch Main Controls window. The Viewport window (see viewport.py)
+            # Launch Main Controls window. The Viewport window (see Viewport.py)
             # is launched from Main Controls.
             try:
                 SBEMimage_main_window = MainControls(config,

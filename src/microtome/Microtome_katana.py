@@ -1,0 +1,484 @@
+# -*- coding: utf-8 -*-
+
+# ==============================================================================
+#   This source file is part of SBEMimage (github.com/SBEMimage)
+#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel,
+#   and the SBEMimage developers.
+#   This software is licensed under the terms of the MIT License.
+#   See LICENSE.txt in the project root folder.
+# ==============================================================================
+
+
+from time import sleep
+import serial
+import threading
+import sys
+
+from constants import Error
+from microtome.Microtome import Microtome
+import utils
+
+
+class Microtome_katana(Microtome):
+    """
+    Class for ConnectomX katana microtome. This microtome provides cutting
+    functionality and controls the Z position. X and Y are controlled by the
+    SEM stage. The microtome hardware is controlled via COM port commands.
+    """
+
+    def __init__(self, config, sysconfig):
+        super().__init__(config, sysconfig)
+        self.KMS_factor = 1
+        self.knife_min_KMS_val = 50
+        self.selected_port = sysconfig['device']['katana_com_port']
+        self.clear_position = int(sysconfig['knife']['katana_clear_position'])
+        self.retract_clearance = int(float(
+            sysconfig['stage']['katana_retract_clearance']))
+        # Realtime parameters
+        self.encoder_position = None
+        self.knife_position = None
+        self.current_osc_freq = None
+        self.current_osc_amp = None
+        self.cut_completed = False 
+        # COM port
+        self.com_port = serial.Serial()
+        # Connection status:
+        self.connected = False
+        # Try to connect with current selected port
+        self.connect()
+
+    def save_to_cfg(self):
+        super().save_to_cfg()
+        # Save kantana-specific keys in self.syscfg
+        self.syscfg['device']['katana_com_port'] = self.selected_port
+        self.syscfg['knife']['katana_clear_position'] = str(
+            self.clear_position)
+        self.syscfg['stage']['katana_retract_clearance'] = str(
+            self.retract_clearance)
+
+    def connect(self):
+        """
+        Attempt to connect to specified COM port (self.selected_port).
+        If port is open, perform backwards compatibility sequence,
+        handshake ('K?' command), and initialize motor.
+        """
+        if self.com_port.isOpen():
+            self.com_port.close() 
+            self.connected = False
+
+        # Open COM port specified by self.selected_port
+        if not self.simulation_mode:
+            self.com_port.port = self.selected_port
+            self.com_port.baudrate = 115200
+            self.com_port.bytesize = 8
+            self.com_port.parity = 'N'
+            self.com_port.stopbits = 1
+            # With no timeout, this code freezes if it doesn't get a response.
+            self.com_port.timeout = 0.5
+            try:
+                self.com_port.open()
+                # print('Connection to katana successful.')
+            except Exception as e:
+                print('Connection to katana failed: ' + repr(e))
+        if self.com_port.isOpen():
+            # only for backwards compatibility with old controllers
+            # (the MCU no longer resets upon comms initialisation)
+            sleep(1)
+            # initial comm is lost when on arduino usb port. (ditto)
+            self._send_command(' ')
+            # clear any incoming data from the serial buffer
+            self.com_port.flushInput()
+            # need to delay after opening port before sending anything.
+            # 0.2s fails. 0.25s seems to be always OK. Suggest >0.3s for
+            # reliability.
+            sleep(0.3)
+            # Perform handshake and initialize motors
+            self._send_command('K?')
+            response = self._read_response()
+            if response[:3] == 'K?:':
+                self.connected = True
+                print(response)
+                # if this software is the first to interact with the hardware
+                # after power-on, then the motor parameters need to be set
+                # (no harm to do anyway)
+                self.initialise_motor()
+                # get the initial Z position from the encoder
+                self.last_known_z = self.get_stage_z()
+                print('Starting Z position: ' + str(self.last_known_z) + 'µm')
+            else:
+                self.connected = False
+                print('Handshake with katana failed...')
+        
+    def initialise_motor(self):
+         self._send_command('XM2')
+         self._send_command('XY13,1')
+         self._send_command('XY11,300')
+         self._send_command('XY3,-3000000')
+         self._send_command('XY4,3000000')
+         self._send_command('XY2,0')
+         self._send_command('XY6,1')
+         self._send_command('XY12,0')
+
+    def _send_command(self, cmd):
+        """Send command to katana via serial port."""
+        self.com_port.write((cmd + '\r').encode())
+        # always need some delay after sending command.
+        # suggest to keep 0.05 for now
+        sleep(0.05)
+
+    def _read_response(self):
+        """Read a response from katana via the serial port."""
+        return self.com_port.readline(13).decode()
+        # Katana returns CR character at end of line (this is how our motor
+        # controller works so it is easiest to keep it this way)
+
+    def _wait_until_knife_stopped(self):
+        print('waiting for knife to stop...')
+        # initial delay to make sure we don't check before knife has
+        # started moving!
+        sleep(0.25)
+        # knifeStatus = self._read_response()
+        self.com_port.flushInput()
+        while True:
+            self._send_command('KKP')   # KKP queries knife movement status
+            # reset it here just in case no response on next line
+            knife_status = 'KKP:1'
+            knife_status = self._read_response()
+            knife_status = knife_status.rstrip()
+            # print(" knife status: " + knifeStatus)
+
+            # optional to show knife position so user knows it hasn't frozen!
+            # _read_realtime_data is not as robust as other com port reads, and
+            # there is no error check, so it should only be used for display
+            # purposes. (it is very fast though, so you can use it in a loop
+            # to update the GUI)
+            # self._read_realtime_data()
+            self._send_command('KKM')
+            response = self._read_response()
+            if(response.startswith('KKM')):
+                response = response.rstrip()
+                response = response.replace('KKM', '')
+                self.knife_position = response
+                
+            
+            print("Knife status: "
+                  + knife_status
+                  + ", \tKnife pos: "
+                  + str(self.knife_position)
+                  + "µm")
+            #1print("Knife status: " + knife_status + ", \tKnife pos: " + str(self.knife_position) + "µm", end='\r')
+            #sys.stdout.flush()
+
+
+            if knife_status == 'KKP:0':    # If knife is not moving
+                print('Knife stopped (KKP:0)')
+                return 0
+            # re-check every 0.2s. Repeated queries like this shouldnt be more
+            # often than every 0.025s (risks overflowing the microtome
+            # serial buffer)
+            sleep(0.2)
+
+    def _bytes_to_num(self, val_str, start, end):
+        val = 0
+        for i in range (start, end + 1):
+            val += val_str[i] * (2**(8 * (i - start)))
+        return(val)
+
+    def _read_realtime_data(self):
+        # _read_realtime_data gets the data as bytes rather than ascii. It is
+        # not as robust as other com port reads, and there is no error check,
+        # so it should only be used for display purposes. (it is very fast #
+        # though, so you can use it in a loop to update the GUI)
+        self.com_port.flushInput()
+        self._send_command('KRT')
+        datalength = 10
+        c = self.com_port.read(datalength)
+        # Can't get arduino to send negative number in binary. Temporary
+        # solution is to add large number before sending and then subtract
+        # it here
+        self.encoder_position = self._bytes_to_num(c, 0, 3) - 10000000
+        # nice to see where the knife is whilst we wait for a slow movement:
+        self.knife_position = self._bytes_to_num(c, 4, 5)
+        # the following gets retrieved because (when I get around to
+        # implementing it) the knife will have a 'resonance mode' option. So
+        # the frequency will shift to keep the knife at max amplitude
+        self.current_osc_freq = self._bytes_to_num(c, 6, 7)
+        # measured amplitude in nm. (Arduino scales it by 100)
+        self.current_osc_amp = self._bytes_to_num(c, 8, 9) / 100
+        # print(str(katana.encoderPos)+" \t"+str(katana.knifepos)
+        #       +" \t"+str(katana.oscfreq)+" \t"+str(katana.oscAmp))
+
+    def _reached_target(self):
+         print('_reached_target(self)')
+         """Check to see if the z motor is still moving (returns 1 if target
+         reached, otherwise 0 if still moving."""
+         self.com_port.flushInput()
+         self._send_command('XY23')
+         # XY23 passes through to the motor controller.
+         sleep(0.03)
+         response = self._read_response()
+         if response.startswith('XY23'):
+             response = response.rstrip()
+             response = response.replace('XY23:', '')
+             status = response.split(',')
+             # print(status[1])
+             return int(status[1])
+         else:
+             return 0
+
+    def do_full_cut(self):
+        """Perform a full cut cycle. Code is run in a thread."""
+        print('def do_full_cut(self)')
+        self.cut_completed = False
+        utils.run_log_thread(self.run_cut_sequence)
+
+    def run_cut_sequence(self):
+        print('def run_cut_sequence(self)')
+        # Move to cutting window
+        # (good practice to check the knife is not moving before starting)
+        self._wait_until_knife_stopped()
+        print('Moving to cutting position ')
+        #4self._send_command('KMS' + str(self.knife_fast_speed) + str(self.cut_window_start) + ' ...')
+        self._send_command('KMS' + str(int(self.knife_fast_speed*self.KMS_factor)))
+        # send required speed. The reason I'm setting it every time before
+        # moving is that I'm using two different speeds
+        # (knifeFastSpeed & knifeCutSpeed)
+        self._send_command('KKM' + str(self.cut_window_start) +';')   # send required position
+
+        # Turn oscillator on
+        self._wait_until_knife_stopped()
+        if self.use_oscillation:
+            # turn oscillator on
+            self._send_command('KO' + str(self.oscillation_frequency))
+            self._send_command('KOA' + str(self.oscillation_amplitude))
+
+        # Cut sample
+        print('Cutting sample...')
+        self._send_command('KMS' + str(int(self.knife_cut_speed*self.KMS_factor)))
+        self._send_command('KKM' + str(self.cut_window_end) + ';')
+
+        # Turn oscillator off
+        self._wait_until_knife_stopped()
+        if self.use_oscillation:
+            self._send_command('KOA0')
+
+        # Drop sample
+        # don't let it drop below zero:
+        """    
+        modified_retract_clearance = int(1000*min(self.last_known_z, (self.retract_clearance / 1000)))/1000
+        print('modified_retract_clearance = '+str(modified_retract_clearance)+" um")
+        if modified_retract_clearance != self.retract_clearance/1000:
+            print('Dropping sample by ' + str(modified_retract_clearance) + 'µm (out of a requested '+str(self.retract_clearance/1000)+')')
+        """
+        # nm = retract_clearance, 
+        # um = last_known_z, modified_retract_clearance, move_stage_to_z(z, speed)
+        if self.last_known_z <= (self.retract_clearance / 1000):
+                print('Dropping sample by ' + str(self.last_known_z) + 'µm (out of a requested '+str(self.retract_clearance/1000)+')') 
+                modified_retract_clearance = self.last_known_z
+                self.move_stage_to_z(0, 300)
+        else:
+            modified_retract_clearance = self.retract_clearance/1000
+            print('Dropping sample by ' + str(modified_retract_clearance) + 'µm...')
+            self.move_stage_to_z(self.last_known_z - modified_retract_clearance, 300)
+        print('modified_retract_clearance = '+str(modified_retract_clearance)+" um")
+        # TODO: discuss how Z is handled:
+        # drop sample before knife retract
+        # self.move_stage_to_z(self.last_known_z - self.retract_clearance / 1000, 300)
+        
+
+
+
+        # Retract knife
+        print('Retracting knife...')
+        self._send_command('KMS' + str(int(self.knife_fast_speed*self.KMS_factor)))
+        self._send_command('KKM' + str(self.clear_position)+';')
+
+        # Raise sample to cutting plane
+        self._wait_until_knife_stopped()
+        print('Returning sample to cutting plane...')
+        # self.move_stage_to_z(self.last_known_z + self.retract_clearance / 1000, 300)
+        self.move_stage_to_z(self.last_known_z + modified_retract_clearance, 300)
+        self.cut_completed = True
+        
+    def check_cut_cycle_status(self):
+        # Excess duration of cutting cycle in seconds
+        print('def check_cut_cycle_status(self)')
+        delay = 0
+        for i in range(240):    # if no cut finished signal detected after 240s, assume signal was missed and continue. Was previously 15s which is not enough for a slow cut
+            print(str(i) + ' - self.cut_completed = ' + str(self.cut_completed))
+            if self.cut_completed:
+                print('cut completed, returning: ', delay)
+                return delay
+            sleep(1)
+            delay += 1
+        if not self.cut_completed:
+            print('cut complete not detected. timing out and continuing...')
+        return delay    
+
+    def do_full_approach_cut(self):
+        """Perform a full cut cycle under the assumption that knife is
+           already neared."""
+        print('def do_full_approach_cut(self)')
+
+        # before coming here, the knife should already be at the start of the cutting window
+        
+        # Turn oscillator on
+        self._wait_until_knife_stopped()
+        if self.use_oscillation:
+            # turn oscillator on
+            self._send_command('KO' + str(self.oscillation_frequency))
+            self._send_command('KOA' + str(self.oscillation_amplitude))
+
+        # Cut sample
+        self._wait_until_knife_stopped()
+        print('Cutting sample...')
+       		#self._send_command('KMS' + str(self.knife_cut_speed)) # For now, keep fast speed for approach cutting. Can add setting later
+        self._send_command('KMS' + str(int(self.knife_cut_speed*self.KMS_factor)))
+        self._send_command('KKM' +  str(self.cut_window_end) + ';') #str(0) + ';')
+
+        # Return to cutting window start
+        self._wait_until_knife_stopped()
+        
+        if self.last_known_z <= 1:
+            print('Dropping sample by ' + str(self.last_known_z) + 'µm (out of a requested '+str(1)+')') 
+            self.move_stage_to_z(0, 300)
+        else:
+            print('Dropping sample by ' + str(1) + 'µm...')
+            self.move_stage_to_z(self.last_known_z - 1, 300)
+            
+        # Turn oscillator off       
+        if self.use_oscillation:
+            self._send_command('KOA0')
+            
+        print('Moving to cutting position '
+              + str(self.cut_window_start) + ' ...')
+        self._send_command('KMS' + str(int(self.knife_fast_speed*self.KMS_factor)))
+        # send required speed. The reason I'm setting it every time before
+        # moving is that I'm using two different speeds
+        # (knifeFastSpeed & knifeCutSpeed)
+        self._send_command('KKM' + str(self.cut_window_start)+ ';')   # send required position
+        ###self._send_command('KKM' + str(1000))   # send required position
+
+
+        self._wait_until_knife_stopped()
+        print('Returning sample to cutting plane...')
+        self.move_stage_to_z(self.last_known_z + 1, 300)
+
+            
+
+    def do_sweep(self, z_position):
+        # """Perform a sweep by cutting slightly above the surface."""
+        print("d")
+        print('def do_sweep(self, z_position)')
+        self._wait_until_knife_stopped()
+        print('Moving to cutting position '
+              + str(self.cut_window_start) + ', at speed ' + str(self.knife_fast_speed) +  ' ...')
+        sleep(0.1)
+        self._send_command('KMS' + str(int(self.knife_fast_speed*self.KMS_factor)))
+        #hself._send_command('KMS500')
+        sleep(0.1)
+        self._send_command('KKM' + str(self.cut_window_start))   # send required position
+        self._wait_until_knife_stopped()
+
+        # Cut sample
+        print('Cutting sample...')
+        # self._send_command('KMS' + str(self.knife_cut_speed)) # For sweep, keep fast speed for approach cutting. Can add setting later
+        self._send_command('KKM' + str(self.cut_window_end))
+        self._wait_until_knife_stopped()
+
+        if self.last_known_z <= 1:
+            print('Dropping sample by ' + str(self.last_known_z) + 'µm (out of a requested '+str(1)+')') 
+            self.move_stage_to_z(0, 300)
+        else:
+            print('Dropping sample by ' + str(1) + 'µm...')
+            self.move_stage_to_z(self.last_known_z - 1, 300)
+
+        self.retract_knife()
+        self._wait_until_knife_stopped()  
+        print('Returning sample to cutting plane...')
+        self.move_stage_to_z(self.last_known_z + 1, 300)
+
+    def cut(self):
+        print('def cut(self)')
+        self._send_command('KKM0;')
+        pass
+
+    def retract_knife(self):
+        print('def retract(self)')
+        #self._send_command('KKM10000;')
+        self._send_command('KKM' + str(self.clear_position))
+        pass
+
+    def get_stage_z(self, wait_interval=0.5):
+        """Get current Z position"""
+        print("getting Z")
+        self.com_port.flushInput()
+        self._send_command('KE')
+        response = self._read_response()
+        print(response)
+        # response will look like 'KE:120000' (for position of 0.12mm)
+        response = response.rstrip()
+        response = response.replace('KE:', '')
+        try:
+            z = int(response) / 1000
+            self.last_known_z = z
+        except:
+            z = None
+        return z
+
+    def get_stage_z_prev_session(self):
+        return self.stage_z_prev_session
+
+    def move_stage_to_z(self, z, speed=100, safe_mode=True):
+        """Move to specified Z position, and block until it is reached."""
+        print('Moving to Z=' + str(int(z*1000)/1000) + 'µm...')
+        # Use nanometres for katana Z position
+        target_z = 1000 * z
+        self._send_command('KT' + str(target_z) + ',' + str(speed))
+        response = self._read_response()
+        response = response.rstrip()
+        while self._reached_target() != 1:
+        # _reached_target() returns 1 when stage is at target position
+            #self._read_realtime_data()
+            print('stage pos: ' + str(self.encoder_position))
+            sleep(0.05)
+        print('stage finished moving')
+        self.last_known_z = z
+
+    def near_knife(self):
+        #self.add_to_log('ssearle - nearing knife (KKM0)') # not working. not sure how to add to log from here
+        print('ssearle - nearing knife (KKM0)') # print command goes to the terminal window, which is fine for debugging
+        self._send_command('KKM0;')
+        pass
+
+    def clear_knife(self):
+        print('def clear_knife(self)')
+        print('ssearle - ' + 'KKM' + str(self.clear_position))
+        #(self._send_command('KKM10000;')
+        self._send_command('KKM' + str(self.clear_position))
+        pass
+
+    def get_clear_position(self):
+        return self.clear_position
+
+    def set_clear_position(self, clear_position):
+        self.clear_position = int(clear_position)
+
+    def get_retract_clearance(self):
+        return self.retract_clearance
+
+    def set_retract_clearance(self, retract_clearance):
+        self.retract_clearance = int(retract_clearance)
+
+    #def check_cut_cycle_status(self):
+        #print('Unused - def check_cut_cycle_status(self)')
+        #pass
+
+    def reset_error_state(self):
+        self.error_state = Error.none
+        self.error_info = ''
+
+    def disconnect(self):
+        if self.connected:
+            self.com_port.close()
+            print(f'katana: Connection closed (Port {self.com_port.port}).')

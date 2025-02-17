@@ -8,14 +8,14 @@
 #   See LICENSE.txt in the project root folder.
 # ==============================================================================
 
-"""Tests for coordinate_system.py."""
+"""Tests for CoordinateSystem.py."""
 
 import pytest
 import numpy as np
 # Use the default configuration for all tests
 from test_load_config import config, sysconfig
 
-from coordinate_system import CoordinateSystem
+from CoordinateSystem import CoordinateSystem
 
 @pytest.fixture
 def cs():

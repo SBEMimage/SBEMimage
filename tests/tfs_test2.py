@@ -5,7 +5,7 @@ import os
 import PyPhenom as ppi
 
 
-PPAPI_CREDENTIALS_FILENAME = '../credentials/ppapi_credentials.txt'
+PPAPI_CREDENTIALS_FILENAME = 'credentials/ppapi_credentials.txt'
 
 saveFolder = "tfs_test"
 
