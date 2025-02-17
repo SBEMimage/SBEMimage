@@ -11,6 +11,7 @@ plugins:
       default_handler: python
       handlers:
         python:
+          paths: [.]
           options:
             show_submodules: true
             show_if_no_docstring: true
@@ -21,9 +22,9 @@ nav:
   - installation.md
   - user_interface.md
   - acquisition.md
-  - datasets.md
   - array_setup.md
   - external_tools.md
+  - datasets.md
   - development.md
   - about.md
   - references.md
