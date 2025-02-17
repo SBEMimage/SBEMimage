@@ -12,7 +12,7 @@ For more background and details read the [paper](https://www.frontiersin.org/art
 
 ## Getting started / Support
 
-Please read the user guide: [sbemimage.github.io/sbemimage](https://sbemimage.github.io/sbemimage). It currently contains installation instructions and a short introduction to the software (to be expanded). For users who are not familiar with Python, it is recommended to download the Windows 10+ installer. For support and discussion, please use the [Image.sc forum](https://forum.image.sc/) and post to the forum with the tag 'sbemimage'.
+Please read the user guide: [sbemimage.github.io/SBEMimage](https://sbemimage.github.io/SBEMimage). It currently contains installation instructions and a short introduction to the software (to be expanded). For users who are not familiar with Python, it is recommended to download the Windows 10+ installer. For support and discussion, please use the [Image.sc forum](https://forum.image.sc/) and post to the forum with the tag 'sbemimage'.
 
 ## Development
 
@@ -20,7 +20,7 @@ The development of *SBEMimage* at the Friedrich Miescher Institute in Basel has 
 
 Current development team: Benjamin Titze ([btitze](https://github.com/btitze)), Friedrich Miescher Institute for Biomedical Research, Basel, Switzerland (lead developer); Thomas Templier, Janelia Research Campus; Joost de Folter, Francis Crick Institute; Philipp Schubert, Max Planck Institute of Neurobiology; and others: https://github.com/SBEMimage/SBEMimage/graphs/contributors
 
-Contact benjamin.titze ÄT protonmail.ch if you are interested in contributing to the development of *SBEMimage*. All ongoing development takes place in the ['dev' branch](https://github.com/SBEMimage/SBEMimage/tree/dev). Pull requests to that branch are welcome. For more information, see the section ['For developers'](https://sbemimage.github.io/sbemimage/development) in the user guide.
+Contact benjamin.titze ÄT protonmail.ch if you are interested in contributing to the development of *SBEMimage*. All ongoing development takes place in the ['dev' branch](https://github.com/SBEMimage/SBEMimage/tree/dev). Pull requests to that branch are welcome. For more information, see the section ['For developers'](https://sbemimage.github.io/SBEMimage//development) in the user guide.
 
 ## Feedback and bug reports
 

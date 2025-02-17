@@ -23,8 +23,8 @@ class AboutBox(QDialog):
             self.label_version.setText('Version ' + VERSION)
         self.labelIcon.setPixmap(QPixmap('img/logo.png'))
         # Enable links to documentation and GitHub
-        self.label_readthedocs.setText('<a href="https://sbemimage.github.io/sbemimage">'
-                                       'sbemimage.github.io/sbemimage</a>')
+        self.label_readthedocs.setText('<a href="https://sbemimage.github.io/SBEMimage">'
+                                       'sbemimage.github.io/SBEMimage</a>')
         self.label_readthedocs.setOpenExternalLinks(True)
         self.label_github.setText('<a href="https://github.com/SBEMimage">'
                                   'github.com/SBEMimage</a>')

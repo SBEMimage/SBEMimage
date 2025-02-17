@@ -18,7 +18,7 @@ Folder structure:
 -   `dm`: Scripts for *DigitalMicrograph* (in a proprietary language)
     for both GMS 2 and GMS 3.
 -   `docs`: Documentation (generated using
-    mkdocs <https://www.mkdocs.org> and hosted as github pages <https://sbemimage.github.io/sbemimage>)
+    mkdocs <https://www.mkdocs.org> and hosted as github pages <https://sbemimage.github.io/SBEMimage>)
 -   `gui`: All PyQT user interface files (.ui), created with *Qt
     Designer* (bundled with *Anaconda*)
 -   `img`: Various images and icons
