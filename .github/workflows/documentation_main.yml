@@ -6,6 +6,7 @@ on:
       - main
       - dev
       - dev-redoc
+      - dummy
 
 jobs:
   docs-main:
