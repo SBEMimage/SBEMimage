@@ -616,10 +616,17 @@ def resize_image_max_pool(image, new_size):
         # use single value for width; apply aspect ratio
         size = np.flip(image.shape[:2])
         new_size = new_size, new_size * size[1] // size[0]
-    height_factor = int(np.ceil(image.shape[0] / new_size[1]))
-    width_factor = int(np.ceil(image.shape[1] / new_size[0]))
+        
+    # compute the max pooling with size calculated from the downsample factor
+    height_factor = image.shape[0] / new_size[1]
+    width_factor = image.shape[1] / new_size[0]
     max_filter = maximum_filter(image, size=(height_factor, width_factor))
-    return max_filter[height_factor//2::height_factor, width_factor//2::width_factor]
+    
+    # sample points from the centre of each pooling cell
+    height_samples = np.linspace(height_factor//2, image.shape[0]-height_factor//2-1, new_size[1]).astype(int)
+    width_samples = np.linspace(width_factor//2, image.shape[1]-width_factor//2-1, new_size[0]).astype(int)
+    coords = np.meshgrid(height_samples, width_samples, indexing='ij')
+    return max_filter[coords]
 
 
 def transform_to_QTransform(transform0):
