@@ -758,7 +758,7 @@ def align_images_cv2(src: np.ndarray, target: np.ndarray) -> np.ndarray:
     # robustly estimate affine transform model with RANSAC
     transf = TranslationTransform  # AffineTransform
     model_robust, inliers = ransac((points1, points2), transf, min_samples=5,
-                                   residual_threshold=2, max_trials=10000, random_state=0)
+                                   residual_threshold=2, max_trials=10000)
     affine_m = model_robust.params[:2]
     # displacement from im1 to im2
     return affine_m[:, -1]  # only return translation vector

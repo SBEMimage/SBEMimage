@@ -1,8 +1,6 @@
-from imreg_dft import translation
 import numpy as np
 import os
 from math import atan, sqrt, atan2
-from skimage.registration import phase_cross_correlation
 from typing import Tuple
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QPixmap
@@ -265,11 +263,13 @@ class StageCalibrationDlg(QDialog):
                 x_shift = utils.align_images_cv2(shift_x_img, start_img)
                 y_shift = utils.align_images_cv2(shift_y_img, start_img)
             elif self.comboBox_package.currentIndex() == 1:
+                from imreg_dft import translation
                 x_shift = translation(
                     start_img, shift_x_img, filter_pcorr=3)['tvec'][::-1]
                 y_shift = translation(
                     start_img, shift_y_img, filter_pcorr=3)['tvec'][::-1]
             else:  # use skimage.phase_cross_correlation
+                from skimage.registration import phase_cross_correlation
                 x_shift = phase_cross_correlation(start_img, shift_x_img)[0][::-1]
                 y_shift = phase_cross_correlation(start_img, shift_y_img)[0][::-1]
             x_shift = x_shift.astype(int)
@@ -328,18 +328,6 @@ class StageCalibrationDlg(QDialog):
         shift = self.spinBox_shift.value()
         pixel_size = self.spinBox_pixelsize.value()
 
-        # Use absolute values for now, TODO: revisit for the Sigma stage
-        delta_xx, delta_xy = (
-            abs(self.x_shift_vector[0]), abs(self.x_shift_vector[1]))
-        delta_yx, delta_yy = (
-            abs(self.y_shift_vector[0]), abs(self.y_shift_vector[1]))
-        # Rotation angles (in radians)
-        rot_x = atan(delta_xy/delta_xx)
-        rot_y = atan(delta_yx/delta_yy)
-        # Scale factors
-        scale_x = shift / (sqrt(delta_xx**2 + delta_xy**2) * pixel_size / 1000)
-        scale_y = shift / (sqrt(delta_yx**2 + delta_yy**2) * pixel_size / 1000)
-
         # Alternative calc.
         x_abs = np.linalg.norm(self.x_shift_vector)
         y_abs = np.linalg.norm(self.y_shift_vector)
@@ -349,11 +337,6 @@ class StageCalibrationDlg(QDialog):
         # Scale factors:
         scale_x_alt = shift / (x_abs * pixel_size / 1000)
         scale_y_alt = shift / (y_abs * pixel_size / 1000)
-
-        # Alternative calc. with atan2
-        # This only works if the reference vector is (0, 0)
-        rot2_x = atan2(self.x_shift_vector[1], self.x_shift_vector[0])
-        rot2_y = atan2(self.y_shift_vector[0], self.y_shift_vector[1])
 
         scale_x = scale_x_alt
         scale_y = scale_y_alt
