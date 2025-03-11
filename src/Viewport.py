@@ -3338,10 +3338,11 @@ class Viewport(QWidget):
                     self.acq.base_dir, self.acq.stack_name,
                     self.sv_current_ov, start_slice - index)
             elif self.sv_current_tile >= 0:
+                grid = self.gm[self.sv_current_grid]
                 filename = os.path.join(
                     self.acq.base_dir, utils.tile_relative_save_path(
                         self.acq.stack_name, self.sv_current_grid,
-                        None, None,
+                        grid.array_index, grid.roi_index,
                         self.sv_current_tile, start_slice - index))
             if filename and os.path.isfile(filename):
                 self.slice_view_images.append(utils.image_to_QPixmap(imread(filename)))
