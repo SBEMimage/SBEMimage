@@ -513,6 +513,7 @@ class SEM_SmartSEM(SEM):
             grab_filename = os.path.join(os.path.dirname(save_path_filename), 'grab' + constants.TEMP_IMAGE_FORMAT)
         else:
             grab_filename = save_path_filename
+        utils.validate_output_path(grab_filename, is_file=True)
         ret_val = self.sem_api.Grab(0, 0, 1024, 768, 0, grab_filename)
         if ret_val == 0:
             if rewrite_file:
