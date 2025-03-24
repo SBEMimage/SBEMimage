@@ -316,6 +316,8 @@ def imwrite(path, data, metadata=None, tile_size=None, compression=None,
     if data is None:
         return
 
+    validate_output_path(path, is_file=True)
+
     paths = path.split('.', 1)
     ext = paths[-1].lower()
     is_tiff = 'tif' in ext
@@ -335,7 +337,6 @@ def imwrite(path, data, metadata=None, tile_size=None, compression=None,
             tiff_metadata, resolution, resolution_unit = create_tiff_metadata(metadata, is_ome)
         else:
             tiff_metadata = None
-        validate_output_path(path, is_file=True)
         with TiffWriter(path) as writer:
             new_size = size
             ordered_data = np.moveaxis(data, -1, 0) if move_channel else data

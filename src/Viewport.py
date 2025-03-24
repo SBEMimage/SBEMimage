@@ -391,9 +391,6 @@ class Viewport(QWidget):
                                 f'CTRL: Tile {self.selected_grid}.'
                                 f'{self.selected_tile}{new_tile_status}')
                             self.vp_update_after_active_tile_selection()
-                            # Make sure folder exists:
-                            self.main_controls_trigger.transmit(
-                                'ADD TILE FOLDER')
                     else:
                         # If no acquisition in progress,
                         # first toggle current tile.
