@@ -473,10 +473,10 @@ class SEM_SmartSEM(SEM):
         self.sem_execute('CMD_UNFREEZE_ALL')
 
         if (
-            self.magc_mode
-            and self.device_name.lower() in [
+            self.device_name.lower() in [
                 'zeiss merlin',
                 'zeiss sigma',
+                'zeiss ultra plus'
                 ]
         ):
             sleep(0.5)
