@@ -454,18 +454,6 @@ class Acquisition:
             'workspace/viewport',
             'workspace/reslices'
         ]
-        # Add subdirectories for overviews, grids, tiles
-        for ov_index in range(self.ovm.number_ov):
-            ov_dir = os.path.join(*utils.get_ov_dirname('', ov_index))
-            subdirectory_list.append(ov_dir)
-        for grid_index, grid in enumerate(self.gm):
-            array_index, roi_index = grid.array_index, grid.roi_index
-            high_dir = os.path.join(*utils.get_tile_dirname('', grid_index, array_index, roi_index))
-            subdirectory_list.append(high_dir)
-            for tile_index in grid.active_tiles:
-                tile_dir = os.path.join(
-                    *utils.get_tile_dirname('', grid_index, array_index, roi_index, tile_index))
-                subdirectory_list.append(tile_dir)
         # Create the directories in the base directory and the mirror drive
         # (if applicable).
         success, exception_str = utils.create_subdirectories(
@@ -587,6 +575,7 @@ class Acquisition:
         try:
             for file_name in file_list:
                 dst_file_name = os.path.join(self.mirror_drive, file_name[2:])
+                utils.validate_output_path(dst_file_name, is_file=True)
                 shutil.copy(file_name, dst_file_name)
         except Exception as e:
             utils.log_warning('CTRL', 'WARNING (Could not mirror file(s))')
@@ -671,7 +660,7 @@ class Acquisition:
                 self.add_to_main_log('CTRL: Stack started.')
 
             if self.use_mirror_drive:
-                utils.log(
+                utils.log_info(
                     'CTRL',
                     'Mirror drive active: '
                     + self.mirror_drive_dir)

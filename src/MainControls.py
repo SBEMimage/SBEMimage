@@ -2016,8 +2016,6 @@ class MainControls(QMainWindow):
             self.ft_update_tile_selector()
         elif msg == 'MOVE STAGE':
             self.move_stage()
-        elif msg == 'ADD TILE FOLDER':
-            self.add_tile_folder()
         elif msg == 'IMPORT IMG':
             self.open_import_image_dlg()
         elif msg == 'ADJUST IMPORTED IMG':
@@ -2114,22 +2112,6 @@ class MainControls(QMainWindow):
             self.acq.user_reply = reply
         else:
             self.acq.user_reply = 1
-
-    def add_tile_folder(self):
-        """Add a folder for a new tile to be acquired while the acquisition
-        is running."""
-        grid_index = self.viewport.selected_grid
-        grid = self.gm[grid_index]
-        tile_index = self.viewport.selected_tile
-        tile_folder = utils.get_tile_dirname('tiles', grid_index, grid.array_index, grid.roi_index, tile_index)
-        tile_folder = os.path.join(self.acq.base_dir, *tile_folder)
-        if not os.path.exists(tile_folder):
-            self.try_to_create_directory(tile_folder)
-        if self.acq.use_mirror_drive:
-            mirror_tile_folder = os.path.join(
-                self.acq.mirror_drive, tile_folder[2:])
-            if not os.path.exists(mirror_tile_folder):
-                self.try_to_create_directory(mirror_tile_folder)
 
     def restrict_gui(self, busy):
         """Disable GUI elements during acq or when program is busy."""
