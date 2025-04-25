@@ -85,7 +85,7 @@ def main():
         # Qt elements and fonts in the GUI don't scale in the correct ratios.
 
     SBEMimage = QApplication(sys.argv)
-    app_id = 'SBEMimage ' + VERSION
+    app_id = f'SBEMimage {VERSION}'
 
     if is_windows:
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(app_id)
@@ -93,11 +93,11 @@ def main():
         os.system('cls')
 
     if 'dev' in VERSION.lower():
-        title_str = 'SBEMimage - Console - DEVELOPMENT VERSION'
+        title_str = f'{app_id} - Console - DEVELOPMENT VERSION'
         version_info = f'DEVELOPMENT VERSION ({VERSION})'
     else:
-        title_str = 'SBEMimage - Console'
-        version_info = 'Version ' + VERSION
+        title_str = f'{app_id} - Console'
+        version_info = f'Version {VERSION}'
     os.system('title ' + title_str)
 
     line_of_stars = '*' * (len(version_info) + 10)

@@ -27,9 +27,10 @@ class ConfigDlg(QDialog):
         loadUi('gui/config_dlg.ui', self)
         self.setWindowIcon(utils.get_window_icon())
         if 'dev' in VERSION.lower():
-            self.label_version.setText(f'DEVELOPMENT VERSION ({VERSION})')
+            title = f'DEVELOPMENT VERSION ({VERSION})'
         else:
-            self.label_version.setText('Version ' + VERSION)
+            title = f'Version {VERSION}'
+        self.label_version.setText(title)
         self.labelIcon.setPixmap(QPixmap('img/logo.png'))
         self.label_website.setText('<a href="https://github.com/SBEMimage">'
                                    'https://github.com/SBEMimage</a>')

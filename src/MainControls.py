@@ -387,7 +387,7 @@ class MainControls(QMainWindow):
         utils.show_progress_in_console(80)
 
         # First log messages
-        utils.log_info('CTRL', 'SBEMimage Version ' + VERSION)
+        utils.log_info('CTRL', f'SBEMimage Version {VERSION}')
 
         # Initialize viewport window
         self.viewport = Viewport(self.cfg, self.sem, self.stage, self.cs,
@@ -499,15 +499,15 @@ class MainControls(QMainWindow):
         """Load and set up the Main Controls GUI"""
         loadUi('gui/main_window.ui', self)
         if 'dev' in VERSION.lower():
-            self.setWindowTitle(
-                'SBEMimage - Main Controls - DEVELOPMENT VERSION')
+            title_str = f'SBEMimage {VERSION} - Main Controls - DEVELOPMENT VERSION'
             # Disable 'Update' function (would overwrite current (local) changes
             # in the code of the development version with the current version
             # in the master branch.)
             self.actionUpdate.setEnabled(False)
         else:
-            self.setWindowTitle('SBEMimage - Main Controls')
+            title_str = f'SBEMimage {VERSION} - Main Controls'
 
+        self.setWindowTitle(title_str)
         self.setWindowIcon(utils.get_window_icon())
         #self.setFixedSize(self.size())
         self.move(1120, 20)
