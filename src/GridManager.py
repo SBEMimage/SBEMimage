@@ -579,21 +579,20 @@ class GridManager(list):
             self.set_array_landmark(landmark_id, location, landmark_type='stage')
             self.set_array_landmark(landmark_id, location, landmark_type='target')
 
-    def add_new_grid_from_overview_roi(self, array_index, roi_index, roi_center, size, ov_position, ov_angle=None):
-        # convert the roi_center to stage coordinates
-        if ov_angle is None:
-            ov_angle = -self.cs.get_rotation()
-        transform = utils.create_transform(translate=ov_position, angle=ov_angle)
-        roi_stage_coords = utils.apply_transform(roi_center, transform)
+    def add_new_grid_from_overview_roi(self, array_index, roi_index, roi_center, size, ov_position):
+        # rescale roi_center to the SEM coordinate system
+        roi_center = [roi_center[0] / self.cs.scale_x, roi_center[1] / self.cs.scale_y]
+        
+        # convert the roi_center to stage coordinates and add the ov_position offset
+        roi_stage_coords = self.cs.convert_d_to_s(roi_center) + ov_position
 
         grid_index = self.find_grid_index(roi_index, array_index)
-        grid_rotation = self.cs.get_rotation() + ov_angle  # calculate the grid rotation relative to the SEM
         if grid_index is None:
             # add new grid if it doesn't already exist
-            self.add_new_grid_from_roi(array_index, roi_index, roi_stage_coords, size, -grid_rotation)
+            self.add_new_grid_from_roi(array_index, roi_index, roi_stage_coords, size, 0)
         else:
             # otherwise, update the grid attributes
-            self.update_grid_from_roi(grid_index, roi_stage_coords, size, -grid_rotation)
+            self.update_grid_from_roi(grid_index, roi_stage_coords, size, 0)
 
     def update_grid_tiles_with_mask(self, array_index, roi_index, mask):
         grid_index = self.find_grid_index(roi_index, array_index)
