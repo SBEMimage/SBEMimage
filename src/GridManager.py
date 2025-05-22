@@ -580,8 +580,9 @@ class GridManager(list):
             self.set_array_landmark(landmark_id, location, landmark_type='target')
 
     def add_new_grid_from_overview_roi(self, array_index, roi_index, roi_center, size, ov_position):
-        # rescale roi_center to the SEM coordinate system
+        # rescale roi_center and size to the SEM coordinate system
         roi_center = [roi_center[0] / self.cs.scale_x, roi_center[1] / self.cs.scale_y]
+        size = [size[0] / self.cs.scale_x, size[1] / self.cs.scale_y]
         
         # convert the roi_center to stage coordinates and add the ov_position offset
         roi_stage_coords = self.cs.convert_d_to_s(roi_center) + ov_position
@@ -601,19 +602,22 @@ class GridManager(list):
 
         grid = self[grid_index]
         overlap_um = grid.overlap * grid.pixel_size * 1e-3
+        
+        # get the size of the ROI (not the grid size)
         w, h = grid.sw_sh
         mask = np.asarray(mask, dtype=np.uint8)
 
         # pad mask to match tile size
         px_size_y = mask.shape[0] / h
-        px_size_x = mask.shape[0] / w
+        px_size_x = mask.shape[1] / w
+        
+        # actual grid size is the number of tiles in the grid minus the overlap
+        grid_height = grid.tile_height_d() * grid.size[0] - overlap_um * (grid.size[0] - 1)
+        grid_width = grid.tile_width_d() * grid.size[1] - overlap_um * (grid.size[1] - 1)
 
-        # effective tile size is equivalent to tile size minus overlap
-        tile_width = grid.tile_width_d() - overlap_um
-        tile_height = grid.tile_height_d() - overlap_um
-
-        dh = (grid.size[0] * tile_height - h) / 2
-        dw = (grid.size[1] * tile_width - w) / 2
+        # pad the mask to match the grid size
+        dh = (grid_height - h) / 2
+        dw = (grid_width - w) / 2
         mask = np.pad(mask, ((round(dh * px_size_y), round(dh * px_size_y)),
                         (round(dw * px_size_x), round(dw * px_size_x))))
 
@@ -664,6 +668,7 @@ class GridManager(list):
         grid.rotation = rotation
         grid.auto_update_tile_positions = True
         grid.centre_sx_sy = center
+        grid.sw_sh = size
 
     def add_new_grid_from_roi(self, array_index, roi_index, center, size, rotation):
         # use first matching roi grid as template
