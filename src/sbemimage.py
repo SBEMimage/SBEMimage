@@ -45,7 +45,7 @@ import traceback
 import colorama # needed to suppress TIFFReadDirectory warnings in the console
 from configparser import ConfigParser
 from qtpy.QtWidgets import QApplication
-from qtpy.QtCore import Qt
+from qtpy.QtCore import Qt, qVersion
 
 from dialog.ConfigDlg import ConfigDlg
 from config_template import process_cfg, load_device_presets, default_cfg_found
@@ -78,7 +78,7 @@ def main():
     if not (is_windows and platform.release().isnumeric() and float(platform.release()) >= 7):
         print('Warning: SBEMimage is designed to run on Windows 7 or higher. Use on other operating system at own risk.')
 
-    if is_windows and platform.release() == '10':
+    if is_windows and platform.release() == '10' and int(qVersion().split('.')[0]) <= 5:
         # High dpi scaling for Windows 10
         QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
         # TODO: This does not work well for 150% and other scale factors.
