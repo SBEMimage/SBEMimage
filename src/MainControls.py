@@ -527,9 +527,13 @@ class MainControls(QMainWindow):
             lambda: self.open_grid_dlg(self.grid_index_dropdown))
         self.pushButton_gridSettings.setIcon(QIcon('img/settings.png'))
         self.pushButton_gridSettings.setIconSize(QSize(16, 16))
+        self.comboBox_gridSelector.currentIndexChanged.connect(
+            self.change_grid_settings_display)
         self.pushButton_OVSettings.setIcon(QIcon('img/settings.png'))
         self.pushButton_OVSettings.setIconSize(QSize(16, 16))
         self.pushButton_OVSettings.clicked.connect(self.open_ov_dlg)
+        self.comboBox_OVSelector.currentIndexChanged.connect(
+            self.change_ov_settings_display)
         self.pushButton_acqSettings.clicked.connect(
             self.open_acq_settings_dlg)
         self.pushButton_acqSettings.setIcon(QIcon('img/settings.png'))
@@ -758,8 +762,6 @@ class MainControls(QMainWindow):
                 QIcon(colour_icon), '   ' + grid_list_str[i])
         self.grid_index_dropdown = grid_index
         self.comboBox_gridSelector.setCurrentIndex(grid_index)
-        self.comboBox_gridSelector.currentIndexChanged.connect(
-            self.change_grid_settings_display)
         self.comboBox_gridSelector.blockSignals(False)
 
     def update_main_controls_ov_selector(self, ov_index=0):
@@ -773,8 +775,6 @@ class MainControls(QMainWindow):
         self.comboBox_OVSelector.addItems(ov_list_str)
         self.ov_index_dropdown = ov_index
         self.comboBox_OVSelector.setCurrentIndex(ov_index)
-        self.comboBox_OVSelector.currentIndexChanged.connect(
-            self.change_ov_settings_display)
         self.comboBox_OVSelector.blockSignals(False)
 
     def change_grid_settings_display(self):
@@ -2913,11 +2913,15 @@ class MainControls(QMainWindow):
         self.ft_update_ov_selector()
         # Initialize Pixmap for Focus Tool:
         self.ft_clear_display()
+        self.comboBox_selectOVFT.currentIndexChanged.connect(
+            self.ft_load_selected_ov)
+        self.comboBox_selectGridFT.currentIndexChanged.connect(
+            self.ft_change_grid_selection)
+        self.comboBox_selectTileFT.currentIndexChanged.connect(
+            self.ft_load_selected_tile)
 
     def ft_clear_display(self):
-        blank = QPixmap(512, 384)
-        blank.fill(QColor(0, 0, 0))
-        self.img_focusToolViewer.setPixmap(blank)
+        self.img_focusToolViewer.clear()
 
     def ft_start(self):
         """Run the through-focus cycle: (1) Move to selected tile or OV.
@@ -3363,8 +3367,6 @@ class MainControls(QMainWindow):
         self.comboBox_selectGridFT.addItems(self.gm.grid_selector_list())
         self.comboBox_selectGridFT.setCurrentIndex(grid_index)
         self.ft_selected_grid = grid_index
-        self.comboBox_selectGridFT.currentIndexChanged.connect(
-            self.ft_change_grid_selection)
         self.comboBox_selectGridFT.blockSignals(False)
 
     def ft_update_tile_selector(self, current_tile=-1):
@@ -3391,8 +3393,6 @@ class MainControls(QMainWindow):
                     current_tile])
         else:
             self.ft_selected_tile = current_tile
-        self.comboBox_selectTileFT.currentIndexChanged.connect(
-            self.ft_load_selected_tile)
         self.comboBox_selectTileFT.blockSignals(False)
 
     def ft_update_ov_selector(self, ov_index=-1):
@@ -3404,8 +3404,6 @@ class MainControls(QMainWindow):
             ['Select OV'] + self.ovm.ov_selector_list())
         self.comboBox_selectOVFT.setCurrentIndex(ov_index + 1)
         self.ft_selected_ov = ov_index
-        self.comboBox_selectOVFT.currentIndexChanged.connect(
-            self.ft_load_selected_ov)
         self.comboBox_selectOVFT.blockSignals(False)
 
     def ft_change_grid_selection(self):
