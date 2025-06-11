@@ -14,6 +14,12 @@
    <string>SBEMimage Control Window</string>
   </property>
   <widget class="QWidget" name="centralwidget">
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
    <layout class="QVBoxLayout" name="verticalLayout">
     <property name="leftMargin">
      <number>10</number>
@@ -51,6 +57,12 @@
        <number>0</number>
       </property>
       <widget class="QWidget" name="mainControls">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <attribute name="title">
         <string>Main controls</string>
        </attribute>
@@ -1327,6 +1339,12 @@
        </widget>
       </widget>
       <widget class="QWidget" name="focusTool">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <attribute name="title">
         <string>Focus tool</string>
        </attribute>
@@ -1820,6 +1838,12 @@
        </widget>
       </widget>
       <widget class="QWidget" name="tab_Notes">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <attribute name="title">
         <string>Notes</string>
        </attribute>
@@ -1936,6 +1960,12 @@
        </widget>
       </widget>
       <widget class="QWidget" name="tab_Array">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <attribute name="title">
         <string>Array</string>
        </attribute>
@@ -2307,6 +2337,12 @@ Green: acquired</string>
        </widget>
       </widget>
       <widget class="QWidget" name="multisemTab">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <attribute name="title">
         <string>MultiSEM</string>
        </attribute>
@@ -2437,6 +2473,12 @@ Green: acquired</string>
        </widget>
       </widget>
       <widget class="QWidget" name="comTests">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <attribute name="title">
         <string>Tests</string>
        </attribute>
@@ -2807,6 +2849,9 @@ Green: acquired</string>
         <pointsize>8</pointsize>
         <bold>false</bold>
        </font>
+      </property>
+      <property name="acceptDrops">
+       <bool>false</bool>
       </property>
       <property name="readOnly">
        <bool>true</bool>

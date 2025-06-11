@@ -35,7 +35,6 @@ class ConfigDlg(QDialog):
         self.label_website.setText('<a href="https://github.com/SBEMimage">'
                                    'https://github.com/SBEMimage</a>')
         self.label_website.setOpenExternalLinks(True)
-        self.setFixedSize(self.size())
         self.show()
         self.abort = False
         # Connect button to load device selection dialog
