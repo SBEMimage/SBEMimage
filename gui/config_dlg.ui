@@ -16,105 +16,67 @@
   <property name="windowTitle">
    <string>Load Configuration</string>
   </property>
+  <property name="sizeGripEnabled">
+   <bool>true</bool>
+  </property>
   <property name="modal">
    <bool>false</bool>
   </property>
-  <widget class="QDialogButtonBox" name="buttonBox">
-   <property name="geometry">
-    <rect>
-     <x>80</x>
-     <y>310</y>
-     <width>181</width>
-     <height>32</height>
-    </rect>
-   </property>
-   <property name="orientation">
-    <enum>Qt::Horizontal</enum>
-   </property>
-   <property name="standardButtons">
-    <set>QDialogButtonBox::Abort|QDialogButtonBox::Ok</set>
-   </property>
-  </widget>
-  <widget class="QLabel" name="label_2">
-   <property name="geometry">
-    <rect>
-     <x>14</x>
-     <y>140</y>
-     <width>161</width>
-     <height>16</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Select session configuration:</string>
-   </property>
-  </widget>
-  <widget class="QLabel" name="label_version">
-   <property name="geometry">
-    <rect>
-     <x>14</x>
-     <y>100</y>
-     <width>231</width>
-     <height>16</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Version</string>
-   </property>
-  </widget>
-  <widget class="QLabel" name="labelIcon">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>15</y>
-     <width>250</width>
-     <height>50</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string/>
-   </property>
-  </widget>
-  <widget class="QListWidget" name="listWidget_filelist">
-   <property name="geometry">
-    <rect>
-     <x>13</x>
-     <y>160</y>
-     <width>247</width>
-     <height>101</height>
-    </rect>
-   </property>
-  </widget>
-  <widget class="QLabel" name="label_website">
-   <property name="geometry">
-    <rect>
-     <x>14</x>
-     <y>80</y>
-     <width>191</width>
-     <height>16</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <underline>true</underline>
-    </font>
-   </property>
-   <property name="text">
-    <string>https://github.com/SBEMimage</string>
-   </property>
-  </widget>
-  <widget class="QPushButton" name="pushButton_deviceSelection">
-   <property name="geometry">
-    <rect>
-     <x>12</x>
-     <y>270</y>
-     <width>141</width>
-     <height>23</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>SEM/microtome setup</string>
-   </property>
-  </widget>
+  <layout class="QFormLayout" name="formLayout">
+   <item row="0" column="0">
+    <widget class="QLabel" name="labelIcon">
+     <property name="text">
+      <string/>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="label_website">
+     <property name="font">
+      <font>
+       <underline>true</underline>
+      </font>
+     </property>
+     <property name="text">
+      <string>https://github.com/SBEMimage</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0">
+    <widget class="QLabel" name="label_version">
+     <property name="text">
+      <string>Version</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="0">
+    <widget class="QLabel" name="label_2">
+     <property name="text">
+      <string>Select session configuration:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="0">
+    <widget class="QListWidget" name="listWidget_filelist"/>
+   </item>
+   <item row="5" column="0">
+    <widget class="QPushButton" name="pushButton_deviceSelection">
+     <property name="text">
+      <string>SEM/microtome setup</string>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="0">
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Abort|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
  </widget>
  <resources/>
  <connections>
