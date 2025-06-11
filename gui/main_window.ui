@@ -481,7 +481,7 @@
           <rect>
            <x>360</x>
            <y>145</y>
-           <width>201</width>
+           <width>301</width>
            <height>16</height>
           </rect>
          </property>
@@ -520,7 +520,7 @@
           <rect>
            <x>360</x>
            <y>120</y>
-           <width>291</width>
+           <width>301</width>
            <height>16</height>
           </rect>
          </property>
@@ -635,9 +635,9 @@
         <widget class="QLabel" name="label_currentPosition">
          <property name="geometry">
           <rect>
-           <x>470</x>
+           <x>430</x>
            <y>225</y>
-           <width>181</width>
+           <width>221</width>
            <height>16</height>
           </rect>
          </property>
