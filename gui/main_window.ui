@@ -60,1277 +60,1298 @@
        <attribute name="title">
         <string>Main controls</string>
        </attribute>
-       <widget class="QGroupBox" name="groupBox_SEM">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>10</y>
-          <width>171</width>
-          <height>81</height>
-         </rect>
-        </property>
-        <property name="title">
-         <string>SEM</string>
-        </property>
-        <widget class="QLabel" name="label_beamSettings">
-         <property name="geometry">
-          <rect>
-           <x>50</x>
-           <y>55</y>
-           <width>111</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>0.0 kV, 0000 pA</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_SEM">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>25</y>
-           <width>121</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>DEVICENAME</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_le">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>55</y>
-           <width>31</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Beam:</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_SEMSettings">
-         <property name="enabled">
-          <bool>true</bool>
-         </property>
-         <property name="geometry">
-          <rect>
-           <x>130</x>
-           <y>20</y>
-           <width>30</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string/>
-         </property>
-        </widget>
-       </widget>
-       <widget class="QGroupBox" name="groupBox_2">
-        <property name="geometry">
-         <rect>
-          <x>190</x>
-          <y>10</y>
-          <width>171</width>
-          <height>211</height>
-         </rect>
-        </property>
-        <property name="title">
-         <string>Overviews</string>
-        </property>
-        <widget class="QComboBox" name="comboBox_OVSelector">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>20</y>
-           <width>111</width>
-           <height>22</height>
-          </rect>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_OVSettings">
-         <property name="enabled">
-          <bool>true</bool>
-         </property>
-         <property name="geometry">
-          <rect>
-           <x>130</x>
-           <y>20</y>
-           <width>30</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string/>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_OVMagnification">
-         <property name="geometry">
-          <rect>
-           <x>90</x>
-           <y>75</y>
-           <width>71</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>0000</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_OVDwellTime">
-         <property name="geometry">
-          <rect>
-           <x>90</x>
-           <y>95</y>
-           <width>81</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>00.00 µs</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_OVLocation">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>185</y>
-           <width>151</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>X: 00000.000, Y: 00000.000</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_fs_2">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>55</y>
-           <width>61</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>OV size:</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_dt_2">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>95</y>
-           <width>61</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Dwell time:</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_o_2">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>165</y>
-           <width>141</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Location:</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_OVSize">
-         <property name="geometry">
-          <rect>
-           <x>90</x>
-           <y>55</y>
-           <width>81</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>00000 x 00000</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_ps_2">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>75</y>
-           <width>71</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Magnification:</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_10">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>115</y>
-           <width>151</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Debris detection area:</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_debrisDetectionArea">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>135</y>
-           <width>161</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>(00000, 00000, 00000, 00000)</string>
-         </property>
-        </widget>
-       </widget>
-       <widget class="QGroupBox" name="groupBox_5">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>230</y>
-          <width>661</width>
-          <height>291</height>
-         </rect>
-        </property>
-        <property name="title">
-         <string>Stack acquisition</string>
-        </property>
-        <widget class="QPushButton" name="pushButton_startAcq">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>260</y>
-           <width>101</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="font">
-          <font>
-           <bold>true</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>START</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_pauseAcq">
-         <property name="enabled">
-          <bool>false</bool>
-         </property>
-         <property name="geometry">
-          <rect>
-           <x>120</x>
-           <y>260</y>
-           <width>101</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="font">
-          <font>
-           <bold>true</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>PAUSE</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_resetAcq">
-         <property name="enabled">
-          <bool>false</bool>
-         </property>
-         <property name="geometry">
-          <rect>
-           <x>230</x>
-           <y>260</y>
-           <width>101</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="font">
-          <font>
-           <bold>true</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>RESET</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_t">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>60</y>
-           <width>121</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Target number of slices:</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_st">
-         <property name="geometry">
-          <rect>
-           <x>190</x>
-           <y>60</y>
-           <width>81</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Slice thickness:</string>
-         </property>
-        </widget>
-        <widget class="QCheckBox" name="checkBox_useAutofocus">
-         <property name="enabled">
-          <bool>true</bool>
-         </property>
-         <property name="geometry">
-          <rect>
-           <x>190</x>
-           <y>145</y>
-           <width>91</width>
-           <height>17</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Autofocus</string>
-         </property>
-        </widget>
-        <widget class="QCheckBox" name="checkBox_useDebrisDetection">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>145</y>
-           <width>101</width>
-           <height>17</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Debris detection</string>
-         </property>
-        </widget>
-        <widget class="Line" name="line">
-         <property name="geometry">
-          <rect>
-           <x>335</x>
-           <y>22</y>
-           <width>20</width>
-           <height>264</height>
-          </rect>
-         </property>
-         <property name="orientation">
-          <enum>Qt::Vertical</enum>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label">
-         <property name="geometry">
-          <rect>
-           <x>360</x>
-           <y>100</y>
-           <width>301</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Estimated total duration (imaging / stage moves / cutting):</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_dose">
-         <property name="geometry">
-          <rect>
-           <x>500</x>
-           <y>30</y>
-           <width>171</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string/>
-         </property>
-        </widget>
-        <widget class="QProgressBar" name="progressBar">
-         <property name="geometry">
-          <rect>
-           <x>360</x>
-           <y>259</y>
-           <width>281</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="value">
-          <number>0</number>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_2">
-         <property name="geometry">
-          <rect>
-           <x>360</x>
-           <y>145</y>
-           <width>301</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Estimated date and time of completion:</string>
-         </property>
-        </widget>
-        <widget class="QCheckBox" name="checkBox_useMonitoring">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>95</y>
-           <width>101</width>
-           <height>17</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>E-mail monitoring</string>
-         </property>
-        </widget>
-        <widget class="QToolButton" name="toolButton_monitoringSettings">
-         <property name="geometry">
-          <rect>
-           <x>120</x>
-           <y>95</y>
-           <width>25</width>
-           <height>19</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>...</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_totalDuration">
-         <property name="geometry">
-          <rect>
-           <x>360</x>
-           <y>120</y>
-           <width>301</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>0 d 0 h 0 min    (000% / 000% / 000 %)</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_totalData">
-         <property name="geometry">
-          <rect>
-           <x>560</x>
-           <y>75</y>
-           <width>91</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>0.0 GB</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_dateEstimate">
-         <property name="geometry">
-          <rect>
-           <x>360</x>
-           <y>165</y>
-           <width>301</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>---</string>
-         </property>
-        </widget>
-        <widget class="QToolButton" name="toolButton_autofocus">
-         <property name="geometry">
-          <rect>
-           <x>300</x>
-           <y>145</y>
-           <width>25</width>
-           <height>19</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>...</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_dose_3">
-         <property name="geometry">
-          <rect>
-           <x>360</x>
-           <y>30</y>
-           <width>131</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Electron dose (min .. max): </string>
-         </property>
-        </widget>
-        <widget class="QCheckBox" name="checkBox_takeOV">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>120</y>
-           <width>101</width>
-           <height>17</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Take overviews</string>
-         </property>
-        </widget>
-        <widget class="QToolButton" name="toolButton_debrisDetection">
-         <property name="geometry">
-          <rect>
-           <x>120</x>
-           <y>145</y>
-           <width>25</width>
-           <height>19</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>...</string>
-         </property>
-        </widget>
-        <widget class="QToolButton" name="toolButton_OVSettings">
-         <property name="geometry">
-          <rect>
-           <x>120</x>
-           <y>120</y>
-           <width>25</width>
-           <height>19</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>...</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_cp">
-         <property name="geometry">
-          <rect>
-           <x>360</x>
-           <y>225</y>
-           <width>91</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Current slice:</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_currentPosition">
-         <property name="geometry">
-          <rect>
-           <x>430</x>
-           <y>225</y>
-           <width>221</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="font">
-          <font>
-           <bold>true</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>---</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_6">
-         <property name="geometry">
-          <rect>
-           <x>560</x>
-           <y>55</y>
-           <width>71</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Data volume:</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_dimensions_2">
-         <property name="geometry">
-          <rect>
-           <x>360</x>
-           <y>55</y>
-           <width>121</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Tile acquisition area:</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_totalArea">
-         <property name="geometry">
-          <rect>
-           <x>360</x>
-           <y>75</y>
-           <width>111</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>0000000.0 µm²</string>
-         </property>
-        </widget>
-        <widget class="QCheckBox" name="checkBox_askUser">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>170</y>
-           <width>101</width>
-           <height>17</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>&quot;Ask user&quot; mode</string>
-         </property>
-        </widget>
-        <widget class="QCheckBox" name="checkBox_monitorTiles">
-         <property name="enabled">
-          <bool>true</bool>
-         </property>
-         <property name="geometry">
-          <rect>
-           <x>190</x>
-           <y>120</y>
-           <width>111</width>
-           <height>17</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Image monitoring</string>
-         </property>
-        </widget>
-        <widget class="QToolButton" name="toolButton_monitorTiles">
-         <property name="geometry">
-          <rect>
-           <x>300</x>
-           <y>120</y>
-           <width>25</width>
-           <height>19</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>...</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_acqIndicator">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>225</y>
-           <width>141</width>
-           <height>20</height>
-          </rect>
-         </property>
-         <property name="font">
-          <font>
-           <bold>true</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>System idle.</string>
-         </property>
-        </widget>
-        <widget class="QToolButton" name="toolButton_plasmaCleaner">
-         <property name="enabled">
-          <bool>true</bool>
-         </property>
-         <property name="geometry">
-          <rect>
-           <x>300</x>
-           <y>170</y>
-           <width>25</width>
-           <height>19</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>...</string>
-         </property>
-        </widget>
-        <widget class="QCheckBox" name="checkBox_plasmaCleaner">
-         <property name="enabled">
-          <bool>true</bool>
-         </property>
-         <property name="geometry">
-          <rect>
-           <x>190</x>
-           <y>170</y>
-           <width>91</width>
-           <height>17</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Plasma cleaner</string>
-         </property>
-        </widget>
-        <widget class="QCheckBox" name="checkBox_mirrorDrive">
-         <property name="enabled">
-          <bool>true</bool>
-         </property>
-         <property name="geometry">
-          <rect>
-           <x>190</x>
-           <y>95</y>
-           <width>91</width>
-           <height>17</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Disk mirroring</string>
-         </property>
-        </widget>
-        <widget class="QToolButton" name="toolButton_mirrorDrive">
-         <property name="geometry">
-          <rect>
-           <x>300</x>
-           <y>95</y>
-           <width>25</width>
-           <height>19</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>...</string>
-         </property>
-        </widget>
-        <widget class="QToolButton" name="toolButton_askUserMode">
-         <property name="geometry">
-          <rect>
-           <x>120</x>
-           <y>170</y>
-           <width>25</width>
-           <height>19</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>...</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_acqSettings">
-         <property name="geometry">
-          <rect>
-           <x>300</x>
-           <y>25</y>
-           <width>30</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string/>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_target">
-         <property name="geometry">
-          <rect>
-           <x>132</x>
-           <y>60</y>
-           <width>61</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="font">
-          <font>
-           <bold>false</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>000000</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_16">
-         <property name="geometry">
-          <rect>
-           <x>330</x>
-           <y>55</y>
-           <width>31</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string/>
-         </property>
-        </widget>
-        <widget class="QLineEdit" name="lineEdit_baseDir">
-         <property name="enabled">
-          <bool>false</bool>
-         </property>
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>25</y>
-           <width>261</width>
-           <height>23</height>
-          </rect>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_sliceThickness">
-         <property name="geometry">
-          <rect>
-           <x>270</x>
-           <y>60</y>
-           <width>46</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="font">
-          <font>
-           <bold>false</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>000 nm</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_dimensions_3">
-         <property name="geometry">
-          <rect>
-           <x>480</x>
-           <y>55</y>
-           <width>61</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Z depth:</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_totalZ">
-         <property name="geometry">
-          <rect>
-           <x>480</x>
-           <y>75</y>
-           <width>71</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>00000.0 µm</string>
-         </property>
-        </widget>
-        <widget class="QCheckBox" name="checkBox_useTCP">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>195</y>
-           <width>101</width>
-           <height>17</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Use TCP</string>
-         </property>
-        </widget>
-        <widget class="QToolButton" name="toolButton_TCPSettings">
-         <property name="geometry">
-          <rect>
-           <x>120</x>
-           <y>195</y>
-           <width>25</width>
-           <height>19</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>...</string>
-         </property>
-        </widget>
-       </widget>
-       <widget class="QGroupBox" name="groupBox_3">
-        <property name="geometry">
-         <rect>
-          <x>370</x>
-          <y>10</y>
-          <width>171</width>
-          <height>211</height>
-         </rect>
-        </property>
-        <property name="title">
-         <string>Tile grids</string>
-        </property>
-        <widget class="QLabel" name="label_gridSize">
-         <property name="geometry">
-          <rect>
-           <x>80</x>
-           <y>55</y>
-           <width>81</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>00 x 00</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_numberActiveTiles">
-         <property name="geometry">
-          <rect>
-           <x>80</x>
-           <y>95</y>
-           <width>81</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>000</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_at">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>95</y>
-           <width>61</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Active tiles:</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_g">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>55</y>
-           <width>61</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Grid size:</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_o">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>165</y>
-           <width>141</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Location of tile 0:</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_gridSettings">
-         <property name="geometry">
-          <rect>
-           <x>130</x>
-           <y>20</y>
-           <width>30</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string/>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_gridOrigin">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>185</y>
-           <width>151</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>X: 00000.000, Y: 00000.000</string>
-         </property>
-        </widget>
-        <widget class="QComboBox" name="comboBox_gridSelector">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>21</y>
-           <width>111</width>
-           <height>21</height>
-          </rect>
-         </property>
-         <property name="iconSize">
-          <size>
-           <width>18</width>
-           <height>9</height>
-          </size>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_ps">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>115</y>
-           <width>51</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Pixel size:</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_tilePixelSize">
-         <property name="geometry">
-          <rect>
-           <x>80</x>
-           <y>115</y>
-           <width>81</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>000.0 nm</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_fs">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>75</y>
-           <width>61</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Tile size:</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_tileSize">
-         <property name="geometry">
-          <rect>
-           <x>80</x>
-           <y>75</y>
-           <width>91</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>00000 x 00000</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_tileDwellTime">
-         <property name="geometry">
-          <rect>
-           <x>80</x>
-           <y>135</y>
-           <width>81</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>00.00 µs</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_dt">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>135</y>
-           <width>61</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Dwell time:</string>
-         </property>
-        </widget>
-       </widget>
-       <widget class="QGroupBox" name="groupBox_8">
-        <property name="geometry">
-         <rect>
-          <x>550</x>
-          <y>10</y>
-          <width>121</width>
-          <height>211</height>
-         </rect>
-        </property>
-        <property name="title">
-         <string>Manual commands</string>
-        </property>
-        <widget class="QPushButton" name="pushButton_doApproach">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>20</y>
-           <width>101</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Approach</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_doSweep">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>50</y>
-           <width>101</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Sweep</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_saveViewport">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>110</y>
-           <width>101</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Screenshot</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_grabFrame">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>80</y>
-           <width>101</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Grab frame</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_EHTToggle">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>180</y>
-           <width>101</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>EHT ON/OFF</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_VP">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>150</y>
-           <width>51</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>VP</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_FCC">
-         <property name="geometry">
-          <rect>
-           <x>60</x>
-           <y>150</y>
-           <width>51</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>FCC</string>
-         </property>
-        </widget>
-       </widget>
-       <widget class="QGroupBox" name="groupBox_stage">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>100</y>
-          <width>171</width>
-          <height>121</height>
-         </rect>
-        </property>
-        <property name="title">
-         <string>Microtome/Stage</string>
-        </property>
-        <widget class="QPushButton" name="pushButton_microtomeSettings">
-         <property name="geometry">
-          <rect>
-           <x>130</x>
-           <y>20</y>
-           <width>30</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string/>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_microtome">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>25</y>
-           <width>121</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>DEVICENAME</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_currentStageZ">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>95</y>
-           <width>71</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Z: 00000.000</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_lcsp">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>55</y>
-           <width>161</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Last confirmed stage position:</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_currentStageXY">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>75</y>
-           <width>161</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>X: 00000.000, Y: 00000.000</string>
-         </property>
-        </widget>
-       </widget>
+       <layout class="QGridLayout" name="gridLayout">
+        <item row="0" column="0">
+         <widget class="QGroupBox" name="groupBox_SEM">
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>81</height>
+           </size>
+          </property>
+          <property name="title">
+           <string>SEM</string>
+          </property>
+          <widget class="QLabel" name="label_beamSettings">
+           <property name="geometry">
+            <rect>
+             <x>50</x>
+             <y>55</y>
+             <width>111</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>0.0 kV, 0000 pA</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_SEM">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>25</y>
+             <width>121</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>DEVICENAME</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_le">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>55</y>
+             <width>31</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Beam:</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_SEMSettings">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="geometry">
+            <rect>
+             <x>130</x>
+             <y>20</y>
+             <width>30</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </widget>
+        </item>
+        <item row="0" column="1" rowspan="2">
+         <widget class="QGroupBox" name="groupBox_2">
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>211</height>
+           </size>
+          </property>
+          <property name="title">
+           <string>Overviews</string>
+          </property>
+          <widget class="QComboBox" name="comboBox_OVSelector">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>20</y>
+             <width>111</width>
+             <height>22</height>
+            </rect>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_OVSettings">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="geometry">
+            <rect>
+             <x>130</x>
+             <y>20</y>
+             <width>30</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_OVMagnification">
+           <property name="geometry">
+            <rect>
+             <x>90</x>
+             <y>75</y>
+             <width>71</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>0000</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_OVDwellTime">
+           <property name="geometry">
+            <rect>
+             <x>90</x>
+             <y>95</y>
+             <width>81</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>00.00 µs</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_OVLocation">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>185</y>
+             <width>151</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>X: 00000.000, Y: 00000.000</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_fs_2">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>55</y>
+             <width>61</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>OV size:</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_dt_2">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>95</y>
+             <width>61</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Dwell time:</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_o_2">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>165</y>
+             <width>141</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Location:</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_OVSize">
+           <property name="geometry">
+            <rect>
+             <x>90</x>
+             <y>55</y>
+             <width>81</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>00000 x 00000</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_ps_2">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>75</y>
+             <width>71</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Magnification:</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_10">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>115</y>
+             <width>151</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Debris detection area:</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_debrisDetectionArea">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>135</y>
+             <width>161</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>(00000, 00000, 00000, 00000)</string>
+           </property>
+          </widget>
+         </widget>
+        </item>
+        <item row="0" column="2" rowspan="2">
+         <widget class="QGroupBox" name="groupBox_3">
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>211</height>
+           </size>
+          </property>
+          <property name="title">
+           <string>Tile grids</string>
+          </property>
+          <widget class="QLabel" name="label_gridSize">
+           <property name="geometry">
+            <rect>
+             <x>80</x>
+             <y>55</y>
+             <width>81</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>00 x 00</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_numberActiveTiles">
+           <property name="geometry">
+            <rect>
+             <x>80</x>
+             <y>95</y>
+             <width>81</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>000</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_at">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>95</y>
+             <width>61</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Active tiles:</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_g">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>55</y>
+             <width>61</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Grid size:</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_o">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>165</y>
+             <width>141</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Location of tile 0:</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_gridSettings">
+           <property name="geometry">
+            <rect>
+             <x>130</x>
+             <y>20</y>
+             <width>30</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_gridOrigin">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>185</y>
+             <width>151</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>X: 00000.000, Y: 00000.000</string>
+           </property>
+          </widget>
+          <widget class="QComboBox" name="comboBox_gridSelector">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>21</y>
+             <width>111</width>
+             <height>21</height>
+            </rect>
+           </property>
+           <property name="iconSize">
+            <size>
+             <width>18</width>
+             <height>9</height>
+            </size>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_ps">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>115</y>
+             <width>51</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Pixel size:</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_tilePixelSize">
+           <property name="geometry">
+            <rect>
+             <x>80</x>
+             <y>115</y>
+             <width>81</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>000.0 nm</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_fs">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>75</y>
+             <width>61</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Tile size:</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_tileSize">
+           <property name="geometry">
+            <rect>
+             <x>80</x>
+             <y>75</y>
+             <width>91</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>00000 x 00000</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_tileDwellTime">
+           <property name="geometry">
+            <rect>
+             <x>80</x>
+             <y>135</y>
+             <width>81</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>00.00 µs</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_dt">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>135</y>
+             <width>61</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Dwell time:</string>
+           </property>
+          </widget>
+         </widget>
+        </item>
+        <item row="0" column="3" rowspan="2">
+         <widget class="QGroupBox" name="groupBox_8">
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>211</height>
+           </size>
+          </property>
+          <property name="title">
+           <string>Manual commands</string>
+          </property>
+          <widget class="QPushButton" name="pushButton_doApproach">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>20</y>
+             <width>101</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Approach</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_doSweep">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>50</y>
+             <width>101</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Sweep</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_saveViewport">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>110</y>
+             <width>101</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Screenshot</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_grabFrame">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>80</y>
+             <width>101</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Grab frame</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_EHTToggle">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>180</y>
+             <width>101</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>EHT ON/OFF</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_VP">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>150</y>
+             <width>51</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>VP</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_FCC">
+           <property name="geometry">
+            <rect>
+             <x>60</x>
+             <y>150</y>
+             <width>51</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>FCC</string>
+           </property>
+          </widget>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QGroupBox" name="groupBox_stage">
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>121</height>
+           </size>
+          </property>
+          <property name="title">
+           <string>Microtome/Stage</string>
+          </property>
+          <widget class="QPushButton" name="pushButton_microtomeSettings">
+           <property name="geometry">
+            <rect>
+             <x>130</x>
+             <y>20</y>
+             <width>30</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_microtome">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>25</y>
+             <width>121</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>DEVICENAME</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_currentStageZ">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>95</y>
+             <width>71</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Z: 00000.000</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_lcsp">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>55</y>
+             <width>161</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Last confirmed stage position:</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_currentStageXY">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>75</y>
+             <width>161</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>X: 00000.000, Y: 00000.000</string>
+           </property>
+          </widget>
+         </widget>
+        </item>
+        <item row="2" column="0" colspan="4">
+         <widget class="QGroupBox" name="groupBox_5">
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>291</height>
+           </size>
+          </property>
+          <property name="title">
+           <string>Stack acquisition</string>
+          </property>
+          <widget class="QPushButton" name="pushButton_startAcq">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>260</y>
+             <width>101</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="font">
+            <font>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>START</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_pauseAcq">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="geometry">
+            <rect>
+             <x>120</x>
+             <y>260</y>
+             <width>101</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="font">
+            <font>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>PAUSE</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_resetAcq">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="geometry">
+            <rect>
+             <x>230</x>
+             <y>260</y>
+             <width>101</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="font">
+            <font>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>RESET</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_t">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>60</y>
+             <width>121</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Target number of slices:</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_st">
+           <property name="geometry">
+            <rect>
+             <x>190</x>
+             <y>60</y>
+             <width>81</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Slice thickness:</string>
+           </property>
+          </widget>
+          <widget class="QCheckBox" name="checkBox_useAutofocus">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="geometry">
+            <rect>
+             <x>190</x>
+             <y>145</y>
+             <width>91</width>
+             <height>17</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Autofocus</string>
+           </property>
+          </widget>
+          <widget class="QCheckBox" name="checkBox_useDebrisDetection">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>145</y>
+             <width>101</width>
+             <height>17</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Debris detection</string>
+           </property>
+          </widget>
+          <widget class="Line" name="line">
+           <property name="geometry">
+            <rect>
+             <x>335</x>
+             <y>22</y>
+             <width>20</width>
+             <height>264</height>
+            </rect>
+           </property>
+           <property name="orientation">
+            <enum>Qt::Vertical</enum>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label">
+           <property name="geometry">
+            <rect>
+             <x>360</x>
+             <y>100</y>
+             <width>301</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Estimated total duration (imaging / stage moves / cutting):</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_dose">
+           <property name="geometry">
+            <rect>
+             <x>500</x>
+             <y>30</y>
+             <width>171</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+          <widget class="QProgressBar" name="progressBar">
+           <property name="geometry">
+            <rect>
+             <x>360</x>
+             <y>259</y>
+             <width>291</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="value">
+            <number>0</number>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_2">
+           <property name="geometry">
+            <rect>
+             <x>360</x>
+             <y>145</y>
+             <width>301</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Estimated date and time of completion:</string>
+           </property>
+          </widget>
+          <widget class="QCheckBox" name="checkBox_useMonitoring">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>95</y>
+             <width>101</width>
+             <height>17</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>E-mail monitoring</string>
+           </property>
+          </widget>
+          <widget class="QToolButton" name="toolButton_monitoringSettings">
+           <property name="geometry">
+            <rect>
+             <x>120</x>
+             <y>95</y>
+             <width>25</width>
+             <height>19</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>...</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_totalDuration">
+           <property name="geometry">
+            <rect>
+             <x>360</x>
+             <y>120</y>
+             <width>301</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>0 d 0 h 0 min    (000% / 000% / 000 %)</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_totalData">
+           <property name="geometry">
+            <rect>
+             <x>560</x>
+             <y>75</y>
+             <width>91</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>0.0 GB</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_dateEstimate">
+           <property name="geometry">
+            <rect>
+             <x>360</x>
+             <y>165</y>
+             <width>301</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>---</string>
+           </property>
+          </widget>
+          <widget class="QToolButton" name="toolButton_autofocus">
+           <property name="geometry">
+            <rect>
+             <x>300</x>
+             <y>145</y>
+             <width>25</width>
+             <height>19</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>...</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_dose_3">
+           <property name="geometry">
+            <rect>
+             <x>360</x>
+             <y>30</y>
+             <width>131</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Electron dose (min .. max): </string>
+           </property>
+          </widget>
+          <widget class="QCheckBox" name="checkBox_takeOV">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>120</y>
+             <width>101</width>
+             <height>17</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Take overviews</string>
+           </property>
+          </widget>
+          <widget class="QToolButton" name="toolButton_debrisDetection">
+           <property name="geometry">
+            <rect>
+             <x>120</x>
+             <y>145</y>
+             <width>25</width>
+             <height>19</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>...</string>
+           </property>
+          </widget>
+          <widget class="QToolButton" name="toolButton_OVSettings">
+           <property name="geometry">
+            <rect>
+             <x>120</x>
+             <y>120</y>
+             <width>25</width>
+             <height>19</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>...</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_cp">
+           <property name="geometry">
+            <rect>
+             <x>360</x>
+             <y>225</y>
+             <width>91</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Current slice:</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_currentPosition">
+           <property name="geometry">
+            <rect>
+             <x>430</x>
+             <y>225</y>
+             <width>221</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="font">
+            <font>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>---</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_6">
+           <property name="geometry">
+            <rect>
+             <x>560</x>
+             <y>55</y>
+             <width>71</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Data volume:</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_dimensions_2">
+           <property name="geometry">
+            <rect>
+             <x>360</x>
+             <y>55</y>
+             <width>121</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Tile acquisition area:</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_totalArea">
+           <property name="geometry">
+            <rect>
+             <x>360</x>
+             <y>75</y>
+             <width>111</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>0000000.0 µm²</string>
+           </property>
+          </widget>
+          <widget class="QCheckBox" name="checkBox_askUser">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>170</y>
+             <width>101</width>
+             <height>17</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>&quot;Ask user&quot; mode</string>
+           </property>
+          </widget>
+          <widget class="QCheckBox" name="checkBox_monitorTiles">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="geometry">
+            <rect>
+             <x>190</x>
+             <y>120</y>
+             <width>111</width>
+             <height>17</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Image monitoring</string>
+           </property>
+          </widget>
+          <widget class="QToolButton" name="toolButton_monitorTiles">
+           <property name="geometry">
+            <rect>
+             <x>300</x>
+             <y>120</y>
+             <width>25</width>
+             <height>19</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>...</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_acqIndicator">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>225</y>
+             <width>141</width>
+             <height>20</height>
+            </rect>
+           </property>
+           <property name="font">
+            <font>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>System idle.</string>
+           </property>
+          </widget>
+          <widget class="QToolButton" name="toolButton_plasmaCleaner">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="geometry">
+            <rect>
+             <x>300</x>
+             <y>170</y>
+             <width>25</width>
+             <height>19</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>...</string>
+           </property>
+          </widget>
+          <widget class="QCheckBox" name="checkBox_plasmaCleaner">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="geometry">
+            <rect>
+             <x>190</x>
+             <y>170</y>
+             <width>91</width>
+             <height>17</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Plasma cleaner</string>
+           </property>
+          </widget>
+          <widget class="QCheckBox" name="checkBox_mirrorDrive">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="geometry">
+            <rect>
+             <x>190</x>
+             <y>95</y>
+             <width>91</width>
+             <height>17</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Disk mirroring</string>
+           </property>
+          </widget>
+          <widget class="QToolButton" name="toolButton_mirrorDrive">
+           <property name="geometry">
+            <rect>
+             <x>300</x>
+             <y>95</y>
+             <width>25</width>
+             <height>19</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>...</string>
+           </property>
+          </widget>
+          <widget class="QToolButton" name="toolButton_askUserMode">
+           <property name="geometry">
+            <rect>
+             <x>120</x>
+             <y>170</y>
+             <width>25</width>
+             <height>19</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>...</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_acqSettings">
+           <property name="geometry">
+            <rect>
+             <x>300</x>
+             <y>25</y>
+             <width>30</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_target">
+           <property name="geometry">
+            <rect>
+             <x>132</x>
+             <y>60</y>
+             <width>61</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="font">
+            <font>
+             <weight>50</weight>
+             <bold>false</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>000000</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_16">
+           <property name="geometry">
+            <rect>
+             <x>330</x>
+             <y>55</y>
+             <width>31</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+          <widget class="QLineEdit" name="lineEdit_baseDir">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>25</y>
+             <width>261</width>
+             <height>23</height>
+            </rect>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_sliceThickness">
+           <property name="geometry">
+            <rect>
+             <x>270</x>
+             <y>60</y>
+             <width>46</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="font">
+            <font>
+             <weight>50</weight>
+             <bold>false</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>000 nm</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_dimensions_3">
+           <property name="geometry">
+            <rect>
+             <x>480</x>
+             <y>55</y>
+             <width>61</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Z depth:</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_totalZ">
+           <property name="geometry">
+            <rect>
+             <x>480</x>
+             <y>75</y>
+             <width>71</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>00000.0 µm</string>
+           </property>
+          </widget>
+          <widget class="QCheckBox" name="checkBox_useTCP">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>195</y>
+             <width>101</width>
+             <height>17</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Use TCP</string>
+           </property>
+          </widget>
+          <widget class="QToolButton" name="toolButton_TCPSettings">
+           <property name="geometry">
+            <rect>
+             <x>120</x>
+             <y>195</y>
+             <width>25</width>
+             <height>19</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>...</string>
+           </property>
+          </widget>
+         </widget>
+        </item>
+       </layout>
       </widget>
       <widget class="QWidget" name="focusTool">
        <property name="sizePolicy">
@@ -1342,494 +1363,390 @@
        <attribute name="title">
         <string>Focus tool</string>
        </attribute>
-       <widget class="QLabel" name="img_focusToolViewer">
-        <property name="geometry">
-         <rect>
-          <x>45</x>
-          <y>20</y>
-          <width>512</width>
-          <height>384</height>
-         </rect>
-        </property>
-        <property name="palette">
-         <palette>
-          <active>
-           <colorrole role="Window">
-            <brush brushstyle="SolidPattern">
-             <color alpha="255">
-              <red>0</red>
-              <green>0</green>
-              <blue>0</blue>
-             </color>
-            </brush>
-           </colorrole>
-          </active>
-          <inactive>
-           <colorrole role="Window">
-            <brush brushstyle="SolidPattern">
-             <color alpha="255">
-              <red>0</red>
-              <green>0</green>
-              <blue>0</blue>
-             </color>
-            </brush>
-           </colorrole>
-          </inactive>
-          <disabled>
-           <colorrole role="Base">
-            <brush brushstyle="SolidPattern">
-             <color alpha="255">
-              <red>0</red>
-              <green>0</green>
-              <blue>0</blue>
-             </color>
-            </brush>
-           </colorrole>
-           <colorrole role="Window">
-            <brush brushstyle="SolidPattern">
-             <color alpha="255">
-              <red>0</red>
-              <green>0</green>
-              <blue>0</blue>
-             </color>
-            </brush>
-           </colorrole>
-          </disabled>
-         </palette>
-        </property>
-        <property name="autoFillBackground">
-         <bool>true</bool>
-        </property>
-        <property name="text">
-         <string/>
-        </property>
-       </widget>
-       <widget class="QPushButton" name="pushButton_focusToolStart">
-        <property name="geometry">
-         <rect>
-          <x>20</x>
-          <y>450</y>
-          <width>101</width>
-          <height>23</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Focus series</string>
-        </property>
-       </widget>
-       <widget class="QRadioButton" name="radioButton_focus">
-        <property name="geometry">
-         <rect>
-          <x>440</x>
-          <y>430</y>
-          <width>82</width>
-          <height>17</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Focus (WD)</string>
-        </property>
-        <property name="checked">
-         <bool>true</bool>
-        </property>
-       </widget>
-       <widget class="QRadioButton" name="radioButton_stigX">
-        <property name="geometry">
-         <rect>
-          <x>440</x>
-          <y>450</y>
-          <width>82</width>
-          <height>17</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Stigmator X</string>
-        </property>
-       </widget>
-       <widget class="QRadioButton" name="radioButton_stigY">
-        <property name="geometry">
-         <rect>
-          <x>440</x>
-          <y>470</y>
-          <width>82</width>
-          <height>17</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Stigmator Y</string>
-        </property>
-       </widget>
-       <widget class="QComboBox" name="comboBox_selectTileFT">
-        <property name="geometry">
-         <rect>
-          <x>220</x>
-          <y>450</y>
-          <width>91</width>
-          <height>22</height>
-         </rect>
-        </property>
-       </widget>
-       <widget class="QLabel" name="label_5">
-        <property name="geometry">
-         <rect>
-          <x>580</x>
-          <y>305</y>
-          <width>81</width>
-          <height>20</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Pixel size (nm):</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-        </property>
-       </widget>
-       <widget class="QSpinBox" name="spinBox_ftPixelSize">
-        <property name="geometry">
-         <rect>
-          <x>580</x>
-          <y>325</y>
-          <width>42</width>
-          <height>22</height>
-         </rect>
-        </property>
-        <property name="minimum">
-         <number>1</number>
-        </property>
-        <property name="maximum">
-         <number>50</number>
-        </property>
-        <property name="value">
-         <number>4</number>
-        </property>
-       </widget>
-       <widget class="QSlider" name="verticalSlider_ftDelta">
-        <property name="geometry">
-         <rect>
-          <x>596</x>
-          <y>50</y>
-          <width>20</width>
-          <height>141</height>
-         </rect>
-        </property>
-        <property name="maximum">
-         <number>10</number>
-        </property>
-        <property name="value">
-         <number>1</number>
-        </property>
-        <property name="orientation">
-         <enum>Qt::Vertical</enum>
-        </property>
-        <property name="tickPosition">
-         <enum>QSlider::TicksBelow</enum>
-        </property>
-       </widget>
-       <widget class="QLabel" name="label_7">
-        <property name="geometry">
-         <rect>
-          <x>581</x>
-          <y>30</y>
-          <width>47</width>
-          <height>13</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Coarse</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignCenter</set>
-        </property>
-       </widget>
-       <widget class="QLabel" name="label_8">
-        <property name="geometry">
-         <rect>
-          <x>580</x>
-          <y>195</y>
-          <width>47</width>
-          <height>13</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Fine</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignCenter</set>
-        </property>
-       </widget>
-       <widget class="QCheckBox" name="checkBox_zoom">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="geometry">
-         <rect>
-          <x>595</x>
-          <y>223</y>
-          <width>16</width>
-          <height>17</height>
-         </rect>
-        </property>
-        <property name="layoutDirection">
-         <enum>Qt::LeftToRight</enum>
-        </property>
-        <property name="text">
-         <string/>
-        </property>
-        <property name="tristate">
-         <bool>false</bool>
-        </property>
-       </widget>
-       <widget class="QLabel" name="label_9">
-        <property name="geometry">
-         <rect>
-          <x>580</x>
-          <y>240</y>
-          <width>47</width>
-          <height>13</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>2× zoom</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignCenter</set>
-        </property>
-       </widget>
-       <widget class="QLineEdit" name="lineEdit_currentFocus">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="geometry">
-         <rect>
-          <x>520</x>
-          <y>430</y>
-          <width>71</width>
-          <height>20</height>
-         </rect>
-        </property>
-       </widget>
-       <widget class="QLineEdit" name="lineEdit_currentStigX">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="geometry">
-         <rect>
-          <x>520</x>
-          <y>450</y>
-          <width>71</width>
-          <height>20</height>
-         </rect>
-        </property>
-       </widget>
-       <widget class="QLineEdit" name="lineEdit_currentStigY">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="geometry">
-         <rect>
-          <x>520</x>
-          <y>470</y>
-          <width>71</width>
-          <height>20</height>
-         </rect>
-        </property>
-       </widget>
-       <widget class="QLabel" name="label_13">
-        <property name="geometry">
-         <rect>
-          <x>600</x>
-          <y>433</y>
-          <width>31</width>
-          <height>13</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>mm</string>
-        </property>
-       </widget>
-       <widget class="QLabel" name="label_17">
-        <property name="geometry">
-         <rect>
-          <x>600</x>
-          <y>453</y>
-          <width>31</width>
-          <height>16</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>%</string>
-        </property>
-       </widget>
-       <widget class="QLabel" name="label_18">
-        <property name="geometry">
-         <rect>
-          <x>600</x>
-          <y>473</y>
-          <width>21</width>
-          <height>16</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>%</string>
-        </property>
-       </widget>
-       <widget class="QComboBox" name="comboBox_selectGridFT">
-        <property name="geometry">
-         <rect>
-          <x>140</x>
-          <y>450</y>
-          <width>81</width>
-          <height>22</height>
-         </rect>
-        </property>
-       </widget>
-       <widget class="QComboBox" name="comboBox_selectOVFT">
-        <property name="geometry">
-         <rect>
-          <x>330</x>
-          <y>450</y>
-          <width>81</width>
-          <height>22</height>
-         </rect>
-        </property>
-       </widget>
-       <widget class="QPushButton" name="pushButton_focusToolSet">
-        <property name="geometry">
-         <rect>
-          <x>630</x>
-          <y>450</y>
-          <width>41</width>
-          <height>23</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Set</string>
-        </property>
-       </widget>
-       <widget class="QLabel" name="label_AFnotification">
-        <property name="geometry">
-         <rect>
-          <x>140</x>
-          <y>480</y>
-          <width>281</width>
-          <height>16</height>
-         </rect>
-        </property>
-        <property name="font">
-         <font>
-          <bold>true</bold>
-         </font>
-        </property>
-        <property name="text">
-         <string>Information about current selection.</string>
-        </property>
-       </widget>
-       <widget class="QPushButton" name="pushButton_focusToolMove">
-        <property name="geometry">
-         <rect>
-          <x>20</x>
-          <y>476</y>
-          <width>101</width>
-          <height>23</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Move to tile/OV</string>
-        </property>
-       </widget>
-       <widget class="QLabel" name="label_19">
-        <property name="geometry">
-         <rect>
-          <x>580</x>
-          <y>350</y>
-          <width>91</width>
-          <height>20</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Dwell time (µs):</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-        </property>
-       </widget>
-       <widget class="QComboBox" name="comboBox_dwellTime">
-        <property name="geometry">
-         <rect>
-          <x>580</x>
-          <y>370</y>
-          <width>51</width>
-          <height>22</height>
-         </rect>
-        </property>
-        <property name="layoutDirection">
-         <enum>Qt::LeftToRight</enum>
-        </property>
-       </widget>
-       <widget class="QCheckBox" name="checkBox_useCurrentPos">
-        <property name="geometry">
-         <rect>
-          <x>140</x>
-          <y>425</y>
-          <width>271</width>
-          <height>17</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Use current stage position</string>
-        </property>
-       </widget>
-       <widget class="QPushButton" name="pushButton_moveUp">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="geometry">
-         <rect>
-          <x>20</x>
-          <y>188</y>
-          <width>18</width>
-          <height>25</height>
-         </rect>
-        </property>
-        <property name="font">
-         <font>
-          <bold>false</bold>
-         </font>
-        </property>
-        <property name="text">
-         <string>↑</string>
-        </property>
-       </widget>
-       <widget class="QPushButton" name="pushButton_moveDown">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="geometry">
-         <rect>
-          <x>20</x>
-          <y>211</y>
-          <width>18</width>
-          <height>25</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>↓</string>
-        </property>
-       </widget>
-       <widget class="QPushButton" name="pushButton_focusToolAutofocus">
-        <property name="geometry">
-         <rect>
-          <x>20</x>
-          <y>424</y>
-          <width>101</width>
-          <height>23</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Autofocus</string>
-        </property>
-       </widget>
+       <layout class="QGridLayout" name="gridLayout_2">
+        <item row="6" column="9">
+         <widget class="QSpinBox" name="spinBox_ftPixelSize">
+          <property name="minimum">
+           <number>1</number>
+          </property>
+          <property name="maximum">
+           <number>50</number>
+          </property>
+          <property name="value">
+           <number>4</number>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="9">
+         <widget class="QCheckBox" name="checkBox_zoom">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="layoutDirection">
+           <enum>Qt::LeftToRight</enum>
+          </property>
+          <property name="text">
+           <string>2× zoom</string>
+          </property>
+          <property name="tristate">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="13" column="9">
+         <widget class="QPushButton" name="pushButton_focusToolSet">
+          <property name="text">
+           <string>Set</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="9">
+         <widget class="QLabel" name="label_7">
+          <property name="text">
+           <string>Coarse</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item row="11" column="6">
+         <widget class="QLabel" name="label_13">
+          <property name="text">
+           <string>mm</string>
+          </property>
+         </widget>
+        </item>
+        <item row="11" column="5">
+         <widget class="QLineEdit" name="lineEdit_currentFocus">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="9">
+         <widget class="QSlider" name="verticalSlider_ftDelta">
+          <property name="maximum">
+           <number>10</number>
+          </property>
+          <property name="value">
+           <number>1</number>
+          </property>
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="tickPosition">
+           <enum>QSlider::TicksBelow</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="13" column="3">
+         <widget class="QComboBox" name="comboBox_selectOVFT">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>1</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+         </widget>
+        </item>
+        <item row="15" column="0">
+         <widget class="QPushButton" name="pushButton_focusToolMove">
+          <property name="text">
+           <string>Move to tile/OV</string>
+          </property>
+         </widget>
+        </item>
+        <item row="11" column="0">
+         <widget class="QPushButton" name="pushButton_focusToolAutofocus">
+          <property name="text">
+           <string>Autofocus</string>
+          </property>
+         </widget>
+        </item>
+        <item row="7" column="9">
+         <widget class="QLabel" name="label_19">
+          <property name="text">
+           <string>Dwell time (µs):</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="9">
+         <widget class="QLabel" name="label_8">
+          <property name="text">
+           <string>Fine</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item row="8" column="9">
+         <widget class="QComboBox" name="comboBox_dwellTime">
+          <property name="layoutDirection">
+           <enum>Qt::LeftToRight</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1" rowspan="11" colspan="6">
+         <widget class="QLabel" name="img_focusToolViewer">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>1</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="palette">
+           <palette>
+            <active>
+             <colorrole role="Base">
+              <brush brushstyle="SolidPattern">
+               <color alpha="255">
+                <red>255</red>
+                <green>255</green>
+                <blue>255</blue>
+               </color>
+              </brush>
+             </colorrole>
+             <colorrole role="Window">
+              <brush brushstyle="SolidPattern">
+               <color alpha="255">
+                <red>0</red>
+                <green>0</green>
+                <blue>0</blue>
+               </color>
+              </brush>
+             </colorrole>
+            </active>
+            <inactive>
+             <colorrole role="Base">
+              <brush brushstyle="SolidPattern">
+               <color alpha="255">
+                <red>255</red>
+                <green>255</green>
+                <blue>255</blue>
+               </color>
+              </brush>
+             </colorrole>
+             <colorrole role="Window">
+              <brush brushstyle="SolidPattern">
+               <color alpha="255">
+                <red>0</red>
+                <green>0</green>
+                <blue>0</blue>
+               </color>
+              </brush>
+             </colorrole>
+            </inactive>
+            <disabled>
+             <colorrole role="Base">
+              <brush brushstyle="SolidPattern">
+               <color alpha="255">
+                <red>0</red>
+                <green>0</green>
+                <blue>0</blue>
+               </color>
+              </brush>
+             </colorrole>
+             <colorrole role="Window">
+              <brush brushstyle="SolidPattern">
+               <color alpha="255">
+                <red>0</red>
+                <green>0</green>
+                <blue>0</blue>
+               </color>
+              </brush>
+             </colorrole>
+            </disabled>
+           </palette>
+          </property>
+          <property name="autoFillBackground">
+           <bool>true</bool>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+        </item>
+        <item row="13" column="1">
+         <widget class="QComboBox" name="comboBox_selectGridFT">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>1</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+         </widget>
+        </item>
+        <item row="13" column="4">
+         <widget class="QRadioButton" name="radioButton_stigX">
+          <property name="text">
+           <string>Stigmator X</string>
+          </property>
+         </widget>
+        </item>
+        <item row="15" column="6">
+         <widget class="QLabel" name="label_18">
+          <property name="text">
+           <string>%</string>
+          </property>
+         </widget>
+        </item>
+        <item row="5" column="9">
+         <widget class="QLabel" name="label_5">
+          <property name="text">
+           <string>Pixel size (nm):</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item row="13" column="2">
+         <widget class="QComboBox" name="comboBox_selectTileFT">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>1</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+         </widget>
+        </item>
+        <item row="11" column="4">
+         <widget class="QRadioButton" name="radioButton_focus">
+          <property name="text">
+           <string>Focus (WD)</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="13" column="5">
+         <widget class="QLineEdit" name="lineEdit_currentStigX">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="15" column="5">
+         <widget class="QLineEdit" name="lineEdit_currentStigY">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="13" column="6">
+         <widget class="QLabel" name="label_17">
+          <property name="text">
+           <string>%</string>
+          </property>
+         </widget>
+        </item>
+        <item row="15" column="1" colspan="3">
+         <widget class="QLabel" name="label_AFnotification">
+          <property name="font">
+           <font>
+            <weight>75</weight>
+            <bold>true</bold>
+           </font>
+          </property>
+          <property name="text">
+           <string>Information about current selection.</string>
+          </property>
+         </widget>
+        </item>
+        <item row="13" column="0" rowspan="2">
+         <widget class="QPushButton" name="pushButton_focusToolStart">
+          <property name="text">
+           <string>Focus series</string>
+          </property>
+         </widget>
+        </item>
+        <item row="11" column="1" colspan="2">
+         <widget class="QCheckBox" name="checkBox_useCurrentPos">
+          <property name="text">
+           <string>Use current stage position</string>
+          </property>
+         </widget>
+        </item>
+        <item row="15" column="4">
+         <widget class="QRadioButton" name="radioButton_stigY">
+          <property name="text">
+           <string>Stigmator Y</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0" rowspan="9">
+         <widget class="QFrame" name="frame">
+          <widget class="QPushButton" name="pushButton_moveUp">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="geometry">
+            <rect>
+             <x>30</x>
+             <y>190</y>
+             <width>25</width>
+             <height>25</height>
+            </rect>
+           </property>
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>25</width>
+             <height>25</height>
+            </size>
+           </property>
+           <property name="font">
+            <font>
+             <weight>50</weight>
+             <bold>false</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>↑</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_moveDown">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="geometry">
+            <rect>
+             <x>30</x>
+             <y>213</y>
+             <width>25</width>
+             <height>25</height>
+            </rect>
+           </property>
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>25</width>
+             <height>25</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>↓</string>
+           </property>
+          </widget>
+         </widget>
+        </item>
+       </layout>
       </widget>
       <widget class="QWidget" name="tab_Notes">
        <property name="sizePolicy">
@@ -1841,117 +1758,80 @@
        <attribute name="title">
         <string>Notes</string>
        </attribute>
-       <widget class="QPlainTextEdit" name="textarea_acqNotes">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>80</y>
-          <width>665</width>
-          <height>391</height>
-         </rect>
-        </property>
-        <property name="font">
-         <font>
-          <family>Lucida Console</family>
-          <pointsize>8</pointsize>
-          <bold>false</bold>
-         </font>
-        </property>
-        <property name="readOnly">
-         <bool>false</bool>
-        </property>
-       </widget>
-       <widget class="QLabel" name="label_acqNotes">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>60</y>
-          <width>661</width>
-          <height>16</height>
-         </rect>
-        </property>
-        <property name="font">
-         <font>
-          <bold>false</bold>
-         </font>
-        </property>
-        <property name="text">
-         <string>Notes about this acquisition ():</string>
-        </property>
-       </widget>
-       <widget class="QPushButton" name="pushButton_saveNotes">
-        <property name="enabled">
-         <bool>true</bool>
-        </property>
-        <property name="geometry">
-         <rect>
-          <x>600</x>
-          <y>480</y>
-          <width>75</width>
-          <height>23</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Save</string>
-        </property>
-       </widget>
-       <widget class="QLabel" name="label_15">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>10</y>
-          <width>91</width>
-          <height>16</height>
-         </rect>
-        </property>
-        <property name="font">
-         <font>
-          <bold>false</bold>
-         </font>
-        </property>
-        <property name="text">
-         <string>Active user flag:</string>
-        </property>
-       </widget>
-       <widget class="QLineEdit" name="lineEdit_activeUserFlagText">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>30</y>
-          <width>171</width>
-          <height>21</height>
-         </rect>
-        </property>
-        <property name="maxLength">
-         <number>30</number>
-        </property>
-       </widget>
-       <widget class="QPushButton" name="pushButton_setActiveUserFlag">
-        <property name="geometry">
-         <rect>
-          <x>190</x>
-          <y>30</y>
-          <width>51</width>
-          <height>21</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Set</string>
-        </property>
-       </widget>
-       <widget class="QPushButton" name="pushButton_clearActiveUserFlag">
-        <property name="geometry">
-         <rect>
-          <x>240</x>
-          <y>30</y>
-          <width>51</width>
-          <height>21</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Clear</string>
-        </property>
-       </widget>
+       <layout class="QGridLayout" name="gridLayout_3">
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_15">
+          <property name="font">
+           <font>
+            <weight>50</weight>
+            <bold>false</bold>
+           </font>
+          </property>
+          <property name="text">
+           <string>Active user flag:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLineEdit" name="lineEdit_activeUserFlagText">
+          <property name="maxLength">
+           <number>30</number>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QPushButton" name="pushButton_setActiveUserFlag">
+          <property name="text">
+           <string>Set</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="2">
+         <widget class="QPushButton" name="pushButton_clearActiveUserFlag">
+          <property name="text">
+           <string>Clear</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0" colspan="4">
+         <widget class="QLabel" name="label_acqNotes">
+          <property name="font">
+           <font>
+            <weight>50</weight>
+            <bold>false</bold>
+           </font>
+          </property>
+          <property name="text">
+           <string>Notes about this acquisition ():</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="0" colspan="4">
+         <widget class="QPlainTextEdit" name="textarea_acqNotes">
+          <property name="font">
+           <font>
+            <family>Lucida Console</family>
+            <pointsize>8</pointsize>
+            <weight>50</weight>
+            <bold>false</bold>
+           </font>
+          </property>
+          <property name="readOnly">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="3">
+         <widget class="QPushButton" name="pushButton_saveNotes">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
+          <property name="text">
+           <string>Save</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
       </widget>
       <widget class="QWidget" name="tab_Array">
        <property name="sizePolicy">
@@ -1963,372 +1843,296 @@
        <attribute name="title">
         <string>Array</string>
        </attribute>
-       <widget class="QTableView" name="tableView_array_sections">
-        <property name="enabled">
-         <bool>true</bool>
-        </property>
-        <property name="geometry">
-         <rect>
-          <x>150</x>
-          <y>10</y>
-          <width>381</width>
-          <height>481</height>
-         </rect>
-        </property>
-        <property name="palette">
-         <palette>
-          <active>
-           <colorrole role="Highlight">
-            <brush brushstyle="SolidPattern">
-             <color alpha="255">
-              <red>0</red>
-              <green>120</green>
-              <blue>215</blue>
-             </color>
-            </brush>
-           </colorrole>
-          </active>
-          <inactive>
-           <colorrole role="Highlight">
-            <brush brushstyle="SolidPattern">
-             <color alpha="255">
-              <red>0</red>
-              <green>120</green>
-              <blue>215</blue>
-             </color>
-            </brush>
-           </colorrole>
-          </inactive>
-          <disabled>
-           <colorrole role="Highlight">
-            <brush brushstyle="SolidPattern">
-             <color alpha="255">
-              <red>0</red>
-              <green>120</green>
-              <blue>215</blue>
-             </color>
-            </brush>
-           </colorrole>
-          </disabled>
-         </palette>
-        </property>
-        <property name="font">
-         <font>
-          <family>Calibri</family>
-          <bold>false</bold>
-         </font>
-        </property>
-        <property name="toolTip">
-         <string>Gray: not acquired 
+       <layout class="QGridLayout" name="gridLayout_4">
+        <item row="0" column="2" rowspan="16">
+         <widget class="QTableView" name="tableView_array_sections">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+            <horstretch>6</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="palette">
+           <palette>
+            <active>
+             <colorrole role="Highlight">
+              <brush brushstyle="SolidPattern">
+               <color alpha="255">
+                <red>0</red>
+                <green>120</green>
+                <blue>215</blue>
+               </color>
+              </brush>
+             </colorrole>
+            </active>
+            <inactive>
+             <colorrole role="Highlight">
+              <brush brushstyle="SolidPattern">
+               <color alpha="255">
+                <red>0</red>
+                <green>120</green>
+                <blue>215</blue>
+               </color>
+              </brush>
+             </colorrole>
+            </inactive>
+            <disabled>
+             <colorrole role="Highlight">
+              <brush brushstyle="SolidPattern">
+               <color alpha="255">
+                <red>0</red>
+                <green>120</green>
+                <blue>215</blue>
+               </color>
+              </brush>
+             </colorrole>
+            </disabled>
+           </palette>
+          </property>
+          <property name="font">
+           <font>
+            <family>Calibri</family>
+            <weight>50</weight>
+            <bold>false</bold>
+           </font>
+          </property>
+          <property name="toolTip">
+           <string>Gray: not acquired 
 Yellow: currently acquiring 
 Green: acquired</string>
-        </property>
-        <property name="verticalScrollBarPolicy">
-         <enum>Qt::ScrollBarAlwaysOn</enum>
-        </property>
-        <property name="autoScroll">
-         <bool>true</bool>
-        </property>
-        <property name="editTriggers">
-         <set>QAbstractItemView::NoEditTriggers</set>
-        </property>
-        <property name="alternatingRowColors">
-         <bool>true</bool>
-        </property>
-        <attribute name="horizontalHeaderDefaultSectionSize">
-         <number>90</number>
-        </attribute>
-        <attribute name="verticalHeaderVisible">
-         <bool>true</bool>
-        </attribute>
-        <attribute name="verticalHeaderMinimumSectionSize">
-         <number>10</number>
-        </attribute>
-        <attribute name="verticalHeaderDefaultSectionSize">
-         <number>40</number>
-        </attribute>
-       </widget>
-       <widget class="QTextEdit" name="textEdit_array_stringSections">
-        <property name="geometry">
-         <rect>
-          <x>540</x>
-          <y>170</y>
-          <width>101</width>
-          <height>31</height>
-         </rect>
-        </property>
-        <property name="toolTip">
-         <string>You can input 
+          </property>
+          <property name="verticalScrollBarPolicy">
+           <enum>Qt::ScrollBarAlwaysOn</enum>
+          </property>
+          <property name="autoScroll">
+           <bool>true</bool>
+          </property>
+          <property name="editTriggers">
+           <set>QAbstractItemView::NoEditTriggers</set>
+          </property>
+          <property name="alternatingRowColors">
+           <bool>true</bool>
+          </property>
+          <attribute name="horizontalHeaderDefaultSectionSize">
+           <number>90</number>
+          </attribute>
+          <attribute name="verticalHeaderVisible">
+           <bool>false</bool>
+          </attribute>
+          <attribute name="verticalHeaderDefaultSectionSize">
+           <number>40</number>
+          </attribute>
+          <attribute name="verticalHeaderMinimumSectionSize">
+           <number>10</number>
+          </attribute>
+         </widget>
+        </item>
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_array_dataFile">
+          <property name="text">
+           <string>Array data file</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QToolButton" name="toolButton_array_imageFile">
+          <property name="text">
+           <string>...</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="3" colspan="2">
+         <widget class="QPushButton" name="pushButton_array_selectAll">
+          <property name="text">
+           <string>Select all</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="label_array_imageFile">
+          <property name="text">
+           <string>Array image file</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QToolButton" name="toolButton_array_dataFile">
+          <property name="text">
+           <string>...</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0" colspan="2">
+         <widget class="QLineEdit" name="lineEdit_array_dataFile">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+            <horstretch>3</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="readOnly">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="0" colspan="2">
+         <widget class="QLineEdit" name="lineEdit_array_imageFile">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+            <horstretch>3</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="readOnly">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="0" colspan="2">
+         <widget class="QPushButton" name="pushButton_array_landmarkCalibration">
+          <property name="font">
+           <font>
+            <weight>50</weight>
+            <bold>false</bold>
+           </font>
+          </property>
+          <property name="text">
+           <string>Landmark calibration</string>
+          </property>
+         </widget>
+        </item>
+        <item row="5" column="0" colspan="2">
+         <widget class="QPushButton" name="pushButton_array_createGrids">
+          <property name="font">
+           <font>
+            <weight>50</weight>
+            <bold>false</bold>
+           </font>
+          </property>
+          <property name="text">
+           <string>Create ROI grids</string>
+          </property>
+         </widget>
+        </item>
+        <item row="6" column="0" colspan="2">
+         <widget class="Line" name="line_1">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="7" column="0" colspan="2">
+         <widget class="QPushButton" name="pushButton_array_reset">
+          <property name="font">
+           <font>
+            <weight>50</weight>
+            <bold>false</bold>
+           </font>
+          </property>
+          <property name="text">
+           <string>Reset</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="3" colspan="2">
+         <widget class="QPushButton" name="pushButton_array_deselectAll">
+          <property name="text">
+           <string>Deselect all</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="3" colspan="2">
+         <widget class="QPushButton" name="pushButton_array_invertSelection">
+          <property name="text">
+           <string>Invert selection</string>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="3">
+         <widget class="QTextEdit" name="textEdit_array_stringSections">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>2</horstretch>
+            <verstretch>1</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>101</width>
+            <height>31</height>
+           </size>
+          </property>
+          <property name="toolTip">
+           <string>You can input 
 - a list: 2,5,3 
 - a range: 2-30 
 - a range with increment: 2-30-5</string>
-        </property>
-       </widget>
-       <widget class="QPushButton" name="pushButton_array_okStringSections">
-        <property name="geometry">
-         <rect>
-          <x>650</x>
-          <y>170</y>
-          <width>31</width>
-          <height>31</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>OK</string>
-        </property>
-       </widget>
-       <widget class="QPushButton" name="pushButton_array_checkSelected">
-        <property name="geometry">
-         <rect>
-          <x>540</x>
-          <y>220</y>
-          <width>141</width>
-          <height>31</height>
-         </rect>
-        </property>
-        <property name="font">
-         <font>
-          <bold>false</bold>
-         </font>
-        </property>
-        <property name="text">
-         <string>Check</string>
-        </property>
-       </widget>
-       <widget class="QPushButton" name="pushButton_array_uncheckSelected">
-        <property name="geometry">
-         <rect>
-          <x>540</x>
-          <y>260</y>
-          <width>141</width>
-          <height>31</height>
-         </rect>
-        </property>
-        <property name="font">
-         <font>
-          <bold>false</bold>
-         </font>
-        </property>
-        <property name="text">
-         <string>Uncheck</string>
-        </property>
-       </widget>
-       <widget class="QPushButton" name="pushButton_array_invertSelection">
-        <property name="geometry">
-         <rect>
-          <x>540</x>
-          <y>90</y>
-          <width>141</width>
-          <height>31</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Invert selection</string>
-        </property>
-       </widget>
-       <widget class="QPushButton" name="pushButton_array_selectAll">
-        <property name="geometry">
-         <rect>
-          <x>540</x>
-          <y>10</y>
-          <width>141</width>
-          <height>31</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Select all</string>
-        </property>
-       </widget>
-       <widget class="QPushButton" name="pushButton_array_deselectAll">
-        <property name="geometry">
-         <rect>
-          <x>540</x>
-          <y>50</y>
-          <width>141</width>
-          <height>31</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Deselect all</string>
-        </property>
-       </widget>
-       <widget class="QPushButton" name="pushButton_array_selectChecked">
-        <property name="geometry">
-         <rect>
-          <x>540</x>
-          <y>130</y>
-          <width>141</width>
-          <height>31</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Select checked</string>
-        </property>
-       </widget>
-       <widget class="Line" name="line_1">
-        <property name="geometry">
-         <rect>
-          <x>20</x>
-          <y>210</y>
-          <width>111</width>
-          <height>3</height>
-         </rect>
-        </property>
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-       </widget>
-       <widget class="QPushButton" name="pushButton_array_reset">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>220</y>
-          <width>131</width>
-          <height>31</height>
-         </rect>
-        </property>
-        <property name="font">
-         <font>
-          <bold>false</bold>
-         </font>
-        </property>
-        <property name="text">
-         <string>Reset</string>
-        </property>
-       </widget>
-       <widget class="QPushButton" name="pushButton_array_landmarkCalibration">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>130</y>
-          <width>131</width>
-          <height>31</height>
-         </rect>
-        </property>
-        <property name="font">
-         <font>
-          <bold>false</bold>
-         </font>
-        </property>
-        <property name="text">
-         <string>Landmark calibration</string>
-        </property>
-       </widget>
-       <widget class="QPushButton" name="pushButton_array_createGrids">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>170</y>
-          <width>131</width>
-          <height>31</height>
-         </rect>
-        </property>
-        <property name="font">
-         <font>
-          <bold>false</bold>
-         </font>
-        </property>
-        <property name="text">
-         <string>Create ROI grids</string>
-        </property>
-       </widget>
-       <widget class="QToolButton" name="toolButton_array_dataFile">
-        <property name="geometry">
-         <rect>
-          <x>110</x>
-          <y>10</y>
-          <width>31</width>
-          <height>21</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>...</string>
-        </property>
-       </widget>
-       <widget class="QLineEdit" name="lineEdit_array_dataFile">
-        <property name="enabled">
-         <bool>true</bool>
-        </property>
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>40</y>
-          <width>131</width>
-          <height>21</height>
-         </rect>
-        </property>
-        <property name="readOnly">
-         <bool>true</bool>
-        </property>
-       </widget>
-       <widget class="QLabel" name="label_array_dataFile">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>10</y>
-          <width>91</width>
-          <height>21</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Array data file</string>
-        </property>
-       </widget>
-       <widget class="QLineEdit" name="lineEdit_array_imageFile">
-        <property name="enabled">
-         <bool>true</bool>
-        </property>
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>100</y>
-          <width>131</width>
-          <height>21</height>
-         </rect>
-        </property>
-        <property name="readOnly">
-         <bool>true</bool>
-        </property>
-       </widget>
-       <widget class="QToolButton" name="toolButton_array_imageFile">
-        <property name="geometry">
-         <rect>
-          <x>110</x>
-          <y>70</y>
-          <width>31</width>
-          <height>21</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>...</string>
-        </property>
-       </widget>
-       <widget class="QLabel" name="label_array_imageFile">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>70</y>
-          <width>91</width>
-          <height>21</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Array image file</string>
-        </property>
-       </widget>
-       <widget class="Line" name="line_2">
-        <property name="geometry">
-         <rect>
-          <x>550</x>
-          <y>210</y>
-          <width>118</width>
-          <height>3</height>
-         </rect>
-        </property>
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-       </widget>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="4">
+         <widget class="QPushButton" name="pushButton_array_okStringSections">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+            <horstretch>1</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>OK</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="3" colspan="2">
+         <widget class="QPushButton" name="pushButton_array_selectChecked">
+          <property name="text">
+           <string>Select checked</string>
+          </property>
+         </widget>
+        </item>
+        <item row="5" column="3" colspan="2">
+         <widget class="Line" name="line_2">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="6" column="3" colspan="2">
+         <widget class="QPushButton" name="pushButton_array_checkSelected">
+          <property name="font">
+           <font>
+            <weight>50</weight>
+            <bold>false</bold>
+           </font>
+          </property>
+          <property name="text">
+           <string>Check</string>
+          </property>
+         </widget>
+        </item>
+        <item row="7" column="3" colspan="2">
+         <widget class="QPushButton" name="pushButton_array_uncheckSelected">
+          <property name="font">
+           <font>
+            <weight>50</weight>
+            <bold>false</bold>
+           </font>
+          </property>
+          <property name="text">
+           <string>Uncheck</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
       </widget>
       <widget class="QWidget" name="multisemTab">
        <property name="sizePolicy">
@@ -2340,67 +2144,81 @@ Green: acquired</string>
        <attribute name="title">
         <string>MultiSEM</string>
        </attribute>
-       <widget class="QPushButton" name="pushButton_msem_transferToZen">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>120</y>
-          <width>169</width>
-          <height>58</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Transfer setup
-  to ZEN experiment</string>
-        </property>
-       </widget>
-       <widget class="QPushButton" name="pushButton_msem_adjustAfterWaferInsertion">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>200</y>
-          <width>283</width>
-          <height>81</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Prepare start of ZEN experiment
+       <layout class="QGridLayout" name="gridLayout_5">
+        <item row="1" column="2">
+         <widget class="QLabel" name="label_input_experiment_flag_2">
+          <property name="layoutDirection">
+           <enum>Qt::LeftToRight</enum>
+          </property>
+          <property name="autoFillBackground">
+           <bool>false</bool>
+          </property>
+          <property name="text">
+           <string>.json</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="0">
+         <widget class="QPushButton" name="pushButton_msem_adjustAfterWaferInsertion">
+          <property name="text">
+           <string>Prepare start of ZEN experiment
    by performing AF/AS/BoD 
   after wafer insertion</string>
-        </property>
-       </widget>
-       <widget class="QPushButton" name="pushButton_msem_loadZen">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>20</y>
-          <width>211</width>
-          <height>30</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Load ZEN experiment</string>
-        </property>
-       </widget>
-       <widget class="QGraphicsView" name="graphicsView">
-        <property name="geometry">
-         <rect>
-          <x>230</x>
-          <y>20</y>
-          <width>451</width>
-          <height>30</height>
-         </rect>
-        </property>
-        <property name="interactive">
-         <bool>false</bool>
-        </property>
-       </widget>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0">
+         <widget class="QPushButton" name="pushButton_msem_loadZen">
+          <property name="text">
+           <string>Load ZEN experiment</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1" colspan="2">
+         <widget class="QGraphicsView" name="graphicsView">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>1</horstretch>
+            <verstretch>1</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="interactive">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QPushButton" name="pushButton_msem_exportZen">
+          <property name="text">
+           <string>Export ZEN experiment</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QPushButton" name="pushButton_msem_transferToZen">
+          <property name="text">
+           <string>Transfer setup
+  to ZEN experiment</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QLineEdit" name="textEdit_msem_zen_export_name">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+            <horstretch>4</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+         </widget>
+        </item>
+       </layout>
        <widget class="QLabel" name="label_input_experiment_flag">
         <property name="geometry">
          <rect>
-          <x>230</x>
+          <x>190</x>
           <y>20</y>
-          <width>451</width>
+          <width>481</width>
           <height>30</height>
          </rect>
         </property>
@@ -2414,57 +2232,6 @@ Green: acquired</string>
          <string>No experiment loaded</string>
         </property>
        </widget>
-       <widget class="QPushButton" name="pushButton_msem_exportZen">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>60</y>
-          <width>211</width>
-          <height>30</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Export ZEN experiment</string>
-        </property>
-       </widget>
-       <widget class="QTextEdit" name="textEdit_msem_zen_export_name">
-        <property name="geometry">
-         <rect>
-          <x>230</x>
-          <y>60</y>
-          <width>411</width>
-          <height>30</height>
-         </rect>
-        </property>
-        <property name="toolTip">
-         <string>You can input 
-  - a list: 2,5,3 
-  - a range: 2-30 
-  - a range with increment: 2-30-5</string>
-        </property>
-        <property name="verticalScrollBarPolicy">
-         <enum>Qt::ScrollBarAlwaysOff</enum>
-        </property>
-       </widget>
-       <widget class="QLabel" name="label_input_experiment_flag_2">
-        <property name="geometry">
-         <rect>
-          <x>642</x>
-          <y>54</y>
-          <width>40</width>
-          <height>40</height>
-         </rect>
-        </property>
-        <property name="layoutDirection">
-         <enum>Qt::LeftToRight</enum>
-        </property>
-        <property name="autoFillBackground">
-         <bool>false</bool>
-        </property>
-        <property name="text">
-         <string>.json</string>
-        </property>
-       </widget>
       </widget>
       <widget class="QWidget" name="comTests">
        <property name="sizePolicy">
@@ -2476,362 +2243,365 @@ Green: acquired</string>
        <attribute name="title">
         <string>Tests</string>
        </attribute>
-       <widget class="QLabel" name="label_3">
-        <property name="geometry">
-         <rect>
-          <x>20</x>
-          <y>20</y>
-          <width>311</width>
-          <height>16</height>
-         </rect>
-        </property>
-        <property name="font">
-         <font>
-          <bold>true</bold>
-         </font>
-        </property>
-        <property name="text">
-         <string>Use only for testing and debugging purposes!</string>
-        </property>
-       </widget>
-       <widget class="QGroupBox" name="groupBox_4">
-        <property name="geometry">
-         <rect>
-          <x>20</x>
-          <y>50</y>
-          <width>171</width>
-          <height>441</height>
-         </rect>
-        </property>
-        <property name="title">
-         <string>SEM</string>
-        </property>
-        <widget class="QPushButton" name="pushButton_testGetMag">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>30</y>
-           <width>131</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Get mag</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testSetMag">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>60</y>
-           <width>131</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Set mag to 1K</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testZeissAPIVersion">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>400</y>
-           <width>131</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Zeiss API Version</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testGetFocus">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>90</y>
-           <width>131</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Get working distance</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testSetFocus">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>120</y>
-           <width>131</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Set WD to 6mm</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testRunAutofocus">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>150</y>
-           <width>131</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Run autofocus</string>
-         </property>
-        </widget>
-       </widget>
-       <widget class="QGroupBox" name="groupBox_6">
-        <property name="geometry">
-         <rect>
-          <x>210</x>
-          <y>50</y>
-          <width>171</width>
-          <height>441</height>
-         </rect>
-        </property>
-        <property name="title">
-         <string>Stage and microtome</string>
-        </property>
-        <widget class="QPushButton" name="pushButton_testGetStage">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>30</y>
-           <width>131</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Get stage position</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testSetStage">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>60</y>
-           <width>131</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Set stage X to X+10</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testNearKnife">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>90</y>
-           <width>131</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Near knife</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testStopDMScript">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>400</y>
-           <width>131</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Stop DM script</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testClearKnife">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>120</y>
-           <width>131</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Clear knife</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testMotors">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>150</y>
-           <width>131</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>XYZ motor test</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testSendCommand">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>240</y>
-           <width>131</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Send command to DM</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testMotorStatusDlg">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>180</y>
-           <width>131</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Motor status</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testRunMaintenanceMoves">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>210</y>
-           <width>131</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Maintenance moves</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testMillMov">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>300</y>
-           <width>131</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Mill movement</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testMilling">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>330</y>
-           <width>131</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Milling (full)</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testGetMillPos">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>270</y>
-           <width>131</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Get mill position</string>
-         </property>
-        </widget>
-       </widget>
-       <widget class="QGroupBox" name="groupBox_7">
-        <property name="geometry">
-         <rect>
-          <x>400</x>
-          <y>50</y>
-          <width>171</width>
-          <height>441</height>
-         </rect>
-        </property>
-        <property name="title">
-         <string>Misc</string>
-        </property>
-        <widget class="QPushButton" name="pushButton_testSendEMail">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>30</y>
-           <width>131</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Send test e-mail</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testPlasmaCleaner">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>60</y>
-           <width>131</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Plasma cleaner test</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testServerRequest">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>90</y>
-           <width>131</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Test server request</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testCustom">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>400</y>
-           <width>131</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Custom test</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_testDebrisDetection">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>120</y>
-           <width>131</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Debris detection test</string>
-         </property>
-        </widget>
-       </widget>
+       <layout class="QGridLayout" name="gridLayout_6">
+        <item row="1" column="0">
+         <widget class="QGroupBox" name="groupBox_4">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>20</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="title">
+           <string>SEM</string>
+          </property>
+          <widget class="QPushButton" name="pushButton_testGetMag">
+           <property name="geometry">
+            <rect>
+             <x>20</x>
+             <y>30</y>
+             <width>131</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Get mag</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_testSetMag">
+           <property name="geometry">
+            <rect>
+             <x>20</x>
+             <y>60</y>
+             <width>131</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Set mag to 1K</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_testZeissAPIVersion">
+           <property name="geometry">
+            <rect>
+             <x>20</x>
+             <y>400</y>
+             <width>131</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Zeiss API Version</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_testGetFocus">
+           <property name="geometry">
+            <rect>
+             <x>20</x>
+             <y>90</y>
+             <width>131</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Get working distance</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_testSetFocus">
+           <property name="geometry">
+            <rect>
+             <x>20</x>
+             <y>120</y>
+             <width>131</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Set WD to 6mm</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_testRunAutofocus">
+           <property name="geometry">
+            <rect>
+             <x>20</x>
+             <y>150</y>
+             <width>131</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Run autofocus</string>
+           </property>
+          </widget>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QGroupBox" name="groupBox_6">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>20</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="title">
+           <string>Stage and microtome</string>
+          </property>
+          <widget class="QPushButton" name="pushButton_testGetStage">
+           <property name="geometry">
+            <rect>
+             <x>20</x>
+             <y>30</y>
+             <width>131</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Get stage position</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_testSetStage">
+           <property name="geometry">
+            <rect>
+             <x>20</x>
+             <y>60</y>
+             <width>131</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Set stage X to X+10</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_testNearKnife">
+           <property name="geometry">
+            <rect>
+             <x>20</x>
+             <y>90</y>
+             <width>131</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Near knife</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_testStopDMScript">
+           <property name="geometry">
+            <rect>
+             <x>20</x>
+             <y>400</y>
+             <width>131</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Stop DM script</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_testClearKnife">
+           <property name="geometry">
+            <rect>
+             <x>20</x>
+             <y>120</y>
+             <width>131</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Clear knife</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_testMotors">
+           <property name="geometry">
+            <rect>
+             <x>20</x>
+             <y>150</y>
+             <width>131</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>XYZ motor test</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_testSendCommand">
+           <property name="geometry">
+            <rect>
+             <x>20</x>
+             <y>240</y>
+             <width>131</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Send command to DM</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_testMotorStatusDlg">
+           <property name="geometry">
+            <rect>
+             <x>20</x>
+             <y>180</y>
+             <width>131</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Motor status</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_testRunMaintenanceMoves">
+           <property name="geometry">
+            <rect>
+             <x>20</x>
+             <y>210</y>
+             <width>131</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Maintenance moves</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_testMillMov">
+           <property name="geometry">
+            <rect>
+             <x>20</x>
+             <y>300</y>
+             <width>131</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Mill movement</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_testMilling">
+           <property name="geometry">
+            <rect>
+             <x>20</x>
+             <y>330</y>
+             <width>131</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Milling (full)</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_testGetMillPos">
+           <property name="geometry">
+            <rect>
+             <x>20</x>
+             <y>270</y>
+             <width>131</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Get mill position</string>
+           </property>
+          </widget>
+         </widget>
+        </item>
+        <item row="1" column="2">
+         <widget class="QGroupBox" name="groupBox_7">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>20</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="title">
+           <string>Misc</string>
+          </property>
+          <widget class="QPushButton" name="pushButton_testSendEMail">
+           <property name="geometry">
+            <rect>
+             <x>20</x>
+             <y>30</y>
+             <width>131</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Send test e-mail</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_testPlasmaCleaner">
+           <property name="geometry">
+            <rect>
+             <x>20</x>
+             <y>60</y>
+             <width>131</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Plasma cleaner test</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_testServerRequest">
+           <property name="geometry">
+            <rect>
+             <x>20</x>
+             <y>90</y>
+             <width>131</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Test server request</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_testCustom">
+           <property name="geometry">
+            <rect>
+             <x>20</x>
+             <y>400</y>
+             <width>131</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Custom test</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_testDebrisDetection">
+           <property name="geometry">
+            <rect>
+             <x>20</x>
+             <y>120</y>
+             <width>131</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Debris detection test</string>
+           </property>
+          </widget>
+         </widget>
+        </item>
+        <item row="0" column="0" colspan="3">
+         <widget class="QLabel" name="label_3">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>1</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="font">
+           <font>
+            <weight>75</weight>
+            <bold>true</bold>
+           </font>
+          </property>
+          <property name="text">
+           <string>Use only for testing and debugging purposes!</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
       </widget>
      </widget>
     </item>
@@ -2841,6 +2611,7 @@ Green: acquired</string>
        <font>
         <family>Lucida Console</family>
         <pointsize>8</pointsize>
+        <weight>50</weight>
         <bold>false</bold>
        </font>
       </property>
@@ -2866,7 +2637,7 @@ Green: acquired</string>
      <x>0</x>
      <y>0</y>
      <width>711</width>
-     <height>22</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -3137,19 +2908,6 @@ Green: acquired</string>
   <tabstop>pushButton_pauseAcq</tabstop>
   <tabstop>pushButton_resetAcq</tabstop>
   <tabstop>pushButton_focusToolStart</tabstop>
-  <tabstop>comboBox_selectGridFT</tabstop>
-  <tabstop>comboBox_selectTileFT</tabstop>
-  <tabstop>comboBox_selectOVFT</tabstop>
-  <tabstop>radioButton_focus</tabstop>
-  <tabstop>lineEdit_currentFocus</tabstop>
-  <tabstop>radioButton_stigX</tabstop>
-  <tabstop>lineEdit_currentStigX</tabstop>
-  <tabstop>radioButton_stigY</tabstop>
-  <tabstop>lineEdit_currentStigY</tabstop>
-  <tabstop>pushButton_focusToolSet</tabstop>
-  <tabstop>verticalSlider_ftDelta</tabstop>
-  <tabstop>checkBox_zoom</tabstop>
-  <tabstop>spinBox_ftPixelSize</tabstop>
  </tabstops>
  <resources/>
  <connections>

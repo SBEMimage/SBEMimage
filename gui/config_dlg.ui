@@ -3,7 +3,7 @@
  <class>configSettings</class>
  <widget class="QDialog" name="configSettings">
   <property name="windowModality">
-   <enum>Qt::ApplicationModal</enum>
+   <enum>Qt::NonModal</enum>
   </property>
   <property name="geometry">
    <rect>
@@ -22,7 +22,7 @@
   <property name="modal">
    <bool>false</bool>
   </property>
-  <layout class="QFormLayout" name="formLayout">
+  <layout class="QGridLayout" name="gridLayout">
    <item row="0" column="0">
     <widget class="QLabel" name="labelIcon">
      <property name="text">
