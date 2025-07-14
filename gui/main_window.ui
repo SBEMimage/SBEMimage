@@ -1024,10 +1024,10 @@
           <widget class="QLabel" name="label_currentPosition">
            <property name="geometry">
             <rect>
-             <x>430</x>
+             <x>450</x>
              <y>225</y>
-             <width>221</width>
              <height>16</height>
+             <width>201</width>
             </rect>
            </property>
            <property name="sizePolicy">
