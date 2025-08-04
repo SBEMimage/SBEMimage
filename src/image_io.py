@@ -288,13 +288,19 @@ def create_tiff_metadata(metadata, is_ome=False):
                 ome_metadata['PhysicalSizeZUnit'] = 'µm'
         if positions is not None and len(positions) > 0:
             plane_metadata = {}
-            plane_metadata['PositionX'] = [float(position1[0]) for position1 in positions]
-            plane_metadata['PositionXUnit'] = ['µm' for _ in positions]
-            plane_metadata['PositionY'] = [float(position1[1]) for position1 in positions]
-            plane_metadata['PositionYUnit'] = ['µm' for _ in positions]
+            positionsx = [position1[0] for position1 in positions]
+            if positionsx[0] is not None:
+                plane_metadata['PositionX'] = [float(position1) for position1 in positionsx]
+                plane_metadata['PositionXUnit'] = ['µm' for _ in positions]
+            positionsy = [position1[1] for position1 in positions]
+            if positionsy[0] is not None:
+                plane_metadata['PositionY'] = [float(position1) for position1 in positionsy]
+                plane_metadata['PositionYUnit'] = ['µm' for _ in positions]
             if len(positions[0]) > 2:
-                plane_metadata['PositionZ'] = [float(position1[2]) for position1 in positions]
-                plane_metadata['PositionZUnit'] = ['µm' for _ in positions]
+                positionsz = [position1[2] for position1 in positions]
+                if positionsz[0] is not None:
+                    plane_metadata['PositionZ'] = [float(position1) for position1 in positionsz]
+                    plane_metadata['PositionZUnit'] = ['µm' for _ in positions]
             ome_metadata['Plane'] = plane_metadata
         if rotation is not None:
             ome_metadata['StructuredAnnotations'] = {'CommentAnnotation': {'Value': f'Angle: {rotation} degrees'}}
