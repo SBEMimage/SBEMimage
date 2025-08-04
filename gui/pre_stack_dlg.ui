@@ -71,7 +71,6 @@
    </property>
    <property name="font">
     <font>
-     <weight>75</weight>
      <bold>true</bold>
     </font>
    </property>
@@ -79,7 +78,7 @@
     <string>Start acquisition</string>
    </property>
   </widget>
-  <widget class="QGroupBox" name="groupBox">
+  <widget class="QGroupBox" name="groupBox_dmSettings">
    <property name="geometry">
     <rect>
      <x>10</x>
@@ -307,7 +306,7 @@
     </property>
    </widget>
   </widget>
-  <widget class="QGroupBox" name="groupBox_3">
+  <widget class="QGroupBox" name="groupBox_mainSettings">
    <property name="geometry">
     <rect>
      <x>10</x>
@@ -318,7 +317,6 @@
    </property>
    <property name="font">
     <font>
-     <weight>50</weight>
      <bold>false</bold>
     </font>
    </property>
@@ -339,7 +337,6 @@
     </property>
     <property name="font">
      <font>
-      <weight>75</weight>
       <bold>true</bold>
      </font>
     </property>
@@ -514,7 +511,6 @@
     </property>
     <property name="font">
      <font>
-      <weight>75</weight>
       <bold>true</bold>
      </font>
     </property>
@@ -572,7 +568,6 @@
     </property>
     <property name="font">
      <font>
-      <weight>75</weight>
       <bold>true</bold>
      </font>
     </property>
@@ -595,7 +590,6 @@
     <property name="font">
      <font>
       <pointsize>8</pointsize>
-      <weight>50</weight>
       <bold>false</bold>
      </font>
     </property>

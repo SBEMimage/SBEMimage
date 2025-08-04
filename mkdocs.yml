@@ -1,0 +1,36 @@
+site_name: SBEMimage
+site_url: https://sbemimage.github.io/SBEMimage
+site_description: Open-source acquisition software for scanning electron microscopy
+
+repo_name: SBEMimage
+repo_url: https://github.com/SBEMimage/SBEMimage
+
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths: [.]
+          options:
+            show_submodules: true
+            show_if_no_docstring: true
+
+nav:
+  - overview.md
+  - requirements.md
+  - installation.md
+  - user_interface.md
+  - acquisition.md
+  - array_setup.md
+  - external_tools.md
+  - datasets.md
+  - development.md
+  - about.md
+  - references.md
+
+theme:
+  name: material
+  color_mode: auto
+  user_color_mode_toggle: true
+  logo: images/logo.png

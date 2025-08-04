@@ -175,7 +175,7 @@
     </font>
    </property>
    <property name="text">
-    <string>https://sbemimage.readthedocs.io</string>
+    <string>https://sbemimage.github.io/SBEMimage</string>
    </property>
   </widget>
  </widget>

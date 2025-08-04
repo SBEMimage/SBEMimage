@@ -116,27 +116,14 @@
           <widget class="QLabel" name="label_mousePos">
            <property name="geometry">
             <rect>
-             <x>60</x>
+             <x>10</x>
              <y>40</y>
-             <width>201</width>
+             <width>261</width>
              <height>16</height>
             </rect>
            </property>
            <property name="text">
             <string>-</string>
-           </property>
-          </widget>
-          <widget class="QLabel" name="label_mousePosText">
-           <property name="geometry">
-            <rect>
-             <x>10</x>
-             <y>40</y>
-             <width>51</width>
-             <height>16</height>
-            </rect>
-           </property>
-           <property name="text">
-            <string>Mouse @</string>
            </property>
           </widget>
          </widget>
@@ -217,7 +204,7 @@
             </rect>
            </property>
            <property name="text">
-            <string>Show stub overview</string>
+            <string>Show stub OV</string>
            </property>
           </widget>
           <widget class="QCheckBox" name="checkBox_showImported">
@@ -231,6 +218,22 @@
            </property>
            <property name="text">
             <string>Show imported</string>
+           </property>
+          </widget>
+          <widget class="QPushButton" name="pushButton_updateStagePos">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="geometry">
+            <rect>
+             <x>310</x>
+             <y>33</y>
+             <width>30</width>
+             <height>24</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string/>
            </property>
           </widget>
          </widget>
@@ -264,7 +267,6 @@
            <property name="font">
             <font>
              <pointsize>9</pointsize>
-             <weight>75</weight>
              <bold>true</bold>
             </font>
            </property>
@@ -661,7 +663,6 @@
           <property name="font">
            <font>
             <pointsize>9</pointsize>
-            <weight>75</weight>
             <bold>true</bold>
            </font>
           </property>

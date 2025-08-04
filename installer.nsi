@@ -103,7 +103,7 @@ Section "!${PRODUCT_NAME}" sec_app
     [% for scname, sc in ib.shortcuts.items() %]
     CreateShortCut "$SMPROGRAMS\[[scname]].lnk" "${SHORTCUT_TARGET}" \
       '[[ sc['parameters'] ]]' "$INSTDIR\[[ sc['icon'] ]]"
-    ; Create additional shortcut on Desktop  
+    ; Create additional shortcut on Desktop
     CreateShortCut "$DESKTOP\[[scname]].lnk" "${SHORTCUT_TARGET}" \
       '[[ sc['parameters'] ]]' "$INSTDIR\[[ sc['icon'] ]]"
     [% endfor %]
@@ -175,7 +175,7 @@ Section "Uninstall"
   Delete $INSTDIR\uninstall.exe
   Delete "$INSTDIR\${PRODUCT_ICON}"
   RMDir /r "$INSTDIR\pkgs"
-  
+
   ; Rename configuration folder to preserve it
   Rename "$INSTDIR\cfg" "$INSTDIR\cfg_backup"
 
@@ -210,7 +210,7 @@ Section "Uninstall"
 
   ; Revert to name 'cfg' for configuration folder
   Rename "$INSTDIR\cfg_backup" "$INSTDIR\cfg"
-  
+
   DeleteRegKey SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
 SectionEnd
 

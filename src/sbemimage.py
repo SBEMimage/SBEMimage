@@ -4,7 +4,7 @@
 # ==============================================================================
 #   SBEMimage – https://github.com/SBEMimage
 #   Acquisition control software for serial block-face electron microscopy
-#   (c) 2018-2020 Friedrich Miescher Institute for Biomedical Research, Basel,
+#   (c) 2018-2021 Friedrich Miescher Institute for Biomedical Research, Basel,
 #   and the SBEMimage developers.
 #   This software is licensed under the terms of the MIT License.
 #   See LICENSE.txt in the project root folder.
@@ -13,10 +13,10 @@
 """sbemimage.py launches the application.
 
 First, the start-up dialog is shown (ConfigDlg in main_controls_dlg_windows.py),
-and the user is asked to select a user configuration file. The application
-attempts to load the user configuration file (.ini) and the associated system
+and the user is asked to select a session configuration. The application
+attempts to load the session configuration file (.ini) and the associated system
 configuration file (.cfg). If the configuration is loaded successfully, the
-QMainWindow MainControls (in main_controls.py) is launched.
+QMainWindow MainControls (in MainControls.py) is launched.
 
 Use 'python sbemimage.py' or call the batch file SBEMimage.bat to run SBEMimage.
 """
@@ -24,11 +24,14 @@ Use 'python sbemimage.py' or call the batch file SBEMimage.bat to run SBEMimage.
 import os
 import sys
 
+from constants import VERSION
+
+
 # Required for version installed with pynsist installer
-if os.path.exists('..\\Python') and os.path.exists('..\\pkgs'):
+if os.path.exists('Python') and os.path.exists('pkgs'):
     import site
     scriptdir, script = os.path.split(__file__)
-    pkgdir = os.path.join(scriptdir, '..', 'pkgs')
+    pkgdir = os.path.abspath('pkgs')
     # Ensure .pth files in pkgdir are handled properly and ensure importing
     # local modules works.
     site.addsitedir(pkgdir)
@@ -41,20 +44,13 @@ import ctypes
 import traceback
 import colorama # needed to suppress TIFFReadDirectory warnings in the console
 from configparser import ConfigParser
-from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import Qt
+from qtpy.QtWidgets import QApplication
+from qtpy.QtCore import Qt, qVersion
 
-from main_controls_dlg_windows import ConfigDlg
-from config_template import process_cfg
-from main_controls import MainControls
+from dialog.ConfigDlg import ConfigDlg
+from config_template import process_cfg, load_device_presets, default_cfg_found
+from MainControls import MainControls
 import utils
-
-
-# VERSION contains the current version/release date information for the
-# master branch (for example, '2020.07 R2020-07-28'). For the current version
-# in the dev (development) branch, it must contain the tag 'dev'.
-# Following https://www.python.org/dev/peps/pep-0440/#public-version-identifiers
-VERSION = '2020.12'
 
 
 # Hook for uncaught/Qt exceptions
@@ -78,31 +74,30 @@ def main():
     utils.logging_init('CTRL', '***** New SBEMimage session *****')
 
     # Check Windows version
-    if not (platform.system() == 'Windows'
-            and platform.release() in ['7', '10']):
-        print('This version of SBEMimage requires Windows 7 or 10. '
-              'Program aborted.\n')
-        os.system('cmd /k')  # keep console window open
-        sys.exit()
+    is_windows = (platform.system().lower() == 'windows')
+    if not (is_windows and platform.release().isnumeric() and float(platform.release()) >= 7):
+        print('Warning: SBEMimage is designed to run on Windows 7 or higher. Use on other operating system at own risk.')
 
-    if platform.release() == '10':
+    if is_windows and platform.release() == '10' and int(qVersion().split('.')[0]) <= 5:
         # High dpi scaling for Windows 10
         QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
         # TODO: This does not work well for 150% and other scale factors.
         # Qt elements and fonts in the GUI don't scale in the correct ratios.
 
     SBEMimage = QApplication(sys.argv)
-    app_id = 'SBEMimage ' + VERSION
-    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(app_id)
+    app_id = f'SBEMimage {VERSION}'
 
-    colorama.init()
-    os.system('cls')
+    if is_windows:
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(app_id)
+        colorama.init()
+        os.system('cls')
+
     if 'dev' in VERSION.lower():
-        title_str = 'SBEMimage - Console - DEVELOPMENT VERSION'
+        title_str = f'{app_id} - Console - DEVELOPMENT VERSION'
         version_info = f'DEVELOPMENT VERSION ({VERSION})'
     else:
-        title_str = 'SBEMimage - Console'
-        version_info = 'Version ' + VERSION
+        title_str = f'{app_id} - Console'
+        version_info = f'Version {VERSION}'
     os.system('title ' + title_str)
 
     line_of_stars = '*' * (len(version_info) + 10)
@@ -113,13 +108,14 @@ def main():
 
     configuration_loaded = False
     default_configuration = False
+    presets_loaded = False
 
-    if (os.path.isfile('..\\cfg\\default.ini')
-            and os.path.isfile('..\\cfg\\system.cfg')):
+    if default_cfg_found():
         # Ask user to select .ini file
-        startup_dialog = ConfigDlg(VERSION)
-        startup_dialog.exec_()
+        startup_dialog = ConfigDlg()
+        startup_dialog.exec()
         dlg_response = startup_dialog.get_ini_file()
+        device_presets_selection = startup_dialog.device_presets_selection
         if dlg_response == 'abort':
             configuration_loaded = False
             print('Program aborted by user.\n')
@@ -128,13 +124,19 @@ def main():
             try:
                 # Attempt to load the configuration files and start up the app.
                 # Logging to central log file starts at this point.
-                utils.log_info('CTRL', 'Loading user and system configuration.')
-                config_file = dlg_response
-                if config_file == 'default.ini':
+                if dlg_response == 'Default Configuration':
                     default_configuration = True
+                    config_file = 'default.ini'
+                else:
+                    config_file = dlg_response
+                    
                 print(f'Loading configuration file {config_file} ...', end='')
                 config = ConfigParser()
-                config_file_path = os.path.join('..', 'cfg', config_file)
+                if default_configuration:
+                    config_file_path = os.path.join('src', 'default_cfg',
+                                                    config_file)
+                else:
+                    config_file_path = os.path.join('cfg', config_file)
                 with open(config_file_path, 'r') as file:
                     config.read_file(file)
                 print(' Done.\n')
@@ -147,11 +149,18 @@ def main():
                 print(f'Loading system settings file {sysconfig_file} ...',
                       end='')
                 sysconfig = ConfigParser()
-                sysconfig_file_path = os.path.join('..', 'cfg', sysconfig_file)
+                if default_configuration:
+                    sysconfig_file_path = os.path.join('src', 'default_cfg',
+                                                       sysconfig_file)
+                else:
+                    sysconfig_file_path = os.path.join('cfg', sysconfig_file)
                 with open(sysconfig_file_path, 'r') as file:
                     sysconfig.read_file(file)
                 configuration_loaded = True
                 print(' Done.\n')
+                utils.log_info('CTRL', 
+                    f'Configuration files {config_file} and {sysconfig_file} '
+                    f'loaded.')
             except Exception as e:
                 configuration_loaded = False
                 config_error = ('\nError while loading configuration! '
@@ -162,9 +171,11 @@ def main():
                 os.system('cmd /k')
                 sys.exit()
     else:
-        # Quit if default.ini doesn't exist
+        # Quit if default configuration files in src\default_cfg not found
         configuration_loaded = False
-        print('default.ini and/or system.cfg not found. Program aborted.\n')
+        default_not_found = 'Default configuration missing or incomplete. Program aborted.\n'
+        print(default_not_found)
+        utils.log_error('CTRL', default_not_found)
         os.system('cmd /k')
         sys.exit()
 
@@ -175,6 +186,18 @@ def main():
             # Check if number of entries correct (no other checks at the moment)
             success, exceptions, _, _, _, _ = process_cfg(config, sysconfig,
                                                           is_default_cfg=True)
+
+            if success and device_presets_selection != [None, None]:
+                # Attempt to load presets into system configuration
+                selected_sem, selected_microtome = device_presets_selection
+                success, exc = load_device_presets(
+                    sysconfig, selected_sem, selected_microtome)
+                exceptions += '; ' + exc
+                if success:
+                    if device_presets_selection[1] is None:
+                        config['sys']['use_microtome'] = 'False'
+                    syscfg_changed = True
+                    presets_loaded = True
         else:
             # Check and update if necessary: obsolete entries are ignored,
             # missing/new entries are added with default values.
@@ -187,45 +210,72 @@ def main():
             if default_configuration:
                 utils.log_info(
                     'CTRL', 'Default configuration loaded (read-only).')
+                print('Default configuration loaded (read-only).\n')
             else:
+                ch_str = 'Configuration loaded and checked: '
                 if cfg_changed and syscfg_changed:
-                    ch_str = 'config and sysconfig updated'
+                    ch_str += 'config and sysconfig updated'
                 elif cfg_changed:
-                    ch_str = 'config updated'
+                    ch_str += 'config updated'
                 elif syscfg_changed:
-                    ch_str = "sysconfig updated"
+                    ch_str += "sysconfig updated"
                 else:
-                    ch_str = 'complete, no updates'
-                utils.log_info(
-                    'CTRL', 'Configuration loaded and checked: ' + ch_str)
+                    ch_str += 'complete, no updates'
+                utils.log_info('CTRL', ch_str)
+                print(ch_str + '\n')
 
+            if presets_loaded:
+                devices_str = ''
+                if selected_sem is not None:
+                    devices_str = selected_sem
+                if selected_microtome is not None:
+                    if devices_str:
+                        devices_str += ' + ' + selected_microtome
+                    else:
+                        devices_str = selected_microtome
+                devices_str = 'Device presets loaded for ' + devices_str + '.'       
+            else:
+                devices_str = 'Device setup: ' + sysconfig['device']['sem'] + ', '
+                if config['sys']['use_microtome'].lower() == 'false':
+                    devices_str += 'no microtome'
+                else:
+                    devices_str += sysconfig['device']['microtome']
+
+            utils.log_info('CTRL', devices_str)
+            print(devices_str + '\n')
+ 
             # Remove status.dat. This file will be recreated when the program
             # terminates normally. The start-up dialog checks if status.dat
             # exists and displays a warning message if not.
-            if os.path.isfile('..\\cfg\\status.dat'):
-                os.remove('..\\cfg\\status.dat')
+            if os.path.isfile('cfg/status.dat'):
+                os.remove('cfg/status.dat')
+
+            # Switch to dark style (experimental) if specified in session configuration
+            if config['sys']['use_dark_mode_gui'].lower() == 'true':
+                import qdarkstyle
+                SBEMimage.setStyleSheet(qdarkstyle.load_stylesheet())
 
             print('Please wait while SBEMimage is starting up...\n')
 
-            # Launch Main Controls window. The Viewport window (see viewport.py)
+            # Launch Main Controls window. The Viewport window (see Viewport.py)
             # is launched from Main Controls.
             try:
                 SBEMimage_main_window = MainControls(config,
                                                      sysconfig,
-                                                     config_file,
-                                                     VERSION)
-                sys.exit(SBEMimage.exec_())
+                                                     config_file)
+                sys.exit(SBEMimage.exec())
             except Exception as e:
-                print('\nAn exception occured during this SBEMimage session:\n')
-                utils.logger.propagate = True
+                print('\nAn exception occurred during this SBEMimage session:\n' + str(e))
+                utils.logger.propagate = True  # TODO: why is this flag set here?
                 utils.log_exception("Exception")
                 print('\nProgram aborted.')
-                print('Please submit a bug report at '
-                      'https://github.com/SBEMimage/SBEMimage/issues and '
-                      'include all lines in /SBEMimage/log/SBEMimage.log '
-                      'after the entry "ERROR : Exception".')
-                os.system('cmd /k')
-                sys.exit()
+                if 'dev' not in VERSION.lower():
+                    print('Please submit a bug report at '
+                          'https://github.com/SBEMimage/SBEMimage/issues and '
+                          'include all lines in /SBEMimage/log/SBEMimage.log '
+                          'after the entry "ERROR : Exception".')
+                    os.system('cmd /k')
+                    sys.exit()
 
         else:
             config_error = ('Error(s) while checking configuration file(s): '

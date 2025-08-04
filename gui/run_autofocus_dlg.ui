@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>241</width>
-    <height>148</height>
+    <height>208</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -20,9 +20,9 @@
    <property name="geometry">
     <rect>
      <x>40</x>
-     <y>110</y>
+     <y>160</y>
      <width>191</width>
-     <height>32</height>
+     <height>42</height>
     </rect>
    </property>
    <property name="orientation">
@@ -31,6 +31,22 @@
    <property name="standardButtons">
     <set>QDialogButtonBox::Cancel</set>
    </property>
+  </widget>
+  <widget class="QRadioButton" name="radioButton_large_aberr">
+  <property name="geometry">
+   <rect>
+    <x>10</x>
+    <y>75</y>
+    <width>182</width>
+    <height>17</height>
+   </rect>
+  </property>
+  <property name="text">
+   <string>Large Aberrations ( > 20 um) </string>
+  </property>
+  <property name="checked">
+   <bool>false</bool>
+  </property>
   </widget>
   <widget class="QLabel" name="label_info">
    <property name="geometry">
@@ -75,7 +91,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>70</y>
+     <y>100</y>
      <width>221</width>
      <height>23</height>
     </rect>
@@ -88,6 +104,25 @@
    </property>
    <property name="text">
     <string>Run</string>
+   </property>
+  </widget>
+    <widget class="QPushButton" name="pushButton_calibrate">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>130</y>
+     <width>221</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <weight>75</weight>
+     <bold>true</bold>
+    </font>
+   </property>
+   <property name="text">
+    <string>Calibrate</string>
    </property>
   </widget>
  </widget>
