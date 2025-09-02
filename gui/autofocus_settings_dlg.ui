@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>301</width>
-    <height>709</height>
+    <width>601</width>
+    <height>645</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -22,8 +22,8 @@
   <widget class="QDialogButtonBox" name="buttonBox">
    <property name="geometry">
     <rect>
-     <x>100</x>
-     <y>670</y>
+     <x>400</x>
+     <y>610</y>
      <width>191</width>
      <height>32</height>
     </rect>
@@ -93,6 +93,22 @@
     <bool>false</bool>
    </property>
   </widget>
+    <widget class="QRadioButton" name="radioButton_useAFSS">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>90</y>
+     <width>251</width>
+     <height>17</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Use Automated focus/stigmator series</string>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+  </widget>
   <widget class="QGroupBox" name="groupBox_heuristic_af">
    <property name="enabled">
     <bool>true</bool>
@@ -100,7 +116,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>487</y>
+     <y>290</y>
      <width>281</width>
      <height>171</height>
     </rect>
@@ -369,7 +385,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>320</y>
+     <y>120</y>
      <width>281</width>
      <height>158</height>
     </rect>
@@ -500,11 +516,420 @@
     </property>
    </widget>
   </widget>
+  <widget class="QGroupBox" name="groupBox_AFSS_af">
+   <property name="geometry">
+    <rect>
+     <x>310</x>
+     <y>235</y>
+     <width>281</width>
+     <height>370</height>
+    </rect>
+   </property>
+   <property name="title">
+    <string>Automated Focus/Stigmator Series parameters</string>
+   </property>
+   <widget class="QLabel" name="label_afss_interval">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>13</y>
+      <width>205</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Interval N (slices) :</string>
+    </property>
+   </widget>
+    <widget class="QLabel" name="label_afss_interval_2">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>28</y>
+      <width>199</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>AF-> N -> StigX -> N -> StigY -> N</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_afss_interval_2">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>43</y>
+      <width>191</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Requires N >= nr. of perturbations </string>
+    </property>
+   </widget>
+   <widget class="QSpinBox" name="spinBox_afss_interval">
+    <property name="geometry">
+     <rect>
+      <x>210</x>
+      <y>20</y>
+      <width>61</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="minimum">
+     <number>3</number>
+    </property>
+    <property name="maximum">
+     <number>1000</number>
+    </property>
+    <property name="singleStep">
+     <number>1</number>
+    </property>
+    <property name="value">
+     <number>15</number>
+    </property>
+   </widget>
+   <widget class="QSpinBox" name="spinBox_afss_offset">
+    <property name="geometry">
+     <rect>
+      <x>210</x>
+      <y>68</y>
+      <width>61</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="minimum">
+     <number>0</number>
+    </property>
+    <property name="maximum">
+     <number>10000</number>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_afss_offset">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>68</y>
+      <width>191</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Delay after start of acquisition (slices):</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_afss_wd">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>110</y>
+      <width>191</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>WD deviation range ±∆ (μm):</string>
+    </property>
+   </widget>
+   <widget class="QDoubleSpinBox" name="doubleSpinBox_afss_wdDiff">
+    <property name="geometry">
+     <rect>
+      <x>210</x>
+      <y>110</y>
+      <width>61</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="decimals">
+     <number>3</number>
+    </property>
+    <property name="minimum">
+     <double>0.05</double>
+    </property>
+    <property name="maximum">
+     <double>5.0</double>
+    </property>
+    <property name="singleStep">
+     <double>0.1</double>
+    </property>
+    <property name="value">
+     <double>1.5</double>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_afss_stig">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>140</y>
+      <width>141</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Stigmator X/Y ±∆ (%):</string>
+    </property>
+   </widget>
+   <widget class="QDoubleSpinBox" name="doubleSpinBox_afss_stigXDiff">
+    <property name="geometry">
+     <rect>
+      <x>145</x>
+      <y>140</y>
+      <width>61</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="decimals">
+     <number>2</number>
+    </property>
+	<property name="minimum">
+     <double>0.01</double>
+    </property>
+    <property name="maximum">
+     <double>9.90</double>
+    </property>
+    <property name="singleStep">
+     <double>0.010000000000000</double>
+    </property>
+    <property name="value">
+     <double>0.200000000000000</double>
+    </property>
+   </widget>
+   <widget class="QDoubleSpinBox" name="doubleSpinBox_afss_stigYDiff">
+    <property name="geometry">
+     <rect>
+      <x>210</x>
+      <y>140</y>
+      <width>61</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="decimals">
+     <number>2</number>
+    </property>
+	<property name="minimum">
+     <double>0.02</double>
+    </property>
+    <property name="maximum">
+     <double>9.90</double>
+    </property>
+    <property name="singleStep">
+     <double>0.010000000000000</double>
+    </property>
+    <property name="value">
+     <double>0.200000000000000</double>
+    </property>
+   </widget>
+   <widget class="QSpinBox" name="spinBox_afss_rounds">
+    <property name="geometry">
+     <rect>
+      <x>210</x>
+      <y>170</y>
+      <width>61</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="minimum">
+     <number>3</number>
+    </property>
+    <property name="maximum">
+     <number>100</number>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_afss_rounds">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>170</y>
+      <width>191</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Number of WD/Stigmator perturbations:</string>
+    </property>
+   </widget>
+   <widget class="QComboBox" name="comboBox_afss_consensus_mode">
+    <property name="geometry">
+     <rect>
+      <x>100</x>
+      <y>200</y>
+      <width>171</width>
+      <height>22</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_afss_consensus_mode">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>200</y>
+      <width>105</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Consensus mode:</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_afss_rmse_limit">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>230</y>
+      <width>191</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Fit precision limit (RMSE):</string>
+    </property>
+   </widget>
+   <widget class="QDoubleSpinBox" name="doubleSpinBox_afss_rmse_limit">
+    <property name="geometry">
+     <rect>
+      <x>210</x>
+      <y>230</y>
+      <width>61</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="decimals">
+     <number>3</number>
+    </property>
+    <property name="minimum">
+     <double>0.0</double>
+    </property>
+    <property name="maximum">
+     <double>5.0</double>
+    </property>
+    <property name="singleStep">
+     <double>0.01</double>
+    </property>
+    <property name="value">
+     <double>0.25</double>
+    </property>
+   </widget>
+   <widget class="QSpinBox" name="spinBox_afss_fails">
+    <property name="geometry">
+     <rect>
+      <x>230</x>
+      <y>260</y>
+      <width>41</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="minimum">
+     <number>-1</number>
+    </property>
+    <property name="maximum">
+     <number>100</number>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_afss_fails">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>260</y>
+      <width>206</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Max. number of failed runs (-1 to disable):</string>
+    </property>
+   </widget>
+	<widget class="QCheckBox" name="checkBox_afss_autostig_active">
+	 <property name="geometry">
+	  <rect>
+	   <x>110</x>
+	   <y>297</y>
+	   <width>151</width>
+	   <height>17</height>
+	  </rect>
+	 </property>
+	 <property name="text">
+	  <string>Enable AutoStigmator</string>
+	 </property>
+	</widget>
+   	<widget class="QCheckBox" name="checkBox_afss_drift_corrected">
+	 <property name="geometry">
+	  <rect>
+	   <x>110</x>
+	   <y>315</y>
+	   <width>101</width>
+	   <height>17</height>
+	  </rect>
+	 </property>
+	 <property name="text">
+	  <string>Drift correction</string>
+	 </property>
+	</widget>
+   	<widget class="QCheckBox" name="checkBox_afss_background_mode">
+	 <property name="geometry">
+	  <rect>
+	   <x>110</x>
+	   <y>333</y>
+	   <width>121</width>
+	   <height>17</height>
+	  </rect>
+	 </property>
+	 <property name="text">
+	  <string>Background mode</string>
+	 </property>
+	</widget>
+   <widget class="QComboBox" name="comboBox_afss_mode">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>300</y>
+      <width>80</width>
+      <height>22</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_afss_mode">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>280</y>
+      <width>75</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Active mode</string>
+    </property>
+   </widget>
+   <widget class="QComboBox" name="comboBox_afss_upcoming_mode">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>342</y>
+      <width>80</width>
+      <height>22</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_afss_upcoming_mode">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>322</y>
+      <width>80</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Upcoming mode</string>
+    </property>
+   </widget>
+  </widget>
+  
   <widget class="QGroupBox" name="groupBox">
    <property name="geometry">
     <rect>
-     <x>9</x>
-     <y>100</y>
+     <x>310</x>
+     <y>10</y>
      <width>281</width>
      <height>211</height>
     </rect>
@@ -517,19 +942,19 @@
      <rect>
       <x>10</x>
       <y>40</y>
-      <width>251</width>
+      <width>260</width>
       <height>16</height>
      </rect>
     </property>
     <property name="text">
-     <string>right clicks in viewport. Currently selected tile(s), in </string>
+     <string>with right clicks in viewport. Currently selected tile(s) </string>
     </property>
    </widget>
    <widget class="QLineEdit" name="lineEdit_refTiles">
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>90</y>
+      <y>85</y>
       <width>261</width>
       <height>20</height>
      </rect>
@@ -538,9 +963,9 @@
    <widget class="QComboBox" name="comboBox_trackingMode">
     <property name="geometry">
      <rect>
-      <x>88</x>
+      <x>86</x>
       <y>120</y>
-      <width>181</width>
+      <width>185</width>
       <height>22</height>
      </rect>
     </property>
@@ -568,16 +993,19 @@
      </rect>
     </property>
     <property name="decimals">
-     <number>0</number>
+     <number>3</number>
     </property>
     <property name="minimum">
-     <double>1.000000000000000</double>
+     <double>0.100</double>
     </property>
     <property name="maximum">
-     <double>999.000000000000000</double>
+     <double>999.000</double>
     </property>
+	 <property name="singleStep">
+     <double>0.100</double>
+	</property>
     <property name="value">
-     <double>10.000000000000000</double>
+     <double>1.500</double>
     </property>
    </widget>
    <widget class="QLabel" name="label_max_wd">
@@ -596,26 +1024,26 @@
    <widget class="QDoubleSpinBox" name="doubleSpinBox_maxStigXDiff">
     <property name="geometry">
      <rect>
-      <x>150</x>
+      <x>167</x>
       <y>180</y>
-      <width>61</width>
+      <width>50</width>
       <height>22</height>
      </rect>
     </property>
     <property name="decimals">
-     <number>1</number>
+     <number>2</number>
     </property>
     <property name="minimum">
-     <double>0.100000000000000</double>
+     <double>0.01</double>
     </property>
     <property name="maximum">
-     <double>9.900000000000000</double>
+     <double>9.99</double>
     </property>
     <property name="singleStep">
-     <double>0.100000000000000</double>
+     <double>0.01</double>
     </property>
     <property name="value">
-     <double>1.000000000000000</double>
+     <double>0.20</double>
     </property>
    </widget>
    <widget class="QLabel" name="label_max_astig">
@@ -623,7 +1051,7 @@
      <rect>
       <x>10</x>
       <y>180</y>
-      <width>131</width>
+      <width>170</width>
       <height>20</height>
      </rect>
     </property>
@@ -634,26 +1062,26 @@
    <widget class="QDoubleSpinBox" name="doubleSpinBox_maxStigYDiff">
     <property name="geometry">
      <rect>
-      <x>210</x>
+      <x>221</x>
       <y>180</y>
-      <width>61</width>
+      <width>50</width>
       <height>22</height>
      </rect>
     </property>
     <property name="decimals">
-     <number>1</number>
+     <number>2</number>
     </property>
     <property name="minimum">
-     <double>0.100000000000000</double>
+     <double>0.01</double>
     </property>
     <property name="maximum">
-     <double>9.900000000000000</double>
+     <double>9.99</double>
     </property>
     <property name="singleStep">
-     <double>0.100000000000000</double>
+     <double>0.01</double>
     </property>
     <property name="value">
-     <double>1.000000000000000</double>
+     <double>0.20</double>
     </property>
    </widget>
    <widget class="QLabel" name="label_general_1">
@@ -666,7 +1094,7 @@
      </rect>
     </property>
     <property name="text">
-     <string>Tiles can be (de)selected for (auto)focus tracking with </string>
+     <string>Tiles can be (de)selected for (auto)focus tracking </string>
     </property>
    </widget>
    <widget class="QLabel" name="label_general_3">
@@ -679,7 +1107,7 @@
      </rect>
     </property>
     <property name="text">
-     <string>format #grid_number.#tile_number:</string>
+     <string>in format #grid_number.#tile_number:</string>
     </property>
    </widget>
   </widget>

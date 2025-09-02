@@ -19,18 +19,24 @@ import os
 from configparser import ConfigParser
 
 
+# Always points to the folder where this .py file lives
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # The following constants must be updated if entries are added to or
 # deleted from the default configuration files
-CFG_TEMPLATE_FILE = 'src/default_cfg/default.ini'    # Template of session configuration
+#CFG_TEMPLATE_FILE = 'src/default_cfg/default.ini'    # Template of session configuration
+CFG_TEMPLATE_FILE = os.path.join(BASE_DIR, "default_cfg", "default.ini")
 CFG_NUMBER_SECTIONS = 12
-CFG_NUMBER_KEYS = 231
+CFG_NUMBER_KEYS = 259
 
-SYSCFG_TEMPLATE_FILE = 'src/default_cfg/system.cfg'  # Template of system configuration
+#SYSCFG_TEMPLATE_FILE = 'src/default_cfg/system.cfg'  # Template of system configuration
+SYSCFG_TEMPLATE_FILE = os.path.join(BASE_DIR, "default_cfg", "system.cfg")
 SYSCFG_NUMBER_SECTIONS = 8
-SYSCFG_NUMBER_KEYS = 55
+SYSCFG_NUMBER_KEYS = 57
 
 # Presets file: contains presets for different devices
-DEVICE_PRESETS_FILE = 'src/default_cfg/device_presets.cfg'
+#DEVICE_PRESETS_FILE = 'src/default_cfg/device_presets.cfg'
+DEVICE_PRESETS_FILE = os.path.join(BASE_DIR, "default_cfg", "device_presets.cfg")
 
 # Backward compatibility for older system config files
 LEGACY_DEVICE_NUMBERS = {0: 'Gatan 3View',
@@ -60,10 +66,9 @@ def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):
     exceptions = ''
 
     if is_default_cfg:
-        pass
         # Currently, the only validity check is verifying the number of entries.
-        #cfg_valid = check_number_of_entries(current_cfg, False)
-        #syscfg_valid = check_number_of_entries(current_syscfg, True)
+        cfg_valid = check_number_of_entries(current_cfg, False)
+        syscfg_valid = check_number_of_entries(current_syscfg, True)
     else:
         # Load default configuration. This file must be up-to-date. It is always
         # bundled with each new version of SBEMimage.
@@ -81,10 +86,10 @@ def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):
         except Exception as e:
             syscfg_load_success = False
             exceptions += str(e) + '; '
-        #if cfg_load_success:
-        #    cfg_valid = check_number_of_entries(cfg_template, False)
-        #if syscfg_load_success:
-        #    syscfg_valid = check_number_of_entries(syscfg_template, True)
+        if cfg_load_success:
+           cfg_valid = check_number_of_entries(cfg_template, False)
+        if syscfg_load_success:
+           syscfg_valid = check_number_of_entries(syscfg_template, True)
 
         if (cfg_load_success and syscfg_load_success
                 and cfg_valid and syscfg_valid):

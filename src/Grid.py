@@ -519,6 +519,11 @@ class Grid(list):
         for tile in self:
             tile.wd = wd
 
+    def set_delta_wd_for_all_tiles(self, dwd):
+        """Shift working distance by dwd for all tiles in the grid."""
+        for tile in self.__tiles:
+            tile.wd += dwd
+
     def set_wd_stig_xy_for_uninitialized_tiles(self, wd, stig_xy):
         """Set all tiles that are uninitialized to specified working
         distance and stig_xy."""
