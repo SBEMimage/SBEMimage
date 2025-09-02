@@ -815,6 +815,28 @@ def grad_img(data: np.ndarray) -> np.ndarray:
     return cv2.magnitude(grad_x, grad_y)
 
 
+def inspect_masked_img(img: np.ndarray, mask: np.ndarray) -> Tuple[float, float, float]:
+    """Calculates image statistics on centered circular region of the image."""
+
+    # Default vals
+    ma_mean, ma_stddev, ma_sharp = 0, 0, 0
+
+    if not isinstance(img, np.ndarray):
+        return ma_mean, ma_stddev, ma_sharp
+
+    # Apply circular binary mask on original image
+    img = np.ma.array(img, mask=mask)
+
+    # Apply circular binary mask on gradient image
+    img_grad = np.ma.array(grad_img(img), mask=mask)
+
+    # Calculate mean, stddev, sharpness on center circular region of image
+    # ma_mean = img.mean()  not used
+    ma_stddev = img.std()
+    ma_sharp = img_grad.mean()
+    return ma_mean, ma_stddev, ma_sharp
+
+
 def imread_cv2(path: str) -> np.ndarray:
     return cv2.imread(path, cv2.IMREAD_GRAYSCALE).astype(np.float32)
 

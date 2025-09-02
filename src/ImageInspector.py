@@ -138,8 +138,6 @@ class ImageInspector:
             # Calculate mean and stddev
             mean = np.mean(img)
             stddev = np.std(img)
-            # sharpness = np.mean(utils.grad_img(img))
-            sharpness = 0
 
             # Was complete image grabbed? Test if first or final line of image
             # is black/white/uniform greyscale
@@ -163,10 +161,10 @@ class ImageInspector:
             self.load_and_inspect(filename))
 
         # Compute masked stats only if masking is active and drift correction is not
-        if masking and not self.afss_drift_corr:
+        if not load_error and not self.afss_drift_corr and masking:
             # Modify following condition if sharpness should be computed for all active tiles
             if tile_index in self.gm[grid_index].autofocus_ref_tiles():
-                ma_mean, ma_stddev, ma_sharp, err, ex = self.load_and_inspect_image_quality(filename, mask)
+                ma_mean, ma_stddev, ma_sharp = utils.inspect_masked_img(img, mask)
 
         if not load_error:
 
@@ -264,34 +262,6 @@ class ImageInspector:
         return (img, mean, stddev, sharpness,
                 range_test_passed, slice_by_slice_test_passed, tile_selected,
                 load_error, load_exception, grab_incomplete, frozen_frame_error)
-
-    @staticmethod
-    def load_and_inspect_image_quality(filename, mask):
-        """Load filename with error handling and calculate image statistics
-         on centered circular region of the image.
-        """
-        img = None
-        ma_mean, ma_stddev, ma_sharp = 0, 0, 0
-        load_error = False
-        load_exception = ''
-        try:
-            img = imread(filename)
-        except Exception as e:
-            load_exception = str(e)
-            load_error = True
-        if not load_error:
-            # Apply circular binary mask on original image
-            img = np.ma.array(img, mask=mask)
-
-            # Apply circular binary mask on gradient image
-            img_grad = np.ma.array(utils.grad_img(img), mask=mask)
-            
-            # Calculate mean, stddev, sharpness on center circular region of image
-            # ma_mean = img.mean() # not used
-            # ma_stddev = img.std() # not used
-            ma_sharp = img_grad.mean()
-            
-        return ma_mean, ma_stddev, ma_sharp, load_error, load_exception
 
     def save_tile_stats(self, base_dir, grid_index, tile_index, slice_counter):
         """Write mean and SD of specified tile to disk."""
