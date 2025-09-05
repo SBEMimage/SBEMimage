@@ -2558,20 +2558,24 @@ class Acquisition:
                                     'thresholds.',
                                     'error')
 
-                    # AFSS: Add sharpness value of the current tile-image to the correction series:
-                    if (tile_accepted
-                            and tile_index in self.autofocus.afss_data['ref_tiles']
-                            and self.autofocus.afss_active):
+                    # AFSS: Add sharpness value of the current tile-image to the correction series
+                    tile_id = f'{grid_index}.{tile_index}'
+                    af = self.autofocus
 
-                        if tile_index not in self.autofocus.afss_wd_stig_corr:
-                            self.autofocus.afss_wd_stig_corr[tile_index] = {}
+                    if tile_accepted and tile_index in af.afss_data['ref_tiles'] and af.afss_active:
+                        if tile_id not in af.afss_wd_stig_corr:
+                            af.afss_wd_stig_corr[tile_id] = {}
 
-                        entry = {self.slice_counter: [[self.gm[grid_index][tile_index].wd, 0],
-                                                      self.gm[grid_index][tile_index].stig_xy,
-                                                      sharpness,
-                                                      save_path,
-                                                      stddev]}
-                        self.autofocus.afss_wd_stig_corr[tile_index].update(entry)
+                        entry = {
+                            self.slice_counter: [
+                                [self.gm[grid_index][tile_index].wd, 0],
+                                self.gm[grid_index][tile_index].stig_xy,
+                                sharpness,
+                                save_path,
+                                stddev
+                            ]
+                        }
+                        af.afss_wd_stig_corr[tile_id].update(entry)
                 else:
                     # Tile image file could not be loaded
                     self.log(
