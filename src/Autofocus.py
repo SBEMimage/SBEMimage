@@ -25,7 +25,7 @@ import random
 from scipy.signal import fftconvolve
 from statistics import mean
 from time import sleep
-from typing import Tuple, Optional, List
+from typing import Tuple, Optional
 
 import autofocus_mapfost
 import utils
@@ -585,17 +585,23 @@ class Autofocus:
         return num_good_fits, rej_fits, diffs_passed, rej_thr
 
 
-    def afss_compute_pair_drifts(self) -> None:
-        for tile_key in self.afss_wd_stig_corr:
-            filenames = []
-            for slice_nr in self.afss_wd_stig_corr[tile_key]:
-                img_path = self.afss_wd_stig_corr[tile_key][slice_nr][3]
-                filenames.append(img_path)
-            newest_img_pair_fns = filenames[-2:]
+    def afss_compute_pair_shifts(self) -> None:
+        """Computes shift vectors between the last two images of each tile in the AFSS data using cross-correlation."""
+        SHP_IND = 3
+        for key, tile_dict in self.afss_wd_stig_corr.items():
 
-            # Cross-correlation using opencv lib
-            shift_vec = utils.compute_shifts_cv2(newest_img_pair_fns)
-            self.afss_wd_stig_corr[tile_key][slice_nr].append(shift_vec)
+            if not tile_dict:
+                utils.log(level='WARNING', message=f"Empty AFSS tile data for tile {key}")
+                continue
+
+            fns = []
+            slice_nrs = sorted(tile_dict.keys())[-2:]
+            for slice_nr in slice_nrs:
+                img_path = tile_dict[slice_nr][SHP_IND]
+                fns.append(img_path)
+
+            shift_vec = utils.compute_shifts_cv2(fns)
+            self.afss_wd_stig_corr[key][max(slice_nrs)].append(shift_vec)
         return
 
 

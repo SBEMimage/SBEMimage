@@ -3358,12 +3358,11 @@ class Acquisition:
     def process_afss_autofocus(self):
         """Main function to process AFSS."""
 
+        # Pre-process and compute shifts between image pairs
         af = self.autofocus
-
-        # Run Pre-Processing
         self.solve_deselected_ref_tiles()
         if self.afss_compute_drifts:
-            self.autofocus.afss_compute_pair_drifts()
+            af.afss_compute_pair_shifts()
 
         # Skip if AFSS run incomplete
         if not self.do_afss_corrections:
@@ -3383,7 +3382,6 @@ class Acquisition:
         if af.afss_background_mode:
             af.afss_set_orig_wd_stig()
             self.log('CTRL', 'Background mode active. Resetting original WD/Stig values.')
-
         return
 
     def lock_wd_stig(self):
