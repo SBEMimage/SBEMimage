@@ -880,7 +880,7 @@ def register_image_collection(ic: np.ndarray) -> np.ndarray:
 
 
 def compute_shifts_cv2(files: List[str]):
-    # Copmutes translation vectors between AFSS images
+    # Computes translation vectors between AFSS images
     def compute_shift(image1, image2):
         def negate_tuple(tup):
             return tuple(-x for x in tup)
@@ -1000,7 +1000,7 @@ def get_weights(input_array: list, smallest_weight: float) -> list:
     return list(weights + fcts)
 
 
-def afss_fit_linear(x_vals, y_vals, min_slope):
+def afss_fit_linear(x_vals, y_vals, min_slope) -> Tuple[Tuple, bool]:
     """
     Perform linear fit on x AFSS series sharpness values, return max y-value,
     corresponding x-value, and fit RMSE of fitted line over x-range if
@@ -1012,7 +1012,7 @@ def afss_fit_linear(x_vals, y_vals, min_slope):
         min_slope: Float, minimum absolute slope for a valid fit.
 
     Returns:
-        Tuple: (max_y, x_at_max_y, fit_rmse, plot x-range, plot y-range, fit outcome)
+        Tuple: ((max_y, x_at_max_y, fit_rmse, plot x-range, plot y-range), fit outcome)
             - max_y: Max y-value of fitted line (at min or max x) if successful, else None.
             - x_at_max_y: x-value where max y occurs if successful, else None.
             - fit_rmse: RMSE of the fit if successful, else -1.
@@ -1065,11 +1065,11 @@ def afss_fit_linear(x_vals, y_vals, min_slope):
     # Smooth line over x range for plotting
     x_fit = np.linspace(x_min, x_max, 100)
     y_fit = m * x_fit + c
+    res = x_at_max_y, max_y, fit_rmse, x_fit, y_fit
+    return res, is_successful
 
-    return x_at_max_y, max_y, fit_rmse, x_fit, y_fit, is_successful
 
-
-def afss_fit_poly(x_vals: np.ndarray, y_vals: np.ndarray) -> tuple:
+def afss_fit_poly(x_vals: np.ndarray, y_vals: np.ndarray) -> Tuple[Tuple, bool]:
     """
     Fit AFSS series data with a polynomial and compute optimal point.
 
@@ -1077,7 +1077,7 @@ def afss_fit_poly(x_vals: np.ndarray, y_vals: np.ndarray) -> tuple:
         x_vals: Input x values
         y_vals: Input y values
     Returns:
-        tuple: (x_opt, y_opt, RMSE, plot x-range, plot y-range, fit outcome)
+        tuple: (x_opt, y_opt, RMSE, plot x-range, plot y-range), fit outcome
     """
 
     # Fit sharpness values with second-order polynom
@@ -1101,6 +1101,7 @@ def afss_fit_poly(x_vals: np.ndarray, y_vals: np.ndarray) -> tuple:
         x_opt = None
         y_opt = None
 
-    return x_opt, y_opt, fit_rmse, x_fit, fit(x_fit), is_successful
+    res = x_opt, y_opt, fit_rmse, x_fit, fit(x_fit)
+    return res, is_successful
 
 # -------------- EOF AFSS computation utils --------------

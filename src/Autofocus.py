@@ -25,7 +25,7 @@ import random
 from scipy.signal import fftconvolve
 from statistics import mean
 from time import sleep
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 
 import autofocus_mapfost
 import utils
@@ -464,11 +464,12 @@ class Autofocus:
 
     # ================ Methods for Automated Focus/Stigmator Series ==================
 
+
     def get_average_afss_correction(self, do_filtering: bool, do_weighted_average: bool):
-        #  Function for mode='Average' in f(apply_afss_corrections)
+        """Function for mode='Average' in f(apply_afss_corrections)"""
         valid_diffs = {}
         m = self.afss_mode
-        dd = {FOCUS: (0, 0), STIG_X: (1, 0), STIG_Y: (1, 1)}
+        TBL = {FOCUS: (0, 0), STIG_X: (1, 0), STIG_Y: (1, 1)}
         self.afss_stats = {'avg': 0, 'n_failed': 0, 'n_out_of_lim': 0, 'n_outliers': 0}
 
         # Remove corrupted results from optima dict due unsuccessful fit(s)
@@ -484,7 +485,7 @@ class Autofocus:
 
         # Get optimal WD/Stig differences for set of valid results
         for tile_key, vals in d.items():
-            valid_diffs[tile_key] = vals[0] - self.afss_wd_stig_orig[tile_key][dd[m][0]][dd[m][1]]
+            valid_diffs[tile_key] = vals[0] - self.afss_wd_stig_orig[tile_key][TBL[m][0]][TBL[m][1]]
 
         # Remove outliers from set of optimal WD/Stig differences
         diffs = list(valid_diffs.values())
@@ -524,11 +525,11 @@ class Autofocus:
 
         LUT = {FOCUS: (0, 0, self.max_wd_diff, 10 ** 6, 'WD', 'um'),
                STIG_X: (1, 0, self.max_stig_x_diff, 1, 'StigX', '%'),
-               STIG_Y: (1, 1, self.max_stig_y_diff, 1, 'StigY', '%')
-               }
+               STIG_Y: (1, 1, self.max_stig_y_diff, 1, 'StigY', '%')}
 
         # Determine averaging mode
-        is_avg_mode = (self.afss_consensus_mode == 0 or (self.afss_consensus_mode == 2 and self.afss_mode != FOCUS))
+        is_avg_mode = (self.afss_consensus_mode == 0 or
+                       (self.afss_consensus_mode == 2 and self.afss_mode != FOCUS))
 
         # Early return for invalid average mode
         if is_avg_mode and self.afss_avg_corr is None:
@@ -584,7 +585,7 @@ class Autofocus:
         return num_good_fits, rej_fits, diffs_passed, rej_thr
 
 
-    def afss_compute_pair_drifts(self):
+    def afss_compute_pair_drifts(self) -> None:
         for tile_key in self.afss_wd_stig_corr:
             filenames = []
             for slice_nr in self.afss_wd_stig_corr[tile_key]:
@@ -595,6 +596,7 @@ class Autofocus:
             # Cross-correlation using opencv lib
             shift_vec = utils.compute_shifts_cv2(newest_img_pair_fns)
             self.afss_wd_stig_corr[tile_key][slice_nr].append(shift_vec)
+        return
 
 
     def process_afss_collections(self):
@@ -628,43 +630,64 @@ class Autofocus:
             # Fill the results' dict with sharpness values from drift-corrected image collection
             for i, slice_nr in enumerate(self.afss_wd_stig_corr[tile_key]):
                 self.afss_wd_stig_corr[tile_key][slice_nr][2] = coll_sharpness[i]
-
         return
 
 
-    def fit_afss_collections(self, plot_results=True):
+    def fit_afss_collections(self, plot_results=True) -> None:
 
-        def norm_data(arr: np.ndarray) -> np.ndarray:
+        AM = self.afss_mode
+        SHARPNESS_IND = 2
+        CONTRAST_IND = 4
+
+        def _norm_data(arr: np.ndarray) -> np.ndarray:
             arr -= np.min(arr)
             arr /= np.max(arr)
             return arr
 
-        m = self.afss_mode
-        rmse_lim = self.afss_rmse_limit
-        fit_slope = self.afss_min_slope
+        def _plot_afss(_tile_key, x, y, xf, yf, xopt, yopt, xo, _rmse) -> None:
+            x, y = np.asarray(x), np.asarray(y)
+            fp = self.generate_afss_plot_path(_tile_key)
+            self.plot_afss_series(x, y, xf, yf, xopt, yopt, xo, _rmse, fp)
+            return
+
+        def _fit_sharpness(x, y):
+            try:
+                # Attempt polynomial fit
+                res, valid = utils.afss_fit_poly(x, y)
+                # Fallback to linear fit (far from optimum)
+                if not valid:
+                    res, valid = utils.afss_fit_linear(x, y, self.afss_min_slope)
+                return res, valid
+
+            except Exception as e:
+                utils.log_exception(message=f"Unexpected error in sharpness fitting: {str(e)}")
+                return {}, False
 
         for tile_key in self.afss_wd_stig_corr:
             tile_dict = self.afss_wd_stig_corr[tile_key]  # Values of particular tile to be processed
-            x_vals = np.asarray([], dtype=float)
-            y_vals = np.asarray([], dtype=float)
-            y_vals_std = np.asarray([], dtype=float)
+            if not tile_dict:
+                utils.log(level='WARNING', message=f"Empty AFSS data for tile {tile_key}")
+                continue
 
-            # Read WD/stig_x/stig_y, sharpness values
-            d = {FOCUS: (0, 0), STIG_X: (1, 0), STIG_Y: (1, 1)}
-            x_orig = self.afss_wd_stig_orig[tile_key][d[m][0]][d[m][1]]  # for plotting purposes
-            for slice_nr in tile_dict:
-                x_vals = np.append(x_vals, tile_dict[slice_nr][d[m][0]][d[m][1]])  # WD, StigX or StigY series
-                y_vals = np.append(y_vals, tile_dict[slice_nr][2])  # List of sharpness values
-                y_vals_std = np.append(y_vals_std, tile_dict[slice_nr][4])  # List of 'contrast' values
+            # Pre-allocate arrays
+            slice_nrs = list(tile_dict.keys())
+            x_vals = np.zeros(len(slice_nrs), dtype=float)
+            y_vals = np.zeros(len(slice_nrs), dtype=float)
+            y_vals_std = np.zeros(len(slice_nrs), dtype=float)
+
+            # Read-out WD/STIG_X/STIG_Y and sharpness values
+            TBL = {FOCUS: (0, 0), STIG_X: (1, 0), STIG_Y: (1, 1)}
+            for i, sn in enumerate(slice_nrs):
+                x_vals[i] = tile_dict[sn][TBL[AM][0]][TBL[AM][1]]  # WD, StigX or StigY series
+                y_vals[i] = tile_dict[sn][SHARPNESS_IND]           # Sharpness values
+                y_vals_std[i] = tile_dict[sn][CONTRAST_IND]        # Image 'contrast' values
 
             # Combined sharpness metric
-            y_vals = np.sqrt(norm_data(norm_data(y_vals) ** 2 + norm_data(y_vals_std) ** 2))
+            y_vals = np.sqrt(_norm_data(_norm_data(y_vals) ** 2 + _norm_data(y_vals_std) ** 2))
 
             # Fit sharpness values with second-order polynom or linear fit
-            x_opt, y_opt, rmse, x_fit, y_fit, fit_valid = utils.afss_fit_poly(x_vals, y_vals)
-
-            if not fit_valid:
-                x_opt, y_opt, rmse, x_fit, y_fit, fit_valid = utils.afss_fit_linear(x_vals, y_vals, fit_slope)
+            fit_res, fit_valid = _fit_sharpness(x_vals, y_vals)
+            x_opt, y_opt, rmse, x_fit, y_fit = fit_res
 
             # Store results and proceed with plotting
             rmse_mod = -1 if not fit_valid else rmse
@@ -672,20 +695,15 @@ class Autofocus:
 
             # Save resulting plots into the 'meta/stats/' folder
             if plot_results:
-                plot_path = self.generate_afss_plot_path(tile_key)
-                self.plot_afss_series(
-                    np.asarray(x_vals),
-                    np.asarray(y_vals),
-                    x_fit, y_fit, x_opt, y_opt,
-                    x_orig, rmse,
-                    plot_path
-                )
+                x_orig = self.afss_wd_stig_orig[tile_key][TBL[AM][0]][TBL[AM][1]]  # for plotting purposes
+                _plot_afss(tile_key, x_vals, y_vals, x_fit, y_fit, x_opt, y_opt, x_orig, rmse)
 
         if self.afss_consensus_mode == 0 or (self.afss_consensus_mode == 2 and self.afss_mode != FOCUS):
             self.get_average_afss_correction(self.afss_filter_outliers, self.afss_weighted_averaging)
 
         # Reset the correction dictionary to prepare it for next AFSS run
         self.afss_wd_stig_corr = {}
+        return
 
 
     def generate_afss_plot_path(self, tile_key: str) -> str:

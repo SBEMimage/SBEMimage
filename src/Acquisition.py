@@ -3218,7 +3218,7 @@ class Acquisition:
             af.process_afss_collections()
 
         # Compute corrections
-        af.fit_afss_collections()
+        af.fit_afss_collections(plot_results=True)
         self.verify_and_log_afss_results(af, af_labels)
 
     def verify_and_log_afss_results(self, af, af_labels):
