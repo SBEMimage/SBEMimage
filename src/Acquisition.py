@@ -34,7 +34,7 @@ from constants import Error, Errors
 import constants
 import utils
 
-from Autofocus import FOCUS, STIG_X, STIG_Y
+from Autofocus import FOCUS, STIG_X, STIG_Y, AFSS_LABELS
 
 
 class Acquisition:
@@ -855,17 +855,14 @@ class Acquisition:
 
             if self.gm.array_mode:
                 self.sem.set_mode_normal()
-                
+
+            # Define first activation of the AFSS series in case of non-zero slice offset
             if self.use_autofocus and self.autofocus.method == 4:
                 self.afss_validate_ref_tiles()
-
-                # Define first activation of the AFSS series in case of non-zero slice offset
-                if self.autofocus.afss_active:
-                    self.autofocus.afss_next_activation = self.slice_counter + self.autofocus.afss_offset
-                    d = {FOCUS: 'Focus', STIG_X: 'Stigmator X', STIG_Y: 'Stigmator Y'}
-                    msg = f'Automated {d[self.autofocus.afss_mode]} series will start ' \
-                          f'at slice: {self.autofocus.afss_next_activation}'
-                    self.log('CTRL', msg)
+                self.autofocus.afss_next_activation = self.slice_counter + self.autofocus.afss_offset
+                msg = f'Automated {AFSS_LABELS[self.autofocus.afss_mode]} series will start ' \
+                      f'at slice: {self.autofocus.afss_next_activation}'
+                self.log('CTRL', msg)
 
 
         # ========================= ACQUISITION LOOP ===========================
@@ -3360,9 +3357,8 @@ class Acquisition:
 
     def process_afss_autofocus(self):
         """Main function to process AFSS."""
-        # Initial Setup
+
         af = self.autofocus
-        af_labels = {FOCUS: 'Focus', STIG_X: 'Stigmator X', STIG_Y: 'Stigmator Y'}
 
         # Run Pre-Processing
         self.solve_deselected_ref_tiles()
@@ -3374,14 +3370,14 @@ class Acquisition:
             return
 
         # Process results if good fits
-        self.compute_and_apply_afss_results(af, af_labels)
+        self.compute_and_apply_afss_results(af, AFSS_LABELS)
 
         # Finalize processing
         af.reset_afss_corrections()
         af.afss_active = False
         af.afss_next_activation += af.interval
         if self.slice_counter + 1 != self.number_slices and self.error_state is not Error.autofocus_afss:
-            self.log('CTRL', f'{af_labels[af.afss_mode]} run will be triggered at slice {af.afss_next_activation}')
+            self.log('CTRL', f'{AFSS_LABELS[af.afss_mode]} run will be triggered at slice {af.afss_next_activation}')
 
         # Reset original WD/STIG values if background mode is checked
         if af.afss_background_mode:

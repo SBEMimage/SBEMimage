@@ -100,6 +100,8 @@ AVG = 'Average'
 SPECIFIC = 'tile_specific'
 FOCUS_SPC_STIG_AVG = 'focus_specific_stig_average'
 
+AFSS_LABELS = {FOCUS: 'Focus', STIG_X: 'Stigmator X', STIG_Y: 'Stigmator Y'}
+
 # Available image sizes at ZEISS Gemini SEM and Merlin SEM
 tile_sizes = {'mask_8k': (8192, 6144),
               'mask_6k': (6144, 4608),
