@@ -803,15 +803,15 @@ class Autofocus:
         mean_diff = self.afss_stats['avg']
         g, t = self.parse_tile_key(tile_key)
 
-        applied_wd = wd_orig  # Defaults to original WD
-        if cons_mode == SPECIFIC and tile_key in self.afss_wd_stig_corr_optima:
+        if cons_mode in (SPECIFIC, FOCUS_SPC_STIG_AVG) and tile_key in self.afss_wd_stig_corr_optima:
             wd_opt = self.afss_wd_stig_corr_optima[tile_key][0]
             applied_wd = wd_opt
-        elif cons_mode in (AVG, FOCUS_SPC_STIG_AVG):
+        elif cons_mode in (AVG,):
             applied_wd = mean_diff + wd_orig
+        else:
+            applied_wd = wd_orig  # Defaults to original WD
 
         self.gm[g][t].wd = applied_wd
-
         return applied_wd
 
     def update_stig_x(self, tile_key, cons_mode):
