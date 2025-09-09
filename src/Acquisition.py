@@ -3233,7 +3233,7 @@ class Acquisition:
         else:
             # AFSS results did not pass thresholding or no good fit was found:
             rej_tiles = copy.deepcopy(rej_thr)
-            self.handle_afss_rejected_fits(af, af_labels, nr_good_fits, diffs_passed, rej_thr, rej_tiles)
+            self.handle_afss_rejected_fits(af, af_labels, diffs_passed, nr_good_fits, rej_thr, rej_tiles)
 
     def log_failed_afss_fits(self, rej_fits):
         """Logs AFSS ref. tiles that failed to meet threshold."""
@@ -3264,7 +3264,7 @@ class Acquisition:
         n_fail = af.afss_stats['n_failed']
         n_lim = af.afss_stats['n_out_of_lim']
         n_outs = af.afss_stats['n_outliers']
-        msg = f'Amount of failed/over RMSE limit/filtered fits: {n_fail}/{n_lim}/{n_outs}'
+        msg = f'Failed/over RMSE limit/filtered fits: {n_fail}/{n_lim}/{n_outs}'
         self.log('CTRL', msg)
 
     def close_passed_afss_series(self, af):
@@ -3291,8 +3291,8 @@ class Acquisition:
 
     def handle_afss_rejected_fits(self, af, af_labels, diffs_passed, nr_good_fits, rej_thr, rejected_tiles):
         """Handles rejected fits, logging, and resetting values."""
+        self.log_afss_verified_stats(af)
         if nr_good_fits == -1:
-            self.log_afss_verified_stats(af)
             self.log('CTRL', f'{af_labels[af.afss_mode]} average correction could not be estimated.')
             self.log('CTRL', f'Resetting original {af_labels[af.afss_mode]} values.')
             af.afss_set_orig_wd_stig()
