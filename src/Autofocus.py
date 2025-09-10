@@ -15,7 +15,6 @@ intervals on selected tiles. (2) Heuristic algorithm as used in Briggman
 et al. (2011), described in Appendix A of Binding et al. (2012).
 """
 
-from copy import deepcopy
 import json
 from math import sqrt, exp, sin, cos
 from matplotlib import pyplot as plt

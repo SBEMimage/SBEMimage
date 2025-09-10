@@ -30,12 +30,9 @@ from image_io import imwrite
 from dateutil.relativedelta import relativedelta
 from qtpy.QtWidgets import QMessageBox
 
-from constants import Error, Errors
+from constants import Error, Errors, FOCUS, STIG_X, STIG_Y, AFSS_LABELS
 import constants
 import utils
-
-from Autofocus import FOCUS, STIG_X, STIG_Y, AFSS_LABELS
-
 
 class Acquisition:
 
@@ -1045,14 +1042,14 @@ class Acquisition:
 
         if self.acq_paused:
             self.log('CTRL', 'Stack paused.')
-            # Reset AFSS series and set original WD/Stig to reference tiles if the acquisition is paused during AFSS run
+            # Reset AFSS series and set original WD/Stig to ref. tiles if the acquisition is paused during AFSS run
             self.autofocus.acquisition_running = False
             if self.autofocus.afss_active:
                 self.autofocus.afss_set_orig_wd_stig()
                 self.autofocus.reset_afss_corrections()
                 self.log('CTRL', 'Resetting original WD/Stig values to reference tiles.')
                 self.autofocus.afss_active = False
-            # for AFSS delay purposes
+            # For delayed AFSS activation
             self.autofocus.afss_next_activation = self.slice_counter + self.autofocus.afss_offset
 
         # Update acquisition status in Main Controls GUI
@@ -3374,8 +3371,10 @@ class Acquisition:
         # Finalize processing
         af.reset_afss_corrections()
         af.afss_active = False
+        acq_active = self.acq_paused or self.stack_completed
+        afss_err = self.error_state is not Error.autofocus_afss
         af.afss_next_activation += af.interval
-        if self.slice_counter + 1 != self.number_slices and self.error_state is not Error.autofocus_afss:
+        if self.slice_counter + 1 != self.number_slices and acq_active and not afss_err:
             self.log('CTRL', f'{AFSS_LABELS[af.afss_mode]} run will be triggered at slice {af.afss_next_activation}')
 
         # Reset original WD/STIG values if background mode is checked
