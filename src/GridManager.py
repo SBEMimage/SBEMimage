@@ -656,15 +656,22 @@ class GridManager(list):
                     grid.auto_update_tile_positions = True
                     grid.centre_sx_sy = center
 
+    def calc_tiles_from_roi(self, grid, size):
+        # effective tile size is equivalent to tile size minus overlap (only if more than 1 tile!)
+        width, height = size
+        overlap_um = grid.overlap * grid.pixel_size * 1e-3
+        tile_width = grid.tile_width_d()
+        tile_height = grid.tile_height_d()
+        tiles_width = tile_width - overlap_um
+        tiles_height = tile_height - overlap_um
+
+        tiles_y = int(np.ceil(height / tiles_height)) if height > tile_height else 1
+        tiles_x = int(np.ceil(width / tiles_width)) if width > tile_width else 1
+        return [tiles_y, tiles_x]
+
     def update_grid_from_roi(self, grid_index, center, size, rotation):
         grid = self[grid_index]
-        overlap_um = grid.overlap * grid.pixel_size * 1e-3
-        # effective tile size is equivalent to tile size minus overlap
-        tile_width = grid.tile_width_d() - overlap_um
-        tile_height = grid.tile_height_d() - overlap_um
-        w, h = size
-        tiles = [int(np.ceil(h / tile_height)), int(np.ceil(w / tile_width))]
-        grid.size = tiles
+        grid.size = self.calc_tiles_from_roi(grid, size)
         grid.rotation = rotation
         grid.auto_update_tile_positions = True
         grid.centre_sx_sy = center
@@ -677,15 +684,7 @@ class GridManager(list):
             template_index = 0
 
         grid = self[template_index]
-        overlap_um = grid.overlap * grid.pixel_size * 1e-3
-
-        # effective tile size is equivalent to tile size minus overlap
-        tile_width = grid.tile_width_d() - overlap_um
-        tile_height = grid.tile_height_d() - overlap_um
-
-        w, h = size
-        tiles = [int(np.ceil(h / tile_height)), int(np.ceil(w / tile_width))]
-
+        tiles = self.calc_tiles_from_roi(grid, size)
         new_grid = self.add_new_grid(origin_sx_sy=center, sw_sh=size, size=tiles, rotation=rotation,
                                      frame_size=grid.frame_size, frame_size_selector=grid.frame_size_selector,
                                      overlap=grid.overlap, pixel_size=grid.pixel_size,

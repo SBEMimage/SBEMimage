@@ -20,7 +20,7 @@ Response commands must be supplied in the form:
 
 ```json
 {commands: [
-    {'msg': 'COMMAND 1', 'args': [], 'kwargs: {}},
+    {'msg': 'COMMAND 1', 'args': [], 'kwargs': {}},
     {'msg': 'COMMAND 2', 'args': [], 'kwargs': {}},
 ]}
 ```
