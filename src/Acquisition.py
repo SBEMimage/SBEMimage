@@ -3166,7 +3166,7 @@ class Acquisition:
             })
             af.get_afss_factors()
 
-        # Initialize storage for original settings at series start
+        # Initialize storage for original settings at the beginning of series
         if self.slice_counter == af.afss_next_activation:
             af.afss_wd_stig_orig = {}
         return

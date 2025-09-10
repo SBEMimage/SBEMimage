@@ -107,10 +107,10 @@ class Autofocus:
         self.afss_current_round = 0  # Position of current WD/stig deviation within AFSS series
         self.afss_next_activation = 0  # Slice nr. of nearest planned AFSS run
         self.afss_perturbation_series = {}  # Multiplication factors for WD/Stig deltas
-        self.afss_wd_stig_orig = {}  # Original values before the AFSS started: d = {tile_keys:[[wd, dummy=0], (sx,sy)]}
-        # dict = {tile_keys: {slice_nrs: [ (wd, dummy=0), (sx,sy), sharpness, img_full_path, stddev, [shift_vec] ]}}
+        self.afss_wd_stig_orig = {}  # {tile_keys:[[wd, dummy_var=0], (sx,sy)]}
+        # {tile_keys: {slice_nrs: [ (wd, dummy_var=0), (sx,sy), sharpness, img_full_path, stddev, [shift_vec] ]}}
         self.afss_wd_stig_corr = {}
-        self.afss_wd_stig_corr_optima = {}  # Computed corrections AFSS: dict = {tile_keys: [wd/stig opt.val, fit_rmse]}
+        self.afss_wd_stig_corr_optima = {}  # Computed corrections AFSS: {tile_keys: [wd/stig opt.val, fit_rmse]}
         self.afss_mode = self.cfg['autofocus']['afss_mode']
         self.afss_upcoming_mode = None
         self.afss_consensus_mode = int(self.cfg['autofocus']['afss_consensus_mode'])
@@ -463,10 +463,187 @@ class Autofocus:
 
 
     # ================ Methods for Automated Focus/Stigmator Series ==================
+    # Implemented by Tomas Gancarcik, Friedrich Miescher Institute for Biomedical Research, 2025
+
+    def afss_compute_pair_shifts(self) -> None:
+        """Computes shift vectors between the last two images of each tile in the AFSS """
+        SHP_IND = 3
+        for key, tile_dict in self.afss_wd_stig_corr.items():
+
+            if not tile_dict:
+                utils.log(level='WARNING', message=f"Empty AFSS tile data for tile {key}")
+                continue
+
+            fns = []
+            slice_nrs = sorted(tile_dict.keys())[-2:]
+            for slice_nr in slice_nrs:
+                img_path = tile_dict[slice_nr][SHP_IND]
+                fns.append(img_path)
+
+            shift_vec = utils.compute_shifts_cv2(fns)
+            self.afss_wd_stig_corr[key][max(slice_nrs)].append(shift_vec)
+        return
+
+
+    def get_afss_factors(self):
+        """ Get list of WD/Stig perturbation factors to be used in focus/stig series """
+
+        do_reflect = False   # Factors are ordered as max(abs(val))
+        do_duplicate = True  # Creates doubled pert. factors instead of equidistant values
+
+        tile_keys = self.afss_data['ref_tiles']
+
+        if self.afss_rounds == 3:
+            series = np.asarray((-1, 0, 1), dtype=float)
+            for key in tile_keys:
+                self.afss_perturbation_series[key] = series
+        else:
+            if self.afss_rounds == 4:
+                do_reflect = False
+                do_duplicate = False
+
+            series = np.linspace(-1, 1, self.afss_rounds)
+            if do_reflect:
+                new = []
+                x = series
+                for i in range(len(x)):
+                    new.append(x[i])
+                    new.append(x[::-1][i])
+                # 'Reflected' series: fcts = [-1, 1, -0.5, 0.5, 0]
+                series = np.asarray(new[:len(x)])
+            if do_duplicate:
+                new = []
+                for x in np.linspace(-1, 1, int(np.ceil(self.afss_rounds / 2))):
+                    new.append(x)
+                    new.append(x)
+                # 'Duplicated' series: fcts = [-1, -1, 0, 0, 1]
+                series = np.asarray(new[:self.afss_rounds])
+            if self.afss_shuffle:
+                # 'Shuffled' series:  fcts = [0, -0.5, 1.0, -1.0, 0.5]
+                random.shuffle(list(series))
+            if self.afss_hyper_shuffle:
+                fcts = np.tile(series, (len(tile_keys), 1))
+                for line in fcts:
+                    np.random.shuffle(line)
+                for i, key in enumerate(tile_keys):
+                    self.afss_perturbation_series[key] = fcts[i, :]
+            else:
+                for key in tile_keys:
+                    self.afss_perturbation_series[key] = series
+        return
+
+    def process_afss_collections(self):
+        """Estimates sharpness of all images and all ref. tiles within an AFSS series """
+
+        for tile_key in self.afss_wd_stig_corr:
+            fns = []
+            shifts = []
+
+            # Collect shift vectors and image filenames
+            for i, slice_nr in enumerate(self.afss_wd_stig_corr[tile_key]):
+                fns.append(self.afss_wd_stig_corr[tile_key][slice_nr][3])
+                if i != 0:  # Skip reading shift vector of first image as this was not registered to anything
+                    shifts.append(self.afss_wd_stig_corr[tile_key][slice_nr][5][0])
+
+            # Load tile-image data, align them translationally and perform cropping
+            cumm_shifts = np.cumsum(shifts, axis=0)
+            ic = utils.load_image_collection(fns)
+            ic = utils.shift_collection(ic, cumm_shifts)
+            ic = utils.crop_image_collection(ic, cumm_shifts)
+
+            # Validate image collection after cropping
+            coll_sharpness = [np.nan] * len(ic)  # Defaults to NaNs if not valid
+            if utils.validate_img_collection(ic):
+                coll_sharpness = utils.get_collection_sharpness(ic, metric='edges')
+
+                # Save sharpness plots to project stats folder
+                if self.save_reg_coll:
+                    prefix = os.path.join(self.cfg['acq']['base_dir'], 'meta', 'stats')
+                    utils.store_reg_coll(ic, fns, prefix)
+
+            # Fill the results' dict with sharpness values from drift-corrected image collection
+            for i, slice_nr in enumerate(self.afss_wd_stig_corr[tile_key]):
+                self.afss_wd_stig_corr[tile_key][slice_nr][2] = coll_sharpness[i]
+        return
+
+
+    def fit_afss_collections(self, plot_results=True) -> None:
+        """ Estimates best WD/STIG of AFSS ref. tiles from sharpness data and plots results"""
+
+        AM = self.afss_mode
+        SHARPNESS_IND = 2
+        CONTRAST_IND = 4
+
+        def _norm_data(arr: np.ndarray) -> np.ndarray:
+            arr -= np.min(arr)
+            arr /= np.max(arr)
+            return arr
+
+        def _plot_afss(_tile_key, x, y, xf, yf, xopt, yopt, xo, _rmse) -> None:
+            x, y = np.asarray(x), np.asarray(y)
+            fp = self.generate_afss_plot_path(_tile_key)
+            self.plot_afss_series(x, y, xf, yf, xopt, yopt, xo, _rmse, fp)
+            return
+
+        def _fit_sharpness(x, y):
+            try:
+                # Attempt polynomial fit
+                res, valid = utils.afss_fit_poly(x, y)
+                # Fallback to linear fit (far from optimum)
+                if not valid:
+                    res, valid = utils.afss_fit_linear(x, y, self.afss_min_slope)
+                return res, valid
+
+            except Exception as e:
+                utils.log_exception(message=f"Unexpected error in sharpness fitting: {str(e)}")
+                return {}, False
+
+        for tile_key in self.afss_wd_stig_corr:
+            tile_dict = self.afss_wd_stig_corr[tile_key]  # Values of particular tile to be processed
+            if not tile_dict:
+                utils.log(level='WARNING', message=f"Empty AFSS data for tile {tile_key}")
+                continue
+
+            # Pre-allocate arrays
+            slice_nrs = list(tile_dict.keys())
+            x_vals = np.zeros(len(slice_nrs), dtype=float)
+            y_vals = np.zeros(len(slice_nrs), dtype=float)
+            y_vals_std = np.zeros(len(slice_nrs), dtype=float)
+
+            # Read-out WD/STIG_X/STIG_Y and sharpness values
+            TBL = {FOCUS: (0, 0), STIG_X: (1, 0), STIG_Y: (1, 1)}
+            for i, sn in enumerate(slice_nrs):
+                x_vals[i] = tile_dict[sn][TBL[AM][0]][TBL[AM][1]]  # WD, StigX or StigY series
+                y_vals[i] = tile_dict[sn][SHARPNESS_IND]           # Sharpness values
+                y_vals_std[i] = tile_dict[sn][CONTRAST_IND]        # Image 'contrast' values
+
+            # Combined sharpness metric
+            y_vals = np.sqrt(_norm_data(_norm_data(y_vals) ** 2 + _norm_data(y_vals_std) ** 2))
+
+            # Fit sharpness values with second-order polynom or linear fit
+            fit_res, fit_valid = _fit_sharpness(x_vals, y_vals)
+            x_opt, y_opt, rmse, x_fit, y_fit = fit_res
+
+            # Store results and proceed with plotting
+            rmse_mod = -1 if not fit_valid else rmse
+            self.afss_wd_stig_corr_optima[tile_key] = list((x_opt, rmse_mod))
+
+            # Save resulting plots into the 'meta/stats/' folder
+            if plot_results:
+                x_orig = self.afss_wd_stig_orig[tile_key][TBL[AM][0]][TBL[AM][1]]  # for plotting purposes
+                _plot_afss(tile_key, x_vals, y_vals, x_fit, y_fit, x_opt, y_opt, x_orig, rmse)
+
+        if self.afss_consensus_mode == 0 or (self.afss_consensus_mode == 2 and self.afss_mode != FOCUS):
+            self.get_average_afss_correction(self.afss_filter_outliers, self.afss_weighted_averaging)
+
+        # Reset the correction dictionary to prepare it for next AFSS run
+        self.afss_wd_stig_corr = {}
+        return
 
 
     def get_average_afss_correction(self, do_filtering: bool, do_weighted_average: bool):
-        """Function for mode='Average' in f(apply_afss_corrections)"""
+        """Computes an average WD/STIG from all optimal and valid WD/STIG corrections of each ref. tiles"""
+
         valid_diffs = {}
         m = self.afss_mode
         TBL = {FOCUS: (0, 0), STIG_X: (1, 0), STIG_Y: (1, 1)}
@@ -514,6 +691,8 @@ class Autofocus:
 
 
     def afss_verify_results(self) -> Tuple[int, dict, bool, dict]:
+        """Analyzes AFSS series results"""
+
         rej_fits: dict = {}
         rej_thr: dict = {}
         diffs_passed: bool = False
@@ -589,134 +768,6 @@ class Autofocus:
 
         return num_good_fits, rej_fits, diffs_passed, rej_thr
 
-
-    def afss_compute_pair_shifts(self) -> None:
-        """Computes shift vectors between the last two images of each tile in the AFSS data using cross-correlation."""
-        SHP_IND = 3
-        for key, tile_dict in self.afss_wd_stig_corr.items():
-
-            if not tile_dict:
-                utils.log(level='WARNING', message=f"Empty AFSS tile data for tile {key}")
-                continue
-
-            fns = []
-            slice_nrs = sorted(tile_dict.keys())[-2:]
-            for slice_nr in slice_nrs:
-                img_path = tile_dict[slice_nr][SHP_IND]
-                fns.append(img_path)
-
-            shift_vec = utils.compute_shifts_cv2(fns)
-            self.afss_wd_stig_corr[key][max(slice_nrs)].append(shift_vec)
-        return
-
-
-    def process_afss_collections(self):
-
-        for tile_key in self.afss_wd_stig_corr:
-            fns = []
-            shifts = []
-
-            # Collect shift vectors and image filenames
-            for i, slice_nr in enumerate(self.afss_wd_stig_corr[tile_key]):
-                fns.append(self.afss_wd_stig_corr[tile_key][slice_nr][3])
-                if i != 0:  # Skip reading shift vector of first image as this was not registered to anything
-                    shifts.append(self.afss_wd_stig_corr[tile_key][slice_nr][5][0])
-
-            # Load tile-image data, align them translationally and perform cropping
-            cumm_shifts = np.cumsum(shifts, axis=0)
-            ic = utils.load_image_collection(fns)
-            ic = utils.shift_collection(ic, cumm_shifts)
-            ic = utils.crop_image_collection(ic, cumm_shifts)
-
-            # Validate image collection after cropping
-            coll_sharpness = [np.nan] * len(ic)  # Defaults to NaNs if not valid
-            if utils.validate_img_collection(ic):
-                coll_sharpness = utils.get_collection_sharpness(ic, metric='edges')
-
-                # Save sharpness plots to project stats folder
-                if self.save_reg_coll:
-                    prefix = os.path.join(self.cfg['acq']['base_dir'], 'meta', 'stats')
-                    utils.store_reg_coll(ic, fns, prefix)
-
-            # Fill the results' dict with sharpness values from drift-corrected image collection
-            for i, slice_nr in enumerate(self.afss_wd_stig_corr[tile_key]):
-                self.afss_wd_stig_corr[tile_key][slice_nr][2] = coll_sharpness[i]
-        return
-
-
-    def fit_afss_collections(self, plot_results=True) -> None:
-
-        AM = self.afss_mode
-        SHARPNESS_IND = 2
-        CONTRAST_IND = 4
-
-        def _norm_data(arr: np.ndarray) -> np.ndarray:
-            arr -= np.min(arr)
-            arr /= np.max(arr)
-            return arr
-
-        def _plot_afss(_tile_key, x, y, xf, yf, xopt, yopt, xo, _rmse) -> None:
-            x, y = np.asarray(x), np.asarray(y)
-            fp = self.generate_afss_plot_path(_tile_key)
-            self.plot_afss_series(x, y, xf, yf, xopt, yopt, xo, _rmse, fp)
-            return
-
-        def _fit_sharpness(x, y):
-            try:
-                # Attempt polynomial fit
-                res, valid = utils.afss_fit_poly(x, y)
-                # Fallback to linear fit (far from optimum)
-                if not valid:
-                    res, valid = utils.afss_fit_linear(x, y, self.afss_min_slope)
-                return res, valid
-
-            except Exception as e:
-                utils.log_exception(message=f"Unexpected error in sharpness fitting: {str(e)}")
-                return {}, False
-
-        for tile_key in self.afss_wd_stig_corr:
-            tile_dict = self.afss_wd_stig_corr[tile_key]  # Values of particular tile to be processed
-            if not tile_dict:
-                utils.log(level='WARNING', message=f"Empty AFSS data for tile {tile_key}")
-                continue
-
-            # Pre-allocate arrays
-            slice_nrs = list(tile_dict.keys())
-            x_vals = np.zeros(len(slice_nrs), dtype=float)
-            y_vals = np.zeros(len(slice_nrs), dtype=float)
-            y_vals_std = np.zeros(len(slice_nrs), dtype=float)
-
-            # Read-out WD/STIG_X/STIG_Y and sharpness values
-            TBL = {FOCUS: (0, 0), STIG_X: (1, 0), STIG_Y: (1, 1)}
-            for i, sn in enumerate(slice_nrs):
-                x_vals[i] = tile_dict[sn][TBL[AM][0]][TBL[AM][1]]  # WD, StigX or StigY series
-                y_vals[i] = tile_dict[sn][SHARPNESS_IND]           # Sharpness values
-                y_vals_std[i] = tile_dict[sn][CONTRAST_IND]        # Image 'contrast' values
-
-            # Combined sharpness metric
-            y_vals = np.sqrt(_norm_data(_norm_data(y_vals) ** 2 + _norm_data(y_vals_std) ** 2))
-
-            # Fit sharpness values with second-order polynom or linear fit
-            fit_res, fit_valid = _fit_sharpness(x_vals, y_vals)
-            x_opt, y_opt, rmse, x_fit, y_fit = fit_res
-
-            # Store results and proceed with plotting
-            rmse_mod = -1 if not fit_valid else rmse
-            self.afss_wd_stig_corr_optima[tile_key] = list((x_opt, rmse_mod))
-
-            # Save resulting plots into the 'meta/stats/' folder
-            if plot_results:
-                x_orig = self.afss_wd_stig_orig[tile_key][TBL[AM][0]][TBL[AM][1]]  # for plotting purposes
-                _plot_afss(tile_key, x_vals, y_vals, x_fit, y_fit, x_opt, y_opt, x_orig, rmse)
-
-        if self.afss_consensus_mode == 0 or (self.afss_consensus_mode == 2 and self.afss_mode != FOCUS):
-            self.get_average_afss_correction(self.afss_filter_outliers, self.afss_weighted_averaging)
-
-        # Reset the correction dictionary to prepare it for next AFSS run
-        self.afss_wd_stig_corr = {}
-        return
-
-
     def generate_afss_plot_path(self, tile_key: str) -> str:
         # Generate plot name: basedir + 'slice_nr'_'grid_nr'_'tile_nr'_'focus/x_stig/y_stig_polyfit'.png
         tile_dict = self.afss_wd_stig_corr[tile_key]
@@ -755,14 +806,14 @@ class Autofocus:
             round_digits = 3
             unit = '%'
 
-        rmse = np.round(err, decimals=4)
-
         fig, ax = plt.subplots()
         plt.rcParams['figure.figsize'] = FIG_SIZE
         plt.rcParams.update({'font.size': FONT_SIZE})
         ax.plot(x_vals, y_vals, 'o', label='Data')
+        rmse = np.round(err, decimals=4)
         ax.plot(x_fit, y_fit, '-', label=f'Fit, RMSE = {rmse} (limit = {self.afss_rmse_limit})')
-        ax.axvline(x_orig, color='k', linestyle=':', label=f'Previous setting: {round(x_orig, round_digits)} {unit}')
+        prev = round(x_orig, round_digits)
+        ax.axvline(x_orig, color='k', linestyle=':', label=f'Previous setting: {prev} {unit}')
         if x_opt is not None:
             x_opt_rnd = round(x_opt, round_digits)
             diff = round(x_opt - x_orig, round_digits)
@@ -911,7 +962,6 @@ class Autofocus:
 
         return msgs
 
-
     def next_afss_mode(self):
         """
         Returns the next AFSS mode in a cyclic sequence (focus -> stig_x -> stig_y -> focus).
@@ -925,59 +975,11 @@ class Autofocus:
 
         return default_mode
 
-
-    def get_afss_factors(self):
-        # Get list of WD or Stig perturbation factors to be used in automated focus/stig series
-        do_reflect = False
-        do_duplicate = True
-
-        tile_keys = self.afss_data['ref_tiles']
-
-        if self.afss_rounds == 3:
-            series = np.asarray((-1, 0, 1), dtype=float)
-            for key in tile_keys:
-                self.afss_perturbation_series[key] = series
-        else:
-            if self.afss_rounds == 4:
-                do_reflect = False
-                do_duplicate = False
-
-            series = np.linspace(-1, 1, self.afss_rounds)
-            if do_reflect:
-                new = []
-                x = series
-                for i in range(len(x)):
-                    new.append(x[i])
-                    new.append(x[::-1][i])
-                # 'Reflected' series: fcts = [-1, 1, -0.5, 0.5, 0]
-                series = np.asarray(new[:len(x)])
-            if do_duplicate:
-                new = []
-                for x in np.linspace(-1, 1, int(np.ceil(self.afss_rounds / 2))):
-                    new.append(x)
-                    new.append(x)
-                # 'Duplicated' series: fcts = [-1, -1, 0, 0, 1]
-                series = np.asarray(new[:self.afss_rounds])
-            if self.afss_shuffle:
-                # 'Shuffled' series:  fcts = [0, -0.5, 1.0, -1.0, 0.5]
-                random.shuffle(list(series))
-            if self.afss_hyper_shuffle:
-                fcts = np.tile(series, (len(tile_keys), 1))
-                for line in fcts:
-                    np.random.shuffle(line)
-                for i, key in enumerate(tile_keys):
-                    self.afss_perturbation_series[key] = fcts[i, :]
-            else:
-                for key in tile_keys:
-                    self.afss_perturbation_series[key] = series
-
-
     def reset_afss_corrections(self):
         self.afss_wd_stig_corr = {}
         self.afss_wd_stig_corr_optima = {}
         self.afss_avg_corr = None
         self.afss_stats = {'avg': 0, 'n_failed': 0, 'n_out_of_lim': 0, 'n_outliers': 0}
-
 
     def afss_set_orig_wd_stig(self):
         self.afss_current_round = 0
