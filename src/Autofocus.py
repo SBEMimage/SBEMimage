@@ -777,25 +777,13 @@ class Autofocus:
         plt.cla()
         plt.close(fig)
 
-    @staticmethod
-    def parse_tile_key(tile_key: str) -> Tuple[int, int]:
-        """Parses tile_key into g and t, ensuring exactly two components."""
-        parts = tile_key.split('.')
-
-        # Check if there are exactly two components
-        if len(parts) != 2:
-            raise ValueError(f"Invalid tile_key format: {tile_key}. Expected format 'g.t' with exactly two parts.")
-
-        g, t = map(int, parts)
-        return g, t
-
     def update_original_values(self, tile_key, mode):
         """Updates original values based on background mode switch."""
 
         if self.afss_background_mode:
             return
 
-        g, t = self.parse_tile_key(tile_key)
+        g, t = utils.parse_tile_key(tile_key)
         if mode == FOCUS:
             self.afss_wd_stig_orig[tile_key][0][0] = self.gm[g][t].wd
         elif mode == STIG_X or mode == STIG_Y:
@@ -841,7 +829,7 @@ class Autofocus:
 
         wd_orig = self.afss_wd_stig_orig[tile_key][0][0]
         mean_diff = self.afss_stats['avg']
-        g, t = self.parse_tile_key(tile_key)
+        g, t = utils.parse_tile_key(tile_key)
 
         if cons_mode in (SPECIFIC, FOCUS_SPC_STIG_AVG) and tile_key in self.afss_wd_stig_corr_optima:
             wd_opt = self.afss_wd_stig_corr_optima[tile_key][0]
@@ -859,7 +847,7 @@ class Autofocus:
 
         stig_x_orig, stig_y_orig = self.afss_wd_stig_orig[tile_key][1]
         mean_diff = self.afss_stats['avg']
-        g, t = self.parse_tile_key(tile_key)
+        g, t = utils.parse_tile_key(tile_key)
 
         applied_stig_x = stig_x_orig
         if cons_mode == SPECIFIC and tile_key in self.afss_wd_stig_corr_optima:
@@ -878,7 +866,7 @@ class Autofocus:
 
         stig_x_orig, stig_y_orig = self.afss_wd_stig_orig[tile_key][1]
         mean_diff = self.afss_stats['avg']
-        g, t = self.parse_tile_key(tile_key)
+        g, t = utils.parse_tile_key(tile_key)
 
         applied_stig_y = stig_y_orig
         if cons_mode == SPECIFIC and tile_key in self.afss_wd_stig_corr_optima:

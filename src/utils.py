@@ -801,6 +801,17 @@ def match_template(img: np.ndarray, templ: np.ndarray, thresh_match: float) -> n
 
 
 # -------------- AFSS computation utils --------------
+def parse_tile_key(tile_key: str) -> Tuple[int, int]:
+    """Parses tile_key into g and t, ensuring exactly two components."""
+    parts = tile_key.split('.')
+
+    # Check if there are exactly two components
+    if len(parts) != 2:
+        raise ValueError(f"Invalid tile_key format: {tile_key}. Expected format 'g.t' with exactly two parts.")
+
+    g, t = map(int, parts)
+    return g, t
+
 
 def grad_img(data: np.ndarray) -> np.ndarray:
     scale = 1
