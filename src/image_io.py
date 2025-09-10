@@ -1,11 +1,8 @@
 import imageio.v3 as iio
 import numpy as np
 import os
-# import tifffile
-# from tifffile import TiffWriter, PHOTOMETRIC
-
 import tifffile
-from tifffile import TiffWriter
+from tifffile import TiffWriter, PHOTOMETRIC
 
 from constants import VERSION
 from utils import resize_image, int2float_image, float2int_image, norm_image_quantiles, validate_output_path
@@ -19,33 +16,6 @@ CONVERSIONS = {'nm': 1e-3, 'nanometer': 1e-3,
                'cm': 1e4, 'centimeter': 1e4,
                'm': 1e6, 'meter': 1e6}
 
-### FALLBACK
-# Compatibility shim for photometric values across tifffile versions (and Python 3.7)
-try:
-    # Newer tifffile (Python 3.12+ world)
-    from tifffile import PHOTOMETRIC as _PH
-    PH_RGB = getattr(_PH, 'RGB', 'rgb')
-    PH_MINISBLACK = getattr(_PH, 'MINISBLACK', 'minisblack')
-except Exception:
-    # Older tifffile (common on Python 3.7)
-    try:
-        from tifffile import TIFF as _TIFF  # older API
-        PH_RGB = getattr(_TIFF.PHOTOMETRIC, 'RGB', 'rgb')
-        PH_MINISBLACK = getattr(_TIFF.PHOTOMETRIC, 'MINISBLACK', 'minisblack')
-    except Exception:
-        # Last-resort: strings (valid for TiffWriter.write)
-        PH_RGB = 'rgb'
-        PH_MINISBLACK = 'minisblack'
-
-
-try:
-    import imageio.v3 as iio
-    _has_improps = hasattr(iio, 'improps')
-except Exception:
-    import imageio as iio
-    _has_improps = False
-
-### EOF FALLBACK
 
 def imread(path, level=None, source_pixel_size_um=None, target_pixel_size_um=None, channeli=None, render=True):
     image = None
@@ -261,38 +231,17 @@ def imread_metadata(path):
                             if yres is not None and yres != 0:
                                 pixel_size.append((1 / yres, units))
     else:
-        # try:
-        #     properties = iio.improps(path)
-        #     size = properties.shape[1], properties.shape[0]
-        #     sizes = [size]
-        #     resolution = properties.spacing
-        #     if resolution:
-        #         metadata = iio.immeta(path)
-        #         units = metadata.get('unit')
-        #         pixel_size = [(1 / res, units) for res in resolution]
-        # except Exception as e:
-        #     raise TypeError(f'Error reading image {path}\n{e}')
-
         try:
-            # imageio.v3 path (newer Python, if available)
-            if _has_improps:
-                props = iio.improps(path)
-                size = props.shape[1], props.shape[0]
-                sizes = [size]
-                resolution = getattr(props, "spacing", None)
-                if resolution:
-                    metadata = iio.immeta(path)
-                    units = metadata.get("unit")
-                    pixel_size = [(1 / res, units) for res in resolution]
-            else:
-                # Fallback for Python 3.7: just read with imageio
-                img = iio.imread(path)
-                size = img.shape[1], img.shape[0]
-                sizes = [size]
-                # No resolution metadata available here
-                resolution = None
+            properties = iio.improps(path)
+            size = properties.shape[1], properties.shape[0]
+            sizes = [size]
+            resolution = properties.spacing
+            if resolution:
+                metadata = iio.immeta(path)
+                units = metadata.get('unit')
+                pixel_size = [(1 / res, units) for res in resolution]
         except Exception as e:
-            raise TypeError(f"Error reading image {path}\n{e}")
+            raise TypeError(f'Error reading image {path}\n{e}')
 
     all_metadata['dimension_order'] = dimension_order
     all_metadata['size'] = size
@@ -382,20 +331,12 @@ def imwrite(path, data, metadata=None, tile_size=None, compression=None,
     size = np.flip(data.shape[:2])
 
     if is_tiff:
-        # if data.ndim <= 3 and data.shape[-1] in (3, 4):
-        #     photometric = PHOTOMETRIC.RGB
-        #     move_channel = False
-        # else:
-        #     photometric = PHOTOMETRIC.MINISBLACK
-        #     # move channel axis to front
-        #     move_channel = (data.ndim >= 3 and data.shape[-1] < data.shape[0])
-
         if data.ndim <= 3 and data.shape[-1] in (3, 4):
-            photometric = PH_RGB
+            photometric = PHOTOMETRIC.RGB
             move_channel = False
         else:
-            photometric = PH_MINISBLACK
-            # move channel axis to front if last axis is the channel
+            photometric = PHOTOMETRIC.MINISBLACK
+            # move channel axis to front
             move_channel = (data.ndim >= 3 and data.shape[-1] < data.shape[0])
 
         if metadata is not None:
