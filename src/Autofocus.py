@@ -34,6 +34,7 @@ except ImportError:
 
 import autofocus_mapfost
 import utils
+import utils_afss
 from constants import *
 
 
@@ -485,7 +486,7 @@ class Autofocus:
                 img_path = tile_dict[slice_nr][SHP_IND]
                 fns.append(img_path)
 
-            shift_vec = utils.compute_shifts_cv2(fns)
+            shift_vec = utils_afss.compute_shifts_cv2(fns)
             self.afss_wd_stig_corr[key][max(slice_nrs)].append(shift_vec)
         return
 
@@ -552,19 +553,19 @@ class Autofocus:
 
             # Load tile-image data, align them translationally and perform cropping
             cumm_shifts = np.cumsum(shifts, axis=0)
-            ic = utils.load_image_collection(fns)
-            ic = utils.shift_collection(ic, cumm_shifts)
-            ic = utils.crop_image_collection(ic, cumm_shifts)
+            ic = utils_afss.load_image_collection(fns)
+            ic = utils_afss.shift_collection(ic, cumm_shifts)
+            ic = utils_afss.crop_image_collection(ic, cumm_shifts)
 
             # Validate image collection after cropping
             coll_sharpness = [np.nan] * len(ic)  # Defaults to NaNs if not valid
-            if utils.validate_img_collection(ic):
-                coll_sharpness = utils.get_collection_sharpness(ic, metric='edges')
+            if utils_afss.validate_img_collection(ic):
+                coll_sharpness = utils_afss.get_collection_sharpness(ic, metric='edges')
 
                 # Save sharpness plots to project stats folder
                 if self.save_reg_coll:
                     prefix = os.path.join(self.cfg['acq']['base_dir'], 'meta', 'stats')
-                    utils.store_reg_coll(ic, fns, prefix)
+                    utils_afss.store_reg_coll(ic, fns, prefix)
 
             # Fill the results' dict with sharpness values from drift-corrected image collection
             for i, slice_nr in enumerate(self.afss_wd_stig_corr[tile_key]):
@@ -593,10 +594,10 @@ class Autofocus:
         def _fit_sharpness(x, y):
             try:
                 # Attempt polynomial fit
-                res, valid = utils.afss_fit_poly(x, y)
+                res, valid = utils_afss.afss_fit_poly(x, y)
                 # Fallback to linear fit (far from optimum)
                 if not valid:
-                    res, valid = utils.afss_fit_linear(x, y, self.afss_min_slope)
+                    res, valid = utils_afss.afss_fit_linear(x, y, self.afss_min_slope)
                 return res, valid
 
             except Exception as e:
@@ -668,7 +669,7 @@ class Autofocus:
         # Remove outliers from set of optimal WD/Stig differences
         diffs = list(valid_diffs.values())
         if do_filtering and len(diffs) > 2:
-            diffs_filtered = utils.filter_outliers(np.asarray(diffs))
+            diffs_filtered = utils_afss.filter_outliers(np.asarray(diffs))
             self.afss_stats['n_outliers'] = len(diffs) - len(diffs_filtered)
             diffs = diffs_filtered
             # Remove filtered entries from helper dict (used in weights)
@@ -683,7 +684,7 @@ class Autofocus:
         elif do_weighted_average and len(diffs) > 1:
             # Weights for weighted average are calculated from RMSE values
             rmse_ = [self.afss_wd_stig_corr_optima[key][1] for key in valid_diffs.keys()]
-            weights = utils.get_weights(rmse_, smallest_weight=0.3)
+            weights = utils_afss.get_weights(rmse_, smallest_weight=0.3)
             # Prevent division by zero if by any change the sum of weight is zero
             if np.sum(weights) == 0:
                 weights[0] -= 1e-9
@@ -839,7 +840,7 @@ class Autofocus:
         if self.afss_background_mode:
             return
 
-        g, t = utils.parse_tile_key(tile_key)
+        g, t = utils_afss.parse_tile_key(tile_key)
         if mode == FOCUS:
             self.afss_wd_stig_orig[tile_key][0][0] = self.gm[g][t].wd
         elif mode == STIG_X or mode == STIG_Y:
@@ -885,7 +886,7 @@ class Autofocus:
 
         wd_orig = self.afss_wd_stig_orig[tile_key][0][0]
         mean_diff = self.afss_stats['avg']
-        g, t = utils.parse_tile_key(tile_key)
+        g, t = utils_afss.parse_tile_key(tile_key)
 
         if cons_mode in (SPECIFIC, FOCUS_SPC_STIG_AVG) and tile_key in self.afss_wd_stig_corr_optima:
             wd_opt = self.afss_wd_stig_corr_optima[tile_key][0]
@@ -903,7 +904,7 @@ class Autofocus:
 
         stig_x_orig, stig_y_orig = self.afss_wd_stig_orig[tile_key][1]
         mean_diff = self.afss_stats['avg']
-        g, t = utils.parse_tile_key(tile_key)
+        g, t = utils_afss.parse_tile_key(tile_key)
 
         applied_stig_x = stig_x_orig
         if cons_mode == SPECIFIC and tile_key in self.afss_wd_stig_corr_optima:
@@ -922,7 +923,7 @@ class Autofocus:
 
         stig_x_orig, stig_y_orig = self.afss_wd_stig_orig[tile_key][1]
         mean_diff = self.afss_stats['avg']
-        g, t = utils.parse_tile_key(tile_key)
+        g, t = utils_afss.parse_tile_key(tile_key)
 
         applied_stig_y = stig_y_orig
         if cons_mode == SPECIFIC and tile_key in self.afss_wd_stig_corr_optima:

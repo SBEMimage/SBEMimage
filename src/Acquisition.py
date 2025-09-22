@@ -30,6 +30,7 @@ from qtpy.QtWidgets import QMessageBox
 from constants import Error, Errors, FOCUS, STIG_X, STIG_Y, AFSS_LABELS
 import constants
 import utils
+import utils_afss
 
 from image_io import imwrite, imread
 
@@ -589,7 +590,7 @@ class Acquisition:
             if os.path.exists(mask_filename):
                 mask = imread(mask_filename)
             else:
-                mask = utils.create_mask(mask_size)
+                mask = utils_afss.create_mask(mask_size)
                 try:
                     imwrite(mask_filename, mask)
                 except Exception as e:

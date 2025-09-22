@@ -13,8 +13,8 @@ detection) for overview and tile images."""
 
 import os
 import json
-import psutil
 import numpy as np
+#import psutil
 
 from scipy.signal import medfilt2d
 from collections import deque
@@ -22,6 +22,7 @@ from collections import deque
 import constants
 from image_io import imread, imwrite
 import utils
+import utils_afss
 
 
 # Preview image width in pixels
@@ -164,7 +165,7 @@ class ImageInspector:
         if not load_error and not self.afss_drift_corr and masking:
             # Modify following condition if sharpness should be computed for all active tiles
             if tile_index in self.gm[grid_index].autofocus_ref_tiles():
-                ma_mean, ma_stddev, ma_sharp = utils.inspect_masked_img(img, mask)
+                ma_mean, ma_stddev, ma_sharp = utils_afss.inspect_masked_img(img, mask)
 
         if not load_error:
 
