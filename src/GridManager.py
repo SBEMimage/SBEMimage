@@ -33,6 +33,8 @@ import utils
 from Grid import Grid
 from image_io import imread
 
+from constants import tile_sizes
+
 
 class GridManager(list):
 
@@ -172,6 +174,10 @@ class GridManager(list):
         array_path = grids_data.get('array_file')
         self.array_data = ArrayData.ArrayData(array_path)
         self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
+        
+        # Available image sizes at ZEISS Gemini SEM and Merlin SEM used for AFSS binary masks
+        self.tile_sizes = tile_sizes
+
 
     def get_grid_label(self, grid_index):
         if grid_index is not None:

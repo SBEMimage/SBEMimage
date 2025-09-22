@@ -92,6 +92,24 @@ LOG_FORMAT_DATETIME = '%Y-%m-%d %H:%M:%S'
 LOG_MAX_FILESIZE = 10000000
 LOG_MAX_FILECOUNT = 20
 
+# Constants for Automated Focus Stigmator Series
+FOCUS = 'focus'
+STIG_X = 'stig_x'
+STIG_Y = 'stig_y'
+AVG = 'Average'
+SPECIFIC = 'tile_specific'
+FOCUS_SPC_STIG_AVG = 'focus_specific_stig_average'
+
+AFSS_LABELS = {FOCUS: 'Focus', STIG_X: 'Stigmator X', STIG_Y: 'Stigmator Y'}
+
+# Available image sizes at ZEISS Gemini SEM and Merlin SEM
+tile_sizes = {'mask_8k': (8192, 6144),
+              'mask_6k': (6144, 4608),
+              'mask_4k': (4096, 3072),
+              'mask_3k': (3072, 2304),
+              'mask_2k': (2048, 1536),
+              'mask_1k': (1024, 768),
+              'mask_0k': (512, 384)}
 
 # TODO: replace values with auto()
 class Error(Enum):
@@ -152,6 +170,7 @@ class Error(Enum):
     autofocus_heuristic = 506
     wd_stig_difference = 507
     metadata_server = 508
+    autofocus_afss = 509
 
     # Reserved for user-defined errors
     test_case = 601
@@ -227,7 +246,8 @@ Errors = {
     Error.autofocus_heuristic: 'Autofocus error (heuristic)',
     Error.wd_stig_difference: 'WD/STIG difference error',
     Error.metadata_server: 'Metadata server error',
-
+    Error.autofocus_afss: 'Autofocus error (AFSS)',
+    
     # Reserved for user-defined errors
     Error.test_case: 'Test case error',
 
