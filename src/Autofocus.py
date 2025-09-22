@@ -17,7 +17,6 @@ et al. (2011), described in Appendix A of Binding et al. (2012).
 
 import json
 from math import sqrt, exp, sin, cos
-from matplotlib import pyplot as plt
 import numpy as np
 import os.path
 import random
@@ -25,6 +24,13 @@ from scipy.signal import fftconvolve
 from statistics import mean
 from time import sleep
 from typing import Tuple, Optional
+
+try:
+    from matplotlib import pyplot as plt
+    has_matplotlib = True
+except ImportError:
+    pass
+    has_matplotlib = False
 
 import autofocus_mapfost
 import utils
@@ -96,13 +102,13 @@ class Autofocus:
         self.mapfost_stig_scale = json.loads(self.cfg['autofocus']['mapfost_astig_scaling'])
 
         # Automated Focus/Stigmator Series
-        self.afss_wd_delta = json.loads(self.cfg['autofocus']['afss_wd_delta'])
-        self.afss_stig_x_delta = json.loads(self.cfg['autofocus']['afss_stig_x_delta'])
-        self.afss_stig_y_delta = json.loads(self.cfg['autofocus']['afss_stig_y_delta'])
+        self.afss_wd_delta = float(self.cfg['autofocus'].get('afss_wd_delta', 1.5e-06))
+        self.afss_stig_x_delta = float(self.cfg['autofocus'].get('afss_stig_x_delta', 0.2))
+        self.afss_stig_y_delta = float(self.cfg['autofocus'].get('afss_stig_y_delta', 0.2))
         self.afss_data = {'dwd': 0, 'dsx': 0, 'dsy': 0, 'afss_rounds': 0, 'ref_tiles': []}
         self.afss_grid_ind: Optional[int] = None
-        self.afss_rounds = json.loads(self.cfg['autofocus']['afss_rounds'])  # Number of induced focus/stig deviations
-        self.afss_offset = json.loads(self.cfg['autofocus']['afss_offset'])  # Skip slices before first AFSS activation
+        self.afss_rounds = int(self.cfg['autofocus'].get('afss_rounds', 3))  # Number of induced focus/stig deviations
+        self.afss_offset = int(self.cfg['autofocus'].get('afss_offset', 0))  # Skip slices before first AFSS activation
         self.afss_current_round = 0  # Position of current WD/stig deviation within AFSS series
         self.afss_next_activation = 0  # Slice nr. of nearest planned AFSS run
         self.afss_perturbation_series = {}  # Multiplication factors for WD/Stig deltas
@@ -110,11 +116,11 @@ class Autofocus:
         # {tile_keys: {slice_nrs: [ (wd, dummy_var=0), (sx,sy), sharpness, img_full_path, stddev, [shift_vec] ]}}
         self.afss_wd_stig_corr = {}
         self.afss_wd_stig_corr_optima = {}  # Computed corrections AFSS: {tile_keys: [wd/stig opt.val, fit_rmse]}
-        self.afss_mode = self.cfg['autofocus']['afss_mode']
+        self.afss_mode = self.cfg['autofocus'].get('afss_mode', 'focus')
         self.afss_upcoming_mode = None
-        self.afss_consensus_mode = int(self.cfg['autofocus']['afss_consensus_mode'])
-        self.afss_drift_corrected = (self.cfg['autofocus']['afss_drift_corrected'].lower() == 'true')
-        self.afss_autostig_active = (self.cfg['autofocus']['afss_autostig_active'].lower() == 'true')
+        self.afss_consensus_mode = int(self.cfg['autofocus'].get('afss_consensus_mode', 1))
+        self.afss_drift_corrected = (self.cfg['autofocus'].get('afss_drift_corrected', '').lower() == 'true')
+        self.afss_autostig_active = (self.cfg['autofocus'].get('afss_autostig_active', '').lower() == 'true')
         self.afss_active = False
         self.afss_hyper_perturbation_series = {}
         self.afss_shuffle = False
@@ -122,11 +128,11 @@ class Autofocus:
         self.afss_filter_outliers = True
         self.afss_weighted_averaging = True
         self.afss_avg_corr = None
-        self.afss_max_fails = json.loads(self.cfg['autofocus']['afss_max_fails'])
-        self.afss_rmse_limit = float(self.cfg['autofocus']['afss_rmse_limit'])
-        self.afss_background_mode = (self.cfg['autofocus']['afss_background_mode'].lower() == 'true')
+        self.afss_max_fails = int(self.cfg['autofocus'].get('afss_max_fails', 3))
+        self.afss_rmse_limit = float(self.cfg['autofocus'].get('afss_rmse_limit', 0.25))
+        self.afss_background_mode = (self.cfg['autofocus'].get('afss_background_mode', '').lower() == 'true')
         self.acquisition_running = False
-        self.afss_min_good_fits = int(self.cfg['autofocus']['min_fits'])
+        self.afss_min_good_fits = int(self.cfg['autofocus'].get('min_fits', 3))
         self.afss_stats = {'avg': 0, 'n_failed': 0, 'n_out_of_lim': 0, 'n_outliers': 0}
         self.afss_min_slope = 0.5  # Slope limit for sharpness linear fit
         self.save_reg_coll = False  # Enable/Disable saving images of registered series to stats folder
@@ -628,7 +634,7 @@ class Autofocus:
             self.afss_wd_stig_corr_optima[tile_key] = list((x_opt, rmse_mod))
 
             # Save resulting plots into the 'meta/stats/' folder
-            if plot_results:
+            if plot_results and has_matplotlib:
                 x_orig = self.afss_wd_stig_orig[tile_key][TBL[AM][0]][TBL[AM][1]]  # for plotting purposes
                 _plot_afss(tile_key, x_vals, y_vals, x_fit, y_fit, x_opt, y_opt, x_orig, rmse)
 

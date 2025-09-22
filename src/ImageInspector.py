@@ -82,7 +82,7 @@ class ImageInspector:
             self.cfg['debris']['histogram_diff_threshold'])
 
         self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
-        self.afss_drift_corr = (self.cfg['autofocus']['afss_drift_corrected'].lower() == 'true')
+        self.afss_drift_corr = (self.cfg['autofocus'].get('afss_drift_corrected', '') == 'true')
 
     def save_to_cfg(self):
         """Save all parameters managed by image_inspector to config."""

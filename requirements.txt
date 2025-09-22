@@ -7,7 +7,6 @@ requests
 pywin32
 pyserial
 scipy
-matplotlib
 numpy
 python-dateutil
 scikit-image

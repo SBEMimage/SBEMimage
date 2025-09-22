@@ -21,18 +21,18 @@ import datetime
 import json
 import math
 
-from time import sleep, time
-from statistics import mean
-
 import numpy as np
-
-from image_io import imwrite
+from statistics import mean
+from time import sleep, time
 from dateutil.relativedelta import relativedelta
 from qtpy.QtWidgets import QMessageBox
 
 from constants import Error, Errors, FOCUS, STIG_X, STIG_Y, AFSS_LABELS
 import constants
 import utils
+
+from image_io import imwrite, imread
+
 
 class Acquisition:
 
@@ -507,15 +507,7 @@ class Acquisition:
             # Save current grid setup
             gridmap_filename = self.gm.save_tile_positions_to_disk(
                 self.base_dir, timestamp)
-            # Create and store binary circular masks for AFSS
-            for size_id in self.gm.tile_sizes:
-                mask_fn = os.path.join(
-                    self.base_dir, 'meta', 'stats', size_id + '.tif')
-                mask = utils.create_mask(self.gm.tile_sizes[size_id])
-                try:
-                    utils.save_mask(mask, mask_fn)
-                except Exception as _:
-                    self.error_state == Error.autofocus_afss            
+
             # Create main log file, in which all entries are saved.
             # No line limit.
             self.main_log_filename = os.path.join(
@@ -589,6 +581,22 @@ class Acquisition:
                     self.pause_acquisition(1)
                     self.error_state = Error.mirror_drive
 
+    def set_up_afss_masks(self):
+        # Create and store binary circular masks for AFSS
+        for mask_id, mask_size in self.gm.tile_sizes.items():
+            mask_filename = os.path.join(
+                self.base_dir, 'meta', 'stats', mask_id + constants.TEMP_IMAGE_FORMAT)
+            if os.path.exists(mask_filename):
+                mask = imread(mask_filename)
+            else:
+                mask = utils.create_mask(mask_size)
+                try:
+                    imwrite(mask_filename, mask)
+                except Exception as e:
+                    self.log('CTRL', f'Failed to save AFSS mask: {e}', 'error')
+                    self.error_state = Error.autofocus_afss
+            self.img_masks[mask_id] = mask
+
     def mirror_files(self, file_list):
         """Copy files in file_list to mirror drive, keep relative path."""
         try:
@@ -658,7 +666,7 @@ class Acquisition:
 
         self.set_up_acq_subdirectories()
         self.set_up_acq_logs()
-        self.img_masks = utils.load_masks(os.path.join(self.base_dir, 'meta', 'stats'))
+        self.set_up_afss_masks()
 
         # Proceed if no error has occurred during setup of folders and logs
         if self.error_state == Error.none:
@@ -2460,16 +2468,14 @@ class Acquisition:
             # Check if image was saved and process it
             if os.path.isfile(save_path):
 
-                # Identify appropriate image mask for quality monitor (based on image width value)
-                tile_width, tile_height = self.gm[grid_index].frame_size
-                mask_key = [key for key, size in self.gm.tile_sizes.items() if size[0] == tile_width][0]
-                if mask_key:
-                    masking = True
-                else:
-                    masking = False
-                    mask_key = 'mask_0k'  # dummy mask key for 'process_tile' function in case no
-                    # compatible mask (0k : 8k) could be found
-                mask = self.img_masks[mask_key]
+                # Identify appropriate image mask for quality monitor
+                mask = None
+                masking = False
+                for mask_key, mask_size in self.gm.tile_sizes.items():
+                    if mask_size == self.gm[grid_index].frame_size:
+                        mask = self.img_masks[mask_key]
+                        masking = True
+                        break
 
                 start_time = time()
                 (tile_img, mean, stddev, sharpness,
@@ -3204,7 +3210,7 @@ class Acquisition:
             self.afss_compute_drifts = True
 
         # Enable corrections at series end
-        self.do_afss_corrections = af.afss_current_round == af.afss_data['afss_rounds'] - 1
+        self.do_afss_corrections = (af.afss_current_round == af.afss_data['afss_rounds'] - 1)
 
         return
 

@@ -33,8 +33,6 @@ import utils
 from Grid import Grid
 from image_io import imread
 
-from constants import tile_sizes
-
 
 class GridManager(list):
 
@@ -175,9 +173,8 @@ class GridManager(list):
         self.array_data = ArrayData.ArrayData(array_path)
         self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
         
-        # Available image sizes at ZEISS Gemini SEM and Merlin SEM used for AFSS binary masks
-        self.tile_sizes = tile_sizes
-
+        # Available image sizes used for AFSS binary masks
+        self.tile_sizes = {f'mask_{res[0]}_{res[1]}': res for res in self.sem.STORE_RES}
 
     def get_grid_label(self, grid_index):
         if grid_index is not None:
@@ -289,9 +286,9 @@ class GridManager(list):
                     # Only save tiles with WD != 0 which are active or
                     # selected for autofocus or wd gradient.
                     wd_stig_dict[tile_key] = [
-                        round(self[grid_index][tile_index].wd, 9),
-                        round(self[grid_index][tile_index].stig_xy[0], 6),
-                        round(self[grid_index][tile_index].stig_xy[1], 6)
+                        round(float(self[grid_index][tile_index].wd), 9),
+                        round(float(self[grid_index][tile_index].stig_xy[0]), 6),
+                        round(float(self[grid_index][tile_index].stig_xy[1]), 6)
                     ]
         # Save as JSON string in config:
         grids_data['wd_stig_params'] = json.dumps(wd_stig_dict)

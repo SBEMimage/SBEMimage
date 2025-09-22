@@ -28,19 +28,16 @@ from logging import StreamHandler
 from logging.handlers import RotatingFileHandler
 
 from skimage import draw
-from skimage.transform import ProjectiveTransform
 from skimage.measure import ransac
 from skimage.io import imread, imsave, ImageCollection
 from skimage.util import crop, img_as_ubyte
 from skimage.registration import phase_cross_correlation
 from skimage.transform import rescale, ProjectiveTransform
 
-from serial.tools import list_ports
 from qtpy.QtCore import QObject, Signal, QSize
 from qtpy.QtGui import QIcon, QPixmap, QImage, QTransform
 from scipy.ndimage import maximum_filter
 from scipy.ndimage import interpolation
-from shapely.geometry import Polygon, Point
 from serial.tools import list_ports
 from constants import *
 
@@ -850,6 +847,7 @@ def inspect_masked_img(img: np.ndarray, mask: np.ndarray) -> Tuple[float, float,
 def imread_cv2(path: str) -> np.ndarray:
     return cv2.imread(path, cv2.IMREAD_GRAYSCALE).astype(np.float32)
 
+
 def create_mask(tile_size):
     width, height = tile_size
     center = (int(height / 2), int(width / 2))
@@ -858,22 +856,6 @@ def create_mask(tile_size):
     mask = np.ones((height, width), dtype=bool)
     mask[rr, cc] = False
     return mask
-
-
-def save_mask(mask, filename):
-    try:
-        imsave(filename, img_as_ubyte(mask))
-    except Exception as e:
-        log_exception(f"Failed to save {filename}: {e}")
-        raise
-
-
-def load_masks(path):
-    masks = {}
-    for fn in glob.glob(path + '\\mask_*.tif'):
-        key = str.split(basename(fn), '.')[0]
-        masks[key] = imread(fn)
-    return masks
 
 
 def load_image_collection(filenames: list) -> np.ndarray:

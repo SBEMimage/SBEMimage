@@ -1327,6 +1327,7 @@ class Viewport(QWidget):
         self.acq.init_acquisition()
         self.acq.set_up_acq_subdirectories()
         self.acq.set_up_acq_logs()
+        self.acq.set_up_afss_masks()
         self.acq.pause_acquisition(2)
         self.acq.acquire_grid(self.selected_grid, overwrite=True)
 
