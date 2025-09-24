@@ -587,6 +587,12 @@ class Acquisition:
         for mask_id, mask_size in self.gm.tile_sizes.items():
             mask_filename = os.path.join(
                 self.base_dir, 'meta', 'stats', mask_id + constants.TEMP_IMAGE_FORMAT)
+
+            # TODO: improve performance by checking if self.img_masks[mask_id] is already set?
+            # Potential alternative: if only doing this only once while SBEMimage is running,
+            # and doesn't take super long, then it is not necessary to store the masks to file at all
+            # (and avoid any potential issues in case the mask is changed in the future)
+
             if os.path.exists(mask_filename):
                 mask = imread(mask_filename)
             else:
