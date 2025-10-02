@@ -89,7 +89,7 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
             success = sem.acquire_frame(save_path, stage)
             # Remove indicator colour
             viewport_trigger.transmit('ACQ IND OV', ov_index)
-            _, _, _, load_error, _, grab_incomplete = (
+            _, _, _, _, load_error, _, grab_incomplete = (
                 img_inspector.load_and_inspect(save_path))
             if load_error or grab_incomplete and check_ov_acceptance:
                 # Try again
@@ -100,7 +100,7 @@ def acquire_ov(base_dir, selection, sem, stage, ovm, img_inspector,
                 success = sem.acquire_frame(save_path, stage)
                 viewport_trigger.transmit('ACQ IND OV', ov_index)
                 sleep(1)
-                _, _, _, load_error, _, grab_incomplete = (
+                _, _, _, _, load_error, _, grab_incomplete = (
                     img_inspector.load_and_inspect(save_path))
                 if load_error or grab_incomplete:
                     success = False
@@ -223,7 +223,7 @@ def acquire_stub_ov(sem, stage, stub_ovm, acq, img_inspector,
                     else:
                         success = sem.acquire_frame(save_path, stage)
                     sleep(0.5)
-                    tile_img, _, _, load_error, _, grab_incomplete = (
+                    tile_img, _, _, _, load_error, _, grab_incomplete = (
                         img_inspector.load_and_inspect(save_path))
                     if load_error or grab_incomplete:
                         # Try again
@@ -233,7 +233,7 @@ def acquire_stub_ov(sem, stage, stub_ovm, acq, img_inspector,
                         else:
                             success = sem.acquire_frame(save_path, stage)
                         sleep(1.5)
-                        tile_img, _, _, load_error, _, grab_incomplete = (
+                        tile_img, _, _, _, load_error, _, grab_incomplete = (
                             img_inspector.load_and_inspect(save_path))
                         if load_error:
                             success = False
