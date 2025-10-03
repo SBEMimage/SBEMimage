@@ -36,6 +36,7 @@ class AutofocusSettingsDlg(QDialog):
         self.radioButton_useHeuristic.toggled.connect(self.group_box_update)
         self.radioButton_useTrackingOnly.toggled.connect(self.group_box_update)
         self.radioButton_useMAPFoSt.toggled.connect(self.group_box_update)
+        self.radioButton_useAFSS.toggled.connect(self.group_box_update)
         self.group_box_update()
         # General settings
         self.lineEdit_refTiles.setText(
