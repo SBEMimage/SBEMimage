@@ -10,9 +10,14 @@ For more background and details read the [paper](https://www.frontiersin.org/art
 
 ![Viewport](img/viewport_screenshot.png)
 
-## Getting started / Support
+## Documentation & Support
 
-Please read the user guide: [sbemimage.github.io/SBEMimage](https://sbemimage.github.io/SBEMimage). It currently contains installation instructions and a short introduction to the software (to be expanded). For users who are not familiar with Python, it is recommended to download the Windows 10+ installer. For support and discussion, please use the [Image.sc forum](https://forum.image.sc/) and post to the forum with the tag 'sbemimage'.
+Please read the user guide: [sbemimage.github.io/SBEMimage](https://sbemimage.github.io/SBEMimage).
+It currently contains installation instructions and a short introduction to the software (to be expanded). For users who are not familiar with Python, it is recommended to download the Windows 10+ installer.
+
+Detailed generated information can be found here [deepwiki.com/SBEMimage/SBEMimage](https://deepwiki.com/SBEMimage/SBEMimage)
+
+For support and discussion, please use the [Image.sc forum](https://forum.image.sc/) and post to the forum with the tag 'sbemimage'.
 
 ## Development
 
