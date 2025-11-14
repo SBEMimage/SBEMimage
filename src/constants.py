@@ -21,6 +21,7 @@ import re
 # Following https://www.python.org/dev/peps/pep-0440/#public-version-identifiers
 VERSION = '2025.9.22 dev'
 
+
 # Default and minimum size of the Viewport canvas.
 VP_WIDTH = 1000
 VP_HEIGHT = 800
