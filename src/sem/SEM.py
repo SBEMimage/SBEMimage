@@ -262,7 +262,7 @@ class SEM:
         pixel_size = [self.get_pixel_size() * 1e-3] * 2     # store all metadata in μm, rotation in degrees
         if stage is not None:
             sx, sy = stage.get_xy()
-            z = stage.global_z
+            z = stage.get_global_z()
         else:
             sx, sy, z = self.get_stage_xyz()
         dx, dy = self.cs.convert_s_to_d((sx, sy))
