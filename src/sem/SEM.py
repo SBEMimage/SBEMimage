@@ -259,15 +259,14 @@ class SEM:
         return label
 
     def get_grab_metadata(self, stage=None):
-        pixel_size = [self.get_pixel_size() * 1e-3] * 2     # store all metadata in μm, rotation in degrees
+        pixel_size = [self.get_pixel_size() * 1e-3] * 2  # store pixel size in μm
         if stage is not None:
-            sx, sy = stage.get_xy()
-            z = stage.get_global_z()
+            sx, sy, sz = stage.get_xyz()
         else:
-            sx, sy, z = self.get_stage_xyz()
+            sx, sy, sz = self.get_stage_xyz()
         dx, dy = self.cs.convert_s_to_d((sx, sy))
-        if z is not None:
-            position = (dx, dy, z)
+        if sz is not None:
+            position = (dx, dy, sz)
         else:
             position = (dx, dy)
         rotation = 0
