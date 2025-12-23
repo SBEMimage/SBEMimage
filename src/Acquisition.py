@@ -93,6 +93,7 @@ class Acquisition:
         # total_z_diff: The total Z of sample removed in microns (only cuts
         # during acquisitions are taken into account)
         self.total_z_diff = float(self.cfg['acq']['total_z_diff'])
+        self.stage.global_z = self.total_z_diff
         # stage_z_position: The current Z position of the microtome/stage.
         # This variable is updated when the stack is (re)started by reading the
         # current Z position from the microtome/stage hardware.
@@ -1351,6 +1352,7 @@ class Acquisition:
                 + cut_duration_str)
             self.slice_counter += 1
             self.total_z_diff += self.slice_thickness/1000
+            self.stage.global_z = self.total_z_diff
         sleep(1)
 
     def do_maintenance_moves(self, manual_run=False):
