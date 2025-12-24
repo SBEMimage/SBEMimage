@@ -5,7 +5,7 @@ import os
 import tifffile
 from tifffile import TiffWriter, PHOTOMETRIC
 
-from constants import VERSION
+from constants import VERSION, DEFAULT_PYRAMID_DOWNSAMPLE
 from utils import resize_image, int2float_image, float2int_image, norm_image_quantiles, validate_output_path
 
 # TODO: add ome.zarr support
@@ -332,7 +332,7 @@ def create_tiff_metadata(metadata, shape, is_ome=False):
 
 
 def imwrite(path, data, metadata=None, tile_size=None, compression=None,
-            npyramid_add=4, pyramid_downsample=2):
+            npyramid_add=0, pyramid_downsample=DEFAULT_PYRAMID_DOWNSAMPLE):
     resolution = None
     resolution_unit = None
 

@@ -21,7 +21,7 @@ try:
 except:
     pass
 
-from constants import Error
+from constants import Error, DEFAULT_PYRAMID_LEVELS
 from image_io import imwrite
 from sem.SEM import SEM
 import utils
@@ -330,7 +330,7 @@ class SEM_Phenom(SEM):
 
             acq = self.sem_api.SemAcquireImageEx(scan_params)
             image = np.asarray(acq.image)
-            imwrite(save_path_filename, image, metadata=self.get_grab_metadata(stage))
+            imwrite(save_path_filename, image, metadata=self.get_grab_metadata(stage), npyramid_add=DEFAULT_PYRAMID_LEVELS)
             return True
         except Exception as e:
             self.error_state = Error.grab_image

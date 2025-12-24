@@ -84,6 +84,9 @@ FRAME_IMAGE_FORMAT = DEFAULT_IMAGE_FORMAT
 TEMP_IMAGE_FORMAT = '.tif'
 SCREENSHOT_FORMAT = '.png'
 
+DEFAULT_PYRAMID_DOWNSAMPLE = 2
+DEFAULT_PYRAMID_LEVELS = 4
+
 LOG_FILENAME = 'log/SBEMimage.log'
 # Custom date/time / format to get '.' instead of ',' as millisecond separator
 LOG_FORMAT = '%(asctime)s.%(msecs)03d %(levelname)s %(category)s: %(message)s'

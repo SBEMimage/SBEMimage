@@ -27,7 +27,7 @@ from time import sleep, time
 from dateutil.relativedelta import relativedelta
 from qtpy.QtWidgets import QMessageBox
 
-from constants import Error, Errors, FOCUS, STIG_X, STIG_Y, AFSS_LABELS
+from constants import Error, Errors, FOCUS, STIG_X, STIG_Y, AFSS_LABELS, DEFAULT_PYRAMID_LEVELS
 import constants
 import utils
 import utils_afss
@@ -1716,7 +1716,7 @@ class Acquisition:
                     # Save the acquired image in the workspace folder
                     workspace_save_path = os.path.join(self.base_dir, 'workspace',
                                                        utils.get_ov_filename('', ov_index))
-                    imwrite(workspace_save_path, ov_img)
+                    imwrite(workspace_save_path, ov_img, npyramid_add=DEFAULT_PYRAMID_LEVELS)
                     # Update the vp_file_path in the overview manager,
                     # thereby loading the overview as a QPixmap for display
                     # in the Viewport.

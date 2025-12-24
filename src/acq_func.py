@@ -170,7 +170,7 @@ def acquire_stub_ov(sem, stage, stub_ovm, acq, img_inspector,
             full_stub_image = np.zeros(shape, dtype=np.uint8)
             # Save current stub image to temp_save_path to show live preview
             # during the acquisition
-            imwrite(temp_save_path, full_stub_image)
+            imwrite(temp_save_path, full_stub_image, npyramid_add=constants.DEFAULT_PYRAMID_LEVELS)
         else:
             full_stub_image = None
 
@@ -263,7 +263,7 @@ def acquire_stub_ov(sem, stage, stub_ovm, acq, img_inspector,
                         metadata = {'pixel_size': [stub_ovm.pixel_size * 1e-3] * 2,
                                     'position': stub_ovm.centre_sx_sy,
                                     'rotation': stub_ovm.rotation}
-                        imwrite(temp_save_path, full_stub_image, metadata=metadata)
+                        imwrite(temp_save_path, full_stub_image, metadata=metadata, npyramid_add=constants.DEFAULT_PYRAMID_LEVELS)
                         # Setting vp_file_path to temp_save_path reloads the current file
                         stub_ovm.vp_file_path = temp_save_path
                         stub_dlg_trigger.transmit('DRAW VP')
@@ -293,7 +293,7 @@ def acquire_stub_ov(sem, stage, stub_ovm, acq, img_inspector,
                 + str(acq.slice_counter).zfill(5)
                 + '_' + timestamp + constants.STUBOV_IMAGE_FORMAT)
 
-            imwrite(stub_overview_file_name, full_stub_image, metadata=metadata)
+            imwrite(stub_overview_file_name, full_stub_image, metadata=metadata, npyramid_add=constants.DEFAULT_PYRAMID_LEVELS)
             stub_ovm.vp_file_path = stub_overview_file_name
         else:
             # Restore previous stub OV
