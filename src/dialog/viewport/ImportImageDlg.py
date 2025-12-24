@@ -110,7 +110,7 @@ class ImportImageDlg(QDialog):
                 target_path += '_' + timestamp + '.' + ext
                 metadata['pixel_size'] = target_pixel_size_um
 
-                imwrite(target_path, image, metadata=metadata, npyramid_add=4, pyramid_downsample=2)
+                imwrite(target_path, image, metadata=metadata)
 
                 centre_sx_sy = [self.doubleSpinBox_posX.value(), self.doubleSpinBox_posY.value()]
                 rotation = self.doubleSpinBox_rotation.value()

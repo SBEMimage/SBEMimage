@@ -332,7 +332,7 @@ def create_tiff_metadata(metadata, shape, is_ome=False):
 
 
 def imwrite(path, data, metadata=None, tile_size=None, compression=None,
-            npyramid_add=0, pyramid_downsample=2):
+            npyramid_add=4, pyramid_downsample=2):
     resolution = None
     resolution_unit = None
 
