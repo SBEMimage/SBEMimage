@@ -284,7 +284,10 @@ def create_tiff_metadata(metadata, shape, is_ome=False):
         if not isinstance(centers, list):
             centers = [centers]
         for center in centers:
-            positions.append([center[0] - width / 2, center[1] - height / 2])
+            position = [center[0] - width / 2, center[1] - height / 2]
+            if len(center) > 2:
+                position += [center[2]]
+            positions.append(position)
     else:
         positions = metadata.get('position', [])
     if not isinstance(positions, list):
