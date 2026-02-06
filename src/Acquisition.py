@@ -1188,7 +1188,7 @@ class Acquisition:
         
     def process_tcp_commands(self, commands):
         for cmd in commands:
-            utils.log_info('CTRL', 'Proccessing TCP command: ' + str(cmd['msg']))
+            utils.log_info('CTRL', 'Processing TCP command: ' + str(cmd['msg']))
             msg = cmd['msg']
             args = cmd['args']
             kwargs = cmd['kwargs']
