@@ -10,6 +10,19 @@ For more background and details read the [paper](https://www.frontiersin.org/art
 
 ![Viewport](img/viewport_screenshot.png)
 
+## Highlights
+
+SBEMimage is currently deployed as Open Source software at several institutions worldwide, including:
+
+* Friedrich Miescher Institute in Basel (Switzerland) [<img src="docs/images/FMI.jfif" height=50 />]()
+* European Molecular Biology Laboratory (EMBL) Heidelberg (Germany) [<img src="docs/images/EMBL_logo.png" height=50 />]()
+* Francis Crick Institute in London (UK) [<img src="docs/images/crick_logo.png" height=50 />]()
+* Stellenbosch University (South Africa) [<img src="docs/images/Stellenbosch_University_New_Logo.jpg" height=50 />]()
+
+It is being used for a variety of applications, including:
+* CZI funded Democratising Volumetric Visual Proteomics project together with a napari annotation plugin for targeted Array EM imaging at the Francis Crick Institute (UK) and Stellenbosch University (South Africa)
+* MRC funded multi-modal project together with a napari registration plugin for targeted Array EM imaging at EMBL Heidelberg (Germany)
+
 ## Documentation & Support
 
 Please read the user guide: [sbemimage.github.io/SBEMimage](https://sbemimage.github.io/SBEMimage).
