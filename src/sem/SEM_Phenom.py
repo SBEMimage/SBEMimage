@@ -325,9 +325,9 @@ class SEM_Phenom(SEM):
             if self.sem_api.SemGetBlankBeamState() == ppi.SemBlankState.Blanked:
                 self.sem_api.SemUnblankBeam()
 
-            extra_delay += self.DEFAULT_DELAY
-            if extra_delay > 0:
-                sleep(extra_delay)
+            delay = self.DEFAULT_DELAY + extra_delay
+            if delay > 0:
+                sleep(delay)
 
             acq = self.sem_api.SemAcquireImageEx(scan_params)
             image = np.asarray(acq.image)
@@ -350,9 +350,9 @@ class SEM_Phenom(SEM):
                 self.set_scan_rotation(self.scan_rotation)
                 self.set_pixel_size(self.grab_pixel_size)
 
-            extra_delay += self.DEFAULT_DELAY
-            if extra_delay > 0:
-                sleep(extra_delay)
+            delay = self.DEFAULT_DELAY + extra_delay
+            if delay > 0:
+                sleep(delay)
 
             acq = self.sem_api.NavCamAcquireImage(scan_params)
             data = np.asarray(acq.image)
