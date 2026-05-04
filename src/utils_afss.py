@@ -61,7 +61,7 @@ def imread_cv2(path: str) -> np.ndarray:
 
 
 def create_mask(tile_size):
-    width, height = tile_size[:2]
+    width, height = tile_size
     center = (int(height / 2), int(width / 2))
     radius = int(height / 3)
     rr, cc = draw.disk(center, radius)

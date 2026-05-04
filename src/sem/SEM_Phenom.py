@@ -302,10 +302,10 @@ class SEM_Phenom(SEM):
     def acquire_frame(self, save_path_filename, stage=None, extra_delay=0):
         """Acquire a full frame and save it to save_path_filename.
         All imaging parameters must be applied BEFORE calling this function.
-        To avoid grabbing the image before stage movement has stabilised, an
-        additional waiting period after stage movement (extra_delay, in seconds)
+        To avoid grabbing the image before it is acquired completely, an
+        additional waiting period after the cycle time (extra_delay, in seconds)
         may be necessary. The delay specified in syscfg (self.DEFAULT_DELAY)
-        is added by default. Acquisition is synchronous so does not require cycle time delay."""
+        is added by default for cycle times > 0.5 s."""
 
         scan_params = ppi.ScanParamsEx()
         scan_params.dwellTime = float(self.dwell_time * 1e-6)   # convert us to s
@@ -325,9 +325,8 @@ class SEM_Phenom(SEM):
             if self.sem_api.SemGetBlankBeamState() == ppi.SemBlankState.Blanked:
                 self.sem_api.SemUnblankBeam()
 
-            delay = self.DEFAULT_DELAY + extra_delay
-            if delay > 0:
-                sleep(delay)
+            if extra_delay > 0:
+                sleep(extra_delay)
 
             acq = self.sem_api.SemAcquireImageEx(scan_params)
             image = np.asarray(acq.image)
@@ -350,9 +349,8 @@ class SEM_Phenom(SEM):
                 self.set_scan_rotation(self.scan_rotation)
                 self.set_pixel_size(self.grab_pixel_size)
 
-            delay = self.DEFAULT_DELAY + extra_delay
-            if delay > 0:
-                sleep(delay)
+            if extra_delay > 0:
+                sleep(extra_delay)
 
             acq = self.sem_api.NavCamAcquireImage(scan_params)
             data = np.asarray(acq.image)
