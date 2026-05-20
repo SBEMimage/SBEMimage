@@ -1759,7 +1759,7 @@ class MainControls(QMainWindow):
         dialog.exec()
 
     def open_autofocus_settings_dlg(self):
-        dialog = AutofocusSettingsDlg(self.sem, self.autofocus, self.gm)
+        dialog = AutofocusSettingsDlg(self.sem, self.autofocus, self.gm, self.img_inspector)
         if dialog.exec():
             if self.autofocus.method == 2:
                 self.checkBox_useAutofocus.setText('Focus tracking')
@@ -3025,7 +3025,7 @@ class MainControls(QMainWindow):
         """Open a dialog box to let user manually set the working distance and
         stigmation x/y for the selected tile/OV.
         """
-        if (self.ft_selected_tile >=0) or (self.ft_selected_ov >= 0):
+        if self.ft_selected_grid >= 0 or self.ft_selected_ov >= 0:
             dialog = FTSetParamsDlg(self.sem, self.ft_selected_wd,
                                     self.ft_selected_stig_x,
                                     self.ft_selected_stig_y,
@@ -3043,7 +3043,7 @@ class MainControls(QMainWindow):
             QMessageBox.information(
                 self, 'Select target tile/OV',
                 'To manually set WD/stigmation parameters, you must first '
-                'select a tile or an overview.',
+                'select a grid, a single tile or an overview.',
                 QMessageBox.Ok)
 
     def ft_use_autofocus(self):
@@ -3058,20 +3058,26 @@ class MainControls(QMainWindow):
         self.ft_update_wd_display()
         self.ft_update_stig_display()
         if self.ft_selected_ov >= 0:
+            # Set on OV
             self.ovm[self.ft_selected_ov].wd_stig_xy = [
                 self.ft_selected_wd,
                 self.ft_selected_stig_x,
                 self.ft_selected_stig_y]
         elif self.ft_selected_tile >= 0:
-            self.gm[self.ft_selected_grid][self.ft_selected_tile].wd = (
-                self.ft_selected_wd)
-            self.gm[self.ft_selected_grid][
-                    self.ft_selected_tile].stig_xy = (
-                [self.ft_selected_stig_x, self.ft_selected_stig_y])
-            if self.gm[self.ft_selected_grid].use_wd_gradient:
+            # Set on single tile
+            grid = self.gm[self.ft_selected_grid]
+            grid[self.ft_selected_tile].wd = self.ft_selected_wd
+            grid[self.ft_selected_tile].stig_xy = [self.ft_selected_stig_x, self.ft_selected_stig_y]
+            if grid.use_wd_gradient:
                 # Recalculate with new wd:
-                self.gm[self.ft_selected_grid].calculate_wd_gradient()
-            self.viewport.vp_draw()
+                grid.calculate_wd_gradient()
+        elif self.ft_selected_grid >= 0:
+            # Set on all Grid tiles
+            grid = self.gm[self.ft_selected_grid]
+            for tile in grid:
+                tile.wd = self.ft_selected_wd
+                tile.stig_xy = [self.ft_selected_stig_x, self.ft_selected_stig_y]
+        self.viewport.vp_draw()
 
     def ft_show_updated_stage_position(self):
         # Update stage position in main controls tab

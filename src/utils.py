@@ -24,12 +24,13 @@ from queue import Queue
 from logging import StreamHandler
 from logging.handlers import RotatingFileHandler
 
-from skimage.transform import ProjectiveTransform
 from skimage.measure import ransac
-from serial.tools import list_ports
+from skimage.transform import ProjectiveTransform
+
 from qtpy.QtCore import QObject, Signal, QSize
 from qtpy.QtGui import QIcon, QPixmap, QImage, QTransform
 from scipy.ndimage import maximum_filter
+from serial.tools import list_ports
 
 from constants import *
 

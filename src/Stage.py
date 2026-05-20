@@ -36,6 +36,7 @@ class Stage:
             self._stage = sem
             self.use_microtome_xy = False
             self.use_microtome_z = False
+        self.global_z = None
 
     def __str__(self):
         return str(self._stage)
@@ -69,6 +70,12 @@ class Stage:
             return x, y, z
         else:
             return self._stage.get_stage_xyz()
+
+    def get_global_z(self):
+        if self.global_z is not None:
+            return self.global_z
+        else:
+            return self.get_z()
 
     def move_to_x(self, x):
         return self._stage.move_stage_to_x(x)

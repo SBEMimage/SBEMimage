@@ -19,7 +19,7 @@ import re
 # master branch (for example, '2020.07 R2020-07-28'). For the current version
 # in the dev (development) branch, it must contain the tag 'dev'.
 # Following https://www.python.org/dev/peps/pep-0440/#public-version-identifiers
-VERSION = '2025.11.14'
+VERSION = '2026.05.20'
 
 
 # Default and minimum size of the Viewport canvas.
@@ -84,6 +84,9 @@ FRAME_IMAGE_FORMAT = DEFAULT_IMAGE_FORMAT
 TEMP_IMAGE_FORMAT = '.tif'
 SCREENSHOT_FORMAT = '.png'
 
+DEFAULT_PYRAMID_DOWNSAMPLE = 2
+DEFAULT_PYRAMID_LEVELS = 4
+
 LOG_FILENAME = 'log/SBEMimage.log'
 # Custom date/time / format to get '.' instead of ',' as millisecond separator
 LOG_FORMAT = '%(asctime)s.%(msecs)03d %(levelname)s %(category)s: %(message)s'
@@ -92,6 +95,15 @@ LOG_FORMAT_DATETIME = '%Y-%m-%d %H:%M:%S'
 LOG_MAX_FILESIZE = 10000000
 LOG_MAX_FILECOUNT = 20
 
+# Constants for Automated Focus Stigmator Series
+FOCUS = 'focus'
+STIG_X = 'stig_x'
+STIG_Y = 'stig_y'
+AVG = 'Average'
+SPECIFIC = 'tile_specific'
+FOCUS_SPC_STIG_AVG = 'focus_specific_stig_average'
+
+AFSS_LABELS = {FOCUS: 'Focus', STIG_X: 'Stigmator X', STIG_Y: 'Stigmator Y'}
 
 # TODO: replace values with auto()
 class Error(Enum):
@@ -152,6 +164,7 @@ class Error(Enum):
     autofocus_heuristic = 506
     wd_stig_difference = 507
     metadata_server = 508
+    autofocus_afss = 509
 
     # Reserved for user-defined errors
     test_case = 601
@@ -227,7 +240,8 @@ Errors = {
     Error.autofocus_heuristic: 'Autofocus error (heuristic)',
     Error.wd_stig_difference: 'WD/STIG difference error',
     Error.metadata_server: 'Metadata server error',
-
+    Error.autofocus_afss: 'Autofocus error (AFSS)',
+    
     # Reserved for user-defined errors
     Error.test_case: 'Test case error',
 

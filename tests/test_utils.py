@@ -1,5 +1,6 @@
 import numpy as np
 
+from CoordinateSystem import CoordinateSystem
 from image_io import imwrite
 import utils
 
@@ -45,6 +46,7 @@ def init_sem(config_filename, test_config_filename):
             _SEM = SEM
 
         _sem = _SEM(config, sysconfig)
+        _sem.cs = CoordinateSystem(config, sysconfig)
         print(f'SEM: {_sem.device_name}')
 
     return _sem

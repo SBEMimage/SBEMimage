@@ -259,29 +259,29 @@ class SEM:
         return label
 
     def get_grab_metadata(self, stage=None):
-        pixel_size = [self.get_pixel_size() * 1e-3] * 2     # store pixel size in μm
+        # TODO: subtract size/2 from center here instead, using frame size
+        pixel_size = [self.get_pixel_size() * 1e-3] * 2  # store pixel size in μm
         if stage is not None:
-            position = stage.get_xyz()
+            sx, sy, sz = stage.get_xyz()
         else:
-            position = self.get_stage_xyz()
-        if len(position) > 2 and position[2] is None:
-            position = position[:2]
+            sx, sy, sz = self.get_stage_xyz()
+        center = self.cs.convert_s_to_d((sx, sy)).tolist()
+        if sz is not None:
+            center = list(center) + [sz]
         rotation = 0
         if self.stage_rotation is not None:
             rotation += self.stage_rotation
         if self.scan_rotation is not None:
             rotation += self.scan_rotation
-        if self.cs is not None:
-            # compensate for stage rotation
-            rotation -= self.cs.get_rotation()
         rotation %= 360
         if rotation > 180:
             rotation -= 360
         metadata = {
-            'pixel_size': pixel_size,
-            'position': position,
-            'rotation': rotation
+            'pixel_size': tuple(pixel_size),
+            'center': tuple(center),
         }
+        if rotation:
+            metadata['rotation'] = rotation
         return metadata
 
     def has_lm_mode(self):
@@ -481,13 +481,16 @@ class SEM:
         raise NotImplementedError
 
     def get_frame_size_selector(self):
+        # TODO: return SEM.frame_size_selector
         """Read the current frame size selector from the SEM."""
         raise NotImplementedError
 
     def get_frame_size(self):
+        # TODO: return SEM.frame_size
         raise NotImplementedError
 
     def set_frame_size(self, frame_size_selector):
+        # TODO: set SEM.frame_size_selector and SEM.frame_size
         """Set SEM to frame size specified by frame_size_selector."""
         raise NotImplementedError
 
@@ -500,6 +503,7 @@ class SEM:
         raise NotImplementedError
 
     def get_pixel_size(self):
+        # TODO: return SEM.pixel_size, always calculate (when setting mag/etc)
         """Read current magnification from the SEM and convert it into
         pixel size in nm.
         """

@@ -172,6 +172,9 @@ class GridManager(list):
         array_path = grids_data.get('array_file')
         self.array_data = ArrayData.ArrayData(array_path)
         self.magc_mode = (self.cfg['sys']['magc_mode'].lower() == 'true')
+        
+        # Available image sizes used for AFSS binary masks
+        self.tile_sizes = {f'mask_{res[0]}_{res[1]}': res for res in self.sem.STORE_RES}
 
     def get_grid_label(self, grid_index):
         if grid_index is not None:
@@ -283,9 +286,9 @@ class GridManager(list):
                     # Only save tiles with WD != 0 which are active or
                     # selected for autofocus or wd gradient.
                     wd_stig_dict[tile_key] = [
-                        round(self[grid_index][tile_index].wd, 9),
-                        round(self[grid_index][tile_index].stig_xy[0], 6),
-                        round(self[grid_index][tile_index].stig_xy[1], 6)
+                        round(float(self[grid_index][tile_index].wd), 9),
+                        round(float(self[grid_index][tile_index].stig_xy[0]), 6),
+                        round(float(self[grid_index][tile_index].stig_xy[1]), 6)
                     ]
         # Save as JSON string in config:
         grids_data['wd_stig_params'] = json.dumps(wd_stig_dict)
@@ -579,13 +582,13 @@ class GridManager(list):
             self.set_array_landmark(landmark_id, location, landmark_type='stage')
             self.set_array_landmark(landmark_id, location, landmark_type='target')
 
-    def add_new_grid_from_overview_roi(self, array_index, roi_index, roi_center, size, ov_position):
+    def add_new_grid_from_overview_roi(self, array_index, roi_index, roi_center, size, ref_center):
         # rescale roi_center and size to the SEM coordinate system
         roi_center = [roi_center[0] / self.cs.scale_x, roi_center[1] / self.cs.scale_y]
         size = [size[0] / self.cs.scale_x, size[1] / self.cs.scale_y]
         
-        # convert the roi_center to stage coordinates and add the ov_position offset
-        roi_stage_coords = self.cs.convert_d_to_s(roi_center) + ov_position
+        # add the ref_center offset to the roi_center and convert to stage coordinates
+        roi_stage_coords = self.cs.convert_d_to_s(np.array(roi_center) + np.array(ref_center))
 
         grid_index = self.find_grid_index(roi_index, array_index)
         if grid_index is None:
@@ -656,15 +659,22 @@ class GridManager(list):
                     grid.auto_update_tile_positions = True
                     grid.centre_sx_sy = center
 
+    def calc_tiles_from_roi(self, grid, size):
+        # effective tile size is equivalent to tile size minus overlap (only if more than 1 tile!)
+        width, height = size
+        overlap_um = grid.overlap * grid.pixel_size * 1e-3
+        tile_width = grid.tile_width_d()
+        tile_height = grid.tile_height_d()
+        tiles_width = tile_width - overlap_um
+        tiles_height = tile_height - overlap_um
+
+        tiles_y = int(np.ceil(height / tiles_height)) if height > tile_height else 1
+        tiles_x = int(np.ceil(width / tiles_width)) if width > tile_width else 1
+        return [tiles_y, tiles_x]
+
     def update_grid_from_roi(self, grid_index, center, size, rotation):
         grid = self[grid_index]
-        overlap_um = grid.overlap * grid.pixel_size * 1e-3
-        # effective tile size is equivalent to tile size minus overlap
-        tile_width = grid.tile_width_d() - overlap_um
-        tile_height = grid.tile_height_d() - overlap_um
-        w, h = size
-        tiles = [int(np.ceil(h / tile_height)), int(np.ceil(w / tile_width))]
-        grid.size = tiles
+        grid.size = self.calc_tiles_from_roi(grid, size)
         grid.rotation = rotation
         grid.auto_update_tile_positions = True
         grid.centre_sx_sy = center
@@ -677,15 +687,7 @@ class GridManager(list):
             template_index = 0
 
         grid = self[template_index]
-        overlap_um = grid.overlap * grid.pixel_size * 1e-3
-
-        # effective tile size is equivalent to tile size minus overlap
-        tile_width = grid.tile_width_d() - overlap_um
-        tile_height = grid.tile_height_d() - overlap_um
-
-        w, h = size
-        tiles = [int(np.ceil(h / tile_height)), int(np.ceil(w / tile_width))]
-
+        tiles = self.calc_tiles_from_roi(grid, size)
         new_grid = self.add_new_grid(origin_sx_sy=center, sw_sh=size, size=tiles, rotation=rotation,
                                      frame_size=grid.frame_size, frame_size_selector=grid.frame_size_selector,
                                      overlap=grid.overlap, pixel_size=grid.pixel_size,

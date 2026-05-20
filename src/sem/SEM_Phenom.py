@@ -21,7 +21,7 @@ try:
 except:
     pass
 
-from constants import Error
+from constants import Error, DEFAULT_PYRAMID_LEVELS
 from image_io import imwrite
 from sem.SEM import SEM
 import utils
@@ -302,10 +302,10 @@ class SEM_Phenom(SEM):
     def acquire_frame(self, save_path_filename, stage=None, extra_delay=0):
         """Acquire a full frame and save it to save_path_filename.
         All imaging parameters must be applied BEFORE calling this function.
-        To avoid grabbing the image before it is acquired completely, an
-        additional waiting period after the cycle time (extra_delay, in seconds)
+        To avoid grabbing the image before stage movement has stabilised, an
+        additional waiting period after stage movement (extra_delay, in seconds)
         may be necessary. The delay specified in syscfg (self.DEFAULT_DELAY)
-        is added by default for cycle times > 0.5 s."""
+        is added by default. Acquisition is synchronous so does not require cycle time delay."""
 
         scan_params = ppi.ScanParamsEx()
         scan_params.dwellTime = float(self.dwell_time * 1e-6)   # convert us to s
@@ -325,12 +325,13 @@ class SEM_Phenom(SEM):
             if self.sem_api.SemGetBlankBeamState() == ppi.SemBlankState.Blanked:
                 self.sem_api.SemUnblankBeam()
 
-            if extra_delay > 0:
-                sleep(extra_delay)
+            delay = self.DEFAULT_DELAY + extra_delay
+            if delay > 0:
+                sleep(delay)
 
             acq = self.sem_api.SemAcquireImageEx(scan_params)
             image = np.asarray(acq.image)
-            imwrite(save_path_filename, image, metadata=self.get_grab_metadata(stage))
+            imwrite(save_path_filename, image, metadata=self.get_grab_metadata(stage), npyramid_add=DEFAULT_PYRAMID_LEVELS)
             return True
         except Exception as e:
             self.error_state = Error.grab_image
@@ -349,8 +350,9 @@ class SEM_Phenom(SEM):
                 self.set_scan_rotation(self.scan_rotation)
                 self.set_pixel_size(self.grab_pixel_size)
 
-            if extra_delay > 0:
-                sleep(extra_delay)
+            delay = self.DEFAULT_DELAY + extra_delay
+            if delay > 0:
+                sleep(delay)
 
             acq = self.sem_api.NavCamAcquireImage(scan_params)
             data = np.asarray(acq.image)

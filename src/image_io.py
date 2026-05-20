@@ -5,7 +5,7 @@ import os
 import tifffile
 from tifffile import TiffWriter, PHOTOMETRIC
 
-from constants import VERSION
+from constants import VERSION, DEFAULT_PYRAMID_DOWNSAMPLE
 from utils import resize_image, int2float_image, float2int_image, norm_image_quantiles, validate_output_path
 
 # TODO: add ome.zarr support
@@ -259,21 +259,40 @@ def imread_metadata(path):
     return all_metadata
 
 
-def create_tiff_metadata(metadata, is_ome=False):
+def create_tiff_metadata(metadata, shape, is_ome=False):
+    # TODO: give position instead of center in metadata everywhere, then remove obsolete center -> position conversion
     ome_metadata = None
     resolution = None
     resolution_unit = None
     pixel_size_um = None
 
     pixel_size = metadata.get('pixel_size')
-    positions = metadata.get('position', [])
-    if not isinstance(positions, list):
-        positions = [positions]
-    rotation = metadata.get('rotation')
     if pixel_size is not None:
         pixel_size_um = convert_units_micrometer(pixel_size)
         resolution_unit = 'CENTIMETER'
         resolution = [1e4 / size for size in pixel_size_um]
+
+    if 'position' not in metadata and 'center' in metadata:
+        positions = []
+        if len(shape) >= 3 and shape[-1] < shape[0]:
+            # assume last channel is color channel
+            h_index, w_index = -3, -2
+        else:
+            h_index, w_index = -2, -1
+        width, height = shape[w_index] * pixel_size_um[0], shape[h_index] * pixel_size_um[1]
+        centers = metadata['center']
+        if not isinstance(centers, list):
+            centers = [centers]
+        for center in centers:
+            position = [center[0] - width / 2, center[1] - height / 2]
+            if len(center) > 2:
+                position += [center[2]]
+            positions.append(position)
+    else:
+        positions = metadata.get('position', [])
+    if not isinstance(positions, list):
+        positions = [positions]
+    rotation = metadata.get('rotation')
     channels = metadata.get('channels', [])
 
     if is_ome:
@@ -316,7 +335,7 @@ def create_tiff_metadata(metadata, is_ome=False):
 
 
 def imwrite(path, data, metadata=None, tile_size=None, compression=None,
-            npyramid_add=0, pyramid_downsample=2):
+            npyramid_add=0, pyramid_downsample=DEFAULT_PYRAMID_DOWNSAMPLE):
     resolution = None
     resolution_unit = None
 
@@ -341,7 +360,7 @@ def imwrite(path, data, metadata=None, tile_size=None, compression=None,
             move_channel = (data.ndim >= 3 and data.shape[-1] < data.shape[0])
 
         if metadata is not None:
-            tiff_metadata, resolution, resolution_unit = create_tiff_metadata(metadata, is_ome)
+            tiff_metadata, resolution, resolution_unit = create_tiff_metadata(metadata, data.shape, is_ome)
         else:
             tiff_metadata = None
         with TiffWriter(path) as writer:

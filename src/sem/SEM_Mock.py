@@ -17,7 +17,7 @@ import os
 from time import sleep
 
 import utils
-from constants import Error
+from constants import Error, DEFAULT_PYRAMID_LEVELS
 from image_io import imread, imwrite
 from sem.SEM import SEM
 
@@ -308,7 +308,7 @@ class SEM_Mock(SEM):
             mock_image = self._generate_uniform_noise_image(width, height, bitsize)
 
         sleep(self.current_cycle_time + self.additional_cycle_time)
-        imwrite(save_path_filename, mock_image, metadata=self.get_grab_metadata(stage))
+        imwrite(save_path_filename, mock_image, metadata=self.get_grab_metadata(stage), npyramid_add=DEFAULT_PYRAMID_LEVELS)
         return True
 
     def save_frame(self, save_path_filename, stage=None):

@@ -514,7 +514,7 @@ class SEM_SmartSEM(SEM):
         if ret_val == 0:
             if rewrite_file:
                 image = imread(grab_filename)
-                imwrite(save_path_filename, image, metadata=self.get_grab_metadata(stage))
+                imwrite(save_path_filename, image, metadata=self.get_grab_metadata(stage), npyramid_add=constants.DEFAULT_PYRAMID_LEVELS)
                 os.remove(grab_filename)
             return True
         else:

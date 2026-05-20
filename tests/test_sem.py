@@ -82,11 +82,13 @@ class TestSem:
         sem.set_pixel_size(pixel_size)
         stage = Stage(sem, None, False)
         if sem.acquire_frame(output_filename, stage):
+            expected_position = sem.cs.convert_s_to_d(stage_position) - np.array(sem.get_frame_size()) / 2 * pixel_size * 1e-3
+
             image = imread(output_filename)
             assert isinstance(image, np.ndarray)
             image_metadata = imread_metadata(output_filename)
             assert image_metadata['pixel_size'][0] == pixel_size_um
-            assert tuple(image_metadata['position'][0]) == tuple(stage_position)
+            assert tuple(image_metadata['position'][0]) == tuple(expected_position.tolist())
         else:
             pytest.fail('Acquisition failed')
 
