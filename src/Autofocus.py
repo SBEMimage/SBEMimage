@@ -526,7 +526,9 @@ class Autofocus:
                 series = np.asarray(new[:self.afss_rounds])
             if self.afss_shuffle:
                 # 'Shuffled' series:  fcts = [0, -0.5, 1.0, -1.0, 0.5]
-                random.shuffle(list(series))
+                shuffled_series = list(series)
+                random.shuffle(shuffled_series)
+                series = np.asarray(shuffled_series)
             if self.afss_hyper_shuffle:
                 fcts = np.tile(series, (len(tile_keys), 1))
                 for line in fcts:
