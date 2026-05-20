@@ -87,9 +87,9 @@ def process_cfg(current_cfg, current_syscfg, is_default_cfg=False):
             syscfg_load_success = False
             exceptions += str(e) + '; '
         if cfg_load_success:
-           cfg_valid = check_number_of_entries(cfg_template, False)
+            cfg_valid = check_number_of_entries(cfg_template, False)
         if syscfg_load_success:
-           syscfg_valid = check_number_of_entries(syscfg_template, True)
+            syscfg_valid = check_number_of_entries(syscfg_template, True)
 
         if (cfg_load_success and syscfg_load_success
                 and cfg_valid and syscfg_valid):
