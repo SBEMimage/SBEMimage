@@ -5,6 +5,7 @@ from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import QDialog, QFileDialog, QMessageBox
 from qtpy.uic import loadUi
 
+import constants
 import utils
 from image_io import imread_metadata, imread, imwrite
 
@@ -110,7 +111,7 @@ class ImportImageDlg(QDialog):
                 target_path += '_' + timestamp + '.' + ext
                 metadata['pixel_size'] = target_pixel_size_um
 
-                imwrite(target_path, image, metadata=metadata)
+                imwrite(target_path, image, metadata=metadata, npyramid_add=constants.DEFAULT_PYRAMID_LEVELS)
 
                 centre_sx_sy = [self.doubleSpinBox_posX.value(), self.doubleSpinBox_posY.value()]
                 rotation = self.doubleSpinBox_rotation.value()
