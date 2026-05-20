@@ -1,6 +1,19 @@
 # Installation
 
-## Windows 10+ Installer
+## General installation
+
+Currently, the recommended way to install *SBEMimage* is starting with one of the following options:
+* Downloading the latest version:
+Click on the green button 'Code' and select 'Download ZIP', or alternatively perform a git clone on this repository.
+* Downloading a specific version:
+Select the desired release after selecting [Releases](https://github.com/SBEMimage/SBEMimage/releases),
+then under the corresponding Assets section, select the Source code (zip).
+This will download a zip file containing all files of the repository.
+
+Follow the instructions under the section below: Installation for developers
+
+
+## Windows 10+ Installer (deprecated)
 
 For most users, we recommend downloading the Windows 10 or higher installer
 ([Releases](https://github.com/SBEMimage/SBEMimage/releases)). This
