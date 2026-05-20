@@ -41,12 +41,12 @@ If you are familiar with Python and wish to run *SBEMimage* with your
 default system Python or a custom Python environment, follow the
 instructions below.
 
-1)  Install Python on the computer on which you wish to
+1.  Install Python on the computer on which you wish to
     run *SBEMimage*. If you are using *DigitalMicrograph* (DM) to
     control a 3View microtome, the installation must be on the same
     computer on which DM is running. We recommend the Anaconda Python
     distribution: <https://www.anaconda.com/products/individual>.
-2)  Either clone the repository in `C:\Utilities\SBEMimage` or download
+2. Either clone the repository in `C:\Utilities\SBEMimage` or download
     all files from the GitHub repository
     (<https://github.com/SBEMimage/SBEMimage>) and copy them into the
     folder `C:\Utilities\SBEMimage` (including the folder structure with
@@ -57,11 +57,11 @@ instructions below.
     script `dm\SBEMimage_DMcom_GMS2.s` (or the GMS3 version), you have
     to update the variable `install_path` if you use a directory other
     than `C:\Utilities\SBEMimage` or `C:\pytools\SBEMimage`.
-3)  Make sure you can access the commands 'python' and 'pip' from your
+3.  Make sure you can access the commands 'python' and 'pip' from your
     command line, either on a system level (you may have to include the
     appropriate folders in your %PATH% environment variable) or in a
     Python environment, which you need to activate first.
-4)  Use the command line to switch to the `SBEMimage` directory, in
+4.  Use the command line to switch to the `SBEMimage` directory, in
     which the file `requirements.txt` is located and type:
     `pip install -r requirements.txt`. This will install all required
     Python packages to run *SBEMimage*.
@@ -75,20 +75,20 @@ it to the offline machine, and install *SBEMimage* with the installer.
 If you wish to use your own Python environment on the offline machine,
 follow the instructions below.
 
-1)  Install the latest version of Anaconda or Miniconda (Python 3.6+) on
+1.  Install the latest version of Anaconda or Miniconda (Python 3.6+) on
     the offline machine.
-2)  On a computer with internet access, create a conda environment that
+2.  On a computer with internet access, create a conda environment that
     matches the conda environment on the acquisition computer: the
     architecture, operating system, and the Python version. Install pip
     using conda: `conda install pip`.
-3)  Use the pip download option (`pip download <package_name>`) to
+3.  Use the pip download option (`pip download <package_name>`) to
     download all required Python Wheel files rather than installing
     them, and copy them into a directory that you can then transfer to
     the offline computer.
-4)  On the offline computer, activate your Python environment (or use
+4.  On the offline computer, activate your Python environment (or use
     the system environment) and install all Wheel files with the command
     `pip install <wheel_name>`.
-5)  Copy all *SBEMimage* directories and files (previously downloaded on
+5.  Copy all *SBEMimage* directories and files (previously downloaded on
     another computer) to the folder `C:\Utilities\SBEMimage` on the
     offline computer. After that, you should be ready to run
     *SBEMimage*.
