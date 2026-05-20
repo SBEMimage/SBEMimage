@@ -4,11 +4,10 @@
 
 Currently, the recommended way to install *SBEMimage* is starting with one of the following options:
 * Downloading the latest version:
-Click on the green button 'Code' and select 'Download ZIP', or alternatively perform a git clone on this repository.
+Click on the green button 'Code' and select 'Download ZIP', then unzip the contents. Alternatively perform a git clone on this repository.
 * Downloading a specific version:
 Select the desired release after selecting [Releases](https://github.com/SBEMimage/SBEMimage/releases),
-then under the corresponding Assets section, select the Source code (zip).
-This will download a zip file containing all files of the repository.
+then under the corresponding Assets section, select the Source code (zip). Then unzip the contents.
 
 Follow the instructions under the section below: Installation for developers
 
