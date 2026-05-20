@@ -1,0 +1,998 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Open-source acquisition software for scanning electron microscopy">
+      
+      
+      
+        <link rel="canonical" href="https://sbemimage.github.io/SBEMimage/user_interface/">
+      
+      
+        <link rel="prev" href="../installation/">
+      
+      
+        <link rel="next" href="../acquisition/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>User interface - SBEMimage</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#user-interface" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="SBEMimage" class="md-header__button md-logo" aria-label="SBEMimage" data-md-component="logo">
+      
+  <img src="../images/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SBEMimage
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              User interface
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/SBEMimage/SBEMimage" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    SBEMimage
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="SBEMimage" class="md-nav__button md-logo" aria-label="SBEMimage" data-md-component="logo">
+      
+  <img src="../images/logo.png" alt="logo">
+
+    </a>
+    SBEMimage
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/SBEMimage/SBEMimage" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    SBEMimage
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../requirements/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Requirements
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User interface
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User interface
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#main-controls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Main Controls
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#viewport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Viewport
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mouse-and-key-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mouse and key commands
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Mouse and key commands">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#viewport_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Viewport
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#slice-by-slice-viewer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Slice-by-Slice Viewer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#focus-tool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Focus Tool
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../acquisition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Acquisition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../array_setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Array setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../external_tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    External tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../datasets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Datasets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    For developers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    About
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../references/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    References
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#main-controls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Main Controls
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#viewport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Viewport
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mouse-and-key-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mouse and key commands
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Mouse and key commands">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#viewport_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Viewport
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#slice-by-slice-viewer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Slice-by-Slice Viewer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#focus-tool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Focus Tool
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="user-interface">User interface</h1>
+<p>The graphical user interface consists of two windows (<strong>Main Controls</strong>
+and <strong>Viewport</strong>) that are by default displayed next to each other (Main
+Controls on the right). A screen of at least 1920 × 1080 is required to
+fully display both windows. The GUI was designed with remote desktop
+software such as TeamViewer and VNC in mind: All functions are
+accessible on a single screen.</p>
+<h2 id="main-controls">Main Controls</h2>
+<p>The window <strong>Main Controls</strong> (shown below) displays at a glance all
+relevant settings, the acquisition status, the current electron dose,
+and real-time estimates for the duration of the acquisition and the
+total data size. Click on the buttons with a cogwheel icon to open
+dialog windows for changing settings (available for the panels “SEM”,
+“Microtome/Stage”, “Overviews”, “Tile grids” and “Stack acquisition”.
+Click on the tool option buttons (“…”) to change the settings for the
+different features (for example, debris detection) that can be activated
+during stack acquisitions. Two additional tabs contain a focus tool and
+various functions for testing and debugging.</p>
+<p><img alt="Main Controls window" src="../images/main_controls.jpg" /></p>
+<h2 id="viewport">Viewport</h2>
+<p>The workspace shown in the Viewport’s main tab covers the entire
+accessible range of the stage motors. When sufficiently zoomed out, the
+stage boundaries are shown as solid white lines, and the x and y stage
+axes as dashed white lines. To obtain an overview of the entire surface
+of the sample holder (‘stub’) mounted on the 3View stage, click on the
+button “Image stub”. A large low-resolution (372 nm pixel size) mosaic
+will be acquired and placed in the workspace as a background image (see
+screenshot below).</p>
+<p><img alt="Stub Overview example" src="../images/stub_ov.jpg" /></p>
+<p>You can then use the stub overview image to locate the region of
+interest. In the region of interest, you can acquire a smaller overview
+image at higher resolution (typically 100-200 nm pixel size). Press the
+CTRL key and click on the blue rectangle “OV 0” and drag it to the
+position where you wish to acquire the overview image. To acquire image
+tiles at the target resolution for analysis (typically 5-20 nm pixel
+size), you can set up a tile grid in the region of interest. Grid size,
+tile size, overlaps/gaps between tiles, and acquisition parameters
+(frame size, pixel size, and dwell time) are specified for each grid.
+The default tile grid is “Grid 0”. By pressing the ALT key and clicking
+on a grid, you can drag it to a new position. Tiles can be individually
+selected or deselected for imaging (press SHIFT and click on a tile).
+For complex acquisition tasks, multiple overviews can be set up to cover
+the region(s) of interest, and multiple grids can be created with
+different imaging parameters. You can choose for each overview image and
+for each grid whether it should be acquired on every slice, or in
+intervals. This permits, for example, to image an area with alternating
+pixel sizes, or to acquire an overview stack at low resolution with a
+high-resolution mosaic on every tenth slice. The screenshot below shows
+an overview image (“OV 0”) and two tile grids (“GRID 0” and “GRID 1”).
+The highlighted tiles have been selected for imaging. A low-resolution
+stub overview mosaic is displayed in the background.</p>
+<p><img alt="Viewport window" src="../images/viewport.jpg" /></p>
+<p>The basic elements described above are displayed in different layers
+inside the viewport. The background layer consists of the stub overview
+image, which provides the main reference frame for an acquisition. The
+next layer contains the overview images that cover the regions of
+interest. They are primarily used for debris detection and to position
+the tile grids. The tile grids are usually located above the overview
+images, but they can also be placed on any other part of the workspace
+within the accessible motor range. Finally, additional imported images
+are shown in the foreground. You can choose whether to show or hide
+elements by using the controls at the bottom of the window. The visual
+scene can be panned by left-click dragging, and zoomed in and out with
+the mouse wheel or the zoom slider in the bottom-right corner. The
+viewport is fully functional even while an acquisition is running.</p>
+<p>Select the second and third tab to use the slice-by-slice viewer and to
+show reslices and statistics (see screenshots below; click to enlarge).
+In each tab, use the grid/tile selector on the bottom to choose the data
+source, then click on “(Re)load”. In the slice-by-slice viewer, click on
+the ruler icon to measure distances. When the button is activated
+(orange colour), mark the starting point for the measurement by clicking
+with the right mouse button. Mark the end point with a second right
+click. The distance is displayed in the bottom right corner. To
+deactivate the measurement function, click on the ruler icon again
+(colour changes back to black). The measurement tool works the same way
+in the viewport. In the “reslice and stats” tab, you can select a slice
+by left-clicking on the area where the plots are shown. The selected
+slice is marked with a vertical line in the plot area and a red line in
+the reslice. The histogram and the mean/SD values are shown for the
+selected slice.</p>
+<p><img alt="Slice-by-slice Viewer and Acquisition Monitor" src="../images/slice_view_and_stats.jpg" /></p>
+<h2 id="mouse-and-key-commands">Mouse and key commands</h2>
+<p>Use the following commands to navigate, zoom, select and move objects.
+For the Viewport and the Slice-by-Slice Viewer, you can show the list of
+commands in a pop-up panel by clicking on the button with the question
+mark.</p>
+<h3 id="viewport_1">Viewport</h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>left click and drag</code></td>
+<td>Drag to pan field of view</td>
+</tr>
+<tr>
+<td><code>double click</code></td>
+<td>Zoom in at current position</td>
+</tr>
+<tr>
+<td><code>right click</code></td>
+<td>Open context menu (Tile selection, image import…)</td>
+</tr>
+<tr>
+<td><code>shift + left click</code></td>
+<td>Select or deselect single tiles</td>
+</tr>
+<tr>
+<td><code>shift + left click drag</code></td>
+<td>Select or deselect tiles in painting mode</td>
+</tr>
+<tr>
+<td><code>alt + left click drag</code></td>
+<td>Move grid to new position</td>
+</tr>
+<tr>
+<td><code>ctrl + left click drag</code></td>
+<td>Move overview image to new position</td>
+</tr>
+<tr>
+<td><code>ctrl + alt + left click drag</code></td>
+<td>Move imported image to new position</td>
+</tr>
+<tr>
+<td><code>mouse wheel ↑/↓</code></td>
+<td>Zoom in and out (in vieweport panel); Forward and backward through image series (in slice-by-slice panel)</td>
+</tr>
+<tr>
+<td><code>Measuring tool</code></td>
+<td>Activate by clicking on measure button (ruler icon), then right-click on two different points between which you wish to measure the distance.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="slice-by-slice-viewer">Slice-by-Slice Viewer</h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>left click and drag</code></td>
+<td>Drag to pan field of view</td>
+</tr>
+<tr>
+<td><code>mouse wheel ↑/↓</code></td>
+<td>Zoom in and out (in vieweport panel); Forward and backward through image series (in slice-by-slice panel)</td>
+</tr>
+<tr>
+<td><code>Measuring tool</code></td>
+<td>Activate by clicking on measure button (ruler icon), then right-click on two different points between which y ou wish to measure the distance.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="focus-tool">Focus Tool</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 78%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Command</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code class="interpreted-text"
+role="kbd">mouse wheel ↑/↓</code></td>
+<td>Zoom in and out (in vieweport panel); Forward and backward through
+image series (in slice-by-slice panel)</td>
+</tr>
+<tr class="even">
+<td><code class="interpreted-text" role="kbd">PgUp / PgDown</code></td>
+<td><blockquote>
+<p>then right-click on two different points between which you wish to
+measure the distance.</p>
+</blockquote></td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": [], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
