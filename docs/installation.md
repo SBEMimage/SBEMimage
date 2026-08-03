@@ -10,12 +10,13 @@ Click on the green button 'Code' and select 'Download ZIP', then unzip the conte
 Select the desired release after selecting [Releases](https://github.com/SBEMimage/SBEMimage/releases),
 then under the corresponding Assets section, select the Source code (zip). Then unzip the contents.
 
-Follow the instructions under the section below: Installation for developers
+Follow the instructions under the section below: [Installation for developers](#installation-for-developers)
 
 
 ## Windows 10+ Installer (deprecated)
 
-For most users, we recommend downloading the Windows 10 or higher installer
+Note: this is no longer supported.
+It is possible to download the Windows 10+ installer from releases 2020 and before
 ([Releases](https://github.com/SBEMimage/SBEMimage/releases)). This
 installer automatically installs Python and all required packages in
 local subdirectories, registers the application (so that you can use the

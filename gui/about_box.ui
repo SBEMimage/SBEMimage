@@ -58,7 +58,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>Copyright (c) 2018-2020</string>
+    <string>Copyright (c) 2018 - 2026</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_version">
@@ -118,22 +118,6 @@
     <string>https://github.com/SBEMimage</string>
    </property>
   </widget>
-  <widget class="QLabel" name="label_5">
-   <property name="geometry">
-    <rect>
-     <x>14</x>
-     <y>244</y>
-     <width>351</width>
-     <height>16</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Contact lead developer: btitze@protonmail.ch</string>
-   </property>
-   <property name="textInteractionFlags">
-    <set>Qt::LinksAccessibleByMouse</set>
-   </property>
-  </widget>
   <widget class="QLabel" name="label_6">
    <property name="geometry">
     <rect>
@@ -165,7 +149,7 @@
     <rect>
      <x>14</x>
      <y>104</y>
-     <width>181</width>
+     <width>381</width>
      <height>16</height>
     </rect>
    </property>
