@@ -1,8 +1,7 @@
 # For developers
 
-The following notes (to be expanded) are for developers who would like
-to contribute to the development of *SBEMimage*. Questions? Please
-contact btitze ÄT protonmail.ch.
+The following notes are for developers who would like
+to contribute to the development of *SBEMimage*.
 
 ## General
 
@@ -93,15 +92,14 @@ SEM and viewport coordinates.
 
 ## Git workflow
 
-The 'master' branch contains tested code ready for production use. It is
-protected, currently only [btitze](https://github.com/btitze) can push
-to this branch.
+The 'master' branch contains tested code ready for production use, and is
+protected.
 
 The [dev](https://github.com/SBEMimage/SBEMimage/tree/dev) branch is
 used for all ongoing development. Several developers who are familiar
 with the code base can work directly on that branch. Pull requests to
 that branch are welcome, ideally from short-lived feature branches. If
 you wish to develop new functionality or suggest larger (structural)
-changes, it is recommended to contact btitze ÄT protonmail.ch first to
+changes, it is recommended to post on [Image.sc forum](https://forum.image.sc) with the tag #sbemimage to
 discuss what you have in mind, or post a message on *SBEMimage*'s
 [GitHub Issues](https://github.com/SBEMimage/SBEMimage/issues) page.

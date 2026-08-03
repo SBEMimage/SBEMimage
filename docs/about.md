@@ -13,23 +13,19 @@ institutes that have substantially contributed to SBEMimage
 development/testing: EPFL, Lausanne, Switzerland (CIME/BioEM); Francis
 Crick Institute, London, UK.
 
-Development team: Benjamin Titze
-([btitze](https://github.com/btitze)), Friedrich Miescher Institute for
-Biomedical Research, Basel, Switzerland (lead developer); Thomas
-Templier, Janelia Research Campus; Joost de Folter, Graham Ross, Francis Crick
-Institute; Philipp Schubert, Max Planck Institute of Neurobiology; and
-[others](https://github.com/SBEMimage/SBEMimage/graphs).
+Development team:
+Benjamin Titze, Friedrich Miescher Institute for Biomedical Research, Switzerland (founder);
+Joost de Folter, Graham Ross, Francis Crick Institute, UK;
+Thomas Templier, Janelia Research Campus, USA;
+Philipp Schubert, Max Planck Institute of Neurobiology, Germany;
+[all contributors](https://github.com/SBEMimage/SBEMimage/graphs/contributors?all=1).
 
-Contact btitze ÄT protonmail.ch if you are interested in contributing to
-the development of *SBEMimage*. All ongoing development takes place in
+All ongoing development takes place in
 the 'dev' branch. Pull requests to that branch are welcome. For more
-information, see the section 'For developers' in this user guide.
+information, see the section [For developers](development.md) in this user guide.
 
-Please use [GitHub
-Issues](https://github.com/SBEMimage/SBEMimage/issues) for bug reports.
-For general feedback or feature suggestions, post to the [Image.sc
-forum](https://forum.image.sc) with the tag 'sbemimage', or send an
-email to btitze ÄT protonmail.ch.
+Please use [GitHub Issues](https://github.com/SBEMimage/SBEMimage/issues) for bug reports.
+For general feedback or feature suggestions, post to the [Image.sc forum](https://forum.image.sc) with the tag #sbemimage.
 
 Please cite the following paper if you use *SBEMimage*:
 
