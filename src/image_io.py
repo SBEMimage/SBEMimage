@@ -123,6 +123,8 @@ def imread_metadata(path):
     rotation = None
     dimension_order = 'yxc'
     channels = []
+    creator = None
+    acquisition_date = None
 
     if is_tiff:
         with tifffile.TiffFile(path) as tiff:
@@ -139,6 +141,8 @@ def imread_metadata(path):
                 metadata = tifffile.xml2dict(tiff.ome_metadata)
                 if 'OME' in metadata:
                     metadata = metadata['OME']
+                creator = metadata.get('Creator')
+                acquisition_date = metadata.get('Image', {}).get('AcquisitionDate')
                 pixels = metadata.get('Image', {}).get('Pixels', {})
                 pixel_size = [(float(pixels.get('PhysicalSizeX', 0)), pixels.get('PhysicalSizeXUnit', 'µm')),
                               (float(pixels.get('PhysicalSizeY', 0)), pixels.get('PhysicalSizeYUnit', 'µm'))]
@@ -149,6 +153,8 @@ def imread_metadata(path):
                     if 'PositionX' in plane and 'PositionY' in plane:
                         position1 = [(float(plane['PositionX']), plane.get('PositionXUnit', 'µm')),
                                      (float(plane['PositionY']), plane.get('PositionYUnit', 'µm'))]
+                        if 'PositionZ' in plane:
+                            position1.append((float(plane['PositionZ']), plane.get('PositionZUnit', 'µm')))
                         position.append(convert_units_micrometer(position1))
                 channels0 = pixels.get('Channel', [])
                 if not isinstance(channels0, list):
@@ -256,6 +262,10 @@ def imread_metadata(path):
         all_metadata['rotation'] = rotation
     if len(channels) > 0:
         all_metadata['channels'] = channels
+    if creator:
+        all_metadata['creator'] = creator
+    if acquisition_date:
+        all_metadata['acquisition_date'] = acquisition_date
     return all_metadata
 
 
