@@ -306,7 +306,8 @@ def create_tiff_metadata(metadata, shape, is_ome=False):
     channels = metadata.get('channels', [])
 
     if is_ome:
-        ome_metadata = {'Creator': 'SBEMimage ' + VERSION, 'AcquisitionDate': datetime.now().isoformat()}
+        acquisition_date = metadata.get('acquisition_date', datetime.now().isoformat())
+        ome_metadata = {'Creator': 'SBEMimage ' + VERSION, 'AcquisitionDate': acquisition_date}
         ome_channels = []
         if pixel_size_um is not None:
             ome_metadata['PhysicalSizeX'] = pixel_size_um[0]

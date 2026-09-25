@@ -8,6 +8,9 @@ import json
 import os
 import re
 import sys
+import uuid
+
+import tifffile
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 
@@ -16,9 +19,13 @@ from CoordinateSystem import CoordinateSystem
 from image_io import imread, imread_metadata, imwrite
 
 
-# SBEMimage images acquired before this date stored the raw stage position (image centre) and possibly
-# an incorrect pixel size in their metadata (fixed in commits 684fa51 / 284d9ac)
+# SBEMimage images acquired before this date / version stored the raw stage position (image centre) and possibly
+# an incorrect pixel size in their metadata (fixed in commits 684fa51 / 284d9ac, released in version 2026.01.01)
 SBEMIMAGE_METADATA_FIX_DATE = datetime(2025, 12, 24)
+SBEMIMAGE_METADATA_FIX_VERSION = (2026, 1, 1)
+
+# offset between UUID time (100 ns intervals since 1582-10-15) and unix epoch
+UUID_EPOCH_OFFSET = 0x01b21dd213814000
 
 
 def find_sbemimage_meta_dir(path, max_hops=5):
@@ -62,13 +69,62 @@ def get_sbemimage_pixel_size_um(path, cfg):
     return None
 
 
-def needs_sbemimage_fix(path, metadata):
-    if 'SBEMimage' not in metadata.get('creator', ''):
-        return False, None
+def parse_sbemimage_version(creator):
+    # SBEMimage version is its release date, e.g. 'SBEMimage 2025.3.11 dev'
+    match = re.search(r'SBEMimage\s+(\d{4})\.(\d{1,2})\.(\d{1,2})', creator)
+    if match:
+        return tuple(map(int, match.groups()))
+    return None
+
+
+def to_local_naive(dt):
+    if dt.tzinfo is not None:
+        dt = dt.astimezone().replace(tzinfo=None)
+    return dt
+
+
+def get_tiff_datetime(path):
+    """Get image creation time from TIFF DateTime tag, or from the time-based (version 1) OME UUID
+    generated when the file was written. Returns local time."""
     try:
-        acquisition_datetime = datetime.fromisoformat(metadata['acquisition_date'])
+        with tifffile.TiffFile(path) as tiff:
+            tag = tiff.pages.first.tags.get('DateTime')
+            if tag is not None:
+                try:
+                    return datetime.strptime(tag.value.strip(), '%Y:%m:%d %H:%M:%S')
+                except ValueError:
+                    pass
+            if tiff.is_ome:
+                match = re.search(r'UUID="urn:uuid:([0-9a-fA-F-]{36})"', tiff.ome_metadata)
+                if match:
+                    ome_uuid = uuid.UUID(match.group(1))
+                    if ome_uuid.version == 1:
+                        return datetime.fromtimestamp((ome_uuid.time - UUID_EPOCH_OFFSET) / 1e7)
+    except Exception:
+        pass
+    return None
+
+
+def get_acquisition_datetime(path, metadata):
+    # order: OME acquisition date, TIFF DateTime tag / OME UUID time, file modification time
+    try:
+        return to_local_naive(datetime.fromisoformat(metadata['acquisition_date']))
     except (KeyError, ValueError):
-        acquisition_datetime = datetime.fromtimestamp(os.path.getmtime(path))
+        pass
+    tiff_datetime = get_tiff_datetime(path)
+    if tiff_datetime is not None:
+        return tiff_datetime
+    return datetime.fromtimestamp(os.path.getmtime(path))
+
+
+def needs_sbemimage_fix(path, metadata):
+    creator = metadata.get('creator', '')
+    if 'SBEMimage' not in creator:
+        return False, None
+    acquisition_datetime = get_acquisition_datetime(path, metadata)
+    version = parse_sbemimage_version(creator)
+    if version is not None:
+        return version < SBEMIMAGE_METADATA_FIX_VERSION, acquisition_datetime
     return acquisition_datetime < SBEMIMAGE_METADATA_FIX_DATE, acquisition_datetime
 
 
@@ -129,6 +185,8 @@ def get_output_path(input_path, output_dir=None):
 def convert_image(input_path, output_path, pixel_size_um=None,
                   npyramid_add=DEFAULT_PYRAMID_LEVELS, pyramid_downsample=DEFAULT_PYRAMID_DOWNSAMPLE):
     metadata = imread_metadata(input_path)
+    # keep original acquisition time
+    metadata['acquisition_date'] = get_acquisition_datetime(input_path, metadata).isoformat()
     if pixel_size_um is not None:
         metadata['pixel_size'] = pixel_size_um
     metadata = fix_metadata(input_path, metadata, pixel_size_um)
