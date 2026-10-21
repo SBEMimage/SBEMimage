@@ -73,7 +73,8 @@ MINOR
       metadata=self.get_grab_metadata(stage))` instead of `PIL.Image.save` (the TODO already in the code), so
       TESCAN images carry pixel size and position.
 - [ ] **napari-isbem reads 1024 bytes** - its `TCPServer.run` calls `conn.recv(1024)` once; the state grows with the
-      number of overviews (`ov_dirs` paths). Read until the JSON parses or the client stops sending (napari-isbem
+      number of overviews (`ov_dirs` paths): over 1024 bytes at 11 overviews with a 22-character `base_dir`, 9 with
+      37 characters, 6 with 78 characters. Read until the JSON parses or the client stops sending (napari-isbem
       repo).
 - [ ] **RemoteControlTCP** - remove `src/RemoteControlTCP.py`, or wire it up if SBEMimage should also accept
       commands outside the per-slice exchange.
