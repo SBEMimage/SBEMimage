@@ -6,12 +6,6 @@ Run the app without hardware with a system config whose devices are `Mock SEM` /
 
 ## Known issues
 
-### docs/development.md names old module files
-Its architecture overview refers to `main_controls.py`, `viewport.py`, `acquisition.py`, `sem_control.py`,
-`microtome_control.py`, `sem_control_zeiss.py`, `main_controls_dlg_windows.py` and `viewport_dlg_windows.py`. The
-code now uses CamelCase modules (`MainControls.py`, `sem/SEM_SmartSEM.py`, ...) and one file per dialog in
-`src/dialog/`.
-
 ### Config backward compatibility before merging dev to master
 `src/config_template.py` notes that several `system.cfg` entries need backward compatibility before the dev branch
 is merged to master.
@@ -30,7 +24,6 @@ ESSENTIAL
 
 MINOR
 
-- [ ] **Update docs/development.md** - module names and folder structure to the current code (see Known issues).
 
 REFACTORING
 
@@ -38,3 +31,6 @@ REFACTORING
 - [ ] **constants.py enums** - replace hard-coded values with `auto()`.
 
 ## Done
+
+- **docs/development.md up to date** - module names (CamelCase files, `sem/`, `microtome/`, `src/dialog/`), folder
+  structure and architecture overview match the current code.

@@ -5,9 +5,9 @@ Follow these when making changes here. They extend the developer notes in
 
 ## Orientation
 - Entry point `src/sbemimage.py`; `MainControls.py` (main window, startup), `Viewport.py` (Viewport, Slice-by-slice
-  Viewer, Acquisition Monitor), `Acquisition.py` (acquisition loop `run()`, in a thread).
-- Grids, overviews and imported images are managed by `GridManager`, `OverviewManager` and `ImportedImage`; their
-  instances are `self.gm`, `self.ovm` and `self.imported` throughout.
+  Viewer and Reslice/Statistics tabs), `Acquisition.py` (acquisition loop `run()`, in a thread).
+- Grids, overviews, imported images and templates are managed by `GridManager`, `OverviewManager`,
+  `ImportedImages` and `TemplateManager`; their instances are `self.gm`, `self.ovm`, `self.imported` and `self.tm`.
 - Device control: base classes `src/sem/SEM.py` and `src/microtome/Microtome.py`; each implementation is the base
   name plus `_` and the brand or API (`SEM_SmartSEM.py`, `Microtome_katana.py`). `SEM_Mock` / `Microtome_Mock` stand
   in for hardware.
@@ -15,8 +15,6 @@ Follow these when making changes here. They extend the developer notes in
   Change a layout in the `.ui` file, not by building widgets in code.
 - `CoordinateSystem.py` converts between stage, SEM and viewport coordinates; `ImageInspector.py` does image
   quality checks and debris detection; `utils.py` holds helpers, `constants.py` enums and `VERSION`.
-- docs/development.md still names the old module files (`main_controls.py`, `sem_control_zeiss.py`); the CamelCase
-  files above are current.
 
 ## Configuration
 - Session settings are `.ini`, system (hardware) settings `.cfg`; the templates are `src/default_cfg/default.ini`
