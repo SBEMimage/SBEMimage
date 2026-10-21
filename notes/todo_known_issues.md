@@ -56,8 +56,7 @@ ESSENTIAL
       reset and timed-out connections) and `ValueError` (invalid JSON) around `send_data_tcp`/`process_tcp_commands`,
       log them and `pause_acquisition(1)`, as for a refused connection. In `process_tcp_commands`, read
       `cmd.get('args', [])` / `cmd.get('kwargs', {})` and log an unknown or failing command instead of raising.
-      Optionally a `tcp_timeout` setting in `[acq]` passed to `socket.settimeout` in `TCPRemote.send` (needs
-      `CFG_NUMBER_KEYS` updated in `config_template.py` and the docs' Connection section).
+      Optionally a `tcp_timeout` setting in `[acq]` passed to `socket.settimeout` in `TCPRemote.send`.
 
 MINOR
 
