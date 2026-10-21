@@ -11,7 +11,7 @@ An example of such a tool is the [napari-isbem](https://github.com/FrancisCrickI
 -   SBEMimage is the TCP *client*; the external tool must run a TCP *server* at the host and port set in the TCP settings (session configuration `[acq]`: `use_tcp`, `tcp_host`, default `localhost`, and `tcp_port`, default `8888`).
 -   At the start of every slice of an acquisition (the first one included, and after the cut of the previous slice), SBEMimage opens a connection, sends the state as one JSON object, and waits for the reply.
 -   The reply is one JSON object. SBEMimage reads until the connection is closed or a newline (`\n`) is received, so the server must close the connection or end the reply with a newline after sending it.
--   There is no timeout: the acquisition waits until the server replies. If the connection is refused (no server running), the acquisition is paused.
+-   There is no timeout: the acquisition waits until the server replies. If the connection is refused (no server running), the acquisition is paused. Other errors (a connection reset, a reply that is not valid JSON, a command without `args` or `kwargs`) stop the acquisition.
 -   The state can be larger than 1024 bytes (it grows with the number of overviews): the server should read until it has a complete JSON object.
 
 ## State sent by SBEMimage
@@ -28,7 +28,7 @@ An example of such a tool is the [napari-isbem](https://github.com/FrancisCrickI
 
 | Key | Type | Units / meaning |
 |---|---|---|
-| `paused` | bool | Intended to show whether a pause has been requested; currently always `true` during an acquisition, so do not rely on it |
+| `paused` | bool | Currently always `true`, so do not rely on it. The state is only sent while the acquisition is running: a paused acquisition sends no requests |
 | `z_depth` | float | Current stage Z position in µm (the microtome stage if used, otherwise the SEM stage) |
 | `number_ov` | int | Number of overviews; overview indices are `0 .. number_ov - 1` |
 | `ov_coords` | list of `[x, y]` | Top-left corner of each overview, in SEM coordinates (µm, see below) |
@@ -86,7 +86,7 @@ For `ADD ARRAY GRID`:
 -   `roi_center` `[x, y]`: centre of the region of interest relative to `ref_center`, in µm along the image axes.
 -   `size` `[width, height]`: size of the region of interest in µm.
 
-The grid centre in stage coordinates is computed as `convert_d_to_s(roi_center / scale + ref_center)`, and the grid size from `size / scale`, where `scale` is the calibration's `[scale_x, scale_y]`. With a calibrated scale of 1 (in magnitude) this is the region of interest as drawn; with other scales the region is offset and resized by that factor.
+The grid centre in stage coordinates is computed as `convert_d_to_s(roi_center / scale + ref_center)`, and the grid size from `size / scale`, where `scale` is the calibration's `[scale_x, scale_y]`. With a calibrated scale of exactly 1 this is the region of interest as drawn. Other scales offset and resize the region by that factor, and a negative scale (an axis flipped by the calibration, as in the default SEM-stage calibration) mirrors the offset along that axis and gives a negative size: check the grid's position in the Viewport before acquiring.
 
 New grids are not rotated, so they are aligned with the SEM's image axes: the overview and the grids must be acquired with the same scan rotation.
 
